@@ -41,8 +41,7 @@ class CallStackReader {
     /**
      * Constructor.
      *
-     * @param reflectionUtils
-     *            the reflection utils instance.
+     * @param reflectionUtils the reflection utils instance.
      */
     public CallStackReader(final ReflectionUtils reflectionUtils) {
         this.reflectionUtils = reflectionUtils;
@@ -55,9 +54,8 @@ class CallStackReader {
      */
     private static Class<?>[] getCallStackViaStackWalker() {
         try {
-            return StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE)
-                    .walk(stackFrames -> stackFrames.map(StackWalker.StackFrame::getDeclaringClass)
-                            .toArray(Class<?>[]::new));
+            return StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE).walk(
+                    stackFrames -> stackFrames.map(StackWalker.StackFrame::getDeclaringClass).toArray(Class<?>[]::new));
         } catch (Exception | LinkageError e) {
             return null;
         }

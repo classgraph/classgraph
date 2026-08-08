@@ -5,27 +5,26 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ScanResult;
 import io.quarkus.bootstrap.runner.RunnerClassLoader;
 
 /**
- * Test that {@code QuarkusClassLoaderHandler} does not throw when Quarkus' {@code RunnerClassLoader} does not have
- * the {@code resourceDirectoryMap} field that the handler reads by reflection (Quarkus renames these fields between
- * releases -- the handler already tolerates this for the {@code QuarkusClassLoader} field {@code elements}).
+ * Test that {@code QuarkusClassLoaderHandler} does not throw when Quarkus'
+ * {@code RunnerClassLoader} does not have the {@code resourceDirectoryMap}
+ * field that the handler reads by reflection (Quarkus renames these fields
+ * between releases -- the handler already tolerates this for the
+ * {@code QuarkusClassLoader} field {@code elements}).
  */
 public class QuarkusRunnerClassLoaderTest {
-    /** Scanning with a RunnerClassLoader that has no resourceDirectoryMap field should not throw. */
+    /**
+     * Scanning with a RunnerClassLoader that has no resourceDirectoryMap field
+     * should not throw.
+     */
     @Test
     public void runnerClassLoaderWithoutResourceDirectoryMap() {
-        assertThatCode(new org.assertj.core.api.ThrowableAssert.ThrowingCallable() {
-            @Override
-            public void call() {
-                try (ScanResult scanResult = new ClassGraph()
-                        .overrideClassLoaders(new RunnerClassLoader())
-                        .acceptPackages("nonapi.io.github.classgraph.classloaderhandler")
-                        .scan()) {
-                    scanResult.getAllClasses();
-                }
+        assertThatCode(() -> {
+            try (var scanResult = new ClassGraph().overrideClassLoaders(new RunnerClassLoader())
+                    .acceptPackages("nonapi.io.github.classgraph.classloaderhandler").scan()) {
+                scanResult.getAllClasses();
             }
         }).doesNotThrowAnyException();
     }

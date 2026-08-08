@@ -34,7 +34,6 @@ import java.io.InputStream;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.file.attribute.PosixFilePermission;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -47,7 +46,6 @@ import nonapi.io.github.classgraph.concurrency.SingletonMap.NullSingletonExcepti
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
 import nonapi.io.github.classgraph.fastzipfilereader.LogicalZipFile;
 import nonapi.io.github.classgraph.fileslice.reader.ClassfileReader;
-import nonapi.io.github.classgraph.recycler.RecycleOnClose;
 import nonapi.io.github.classgraph.recycler.Recycler;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.scanspec.ScanSpec.ScanSpecPathMatch;
@@ -65,7 +63,10 @@ class ClasspathElementModule extends ClasspathElement {
     /** The module ref. */
     final ModuleRef moduleRef;
 
-    /** A singleton map from a {@link ModuleRef} to a {@link ModuleReaderProxy} recycler for the module. */
+    /**
+     * A singleton map from a {@link ModuleRef} to a {@link ModuleReaderProxy}
+     * recycler for the module.
+     */
     SingletonMap<ModuleRef, Recycler<ModuleReaderProxy, IOException>, IOException> //
     moduleRefToModuleReaderProxyRecyclerMap;
 
@@ -78,35 +79,32 @@ class ClasspathElementModule extends ClasspathElement {
     /**
      * A zip/jarfile classpath element.
      *
-     * @param moduleRef
-     *            the module ref
-     * @param workUnit
-     *            the work unit
-     * @param moduleRefToModuleReaderProxyRecyclerMap
-     *            the module ref to module reader proxy recycler map
-     * @param scanSpec
-     *            the scan spec
+     * @param moduleRef                               the module ref
+     * @param workUnit                                the work unit
+     * @param moduleRefToModuleReaderProxyRecyclerMap the module ref to module
+     *                                                reader proxy recycler map
+     * @param scanSpec                                the scan spec
      */
     ClasspathElementModule(final ModuleRef moduleRef,
             final SingletonMap<ModuleRef, Recycler<ModuleReaderProxy, IOException>, IOException> //
-            moduleRefToModuleReaderProxyRecyclerMap, final ClasspathEntryWorkUnit workUnit,
-            final ScanSpec scanSpec) {
+            moduleRefToModuleReaderProxyRecyclerMap, final ClasspathEntryWorkUnit workUnit, final ScanSpec scanSpec) {
         super(workUnit, scanSpec);
         this.moduleRefToModuleReaderProxyRecyclerMap = moduleRefToModuleReaderProxyRecyclerMap;
         this.moduleRef = moduleRef;
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see io.github.classgraph.ClasspathElement#open(
-     * nonapi.io.github.classgraph.concurrency.WorkQueue, nonapi.io.github.classgraph.utils.LogNode)
+     * nonapi.io.github.classgraph.concurrency.WorkQueue,
+     * nonapi.io.github.classgraph.utils.LogNode)
      */
     @Override
-    void open(final WorkQueue<ClasspathEntryWorkUnit> workQueueIgnored, final LogNode log)
-            throws InterruptedException {
+    void open(final WorkQueue<ClasspathEntryWorkUnit> workQueueIgnored, final LogNode log) throws InterruptedException {
         if (!scanSpec.scanModules) {
             if (log != null) {
-                log(classpathElementIdx, "Skipping module, since module scanning is disabled: " + getModuleName(),
-                        log);
+                log(classpathElementIdx, "Skipping module, since module scanning is disabled: " + getModuleName(), log);
             }
             skipClasspathElement = true;
             return;
@@ -124,10 +122,10 @@ class ClasspathElementModule extends ClasspathElement {
     }
 
     /**
-     * Create a new {@link Resource} object for a resource or classfile discovered while scanning paths.
+     * Create a new {@link Resource} object for a resource or classfile discovered
+     * while scanning paths.
      *
-     * @param resourcePath
-     *            the resource path
+     * @param resourcePath the resource path
      * @return the resource
      */
     private Resource newResource(final String resourcePath) {
@@ -192,7 +190,7 @@ class ClasspathElementModule extends ClasspathElement {
             @Override
             public URI getURI() {
                 try {
-                    final ModuleReaderProxy localModuleReaderProxy = moduleReaderProxyRecycler.acquire();
+                    final var localModuleReaderProxy = moduleReaderProxyRecycler.acquire();
                     try {
                         return localModuleReaderProxy.find(resourcePath);
                     } finally {
@@ -261,7 +259,8 @@ class ClasspathElementModule extends ClasspathElement {
                         }
                         // Recycle the (open) ModuleReaderProxy instance.
                         moduleReaderProxyRecycler.recycle(moduleReaderProxy);
-                        // Don't call ModuleReaderProxy#close(), leave the ModuleReaderProxy open in the recycler.
+                        // Don't call ModuleReaderProxy#close(), leave the ModuleReaderProxy open in the
+                        // recycler.
                         // Just set the ref to null here. The ModuleReaderProxy will be closed by
                         // ClasspathElementModule#close().
                         moduleReaderProxy = null;
@@ -277,10 +276,9 @@ class ClasspathElementModule extends ClasspathElement {
     /**
      * Get the {@link Resource} for a given relative path.
      *
-     * @param relativePath
-     *            The relative path of the {@link Resource} to return.
-     * @return The {@link Resource} for the given relative path, or null if relativePath does not exist in this
-     *         classpath element.
+     * @param relativePath The relative path of the {@link Resource} to return.
+     * @return The {@link Resource} for the given relative path, or null if
+     *         relativePath does not exist in this classpath element.
      */
     @Override
     Resource getResource(final String relativePath) {
@@ -290,8 +288,7 @@ class ClasspathElementModule extends ClasspathElement {
     /**
      * Scan for package matches within module.
      *
-     * @param log
-     *            the log
+     * @param log the log
      */
     @Override
     void scanPaths(final LogNode log) {
@@ -303,22 +300,24 @@ class ClasspathElementModule extends ClasspathElement {
             throw new IllegalArgumentException("Already scanned classpath element " + this);
         }
 
-        final LogNode subLog = log == null ? null
-                : log(classpathElementIdx, "Scanning module " + moduleRef.getName(), log);
+        final var subLog = log == null ? null : log(classpathElementIdx, "Scanning module " + moduleRef.getName(), log);
 
         // Determine whether this is a modular jar
-        final boolean isModularJar = getModuleName() != null;
+        final var isModularJar = getModuleName() != null;
 
-        try (RecycleOnClose<ModuleReaderProxy, IOException> moduleReaderProxyRecycleOnClose //
+        try (var moduleReaderProxyRecycleOnClose //
                 = moduleReaderProxyRecycler.acquireRecycleOnClose()) {
             // Look for accepted files in the module.
-            List<String> resourceRelativePaths;
+            final List<String> resourceRelativePaths;
             try {
                 resourceRelativePaths = moduleReaderProxyRecycleOnClose.get().list(subLog);
             } catch (final SecurityException | IllegalArgumentException e) {
-                // A module whose contents cannot be listed is skipped, rather than aborting the whole scan.
-                // (A ModuleReader that returns null from list(), in violation of its contract, is handled by
-                // ModuleReaderProxy#list(LogNode) instead, which treats the module as empty -- see #887)
+                // A module whose contents cannot be listed is skipped, rather than aborting the
+                // whole scan.
+                // (A ModuleReader that returns null from list(), in violation of its contract,
+                // is handled by
+                // ModuleReaderProxy#list(LogNode) instead, which treats the module as empty --
+                // see #887)
                 if (subLog != null) {
                     subLog.log("Could not get resource list for module " + moduleRef.getName()
                             + " -- skipping this module", e);
@@ -330,36 +329,47 @@ class ClasspathElementModule extends ClasspathElement {
             String prevParentRelativePath = null;
             ScanSpecPathMatch prevParentMatchStatus = null;
             for (final String relativePath : resourceRelativePaths) {
-                // From ModuleReader#find(): "If the module reader can determine that the name locates a
-                // directory then the resulting URI will end with a slash ('/')."  But from the documentation
-                // for ModuleReader#list(): "Whether the stream of elements includes names corresponding to
-                // directories in the module is module reader specific."  We don't have a way of checking if
-                // a resource is a directory without trying to open it, unless ModuleReader#list() also decides
-                // to put a "/" on the end of resource paths corresponding to directories. Skip directories if
-                // they are found, but if they are not able to be skipped, we will have to settle for having
+                // From ModuleReader#find(): "If the module reader can determine that the name
+                // locates a
+                // directory then the resulting URI will end with a slash ('/')." But from the
+                // documentation
+                // for ModuleReader#list(): "Whether the stream of elements includes names
+                // corresponding to
+                // directories in the module is module reader specific." We don't have a way of
+                // checking if
+                // a resource is a directory without trying to open it, unless
+                // ModuleReader#list() also decides
+                // to put a "/" on the end of resource paths corresponding to directories. Skip
+                // directories if
+                // they are found, but if they are not able to be skipped, we will have to
+                // settle for having
                 // some IOExceptions thrown when directories are mistaken for resource files.
                 if (relativePath.endsWith("/")) {
                     continue;
                 }
 
-                // Paths in modules should never start with "META-INF/versions/{version}/", because the module
-                // system should already strip these prefixes away. If they are found, then the jarfile must
-                // contain a path like "META-INF/versions/{version}/META-INF/versions/{version}/", which cannot
-                // be valid (META-INF should only ever exist in the module root), and the nested versioned section
+                // Paths in modules should never start with "META-INF/versions/{version}/",
+                // because the module
+                // system should already strip these prefixes away. If they are found, then the
+                // jarfile must
+                // contain a path like
+                // "META-INF/versions/{version}/META-INF/versions/{version}/", which cannot
+                // be valid (META-INF should only ever exist in the module root), and the nested
+                // versioned section
                 // should be ignored.
                 if (!scanSpec.enableMultiReleaseVersions
                         && relativePath.startsWith(LogicalZipFile.MULTI_RELEASE_PATH_PREFIX)) {
                     if (subLog != null) {
-                        subLog.log(
-                                "Found unexpected nested versioned entry in module -- skipping: " + relativePath);
+                        subLog.log("Found unexpected nested versioned entry in module -- skipping: " + relativePath);
                     }
                     continue;
                 }
 
-                // If this is a modular jar, ignore all classfiles other than "module-info.class" in the
+                // If this is a modular jar, ignore all classfiles other than
+                // "module-info.class" in the
                 // default package, since these are disallowed.
                 if (isModularJar && relativePath.indexOf('/') < 0 && relativePath.endsWith(".class")
-                        && !relativePath.equals("module-info.class")) {
+                        && !"module-info.class".equals(relativePath)) {
                     continue;
                 }
 
@@ -368,13 +378,13 @@ class ClasspathElementModule extends ClasspathElement {
                     continue;
                 }
 
-                // Get match status of the parent directory of this resource's relative path (or reuse the last
+                // Get match status of the parent directory of this resource's relative path (or
+                // reuse the last
                 // match status for speed, if the directory name hasn't changed).
-                final int lastSlashIdx = relativePath.lastIndexOf('/');
-                final String parentRelativePath = lastSlashIdx < 0 ? "/"
-                        : relativePath.substring(0, lastSlashIdx + 1);
-                final boolean parentRelativePathChanged = !parentRelativePath.equals(prevParentRelativePath);
-                final ScanSpecPathMatch parentMatchStatus = //
+                final var lastSlashIdx = relativePath.lastIndexOf('/');
+                final var parentRelativePath = lastSlashIdx < 0 ? "/" : relativePath.substring(0, lastSlashIdx + 1);
+                final var parentRelativePathChanged = !parentRelativePath.equals(prevParentRelativePath);
+                final var parentMatchStatus = //
                         prevParentRelativePath == null || parentRelativePathChanged
                                 ? scanSpec.dirAcceptMatchStatus(parentRelativePath)
                                 : prevParentMatchStatus;
@@ -397,20 +407,21 @@ class ClasspathElementModule extends ClasspathElement {
                             || (parentMatchStatus == ScanSpecPathMatch.AT_ACCEPTED_CLASS_PACKAGE
                                     && scanSpec.classfileIsSpecificallyAccepted(relativePath))) {
                         // Add accepted resource
-                        addAcceptedResource(newResource(relativePath), parentMatchStatus,
-                                /* isClassfileOnly = */ false, subLog);
-                    } else if (scanSpec.enableClassInfo && relativePath.equals("module-info.class")) {
-                        // Add module descriptor as an accepted classfile resource, so that it is scanned,
+                        addAcceptedResource(newResource(relativePath), parentMatchStatus, /* isClassfileOnly = */ false,
+                                subLog);
+                    } else if (scanSpec.enableClassInfo && "module-info.class".equals(relativePath)) {
+                        // Add module descriptor as an accepted classfile resource, so that it is
+                        // scanned,
                         // but don't add it to the list of resources in the ScanResult, since it is not
                         // in an accepted package (#352)
-                        addAcceptedResource(newResource(relativePath), parentMatchStatus,
-                                /* isClassfileOnly = */ true, subLog);
+                        addAcceptedResource(newResource(relativePath), parentMatchStatus, /* isClassfileOnly = */ true,
+                                subLog);
                     }
                 }
             }
 
             // Save last modified time for the module file
-            final File moduleFile = moduleRef.getLocationFile();
+            final var moduleFile = moduleRef.getLocationFile();
             if (moduleFile != null && moduleFile.exists()) {
                 fileToLastModified.put(moduleFile, moduleFile.lastModified());
             }
@@ -441,7 +452,7 @@ class ClasspathElementModule extends ClasspathElement {
      */
     @Override
     public String getModuleName() {
-        String moduleName = moduleRef.getName();
+        var moduleName = moduleRef.getName();
         if (moduleName == null || moduleName.isEmpty()) {
             moduleName = moduleNameFromModuleDescriptor;
         }
@@ -451,21 +462,25 @@ class ClasspathElementModule extends ClasspathElement {
     /**
      * Get the module name from the module reference or the module descriptor.
      *
-     * @return the module name, or the empty string if the module does not have a name.
+     * @return the module name, or the empty string if the module does not have a
+     *         name.
      */
     private String getModuleNameOrEmpty() {
-        final String moduleName = getModuleName();
+        final var moduleName = getModuleName();
         return moduleName == null ? "" : moduleName;
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see io.github.classgraph.ClasspathElement#getURI()
      */
     @Override
     URI getURI() {
-        final URI uri = moduleRef.getLocation();
+        final var uri = moduleRef.getLocation();
         if (uri == null) {
-            // Some modules have no known module location (ModuleReference#location() can return null)
+            // Some modules have no known module location (ModuleReference#location() can
+            // return null)
             throw new IllegalArgumentException("Module " + getModuleName() + " has a null location");
         }
         return uri;
@@ -473,16 +488,18 @@ class ClasspathElementModule extends ClasspathElement {
 
     @Override
     List<URI> getAllURIs() {
-        return Collections.singletonList(getURI());
+        return List.of(getURI());
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see io.github.classgraph.ClasspathElement#getFile()
      */
     @Override
     File getFile() {
         try {
-            final URI uri = moduleRef.getLocation();
+            final var uri = moduleRef.getLocation();
             // N.B. uri.getScheme() is null for a relative URI, so compare in this order
             if (uri != null && !"jrt".equals(uri.getScheme())) {
                 final File file = new File(uri);
@@ -509,21 +526,22 @@ class ClasspathElementModule extends ClasspathElement {
     /**
      * Equals.
      *
-     * @param obj
-     *            the obj
+     * @param obj the obj
      * @return true, if successful
      */
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
     public boolean equals(final Object obj) {
         if (obj == this) {
             return true;
-        } else if (!(obj instanceof ClasspathElementModule)) {
+        }
+        if (!(obj instanceof final ClasspathElementModule other)) {
             return false;
         }
-        final ClasspathElementModule other = (ClasspathElementModule) obj;
         return this.getModuleNameOrEmpty().equals(other.getModuleNameOrEmpty());
     }
 
@@ -532,7 +550,9 @@ class ClasspathElementModule extends ClasspathElement {
      *
      * @return the int
      */
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.Object#hashCode()
      */
     @Override

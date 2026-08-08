@@ -30,17 +30,14 @@ package io.github.classgraph.issues.issue407;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.ops4j.pax.url.mvn.MavenResolvers;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ScanResult;
 
 /**
  * Test.
@@ -49,26 +46,26 @@ public class Issue407Test {
     /**
      * Test.
      *
-     * @throws IOException
-     *             Signals that an I/O exception has occurred.
+     * @throws IOException Signals that an I/O exception has occurred.
      */
     @Test
     public void issue407Test() throws IOException {
         // Resolve and download scala-library
-        final File resolvedFile = MavenResolvers.createMavenResolver(null, null).resolve("com.google.guava",
-                "guava", null, null, "25.0-jre");
+        final var resolvedFile = MavenResolvers.createMavenResolver(null, null).resolve("com.google.guava", "guava",
+                null, null, "25.0-jre");
         assertThat(resolvedFile).isFile();
 
         // Create a new custom class loader
-        final ClassLoader classLoader = new URLClassLoader(new URL[] { resolvedFile.toURI().toURL() }, null);
+        final var classLoader = new URLClassLoader(new URL[] { resolvedFile.toURI().toURL() }, null);
 
-        // Scan the classpath -- used to throw an exception for Stack, since companion object inherits
+        // Scan the classpath -- used to throw an exception for Stack, since companion
+        // object inherits
         // from different class
-        try (ScanResult scanResult = new ClassGraph() //
+        try (var scanResult = new ClassGraph() //
                 .acceptPackages("com.google.thirdparty.publicsuffix") //
                 .overrideClassLoaders(classLoader) //
                 .scan()) {
-            final List<String> classNames = scanResult //
+            final var classNames = scanResult //
                     .getAllClasses() //
                     .getNames();
             assertThat(classNames).contains("com.google.thirdparty.publicsuffix.PublicSuffixPatterns");

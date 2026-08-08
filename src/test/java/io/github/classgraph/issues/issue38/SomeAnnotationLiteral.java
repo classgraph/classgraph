@@ -9,7 +9,9 @@ import io.github.classgraph.issues.issue38.Issue38Test.AnnotationLiteral;
  */
 @SuppressWarnings("all")
 public class SomeAnnotationLiteral extends AnnotationLiteral<SomeAnnotationLiteral> implements SomeAnnotation {
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see io.github.classgraph.issues.issue38.SomeAnnotation#value()
      */
     @Override
@@ -17,7 +19,9 @@ public class SomeAnnotationLiteral extends AnnotationLiteral<SomeAnnotationLiter
         return "test";
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.annotation.Annotation#annotationType()
      */
     @Override

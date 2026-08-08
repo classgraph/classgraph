@@ -23,10 +23,8 @@ public class JSONSerializationTest {
     /**
      * The Class A.
      *
-     * @param <X>
-     *            the generic type
-     * @param <Y>
-     *            the generic type
+     * @param <X> the generic type
+     * @param <Y> the generic type
      */
     private static class A<X, Y> {
 
@@ -46,10 +44,8 @@ public class JSONSerializationTest {
         /**
          * Constructor.
          *
-         * @param x
-         *            the x
-         * @param y
-         *            the y
+         * @param x the x
+         * @param y the y
          */
         public A(final X x, final Y y) {
             this.x = x;
@@ -60,8 +56,7 @@ public class JSONSerializationTest {
     /**
      * The Class B.
      *
-     * @param <V>
-     *            the value type
+     * @param <V> the value type
      */
     private static class B<V> {
 
@@ -78,8 +73,7 @@ public class JSONSerializationTest {
         /**
          * Constructor.
          *
-         * @param q
-         *            the q
+         * @param q the q
          */
         public B(final V q) {
             this.b = q;
@@ -89,8 +83,7 @@ public class JSONSerializationTest {
     /**
      * The Class C.
      *
-     * @param <T>
-     *            the generic type
+     * @param <T> the generic type
      */
     private static class C<T> extends B<T> {
 
@@ -109,8 +102,7 @@ public class JSONSerializationTest {
         /**
          * Constructor.
          *
-         * @param t
-         *            the t
+         * @param t the t
          */
         public C(final T t) {
             super(t);
@@ -122,7 +114,7 @@ public class JSONSerializationTest {
             ts.add(t);
             ts.add(t);
             @SuppressWarnings("unchecked")
-            final T[] a = (T[]) ts.toArray();
+            final var a = (T[]) ts.toArray();
             arr = a;
         }
     }
@@ -130,8 +122,7 @@ public class JSONSerializationTest {
     /**
      * The Class D.
      *
-     * @param <T>
-     *            the generic type
+     * @param <T> the generic type
      */
     private static class D<T> {
 
@@ -157,8 +148,7 @@ public class JSONSerializationTest {
         /**
          * Constructor.
          *
-         * @param obj
-         *            the obj
+         * @param obj the obj
          */
         public D(final T obj) {
             z = obj;
@@ -191,8 +181,7 @@ public class JSONSerializationTest {
         /**
          * Constructor.
          *
-         * @param obj
-         *            the obj
+         * @param obj the obj
          */
         public E(final Short obj) {
             super(obj);
@@ -216,8 +205,7 @@ public class JSONSerializationTest {
         /**
          * Constructor.
          *
-         * @param f
-         *            the f
+         * @param f the f
          */
         public F(final Float f) {
             super(f);
@@ -250,13 +238,13 @@ public class JSONSerializationTest {
      */
     @Test
     public void testJSON() {
-        final H h = new H();
+        final var h = new H();
         h.g = new G();
 
-        final ReflectionUtils reflectionUtils = new ReflectionUtils();
-        final String json0 = JSONSerializer.serializeFromField(h, "g", 0, false);
+        final var reflectionUtils = new ReflectionUtils();
+        final var json0 = JSONSerializer.serializeFromField(h, "g", 0, false);
 
-        final String expected = //
+        final var expected = //
                 "{\"e\":{\"list\":[3,3,3],\"map\":{\"3\":3},\"q\":{\"b\":3,\"a\":{\"x\":[3],\"y\":\"x\"},"
                         + "\"arr\":[3,3,3]}," + "\"c\":{\"b\":5,\"a\":{\"x\":[5],\"y\":\"x\"},\"arr\":[5,5,5]},"
                         + "\"z\":42},\"f\":{\"list\":[1.5,1.5,1.5],\"map\":{\"1.5\":1.5}," + "\"q\":{\"b\":1.5,"
@@ -264,9 +252,9 @@ public class JSONSerializationTest {
 
         assertThat(json0).isEqualTo(expected);
 
-        final G obj = JSONDeserializer.deserializeObject(G.class, json0);
+        final var obj = JSONDeserializer.deserializeObject(G.class, json0);
 
-        final String json1 = JSONSerializer.serializeObject(obj, 0, false);
+        final var json1 = JSONSerializer.serializeObject(obj, 0, false);
 
         assertThat(json0).isEqualTo(json1);
     }
@@ -276,20 +264,22 @@ public class JSONSerializationTest {
      */
     @Test
     public void testSerializeThenDeserializeScanResult() {
-        // Get URL base for overriding classpath (otherwise the JSON representation of the ScanResult won't be
-        // the same after the first and second deserialization, because overrideClasspath is set by the first
+        // Get URL base for overriding classpath (otherwise the JSON representation of
+        // the ScanResult won't be
+        // the same after the first and second deserialization, because
+        // overrideClasspath is set by the first
         // serialization for consistency.)
-        final String classfileURL = getClass().getClassLoader()
+        final var classfileURL = getClass().getClassLoader()
                 .getResource(JSONSerializationTest.class.getName().replace('.', '/') + ".class").toString();
-        final String classpathBase = classfileURL.substring(0,
+        final var classpathBase = classfileURL.substring(0,
                 classfileURL.length() - (JSONSerializationTest.class.getName().length() + 6));
-        try (ScanResult scanResult = new ClassGraph().overrideClasspath(classpathBase)
-                .acceptPackagesNonRecursive(JSONSerializationTest.class.getPackage().getName())
-                .ignoreClassVisibility().scan()) {
-            final int indent = 2;
-            final String scanResultJSON = scanResult.toJSON(indent);
-            final ScanResult scanResultDeserialized = ScanResult.fromJSON(scanResultJSON);
-            final String scanResultReserializedJSON = scanResultDeserialized.toJSON(indent);
+        try (var scanResult = new ClassGraph().overrideClasspath(classpathBase)
+                .acceptPackagesNonRecursive(JSONSerializationTest.class.getPackage().getName()).ignoreClassVisibility()
+                .scan()) {
+            final var indent = 2;
+            final var scanResultJSON = scanResult.toJSON(indent);
+            final var scanResultDeserialized = ScanResult.fromJSON(scanResultJSON);
+            final var scanResultReserializedJSON = scanResultDeserialized.toJSON(indent);
             assertThat(scanResultReserializedJSON).isEqualTo(scanResultJSON);
         }
     }

@@ -8,9 +8,10 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 /**
- * {@link ClassInfo#getOrCreateClassInfo(String, Map)} tries to be resilient to being passed a class descriptor
- * ("Ljava/lang/String;") rather than a class name, but it stripped the descriptor by keeping only its last
- * character, rather than by removing the leading 'L' and the trailing ';'.
+ * {@link ClassInfo#getOrCreateClassInfo(String, Map)} tries to be resilient to
+ * being passed a class descriptor ("Ljava/lang/String;") rather than a class
+ * name, but it stripped the descriptor by keeping only its last character,
+ * rather than by removing the leading 'L' and the trailing ';'.
  */
 public class ClassInfoDescriptorNameTest {
     /** A class descriptor is converted to a class name. */

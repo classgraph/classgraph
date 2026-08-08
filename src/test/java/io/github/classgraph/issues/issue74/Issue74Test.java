@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ScanResult;
 
 /**
  * Issue74Test.
@@ -40,8 +39,7 @@ public class Issue74Test {
      */
     @Test
     public void issue74() {
-        try (ScanResult scanResult = new ClassGraph().acceptPackages(Issue74Test.class.getPackage().getName())
-                .scan()) {
+        try (var scanResult = new ClassGraph().acceptPackages(Issue74Test.class.getPackage().getName()).scan()) {
             assertThat(scanResult.getClassesImplementing(Function.class).getNames()).containsOnly(
                     FunctionAdapter.class.getName(), ImplementsFunction.class.getName(),
                     ExtendsFunctionAdapter.class.getName());

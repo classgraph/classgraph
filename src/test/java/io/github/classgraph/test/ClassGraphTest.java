@@ -32,7 +32,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
 import java.util.HashSet;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.junit.jupiter.api.Test;
@@ -40,8 +39,6 @@ import org.junit.jupiter.api.Test;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.FieldInfo;
 import io.github.classgraph.Resource;
-import io.github.classgraph.ResourceList.ByteArrayConsumerThrowsIOException;
-import io.github.classgraph.ScanResult;
 import io.github.classgraph.test.accepted.Accepted;
 import io.github.classgraph.test.accepted.AcceptedInterface;
 import io.github.classgraph.test.accepted.Cls;
@@ -78,8 +75,8 @@ public class ClassGraphTest {
      */
     @Test
     public void scan() {
-        try (ScanResult scanResult = new ClassGraph().enableClassInfo().scan()) {
-            final List<String> allClasses = scanResult.getAllClasses().getNames();
+        try (var scanResult = new ClassGraph().enableClassInfo().scan()) {
+            final var allClasses = scanResult.getAllClasses().getNames();
             assertThat(allClasses).contains(Cls.class.getName());
             assertThat(allClasses).contains(ClassGraph.class.getName());
             assertThat(allClasses).contains(ClassGraphTest.class.getName());
@@ -93,8 +90,8 @@ public class ClassGraphTest {
      */
     @Test
     public void scanWithAccept() {
-        try (ScanResult scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE).scan()) {
-            final List<String> allClasses = scanResult.getAllClasses().getNames();
+        try (var scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE).scan()) {
+            final var allClasses = scanResult.getAllClasses().getNames();
             assertThat(allClasses).contains(Cls.class.getName());
             assertThat(allClasses).doesNotContain(ClassGraph.class.getName());
             assertThat(allClasses).doesNotContain(ClassGraphTest.class.getName());
@@ -108,9 +105,9 @@ public class ClassGraphTest {
      */
     @Test
     public void scanWithAcceptAndReject() {
-        try (ScanResult scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE)
+        try (var scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE)
                 .rejectPackages(RejectedSub.class.getPackage().getName()).scan()) {
-            final List<String> allClasses = scanResult.getAllClasses().getNames();
+            final var allClasses = scanResult.getAllClasses().getNames();
             assertThat(allClasses).contains(Cls.class.getName());
             assertThat(allClasses).doesNotContain(ClassGraph.class.getName());
             assertThat(allClasses).doesNotContain(ClassGraphTest.class.getName());
@@ -124,12 +121,12 @@ public class ClassGraphTest {
      */
     @Test
     public void scanSubAndSuperclasses() {
-        try (ScanResult scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE).scan()) {
-            final List<String> subclasses = scanResult.getSubclasses(Cls.class).getNames();
+        try (var scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE).scan()) {
+            final var subclasses = scanResult.getSubclasses(Cls.class).getNames();
             assertThat(subclasses).doesNotContain(Cls.class.getName());
             assertThat(subclasses).contains(ClsSub.class.getName());
             assertThat(subclasses).contains(ClsSubSub.class.getName());
-            final List<String> superclasses = scanResult.getSuperclasses(ClsSubSub.class.getName()).getNames();
+            final var superclasses = scanResult.getSuperclasses(ClsSubSub.class.getName()).getNames();
             assertThat(superclasses).doesNotContain(ClsSubSub.class.getName());
             assertThat(superclasses).contains(ClsSub.class.getName());
             assertThat(superclasses).contains(Cls.class.getName());
@@ -141,12 +138,12 @@ public class ClassGraphTest {
      */
     @Test
     public void scanSubAndSuperinterface() {
-        try (ScanResult scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE).scan()) {
-            final List<String> subinterfaces = scanResult.getClassesImplementing(Iface.class).getNames();
+        try (var scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE).scan()) {
+            final var subinterfaces = scanResult.getClassesImplementing(Iface.class).getNames();
             assertThat(subinterfaces).doesNotContain(Iface.class.getName());
             assertThat(subinterfaces).contains(IfaceSub.class.getName());
             assertThat(subinterfaces).contains(IfaceSubSub.class.getName());
-            final List<String> superinterfaces = scanResult.getInterfaces(IfaceSubSub.class.getName()).getNames();
+            final var superinterfaces = scanResult.getInterfaces(IfaceSubSub.class.getName()).getNames();
             assertThat(superinterfaces).doesNotContain(IfaceSubSub.class.getName());
             assertThat(superinterfaces).contains(IfaceSub.class.getName());
             assertThat(superinterfaces).contains(Iface.class.getName());
@@ -158,25 +155,19 @@ public class ClassGraphTest {
      */
     @Test
     public void scanTransitiveImplements() {
-        try (ScanResult scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE).scan()) {
-            assertThat(scanResult.getClassesImplementing(Iface.class).getNames())
-                    .doesNotContain(Iface.class.getName());
+        try (var scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE).scan()) {
+            assertThat(scanResult.getClassesImplementing(Iface.class).getNames()).doesNotContain(Iface.class.getName());
             assertThat(scanResult.getClassesImplementing(IfaceSubSub.class).getNames())
                     .doesNotContain(Cls.class.getName());
 
             assertThat(scanResult.getClassesImplementing(Iface.class).getNames()).contains(Impl1.class.getName());
-            assertThat(scanResult.getClassesImplementing(IfaceSub.class).getNames())
-                    .contains(Impl1.class.getName());
-            assertThat(scanResult.getClassesImplementing(IfaceSubSub.class).getNames())
-                    .contains(Impl1.class.getName());
-            assertThat(scanResult.getClassesImplementing(Iface.class).getNames())
-                    .contains(Impl1Sub.class.getName());
-            assertThat(scanResult.getClassesImplementing(IfaceSub.class).getNames())
-                    .contains(Impl1Sub.class.getName());
+            assertThat(scanResult.getClassesImplementing(IfaceSub.class).getNames()).contains(Impl1.class.getName());
+            assertThat(scanResult.getClassesImplementing(IfaceSubSub.class).getNames()).contains(Impl1.class.getName());
+            assertThat(scanResult.getClassesImplementing(Iface.class).getNames()).contains(Impl1Sub.class.getName());
+            assertThat(scanResult.getClassesImplementing(IfaceSub.class).getNames()).contains(Impl1Sub.class.getName());
             assertThat(scanResult.getClassesImplementing(IfaceSubSub.class).getNames())
                     .contains(Impl1Sub.class.getName());
-            assertThat(scanResult.getClassesImplementing(Iface.class).getNames())
-                    .contains(Impl1SubSub.class.getName());
+            assertThat(scanResult.getClassesImplementing(Iface.class).getNames()).contains(Impl1SubSub.class.getName());
             assertThat(scanResult.getClassesImplementing(IfaceSub.class).getNames())
                     .contains(Impl1SubSub.class.getName());
             assertThat(scanResult.getClassesImplementing(IfaceSubSub.class).getNames())
@@ -187,14 +178,12 @@ public class ClassGraphTest {
                     .doesNotContain(Impl2.class.getName());
             assertThat(scanResult.getClassesImplementing(IfaceSubSub.class).getNames())
                     .doesNotContain(Impl2.class.getName());
-            assertThat(scanResult.getClassesImplementing(Iface.class).getNames())
-                    .contains(Impl2Sub.class.getName());
+            assertThat(scanResult.getClassesImplementing(Iface.class).getNames()).contains(Impl2Sub.class.getName());
             assertThat(scanResult.getClassesImplementing(IfaceSub.class).getNames())
                     .doesNotContain(Impl2Sub.class.getName());
             assertThat(scanResult.getClassesImplementing(IfaceSubSub.class).getNames())
                     .doesNotContain(Impl2Sub.class.getName());
-            assertThat(scanResult.getClassesImplementing(Iface.class).getNames())
-                    .contains(Impl2SubSub.class.getName());
+            assertThat(scanResult.getClassesImplementing(Iface.class).getNames()).contains(Impl2SubSub.class.getName());
             assertThat(scanResult.getClassesImplementing(IfaceSub.class).getNames())
                     .contains(Impl2SubSub.class.getName());
             assertThat(scanResult.getClassesImplementing(IfaceSubSub.class).getNames())
@@ -207,7 +196,7 @@ public class ClassGraphTest {
      */
     @Test
     public void testExternalSuperclassReturned() {
-        try (ScanResult scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE).scan()) {
+        try (var scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE).scan()) {
             assertThat(scanResult.getSuperclasses(Accepted.class.getName()).getNames())
                     .containsExactly(RejectedSuperclass.class.getName());
             assertThat(scanResult.getSubclasses(Accepted.class).getNames()).isEmpty();
@@ -221,8 +210,7 @@ public class ClassGraphTest {
      */
     @Test
     public void testAcceptedWithoutExceptionWithoutStrictAccept() {
-        try (ScanResult scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE).enableExternalClasses()
-                .scan()) {
+        try (var scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE).enableExternalClasses().scan()) {
             assertThat(scanResult.getSuperclasses(Accepted.class.getName()).getNames())
                     .containsExactly(RejectedSuperclass.class.getName());
         }
@@ -232,7 +220,7 @@ public class ClassGraphTest {
      * Test can query with rejected annotation.
      */
     public void testCanQueryWithRejectedAnnotation() {
-        try (ScanResult scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE).scan()) {
+        try (var scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE).scan()) {
             assertThat(scanResult.getSuperclasses(Accepted.class.getName()).getNames()).isEmpty();
             assertThat(scanResult.getClassesWithAnnotation(RejectedAnnotation.class).getNames())
                     .containsExactly(Accepted.class.getName());
@@ -244,7 +232,7 @@ public class ClassGraphTest {
      */
     @Test
     public void testRejectedPlaceholderNotReturned() {
-        try (ScanResult scanResult = new ClassGraph().acceptPackages(ROOT_PACKAGE)
+        try (var scanResult = new ClassGraph().acceptPackages(ROOT_PACKAGE)
                 .rejectPackages(RejectedAnnotation.class.getPackage().getName()).enableAnnotationInfo().scan()) {
             assertThat(scanResult.getSuperclasses(Accepted.class.getName()).getNames()).isEmpty();
             assertThat(scanResult.getSubclasses(Accepted.class).getNames()).isEmpty();
@@ -255,11 +243,12 @@ public class ClassGraphTest {
     }
 
     /**
-     * Test rejected package overrides accepted class with accepted override returned.
+     * Test rejected package overrides accepted class with accepted override
+     * returned.
      */
     @Test
     public void testRejectedPackageOverridesAcceptedClassWithAcceptedOverrideReturned() {
-        try (ScanResult scanResult = new ClassGraph().acceptPackages(ROOT_PACKAGE)
+        try (var scanResult = new ClassGraph().acceptPackages(ROOT_PACKAGE)
                 .rejectPackages(RejectedAnnotation.class.getPackage().getName())
                 .acceptClasses(RejectedAnnotation.class.getName()).enableAnnotationInfo().scan()) {
             assertThat(scanResult.getAnnotationsOnClass(Accepted.class.getName()).getNames()).isEmpty();
@@ -271,7 +260,7 @@ public class ClassGraphTest {
      */
     @Test
     public void testNonAcceptedAnnotationReturnedWithoutStrictAccept() {
-        try (ScanResult scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE).enableAnnotationInfo()
+        try (var scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE).enableAnnotationInfo()
                 .enableExternalClasses().scan()) {
             assertThat(scanResult.getAnnotationsOnClass(Accepted.class.getName()).getNames())
                     .containsOnly(RejectedAnnotation.class.getName());
@@ -283,8 +272,7 @@ public class ClassGraphTest {
      */
     @Test
     public void testExternalAnnotationReturned() {
-        try (ScanResult scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE).enableAnnotationInfo()
-                .scan()) {
+        try (var scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE).enableAnnotationInfo().scan()) {
             assertThat(scanResult.getAnnotationsOnClass(Accepted.class.getName()).getNames())
                     .containsExactly(RejectedAnnotation.class.getName());
         }
@@ -294,7 +282,7 @@ public class ClassGraphTest {
      * Test rejected package.
      */
     public void testRejectedPackage() {
-        try (ScanResult scanResult = new ClassGraph()
+        try (var scanResult = new ClassGraph()
                 .acceptPackages(ROOT_PACKAGE, "-" + RejectedSuperclass.class.getPackage().getName()).scan()) {
             assertThat(scanResult.getSuperclasses(Accepted.class.getName()).getNames()).isEmpty();
             assertThat(scanResult.getSubclasses(Accepted.class).getNames()).isEmpty();
@@ -308,7 +296,7 @@ public class ClassGraphTest {
      * Test no exception if querying rejected.
      */
     public void testNoExceptionIfQueryingRejected() {
-        try (ScanResult scanResult = new ClassGraph()
+        try (var scanResult = new ClassGraph()
                 .acceptPackages(ACCEPT_PACKAGE, "-" + RejectedSuperclass.class.getPackage().getName()).scan()) {
             assertThat(scanResult.getSuperclasses(RejectedSuperclass.class.getName()).getNames()).isEmpty();
         }
@@ -318,7 +306,7 @@ public class ClassGraphTest {
      * Test no exception if explicitly accepted class in rejected package.
      */
     public void testNoExceptionIfExplicitlyAcceptedClassInRejectedPackage() {
-        try (ScanResult scanResult = new ClassGraph()
+        try (var scanResult = new ClassGraph()
                 .acceptPackages(ACCEPT_PACKAGE,
                         "-" + RejectedSuperclass.class.getPackage().getName() + RejectedSuperclass.class.getName())
                 .scan()) {
@@ -331,7 +319,7 @@ public class ClassGraphTest {
      */
     @Test
     public void testVisibleIfNotRejected() {
-        try (ScanResult scanResult = new ClassGraph().acceptPackages(ROOT_PACKAGE).enableAnnotationInfo().scan()) {
+        try (var scanResult = new ClassGraph().acceptPackages(ROOT_PACKAGE).enableAnnotationInfo().scan()) {
             assertThat(scanResult.getSuperclasses(Accepted.class.getName()).getNames())
                     .containsExactly(RejectedSuperclass.class.getName());
             assertThat(scanResult.getSubclasses(Accepted.class).getNames())
@@ -350,16 +338,11 @@ public class ClassGraphTest {
      */
     @Test
     public void scanFilePattern() {
-        final AtomicBoolean readFileContents = new AtomicBoolean(false);
-        try (ScanResult scanResult = new ClassGraph().acceptPathsNonRecursive("").scan()) {
+        final var readFileContents = new AtomicBoolean(false);
+        try (var scanResult = new ClassGraph().acceptPathsNonRecursive("").scan()) {
             try {
-                scanResult.getResourcesWithLeafName("file-content-test.txt")
-                        .forEachByteArrayThrowingIOException(new ByteArrayConsumerThrowsIOException() {
-                            @Override
-                            public void accept(final Resource resource, final byte[] byteArray) throws IOException {
-                                readFileContents.set(new String(byteArray).equals("File contents"));
-                            }
-                        });
+                scanResult.getResourcesWithLeafName("file-content-test.txt").forEachByteArrayThrowingIOException(
+                        (resource, byteArray) -> readFileContents.set("File contents".equals(new String(byteArray))));
             } catch (final IOException e) {
                 throw new RuntimeException(e);
             }
@@ -372,9 +355,9 @@ public class ClassGraphTest {
      */
     @Test
     public void scanStaticFinalFieldName() {
-        try (ScanResult scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE)
+        try (var scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE)
                 .enableStaticFinalFieldConstantInitializerValues().scan()) {
-            int numInitializers = 0;
+            var numInitializers = 0;
             for (final FieldInfo fieldInfo : scanResult.getClassInfo(StaticField.class.getName()).getFieldInfo()) {
                 if (fieldInfo.getConstantInitializerValue() != null) {
                     numInitializers++;
@@ -387,8 +370,7 @@ public class ClassGraphTest {
     /**
      * Scan static final field name ignore visibility.
      *
-     * @throws Exception
-     *             the exception
+     * @throws Exception the exception
      */
     @Test
     public void scanStaticFinalFieldNameIgnoreVisibility() throws Exception {
@@ -397,30 +379,20 @@ public class ClassGraphTest {
                 "integerField", "booleanField" }) {
             fieldNames.add(StaticField.class.getName() + "." + fieldName);
         }
-        try (ScanResult scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE)
+        try (var scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE)
                 .enableStaticFinalFieldConstantInitializerValues().ignoreFieldVisibility().scan()) {
-            int numInitializers = 0;
+            var numInitializers = 0;
             for (final FieldInfo fieldInfo : scanResult.getClassInfo(StaticField.class.getName()).getFieldInfo()) {
-                final Object constInitializerValue = fieldInfo.getConstantInitializerValue();
+                final var constInitializerValue = fieldInfo.getConstantInitializerValue();
                 if (constInitializerValue != null) {
                     switch (fieldInfo.getName()) {
-                    case "stringField":
-                        assertThat("Static field contents").isEqualTo(constInitializerValue);
-                        break;
-                    case "intField":
-                        assertThat(Integer.valueOf(3)).isEqualTo(constInitializerValue);
-                        break;
-                    case "boolField":
-                        assertThat(Boolean.valueOf(true)).isEqualTo(constInitializerValue);
-                        break;
-                    case "charField":
-                        assertThat(Character.valueOf('y')).isEqualTo(constInitializerValue);
-                        break;
-                    case "integerField":
-                    case "booleanField":
+                    case "stringField" -> assertThat("Static field contents").isEqualTo(constInitializerValue);
+                    case "intField" -> assertThat(Integer.valueOf(3)).isEqualTo(constInitializerValue);
+                    case "boolField" -> assertThat(Boolean.valueOf(true)).isEqualTo(constInitializerValue);
+                    case "charField" -> assertThat(Character.valueOf('y')).isEqualTo(constInitializerValue);
+                    case "integerField", "booleanField" ->
                         throw new Exception("Non-constant field should not be matched");
-                    default:
-                        throw new Exception("Unknown field");
+                    default -> throw new Exception("Unknown field");
                     }
                     numInitializers++;
                 }
@@ -434,8 +406,8 @@ public class ClassGraphTest {
      */
     @Test
     public void generateGraphVizFile() {
-        try (ScanResult scanResult = new ClassGraph().acceptPackages(ROOT_PACKAGE).enableAllInfo().scan()) {
-            final String dotFile = scanResult.getAllClasses().generateGraphVizDotFile(20, 20);
+        try (var scanResult = new ClassGraph().acceptPackages(ROOT_PACKAGE).enableAllInfo().scan()) {
+            final var dotFile = scanResult.getAllClasses().generateGraphVizDotFile(20, 20);
             assertThat(dotFile).contains("\"" + ClsSub.class.getName() + "\" -> \"" + Cls.class.getName() + "\"");
         }
     }
@@ -454,8 +426,8 @@ public class ClassGraphTest {
      */
     @Test
     public void testGetManifest() {
-        final AtomicBoolean foundManifest = new AtomicBoolean();
-        try (ScanResult scanResult = new ClassGraph().acceptPaths("META-INF").enableAllInfo().scan()) {
+        final var foundManifest = new AtomicBoolean();
+        try (var scanResult = new ClassGraph().acceptPaths("META-INF").enableAllInfo().scan()) {
             for (@SuppressWarnings("unused")
             final Resource res : scanResult.getResourcesWithLeafName("MANIFEST.MF")) {
                 foundManifest.set(true);

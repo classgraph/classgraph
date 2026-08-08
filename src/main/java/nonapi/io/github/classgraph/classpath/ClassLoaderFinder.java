@@ -44,7 +44,8 @@ public class ClassLoaderFinder {
     /**
      * Get the context class loaders.
      *
-     * @return The context classloader, and any other classloader that is not an ancestor of context classloader.
+     * @return The context classloader, and any other classloader that is not an
+     *         ancestor of context classloader.
      */
     public ClassLoader[] getContextClassLoaders() {
         return contextClassLoaders;
@@ -53,23 +54,20 @@ public class ClassLoaderFinder {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Return true if the class is, extends, or implements a given named class or interface.
+     * Return true if the class is, extends, or implements a given named class or
+     * interface.
      *
-     * @param cls
-     *            the class to test, or null.
-     * @param className
-     *            the name of the class or interface to look for.
+     * @param cls       the class to test, or null.
+     * @param className the name of the class or interface to look for.
      * @return true if cls is, extends, or implements the named class or interface.
      */
-    // TODO: make this a default method of the ClassLoaderHandler interface in ClassGraph 5.x
+    // TODO: make this a default method of the ClassLoaderHandler interface in
+    // ClassGraph 5.x
     public static boolean classIsOrExtendsOrImplements(final Class<?> cls, final String className) {
         if (cls == null) {
             return false;
         }
-        if (cls.getName().equals(className)) {
-            return true;
-        }
-        if (classIsOrExtendsOrImplements(cls.getSuperclass(), className)) {
+        if (cls.getName().equals(className) || classIsOrExtendsOrImplements(cls.getSuperclass(), className)) {
             return true;
         }
         for (final Class<?> iface : cls.getInterfaces()) {
@@ -85,12 +83,9 @@ public class ClassLoaderFinder {
     /**
      * A class to find the unique ordered classpath elements.
      * 
-     * @param scanSpec
-     *            The scan spec, or null if none available.
-     * @param reflectionUtils
-     *            The reflection utils instance.
-     * @param log
-     *            The log.
+     * @param scanSpec        The scan spec, or null if none available.
+     * @param reflectionUtils The reflection utils instance.
+     * @param log             The log.
      */
     ClassLoaderFinder(final ScanSpec scanSpec, final ReflectionUtils reflectionUtils, final LogNode log) {
         LinkedHashSet<ClassLoader> classLoadersUnique;
@@ -98,45 +93,54 @@ public class ClassLoaderFinder {
         if (scanSpec.overrideClassLoaders == null) {
             // ClassLoaders were not overridden
 
-            // There's some advice here about choosing the best or the right classloader, but it is not complete
+            // There's some advice here about choosing the best or the right classloader,
+            // but it is not complete
             // (e.g. it doesn't cover parent delegation modes):
             // http://www.javaworld.com/article/2077344/core-java/find-a-way-out-of-the-classloader-maze.html?page=2
 
-            // Get thread context classloader (this is the first classloader to try, since a context classloader
+            // Get thread context classloader (this is the first classloader to try, since a
+            // context classloader
             // can be set as an override on a per-thread basis)
             classLoadersUnique = new LinkedHashSet<>();
-            final ClassLoader threadClassLoader = Thread.currentThread().getContextClassLoader();
+            final var threadClassLoader = Thread.currentThread().getContextClassLoader();
             if (threadClassLoader != null) {
                 classLoadersUnique.add(threadClassLoader);
             }
 
-            // Get classloader for this class, which will generally be the classloader of the class that
-            // called ClassGraph (the classloader of the caller is used by Class.forName(className), when
+            // Get classloader for this class, which will generally be the classloader of
+            // the class that
+            // called ClassGraph (the classloader of the caller is used by
+            // Class.forName(className), when
             // no classloader is provided)
-            final ClassLoader currClassClassLoader = getClass().getClassLoader();
+            final var currClassClassLoader = getClass().getClassLoader();
             if (currClassClassLoader != null) {
                 classLoadersUnique.add(currClassClassLoader);
             }
 
             // Get system classloader (this is a fallback if one of the above do not work)
-            final ClassLoader systemClassLoader = ClassLoader.getSystemClassLoader();
+            final var systemClassLoader = ClassLoader.getSystemClassLoader();
             if (systemClassLoader != null) {
                 classLoadersUnique.add(systemClassLoader);
             }
 
-            // There is one more classloader in JDK9+, the platform classloader (used for handling extensions),
+            // There is one more classloader in JDK9+, the platform classloader (used for
+            // handling extensions),
             // see: http://openjdk.java.net/jeps/261#Class-loaders
             // The method call to get it is ClassLoader.getPlatformClassLoader()
-            // However, since it's not possible to get URLs from this classloader, and it is the parent of
-            // the application classloader returned by ClassLoader.getSystemClassLoader() (so is delegated to
-            // by the application classloader), there is no point adding it here. Modules are scanned
-            // directly anyway, so we don't need to get module path entries from the platform classloader. 
+            // However, since it's not possible to get URLs from this classloader, and it is
+            // the parent of
+            // the application classloader returned by ClassLoader.getSystemClassLoader()
+            // (so is delegated to
+            // by the application classloader), there is no point adding it here. Modules
+            // are scanned
+            // directly anyway, so we don't need to get module path entries from the
+            // platform classloader.
 
             // Find classloaders for classes on callstack, in case any were missed
             try {
-                final Class<?>[] callStack = new CallStackReader(reflectionUtils).getClassContext();
-                for (int i = callStack.length - 1; i >= 0; --i) {
-                    final ClassLoader callerClassLoader = callStack[i].getClassLoader();
+                final var callStack = new CallStackReader(reflectionUtils).getClassContext();
+                for (var i = callStack.length - 1; i >= 0; --i) {
+                    final var callerClassLoader = callStack[i].getClassLoader();
                     if (callerClassLoader != null) {
                         classLoadersUnique.add(callerClassLoader);
                     }

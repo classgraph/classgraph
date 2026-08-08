@@ -29,7 +29,6 @@
 package nonapi.io.github.classgraph.json;
 
 import java.lang.reflect.Array;
-import java.lang.reflect.Field;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -47,8 +46,8 @@ import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.utils.CollectionUtils;
 
 /**
- * Fast, lightweight Java object to JSON serializer, and JSON to Java object deserializer. Handles cycles in the
- * object graph by inserting reference ids.
+ * Fast, lightweight Java object to JSON serializer, and JSON to Java object
+ * deserializer. Handles cycles in the object graph by inserting reference ids.
  */
 public final class JSONSerializer {
 
@@ -62,23 +61,17 @@ public final class JSONSerializer {
     /**
      * Create a unique id for each referenced JSON object.
      *
-     * @param jsonVal
-     *            the json val
-     * @param objToJSONVal
-     *            a map from obj to JSON val
-     * @param classFieldCache
-     *            the class field cache
-     * @param jsonReferenceToId
-     *            a map from json reference to id
-     * @param objId
-     *            the object id
-     * @param onlySerializePublicFields
-     *            whether to only serialize public fields
+     * @param jsonVal                   the json val
+     * @param objToJSONVal              a map from obj to JSON val
+     * @param classFieldCache           the class field cache
+     * @param jsonReferenceToId         a map from json reference to id
+     * @param objId                     the object id
+     * @param onlySerializePublicFields whether to only serialize public fields
      */
     private static void assignObjectIds(final Object jsonVal,
             final Map<ReferenceEqualityKey<Object>, JSONObject> objToJSONVal, final ClassFieldCache classFieldCache,
-            final Map<ReferenceEqualityKey<JSONReference>, CharSequence> jsonReferenceToId,
-            final AtomicInteger objId, final boolean onlySerializePublicFields) {
+            final Map<ReferenceEqualityKey<JSONReference>, CharSequence> jsonReferenceToId, final AtomicInteger objId,
+            final boolean onlySerializePublicFields) {
         if (jsonVal instanceof final JSONObject jsonObject) {
             for (final Entry<String, Object> item : jsonObject.items) {
                 assignObjectIds(item.getValue(), objToJSONVal, classFieldCache, jsonReferenceToId, objId,
@@ -91,26 +84,26 @@ public final class JSONSerializer {
             }
         } else if (jsonVal instanceof final JSONReference jsonReference) {
             // Get the referenced (non-JSON) object
-            final Object refdObj = jsonReference.idObject();
+            final var refdObj = jsonReference.idObject();
             if (refdObj == null) {
                 // Should not happen
                 throw new RuntimeException("Internal inconsistency");
             }
             // Look up the JSON object corresponding to the referenced object
             final ReferenceEqualityKey<Object> refdObjKey = new ReferenceEqualityKey<>(refdObj);
-            final JSONObject refdJsonVal = objToJSONVal.get(refdObjKey);
+            final var refdJsonVal = objToJSONVal.get(refdObjKey);
             if (refdJsonVal == null) {
                 // Should not happen
                 throw new RuntimeException("Internal inconsistency");
             }
             // See if the JSON object has an @Id field
             // (for serialization, typeResolutions can be null)
-            final Field annotatedField = classFieldCache.get(refdObj.getClass()).idField;
+            final var annotatedField = classFieldCache.get(refdObj.getClass()).idField;
             CharSequence idStr = null;
             if (annotatedField != null) {
                 // Get id value from field annotated with @Id
                 try {
-                    final Object idObject = annotatedField.get(refdObj);
+                    final var idObject = annotatedField.get(refdObj);
                     if (idObject != null) {
                         idStr = idObject.toString();
                         refdJsonVal.objectId = idStr;
@@ -121,7 +114,8 @@ public final class JSONSerializer {
                 }
             }
             if (idStr == null) {
-                // No @Id field, or field value is null -- check if ref'd JSON Object already has an id
+                // No @Id field, or field value is null -- check if ref'd JSON Object already
+                // has an id
                 if (refdJsonVal.objectId == null) {
                     // Ref'd JSON object doesn't have an id yet -- generate unique integer id
                     idStr = JSONUtils.ID_PREFIX + objId.getAndIncrement() + JSONUtils.ID_SUFFIX;
@@ -139,44 +133,43 @@ public final class JSONSerializer {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Take an array of object values, and recursively convert them (in place) into JSON values.
+     * Take an array of object values, and recursively convert them (in place) into
+     * JSON values.
      *
-     * @param convertedVals
-     *            the converted vals
-     * @param visitedOnPath
-     *            visited nodes
-     * @param standardObjectVisited
-     *            visited standard objects
-     * @param classFieldCache
-     *            the class field cache
-     * @param objToJSONVal
-     *            a map from obj to JSON val
-     * @param onlySerializePublicFields
-     *            whether to only serialize public fields
+     * @param convertedVals             the converted vals
+     * @param visitedOnPath             visited nodes
+     * @param standardObjectVisited     visited standard objects
+     * @param classFieldCache           the class field cache
+     * @param objToJSONVal              a map from obj to JSON val
+     * @param onlySerializePublicFields whether to only serialize public fields
      */
-    private static void convertVals(final Object[] convertedVals,
-            final Set<ReferenceEqualityKey<Object>> visitedOnPath,
+    private static void convertVals(final Object[] convertedVals, final Set<ReferenceEqualityKey<Object>> visitedOnPath,
             final Set<ReferenceEqualityKey<Object>> standardObjectVisited, final ClassFieldCache classFieldCache,
-            final Map<ReferenceEqualityKey<Object>, JSONObject> objToJSONVal,
-            final boolean onlySerializePublicFields) {
-        // Pass 1: find standard objects (objects that are not of basic value type or collections/arrays/maps)
-        // that have not yet been visited, and mark them as visited. Place a JSONReference placeholder in
-        // convertedVals[i] to signify this. This first pass is non-recursive, so that objects are visited
-        // as high up the tree as possible, since it is only the first visit of an object that shows in the
+            final Map<ReferenceEqualityKey<Object>, JSONObject> objToJSONVal, final boolean onlySerializePublicFields) {
+        // Pass 1: find standard objects (objects that are not of basic value type or
+        // collections/arrays/maps)
+        // that have not yet been visited, and mark them as visited. Place a
+        // JSONReference placeholder in
+        // convertedVals[i] to signify this. This first pass is non-recursive, so that
+        // objects are visited
+        // as high up the tree as possible, since it is only the first visit of an
+        // object that shows in the
         // final JSON doc, and the rest are turned into references.
-        final ReferenceEqualityKey<?>[] valKeys = new ReferenceEqualityKey<?>[convertedVals.length];
-        final boolean[] needToConvert = new boolean[convertedVals.length];
-        for (int i = 0; i < convertedVals.length; i++) {
-            final Object val = convertedVals[i];
+        final var valKeys = new ReferenceEqualityKey<?>[convertedVals.length];
+        final var needToConvert = new boolean[convertedVals.length];
+        for (var i = 0; i < convertedVals.length; i++) {
+            final var val = convertedVals[i];
             // By default (for basic value types), don't convert vals
             needToConvert[i] = !JSONUtils.isBasicValueType(val);
             if (needToConvert[i] && !JSONUtils.isCollectionOrArray(val)) {
-                // If this object is a standard object or a map, check if it has already been visited
-                // elsewhere in the tree. If so, use a JSONReference instead, and mark the object
+                // If this object is a standard object or a map, check if it has already been
+                // visited
+                // elsewhere in the tree. If so, use a JSONReference instead, and mark the
+                // object
                 // as visited.
                 final ReferenceEqualityKey<Object> valKey = new ReferenceEqualityKey<>(val);
                 valKeys[i] = valKey;
-                final boolean alreadyVisited = !standardObjectVisited.add(valKey);
+                final var alreadyVisited = !standardObjectVisited.add(valKey);
                 if (alreadyVisited) {
                     convertedVals[i] = new JSONReference(val);
                     needToConvert[i] = false;
@@ -187,19 +180,22 @@ public final class JSONSerializer {
                 convertedVals[i] = valClass.getName();
             }
         }
-        // Pass 2: Recursively convert items in standard objects, maps, collections and arrays to JSON objects.
-        for (int i = 0; i < convertedVals.length; i++) {
+        // Pass 2: Recursively convert items in standard objects, maps, collections and
+        // arrays to JSON objects.
+        for (var i = 0; i < convertedVals.length; i++) {
             if (needToConvert[i]) {
-                // Recursively convert standard objects (if it is the first time they have been visited)
+                // Recursively convert standard objects (if it is the first time they have been
+                // visited)
                 // and maps to JSON objects, and convert collections and arrays to JSON arrays.
-                final Object val = convertedVals[i];
-                convertedVals[i] = toJSONGraph(val, visitedOnPath, standardObjectVisited, classFieldCache,
-                        objToJSONVal, onlySerializePublicFields);
+                final var val = convertedVals[i];
+                convertedVals[i] = toJSONGraph(val, visitedOnPath, standardObjectVisited, classFieldCache, objToJSONVal,
+                        onlySerializePublicFields);
                 if (!JSONUtils.isCollectionOrArray(val)) {
-                    // If this object is a standard object or map, then it has not been visited before, 
+                    // If this object is a standard object or map, then it has not been visited
+                    // before,
                     // so save the mapping between original object and converted object
                     @SuppressWarnings("unchecked")
-                    final ReferenceEqualityKey<Object> valKey = (ReferenceEqualityKey<Object>) valKeys[i];
+                    final var valKey = (ReferenceEqualityKey<Object>) valKeys[i];
                     objToJSONVal.put(valKey, (JSONObject) convertedVals[i]);
                 }
             }
@@ -207,8 +203,8 @@ public final class JSONSerializer {
     }
 
     /**
-     * Comparator for set elements, to sort them into some sort of consistent order, so that JSON ordering is
-     * deterministic.
+     * Comparator for set elements, to sort them into some sort of consistent order,
+     * so that JSON ordering is deterministic.
      */
     private static final Comparator<Object> SET_COMPARATOR = (o1, o2) -> {
         if (o1 == null || o2 == null) {
@@ -216,43 +212,37 @@ public final class JSONSerializer {
         }
         if (Comparable.class.isAssignableFrom(o1.getClass()) && Comparable.class.isAssignableFrom(o2.getClass())) {
             @SuppressWarnings("unchecked")
-            final Comparable<Object> comparableO1 = (Comparable<Object>) o1;
+            final var comparableO1 = (Comparable<Object>) o1;
             return comparableO1.compareTo(o2);
         }
-        // If the objects are not comparable, just compare the toString() method, and hope it's overridden
+        // If the objects are not comparable, just compare the toString() method, and
+        // hope it's overridden
         // (otherwise would need to do a deep compare, which is not worth it)
         return o1.toString().compareTo(o2.toString());
     };
 
     /**
-     * Comparator for map entries whose keys could not be sorted before conversion to string form (i.e. keys that
-     * are not {@link Comparable}), so that JSON ordering is deterministic.
+     * Comparator for map entries whose keys could not be sorted before conversion
+     * to string form (i.e. keys that are not {@link Comparable}), so that JSON
+     * ordering is deterministic.
      */
-    private static final Comparator<Entry<String, Object>> ENTRY_KEY_COMPARATOR = Comparator
-            .comparing(Entry::getKey);
+    private static final Comparator<Entry<String, Object>> ENTRY_KEY_COMPARATOR = Comparator.comparing(Entry::getKey);
 
     /**
      * Turn an object graph into a graph of JSON objects, arrays, and values.
      *
-     * @param obj
-     *            the obj
-     * @param visitedOnPath
-     *            visited nodes
-     * @param standardObjectVisited
-     *            standard objects visited
-     * @param classFieldCache
-     *            the class field cache
-     * @param objToJSONVal
-     *            a map from obj to json val
-     * @param onlySerializePublicFields
-     *            whether to only serialize public fields
+     * @param obj                       the obj
+     * @param visitedOnPath             visited nodes
+     * @param standardObjectVisited     standard objects visited
+     * @param classFieldCache           the class field cache
+     * @param objToJSONVal              a map from obj to json val
+     * @param onlySerializePublicFields whether to only serialize public fields
      * @return the object
      */
     @SuppressWarnings({ "unchecked", "rawtypes" })
     private static Object toJSONGraph(final Object obj, final Set<ReferenceEqualityKey<Object>> visitedOnPath,
             final Set<ReferenceEqualityKey<Object>> standardObjectVisited, final ClassFieldCache classFieldCache,
-            final Map<ReferenceEqualityKey<Object>, JSONObject> objToJSONVal,
-            final boolean onlySerializePublicFields) {
+            final Map<ReferenceEqualityKey<Object>, JSONObject> objToJSONVal, final boolean onlySerializePublicFields) {
 
         // For class references, return class name as a string
         if (obj instanceof final Class<?> objClass) {
@@ -269,32 +259,36 @@ public final class JSONSerializer {
         if (!visitedOnPath.add(objKey)) {
             // Reached cycle in graph
             if (JSONUtils.isCollectionOrArray(obj)) {
-                // If we reached a collection that has already been visited, then there is a cycle
-                // terminating at this collection. We don't support collection cycles, since collections
+                // If we reached a collection that has already been visited, then there is a
+                // cycle
+                // terminating at this collection. We don't support collection cycles, since
+                // collections
                 // do not have object ids.
                 throw new IllegalArgumentException(
                         "Cycles involving collections cannot be serialized, since collections are not "
                                 + "assigned object ids. Reached cycle at: " + obj);
             } else {
-                // Object is its own ancestor -- output object reference instead of object to break cycle
+                // Object is its own ancestor -- output object reference instead of object to
+                // break cycle
                 return new JSONReference(obj);
             }
         }
 
         Object jsonVal;
         final Class<?> cls = obj.getClass();
-        final boolean isArray = cls.isArray();
+        final var isArray = cls.isArray();
 
         if (Map.class.isAssignableFrom(cls)) {
-            final Map<Object, Object> map = (Map<Object, Object>) obj;
+            final var map = (Map<Object, Object>) obj;
 
             // Get map keys, and sort them by value if values are Comparable.
-            // Assumes all keys have the same type (or at least that if one key is Comparable, they all are).
+            // Assumes all keys have the same type (or at least that if one key is
+            // Comparable, they all are).
             final ArrayList<?> keys = new ArrayList<>(map.keySet());
-            final int n = keys.size();
-            boolean keysComparable = false;
+            final var n = keys.size();
+            var keysComparable = false;
             Object firstNonNullKey = null;
-            for (int i = 0; i < n && firstNonNullKey == null; i++) {
+            for (var i = 0; i < n && firstNonNullKey == null; i++) {
                 firstNonNullKey = keys.get(i);
             }
             if (firstNonNullKey != null && Comparable.class.isAssignableFrom(firstNonNullKey.getClass())) {
@@ -303,8 +297,8 @@ public final class JSONSerializer {
             }
 
             // Serialize keys into string form
-            final String[] convertedKeys = new String[n];
-            for (int i = 0; i < n; i++) {
+            final var convertedKeys = new String[n];
+            for (var i = 0; i < n; i++) {
                 final Object key = keys.get(i);
                 if (key != null && !JSONUtils.isBasicValueType(key)) {
                     throw new IllegalArgumentException("Map key of type " + key.getClass().getName()
@@ -315,8 +309,8 @@ public final class JSONSerializer {
             }
 
             // Convert map values to JSON values
-            final Object[] convertedVals = new Object[n];
-            for (int i = 0; i < n; i++) {
+            final var convertedVals = new Object[n];
+            for (var i = 0; i < n; i++) {
                 convertedVals[i] = map.get(keys.get(i));
             }
             convertVals(convertedVals, visitedOnPath, standardObjectVisited, classFieldCache, objToJSONVal,
@@ -324,13 +318,16 @@ public final class JSONSerializer {
 
             // Create new JSON object representing the map
             final List<Entry<String, Object>> convertedKeyValPairs = new ArrayList<>(n);
-            for (int i = 0; i < n; i++) {
+            for (var i = 0; i < n; i++) {
                 convertedKeyValPairs.add(new SimpleEntry<>(convertedKeys[i], convertedVals[i]));
             }
 
-            // If the keys were not Comparable, they could not be sorted above, so sort the key/value pairs
-            // by key string here instead, to give a deterministic order. (Sort the pairs, not the key array on
-            // its own -- sorting the keys separately from the values pairs each key with another key's value.)
+            // If the keys were not Comparable, they could not be sorted above, so sort the
+            // key/value pairs
+            // by key string here instead, to give a deterministic order. (Sort the pairs,
+            // not the key array on
+            // its own -- sorting the keys separately from the values pairs each key with
+            // another key's value.)
             if (!keysComparable) {
                 CollectionUtils.sortIfNotEmpty(convertedKeyValPairs, ENTRY_KEY_COMPARATOR);
             }
@@ -338,13 +335,13 @@ public final class JSONSerializer {
 
         } else if (isArray || List.class.isAssignableFrom(cls)) {
             // Serialize an array or list
-            final boolean isList = List.class.isAssignableFrom(cls);
-            final List<?> list = isList ? (List<?>) obj : null;
-            final int n = list != null ? list.size() : isArray ? Array.getLength(obj) : 0;
+            final var isList = List.class.isAssignableFrom(cls);
+            final var list = isList ? (List<?>) obj : null;
+            final var n = list != null ? list.size() : isArray ? Array.getLength(obj) : 0;
 
             // Convert list items to JSON values
-            final Object[] convertedVals = new Object[n];
-            for (int i = 0; i < n; i++) {
+            final var convertedVals = new Object[n];
+            for (var i = 0; i < n; i++) {
                 convertedVals[i] = list != null ? list.get(i) : isArray ? Array.get(obj, i) : 0;
             }
             convertVals(convertedVals, visitedOnPath, standardObjectVisited, classFieldCache, objToJSONVal,
@@ -356,14 +353,15 @@ public final class JSONSerializer {
         } else if (Collection.class.isAssignableFrom(cls)) {
             final Collection<?> collection = (Collection<?>) obj;
 
-            // If collection is a set, need to sort values into some sort of consistent order 
+            // If collection is a set, need to sort values into some sort of consistent
+            // order
             final List<Object> convertedValsList = new ArrayList<>(collection);
             if (Set.class.isAssignableFrom(cls)) {
                 CollectionUtils.sortIfNotEmpty(convertedValsList, SET_COMPARATOR);
             }
 
             // Convert items to JSON values
-            final Object[] convertedVals = convertedValsList.toArray();
+            final var convertedVals = convertedValsList.toArray();
             convertVals(convertedVals, visitedOnPath, standardObjectVisited, classFieldCache, objToJSONVal,
                     onlySerializePublicFields);
 
@@ -374,16 +372,16 @@ public final class JSONSerializer {
             // A standard object -- serialize fields as a JSON associative array.
             // Cache class fields to include in serialization (typeResolutions can be null,
             // since it's not necessary to resolve type parameters during serialization)
-            final ClassFields resolvedFields = classFieldCache.get(cls);
-            final List<FieldTypeInfo> fieldOrder = resolvedFields.fieldOrder;
-            final int n = fieldOrder.size();
+            final var resolvedFields = classFieldCache.get(cls);
+            final var fieldOrder = resolvedFields.fieldOrder;
+            final var n = fieldOrder.size();
 
             // Convert field values to JSON values
-            final String[] fieldNames = new String[n];
-            final Object[] convertedVals = new Object[n];
-            for (int i = 0; i < n; i++) {
-                final FieldTypeInfo fieldTypeInfo = fieldOrder.get(i);
-                final Field field = fieldTypeInfo.field;
+            final var fieldNames = new String[n];
+            final var convertedVals = new Object[n];
+            for (var i = 0; i < n; i++) {
+                final var fieldTypeInfo = fieldOrder.get(i);
+                final var field = fieldTypeInfo.field;
                 fieldNames[i] = field.getName();
                 try {
                     convertedVals[i] = JSONUtils.getFieldValue(obj, field);
@@ -397,15 +395,17 @@ public final class JSONSerializer {
 
             // Create new JSON object representing the standard object
             final List<Entry<String, Object>> convertedKeyValPairs = new ArrayList<>(n);
-            for (int i = 0; i < n; i++) {
+            for (var i = 0; i < n; i++) {
                 convertedKeyValPairs.add(new SimpleEntry<>(fieldNames[i], convertedVals[i]));
             }
             jsonVal = new JSONObject(convertedKeyValPairs);
 
         }
 
-        // In the case of a DAG, just serialize the same object multiple times, i.e. remove obj
-        // from visited set when exiting recursion, so that future instances also get serialized.
+        // In the case of a DAG, just serialize the same object multiple times, i.e.
+        // remove obj
+        // from visited set when exiting recursion, so that future instances also get
+        // serialized.
         visitedOnPath.remove(objKey);
 
         return jsonVal;
@@ -416,23 +416,16 @@ public final class JSONSerializer {
     /**
      * Serialize a JSON object, array, or value.
      *
-     * @param jsonVal
-     *            the json val
-     * @param jsonReferenceToId
-     *            a map from json reference to id
-     * @param includeNullValuedFields
-     *            the include null valued fields
-     * @param depth
-     *            the depth
-     * @param indentWidth
-     *            the indent width
-     * @param buf
-     *            the buf
+     * @param jsonVal                 the json val
+     * @param jsonReferenceToId       a map from json reference to id
+     * @param includeNullValuedFields the include null valued fields
+     * @param depth                   the depth
+     * @param indentWidth             the indent width
+     * @param buf                     the buf
      */
     static void jsonValToJSONString(final Object jsonVal,
             final Map<ReferenceEqualityKey<JSONReference>, CharSequence> jsonReferenceToId,
-            final boolean includeNullValuedFields, final int depth, final int indentWidth,
-            final StringBuilder buf) {
+            final boolean includeNullValuedFields, final int depth, final int indentWidth, final StringBuilder buf) {
 
         if (jsonVal == null) {
             buf.append("null");
@@ -451,8 +444,10 @@ public final class JSONSerializer {
             jsonValToJSONString(referencedObjectId, jsonReferenceToId, includeNullValuedFields, depth, indentWidth,
                     buf);
 
-            // (Test "instanceof Enum" rather than "getClass().isEnum()" -- an enum constant with a
-            // constant-specific class body is an instance of an anonymous subclass of the enum type, and
+            // (Test "instanceof Enum" rather than "getClass().isEnum()" -- an enum constant
+            // with a
+            // constant-specific class body is an instance of an anonymous subclass of the
+            // enum type, and
             // Class#isEnum() is false for that subclass)
         } else if (jsonVal instanceof CharSequence || jsonVal instanceof Character || jsonVal instanceof Enum) {
             // Serialize String, Character or enum val to quoted/escaped string
@@ -461,7 +456,8 @@ public final class JSONSerializer {
             buf.append('"');
 
         } else {
-            // Serialize a numeric or Boolean type (Integer, Long, Short, Float, Double, Boolean, Byte) to string
+            // Serialize a numeric or Boolean type (Integer, Long, Short, Float, Double,
+            // Boolean, Byte) to string
             // (doesn't need quoting or escaping)
             buf.append(jsonVal);
         }
@@ -470,28 +466,28 @@ public final class JSONSerializer {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Recursively serialize an Object (or array, list, map or set of objects) to JSON, skipping transient and final
-     * fields.
+     * Recursively serialize an Object (or array, list, map or set of objects) to
+     * JSON, skipping transient and final fields.
      * 
-     * @param obj
-     *            The root object of the object graph to serialize.
-     * @param indentWidth
-     *            If indentWidth == 0, no prettyprinting indentation is performed, otherwise this specifies the
-     *            number of spaces to indent each level of JSON.
-     * @param onlySerializePublicFields
-     *            If true, only serialize public fields.
-     * @param classFieldCache
-     *            The class field cache. Reusing this cache will increase the speed if many JSON documents of the
-     *            same type need to be produced.
+     * @param obj                       The root object of the object graph to
+     *                                  serialize.
+     * @param indentWidth               If indentWidth == 0, no prettyprinting
+     *                                  indentation is performed, otherwise this
+     *                                  specifies the number of spaces to indent
+     *                                  each level of JSON.
+     * @param onlySerializePublicFields If true, only serialize public fields.
+     * @param classFieldCache           The class field cache. Reusing this cache
+     *                                  will increase the speed if many JSON
+     *                                  documents of the same type need to be
+     *                                  produced.
      * @return The object graph in JSON form.
-     * @throws IllegalArgumentException
-     *             If anything goes wrong during serialization.
+     * @throws IllegalArgumentException If anything goes wrong during serialization.
      */
     public static String serializeObject(final Object obj, final int indentWidth,
             final boolean onlySerializePublicFields, final ClassFieldCache classFieldCache) {
         final HashMap<ReferenceEqualityKey<Object>, JSONObject> objToJSONVal = new HashMap<>();
 
-        final Object rootJsonVal = toJSONGraph(obj, new HashSet<>(), new HashSet<>(), classFieldCache, objToJSONVal,
+        final var rootJsonVal = toJSONGraph(obj, new HashSet<>(), new HashSet<>(), classFieldCache, objToJSONVal,
                 onlySerializePublicFields);
 
         final Map<ReferenceEqualityKey<JSONReference>, CharSequence> jsonReferenceToId = new HashMap<>();
@@ -500,27 +496,24 @@ public final class JSONSerializer {
                 onlySerializePublicFields);
 
         final StringBuilder buf = new StringBuilder(32768);
-        jsonValToJSONString(rootJsonVal, jsonReferenceToId, /* includeNullValuedFields = */ false, 0, indentWidth,
-                buf);
+        jsonValToJSONString(rootJsonVal, jsonReferenceToId, /* includeNullValuedFields = */ false, 0, indentWidth, buf);
         return buf.toString();
     }
 
     /**
-     * Recursively serialize an Object (or array, list, map or set of objects) to JSON, skipping transient and final
-     * fields.
+     * Recursively serialize an Object (or array, list, map or set of objects) to
+     * JSON, skipping transient and final fields.
      * 
-     * @param obj
-     *            The root object of the object graph to serialize.
-     * @param indentWidth
-     *            If indentWidth == 0, no prettyprinting indentation is performed, otherwise this specifies the
-     *            number of spaces to indent each level of JSON.
-     * @param onlySerializePublicFields
-     *            If true, only serialize public fields.
-     * @param reflectionUtils
-     *            the {@link ReflectionUtils} instance.
+     * @param obj                       The root object of the object graph to
+     *                                  serialize.
+     * @param indentWidth               If indentWidth == 0, no prettyprinting
+     *                                  indentation is performed, otherwise this
+     *                                  specifies the number of spaces to indent
+     *                                  each level of JSON.
+     * @param onlySerializePublicFields If true, only serialize public fields.
+     * @param reflectionUtils           the {@link ReflectionUtils} instance.
      * @return The object graph in JSON form.
-     * @throws IllegalArgumentException
-     *             If anything goes wrong during serialization.
+     * @throws IllegalArgumentException If anything goes wrong during serialization.
      */
     public static String serializeObject(final Object obj, final int indentWidth,
             final boolean onlySerializePublicFields, final ReflectionUtils reflectionUtils) {
@@ -529,19 +522,18 @@ public final class JSONSerializer {
     }
 
     /**
-     * Recursively serialize an Object (or array, list, map or set of objects) to JSON, skipping transient and final
-     * fields.
+     * Recursively serialize an Object (or array, list, map or set of objects) to
+     * JSON, skipping transient and final fields.
      * 
-     * @param obj
-     *            The root object of the object graph to serialize.
-     * @param indentWidth
-     *            If indentWidth == 0, no prettyprinting indentation is performed, otherwise this specifies the
-     *            number of spaces to indent each level of JSON.
-     * @param onlySerializePublicFields
-     *            If true, only serialize public fields.
+     * @param obj                       The root object of the object graph to
+     *                                  serialize.
+     * @param indentWidth               If indentWidth == 0, no prettyprinting
+     *                                  indentation is performed, otherwise this
+     *                                  specifies the number of spaces to indent
+     *                                  each level of JSON.
+     * @param onlySerializePublicFields If true, only serialize public fields.
      * @return The object graph in JSON form.
-     * @throws IllegalArgumentException
-     *             If anything goes wrong during serialization.
+     * @throws IllegalArgumentException If anything goes wrong during serialization.
      */
     public static String serializeObject(final Object obj, final int indentWidth,
             final boolean onlySerializePublicFields) {
@@ -549,47 +541,45 @@ public final class JSONSerializer {
     }
 
     /**
-     * Recursively serialize an Object (or array, list, map or set of objects) to JSON, skipping transient and final
-     * fields.
+     * Recursively serialize an Object (or array, list, map or set of objects) to
+     * JSON, skipping transient and final fields.
      * 
-     * @param obj
-     *            The root object of the object graph to serialize.
+     * @param obj The root object of the object graph to serialize.
      * @return The object graph in JSON form.
-     * @throws IllegalArgumentException
-     *             If anything goes wrong during serialization.
+     * @throws IllegalArgumentException If anything goes wrong during serialization.
      */
     public static String serializeObject(final Object obj) {
         return serializeObject(obj, /* indentWidth = */ 0, /* onlySerializePublicFields = */ false);
     }
 
     /**
-     * Recursively serialize the named field of an object, skipping transient and final fields.
+     * Recursively serialize the named field of an object, skipping transient and
+     * final fields.
      * 
-     * @param containingObject
-     *            The object containing the field value to serialize.
-     * @param fieldName
-     *            The name of the field to serialize.
-     * @param indentWidth
-     *            If indentWidth == 0, no prettyprinting indentation is performed, otherwise this specifies the
-     *            number of spaces to indent each level of JSON.
-     * @param onlySerializePublicFields
-     *            If true, only serialize public fields.
-     * @param classFieldCache
-     *            The class field cache. Reusing this cache will increase the speed if many JSON documents of the
-     *            same type need to be produced.
+     * @param containingObject          The object containing the field value to
+     *                                  serialize.
+     * @param fieldName                 The name of the field to serialize.
+     * @param indentWidth               If indentWidth == 0, no prettyprinting
+     *                                  indentation is performed, otherwise this
+     *                                  specifies the number of spaces to indent
+     *                                  each level of JSON.
+     * @param onlySerializePublicFields If true, only serialize public fields.
+     * @param classFieldCache           The class field cache. Reusing this cache
+     *                                  will increase the speed if many JSON
+     *                                  documents of the same type need to be
+     *                                  produced.
      * @return The object graph in JSON form.
-     * @throws IllegalArgumentException
-     *             If anything goes wrong during serialization.
+     * @throws IllegalArgumentException If anything goes wrong during serialization.
      */
     public static String serializeFromField(final Object containingObject, final String fieldName,
             final int indentWidth, final boolean onlySerializePublicFields, final ClassFieldCache classFieldCache) {
-        final FieldTypeInfo fieldResolvedTypeInfo = classFieldCache
-                .get(containingObject.getClass()).fieldNameToFieldTypeInfo.get(fieldName);
+        final var fieldResolvedTypeInfo = classFieldCache.get(containingObject.getClass()).fieldNameToFieldTypeInfo
+                .get(fieldName);
         if (fieldResolvedTypeInfo == null) {
             throw new IllegalArgumentException("Class " + containingObject.getClass().getName()
                     + " does not have a field named \"" + fieldName + "\"");
         }
-        final Field field = fieldResolvedTypeInfo.field;
+        final var field = fieldResolvedTypeInfo.field;
         if (!JSONUtils.fieldIsSerializable(field, /* onlySerializePublicFields = */ false,
                 classFieldCache.reflectionUtils)) {
             throw new IllegalArgumentException("Field " + containingObject.getClass().getName() + "." + fieldName
@@ -605,47 +595,43 @@ public final class JSONSerializer {
     }
 
     /**
-     * Recursively serialize the named field of an object, skipping transient and final fields.
+     * Recursively serialize the named field of an object, skipping transient and
+     * final fields.
      * 
-     * @param containingObject
-     *            The object containing the field value to serialize.
-     * @param fieldName
-     *            The name of the field to serialize.
-     * @param indentWidth
-     *            If indentWidth == 0, no prettyprinting indentation is performed, otherwise this specifies the
-     *            number of spaces to indent each level of JSON.
-     * @param onlySerializePublicFields
-     *            If true, only serialize public fields.
-     * @param reflectionUtils
-     *            The reflection driver.
+     * @param containingObject          The object containing the field value to
+     *                                  serialize.
+     * @param fieldName                 The name of the field to serialize.
+     * @param indentWidth               If indentWidth == 0, no prettyprinting
+     *                                  indentation is performed, otherwise this
+     *                                  specifies the number of spaces to indent
+     *                                  each level of JSON.
+     * @param onlySerializePublicFields If true, only serialize public fields.
+     * @param reflectionUtils           The reflection driver.
      * @return The object graph in JSON form.
-     * @throws IllegalArgumentException
-     *             If anything goes wrong during serialization.
+     * @throws IllegalArgumentException If anything goes wrong during serialization.
      */
     public static String serializeFromField(final Object containingObject, final String fieldName,
             final int indentWidth, final boolean onlySerializePublicFields, final ReflectionUtils reflectionUtils) {
         // Don't need to resolve types during serialization
         final ClassFieldCache classFieldCache = new ClassFieldCache(/* resolveTypes = */ false,
                 onlySerializePublicFields, reflectionUtils);
-        return serializeFromField(containingObject, fieldName, indentWidth, onlySerializePublicFields,
-                classFieldCache);
+        return serializeFromField(containingObject, fieldName, indentWidth, onlySerializePublicFields, classFieldCache);
     }
 
     /**
-     * Recursively serialize the named field of an object, skipping transient and final fields.
+     * Recursively serialize the named field of an object, skipping transient and
+     * final fields.
      * 
-     * @param containingObject
-     *            The object containing the field value to serialize.
-     * @param fieldName
-     *            The name of the field to serialize.
-     * @param indentWidth
-     *            If indentWidth == 0, no prettyprinting indentation is performed, otherwise this specifies the
-     *            number of spaces to indent each level of JSON.
-     * @param onlySerializePublicFields
-     *            If true, only serialize public fields.
+     * @param containingObject          The object containing the field value to
+     *                                  serialize.
+     * @param fieldName                 The name of the field to serialize.
+     * @param indentWidth               If indentWidth == 0, no prettyprinting
+     *                                  indentation is performed, otherwise this
+     *                                  specifies the number of spaces to indent
+     *                                  each level of JSON.
+     * @param onlySerializePublicFields If true, only serialize public fields.
      * @return The object graph in JSON form.
-     * @throws IllegalArgumentException
-     *             If anything goes wrong during serialization.
+     * @throws IllegalArgumentException If anything goes wrong during serialization.
      */
     public static String serializeFromField(final Object containingObject, final String fieldName,
             final int indentWidth, final boolean onlySerializePublicFields) {

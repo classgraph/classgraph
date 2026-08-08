@@ -35,7 +35,10 @@ import java.util.Set;
 import io.github.classgraph.Classfile.TypePathNode;
 import nonapi.io.github.classgraph.types.Parser;
 
-/** A type signature for a base type (byte, char, double, float, int, long, short, boolean, or void). */
+/**
+ * A type signature for a base type (byte, char, double, float, int, long,
+ * short, boolean, or void).
+ */
 public class BaseTypeSignature extends TypeSignature {
     /** The type signature character used to represent the base type. */
     private final char typeSignatureChar;
@@ -45,26 +48,15 @@ public class BaseTypeSignature extends TypeSignature {
     /**
      * Constructor.
      *
-     * @param typeSignatureChar
-     *            the type signature character used to represent the base type, e.g. 'I' for int.
+     * @param typeSignatureChar the type signature character used to represent the
+     *                          base type, e.g. 'I' for int.
      */
     BaseTypeSignature(final char typeSignatureChar) {
         super();
         switch (typeSignatureChar) {
-        case 'B':
-        case 'C':
-        case 'D':
-        case 'F':
-        case 'I':
-        case 'J':
-        case 'S':
-        case 'Z':
-        case 'V':
-            this.typeSignatureChar = typeSignatureChar;
-            break;
-        default:
-            throw new IllegalArgumentException(
-                    "Illegal " + BaseTypeSignature.class.getSimpleName() + " type: '" + typeSignatureChar + "'");
+        case 'B', 'C', 'D', 'F', 'I', 'J', 'S', 'Z', 'V' -> this.typeSignatureChar = typeSignatureChar;
+        default -> throw new IllegalArgumentException(
+                "Illegal " + BaseTypeSignature.class.getSimpleName() + " type: '" + typeSignatureChar + "'");
         }
     }
 
@@ -73,97 +65,64 @@ public class BaseTypeSignature extends TypeSignature {
     /**
      * Get the name of the type as a string.
      *
-     * @param typeChar
-     *            the type character, e.g. 'I'.
+     * @param typeChar the type character, e.g. 'I'.
      * @return The name of the type, e.g. "int", or null if there was no match.
      */
     static String getTypeStr(final char typeChar) {
-        switch (typeChar) {
-        case 'B':
-            return "byte";
-        case 'C':
-            return "char";
-        case 'D':
-            return "double";
-        case 'F':
-            return "float";
-        case 'I':
-            return "int";
-        case 'J':
-            return "long";
-        case 'S':
-            return "short";
-        case 'Z':
-            return "boolean";
-        case 'V':
-            return "void";
-        default:
-            return null;
-        }
+        return switch (typeChar) {
+        case 'B' -> "byte";
+        case 'C' -> "char";
+        case 'D' -> "double";
+        case 'F' -> "float";
+        case 'I' -> "int";
+        case 'J' -> "long";
+        case 'S' -> "short";
+        case 'Z' -> "boolean";
+        case 'V' -> "void";
+        default -> null;
+        };
     }
 
     /**
      * Get the name of the type as a string.
      *
-     * @param typeStr
-     *            the type character, e.g. "int".
+     * @param typeStr the type character, e.g. "int".
      * @return The type, character, e.g. 'I', or '\0' if there was no match.
      */
     static char getTypeChar(final String typeStr) {
-        switch (typeStr) {
-        case "byte":
-            return 'B';
-        case "char":
-            return 'C';
-        case "double":
-            return 'D';
-        case "float":
-            return 'F';
-        case "int":
-            return 'I';
-        case "long":
-            return 'J';
-        case "short":
-            return 'S';
-        case "boolean":
-            return 'Z';
-        case "void":
-            return 'V';
-        default:
-            return '\0';
-        }
+        return switch (typeStr) {
+        case "byte" -> 'B';
+        case "char" -> 'C';
+        case "double" -> 'D';
+        case "float" -> 'F';
+        case "int" -> 'I';
+        case "long" -> 'J';
+        case "short" -> 'S';
+        case "boolean" -> 'Z';
+        case "void" -> 'V';
+        default -> '\0';
+        };
     }
 
     /**
      * Get the type for a type character.
      *
-     * @param typeChar
-     *            the type character, e.g. 'I'.
+     * @param typeChar the type character, e.g. 'I'.
      * @return The type class, e.g. int.class, or null if there was no match.
      */
     static Class<?> getType(final char typeChar) {
-        switch (typeChar) {
-        case 'B':
-            return byte.class;
-        case 'C':
-            return char.class;
-        case 'D':
-            return double.class;
-        case 'F':
-            return float.class;
-        case 'I':
-            return int.class;
-        case 'J':
-            return long.class;
-        case 'S':
-            return short.class;
-        case 'Z':
-            return boolean.class;
-        case 'V':
-            return void.class;
-        default:
-            return null;
-        }
+        return switch (typeChar) {
+        case 'B' -> byte.class;
+        case 'C' -> char.class;
+        case 'D' -> double.class;
+        case 'F' -> float.class;
+        case 'I' -> int.class;
+        case 'J' -> long.class;
+        case 'S' -> short.class;
+        case 'Z' -> boolean.class;
+        case 'V' -> void.class;
+        default -> null;
+        };
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -189,7 +148,8 @@ public class BaseTypeSignature extends TypeSignature {
     /**
      * Get the type.
      *
-     * @return The class of the base type, such as int.class, float.class, or void.class.
+     * @return The class of the base type, such as int.class, float.class, or
+     *         void.class.
      */
     public Class<?> getType() {
         return getType(typeSignatureChar);
@@ -204,7 +164,9 @@ public class BaseTypeSignature extends TypeSignature {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see io.github.classgraph.ScanResultObject#loadClass()
      */
     @Override
@@ -212,15 +174,17 @@ public class BaseTypeSignature extends TypeSignature {
         return getType();
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see io.github.classgraph.ScanResultObject#loadClass(java.lang.Class)
      */
     @Override
     <T> Class<T> loadClass(final Class<T> superclassOrInterfaceType) {
         final Class<?> type = getType();
         if (!superclassOrInterfaceType.isAssignableFrom(type)) {
-            throw new IllegalArgumentException("Primitive class " + getTypeStr() + " cannot be cast to "
-                    + superclassOrInterfaceType.getName());
+            throw new IllegalArgumentException(
+                    "Primitive class " + getTypeStr() + " cannot be cast to " + superclassOrInterfaceType.getName());
         }
         @SuppressWarnings("unchecked")
         final Class<T> classT = (Class<T>) type;
@@ -232,47 +196,25 @@ public class BaseTypeSignature extends TypeSignature {
     /**
      * Parse a base type.
      *
-     * @param parser
-     *            the parser
+     * @param parser the parser
      * @return the base type signature
      */
     static BaseTypeSignature parse(final Parser parser) {
-        switch (parser.peek()) {
-        case 'B':
+        final var typeSignatureChar = parser.peek();
+        return switch (typeSignatureChar) {
+        case 'B', 'C', 'D', 'F', 'I', 'J', 'S', 'Z', 'V' -> {
             parser.next();
-            return new BaseTypeSignature('B');
-        case 'C':
-            parser.next();
-            return new BaseTypeSignature('C');
-        case 'D':
-            parser.next();
-            return new BaseTypeSignature('D');
-        case 'F':
-            parser.next();
-            return new BaseTypeSignature('F');
-        case 'I':
-            parser.next();
-            return new BaseTypeSignature('I');
-        case 'J':
-            parser.next();
-            return new BaseTypeSignature('J');
-        case 'S':
-            parser.next();
-            return new BaseTypeSignature('S');
-        case 'Z':
-            parser.next();
-            return new BaseTypeSignature('Z');
-        case 'V':
-            parser.next();
-            return new BaseTypeSignature('V');
-        default:
-            return null;
+            yield new BaseTypeSignature(typeSignatureChar);
         }
+        default -> null;
+        };
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see io.github.classgraph.ScanResultObject#getClassName()
      */
     @Override
@@ -280,7 +222,9 @@ public class BaseTypeSignature extends TypeSignature {
         return getTypeStr();
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see io.github.classgraph.ScanResultObject#getClassInfo()
      */
     @Override
@@ -291,27 +235,31 @@ public class BaseTypeSignature extends TypeSignature {
     /**
      * Get the names of any classes referenced in the type signature.
      *
-     * @param refdClassNames
-     *            the referenced class names.
+     * @param refdClassNames the referenced class names.
      */
     @Override
     protected void findReferencedClassNames(final Set<String> refdClassNames) {
         // Don't add byte.class, int.class, etc.
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see io.github.classgraph.ScanResultObject#setScanResult(ScanResult)
      */
     @Override
     void setScanResult(final ScanResult scanResult) {
         // Don't set ScanResult for BaseTypeSignature objects (#419).
-        // The ScanResult is not needed, since this class does not classload through the ScanResult, and holding
+        // The ScanResult is not needed, since this class does not classload through the
+        // ScanResult, and holding
         // a reference to the ScanResult would prevent it from being garbage collected.
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.Object#hashCode()
      */
     @Override
@@ -319,30 +267,35 @@ public class BaseTypeSignature extends TypeSignature {
         return typeSignatureChar;
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
     public boolean equals(final Object obj) {
         if (obj == this) {
             return true;
-        } else if (!(obj instanceof BaseTypeSignature)) {
+        }
+        if (!(obj instanceof final BaseTypeSignature other)) {
             return false;
         }
-        final BaseTypeSignature other = (BaseTypeSignature) obj;
         return Objects.equals(this.typeAnnotationInfo, other.typeAnnotationInfo)
                 && other.typeSignatureChar == this.typeSignatureChar;
     }
 
-    /* (non-Javadoc)
-     * @see io.github.classgraph.TypeSignature#equalsIgnoringTypeParams(io.github.classgraph.TypeSignature)
+    /*
+     * (non-Javadoc)
+     *
+     * @see io.github.classgraph.TypeSignature#equalsIgnoringTypeParams(io.github.
+     * classgraph.TypeSignature)
      */
     @Override
     public boolean equalsIgnoringTypeParams(final TypeSignature other) {
-        if (!(other instanceof BaseTypeSignature)) {
+        if (!(other instanceof final BaseTypeSignature otherBaseTypeSignature)) {
             return false;
         }
-        return typeSignatureChar == ((BaseTypeSignature) other).typeSignatureChar;
+        return typeSignatureChar == otherBaseTypeSignature.typeSignatureChar;
     }
 
     // -------------------------------------------------------------------------------------------------------------

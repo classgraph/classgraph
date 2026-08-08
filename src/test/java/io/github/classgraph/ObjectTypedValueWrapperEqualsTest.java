@@ -5,9 +5,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.Test;
 
 /**
- * {@link ObjectTypedValueWrapper#hashCode()} hashes every field, but {@link ObjectTypedValueWrapper#equals(Object)}
- * did not compare the {@code boolean[]}, {@code char[]} and {@code double[]} fields, so wrappers holding different
- * arrays of those types compared equal.
+ * {@link ObjectTypedValueWrapper#hashCode()} hashes every field, but
+ * {@link ObjectTypedValueWrapper#equals(Object)} did not compare the
+ * {@code boolean[]}, {@code char[]} and {@code double[]} fields, so wrappers
+ * holding different arrays of those types compared equal.
  */
 public class ObjectTypedValueWrapperEqualsTest {
     /** Wrappers holding different boolean, char or double arrays are not equal. */

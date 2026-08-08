@@ -30,14 +30,11 @@ package io.github.classgraph.issues.issue238;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.List;
-
 import javax.persistence.Entity;
 
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ScanResult;
 
 /**
  * Issue238Test.
@@ -91,10 +88,9 @@ public class Issue238Test {
      */
     @Test
     public void testSuperclassInheritanceOrder() {
-        try (ScanResult scanResult = new ClassGraph().acceptPackages(Issue238Test.class.getPackage().getName())
-                .enableAllInfo().scan()) {
-            final List<String> classNames = scanResult.getAllClasses().get(E.class.getName()).getSuperclasses()
-                    .getNames();
+        try (var scanResult = new ClassGraph().acceptPackages(Issue238Test.class.getPackage().getName()).enableAllInfo()
+                .scan()) {
+            final var classNames = scanResult.getAllClasses().get(E.class.getName()).getSuperclasses().getNames();
             assertThat(classNames).containsExactly(F.class.getName(), A.class.getName(), G.class.getName(),
                     B.class.getName(), D.class.getName(), C.class.getName());
         }

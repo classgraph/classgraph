@@ -10,7 +10,6 @@ import java.lang.annotation.Target;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ScanResult;
 
 /**
  * Test
@@ -39,11 +38,11 @@ class ClassTypeAnnotation {
     }
 
     /***/
-    private static interface A {
+    private interface A {
     }
 
     /***/
-    private static interface B {
+    private interface B {
     }
 
     /***/
@@ -68,22 +67,21 @@ class ClassTypeAnnotation {
 
     @Test
     void classTypeAnnotation() {
-        try (ScanResult scanResult = new ClassGraph()
-                .acceptPackages(ClassTypeAnnotation.class.getPackage().getName()).enableAllInfo().scan()) {
+        try (var scanResult = new ClassGraph().acceptPackages(ClassTypeAnnotation.class.getPackage().getName())
+                .enableAllInfo().scan()) {
 
             // Type with annotations should be rendered by toString() as
-            //   Y<T> extends ClassTypeAnnotation$@X Z
+            // Y<T> extends ClassTypeAnnotation$@X Z
             // and not
-            //   Y<T> extends @X ClassTypeAnnotation$Z
+            // Y<T> extends @X ClassTypeAnnotation$Z
             // because the annotation is on Z, not ClassTypeAnnotation
 
-            assertThat(scanResult.getClassInfo(E.class.getName()).getTypeSignature().toString())
-                    .isEqualTo("private static class " + E.class.getName() + "<T> extends "
-                            + ClassTypeAnnotation.class.getName() + "$@" + P.class.getName() + " "
-                            + Z.class.getSimpleName() + " implements " + ClassTypeAnnotation.class.getName() + "$@"
-                            + Q.class.getName() + " " + A.class.getSimpleName() + ", "
-                            + ClassTypeAnnotation.class.getName() + "$@" + R.class.getName() + " "
-                            + B.class.getSimpleName());
+            assertThat(scanResult.getClassInfo(E.class.getName()).getTypeSignature().toString()).isEqualTo(
+                    "private static class " + E.class.getName() + "<T> extends " + ClassTypeAnnotation.class.getName()
+                            + "$@" + P.class.getName() + " " + Z.class.getSimpleName() + " implements "
+                            + ClassTypeAnnotation.class.getName() + "$@" + Q.class.getName() + " "
+                            + A.class.getSimpleName() + ", " + ClassTypeAnnotation.class.getName() + "$@"
+                            + R.class.getName() + " " + B.class.getSimpleName());
 
             assertThat(scanResult.getClassInfo(F.class.getName()).getTypeSignatureOrTypeDescriptor().toString())
                     .isEqualTo("private static class " + F.class.getName() + " extends "

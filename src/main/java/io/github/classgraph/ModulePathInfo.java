@@ -39,65 +39,77 @@ import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.StringUtils;
 
 /**
- * Information on the module path. Note that this will only include module system parameters actually listed in
- * commandline arguments -- in particular this does not include classpath elements from the traditional classpath,
- * or system modules.
+ * Information on the module path. Note that this will only include module
+ * system parameters actually listed in commandline arguments -- in particular
+ * this does not include classpath elements from the traditional classpath, or
+ * system modules.
  */
 public class ModulePathInfo {
     /**
-     * The module path provided on the commandline by the {@code --module-path} or {@code -p} switch, as an ordered
-     * set of module names, in the order they were listed on the commandline.
+     * The module path provided on the commandline by the {@code --module-path} or
+     * {@code -p} switch, as an ordered set of module names, in the order they were
+     * listed on the commandline.
      * 
      * <p>
-     * Note that some modules (such as system modules) will not be in this set, as they are added to the module
-     * system automatically by the runtime. Call {@link ClassGraph#getModules()} or {@link ScanResult#getModules()}
-     * to get all modules visible at runtime.
+     * Note that some modules (such as system modules) will not be in this set, as
+     * they are added to the module system automatically by the runtime. Call
+     * {@link ClassGraph#getModules()} or {@link ScanResult#getModules()} to get all
+     * modules visible at runtime.
      */
     public final Set<String> modulePath = new LinkedHashSet<>();
 
     /**
-     * The modules added to the module path on the commandline using the {@code --add-modules} switch, as an ordered
-     * set of module names, in the order they were listed on the commandline. Note that valid module names include
+     * The modules added to the module path on the commandline using the
+     * {@code --add-modules} switch, as an ordered set of module names, in the order
+     * they were listed on the commandline. Note that valid module names include
      * {@code ALL-DEFAULT}, {@code ALL-SYSTEM}, and {@code ALL-MODULE-PATH} (see
      * <a href="https://openjdk.java.net/jeps/261">JEP 261</a> for info).
      */
     public final Set<String> addModules = new LinkedHashSet<>();
 
     /**
-     * The module patch directives listed on the commandline using the {@code --patch-module} switch, as an ordered
-     * set of strings in the format {@code <module>=<file>}, in the order they were listed on the commandline.
+     * The module patch directives listed on the commandline using the
+     * {@code --patch-module} switch, as an ordered set of strings in the format
+     * {@code <module>=<file>}, in the order they were listed on the commandline.
      */
     public final Set<String> patchModules = new LinkedHashSet<>();
 
     /**
-     * The module {@code exports} directives added on the commandline using the {@code --add-exports} switch, as an
-     * ordered set of strings in the format {@code <source-module>/<package>=<target-module>(,<target-module>)*}, in
-     * the order they were listed on the commandline. Additionally, if this {@link ModulePathInfo} object was
-     * obtained from {@link ScanResult#getModulePathInfo()} rather than {@link ClassGraph#getModulePathInfo()}, any
-     * additional {@code Add-Exports} entries found in manifest files during classpath scanning will be appended to
+     * The module {@code exports} directives added on the commandline using the
+     * {@code --add-exports} switch, as an ordered set of strings in the format
+     * {@code <source-module>/<package>=<target-module>(,<target-module>)*}, in the
+     * order they were listed on the commandline. Additionally, if this
+     * {@link ModulePathInfo} object was obtained from
+     * {@link ScanResult#getModulePathInfo()} rather than
+     * {@link ClassGraph#getModulePathInfo()}, any additional {@code Add-Exports}
+     * entries found in manifest files during classpath scanning will be appended to
      * this list, in the format {@code <source-module>/<package>=ALL-UNNAMED}.
      */
     public final Set<String> addExports = new LinkedHashSet<>();
 
     /**
-     * The module {@code opens} directives added on the commandline using the {@code --add-opens} switch, as an
-     * ordered set of strings in the format {@code <source-module>/<package>=<target-module>(,<target-module>)*}, in
-     * the order they were listed on the commandline. Additionally, if this {@link ModulePathInfo} object was
-     * obtained from {@link ScanResult#getModulePathInfo()} rather than {@link ClassGraph#getModulePathInfo()}, any
-     * additional {@code Add-Opens} entries found in manifest files during classpath scanning will be appended to
+     * The module {@code opens} directives added on the commandline using the
+     * {@code --add-opens} switch, as an ordered set of strings in the format
+     * {@code <source-module>/<package>=<target-module>(,<target-module>)*}, in the
+     * order they were listed on the commandline. Additionally, if this
+     * {@link ModulePathInfo} object was obtained from
+     * {@link ScanResult#getModulePathInfo()} rather than
+     * {@link ClassGraph#getModulePathInfo()}, any additional {@code Add-Opens}
+     * entries found in manifest files during classpath scanning will be appended to
      * this list, in the format {@code <source-module>/<package>=ALL-UNNAMED}.
      */
     public final Set<String> addOpens = new LinkedHashSet<>();
 
     /**
-     * The module {@code reads} directives added on the commandline using the {@code --add-reads} switch, as an
-     * ordered set of strings in the format {@code <source-module>=<target-module>}, in the order they were listed
-     * on the commandline.
+     * The module {@code reads} directives added on the commandline using the
+     * {@code --add-reads} switch, as an ordered set of strings in the format
+     * {@code <source-module>=<target-module>}, in the order they were listed on the
+     * commandline.
      */
     public final Set<String> addReads = new LinkedHashSet<>();
 
     /** The fields. */
-    private final List<Set<String>> fields = Arrays.asList( //
+    private final List<Set<String>> fields = List.of( //
             modulePath, //
             addModules, //
             patchModules, //
@@ -107,7 +119,7 @@ public class ModulePathInfo {
     );
 
     /** The module path commandline switches. */
-    private static final List<String> argSwitches = Arrays.asList( //
+    private static final List<String> argSwitches = List.of( //
             "--module-path=", //
             "--add-modules=", //
             "--patch-module=", //
@@ -117,7 +129,7 @@ public class ModulePathInfo {
     );
 
     /** The module path commandline switch value delimiters. */
-    private static final List<Character> argPartSeparatorChars = Arrays.asList( //
+    private static final List<Character> argPartSeparatorChars = List.of( //
             File.pathSeparatorChar, // --module-path (delimited path format)
             ',', // --add-modules (comma-delimited)
             '\0', // --patch-module (only one param per switch)
@@ -126,7 +138,9 @@ public class ModulePathInfo {
             '\0' // --add-reads (only one param per switch)
     );
 
-    /** Set to true once {@link #getRuntimeInfo(ReflectionUtils)} has been called. */
+    /**
+     * Set to true once {@link #getRuntimeInfo(ReflectionUtils)} has been called.
+     */
     private boolean gotRuntimeInfo;
 
     /** Constructor. */
@@ -137,39 +151,45 @@ public class ModulePathInfo {
      * Fill in module info from VM commandline parameters.
      *
      * <p>
-     * Synchronized rather than guarded by an atomic flag, so that a second thread calling this concurrently blocks
-     * until the first thread has finished populating the field sets. An atomic test-and-set would let the second
-     * thread return immediately and read the (plain, non-thread-safe) {@link LinkedHashSet} fields while the first
-     * thread was still adding to them.
+     * Synchronized rather than guarded by an atomic flag, so that a second thread
+     * calling this concurrently blocks until the first thread has finished
+     * populating the field sets. An atomic test-and-set would let the second thread
+     * return immediately and read the (plain, non-thread-safe)
+     * {@link LinkedHashSet} fields while the first thread was still adding to them.
      *
-     * @param reflectionUtils
-     *            the {@link ReflectionUtils} instance to read the commandline arguments with.
+     * @param reflectionUtils the {@link ReflectionUtils} instance to read the
+     *                        commandline arguments with.
      */
     synchronized void getRuntimeInfo(final ReflectionUtils reflectionUtils) {
-        // Only call this reflective method if ModulePathInfo is specifically requested, to avoid illegal
+        // Only call this reflective method if ModulePathInfo is specifically requested,
+        // to avoid illegal
         // access warning on some JREs, e.g. Adopt JDK 11 (#605)
         if (!gotRuntimeInfo) {
             gotRuntimeInfo = true;
-            // Read the raw commandline arguments to get the module path override parameters.
-            // If the java.management module is not present in the deployed runtime (for JDK 9+), or the runtime
-            // does not contain the java.lang.management package (e.g. the Android build system, which also does
-            // not support JPMS currently), then skip trying to read the commandline arguments (#404).
+            // Read the raw commandline arguments to get the module path override
+            // parameters.
+            // If the java.management module is not present in the deployed runtime (for JDK
+            // 9+), or the runtime
+            // does not contain the java.lang.management package (e.g. the Android build
+            // system, which also does
+            // not support JPMS currently), then skip trying to read the commandline
+            // arguments (#404).
             final Class<?> managementFactory = reflectionUtils
                     .classForNameOrNull("java.lang.management.ManagementFactory");
-            final Object runtimeMXBean = managementFactory == null ? null
+            final var runtimeMXBean = managementFactory == null ? null
                     : reflectionUtils.invokeStaticMethod(/* throwException = */ false, managementFactory,
                             "getRuntimeMXBean");
             @SuppressWarnings("unchecked")
-            final List<String> commandlineArguments = runtimeMXBean == null ? null
+            final var commandlineArguments = runtimeMXBean == null ? null
                     : (List<String>) reflectionUtils.invokeMethod(/* throwException = */ false, runtimeMXBean,
                             "getInputArguments");
             if (commandlineArguments != null) {
                 for (final String arg : commandlineArguments) {
-                    for (int i = 0; i < fields.size(); i++) {
-                        final String argSwitch = argSwitches.get(i);
+                    for (var i = 0; i < fields.size(); i++) {
+                        final var argSwitch = argSwitches.get(i);
                         if (arg.startsWith(argSwitch)) {
-                            final String argParam = arg.substring(argSwitch.length());
-                            final Set<String> argField = fields.get(i);
+                            final var argParam = arg.substring(argSwitch.length());
+                            final var argField = fields.get(i);
                             final char sepChar = argPartSeparatorChars.get(i);
                             if (sepChar == '\0') {
                                 // Only one param per switch
@@ -199,35 +219,35 @@ public class ModulePathInfo {
             buf.append(StringUtils.join(File.pathSeparator, modulePath));
         }
         if (!addModules.isEmpty()) {
-            if (buf.length() > 0) {
+            if (!buf.isEmpty()) {
                 buf.append(' ');
             }
             buf.append("--add-modules=");
             buf.append(StringUtils.join(",", addModules));
         }
         for (final String patchModulesEntry : patchModules) {
-            if (buf.length() > 0) {
+            if (!buf.isEmpty()) {
                 buf.append(' ');
             }
             buf.append("--patch-module=");
             buf.append(patchModulesEntry);
         }
         for (final String addExportsEntry : addExports) {
-            if (buf.length() > 0) {
+            if (!buf.isEmpty()) {
                 buf.append(' ');
             }
             buf.append("--add-exports=");
             buf.append(addExportsEntry);
         }
         for (final String addOpensEntry : addOpens) {
-            if (buf.length() > 0) {
+            if (!buf.isEmpty()) {
                 buf.append(' ');
             }
             buf.append("--add-opens=");
             buf.append(addOpensEntry);
         }
         for (final String addReadsEntry : addReads) {
-            if (buf.length() > 0) {
+            if (!buf.isEmpty()) {
                 buf.append(' ');
             }
             buf.append("--add-reads=");

@@ -15,14 +15,15 @@ public class Figure implements Drawable {
     /**
      * Adds the shape.
      *
-     * @param shape
-     *            the shape
+     * @param shape the shape
      */
     public void addShape(final Shape shape) {
         sceneGraph.addShape(shape);
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see com.xyz.fig.Drawable#draw(java.awt.Graphics2D)
      */
     @Override

@@ -15,14 +15,10 @@ public class Diamond extends ShapeImpl {
     /**
      * Constructor.
      *
-     * @param x
-     *            the x
-     * @param y
-     *            the y
-     * @param w
-     *            the w
-     * @param h
-     *            the h
+     * @param x the x
+     * @param y the y
+     * @param w the w
+     * @param h the h
      */
     public Diamond(final float x, final float y, final float w, final float h) {
         super(x, y);
@@ -48,7 +44,9 @@ public class Diamond extends ShapeImpl {
         return h;
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see com.xyz.fig.shape.ShapeImpl#draw(java.awt.Graphics2D)
      */
     @Override

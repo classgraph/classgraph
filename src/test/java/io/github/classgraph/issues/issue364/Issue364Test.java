@@ -37,7 +37,6 @@ import java.nio.file.attribute.PosixFilePermission;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ScanResult;
 
 /**
  * Issue364Test.
@@ -49,35 +48,37 @@ public class Issue364Test {
      */
     @Test
     public void testNoPermissions() {
-        final ClassLoader classLoader = Issue364Test.class.getClassLoader();
-        final String aJarName = "issue364-no-permissions.jar";
-        final URL aJarURL = classLoader.getResource(aJarName);
-        final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
+        final var classLoader = Issue364Test.class.getClassLoader();
+        final var aJarName = "issue364-no-permissions.jar";
+        final var aJarURL = classLoader.getResource(aJarName);
+        final var overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
-        try (ScanResult result = new ClassGraph().overrideClassLoaders(overrideClassLoader)
-                .ignoreParentClassLoaders().scan()) {
-            assertThat(result.getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/all")
-                    .get(0).getLastModified()).isEqualTo(1434543812000L);
-            assertThat(result.getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/all")
-                    .get(0).getPosixFilePermissions()).isNull();
-            assertThat(result
-                    .getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/groupreadwrite")
-                    .get(0).getLastModified()).isEqualTo(1434557162000L);
-            assertThat(result
-                    .getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/groupreadwrite")
-                    .get(0).getPosixFilePermissions()).isNull();
-            assertThat(result
-                    .getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/owneronlyread")
+        try (var result = new ClassGraph().overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders()
+                .scan()) {
+            assertThat(result.getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/all").get(0)
+                    .getLastModified()).isEqualTo(1434543812000L);
+            assertThat(result.getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/all").get(0)
+                    .getPosixFilePermissions()).isNull();
+            assertThat(
+                    result.getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/groupreadwrite")
+                            .get(0).getLastModified())
+                    .isEqualTo(1434557162000L);
+            assertThat(
+                    result.getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/groupreadwrite")
+                            .get(0).getPosixFilePermissions())
+                    .isNull();
+            assertThat(result.getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/owneronlyread")
                     .get(0).getLastModified()).isEqualTo(1434557150000L);
-            assertThat(result
-                    .getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/owneronlyread")
+            assertThat(result.getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/owneronlyread")
                     .get(0).getPosixFilePermissions()).isNull();
-            assertThat(result
-                    .getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/ownerreadwrite")
-                    .get(0).getLastModified()).isEqualTo(1434543812000L);
-            assertThat(result
-                    .getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/ownerreadwrite")
-                    .get(0).getPosixFilePermissions()).isNull();
+            assertThat(
+                    result.getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/ownerreadwrite")
+                            .get(0).getLastModified())
+                    .isEqualTo(1434543812000L);
+            assertThat(
+                    result.getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/ownerreadwrite")
+                            .get(0).getPosixFilePermissions())
+                    .isNull();
         }
     }
 
@@ -86,17 +87,17 @@ public class Issue364Test {
      */
     @Test
     public void testPermissions() {
-        final ClassLoader classLoader = Issue364Test.class.getClassLoader();
-        final String aJarName = "issue364-permissions.jar";
-        final URL aJarURL = classLoader.getResource(aJarName);
-        final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
+        final var classLoader = Issue364Test.class.getClassLoader();
+        final var aJarName = "issue364-permissions.jar";
+        final var aJarURL = classLoader.getResource(aJarName);
+        final var overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
-        try (ScanResult result = new ClassGraph().overrideClassLoaders(overrideClassLoader)
-                .ignoreParentClassLoaders().scan()) {
-            assertThat(result.getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/all")
-                    .get(0).getLastModified()).isEqualTo(1434543812000L);
-            assertThat(result.getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/all")
-                    .get(0).getPosixFilePermissions()).containsOnly(PosixFilePermission.OWNER_READ,
+        try (var result = new ClassGraph().overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders()
+                .scan()) {
+            assertThat(result.getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/all").get(0)
+                    .getLastModified()).isEqualTo(1434543812000L);
+            assertThat(result.getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/all").get(0)
+                    .getPosixFilePermissions()).containsOnly(PosixFilePermission.OWNER_READ,
                             PosixFilePermission.OWNER_WRITE, PosixFilePermission.OWNER_EXECUTE,
                             PosixFilePermission.GROUP_READ, PosixFilePermission.GROUP_WRITE,
                             PosixFilePermission.GROUP_EXECUTE, PosixFilePermission.OTHERS_READ,
@@ -110,30 +111,30 @@ public class Issue364Test {
                             PosixFilePermission.GROUP_READ, PosixFilePermission.GROUP_EXECUTE,
                             PosixFilePermission.OTHERS_READ, PosixFilePermission.OTHERS_EXECUTE);
 
-            assertThat(result
-                    .getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/groupreadwrite")
-                    .get(0).getLastModified()).isEqualTo(1434557162000L);
-            assertThat(result
-                    .getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/groupreadwrite")
-                    .get(0).getPosixFilePermissions()).containsOnly(PosixFilePermission.OWNER_READ,
-                            PosixFilePermission.OWNER_WRITE, PosixFilePermission.GROUP_READ,
-                            PosixFilePermission.GROUP_WRITE);
+            assertThat(
+                    result.getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/groupreadwrite")
+                            .get(0).getLastModified())
+                    .isEqualTo(1434557162000L);
+            assertThat(
+                    result.getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/groupreadwrite")
+                            .get(0).getPosixFilePermissions())
+                    .containsOnly(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE,
+                            PosixFilePermission.GROUP_READ, PosixFilePermission.GROUP_WRITE);
 
-            assertThat(result
-                    .getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/owneronlyread")
+            assertThat(result.getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/owneronlyread")
                     .get(0).getLastModified()).isEqualTo(1434557152000L);
-            assertThat(result
-                    .getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/owneronlyread")
+            assertThat(result.getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/owneronlyread")
                     .get(0).getPosixFilePermissions()).containsOnly(PosixFilePermission.OWNER_READ);
 
-            assertThat(result
-                    .getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/ownerreadwrite")
-                    .get(0).getLastModified()).isEqualTo(1434543812000L);
-            assertThat(result
-                    .getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/ownerreadwrite")
-                    .get(0).getPosixFilePermissions()).containsOnly(PosixFilePermission.OWNER_READ,
-                            PosixFilePermission.OWNER_WRITE, PosixFilePermission.GROUP_READ,
-                            PosixFilePermission.OTHERS_READ);
+            assertThat(
+                    result.getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/ownerreadwrite")
+                            .get(0).getLastModified())
+                    .isEqualTo(1434543812000L);
+            assertThat(
+                    result.getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/ownerreadwrite")
+                            .get(0).getPosixFilePermissions())
+                    .containsOnly(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE,
+                            PosixFilePermission.GROUP_READ, PosixFilePermission.OTHERS_READ);
         }
     }
 }

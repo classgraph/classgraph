@@ -36,9 +36,7 @@ import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
-import io.github.classgraph.ClassInfoList;
 import io.github.classgraph.ClassInfoList.ClassInfoFilter;
-import io.github.classgraph.ScanResult;
 
 /**
  * Issue223Test.
@@ -56,9 +54,11 @@ public class Issue223Test {
      */
     @Test
     public void testClassloadInnerClasses() {
-        try (ScanResult scanResult = new ClassGraph().acceptPackages(Issue223Test.class.getPackage().getName())
-                .enableAllInfo().scan()) {
-            final ClassInfoList innerClasses = scanResult.getAllClasses().filter(new ClassInfoFilter() {
+        try (var scanResult = new ClassGraph().acceptPackages(Issue223Test.class.getPackage().getName()).enableAllInfo()
+                .scan()) {
+            // N.B. this anonymous inner class is deliberately not a lambda -- it is itself counted as one of
+            // the two inner classes expected below (the other is InnerInterface).
+            final var innerClasses = scanResult.getAllClasses().filter(new ClassInfoFilter() {
                 @Override
                 public boolean accept(final ClassInfo ci) {
                     return ci.isInnerClass();

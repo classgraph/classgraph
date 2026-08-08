@@ -31,14 +31,12 @@ package io.github.classgraph.issues.issue167;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ScanResult;
 import io.github.classgraph.issues.issue167.a.TestA;
 import io.github.classgraph.issues.issue167.a.b.TestAB;
 
@@ -47,7 +45,7 @@ import io.github.classgraph.issues.issue167.a.b.TestAB;
  */
 public class Issue167Test {
     /** The classes. */
-    public static List<Class<?>> classes = Arrays.asList(TestA.class, TestAB.class);
+    public static List<Class<?>> classes = List.of(TestA.class, TestAB.class);
 
     /** The packages. */
     public static List<String> packages = new ArrayList<>();
@@ -66,7 +64,7 @@ public class Issue167Test {
      */
     @Test
     public void scanPackagesTest1() {
-        try (ScanResult scanResult = new ClassGraph().acceptPackagesNonRecursive(packages.toArray(new String[0]))
+        try (var scanResult = new ClassGraph().acceptPackagesNonRecursive(packages.toArray(new String[0]))
                 .enableClassInfo().scan()) {
             assertEquals(classNames, scanResult.getAllClasses().getNames());
         }
@@ -77,10 +75,10 @@ public class Issue167Test {
      */
     @Test
     public void scanPackagesTest2() {
-        final List<String> reversedPackages = new ArrayList<>(packages);
+        final var reversedPackages = new ArrayList<>(packages);
         Collections.reverse(reversedPackages);
-        try (ScanResult scanResult = new ClassGraph()
-                .acceptPackagesNonRecursive(reversedPackages.toArray(new String[0])).enableClassInfo().scan()) {
+        try (var scanResult = new ClassGraph().acceptPackagesNonRecursive(reversedPackages.toArray(new String[0]))
+                .enableClassInfo().scan()) {
             assertEquals(classNames, scanResult.getAllClasses().getNames());
         }
     }

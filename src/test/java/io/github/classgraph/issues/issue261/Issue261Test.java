@@ -33,7 +33,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ScanResult;
 
 /**
  * Issue261Test.
@@ -62,10 +61,11 @@ public class Issue261Test {
      */
     @Test
     public void issue261Test() {
-        // Accept only the class Cls, so that SuperCls and SuperSuperCls are external classes
-        try (ScanResult scanResult = new ClassGraph().acceptClasses(Cls.class.getName()).enableAllInfo().scan()) {
-            assertThat(scanResult.getSubclasses(SuperSuperCls.class).getNames())
-                    .containsOnly(SuperCls.class.getName(), Cls.class.getName());
+        // Accept only the class Cls, so that SuperCls and SuperSuperCls are external
+        // classes
+        try (var scanResult = new ClassGraph().acceptClasses(Cls.class.getName()).enableAllInfo().scan()) {
+            assertThat(scanResult.getSubclasses(SuperSuperCls.class).getNames()).containsOnly(SuperCls.class.getName(),
+                    Cls.class.getName());
         }
     }
 }

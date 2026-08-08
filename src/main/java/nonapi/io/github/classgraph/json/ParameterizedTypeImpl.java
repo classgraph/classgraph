@@ -35,7 +35,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-/** An implementation of {@link ParameterizedType}, used to replace type variables with concrete types. */
+/**
+ * An implementation of {@link ParameterizedType}, used to replace type
+ * variables with concrete types.
+ */
 class ParameterizedTypeImpl implements ParameterizedType {
 
     /** The actual type arguments. */
@@ -52,18 +55,15 @@ class ParameterizedTypeImpl implements ParameterizedType {
             new Type[] { Object.class, Object.class }, null);
 
     /** The type parameter of {@link List} instances of unknown generic type. */
-    public static final Type LIST_OF_UNKNOWN_TYPE = new ParameterizedTypeImpl(List.class,
-            new Type[] { Object.class }, null);
+    public static final Type LIST_OF_UNKNOWN_TYPE = new ParameterizedTypeImpl(List.class, new Type[] { Object.class },
+            null);
 
     /**
      * Constructor.
      *
-     * @param rawType
-     *            the raw type
-     * @param actualTypeArguments
-     *            the actual type arguments
-     * @param ownerType
-     *            the owner type
+     * @param rawType             the raw type
+     * @param actualTypeArguments the actual type arguments
+     * @param ownerType           the owner type
      */
     ParameterizedTypeImpl(final Class<?> rawType, final Type[] actualTypeArguments, final Type ownerType) {
         this.actualTypeArguments = actualTypeArguments;
@@ -74,7 +74,9 @@ class ParameterizedTypeImpl implements ParameterizedType {
         }
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.reflect.ParameterizedType#getActualTypeArguments()
      */
     @Override
@@ -82,7 +84,9 @@ class ParameterizedTypeImpl implements ParameterizedType {
         return actualTypeArguments.clone();
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.reflect.ParameterizedType#getRawType()
      */
     @Override
@@ -90,7 +94,9 @@ class ParameterizedTypeImpl implements ParameterizedType {
         return rawType;
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.reflect.ParameterizedType#getOwnerType()
      */
     @Override
@@ -98,7 +104,9 @@ class ParameterizedTypeImpl implements ParameterizedType {
         return ownerType;
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
@@ -113,7 +121,9 @@ class ParameterizedTypeImpl implements ParameterizedType {
                 && Arrays.equals(actualTypeArguments, other.getActualTypeArguments());
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.Object#hashCode()
      */
     @Override
@@ -121,7 +131,9 @@ class ParameterizedTypeImpl implements ParameterizedType {
         return Arrays.hashCode(actualTypeArguments) ^ Objects.hashCode(ownerType) ^ Objects.hashCode(rawType);
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.Object#toString()
      */
     @Override
@@ -137,8 +149,7 @@ class ParameterizedTypeImpl implements ParameterizedType {
             }
             buf.append('$');
             if (ownerType instanceof final ParameterizedTypeImpl ownerParameterizedType) {
-                final String simpleName = rawType.getName()
-                        .replace(ownerParameterizedType.rawType.getName() + "$", "");
+                final var simpleName = rawType.getName().replace(ownerParameterizedType.rawType.getName() + "$", "");
                 buf.append(simpleName);
             } else {
                 buf.append(rawType.getSimpleName());
@@ -146,7 +157,7 @@ class ParameterizedTypeImpl implements ParameterizedType {
         }
         if (actualTypeArguments != null && actualTypeArguments.length > 0) {
             buf.append('<');
-            boolean first = true;
+            var first = true;
             for (final Type t : actualTypeArguments) {
                 if (first) {
                     first = false;

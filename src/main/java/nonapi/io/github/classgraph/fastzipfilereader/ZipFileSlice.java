@@ -30,7 +30,6 @@ package nonapi.io.github.classgraph.fastzipfilereader;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Path;
 import java.util.Objects;
 
 import nonapi.io.github.classgraph.fileslice.Slice;
@@ -38,11 +37,16 @@ import nonapi.io.github.classgraph.scanspec.AcceptReject.AcceptRejectLeafname;
 
 /** A zipfile slice (a sub-range of bytes within a {@link PhysicalZipFile}). */
 public class ZipFileSlice {
-    /** The parent slice, or null if this is the toplevel slice (the whole zipfile). */
+    /**
+     * The parent slice, or null if this is the toplevel slice (the whole zipfile).
+     */
     private final ZipFileSlice parentZipFileSlice;
     /** The underlying physical zipfile. */
     protected final PhysicalZipFile physicalZipFile;
-    /** For the toplevel zipfile slice, the zipfile path; For nested slices, the name/path of the zipfile entry. */
+    /**
+     * For the toplevel zipfile slice, the zipfile path; For nested slices, the
+     * name/path of the zipfile entry.
+     */
     private final String pathWithinParentZipFileSlice;
     /** The {@link Slice} containing the zipfile. */
     public Slice slice;
@@ -50,8 +54,7 @@ public class ZipFileSlice {
     /**
      * Create a ZipFileSlice that wraps a toplevel {@link PhysicalZipFile}.
      *
-     * @param physicalZipFile
-     *            the physical zipfile
+     * @param physicalZipFile the physical zipfile
      */
     ZipFileSlice(final PhysicalZipFile physicalZipFile) {
         this.parentZipFileSlice = null;
@@ -61,13 +64,11 @@ public class ZipFileSlice {
     }
 
     /**
-     * Create a ZipFileSlice that wraps a {@link PhysicalZipFile} that was extracted or inflated from a nested jar
-     * to memory or disk.
+     * Create a ZipFileSlice that wraps a {@link PhysicalZipFile} that was extracted
+     * or inflated from a nested jar to memory or disk.
      *
-     * @param physicalZipFile
-     *            a physical zipfile that has been extracted to RAM
-     * @param zipEntry
-     *            the zip entry
+     * @param physicalZipFile a physical zipfile that has been extracted to RAM
+     * @param zipEntry        the zip entry
      */
     ZipFileSlice(final PhysicalZipFile physicalZipFile, final FastZipEntry zipEntry) {
         this.parentZipFileSlice = zipEntry.parentLogicalZipFile;
@@ -77,14 +78,12 @@ public class ZipFileSlice {
     }
 
     /**
-     * Create a ZipFileSlice that wraps a single stored (not deflated) {@link FastZipEntry}.
+     * Create a ZipFileSlice that wraps a single stored (not deflated)
+     * {@link FastZipEntry}.
      *
-     * @param zipEntry
-     *            the zip entry
-     * @throws IOException
-     *             If an I/O exception occurs.
-     * @throws InterruptedException
-     *             If the thread was interrupted.
+     * @param zipEntry the zip entry
+     * @throws IOException          If an I/O exception occurs.
+     * @throws InterruptedException If the thread was interrupted.
      */
     ZipFileSlice(final FastZipEntry zipEntry) throws IOException, InterruptedException {
         this.parentZipFileSlice = zipEntry.parentLogicalZipFile;
@@ -96,8 +95,7 @@ public class ZipFileSlice {
     /**
      * Clone constructor.
      *
-     * @param other
-     *            the {@link ZipFileSlice} to clone.
+     * @param other the {@link ZipFileSlice} to clone.
      */
     ZipFileSlice(final ZipFileSlice other) {
         this.parentZipFileSlice = other.parentZipFileSlice;
@@ -107,13 +105,12 @@ public class ZipFileSlice {
     }
 
     /**
-     * Check whether this zipfile slice and all of its parent slices are accepted and not rejected in the jarfile
-     * accept/reject criteria.
+     * Check whether this zipfile slice and all of its parent slices are accepted
+     * and not rejected in the jarfile accept/reject criteria.
      *
-     * @param jarAcceptReject
-     *            the jar accept/reject criteria
-     * @return true if this zipfile slice and all of its parent slices are accepted and not rejected in the jarfile
-     *         accept/reject criteria.
+     * @param jarAcceptReject the jar accept/reject criteria
+     * @return true if this zipfile slice and all of its parent slices are accepted
+     *         and not rejected in the jarfile accept/reject criteria.
      */
     public boolean isAcceptedAndNotRejected(final AcceptRejectLeafname jarAcceptReject) {
         return jarAcceptReject.isAcceptedAndNotRejected(pathWithinParentZipFileSlice) //
@@ -121,8 +118,8 @@ public class ZipFileSlice {
     }
 
     /**
-     * Get the parent ZipFileslice, or return null if this is a toplevel slice (i.e. if this slice wraps an entire
-     * physical zipfile).
+     * Get the parent ZipFileslice, or return null if this is a toplevel slice (i.e.
+     * if this slice wraps an entire physical zipfile).
      * 
      * @return the parent ZipFileslice, or null if this is a toplevel slice.
      */
@@ -131,8 +128,9 @@ public class ZipFileSlice {
     }
 
     /**
-     * Get the name of the slice (either the entry name/path within the parent zipfile slice, or the path of the
-     * physical zipfile if this slice is a toplevel slice (i.e. if this slice wraps an entire physical zipfile).
+     * Get the name of the slice (either the entry name/path within the parent
+     * zipfile slice, or the path of the physical zipfile if this slice is a
+     * toplevel slice (i.e. if this slice wraps an entire physical zipfile).
      * 
      * @return the name of the slice.
      */
@@ -143,8 +141,7 @@ public class ZipFileSlice {
     /**
      * Recursively append the path in top down ancestral order.
      *
-     * @param buf
-     *            the buf to append the path to
+     * @param buf the buf to append the path to
      */
     private void appendPath(final StringBuilder buf) {
         if (parentZipFileSlice != null) {
@@ -157,7 +154,8 @@ public class ZipFileSlice {
     }
 
     /**
-     * Get the path of this zipfile slice, e.g. "/path/to/jarfile.jar!/nestedjar1.jar".
+     * Get the path of this zipfile slice, e.g.
+     * "/path/to/jarfile.jar!/nestedjar1.jar".
      *
      * @return the path of this zipfile slice.
      */
@@ -170,11 +168,11 @@ public class ZipFileSlice {
     /**
      * Get the physical {@link File} that this ZipFileSlice is a slice of.
      *
-     * @return the physical {@link File} that this ZipFileSlice is a slice of, or null if this file was downloaded
-     *         from a URL directly to RAM.
+     * @return the physical {@link File} that this ZipFileSlice is a slice of, or
+     *         null if this file was downloaded from a URL directly to RAM.
      */
     public File getPhysicalFile() {
-        final Path path = physicalZipFile.getPath();
+        final var path = physicalZipFile.getPath();
         if (path != null) {
             try {
                 return path.toFile();
@@ -187,7 +185,9 @@ public class ZipFileSlice {
         }
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
@@ -202,7 +202,9 @@ public class ZipFileSlice {
                 && Objects.equals(pathWithinParentZipFileSlice, other.pathWithinParentZipFileSlice);
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.Object#hashCode()
      */
     @Override
@@ -210,13 +212,15 @@ public class ZipFileSlice {
         return Objects.hash(physicalZipFile, slice, pathWithinParentZipFileSlice);
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.Object#toString()
      */
     @Override
     public String toString() {
-        final String path = getPath();
-        String fileStr = physicalZipFile.getPath() == null ? null : physicalZipFile.getPath().toString();
+        final var path = getPath();
+        var fileStr = physicalZipFile.getPath() == null ? null : physicalZipFile.getPath().toString();
         if (fileStr == null) {
             fileStr = physicalZipFile.getFile() == null ? null : physicalZipFile.getFile().toString();
         }

@@ -32,7 +32,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-/** An intermediate object in the (de)serialization process, representing a JSON array. */
+/**
+ * An intermediate object in the (de)serialization process, representing a JSON
+ * array.
+ */
 class JSONArray {
     /** Array items. */
     List<Object> items;
@@ -47,8 +50,7 @@ class JSONArray {
     /**
      * Constructor.
      *
-     * @param items
-     *            the items
+     * @param items the items
      */
     public JSONArray(final List<Object> items) {
         this.items = items;
@@ -57,22 +59,16 @@ class JSONArray {
     /**
      * Serialize this JSONArray to a string.
      *
-     * @param jsonReferenceToId
-     *            the map from json reference to id
-     * @param includeNullValuedFields
-     *            whether to include null-valued fields
-     * @param depth
-     *            the nesting depth
-     * @param indentWidth
-     *            the indent width
-     * @param buf
-     *            the buf
+     * @param jsonReferenceToId       the map from json reference to id
+     * @param includeNullValuedFields whether to include null-valued fields
+     * @param depth                   the nesting depth
+     * @param indentWidth             the indent width
+     * @param buf                     the buf
      */
     void toJSONString(final Map<ReferenceEqualityKey<JSONReference>, CharSequence> jsonReferenceToId,
-            final boolean includeNullValuedFields, final int depth, final int indentWidth,
-            final StringBuilder buf) {
-        final boolean prettyPrint = indentWidth > 0;
-        final int n = items.size();
+            final boolean includeNullValuedFields, final int depth, final int indentWidth, final StringBuilder buf) {
+        final var prettyPrint = indentWidth > 0;
+        final var n = items.size();
         if (n == 0) {
             buf.append("[]");
         } else {
@@ -80,8 +76,8 @@ class JSONArray {
             if (prettyPrint) {
                 buf.append('\n');
             }
-            for (int i = 0; i < n; i++) {
-                final Object item = items.get(i);
+            for (var i = 0; i < n; i++) {
+                final var item = items.get(i);
                 if (prettyPrint) {
                     JSONUtils.indent(depth + 1, indentWidth, buf);
                 }

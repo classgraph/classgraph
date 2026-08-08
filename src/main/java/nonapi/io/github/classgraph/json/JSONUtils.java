@@ -40,11 +40,11 @@ import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 /** Utils for Java serialization and deserialization. */
 public final class JSONUtils {
     /**
-     * Try to make a field or method accessible, using {@code setAccessible(true)} if possible, and falling back to
-     * {@code trySetAccessible()} if {@code setAccessible(true)} threw.
+     * Try to make a field or method accessible, using {@code setAccessible(true)}
+     * if possible, and falling back to {@code trySetAccessible()} if
+     * {@code setAccessible(true)} threw.
      *
-     * @param obj
-     *            the field or method to make accessible
+     * @param obj the field or method to make accessible
      * @return true if the field or method was made accessible
      */
     private static boolean tryMakeAccessible(final AccessibleObject obj) {
@@ -63,18 +63,20 @@ public final class JSONUtils {
     }
 
     /**
-     * Make a field or method accessible, retrying within a {@code doPrivileged} block if the direct attempt failed.
+     * Make a field or method accessible, retrying within a {@code doPrivileged}
+     * block if the direct attempt failed.
      *
-     * @param obj
-     *            the field or method to make accessible
-     * @param reflectionUtils
-     *            the {@link ReflectionUtils} instance
+     * @param obj             the field or method to make accessible
+     * @param reflectionUtils the {@link ReflectionUtils} instance
      * @return true if the field or method was made accessible
      */
     public static boolean makeAccessible(final AccessibleObject obj, final ReflectionUtils reflectionUtils) {
-        // This reflection code is duplicated from StandardReflectionDriver, because calling
-        // ReflectionUtils.reflectionDriver.makeAccessible(obj) does not work when called from here
-        // (private fields can't be accessed from outside this package even after calling setAccessible(true))
+        // This reflection code is duplicated from StandardReflectionDriver, because
+        // calling
+        // ReflectionUtils.reflectionDriver.makeAccessible(obj) does not work when
+        // called from here
+        // (private fields can't be accessed from outside this package even after
+        // calling setAccessible(true))
         if (tryMakeAccessible(obj)) {
             return true;
         }
@@ -88,8 +90,9 @@ public final class JSONUtils {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * JSON object key name for objects that are linked to from more than one object. Key name is only used if the
-     * class that a JSON object was serialized from does not have its own id field annotated with {@link Id}.
+     * JSON object key name for objects that are linked to from more than one
+     * object. Key name is only used if the class that a JSON object was serialized
+     * from does not have its own id field annotated with {@link Id}.
      */
     static final String ID_KEY = "__ID";
 
@@ -99,18 +102,21 @@ public final class JSONUtils {
     /** JSON object reference id suffix. */
     static final String ID_SUFFIX = "]";
 
-    /** JSON character-to-string escaping replacements -- see http://www.json.org/ under "string". */
+    /**
+     * JSON character-to-string escaping replacements -- see http://www.json.org/
+     * under "string".
+     */
     private static final String[] JSON_CHAR_REPLACEMENTS = new String[256];
 
     static {
-        for (int c = 0; c < 256; c++) {
+        for (var c = 0; c < 256; c++) {
             if (c == 32) {
                 c = 127;
             }
-            final int nibble1 = c >> 4;
-            final char hexDigit1 = nibble1 <= 9 ? (char) ('0' + nibble1) : (char) ('A' + nibble1 - 10);
-            final int nibble0 = c & 0xf;
-            final char hexDigit0 = nibble0 <= 9 ? (char) ('0' + nibble0) : (char) ('A' + nibble0 - 10);
+            final var nibble1 = c >> 4;
+            final var hexDigit1 = nibble1 <= 9 ? (char) ('0' + nibble1) : (char) ('A' + nibble1 - 10);
+            final var nibble0 = c & 0xf;
+            final var hexDigit0 = nibble0 <= 9 ? (char) ('0' + nibble0) : (char) ('A' + nibble0 - 10);
             JSON_CHAR_REPLACEMENTS[c] = "\\u00" + hexDigit1 + "" + hexDigit0;
         }
         JSON_CHAR_REPLACEMENTS['"'] = "\\\"";
@@ -126,7 +132,7 @@ public final class JSONUtils {
     private static final String[] INDENT_LEVELS = new String[17];
     static {
         final StringBuilder buf = new StringBuilder();
-        for (int i = 0; i < INDENT_LEVELS.length; i++) {
+        for (var i = 0; i < INDENT_LEVELS.length; i++) {
             INDENT_LEVELS[i] = buf.toString();
             buf.append(' ');
         }
@@ -144,19 +150,17 @@ public final class JSONUtils {
     /**
      * Escape a string to be surrounded in double quotes in JSON.
      *
-     * @param unsafeStr
-     *            the unsafe str
-     * @param buf
-     *            the buf
+     * @param unsafeStr the unsafe str
+     * @param buf       the buf
      */
     static void escapeJSONString(final String unsafeStr, final StringBuilder buf) {
         if (unsafeStr == null) {
             return;
         }
         // Fast path
-        boolean needsEscaping = false;
+        var needsEscaping = false;
         for (int i = 0, n = unsafeStr.length(); i < n; i++) {
-            final char c = unsafeStr.charAt(i);
+            final var c = unsafeStr.charAt(i);
             if (c > 0xff || JSON_CHAR_REPLACEMENTS[c] != null) {
                 needsEscaping = true;
                 break;
@@ -168,19 +172,19 @@ public final class JSONUtils {
         }
         // Slow path
         for (int i = 0, n = unsafeStr.length(); i < n; i++) {
-            final char c = unsafeStr.charAt(i);
+            final var c = unsafeStr.charAt(i);
             if (c > 0xff) {
                 buf.append("\\u");
-                final int nibble3 = ((c) & 0xf000) >> 12;
+                final var nibble3 = ((c) & 0xf000) >> 12;
                 buf.append(nibble3 <= 9 ? (char) ('0' + nibble3) : (char) ('A' + nibble3 - 10));
-                final int nibble2 = ((c) & 0xf00) >> 8;
+                final var nibble2 = ((c) & 0xf00) >> 8;
                 buf.append(nibble2 <= 9 ? (char) ('0' + nibble2) : (char) ('A' + nibble2 - 10));
-                final int nibble1 = ((c) & 0xf0) >> 4;
+                final var nibble1 = ((c) & 0xf0) >> 4;
                 buf.append(nibble1 <= 9 ? (char) ('0' + nibble1) : (char) ('A' + nibble1 - 10));
-                final int nibble0 = ((c) & 0xf);
+                final var nibble0 = ((c) & 0xf);
                 buf.append(nibble0 <= 9 ? (char) ('0' + nibble0) : (char) ('A' + nibble0 - 10));
             } else {
-                final String replacement = JSON_CHAR_REPLACEMENTS[c];
+                final var replacement = JSON_CHAR_REPLACEMENTS[c];
                 if (replacement == null) {
                     buf.append(c);
                 } else {
@@ -193,8 +197,7 @@ public final class JSONUtils {
     /**
      * Escape a string to be surrounded in double quotes in JSON.
      * 
-     * @param unsafeStr
-     *            The string to escape.
+     * @param unsafeStr The string to escape.
      * @return The escaped string.
      */
     public static String escapeJSONString(final String unsafeStr) {
@@ -208,17 +211,14 @@ public final class JSONUtils {
     /**
      * Indent (depth * indentWidth) spaces.
      *
-     * @param depth
-     *            the depth
-     * @param indentWidth
-     *            the indent width
-     * @param buf
-     *            the buf
+     * @param depth       the depth
+     * @param indentWidth the indent width
+     * @param buf         the buf
      */
     static void indent(final int depth, final int indentWidth, final StringBuilder buf) {
-        final int maxIndent = INDENT_LEVELS.length - 1;
-        for (int d = depth * indentWidth; d > 0;) {
-            final int n = Math.min(d, maxIndent);
+        final var maxIndent = INDENT_LEVELS.length - 1;
+        for (var d = depth * indentWidth; d > 0;) {
+            final var n = Math.min(d, maxIndent);
             buf.append(INDENT_LEVELS[n]);
             d -= n;
         }
@@ -229,16 +229,13 @@ public final class JSONUtils {
     /**
      * Get a field value, appropriately handling primitive-typed fields.
      *
-     * @param containingObj
-     *            the containing object
-     * @param field
-     *            the field
+     * @param containingObj the containing object
+     * @param field         the field
      * @return the field value
-     * @throws IllegalArgumentException
-     *             if the specified object is not an instance of the class or interface declaring the underlying
-     *             field
-     * @throws IllegalAccessException
-     *             if the field cannot be read
+     * @throws IllegalArgumentException if the specified object is not an instance
+     *                                  of the class or interface declaring the
+     *                                  underlying field
+     * @throws IllegalAccessException   if the field cannot be read
      */
     static Object getFieldValue(final Object containingObj, final Field field)
             throws IllegalArgumentException, IllegalAccessException {
@@ -268,11 +265,10 @@ public final class JSONUtils {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Return true for classes that can be equal to a basic value type (types that can be converted directly to and
-     * from string representation).
+     * Return true for classes that can be equal to a basic value type (types that
+     * can be converted directly to and from string representation).
      *
-     * @param cls
-     *            the class
+     * @param cls the class
      * @return true, if the class is a basic value type
      */
     static boolean isBasicValueType(final Class<?> cls) {
@@ -285,18 +281,20 @@ public final class JSONUtils {
                 || cls == Byte.class || cls == byte.class //
                 || cls == Character.class || cls == char.class //
                 || cls == Boolean.class || cls == boolean.class //
-                // (Test Enum.class.isAssignableFrom() rather than cls.isEnum() -- an enum constant with a
-                // constant-specific class body is an instance of an anonymous subclass of the enum type, and
+                // (Test Enum.class.isAssignableFrom() rather than cls.isEnum() -- an enum
+                // constant with a
+                // constant-specific class body is an instance of an anonymous subclass of the
+                // enum type, and
                 // Class#isEnum() is false for that subclass)
                 || Enum.class.isAssignableFrom(cls) //
                 || cls == Class.class;
     }
 
     /**
-     * Return true for types that can be converted directly to and from string representation.
+     * Return true for types that can be converted directly to and from string
+     * representation.
      *
-     * @param type
-     *            the type
+     * @param type the type
      * @return true, if the type is a basic value type
      */
     static boolean isBasicValueType(final Type type) {
@@ -310,24 +308,23 @@ public final class JSONUtils {
     }
 
     /**
-     * Return true for objects that can be converted directly to and from string representation.
+     * Return true for objects that can be converted directly to and from string
+     * representation.
      *
-     * @param obj
-     *            the object
+     * @param obj the object
      * @return true, if the object is null or of basic value type
      */
     static boolean isBasicValueType(final Object obj) {
         return obj == null || obj instanceof String || obj instanceof Integer || obj instanceof Boolean
                 || obj instanceof Long || obj instanceof Float || obj instanceof Double || obj instanceof Short
-                || obj instanceof Byte || obj instanceof Character || obj instanceof Enum
-                || obj instanceof Class;
+                || obj instanceof Byte || obj instanceof Character || obj instanceof Enum || obj instanceof Class;
     }
 
     /**
-     * Return true for objects that are collections or arrays (i.e. objects that are convertible to a JSON array).
+     * Return true for objects that are collections or arrays (i.e. objects that are
+     * convertible to a JSON array).
      *
-     * @param obj
-     *            the object
+     * @param obj the object
      * @return true, if the object is a collection or array
      */
     static boolean isCollectionOrArray(final Object obj) {
@@ -340,12 +337,11 @@ public final class JSONUtils {
     /**
      * Get the raw type from a Type.
      *
-     * @param type
-     *            the type
+     * @param type the type
      * @return the raw type
-     * @throws IllegalArgumentException
-     *             if passed a TypeVariable or anything other than a {@code Class<?>} reference or
-     *             {@link ParameterizedType}.
+     * @throws IllegalArgumentException if passed a TypeVariable or anything other
+     *                                  than a {@code Class<?>} reference or
+     *                                  {@link ParameterizedType}.
      */
     static Class<?> getRawType(final Type type) {
         if (type instanceof final Class<?> cls) {
@@ -358,23 +354,21 @@ public final class JSONUtils {
     }
 
     /**
-     * Check if a field is serializable. Don't serialize transient, final, synthetic, or inaccessible fields.
+     * Check if a field is serializable. Don't serialize transient, final,
+     * synthetic, or inaccessible fields.
      * 
      * <p>
-     * N.B. Tries to set field to accessible, which will require an "opens" declarations from modules that want to
-     * allow this introspection.
+     * N.B. Tries to set field to accessible, which will require an "opens"
+     * declarations from modules that want to allow this introspection.
      *
-     * @param field
-     *            the field
-     * @param onlySerializePublicFields
-     *            if true, only serialize public fields
-     * @param reflectionUtils
-     *            the {@link ReflectionUtils} instance
+     * @param field                     the field
+     * @param onlySerializePublicFields if true, only serialize public fields
+     * @param reflectionUtils           the {@link ReflectionUtils} instance
      * @return true if the field is serializable
      */
     static boolean fieldIsSerializable(final Field field, final boolean onlySerializePublicFields,
             final ReflectionUtils reflectionUtils) {
-        final int modifiers = field.getModifiers();
+        final var modifiers = field.getModifiers();
         if ((!onlySerializePublicFields || Modifier.isPublic(modifiers)) && !Modifier.isTransient(modifiers)
                 && !Modifier.isFinal(modifiers) && ((modifiers & 0x1000 /* synthetic */) == 0)) {
             return makeAccessible(field, reflectionUtils);

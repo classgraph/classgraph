@@ -2,15 +2,11 @@ package io.github.classgraph.test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.List;
-
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ClassInfo;
-import io.github.classgraph.ClassInfoList.ClassInfoFilter;
 import io.github.classgraph.ScanResult;
 import io.github.classgraph.test.accepted.ClsSub;
 import io.github.classgraph.test.accepted.ClsSubSub;
@@ -53,8 +49,7 @@ public class ClassInfoTest {
      */
     @Test
     public void useClassNameToClassInfo() {
-        final List<String> impls = scanResult.getClassInfo(Iface.class.getName()).getClassesImplementing()
-                .getNames();
+        final var impls = scanResult.getClassInfo(Iface.class.getName()).getClassesImplementing().getNames();
         assertThat(impls.contains(Impl1.class.getName())).isTrue();
     }
 
@@ -63,12 +58,8 @@ public class ClassInfoTest {
      */
     @Test
     public void filter() {
-        assertThat(scanResult.getAllClasses().filter(new ClassInfoFilter() {
-            @Override
-            public boolean accept(final ClassInfo ci) {
-                return ci.getName().contains("ClsSub");
-            }
-        }).getNames()).containsOnly(ClsSub.class.getName(), ClsSubSub.class.getName());
+        assertThat(scanResult.getAllClasses().filter(ci -> ci.getName().contains("ClsSub")).getNames())
+                .containsOnly(ClsSub.class.getName(), ClsSubSub.class.getName());
     }
 
     /**
@@ -76,12 +67,9 @@ public class ClassInfoTest {
      */
     @Test
     public void streamHasSuperInterfaceDirect() {
-        assertThat(scanResult.getAllClasses().filter(new ClassInfoFilter() {
-            @Override
-            public boolean accept(final ClassInfo ci) {
-                return ci.getInterfaces().directOnly().getNames().contains(Iface.class.getName());
-            }
-        }).getNames()).containsOnly(IfaceSub.class.getName(), Impl2.class.getName());
+        assertThat(scanResult.getAllClasses()
+                .filter(ci -> ci.getInterfaces().directOnly().getNames().contains(Iface.class.getName())).getNames())
+                .containsOnly(IfaceSub.class.getName(), Impl2.class.getName());
     }
 
     /**
@@ -89,14 +77,11 @@ public class ClassInfoTest {
      */
     @Test
     public void streamHasSuperInterface() {
-        assertThat(scanResult.getAllClasses().filter(new ClassInfoFilter() {
-            @Override
-            public boolean accept(final ClassInfo ci) {
-                return ci.getInterfaces().getNames().contains(Iface.class.getName());
-            }
-        }).getNames()).containsOnly(IfaceSub.class.getName(), IfaceSubSub.class.getName(), Impl2.class.getName(),
-                Impl2Sub.class.getName(), Impl2SubSub.class.getName(), Impl1.class.getName(),
-                Impl1Sub.class.getName(), Impl1SubSub.class.getName());
+        assertThat(scanResult.getAllClasses()
+                .filter(ci -> ci.getInterfaces().getNames().contains(Iface.class.getName())).getNames())
+                .containsOnly(IfaceSub.class.getName(), IfaceSubSub.class.getName(), Impl2.class.getName(),
+                        Impl2Sub.class.getName(), Impl2SubSub.class.getName(), Impl1.class.getName(),
+                        Impl1Sub.class.getName(), Impl1SubSub.class.getName());
     }
 
     /**
@@ -114,9 +99,8 @@ public class ClassInfoTest {
     @Test
     public void implementsInterface() {
         assertThat(scanResult.getClassesImplementing(Iface.class).getNames()).containsOnly(Impl1.class.getName(),
-                Impl1Sub.class.getName(), Impl1SubSub.class.getName(), Impl2.class.getName(),
-                Impl2Sub.class.getName(), Impl2SubSub.class.getName(), IfaceSub.class.getName(),
-                IfaceSubSub.class.getName());
+                Impl1Sub.class.getName(), Impl1SubSub.class.getName(), Impl2.class.getName(), Impl2Sub.class.getName(),
+                Impl2SubSub.class.getName(), IfaceSub.class.getName(), IfaceSubSub.class.getName());
     }
 
     /**
@@ -124,12 +108,9 @@ public class ClassInfoTest {
      */
     @Test
     public void multiCriteria() {
-        assertThat(scanResult.getAllClasses().filter(new ClassInfoFilter() {
-            @Override
-            public boolean accept(final ClassInfo ci) {
-                return ci.getInterfaces().getNames().contains(Iface.class.getName())
-                        && ci.getSuperclasses().getNames().contains(Impl1.class.getName());
-            }
-        }).getNames()).containsOnly(Impl1Sub.class.getName(), Impl1SubSub.class.getName());
+        assertThat(scanResult.getAllClasses()
+                .filter(ci -> ci.getInterfaces().getNames().contains(Iface.class.getName())
+                        && ci.getSuperclasses().getNames().contains(Impl1.class.getName()))
+                .getNames()).containsOnly(Impl1Sub.class.getName(), Impl1SubSub.class.getName());
     }
 }

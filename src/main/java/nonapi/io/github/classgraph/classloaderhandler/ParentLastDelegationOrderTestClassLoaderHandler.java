@@ -53,13 +53,14 @@ class ParentLastDelegationOrderTestClassLoaderHandler implements ClassLoaderHand
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
             final ScanSpec scanSpec, final LogNode log) {
-        final String classpath = (String) classpathOrder.reflectionUtils.invokeMethod(/* throwException = */ true,
+        final var classpath = (String) classpathOrder.reflectionUtils.invokeMethod(/* throwException = */ true,
                 classLoader, "getClasspath");
         classpathOrder.addClasspathEntry(classpath, classLoader, scanSpec, log);
     }
 
     /**
-     * Get the automatic package root prefixes for classpath elements obtained from this classloader.
+     * Get the automatic package root prefixes for classpath elements obtained from
+     * this classloader.
      *
      * <p>
      * Only used for unit testing of classloader delegation order.

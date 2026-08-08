@@ -48,25 +48,28 @@ import nonapi.io.github.classgraph.utils.Assert;
 import nonapi.io.github.classgraph.utils.LogNode;
 
 /**
- * Holds metadata about methods of a class encountered during a scan. All values are taken directly out of the
- * classfile for the class.
+ * Holds metadata about methods of a class encountered during a scan. All values
+ * are taken directly out of the classfile for the class.
  */
 public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo> {
     /** The parsed type descriptor. */
     private transient MethodTypeSignature typeDescriptor;
 
-    /** The parsed type signature (or null if none). Method parameter types are unaligned. */
+    /**
+     * The parsed type signature (or null if none). Method parameter types are
+     * unaligned.
+     */
     private transient MethodTypeSignature typeSignature;
 
     /**
-     * Unaligned parameter names. These are only produced in JDK8+, and only if the commandline switch `-parameters`
-     * is provided at compiletime.
+     * Unaligned parameter names. These are only produced in JDK8+, and only if the
+     * commandline switch `-parameters` is provided at compiletime.
      */
     private String[] parameterNames;
 
     /**
-     * Unaligned parameter modifiers. These are only produced in JDK8+, and only if the commandline switch
-     * `-parameters` is provided at compiletime.
+     * Unaligned parameter modifiers. These are only produced in JDK8+, and only if
+     * the commandline switch `-parameters` is provided at compiletime.
      */
     private int[] parameterModifiers;
 
@@ -85,7 +88,9 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
     /** The maximum line number for the body of this method, or 0 if unknown. */
     private int maxLineNum;
 
-    /** The type annotation decorators for the {@link MethodTypeSignature} instance. */
+    /**
+     * The type annotation decorators for the {@link MethodTypeSignature} instance.
+     */
     private transient List<MethodTypeAnnotationDecorator> typeAnnotationDecorators;
 
     /** The names of the exceptions thrown by this method, or null if none. */
@@ -104,38 +109,31 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
     /**
      * Constructor.
      *
-     * @param definingClassName
-     *            The name of the enclosing class.
-     * @param methodName
-     *            The name of the method.
-     * @param methodAnnotationInfo
-     *            The list of {@link AnnotationInfo} objects for any annotations on the method.
-     * @param modifiers
-     *            The method modifier bits.
-     * @param typeDescriptorStr
-     *            The internal method type descriptor string.
-     * @param typeSignatureStr
-     *            The internal method type signature string, or null if none.
-     * @param parameterNames
-     *            The parameter names.
-     * @param parameterModifiers
-     *            The parameter modifiers.
-     * @param parameterAnnotationInfo
-     *            The parameter {@link AnnotationInfo}.
-     * @param hasBody
-     *            True if this method has a body.
-     * @param minLineNum
-     *            The minimum line number for the body of this method, or 0 if unknown.
-     * @param maxLineNum
-     *            The maximum line number for the body of this method, or 0 if unknown.
-     * @param methodTypeAnnotationDecorators
-     *            Decorator lambdas for method type annotations.
-     * @param thrownExceptionNames
-     *            exceptions thrown by this method.
+     * @param definingClassName              The name of the enclosing class.
+     * @param methodName                     The name of the method.
+     * @param methodAnnotationInfo           The list of {@link AnnotationInfo}
+     *                                       objects for any annotations on the
+     *                                       method.
+     * @param modifiers                      The method modifier bits.
+     * @param typeDescriptorStr              The internal method type descriptor
+     *                                       string.
+     * @param typeSignatureStr               The internal method type signature
+     *                                       string, or null if none.
+     * @param parameterNames                 The parameter names.
+     * @param parameterModifiers             The parameter modifiers.
+     * @param parameterAnnotationInfo        The parameter {@link AnnotationInfo}.
+     * @param hasBody                        True if this method has a body.
+     * @param minLineNum                     The minimum line number for the body of
+     *                                       this method, or 0 if unknown.
+     * @param maxLineNum                     The maximum line number for the body of
+     *                                       this method, or 0 if unknown.
+     * @param methodTypeAnnotationDecorators Decorator lambdas for method type
+     *                                       annotations.
+     * @param thrownExceptionNames           exceptions thrown by this method.
      */
-    MethodInfo(final String definingClassName, final String methodName,
-            final AnnotationInfoList methodAnnotationInfo, final int modifiers, final String typeDescriptorStr,
-            final String typeSignatureStr, final String[] parameterNames, final int[] parameterModifiers,
+    MethodInfo(final String definingClassName, final String methodName, final AnnotationInfoList methodAnnotationInfo,
+            final int modifiers, final String typeDescriptorStr, final String typeSignatureStr,
+            final String[] parameterNames, final int[] parameterModifiers,
             final AnnotationInfo[][] parameterAnnotationInfo, final boolean hasBody, final int minLineNum,
             final int maxLineNum, final List<MethodTypeAnnotationDecorator> methodTypeAnnotationDecorators,
             final String[] thrownExceptionNames) {
@@ -153,8 +151,9 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Returns the name of the method. Note that constructors are named {@code "<init>"}, and private static class
-     * initializer blocks are named {@code "<clinit>"}.
+     * Returns the name of the method. Note that constructors are named
+     * {@code "<init>"}, and private static class initializer blocks are named
+     * {@code "<clinit>"}.
      * 
      * @return The name of the method.
      */
@@ -164,21 +163,22 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
     }
 
     /**
-     * Get the method modifiers as a String, e.g. "public static final". For the modifier bits, call
-     * {@link #getModifiers()}.
+     * Get the method modifiers as a String, e.g. "public static final". For the
+     * modifier bits, call {@link #getModifiers()}.
      * 
      * @return The modifiers for the method, as a String.
      */
     @Override
     public String getModifiersStr() {
-        final StringBuilder buf = new StringBuilder();
+        final var buf = new StringBuilder();
         TypeUtils.modifiersToString(modifiers, ModifierType.METHOD, isDefault(), buf);
         return buf.toString();
     }
 
     /**
-     * Returns the parsed type descriptor for the method, which will not include type parameters. If you need
-     * generic type parameters, call {@link #getTypeSignature()} instead.
+     * Returns the parsed type descriptor for the method, which will not include
+     * type parameters. If you need generic type parameters, call
+     * {@link #getTypeSignature()} instead.
      * 
      * @return The parsed type descriptor for the method.
      */
@@ -190,21 +190,29 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
                     typeDescriptor = MethodTypeSignature.parse(typeDescriptorStr, declaringClassName);
                     typeDescriptor.setScanResult(scanResult);
                     if (typeAnnotationDecorators != null) {
-                        // Type annotations index formal parameters starting from the first parameter that was
-                        // declared in source code. However, the method type descriptor may begin with extra
-                        // implicit (compiler-synthesized) parameters that formal_parameter_index does not count
+                        // Type annotations index formal parameters starting from the first parameter
+                        // that was
+                        // declared in source code. However, the method type descriptor may begin with
+                        // extra
+                        // implicit (compiler-synthesized) parameters that formal_parameter_index does
+                        // not count
                         // -- e.g. the leading enclosing-instance parameter of a non-static inner class
                         // constructor, or the leading (String name, int ordinal) parameters of an enum
-                        // constructor. Determine how many such implicit prefix parameters there are, strip them
-                        // from the descriptor while running the decorators so that formal_parameter_index lines
-                        // up, then restore them. See also getParameterInfo(), which "right-aligns" parameter
+                        // constructor. Determine how many such implicit prefix parameters there are,
+                        // strip them
+                        // from the descriptor while running the decorators so that
+                        // formal_parameter_index lines
+                        // up, then restore them. See also getParameterInfo(), which "right-aligns"
+                        // parameter
                         // metadata for the same reason. (#897)
-                        final int descNumParam = typeDescriptor.getParameterTypeSignatures().size();
+                        final var descNumParam = typeDescriptor.getParameterTypeSignatures().size();
                         int numImplicitPrefixParams;
-                        final MethodTypeSignature sig = getTypeSignature();
+                        final var sig = getTypeSignature();
                         if (sig != null) {
-                            // The generic type signature omits implicit prefix parameters, so the difference in
-                            // parameter count reveals how many there are (the spec-sanctioned relationship).
+                            // The generic type signature omits implicit prefix parameters, so the
+                            // difference in
+                            // parameter count reveals how many there are (the spec-sanctioned
+                            // relationship).
                             numImplicitPrefixParams = descNumParam - sig.getParameterTypeSignatures().size();
                         } else {
                             // There is no generic type signature (e.g. a non-generic inner-class or enum
@@ -228,26 +236,31 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
     }
 
     /**
-     * Determine the number of implicit (compiler-synthesized) parameters at the start of this method's
-     * parameter list that are not counted by the {@code formal_parameter_index} of type annotations. This is
-     * used only when there is no generic type signature to compare the descriptor against. Currently handles
-     * the two standard Java cases: the leading enclosing-instance parameter of a non-static inner class
-     * constructor, and the leading {@code (String name, int ordinal)} parameters of an enum constructor.
-     * (Local and anonymous classes may add a varying number of synthetic params, and are deliberately not
-     * special-cased here -- any resulting mismatch is handled gracefully by {@link #decorateMethodType}.)
-     * (#897)
+     * Determine the number of implicit (compiler-synthesized) parameters at the
+     * start of this method's parameter list that are not counted by the
+     * {@code formal_parameter_index} of type annotations. This is used only when
+     * there is no generic type signature to compare the descriptor against.
+     * Currently handles the two standard Java cases: the leading enclosing-instance
+     * parameter of a non-static inner class constructor, and the leading
+     * {@code (String name, int ordinal)} parameters of an enum constructor. (Local
+     * and anonymous classes may add a varying number of synthetic params, and are
+     * deliberately not special-cased here -- any resulting mismatch is handled
+     * gracefully by {@link #decorateMethodType}.) (#897)
      *
-     * @return the number of implicit prefix parameters (0 if none, or if it cannot be determined).
+     * @return the number of implicit prefix parameters (0 if none, or if it cannot
+     *         be determined).
      */
     private int getNumImplicitPrefixParams() {
         if ("<init>".equals(name)) {
-            final ClassInfo declaringClassInfo = getClassInfo();
+            final var declaringClassInfo = getClassInfo();
             if (declaringClassInfo != null) {
                 if (declaringClassInfo.isEnum()) {
-                    // enum constructors have two leading synthetic params: (String name, int ordinal)
+                    // enum constructors have two leading synthetic params: (String name, int
+                    // ordinal)
                     return 2;
                 } else if (declaringClassInfo.isInnerClass() && !declaringClassInfo.isStatic()) {
-                    // Non-static inner class constructors have a leading enclosing-instance parameter
+                    // Non-static inner class constructors have a leading enclosing-instance
+                    // parameter
                     return 1;
                 }
             }
@@ -256,51 +269,58 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
     }
 
     /**
-     * Run the method type annotation decorators on the given parsed method type, temporarily stripping the
-     * given number of implicit prefix parameters so that {@code formal_parameter_index} values line up with
-     * the source-declared parameters. Any individual type annotation that cannot be matched to a parameter
-     * type (e.g. due to compiler-specific parameter indexing, as with Kotlin, local or anonymous classes, or
-     * a compiler bug) is skipped rather than being allowed to abort parsing of the whole method type. (#897)
+     * Run the method type annotation decorators on the given parsed method type,
+     * temporarily stripping the given number of implicit prefix parameters so that
+     * {@code formal_parameter_index} values line up with the source-declared
+     * parameters. Any individual type annotation that cannot be matched to a
+     * parameter type (e.g. due to compiler-specific parameter indexing, as with
+     * Kotlin, local or anonymous classes, or a compiler bug) is skipped rather than
+     * being allowed to abort parsing of the whole method type. (#897)
      *
-     * @param methodType
-     *            the parsed method type signature or descriptor to decorate.
-     * @param numImplicitPrefixParams
-     *            the number of implicit prefix parameters to strip while decorating (0 for none).
+     * @param methodType              the parsed method type signature or descriptor
+     *                                to decorate.
+     * @param numImplicitPrefixParams the number of implicit prefix parameters to
+     *                                strip while decorating (0 for none).
      */
     private void decorateMethodType(final MethodTypeSignature methodType, final int numImplicitPrefixParams) {
-        final List<TypeSignature> paramSigs = methodType.getParameterTypeSignatures();
-        // Take a copy of the implicit prefix params before removing them -- do not use the live view returned
-        // by List.subList(), since it would be invalidated by the structural modification of paramSigs below.
-        final List<TypeSignature> implicitPrefixParams = numImplicitPrefixParams <= 0 ? null
+        final var paramSigs = methodType.getParameterTypeSignatures();
+        // Take a copy of the implicit prefix params before removing them -- do not use
+        // the live view returned
+        // by List.subList(), since it would be invalidated by the structural
+        // modification of paramSigs below.
+        final var implicitPrefixParams = numImplicitPrefixParams <= 0 ? null
                 : new ArrayList<>(paramSigs.subList(0, numImplicitPrefixParams));
-        for (int i = 0; i < numImplicitPrefixParams; i++) {
+        for (var i = 0; i < numImplicitPrefixParams; i++) {
             paramSigs.remove(0);
         }
         for (final MethodTypeAnnotationDecorator decorator : typeAnnotationDecorators) {
             try {
                 decorator.decorate(methodType);
             } catch (final IllegalArgumentException e) {
-                // Skip a type annotation that cannot be matched to a parameter type, rather than failing to
+                // Skip a type annotation that cannot be matched to a parameter type, rather
+                // than failing to
                 // produce the whole method type (best effort). (#897)
             }
         }
         if (implicitPrefixParams != null) {
-            for (int i = numImplicitPrefixParams - 1; i >= 0; --i) {
+            for (var i = numImplicitPrefixParams - 1; i >= 0; --i) {
                 paramSigs.add(0, implicitPrefixParams.get(i));
             }
         }
     }
 
     /**
-     * Returns the parsed type signature for the method, possibly including type parameters. If this returns null,
-     * indicating that no type signature information is available for this method, call {@link #getTypeDescriptor()}
+     * Returns the parsed type signature for the method, possibly including type
+     * parameters. If this returns null, indicating that no type signature
+     * information is available for this method, call {@link #getTypeDescriptor()}
      * instead.
      * 
      * @return The parsed type signature for the method, or null if not available.
-     * @throws IllegalArgumentException
-     *             if the method type signature cannot be parsed (this should only be thrown in the case of
-     *             classfile corruption, or a compiler bug that causes an invalid type signature to be written to
-     *             the classfile).
+     * @throws IllegalArgumentException if the method type signature cannot be
+     *                                  parsed (this should only be thrown in the
+     *                                  case of classfile corruption, or a compiler
+     *                                  bug that causes an invalid type signature to
+     *                                  be written to the classfile).
      */
     @Override
     public MethodTypeSignature getTypeSignature() {
@@ -329,12 +349,13 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
     }
 
     /**
-     * Returns the parsed type signature for the method, possibly including type parameters. If the type signature
-     * string is null, indicating that no type signature information is available for this method, returns the
-     * parsed type descriptor instead.
+     * Returns the parsed type signature for the method, possibly including type
+     * parameters. If the type signature string is null, indicating that no type
+     * signature information is available for this method, returns the parsed type
+     * descriptor instead.
      * 
-     * @return The parsed type signature for the method, or if not available, the parsed type descriptor for the
-     *         method.
+     * @return The parsed type signature for the method, or if not available, the
+     *         parsed type descriptor for the method.
      */
     @Override
     public MethodTypeSignature getTypeSignatureOrTypeDescriptor() {
@@ -351,16 +372,18 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
     }
 
     /**
-     * Returns the list of exceptions thrown by the method, as a {@link ClassInfoList}.
+     * Returns the list of exceptions thrown by the method, as a
+     * {@link ClassInfoList}.
      * 
-     * @return The list of exceptions thrown by the method, as a {@link ClassInfoList} (the list may be empty).
+     * @return The list of exceptions thrown by the method, as a
+     *         {@link ClassInfoList} (the list may be empty).
      */
     public ClassInfoList getThrownExceptions() {
         synchronized (this) {
             if (thrownExceptions == null && thrownExceptionNames != null) {
                 thrownExceptions = new ClassInfoList(thrownExceptionNames.length);
                 for (final String thrownExceptionName : thrownExceptionNames) {
-                    final ClassInfo classInfo = scanResult.getClassInfo(thrownExceptionName);
+                    final var classInfo = scanResult.getClassInfo(thrownExceptionName);
                     if (classInfo != null) {
                         thrownExceptions.add(classInfo);
                         classInfo.setScanResult(scanResult);
@@ -374,7 +397,8 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
     /**
      * Returns the exceptions thrown by the method, as an array.
      * 
-     * @return The exceptions thrown by the method, as an array (the array may be empty).
+     * @return The exceptions thrown by the method, as an array (the array may be
+     *         empty).
      */
     public String[] getThrownExceptionNames() {
         return thrownExceptionNames == null ? new String[0] : thrownExceptionNames;
@@ -383,9 +407,10 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Returns true if this method is a constructor. Constructors have the method name {@code
-     * "<init>"}. This returns false for private static class initializer blocks, which are named
-     * {@code "<clinit>"}.
+     * Returns true if this method is a constructor. Constructors have the method
+     * name {@code
+     * "<init>"}. This returns false for private static class initializer blocks,
+     * which are named {@code "<clinit>"}.
      * 
      * @return True if this method is a constructor.
      */
@@ -448,7 +473,8 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
     }
 
     /**
-     * Returns true if this method has a body (i.e. has an implementation in the containing class).
+     * Returns true if this method has a body (i.e. has an implementation in the
+     * containing class).
      * 
      * @return True if this method has a body.
      */
@@ -457,31 +483,35 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
     }
 
     /**
-     * The line number of the first non-empty line in the body of this method, or 0 if unknown.
+     * The line number of the first non-empty line in the body of this method, or 0
+     * if unknown.
      * 
-     * @return The line number of the first non-empty line in the body of this method, or 0 if unknown.
+     * @return The line number of the first non-empty line in the body of this
+     *         method, or 0 if unknown.
      */
     public int getMinLineNum() {
         return minLineNum;
     }
 
     /**
-     * The line number of the last non-empty line in the body of this method, or 0 if unknown.
+     * The line number of the last non-empty line in the body of this method, or 0
+     * if unknown.
      * 
-     * @return The line number of the last non-empty line in the body of this method, or 0 if unknown.
+     * @return The line number of the last non-empty line in the body of this
+     *         method, or 0 if unknown.
      */
     public int getMaxLineNum() {
         return maxLineNum;
     }
 
     /**
-     * Returns true if this is a default method (i.e. if this is a method in an interface and the method has a
-     * body).
+     * Returns true if this is a default method (i.e. if this is a method in an
+     * interface and the method has a body).
      * 
      * @return True if this is a default method.
      */
     public boolean isDefault() {
-        final ClassInfo classInfo = getClassInfo();
+        final var classInfo = getClassInfo();
         return classInfo != null && classInfo.isInterface() && hasBody;
     }
 
@@ -490,22 +520,33 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
     /**
      * Get the available information on method parameters.
      * 
-     * @return The {@link MethodParameterInfo} objects for the method parameters, one per parameter.
+     * @return The {@link MethodParameterInfo} objects for the method parameters,
+     *         one per parameter.
      */
     public MethodParameterInfo[] getParameterInfo() {
-        // Kotlin is very inconsistent about the arity of each of the parameter metadata types, see:
+        // Kotlin is very inconsistent about the arity of each of the parameter metadata
+        // types, see:
         // https://github.com/classgraph/classgraph/issues/175#issuecomment-363031510
-        // As a workaround, we assume that any synthetic / mandated parameters must come first in the
-        // parameter list, when the arities don't match, and we right-align the metadata fields.
-        // This is probably the safest assumption across JVM languages, even though this convention
-        // is by no means the only possibility. (Unfortunately we can't just rely on the modifier
-        // bits to find synthetic / mandated parameters, because these bits are not always available,
-        // and even when they are, they don't always give the right alignment, at least for Kotlin-
+        // As a workaround, we assume that any synthetic / mandated parameters must come
+        // first in the
+        // parameter list, when the arities don't match, and we right-align the metadata
+        // fields.
+        // This is probably the safest assumption across JVM languages, even though this
+        // convention
+        // is by no means the only possibility. (Unfortunately we can't just rely on the
+        // modifier
+        // bits to find synthetic / mandated parameters, because these bits are not
+        // always available,
+        // and even when they are, they don't always give the right alignment, at least
+        // for Kotlin-
         // generated code).
 
-        // Actually the Java spec says specifically: "The signature and descriptor of a given method
-        // or constructor may not correspond exactly, due to compiler-generated artifacts. In particular,
-        // the number of TypeSignatures that encode formal arguments in MethodTypeSignature may be less
+        // Actually the Java spec says specifically: "The signature and descriptor of a
+        // given method
+        // or constructor may not correspond exactly, due to compiler-generated
+        // artifacts. In particular,
+        // the number of TypeSignatures that encode formal arguments in
+        // MethodTypeSignature may be less
         // than the number of ParameterDescriptors in MethodDescriptor."
 
         // This was also triggered by an implicit param in Guava 28.2 (#660).
@@ -514,30 +555,36 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
             if (parameterInfo == null) {
                 // Get param type signatures from the type signature of the method
                 List<TypeSignature> paramTypeSignatures = null;
-                final MethodTypeSignature typeSig = getTypeSignature();
+                final var typeSig = getTypeSignature();
                 if (typeSig != null) {
                     paramTypeSignatures = typeSig.getParameterTypeSignatures();
                 }
 
-                // If there is no type signature (i.e. if this is not a generic method), fall back to the type
-                // descriptor (N.B. the type descriptor is basically junk, because the compiler may prepend
-                // `synthetic` and/or `bridge` parameters automatically, without providing any modifiers for
-                // the method, so that it is impossible to know how many parameters have been prepended --
+                // If there is no type signature (i.e. if this is not a generic method), fall
+                // back to the type
+                // descriptor (N.B. the type descriptor is basically junk, because the compiler
+                // may prepend
+                // `synthetic` and/or `bridge` parameters automatically, without providing any
+                // modifiers for
+                // the method, so that it is impossible to know how many parameters have been
+                // prepended --
                 // see #660.)
                 List<TypeSignature> paramTypeDescriptors = null;
                 try {
-                    final MethodTypeSignature typeDesc = getTypeDescriptor();
+                    final var typeDesc = getTypeDescriptor();
                     if (typeDesc != null) {
                         paramTypeDescriptors = typeDesc.getParameterTypeSignatures();
                     }
                 } catch (final Exception e) {
-                    // Ignore any IllegalArgumentExceptions triggered when type annotations are not able to be
-                    // aligned with parameters, when there is a `synthetic`, `bridge` or `mandated` parameter
+                    // Ignore any IllegalArgumentExceptions triggered when type annotations are not
+                    // able to be
+                    // aligned with parameters, when there is a `synthetic`, `bridge` or `mandated`
+                    // parameter
                     // added to the first parameter position.
                 }
 
                 // Find the max length of all the parameter information sources
-                int numParams = paramTypeSignatures == null ? 0 : paramTypeSignatures.size();
+                var numParams = paramTypeSignatures == null ? 0 : paramTypeSignatures.size();
                 if (paramTypeDescriptors != null && paramTypeDescriptors.size() > numParams) {
                     numParams = paramTypeDescriptors.size();
                 }
@@ -551,7 +598,8 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
                     numParams = parameterAnnotationInfo.length;
                 }
 
-                // "Right-align" all parameter info, i.e. assume that any automatically-added implicit parameters
+                // "Right-align" all parameter info, i.e. assume that any automatically-added
+                // implicit parameters
                 // were added at the beginning of the parameter list, not the end.
 
                 String[] paramNamesAligned = null;
@@ -562,8 +610,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
                     } else {
                         // Right-align when not the right length
                         paramNamesAligned = new String[numParams];
-                        for (int i = 0,
-                                lenDiff = numParams - parameterNames.length; i < parameterNames.length; i++) {
+                        for (int i = 0, lenDiff = numParams - parameterNames.length; i < parameterNames.length; i++) {
                             paramNamesAligned[lenDiff + i] = parameterNames[i];
                         }
                     }
@@ -576,8 +623,8 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
                     } else {
                         // Right-align when not the right length
                         paramModifiersAligned = new int[numParams];
-                        for (int i = 0, lenDiff = numParams
-                                - parameterModifiers.length; i < parameterModifiers.length; i++) {
+                        for (int i = 0,
+                                lenDiff = numParams - parameterModifiers.length; i < parameterModifiers.length; i++) {
                             paramModifiersAligned[lenDiff + i] = parameterModifiers[i];
                         }
                     }
@@ -597,7 +644,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
                     }
                 }
                 List<TypeSignature> paramTypeSignaturesAligned = null;
-                if (paramTypeSignatures != null && paramTypeSignatures.size() > 0) {
+                if (paramTypeSignatures != null && !paramTypeSignatures.isEmpty()) {
                     if (paramTypeSignatures.size() == numParams) {
                         // No alignment necessary
                         paramTypeSignaturesAligned = paramTypeSignatures;
@@ -612,7 +659,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
                     }
                 }
                 List<TypeSignature> paramTypeDescriptorsAligned = null;
-                if (paramTypeDescriptors != null && paramTypeDescriptors.size() > 0) {
+                if (paramTypeDescriptors != null && !paramTypeDescriptors.isEmpty()) {
                     if (paramTypeDescriptors.size() == numParams) {
                         // No alignment necessary
                         paramTypeDescriptorsAligned = paramTypeDescriptors;
@@ -629,7 +676,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
 
                 // Generate MethodParameterInfo entries
                 parameterInfo = new MethodParameterInfo[numParams];
-                for (int i = 0; i < numParams; i++) {
+                for (var i = 0; i < numParams; i++) {
                     parameterInfo[i] = new MethodParameterInfo(this,
                             paramAnnotationInfoAligned == null ? null : paramAnnotationInfoAligned[i],
                             paramModifiersAligned == null ? 0 : paramModifiersAligned[i],
@@ -648,8 +695,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
     /**
      * Check if this method has a parameter with the annotation.
      *
-     * @param annotation
-     *            The method parameter annotation.
+     * @param annotation The method parameter annotation.
      * @return true if this method has a parameter with the annotation.
      */
     public boolean hasParameterAnnotation(final Class<? extends Annotation> annotation) {
@@ -660,8 +706,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
     /**
      * Check if this method has a parameter with the named annotation.
      *
-     * @param annotationName
-     *            The name of a method parameter annotation.
+     * @param annotationName The name of a method parameter annotation.
      * @return true if this method has a parameter with the named annotation.
      */
     public boolean hasParameterAnnotation(final String annotationName) {
@@ -681,14 +726,13 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
      * @return An array of the {@link Class} references for each method parameter.
      */
     private Class<?>[] loadParameterClasses() {
-        final MethodParameterInfo[] allParameterInfo = getParameterInfo();
+        final var allParameterInfo = getParameterInfo();
         final List<Class<?>> parameterClasses = new ArrayList<>(allParameterInfo.length);
         for (final MethodParameterInfo mpi : allParameterInfo) {
-            final TypeSignature parameterType = mpi.getTypeSignatureOrTypeDescriptor();
-            TypeSignature actualParameterType;
-            if (parameterType instanceof TypeVariableSignature) {
-                final TypeVariableSignature tvs = (TypeVariableSignature) parameterType;
-                final TypeParameter t = tvs.resolve();
+            final var parameterType = mpi.getTypeSignatureOrTypeDescriptor();
+            final TypeSignature actualParameterType;
+            if (parameterType instanceof final TypeVariableSignature tvs) {
+                final var t = tvs.resolve();
                 if (t.classBound != null) {
                     // Use class bound of type variable as concrete type, if available,
                     // in preference to using first interface bound (ignores interface
@@ -711,26 +755,30 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
     }
 
     /**
-     * Load the class this method is associated with, and get the {@link Method} reference for this method. Only
-     * call this if {@link #isConstructor()} returns false, otherwise an {@link IllegalArgumentException} will be
-     * thrown. Instead call {@link #loadClassAndGetConstructor()} for constructors.
+     * Load the class this method is associated with, and get the {@link Method}
+     * reference for this method. Only call this if {@link #isConstructor()} returns
+     * false, otherwise an {@link IllegalArgumentException} will be thrown. Instead
+     * call {@link #loadClassAndGetConstructor()} for constructors.
      * 
      * @return The {@link Method} reference for this method.
      * @throws IllegalArgumentException
-     *             <ul>
-     *             <li>If the method's class can't be loaded</li>
-     *             <li>If the method does not exist</li>
-     *             <li>If the method is a constructor</li>
-     *             <li>If one of the method's parameters references an unknown class</li>
-     *             <li>If the method's return type references an unknown class</li>
-     *             </ul>
+     *                                  <ul>
+     *                                  <li>If the method's class can't be
+     *                                  loaded</li>
+     *                                  <li>If the method does not exist</li>
+     *                                  <li>If the method is a constructor</li>
+     *                                  <li>If one of the method's parameters
+     *                                  references an unknown class</li>
+     *                                  <li>If the method's return type references
+     *                                  an unknown class</li>
+     *                                  </ul>
      */
     public Method loadClassAndGetMethod() throws IllegalArgumentException {
         if (isConstructor()) {
             throw new IllegalArgumentException(
                     "Need to call loadClassAndGetConstructor() for constructors, not loadClassAndGetMethod()");
         }
-        final Class<?>[] parameterClassesArr = loadParameterClasses();
+        final var parameterClassesArr = loadParameterClasses();
         try {
             return loadClass().getMethod(getName(), parameterClassesArr);
         } catch (final NoSuchMethodException e1) {
@@ -746,27 +794,29 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
     }
 
     /**
-     * Load the class this constructor is associated with, and get the {@link Constructor} reference for this
-     * constructor. Only call this if {@link #isConstructor()} returns true, otherwise an
-     * {@link IllegalArgumentException} will be thrown. Instead call {@link #loadClassAndGetMethod()} for
-     * non-constructor methods.
+     * Load the class this constructor is associated with, and get the
+     * {@link Constructor} reference for this constructor. Only call this if
+     * {@link #isConstructor()} returns true, otherwise an
+     * {@link IllegalArgumentException} will be thrown. Instead call
+     * {@link #loadClassAndGetMethod()} for non-constructor methods.
      * 
      * @return The {@link Constructor} reference for this constructor.
      * @throws IllegalArgumentException
-     *             <ul>
-     *             <li>If the method's class can't be loaded</li>
-     *             <li>If the constructor does not exist</li>
-     *             <li>If the method is not a constructor</li>
-     *             <li>If one of the constructor's parameters references an unknown class</li>
-     *             </ul>
+     *                                  <ul>
+     *                                  <li>If the method's class can't be
+     *                                  loaded</li>
+     *                                  <li>If the constructor does not exist</li>
+     *                                  <li>If the method is not a constructor</li>
+     *                                  <li>If one of the constructor's parameters
+     *                                  references an unknown class</li>
+     *                                  </ul>
      */
     public Constructor<?> loadClassAndGetConstructor() throws IllegalArgumentException {
         if (!isConstructor()) {
-            throw new IllegalArgumentException(
-                    "Need to call loadClassAndGetMethod() for non-constructor methods, not "
-                            + "loadClassAndGetConstructor()");
+            throw new IllegalArgumentException("Need to call loadClassAndGetMethod() for non-constructor methods, not "
+                    + "loadClassAndGetConstructor()");
         }
-        final Class<?>[] parameterClassesArr = loadParameterClasses();
+        final var parameterClassesArr = loadParameterClasses();
         try {
             return loadClass().getConstructor(parameterClassesArr);
         } catch (final NoSuchMethodException e1) {
@@ -783,8 +833,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
     /**
      * Handle {@link Repeatable} annotations.
      *
-     * @param allRepeatableAnnotationNames
-     *            the names of all repeatable annotations
+     * @param allRepeatableAnnotationNames the names of all repeatable annotations
      */
     void handleRepeatableAnnotations(final Set<String> allRepeatableAnnotationNames) {
         if (annotationInfo != null) {
@@ -793,10 +842,10 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
                     RelType.CLASSES_WITH_NONPRIVATE_METHOD_ANNOTATION);
         }
         if (parameterAnnotationInfo != null) {
-            for (int i = 0; i < parameterAnnotationInfo.length; i++) {
-                final AnnotationInfo[] pai = parameterAnnotationInfo[i];
+            for (var i = 0; i < parameterAnnotationInfo.length; i++) {
+                final var pai = parameterAnnotationInfo[i];
                 if (pai != null && pai.length > 0) {
-                    boolean hasRepeatableAnnotation = false;
+                    var hasRepeatableAnnotation = false;
                     for (final AnnotationInfo ai : pai) {
                         if (allRepeatableAnnotationNames.contains(ai.getName())) {
                             hasRepeatableAnnotation = true;
@@ -804,11 +853,10 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
                         }
                     }
                     if (hasRepeatableAnnotation) {
-                        final AnnotationInfoList aiList = new AnnotationInfoList(pai.length);
+                        final var aiList = new AnnotationInfoList(pai.length);
                         aiList.addAll(Arrays.asList(pai));
                         aiList.handleRepeatableAnnotations(allRepeatableAnnotationNames, getClassInfo(),
-                                RelType.METHOD_PARAMETER_ANNOTATIONS,
-                                RelType.CLASSES_WITH_METHOD_PARAMETER_ANNOTATION,
+                                RelType.METHOD_PARAMETER_ANNOTATIONS, RelType.CLASSES_WITH_METHOD_PARAMETER_ANNOTATION,
                                 RelType.CLASSES_WITH_NONPRIVATE_METHOD_PARAMETER_ANNOTATION);
                         parameterAnnotationInfo[i] = aiList.toArray(new AnnotationInfo[0]);
                     }
@@ -819,8 +867,12 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /* (non-Javadoc)
-     * @see io.github.classgraph.ScanResultObject#setScanResult(io.github.classgraph.ScanResult)
+    /*
+     * (non-Javadoc)
+     *
+     * @see
+     * io.github.classgraph.ScanResultObject#setScanResult(io.github.classgraph.
+     * ScanResult)
      */
     @Override
     void setScanResult(final ScanResult scanResult) {
@@ -860,20 +912,18 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
     }
 
     /**
-     * Get {@link ClassInfo} objects for any classes referenced in the type descriptor or type signature.
+     * Get {@link ClassInfo} objects for any classes referenced in the type
+     * descriptor or type signature.
      *
-     * @param classNameToClassInfo
-     *            the map from class name to {@link ClassInfo}.
-     * @param refdClassInfo
-     *            the referenced class info
-     * @param log
-     *            the log
+     * @param classNameToClassInfo the map from class name to {@link ClassInfo}.
+     * @param refdClassInfo        the referenced class info
+     * @param log                  the log
      */
     @Override
     protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
             final Set<ClassInfo> refdClassInfo, final LogNode log) {
         try {
-            final MethodTypeSignature methodSig = getTypeSignature();
+            final var methodSig = getTypeSignature();
             if (methodSig != null) {
                 methodSig.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
             }
@@ -884,7 +934,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
             }
         }
         try {
-            final MethodTypeSignature methodDesc = getTypeDescriptor();
+            final var methodDesc = getTypeDescriptor();
             if (methodDesc != null) {
                 methodDesc.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
             }
@@ -900,7 +950,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
             }
         }
         for (final MethodParameterInfo mpi : getParameterInfo()) {
-            final AnnotationInfo[] aiArr = mpi.annotationInfo;
+            final var aiArr = mpi.annotationInfo;
             if (aiArr != null) {
                 for (final AnnotationInfo ai : aiArr) {
                     ai.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
@@ -908,9 +958,12 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
             }
         }
         if (thrownExceptionNames != null) {
-            // The exceptions in the throws clause are dependencies of the declaring class. (Resolving them also
-            // gives their ClassInfo objects a backref to the ScanResult.) N.B. any exception types in the
-            // generic method type signature were already added above, but the throws clause of a non-generic
+            // The exceptions in the throws clause are dependencies of the declaring class.
+            // (Resolving them also
+            // gives their ClassInfo objects a backref to the ScanResult.) N.B. any
+            // exception types in the
+            // generic method type signature were already added above, but the throws clause
+            // of a non-generic
             // method is only recorded in the "Exceptions" attribute of the method.
             refdClassInfo.addAll(getThrownExceptions());
         }
@@ -921,20 +974,19 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
     /**
      * Test class name, method name and type descriptor for equals().
      *
-     * @param obj
-     *            the object to compare for equality
+     * @param obj the object to compare for equality
      * @return true if equal
      */
     @Override
     public boolean equals(final Object obj) {
         if (obj == this) {
             return true;
-        } else if (!(obj instanceof MethodInfo)) {
+        }
+        if (!(obj instanceof final MethodInfo other)) {
             return false;
         }
-        final MethodInfo other = (MethodInfo) obj;
-        return declaringClassName.equals(other.declaringClassName)
-                && typeDescriptorStr.equals(other.typeDescriptorStr) && name.equals(other.name);
+        return declaringClassName.equals(other.declaringClassName) && typeDescriptorStr.equals(other.typeDescriptorStr)
+                && name.equals(other.name);
     }
 
     /**
@@ -950,17 +1002,16 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
     /**
      * Sort in order of class name, method name, then type descriptor.
      *
-     * @param other
-     *            the other {@link MethodInfo} to compare.
+     * @param other the other {@link MethodInfo} to compare.
      * @return the result of the comparison.
      */
     @Override
     public int compareTo(final MethodInfo other) {
-        final int diff0 = declaringClassName.compareTo(other.declaringClassName);
+        final var diff0 = declaringClassName.compareTo(other.declaringClassName);
         if (diff0 != 0) {
             return diff0;
         }
-        final int diff1 = name.compareTo(other.name);
+        final var diff1 = name.compareTo(other.name);
         if (diff1 != 0) {
             return diff1;
         }
@@ -970,21 +1021,20 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get a string representation of the method. Note that constructors are named {@code "<init>"}, and private
-     * static class initializer blocks are named {@code "<clinit>"}.
+     * Get a string representation of the method. Note that constructors are named
+     * {@code "<init>"}, and private static class initializer blocks are named
+     * {@code "<clinit>"}.
      *
-     * @param useSimpleNames
-     *            the use simple names
-     * @param buf
-     *            the buf
+     * @param useSimpleNames the use simple names
+     * @param buf            the buf
      */
     @Override
     protected void toString(final boolean useSimpleNames, final StringBuilder buf) {
-        final MethodTypeSignature methodType = getTypeSignatureOrTypeDescriptor();
+        final var methodType = getTypeSignatureOrTypeDescriptor();
 
         if (annotationInfo != null) {
             for (final AnnotationInfo annotation : annotationInfo) {
-                if (buf.length() > 0) {
+                if (!buf.isEmpty()) {
                     buf.append(' ');
                 }
                 annotation.toString(useSimpleNames, buf);
@@ -992,19 +1042,19 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
         }
 
         if (modifiers != 0) {
-            if (buf.length() > 0) {
+            if (!buf.isEmpty()) {
                 buf.append(' ');
             }
             TypeUtils.modifiersToString(modifiers, ModifierType.METHOD, isDefault(), buf);
         }
 
-        final List<TypeParameter> typeParameters = methodType.getTypeParameters();
+        final var typeParameters = methodType.getTypeParameters();
         if (!typeParameters.isEmpty()) {
-            if (buf.length() > 0) {
+            if (!buf.isEmpty()) {
                 buf.append(' ');
             }
             buf.append('<');
-            for (int i = 0; i < typeParameters.size(); i++) {
+            for (var i = 0; i < typeParameters.size(); i++) {
                 if (i > 0) {
                     buf.append(", ");
                 }
@@ -1014,24 +1064,25 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
         }
 
         if (!isConstructor()) {
-            if (buf.length() > 0) {
+            if (!buf.isEmpty()) {
                 buf.append(' ');
             }
             methodType.getResultType().toStringInternal(useSimpleNames, /* annotationsToExclude = */ annotationInfo,
                     buf);
         }
 
-        if (buf.length() > 0) {
+        if (!buf.isEmpty()) {
             buf.append(' ');
         }
         if (name != null) {
             buf.append(useSimpleNames ? ClassInfo.getSimpleName(name) : name);
         }
 
-        // If at least one param is named, then use placeholder names for unnamed params,
+        // If at least one param is named, then use placeholder names for unnamed
+        // params,
         // otherwise don't show names for any params
-        final MethodParameterInfo[] allParamInfo = getParameterInfo();
-        boolean hasParamNames = false;
+        final var allParamInfo = getParameterInfo();
+        var hasParamNames = false;
         for (final MethodParameterInfo methodParamInfo : allParamInfo) {
             if (methodParamInfo.getName() != null) {
                 hasParamNames = true;
@@ -1039,15 +1090,18 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
             }
         }
 
-        // Find varargs param index, if present -- this is, for varargs methods, the last argument that
-        // is not a synthetic or mandated parameter (turns out the Java compiler can tack on parameters
-        // *after* the varargs parameter, for variable capture with anonymous inner classes -- see #260).
-        int varArgsParamIndex = -1;
+        // Find varargs param index, if present -- this is, for varargs methods, the
+        // last argument that
+        // is not a synthetic or mandated parameter (turns out the Java compiler can
+        // tack on parameters
+        // *after* the varargs parameter, for variable capture with anonymous inner
+        // classes -- see #260).
+        var varArgsParamIndex = -1;
         if (isVarArgs()) {
-            for (int i = allParamInfo.length - 1; i >= 0; --i) {
-                final int mods = allParamInfo[i].getModifiers();
+            for (var i = allParamInfo.length - 1; i >= 0; --i) {
+                final var mods = allParamInfo[i].getModifiers();
                 if ((mods & /* synthetic */ 0x1000) == 0 && (mods & /* mandated */ 0x8000) == 0) {
-                    final TypeSignature paramType = allParamInfo[i].getTypeSignatureOrTypeDescriptor();
+                    final var paramType = allParamInfo[i].getTypeSignatureOrTypeDescriptor();
                     if (paramType instanceof ArrayTypeSignature) {
                         varArgsParamIndex = i;
                         break;
@@ -1058,7 +1112,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
 
         buf.append('(');
         for (int i = 0, numParams = allParamInfo.length; i < numParams; i++) {
-            final MethodParameterInfo paramInfo = allParamInfo[i];
+            final var paramInfo = allParamInfo[i];
             if (i > 0) {
                 buf.append(", ");
             }
@@ -1072,28 +1126,29 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
 
             MethodParameterInfo.modifiersToString(paramInfo.getModifiers(), buf);
 
-            final TypeSignature paramTypeSignature = paramInfo.getTypeSignatureOrTypeDescriptor();
-            // Param type signature may be null in the case of a `synthetic`, `bridge`, or `mandated` parameter
+            final var paramTypeSignature = paramInfo.getTypeSignatureOrTypeDescriptor();
+            // Param type signature may be null in the case of a `synthetic`, `bridge`, or
+            // `mandated` parameter
             // implicitly added to a non-generic method
             if (paramTypeSignature != null) {
                 if (i == varArgsParamIndex) {
                     // Show varargs params correctly -- replace last "[]" with "..."
-                    if (!(paramTypeSignature instanceof ArrayTypeSignature)) {
+                    if (!(paramTypeSignature instanceof final ArrayTypeSignature arrayType)) {
                         throw new IllegalArgumentException(
                                 "Got non-array type for last parameter of varargs method " + name);
                     }
-                    final ArrayTypeSignature arrayType = (ArrayTypeSignature) paramTypeSignature;
                     if (arrayType.getNumDimensions() == 0) {
                         throw new IllegalArgumentException(
                                 "Got a zero-dimension array type for last parameter of varargs method " + name);
                     }
                     arrayType.getElementTypeSignature().toString(useSimpleNames, buf);
-                    for (int j = 0; j < arrayType.getNumDimensions() - 1; j++) {
+                    for (var j = 0; j < arrayType.getNumDimensions() - 1; j++) {
                         buf.append("[]");
                     }
                     buf.append("...");
                 } else {
-                    // Exclude parameter annotations from type annotations at toplevel of type signature,
+                    // Exclude parameter annotations from type annotations at toplevel of type
+                    // signature,
                     // so that annotation is not listed twice
                     final AnnotationInfoList annotationsToExclude;
                     if (paramInfo.annotationInfo == null || paramInfo.annotationInfo.length == 0) {
@@ -1107,7 +1162,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
             }
 
             if (hasParamNames) {
-                final String paramName = paramInfo.getName();
+                final var paramName = paramInfo.getName();
                 if (paramName != null) {
                     if (buf.charAt(buf.length() - 1) != ' ') {
                         buf.append(' ');
@@ -1118,10 +1173,11 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
         }
         buf.append(')');
 
-        // when throws signature is present, it includes both generic type variables and class names
+        // when throws signature is present, it includes both generic type variables and
+        // class names
         if (!methodType.getThrowsSignatures().isEmpty()) {
             buf.append(" throws ");
-            for (int i = 0; i < methodType.getThrowsSignatures().size(); i++) {
+            for (var i = 0; i < methodType.getThrowsSignatures().size(); i++) {
                 if (i > 0) {
                     buf.append(", ");
                 }
@@ -1130,7 +1186,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
         } else {
             if (thrownExceptionNames != null && thrownExceptionNames.length > 0) {
                 buf.append(" throws ");
-                for (int i = 0; i < thrownExceptionNames.length; i++) {
+                for (var i = 0; i < thrownExceptionNames.length; i++) {
                     if (i > 0) {
                         buf.append(", ");
                     }

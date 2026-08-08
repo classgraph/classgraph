@@ -30,13 +30,10 @@ package io.github.classgraph.issues.issue286;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.net.URL;
-
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ScanResult;
 
 /**
  * Issue286Test.
@@ -48,10 +45,10 @@ public class Issue286Test {
     @Test
     @Timeout(value = 1)
     public void issue286Test() {
-        final URL jarURL = getClass().getClassLoader().getResource("issue286.jar");
+        final var jarURL = getClass().getClassLoader().getResource("issue286.jar");
         assertThat(jarURL).isNotNull();
-        boolean gotResult = false;
-        try (ScanResult scanResult = new ClassGraph().overrideClasspath(jarURL).scan()) {
+        var gotResult = false;
+        try (var scanResult = new ClassGraph().overrideClasspath(jarURL).scan()) {
             gotResult = true;
         }
         assertThat(gotResult).isTrue();

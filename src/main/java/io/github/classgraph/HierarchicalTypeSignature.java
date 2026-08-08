@@ -33,7 +33,8 @@ import java.util.List;
 import io.github.classgraph.Classfile.TypePathNode;
 
 /**
- * A Java type signature. Subclasses are ClassTypeSignature, MethodTypeSignature, and TypeSignature.
+ * A Java type signature. Subclasses are ClassTypeSignature,
+ * MethodTypeSignature, and TypeSignature.
  */
 public abstract class HierarchicalTypeSignature extends ScanResultObject {
     /** The type annotations on this type, or null if none. */
@@ -47,8 +48,7 @@ public abstract class HierarchicalTypeSignature extends ScanResultObject {
     /**
      * Add a type annotation.
      *
-     * @param annotationInfo
-     *            the annotation
+     * @param annotationInfo the annotation
      */
     protected void addTypeAnnotation(final AnnotationInfo annotationInfo) {
         if (typeAnnotationInfo == null) {
@@ -68,9 +68,11 @@ public abstract class HierarchicalTypeSignature extends ScanResultObject {
     }
 
     /**
-     * Get a list of {@link AnnotationInfo} objects for any type annotations on this type, or null if none.
+     * Get a list of {@link AnnotationInfo} objects for any type annotations on this
+     * type, or null if none.
      * 
-     * @return a list of {@link AnnotationInfo} objects for any type annotations on this type, or null if none.
+     * @return a list of {@link AnnotationInfo} objects for any type annotations on
+     *         this type, or null if none.
      */
     public AnnotationInfoList getTypeAnnotationInfo() {
         return typeAnnotationInfo;
@@ -79,23 +81,20 @@ public abstract class HierarchicalTypeSignature extends ScanResultObject {
     /**
      * Add a type annotation.
      *
-     * @param typePath
-     *            the type path
-     * @param annotationInfo
-     *            the annotation
+     * @param typePath       the type path
+     * @param annotationInfo the annotation
      */
     protected abstract void addTypeAnnotation(List<TypePathNode> typePath, AnnotationInfo annotationInfo);
 
     /**
      * Render type signature to string.
      *
-     * @param useSimpleNames
-     *            whether to use simple names for classes.
-     * @param annotationsToExclude
-     *            toplevel annotations to exclude, to eliminate duplication (toplevel annotations are both
-     *            class/field/method annotations and type annotations).
-     * @param buf
-     *            the {@link StringBuilder} to write to.
+     * @param useSimpleNames       whether to use simple names for classes.
+     * @param annotationsToExclude toplevel annotations to exclude, to eliminate
+     *                             duplication (toplevel annotations are both
+     *                             class/field/method annotations and type
+     *                             annotations).
+     * @param buf                  the {@link StringBuilder} to write to.
      */
     protected abstract void toStringInternal(final boolean useSimpleNames, AnnotationInfoList annotationsToExclude,
             StringBuilder buf);
@@ -103,10 +102,8 @@ public abstract class HierarchicalTypeSignature extends ScanResultObject {
     /**
      * Render type signature to string.
      *
-     * @param useSimpleNames
-     *            whether to use simple names for classes.
-     * @param buf
-     *            the {@link StringBuilder} to write to.
+     * @param useSimpleNames whether to use simple names for classes.
+     * @param buf            the {@link StringBuilder} to write to.
      */
     @Override
     protected void toString(final boolean useSimpleNames, final StringBuilder buf) {

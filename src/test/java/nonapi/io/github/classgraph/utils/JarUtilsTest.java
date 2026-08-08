@@ -10,9 +10,10 @@ import org.junit.jupiter.api.Test;
 /** Tests for {@link JarUtils}. */
 public class JarUtilsTest {
     /**
-     * A comma is not a legal character in a URL scheme, so a path containing one before the first ':' is not a URL.
-     * (The character class in the scheme pattern used to read "+-.", which is a range covering ',' rather than the
-     * three literal characters.)
+     * A comma is not a legal character in a URL scheme, so a path containing one
+     * before the first ':' is not a URL. (The character class in the scheme pattern
+     * used to read "+-.", which is a range covering ',' rather than the three
+     * literal characters.)
      */
     @Test
     public void commaIsNotPartOfAURLScheme() {
@@ -29,21 +30,25 @@ public class JarUtilsTest {
         assertThat(JarUtils.URL_SCHEME_PATTERN.matcher("a9:/x").matches()).isTrue();
     }
 
-    /** A single-character scheme is not treated as a scheme, so that Windows drive letters are not mistaken for one. */
+    /**
+     * A single-character scheme is not treated as a scheme, so that Windows drive
+     * letters are not mistaken for one.
+     */
     @Test
     public void singleCharSchemeDoesNotMatch() {
         assertThat(JarUtils.URL_SCHEME_PATTERN.matcher("C:/x").matches()).isFalse();
     }
 
     /**
-     * A path element containing the path separator character is escaped when the path elements are joined, and
-     * unescaped when the resulting path string is split again, so that the round trip preserves the path elements.
+     * A path element containing the path separator character is escaped when the
+     * path elements are joined, and unescaped when the resulting path string is
+     * split again, so that the round trip preserves the path elements.
      */
     @Test
     public void pathSeparatorInPathElementSurvivesRoundTrip() {
         assumeTrue(File.pathSeparatorChar == ':', "Path separators can only be escaped when the separator is ':'");
 
-        final String joined = JarUtils.pathElementsToPathStr("/a/b", "/weird:name/c", "/d");
+        final var joined = JarUtils.pathElementsToPathStr("/a/b", "/weird:name/c", "/d");
         assertThat(joined).isEqualTo("/a/b:/weird\\:name/c:/d");
 
         assertThat(JarUtils.smartPathSplit(joined, ':', null)).containsExactly("/a/b", "/weird:name/c", "/d");
@@ -54,7 +59,7 @@ public class JarUtilsTest {
     public void ordinaryPathElementsSurviveRoundTrip() {
         assumeTrue(File.pathSeparatorChar == ':', "Path separators can only be escaped when the separator is ':'");
 
-        final String joined = JarUtils.pathElementsToPathStr("/a/b", "/c", "/d");
+        final var joined = JarUtils.pathElementsToPathStr("/a/b", "/c", "/d");
         assertThat(joined).isEqualTo("/a/b:/c:/d");
         assertThat(JarUtils.smartPathSplit(joined, ':', null)).containsExactly("/a/b", "/c", "/d");
     }

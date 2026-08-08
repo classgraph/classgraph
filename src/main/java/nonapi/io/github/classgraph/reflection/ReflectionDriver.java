@@ -61,7 +61,8 @@ abstract class ReflectionDriver {
         private final Map<String, Field> fieldNameToField = new HashMap<>();
 
         private ClassMemberCache(final Class<?> cls) throws Exception {
-            // Iterate from class to its superclasses, and find initial interfaces to start traversing from
+            // Iterate from class to its superclasses, and find initial interfaces to start
+            // traversing from
             final Set<Class<?>> visited = new HashSet<>();
             final LinkedList<Class<?>> interfaceQueue = new LinkedList<>();
             for (Class<?> c = cls; c != null; c = c.getSuperclass()) {
@@ -73,7 +74,8 @@ abstract class ReflectionDriver {
                     for (final Field f : getDeclaredFields(c)) {
                         cacheField(f);
                     }
-                    // Find interfaces and superinterfaces implemented by this class or its superclasses
+                    // Find interfaces and superinterfaces implemented by this class or its
+                    // superclasses
                     if (c.isInterface() && visited.add(c)) {
                         interfaceQueue.add(c);
                     }
@@ -109,7 +111,8 @@ abstract class ReflectionDriver {
         }
 
         private void cacheField(final Field field) {
-            // Only put a field name to field mapping if it is absent, so that subclasses mask fields
+            // Only put a field name to field mapping if it is absent, so that subclasses
+            // mask fields
             // of the same name in superclasses
             fieldNameToField.putIfAbsent(field.getName(), field);
         }
@@ -118,8 +121,7 @@ abstract class ReflectionDriver {
     /**
      * Find a class by name.
      *
-     * @param className
-     *            the class name
+     * @param className the class name
      * @return the class reference
      */
     abstract Class<?> findClass(final String className) throws Exception;
@@ -127,8 +129,7 @@ abstract class ReflectionDriver {
     /**
      * Get declared methods for class.
      *
-     * @param cls
-     *            the class
+     * @param cls the class
      * @return the declared methods
      */
     abstract Method[] getDeclaredMethods(Class<?> cls) throws Exception;
@@ -136,10 +137,8 @@ abstract class ReflectionDriver {
     /**
      * Get declared constructors for class.
      *
-     * @param <T>
-     *            the generic type
-     * @param cls
-     *            the class
+     * @param <T> the generic type
+     * @param cls the class
      * @return the declared constructors
      */
     abstract <T> Constructor<T>[] getDeclaredConstructors(Class<T> cls) throws Exception;
@@ -147,8 +146,7 @@ abstract class ReflectionDriver {
     /**
      * Get declared fields for class.
      *
-     * @param cls
-     *            the class
+     * @param cls the class
      * @return the declared fields
      */
     abstract Field[] getDeclaredFields(Class<?> cls) throws Exception;
@@ -156,10 +154,8 @@ abstract class ReflectionDriver {
     /**
      * Get the value of a non-static field, boxing the value if necessary.
      *
-     * @param object
-     *            the object instance to get the field value from
-     * @param field
-     *            the non-static field
+     * @param object the object instance to get the field value from
+     * @param field  the non-static field
      * @return the value of the field
      */
     abstract Object getField(final Object object, final Field field) throws Exception;
@@ -167,20 +163,16 @@ abstract class ReflectionDriver {
     /**
      * Set the value of a non-static field, unboxing the value if necessary.
      *
-     * @param object
-     *            the object instance to get the field value from
-     * @param field
-     *            the non-static field
-     * @param value
-     *            the value to set
+     * @param object the object instance to get the field value from
+     * @param field  the non-static field
+     * @param value  the value to set
      */
     abstract void setField(final Object object, final Field field, Object value) throws Exception;
 
     /**
      * Get the value of a static field, boxing the value if necessary.
      *
-     * @param field
-     *            the static field
+     * @param field the static field
      * @return the static field
      */
     abstract Object getStaticField(final Field field) throws Exception;
@@ -188,22 +180,18 @@ abstract class ReflectionDriver {
     /**
      * Set the value of a static field, unboxing the value if necessary.
      *
-     * @param field
-     *            the static field
-     * @param value
-     *            the value to set
+     * @param field the static field
+     * @param value the value to set
      */
     abstract void setStaticField(final Field field, Object value) throws Exception;
 
     /**
      * Invoke a non-static method, boxing the result if necessary.
      *
-     * @param object
-     *            the object instance to invoke the method on
-     * @param method
-     *            the non-static method
-     * @param args
-     *            the method arguments (or {@code new Object[0]} if there are no args)
+     * @param object the object instance to invoke the method on
+     * @param method the non-static method
+     * @param args   the method arguments (or {@code new Object[0]} if there are no
+     *               args)
      * @return the return value (possibly a boxed value)
      */
     abstract Object invokeMethod(final Object object, final Method method, final Object... args) throws Exception;
@@ -211,10 +199,9 @@ abstract class ReflectionDriver {
     /**
      * Invoke a static method, boxing the result if necessary.
      *
-     * @param method
-     *            the static method
-     * @param args
-     *            the method arguments (or {@code new Object[0]} if there are no args)
+     * @param method the static method
+     * @param args   the method arguments (or {@code new Object[0]} if there are no
+     *               args)
      * @return the return value (possibly a boxed value)
      */
     abstract Object invokeStaticMethod(final Method method, final Object... args) throws Exception;
@@ -222,10 +209,8 @@ abstract class ReflectionDriver {
     /**
      * Make a field or method accessible.
      * 
-     * @param instance
-     *            the object instance, or null if static.
-     * @param fieldOrMethod
-     *            the field or method.
+     * @param instance      the object instance, or null if static.
+     * @param fieldOrMethod the field or method.
      * 
      * @return true if successful.
      */
@@ -235,12 +220,11 @@ abstract class ReflectionDriver {
      * Check whether a field or method is accessible.
      * 
      * <p>
-     * N.B. this is overridden in Narcissus driver to just return true, since everything is accessible to JNI.
+     * N.B. this is overridden in Narcissus driver to just return true, since
+     * everything is accessible to JNI.
      * 
-     * @param instance
-     *            the object instance, or null if static.
-     * @param fieldOrMethod
-     *            the field or method.
+     * @param instance      the object instance, or null if static.
+     * @param fieldOrMethod the field or method.
      * 
      * @return true if accessible.
      */
@@ -248,7 +232,8 @@ abstract class ReflectionDriver {
         try {
             return fieldOrMethod.canAccess(instance);
         } catch (final Throwable e) {
-            // canAccess throws IllegalArgumentException if the instance does not match the member
+            // canAccess throws IllegalArgumentException if the instance does not match the
+            // member
             return false;
         }
     }
@@ -256,21 +241,18 @@ abstract class ReflectionDriver {
     /**
      * Get the field of the class that has a given field name.
      * 
-     * @param cls
-     *            the class.
-     * @param obj
-     *            the object instance, or null for a static field.
-     * @param fieldName
-     *            The name of the field.
+     * @param cls       the class.
+     * @param obj       the object instance, or null for a static field.
+     * @param fieldName The name of the field.
      * @return The {@link Field} object for the requested field name (never null).
-     * @throws Exception
-     *             if the field could not be found
+     * @throws Exception if the field could not be found
      */
     protected Field findField(final Class<?> cls, final Object obj, final String fieldName) throws Exception {
-        final Field field = classToClassMemberCache.get(cls, /* log = */ null).fieldNameToField.get(fieldName);
+        final var field = classToClassMemberCache.get(cls, /* log = */ null).fieldNameToField.get(fieldName);
         if (field != null) {
             if (!isAccessible(obj, field)) {
-                // If field was found but is not accessible, try making it accessible and then returning it
+                // If field was found but is not accessible, try making it accessible and then
+                // returning it
                 // (may result in a reflective access warning on stderr)
                 makeAccessible(obj, field);
             }
@@ -282,13 +264,10 @@ abstract class ReflectionDriver {
     /**
      * Get the static field of the class that has a given field name.
      * 
-     * @param cls
-     *            the class.
-     * @param fieldName
-     *            The name of the field.
+     * @param cls       the class.
+     * @param fieldName The name of the field.
      * @return The {@link Field} object for the requested field name (never null).
-     * @throws Exception
-     *             if the field could not be found
+     * @throws Exception if the field could not be found
      */
     protected Field findStaticField(final Class<?> cls, final String fieldName) throws Exception {
         return findField(cls, null, fieldName);
@@ -297,13 +276,10 @@ abstract class ReflectionDriver {
     /**
      * Get the non-static field of the class that has a given field name.
      * 
-     * @param obj
-     *            the object instance, or null for a static field.
-     * @param fieldName
-     *            The name of the field.
+     * @param obj       the object instance, or null for a static field.
+     * @param fieldName The name of the field.
      * @return The {@link Field} object for the requested field name (never null).
-     * @throws Exception
-     *             if the field could not be found
+     * @throws Exception if the field could not be found
      */
     protected Field findInstanceField(final Object obj, final String fieldName) throws Exception {
         if (obj == null) {
@@ -315,25 +291,21 @@ abstract class ReflectionDriver {
     /**
      * Get a method by name and parameter types.
      * 
-     * @param cls
-     *            the class.
-     * @param obj
-     *            the object instance, or null for a static method.
-     * @param methodName
-     *            The name of the method.
-     * @param paramTypes
-     *            The types of the parameters of the method. For primitive-typed parameters, use e.g. Integer.TYPE.
+     * @param cls        the class.
+     * @param obj        the object instance, or null for a static method.
+     * @param methodName The name of the method.
+     * @param paramTypes The types of the parameters of the method. For
+     *                   primitive-typed parameters, use e.g. Integer.TYPE.
      * @return The {@link Method} object for the matching method (never null).
-     * @throws Exception
-     *             if the method could not be found, or could not be made accessible.
+     * @throws Exception if the method could not be found, or could not be made
+     *                   accessible.
      */
     protected Method findMethod(final Class<?> cls, final Object obj, final String methodName,
             final Class<?>... paramTypes) throws Exception {
-        final List<Method> methodsForName = classToClassMemberCache.get(cls, null).methodNameToMethods
-                .get(methodName);
+        final var methodsForName = classToClassMemberCache.get(cls, null).methodNameToMethods.get(methodName);
         if (methodsForName != null) {
             // Return the first method that matches the signature that is already accessible
-            boolean found = false;
+            var found = false;
             for (final Method method : methodsForName) {
                 if (Arrays.equals(method.getParameterTypes(), paramTypes)) {
                     found = true;
@@ -342,7 +314,8 @@ abstract class ReflectionDriver {
                     }
                 }
             }
-            // If method was found but is not accessible, try making it accessible and then returning it
+            // If method was found but is not accessible, try making it accessible and then
+            // returning it
             // (may result in a reflective access warning on stderr)
             if (found) {
                 for (final Method method : methodsForName) {
@@ -351,8 +324,7 @@ abstract class ReflectionDriver {
                     }
                 }
             }
-            throw new NoSuchMethodException(
-                    "Could not make method accessible: " + cls.getName() + "." + methodName);
+            throw new NoSuchMethodException("Could not make method accessible: " + cls.getName() + "." + methodName);
         }
         throw new NoSuchMethodException("Could not find method " + cls.getName() + "." + methodName);
     }
@@ -360,15 +332,13 @@ abstract class ReflectionDriver {
     /**
      * Get a static method by name and parameter types.
      * 
-     * @param cls
-     *            the class.
-     * @param methodName
-     *            The name of the method.
-     * @param paramTypes
-     *            The types of the parameters of the method. For primitive-typed parameters, use e.g. Integer.TYPE.
+     * @param cls        the class.
+     * @param methodName The name of the method.
+     * @param paramTypes The types of the parameters of the method. For
+     *                   primitive-typed parameters, use e.g. Integer.TYPE.
      * @return The {@link Method} object for the matching method (never null).
-     * @throws Exception
-     *             if the method could not be found, or could not be made accessible.
+     * @throws Exception if the method could not be found, or could not be made
+     *                   accessible.
      */
     protected Method findStaticMethod(final Class<?> cls, final String methodName, final Class<?>... paramTypes)
             throws Exception {
@@ -378,15 +348,13 @@ abstract class ReflectionDriver {
     /**
      * Get a non-static method by name and parameter types.
      * 
-     * @param obj
-     *            the object instance, or null for a static method.
-     * @param methodName
-     *            The name of the method.
-     * @param paramTypes
-     *            The types of the parameters of the method. For primitive-typed parameters, use e.g. Integer.TYPE.
+     * @param obj        the object instance, or null for a static method.
+     * @param methodName The name of the method.
+     * @param paramTypes The types of the parameters of the method. For
+     *                   primitive-typed parameters, use e.g. Integer.TYPE.
      * @return The {@link Method} object for the matching method (never null).
-     * @throws Exception
-     *             if the method could not be found, or could not be made accessible.
+     * @throws Exception if the method could not be found, or could not be made
+     *                   accessible.
      */
     protected Method findInstanceMethod(final Object obj, final String methodName, final Class<?>... paramTypes)
             throws Exception {

@@ -30,8 +30,6 @@ package nonapi.io.github.classgraph.utils;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Locale;
@@ -43,8 +41,6 @@ import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathFactory;
 import javax.xml.xpath.XPathFactoryConfigurationException;
-
-import org.w3c.dom.Document;
 
 import io.github.classgraph.ClassGraph;
 
@@ -76,7 +72,7 @@ public final class VersionFinder {
     public static final boolean JAVA_IS_EA_VERSION;
 
     static {
-        final Runtime.Version version = Runtime.version();
+        final var version = Runtime.version();
         JAVA_MAJOR_VERSION = version.feature();
         JAVA_MINOR_VERSION = version.interim();
         JAVA_SUB_VERSION = version.update();
@@ -108,11 +104,14 @@ public final class VersionFinder {
     }
 
     static {
-        // N.B. getProperty() returns null, not the default value, if a SecurityException is thrown, so the
-        // result has to be null-checked before it is lowercased -- otherwise this static initializer can throw
-        // ExceptionInInitializerError, rather than falling through to OperatingSystem.Unknown as intended.
-        final String osNameRaw = getProperty("os.name", "unknown");
-        final String osName = osNameRaw == null ? null : osNameRaw.toLowerCase(Locale.ENGLISH);
+        // N.B. getProperty() returns null, not the default value, if a
+        // SecurityException is thrown, so the
+        // result has to be null-checked before it is lowercased -- otherwise this
+        // static initializer can throw
+        // ExceptionInInitializerError, rather than falling through to
+        // OperatingSystem.Unknown as intended.
+        final var osNameRaw = getProperty("os.name", "unknown");
+        final var osName = osNameRaw == null ? null : osNameRaw.toLowerCase(Locale.ENGLISH);
         if (File.separatorChar == '\\') {
             OS = OperatingSystem.Windows;
         } else if (osName == null) {
@@ -148,8 +147,7 @@ public final class VersionFinder {
     /**
      * Get a system property (returning null if a SecurityException was thrown).
      *
-     * @param propName
-     *            the property name
+     * @param propName the property name
      * @return the property value
      */
     public static String getProperty(final String propName) {
@@ -163,10 +161,8 @@ public final class VersionFinder {
     /**
      * Get a system property (returning null if a SecurityException was thrown).
      *
-     * @param propName
-     *            the property name
-     * @param defaultVal
-     *            the default value for the property
+     * @param propName   the property name
+     * @param defaultVal the default value for the property
      * @return the property value, or the default if the property is not defined.
      */
     public static String getProperty(final String propName, final String defaultVal) {
@@ -188,23 +184,23 @@ public final class VersionFinder {
         // Try to get version number from pom.xml (available when running in Eclipse)
         final Class<?> cls = ClassGraph.class;
         try {
-            final String className = cls.getName();
-            final URL classpathResource = cls.getResource("/" + JarUtils.classNameToClassfilePath(className));
+            final var className = cls.getName();
+            final var classpathResource = cls.getResource("/" + JarUtils.classNameToClassfilePath(className));
             if (classpathResource != null) {
-                final Path absolutePackagePath = Path.of(classpathResource.toURI()).getParent();
-                final int packagePathSegments = className.length() - className.replace(".", "").length();
+                final var absolutePackagePath = Path.of(classpathResource.toURI()).getParent();
+                final var packagePathSegments = className.length() - className.replace(".", "").length();
                 // Remove package segments from path
-                Path path = absolutePackagePath;
-                for (int i = 0; i < packagePathSegments && path != null; i++) {
+                var path = absolutePackagePath;
+                for (var i = 0; i < packagePathSegments && path != null; i++) {
                     path = path.getParent();
                 }
                 // Remove up to two more levels for "bin" or "target/classes"
-                for (int i = 0; i < 3 && path != null; i++, path = path.getParent()) {
-                    final Path pom = path.resolve("pom.xml");
-                    try (InputStream is = Files.newInputStream(pom)) {
-                        final Document doc = getSecureDocumentBuilderFactory().newDocumentBuilder().parse(is);
+                for (var i = 0; i < 3 && path != null; i++, path = path.getParent()) {
+                    final var pom = path.resolve("pom.xml");
+                    try (var is = Files.newInputStream(pom)) {
+                        final var doc = getSecureDocumentBuilderFactory().newDocumentBuilder().parse(is);
                         doc.getDocumentElement().normalize();
-                        String version = (String) getSecureXPathFactory().newXPath().compile("/project/version")
+                        var version = (String) getSecureXPathFactory().newXPath().compile("/project/version")
                                 .evaluate(doc, XPathConstants.STRING);
                         if (version != null) {
                             version = version.trim();
@@ -222,12 +218,12 @@ public final class VersionFinder {
         }
 
         // Try to get version number from maven properties in jar's META-INF directory
-        try (InputStream is = cls.getResourceAsStream(
-                "/META-INF/maven/" + MAVEN_PACKAGE + "/" + MAVEN_ARTIFACT + "/pom.properties")) {
+        try (var is = cls
+                .getResourceAsStream("/META-INF/maven/" + MAVEN_PACKAGE + "/" + MAVEN_ARTIFACT + "/pom.properties")) {
             if (is != null) {
                 final Properties p = new Properties();
                 p.load(is);
-                final String version = p.getProperty("version", "").trim();
+                final var version = p.getProperty("version", "").trim();
                 if (!version.isEmpty()) {
                     return version;
                 }
@@ -237,9 +233,9 @@ public final class VersionFinder {
         }
 
         // Fallback to using Java API (version number is obtained from MANIFEST.MF)
-        final Package pkg = cls.getPackage();
+        final var pkg = cls.getPackage();
         if (pkg != null) {
-            String version = pkg.getImplementationVersion();
+            var version = pkg.getImplementationVersion();
             if (version == null) {
                 version = "";
             }
@@ -261,7 +257,8 @@ public final class VersionFinder {
     /**
      * Helper method to provide a XXE secured DocumentBuilder Factory.
      *
-     * reference - https://gist.github.com/AlainODea/1779a7c6a26a5c135280bc9b3b71868f
+     * reference -
+     * https://gist.github.com/AlainODea/1779a7c6a26a5c135280bc9b3b71868f
      * 
      * reference - https://rules.sonarsource.com/java/tag/owasp/RSPEC-2755
      * 
@@ -269,7 +266,7 @@ public final class VersionFinder {
      * @throws ParserConfigurationException
      */
     private static DocumentBuilderFactory getSecureDocumentBuilderFactory() throws ParserConfigurationException {
-        final DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+        final var dbf = DocumentBuilderFactory.newInstance();
         dbf.setXIncludeAware(false);
         dbf.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
         dbf.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
@@ -292,7 +289,7 @@ public final class VersionFinder {
      * @throws XPathFactoryConfigurationException
      */
     private static XPathFactory getSecureXPathFactory() throws XPathFactoryConfigurationException {
-        final XPathFactory xPathFactory = XPathFactory.newInstance();
+        final var xPathFactory = XPathFactory.newInstance();
         xPathFactory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
         return xPathFactory;
     }

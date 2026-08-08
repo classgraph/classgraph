@@ -44,7 +44,8 @@ class WeblogicClassLoaderHandler implements ClassLoaderHandler {
                         "weblogic.utils.classloaders.GenericClassLoader")
                 || ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass,
                         "weblogic.utils.classloaders.FilteringClassLoader")
-                // TODO: The following two known classloader names have not been tested, and the fields/methods
+                // TODO: The following two known classloader names have not been tested, and the
+                // fields/methods
                 // may not match those of the above classloaders.
                 || ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass,
                         "weblogic.servlet.jsp.JspClassLoader")
@@ -66,15 +67,17 @@ class WeblogicClassLoaderHandler implements ClassLoaderHandler {
                 (String) classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getFinderClassPath"),
                 classLoader, scanSpec, log);
         classpathOrder.addClasspathPathStr( //
-                (String) classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getClassPath"),
-                classLoader, scanSpec, log);
+                (String) classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getClassPath"), classLoader,
+                scanSpec, log);
     }
 
     /**
-     * Get the automatic package root prefixes for classpath elements obtained from this classloader.
+     * Get the automatic package root prefixes for classpath elements obtained from
+     * this classloader.
      *
      * <p>
-     * Classpath elements from this classloader may be Spring-Boot executable jars or wars.
+     * Classpath elements from this classloader may be Spring-Boot executable jars
+     * or wars.
      *
      * @return the package root prefixes.
      */

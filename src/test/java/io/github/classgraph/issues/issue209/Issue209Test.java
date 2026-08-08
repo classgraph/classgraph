@@ -36,7 +36,6 @@ import java.net.URLClassLoader;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ScanResult;
 
 /**
  * Issue209Test.
@@ -47,7 +46,7 @@ public class Issue209Test {
      */
     @Test
     public void testSpringBootJarWithLibJars() {
-        try (ScanResult result = new ClassGraph().acceptPackages( //
+        try (var result = new ClassGraph().acceptPackages( //
                 "org.springframework.boot.loader.util", "com.foo", "issue209lib") //
                 .overrideClassLoaders(new URLClassLoader(
                         new URL[] { Issue209Test.class.getClassLoader().getResource("issue209.jar") })) //

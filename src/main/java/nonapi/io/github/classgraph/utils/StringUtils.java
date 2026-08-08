@@ -40,42 +40,39 @@ public final class StringUtils {
     }
 
     /**
-     * Reads the "modified UTF8" format defined in the Java classfile spec, optionally replacing '/' with '.', and
-     * optionally removing the prefix "L" and the suffix ";".
+     * Reads the "modified UTF8" format defined in the Java classfile spec,
+     * optionally replacing '/' with '.', and optionally removing the prefix "L" and
+     * the suffix ";".
      *
-     * @param arr
-     *            the array to read the string from
-     * @param startOffset
-     *            The start offset of the string within the array.
-     * @param numBytes
-     *            The number of bytes of the UTF8 encoding of the string.
-     * @param replaceSlashWithDot
-     *            If true, replace '/' with '.'.
-     * @param stripLSemicolon
-     *            If true, string final ';' character.
+     * @param arr                 the array to read the string from
+     * @param startOffset         The start offset of the string within the array.
+     * @param numBytes            The number of bytes of the UTF8 encoding of the
+     *                            string.
+     * @param replaceSlashWithDot If true, replace '/' with '.'.
+     * @param stripLSemicolon     If true, string final ';' character.
      * @return The string.
-     * @throws IllegalArgumentException
-     *             If string could not be parsed.
+     * @throws IllegalArgumentException If string could not be parsed.
      */
     public static String readString(final byte[] arr, final int startOffset, final int numBytes,
             final boolean replaceSlashWithDot, final boolean stripLSemicolon) throws IllegalArgumentException {
-        // Compare by subtraction rather than addition, so that a large startOffset plus a large numBytes cannot
+        // Compare by subtraction rather than addition, so that a large startOffset plus
+        // a large numBytes cannot
         // overflow int and slip past the range check
         if (startOffset < 0 || numBytes < 0 || numBytes > arr.length - startOffset) {
             throw new IllegalArgumentException("offset or numBytes out of range");
         }
-        final char[] chars = new char[numBytes];
-        int byteIdx = 0;
-        int charIdx = 0;
+        final var chars = new char[numBytes];
+        var byteIdx = 0;
+        var charIdx = 0;
         for (; byteIdx < numBytes; byteIdx++) {
-            final int c = arr[startOffset + byteIdx] & 0xff;
+            final var c = arr[startOffset + byteIdx] & 0xff;
             if (c > 127) {
                 break;
             }
             chars[charIdx++] = (char) (replaceSlashWithDot && c == '/' ? '.' : c);
         }
         while (byteIdx < numBytes) {
-            final int c = arr[startOffset + byteIdx] & 0xff;
+            final var c = arr[startOffset + byteIdx] & 0xff;
             switch (c >> 4) {
             case 0, 1, 2, 3, 4, 5, 6, 7 -> {
                 byteIdx++;
@@ -90,7 +87,7 @@ public final class StringUtils {
                 if ((c2 & 0xc0) != 0x80) {
                     throw new IllegalArgumentException("Bad modified UTF8");
                 }
-                final int c3 = ((c & 0x1f) << 6) | (c2 & 0x3f);
+                final var c3 = ((c & 0x1f) << 6) | (c2 & 0x3f);
                 chars[charIdx++] = (char) (replaceSlashWithDot && c3 == '/' ? '.' : c3);
             }
             case 14 -> {
@@ -103,7 +100,7 @@ public final class StringUtils {
                 if ((c2 & 0xc0) != 0x80 || (c3 & 0xc0) != 0x80) {
                     throw new IllegalArgumentException("Bad modified UTF8");
                 }
-                final int c4 = ((c & 0x0f) << 12) | ((c2 & 0x3f) << 6) | (c3 & 0x3f);
+                final var c4 = ((c & 0x0f) << 12) | ((c2 & 0x3f) << 6) | (c3 & 0x3f);
                 chars[charIdx++] = (char) (replaceSlashWithDot && c4 == '/' ? '.' : c4);
             }
             default -> throw new IllegalArgumentException("Bad modified UTF8");
@@ -114,8 +111,8 @@ public final class StringUtils {
         } else {
             if (stripLSemicolon) {
                 if (charIdx < 2 || chars[0] != 'L' || chars[charIdx - 1] != ';') {
-                    throw new IllegalArgumentException("Expected string to start with 'L' and end with ';', got \""
-                            + new String(chars) + "\"");
+                    throw new IllegalArgumentException(
+                            "Expected string to start with 'L' and end with ';', got \"" + new String(chars) + "\"");
                 }
                 return new String(chars, 1, charIdx - 2);
             } else {
@@ -125,26 +122,22 @@ public final class StringUtils {
     }
 
     /**
-     * Append the string representations of the elements of an {@link Iterable} to a buffer, separated by a
-     * separator string. (Unlike {@link String#join}, the elements may be of any type, and may be null.)
+     * Append the string representations of the elements of an {@link Iterable} to a
+     * buffer, separated by a separator string. (Unlike {@link String#join}, the
+     * elements may be of any type, and may be null.)
      * 
-     * @param buf
-     *            The buffer to append to.
-     * @param addAtBeginning
-     *            The token to add at the beginning of the string.
-     * @param sep
-     *            The separator string.
-     * @param addAtEnd
-     *            The token to add at the end of the string.
-     * @param iterable
-     *            The {@link Iterable} to join.
+     * @param buf            The buffer to append to.
+     * @param addAtBeginning The token to add at the beginning of the string.
+     * @param sep            The separator string.
+     * @param addAtEnd       The token to add at the end of the string.
+     * @param iterable       The {@link Iterable} to join.
      */
     public static void join(final StringBuilder buf, final String addAtBeginning, final String sep,
             final String addAtEnd, final Iterable<?> iterable) {
         if (!addAtBeginning.isEmpty()) {
             buf.append(addAtBeginning);
         }
-        boolean first = true;
+        var first = true;
         for (final Object item : iterable) {
             if (first) {
                 first = false;
@@ -159,13 +152,12 @@ public final class StringUtils {
     }
 
     /**
-     * Join the string representations of the elements of an {@link Iterable}, separated by a separator string.
-     * (Unlike {@link String#join}, the elements may be of any type, and may be null.)
+     * Join the string representations of the elements of an {@link Iterable},
+     * separated by a separator string. (Unlike {@link String#join}, the elements
+     * may be of any type, and may be null.)
      * 
-     * @param sep
-     *            The separator string.
-     * @param iterable
-     *            The {@link Iterable} to join.
+     * @param sep      The separator string.
+     * @param iterable The {@link Iterable} to join.
      * @return The string representation of the joined elements.
      */
     public static String join(final String sep, final Iterable<?> iterable) {
@@ -175,18 +167,16 @@ public final class StringUtils {
     }
 
     /**
-     * Join the string representations of the given items, separated by a separator string. (Unlike
-     * {@link String#join}, the items may be of any type.)
+     * Join the string representations of the given items, separated by a separator
+     * string. (Unlike {@link String#join}, the items may be of any type.)
      * 
-     * @param sep
-     *            The separator string.
-     * @param items
-     *            The items to join.
+     * @param sep   The separator string.
+     * @param items The items to join.
      * @return The string representation of the joined items.
      */
     public static String join(final String sep, final Object... items) {
         final StringBuilder buf = new StringBuilder();
-        boolean first = true;
+        var first = true;
         for (final Object item : items) {
             if (first) {
                 first = false;

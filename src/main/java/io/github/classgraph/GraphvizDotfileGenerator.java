@@ -64,7 +64,7 @@ final class GraphvizDotfileGenerator {
         // http://stackoverflow.com/questions/4731055/whitespace-matching-regex-java
         // Also see (for \n and \r -- a real example of Java stupidity):
         // https://stackoverflow.com/a/3866219/3950982
-        final String wsChars = "\u0020" // SPACE
+        final var wsChars = "\u0020" // SPACE
                 + "\u0009" // CHARACTER TABULATION
                 + "\n" // LINE FEED (LF)
                 + "\u000B" // LINE TABULATION
@@ -90,7 +90,7 @@ final class GraphvizDotfileGenerator {
                 + "\u202F" // NARROW NO-BREAK SPACE
                 + "\u205F" // MEDIUM MATHEMATICAL SPACE
                 + "\u3000"; // IDEOGRAPHIC SPACE
-        for (int i = 0; i < wsChars.length(); i++) {
+        for (var i = 0; i < wsChars.length(); i++) {
             IS_UNICODE_WHITESPACE.set(wsChars.charAt(i));
         }
     }
@@ -98,8 +98,7 @@ final class GraphvizDotfileGenerator {
     /**
      * Checks if a character is Unicode whitespace.
      *
-     * @param c
-     *            the character
+     * @param c the character
      * @return true if the character is Unicode whitespace
      */
     private static boolean isUnicodeWhitespace(final char c) {
@@ -109,90 +108,51 @@ final class GraphvizDotfileGenerator {
     /**
      * Encode HTML-unsafe characters as HTML entities.
      *
-     * @param unsafeStr
-     *            The string to escape to make HTML-safe.
-     * @param turnNewlineIntoBreak
-     *            If true, turn '\n' into a break element in the output.
-     * @param buf
-     *            the buf
+     * @param unsafeStr            The string to escape to make HTML-safe.
+     * @param turnNewlineIntoBreak If true, turn '\n' into a break element in the
+     *                             output.
+     * @param buf                  the buf
      */
     private static void htmlEncode(final CharSequence unsafeStr, final boolean turnNewlineIntoBreak,
             final StringBuilder buf) {
         for (int i = 0, n = unsafeStr.length(); i < n; i++) {
-            final char c = unsafeStr.charAt(i);
+            final var c = unsafeStr.charAt(i);
             switch (c) {
-            case '&':
-                buf.append("&amp;");
-                break;
-            case '<':
-                buf.append("&lt;");
-                break;
-            case '>':
-                buf.append("&gt;");
-                break;
-            case '"':
-                buf.append("&quot;");
-                break;
-            case '\'':
-                buf.append("&#x27;"); // See http://goo.gl/FzoP6m
-                break;
-            case '\\':
-                buf.append("&lsol;");
-                break;
-            case '/':
-                buf.append("&#x2F;"); // '/' can be a dangerous char if attr values are not quoted
-                break;
-            // Encode a few common characters that like to get screwed up in some charset/browser variants
-            case '—':
-                buf.append("&mdash;");
-                break;
-            case '–':
-                buf.append("&ndash;");
-                break;
-            case '“':
-                buf.append("&ldquo;");
-                break;
-            case '”':
-                buf.append("&rdquo;");
-                break;
-            case '‘':
-                buf.append("&lsquo;");
-                break;
-            case '’':
-                buf.append("&rsquo;");
-                break;
-            case '«':
-                buf.append("&laquo;");
-                break;
-            case '»':
-                buf.append("&raquo;");
-                break;
-            case '£':
-                buf.append("&pound;");
-                break;
-            case '©':
-                buf.append("&copy;");
-                break;
-            case '®':
-                buf.append("&reg;");
-                break;
-            case (char) 0x00A0:
-                buf.append("&nbsp;");
-                break;
-            case '\n':
+            case '&' -> buf.append("&amp;");
+            case '<' -> buf.append("&lt;");
+            case '>' -> buf.append("&gt;");
+            case '"' -> buf.append("&quot;");
+            case '\'' -> buf.append("&#x27;"); // See http://goo.gl/FzoP6m
+            case '\\' -> buf.append("&lsol;");
+            case '/' -> buf.append("&#x2F;"); // '/' can be a dangerous char if attr values are not quoted
+            // Encode a few common characters that like to get screwed up in some
+            // charset/browser variants
+            case '—' -> buf.append("&mdash;");
+            case '–' -> buf.append("&ndash;");
+            case '“' -> buf.append("&ldquo;");
+            case '”' -> buf.append("&rdquo;");
+            case '‘' -> buf.append("&lsquo;");
+            case '’' -> buf.append("&rsquo;");
+            case '«' -> buf.append("&laquo;");
+            case '»' -> buf.append("&raquo;");
+            case '£' -> buf.append("&pound;");
+            case '©' -> buf.append("&copy;");
+            case '®' -> buf.append("&reg;");
+            case (char) 0x00A0 -> buf.append("&nbsp;");
+            case '\n' -> {
                 if (turnNewlineIntoBreak) {
                     buf.append("<br>");
                 } else {
                     buf.append(' '); // Newlines function as whitespace in HTML text
                 }
-                break;
-            default:
+            }
+            default -> {
                 if (c <= 32 || isUnicodeWhitespace(c)) {
                     buf.append(' ');
                 } else {
                     buf.append(c);
                 }
-                break;
+            }
             }
         }
     }
@@ -200,10 +160,8 @@ final class GraphvizDotfileGenerator {
     /**
      * Encode HTML-unsafe characters as HTML entities.
      *
-     * @param unsafeStr
-     *            The string to escape to make HTML-safe.
-     * @param buf
-     *            the buf
+     * @param unsafeStr The string to escape to make HTML-safe.
+     * @param buf       the buf
      */
     private static void htmlEncode(final CharSequence unsafeStr, final StringBuilder buf) {
         htmlEncode(unsafeStr, /* turnNewlineIntoBreak = */ false, buf);
@@ -212,26 +170,19 @@ final class GraphvizDotfileGenerator {
     /**
      * Produce HTML label for class node.
      *
-     * @param ci
-     *            the class info
-     * @param shape
-     *            the shape to use
-     * @param boxBgColor
-     *            the box background color
-     * @param showFields
-     *            whether to show fields
-     * @param showMethods
-     *            whether to show methods
-     * @param useSimpleNames
-     *            whether to use simple names for classes in type signatures
-     * @param scanSpec
-     *            the scan spec
-     * @param buf
-     *            the buf
+     * @param ci             the class info
+     * @param shape          the shape to use
+     * @param boxBgColor     the box background color
+     * @param showFields     whether to show fields
+     * @param showMethods    whether to show methods
+     * @param useSimpleNames whether to use simple names for classes in type
+     *                       signatures
+     * @param scanSpec       the scan spec
+     * @param buf            the buf
      */
     private static void labelClassNodeHTML(final ClassInfo ci, final String shape, final String boxBgColor,
-            final boolean showFields, final boolean showMethods, final boolean useSimpleNames,
-            final ScanSpec scanSpec, final StringBuilder buf) {
+            final boolean showFields, final boolean showMethods, final boolean useSimpleNames, final ScanSpec scanSpec,
+            final StringBuilder buf) {
         buf.append("[shape=").append(shape).append(",style=filled,fillcolor=\"#").append(boxBgColor)
                 .append("\",label=");
         buf.append('<');
@@ -255,23 +206,23 @@ final class GraphvizDotfileGenerator {
         buf.append("</b></font></td></tr>");
 
         // Create a color that matches the box background color, but is darker
-        final float darkness = 0.8f;
-        final int r = (int) (Integer.parseInt(boxBgColor.substring(0, 2), 16) * darkness);
-        final int g = (int) (Integer.parseInt(boxBgColor.substring(2, 4), 16) * darkness);
-        final int b = (int) (Integer.parseInt(boxBgColor.substring(4, 6), 16) * darkness);
-        final String darkerColor = String.format("#%s%s%s%s%s%s", Integer.toString(r >> 4, 16),
+        final var darkness = 0.8f;
+        final var r = (int) (Integer.parseInt(boxBgColor.substring(0, 2), 16) * darkness);
+        final var g = (int) (Integer.parseInt(boxBgColor.substring(2, 4), 16) * darkness);
+        final var b = (int) (Integer.parseInt(boxBgColor.substring(4, 6), 16) * darkness);
+        final var darkerColor = String.format("#%s%s%s%s%s%s", Integer.toString(r >> 4, 16),
                 Integer.toString(r & 0xf, 16), Integer.toString(g >> 4, 16), Integer.toString(g & 0xf, 16),
                 Integer.toString(b >> 4, 16), Integer.toString(b & 0xf, 16));
 
         // Class annotations
-        final AnnotationInfoList annotationInfo = ci.annotationInfo;
+        final var annotationInfo = ci.annotationInfo;
         if (annotationInfo != null && !annotationInfo.isEmpty()) {
             buf.append("<tr><td colspan='3' bgcolor='").append(darkerColor)
                     .append("'><font point-size='12'><b>ANNOTATIONS</b></font></td></tr>");
-            final AnnotationInfoList annotationInfoSorted = new AnnotationInfoList(annotationInfo);
+            final var annotationInfoSorted = new AnnotationInfoList(annotationInfo);
             CollectionUtils.sortIfNotEmpty(annotationInfoSorted);
             for (final AnnotationInfo ai : annotationInfoSorted) {
-                final String annotationName = ai.getName();
+                final var annotationName = ai.getName();
                 if (!annotationName.startsWith("java.lang.annotation.")) {
                     buf.append("<tr>");
                     buf.append("<td align='center' valign='top'>");
@@ -282,21 +233,19 @@ final class GraphvizDotfileGenerator {
         }
 
         // Fields
-        final FieldInfoList fieldInfo = ci.fieldInfo;
+        final var fieldInfo = ci.fieldInfo;
         if (showFields && fieldInfo != null && !fieldInfo.isEmpty()) {
-            final FieldInfoList fieldInfoSorted = new FieldInfoList(fieldInfo);
+            final var fieldInfoSorted = new FieldInfoList(fieldInfo);
             CollectionUtils.sortIfNotEmpty(fieldInfoSorted);
-            for (int i = fieldInfoSorted.size() - 1; i >= 0; --i) {
+            for (var i = fieldInfoSorted.size() - 1; i >= 0; --i) {
                 // Remove serialVersionUID field
-                if (fieldInfoSorted.get(i).getName().equals("serialVersionUID")) {
+                if ("serialVersionUID".equals(fieldInfoSorted.get(i).getName())) {
                     fieldInfoSorted.remove(i);
                 }
             }
             if (!fieldInfoSorted.isEmpty()) {
-                buf.append("<tr><td colspan='3' bgcolor='").append(darkerColor)
-                        .append("'><font point-size='12'><b>")
-                        .append(scanSpec.ignoreFieldVisibility ? "" : "PUBLIC ")
-                        .append("FIELDS</b></font></td></tr>");
+                buf.append("<tr><td colspan='3' bgcolor='").append(darkerColor).append("'><font point-size='12'><b>")
+                        .append(scanSpec.ignoreFieldVisibility ? "" : "PUBLIC ").append("FIELDS</b></font></td></tr>");
                 buf.append("<tr><td cellpadding='0'>");
                 buf.append("<table border='0' cellborder='0'>");
                 for (final FieldInfo fi : fieldInfoSorted) {
@@ -304,7 +253,7 @@ final class GraphvizDotfileGenerator {
                     buf.append("<td align='right' valign='top'>");
 
                     // Field Annotations
-                    final AnnotationInfoList fieldAnnotationInfo = fi.annotationInfo;
+                    final var fieldAnnotationInfo = fi.annotationInfo;
                     if (fieldAnnotationInfo != null) {
                         for (final AnnotationInfo ai : fieldAnnotationInfo) {
                             if (buf.charAt(buf.length() - 1) != ' ') {
@@ -326,13 +275,13 @@ final class GraphvizDotfileGenerator {
                     if (buf.charAt(buf.length() - 1) != ' ') {
                         buf.append(' ');
                     }
-                    final TypeSignature typeSig = fi.getTypeSignatureOrTypeDescriptor();
+                    final var typeSig = fi.getTypeSignatureOrTypeDescriptor();
                     htmlEncode(useSimpleNames ? typeSig.toStringWithSimpleNames() : typeSig.toString(), buf);
                     buf.append("</td>");
 
                     // Field name
                     buf.append("<td align='left' valign='top'><b>");
-                    final String fieldName = fi.getName();
+                    final var fieldName = fi.getName();
                     htmlEncode(fieldName, buf);
                     buf.append("</b></td></tr>");
                 }
@@ -342,26 +291,25 @@ final class GraphvizDotfileGenerator {
         }
 
         // Methods
-        final MethodInfoList methodInfo = ci.methodInfo;
+        final var methodInfo = ci.methodInfo;
         if (showMethods && methodInfo != null) {
-            final MethodInfoList methodInfoSorted = new MethodInfoList(methodInfo);
+            final var methodInfoSorted = new MethodInfoList(methodInfo);
             CollectionUtils.sortIfNotEmpty(methodInfoSorted);
-            for (int i = methodInfoSorted.size() - 1; i >= 0; --i) {
+            for (var i = methodInfoSorted.size() - 1; i >= 0; --i) {
                 // Don't list static initializer blocks or methods of Object
-                final MethodInfo mi = methodInfoSorted.get(i);
-                final String name = mi.getName();
-                final int numParam = mi.getParameterInfo().length;
-                if (name.equals("<clinit>") || name.equals("hashCode") && numParam == 0
-                        || name.equals("toString") && numParam == 0 || name.equals("equals") && numParam == 1
-                                && mi.getTypeDescriptor().toString().equals("boolean (java.lang.Object)")) {
+                final var mi = methodInfoSorted.get(i);
+                final var name = mi.getName();
+                final var numParam = mi.getParameterInfo().length;
+                if ("<clinit>".equals(name) || "hashCode".equals(name) && numParam == 0
+                        || "toString".equals(name) && numParam == 0 || "equals".equals(name) && numParam == 1
+                                && "boolean (java.lang.Object)".equals(mi.getTypeDescriptor().toString())) {
                     methodInfoSorted.remove(i);
                 }
             }
             if (!methodInfoSorted.isEmpty()) {
                 buf.append("<tr><td cellpadding='0'>");
                 buf.append("<table border='0' cellborder='0'>");
-                buf.append("<tr><td colspan='3' bgcolor='").append(darkerColor)
-                        .append("'><font point-size='12'><b>")
+                buf.append("<tr><td colspan='3' bgcolor='").append(darkerColor).append("'><font point-size='12'><b>")
                         .append(scanSpec.ignoreMethodVisibility ? "" : "PUBLIC ")
                         .append("METHODS</b></font></td></tr>");
                 for (final MethodInfo mi : methodInfoSorted) {
@@ -370,7 +318,7 @@ final class GraphvizDotfileGenerator {
                     // Method annotations
                     // TODO: wrap this cell if the contents get too long
                     buf.append("<td align='right' valign='top'>");
-                    final AnnotationInfoList methodAnnotationInfo = mi.annotationInfo;
+                    final var methodAnnotationInfo = mi.annotationInfo;
                     if (methodAnnotationInfo != null) {
                         for (final AnnotationInfo ai : methodAnnotationInfo) {
                             if (buf.charAt(buf.length() - 1) != ' ') {
@@ -392,11 +340,10 @@ final class GraphvizDotfileGenerator {
                     if (buf.charAt(buf.length() - 1) != ' ') {
                         buf.append(' ');
                     }
-                    if (!mi.getName().equals("<init>")) {
+                    if (!"<init>".equals(mi.getName())) {
                         // Don't list return type for constructors
-                        final TypeSignature resultTypeSig = mi.getTypeSignatureOrTypeDescriptor().getResultType();
-                        htmlEncode(
-                                useSimpleNames ? resultTypeSig.toStringWithSimpleNames() : resultTypeSig.toString(),
+                        final var resultTypeSig = mi.getTypeSignatureOrTypeDescriptor().getResultType();
+                        htmlEncode(useSimpleNames ? resultTypeSig.toStringWithSimpleNames() : resultTypeSig.toString(),
                                 buf);
                     } else {
                         buf.append("<b>&lt;constructor&gt;</b>");
@@ -406,7 +353,7 @@ final class GraphvizDotfileGenerator {
                     // Method name
                     buf.append("<td align='left' valign='top'>");
                     buf.append("<b>");
-                    if (mi.getName().equals("<init>")) {
+                    if ("<init>".equals(mi.getName())) {
                         // Show class name for constructors
                         htmlEncode(ci.getSimpleName(), buf);
                     } else {
@@ -418,7 +365,7 @@ final class GraphvizDotfileGenerator {
                     // Method parameters
                     buf.append("<td align='left' valign='top'>");
                     buf.append('(');
-                    final MethodParameterInfo[] paramInfo = mi.getParameterInfo();
+                    final var paramInfo = mi.getParameterInfo();
                     if (paramInfo.length != 0) {
                         for (int i = 0, wrapPos = 0; i < paramInfo.length; i++) {
                             if (i > 0) {
@@ -431,10 +378,10 @@ final class GraphvizDotfileGenerator {
                             }
 
                             // Param annotation
-                            final AnnotationInfo[] paramAnnotationInfo = paramInfo[i].annotationInfo;
+                            final var paramAnnotationInfo = paramInfo[i].annotationInfo;
                             if (paramAnnotationInfo != null) {
                                 for (final AnnotationInfo ai : paramAnnotationInfo) {
-                                    final String ais = ai.toString();
+                                    final var ais = ai.toString();
                                     if (!ais.isEmpty()) {
                                         if (buf.charAt(buf.length() - 1) != ' ') {
                                             buf.append(' ');
@@ -451,14 +398,14 @@ final class GraphvizDotfileGenerator {
                             }
 
                             // Param type
-                            final TypeSignature paramTypeSig = paramInfo[i].getTypeSignatureOrTypeDescriptor();
-                            final String paramTypeStr = useSimpleNames ? paramTypeSig.toStringWithSimpleNames()
+                            final var paramTypeSig = paramInfo[i].getTypeSignatureOrTypeDescriptor();
+                            final var paramTypeStr = useSimpleNames ? paramTypeSig.toStringWithSimpleNames()
                                     : paramTypeSig.toString();
                             htmlEncode(paramTypeStr, buf);
                             wrapPos += paramTypeStr.length();
 
                             // Param name
-                            final String paramName = paramInfo[i].getName();
+                            final var paramName = paramInfo[i].getName();
                             if (paramName != null) {
                                 buf.append(" <B>");
                                 htmlEncode(paramName, buf);
@@ -479,37 +426,30 @@ final class GraphvizDotfileGenerator {
     }
 
     /**
-     * Generates a .dot file which can be fed into GraphViz for layout and visualization of the class graph. The
-     * sizeX and sizeY parameters are the image output size to use (in inches) when GraphViz is asked to render the
+     * Generates a .dot file which can be fed into GraphViz for layout and
+     * visualization of the class graph. The sizeX and sizeY parameters are the
+     * image output size to use (in inches) when GraphViz is asked to render the
      * .dot file.
      *
-     * @param classInfoList
-     *            the class info list
-     * @param sizeX
-     *            the size X
-     * @param sizeY
-     *            the size Y
-     * @param showFields
-     *            whether to show fields
-     * @param showFieldTypeDependencyEdges
-     *            whether to show field type dependency edges
-     * @param showMethods
-     *            whether to show methods
-     * @param showMethodTypeDependencyEdges
-     *            whether to show method type dependency edges
-     * @param showAnnotations
-     *            whether to show annotations
-     * @param useSimpleNames
-     *            whether to use simple names for classes
-     * @param scanSpec
-     *            the scan spec
+     * @param classInfoList                 the class info list
+     * @param sizeX                         the size X
+     * @param sizeY                         the size Y
+     * @param showFields                    whether to show fields
+     * @param showFieldTypeDependencyEdges  whether to show field type dependency
+     *                                      edges
+     * @param showMethods                   whether to show methods
+     * @param showMethodTypeDependencyEdges whether to show method type dependency
+     *                                      edges
+     * @param showAnnotations               whether to show annotations
+     * @param useSimpleNames                whether to use simple names for classes
+     * @param scanSpec                      the scan spec
      * @return the string
      */
     static String generateGraphVizDotFile(final ClassInfoList classInfoList, final float sizeX, final float sizeY,
             final boolean showFields, final boolean showFieldTypeDependencyEdges, final boolean showMethods,
-            final boolean showMethodTypeDependencyEdges, final boolean showAnnotations,
-            final boolean useSimpleNames, final ScanSpec scanSpec) {
-        final StringBuilder buf = new StringBuilder(1024 * 1024);
+            final boolean showMethodTypeDependencyEdges, final boolean showAnnotations, final boolean useSimpleNames,
+            final ScanSpec scanSpec) {
+        final var buf = new StringBuilder(1024 * 1024);
         buf.append("digraph {\n");
         buf.append("size=\"").append(sizeX).append(',').append(sizeY).append("\";\n");
         buf.append("layout=dot;\n");
@@ -521,9 +461,9 @@ final class GraphvizDotfileGenerator {
         buf.append("node [fontname = \"Courier, Regular\"]\n");
         buf.append("edge [fontname = \"Courier, Regular\"]\n");
 
-        final ClassInfoList standardClassNodes = classInfoList.getStandardClasses();
-        final ClassInfoList interfaceNodes = classInfoList.getInterfaces();
-        final ClassInfoList annotationNodes = classInfoList.getAnnotations();
+        final var standardClassNodes = classInfoList.getStandardClasses();
+        final var interfaceNodes = classInfoList.getInterfaces();
+        final var annotationNodes = classInfoList.getAnnotations();
 
         for (final ClassInfo node : standardClassNodes) {
             buf.append('"').append(node.getName()).append('"');
@@ -541,8 +481,7 @@ final class GraphvizDotfileGenerator {
 
         for (final ClassInfo node : annotationNodes) {
             buf.append('"').append(node.getName()).append('"');
-            labelClassNodeHTML(node, "oval", ANNOTATION_COLOR, showFields, showMethods, useSimpleNames, scanSpec,
-                    buf);
+            labelClassNodeHTML(node, "oval", ANNOTATION_COLOR, showFields, showMethods, useSimpleNames, scanSpec, buf);
             buf.append(";\n");
         }
 
@@ -555,7 +494,7 @@ final class GraphvizDotfileGenerator {
         for (final ClassInfo classNode : standardClassNodes) {
             for (final ClassInfo directSuperclassNode : classNode.getSuperclasses().directOnly()) {
                 if (directSuperclassNode != null && allVisibleNodes.contains(directSuperclassNode.getName())
-                        && !directSuperclassNode.getName().equals("java.lang.Object")) {
+                        && !"java.lang.Object".equals(directSuperclassNode.getName())) {
                     // class --> superclass
                     buf.append("  \"").append(classNode.getName()).append("\" -> \"")
                             .append(directSuperclassNode.getName()).append("\" [arrowsize=2.5]\n");
@@ -638,28 +577,29 @@ final class GraphvizDotfileGenerator {
     }
 
     /**
-     * Generate a .dot file which can be fed into GraphViz for layout and visualization of the class graph. The
-     * returned graph shows inter-class dependencies only. The sizeX and sizeY parameters are the image output size
-     * to use (in inches) when GraphViz is asked to render the .dot file. You must have called
-     * {@link ClassGraph#enableInterClassDependencies()} before scanning to use this method.
+     * Generate a .dot file which can be fed into GraphViz for layout and
+     * visualization of the class graph. The returned graph shows inter-class
+     * dependencies only. The sizeX and sizeY parameters are the image output size
+     * to use (in inches) when GraphViz is asked to render the .dot file. You must
+     * have called {@link ClassGraph#enableInterClassDependencies()} before scanning
+     * to use this method.
      *
-     * @param classInfoList
-     *            The list of nodes whose dependencies should be plotted in the graph.
-     * @param sizeX
-     *            The GraphViz layout width in inches.
-     * @param sizeY
-     *            The GraphViz layout height in inches.
-     * @param includeExternalClasses
-     *            If true, include any dependency nodes in the graph that are not themselves in classInfoList.
+     * @param classInfoList          The list of nodes whose dependencies should be
+     *                               plotted in the graph.
+     * @param sizeX                  The GraphViz layout width in inches.
+     * @param sizeY                  The GraphViz layout height in inches.
+     * @param includeExternalClasses If true, include any dependency nodes in the
+     *                               graph that are not themselves in classInfoList.
      * @return the GraphViz file contents.
-     * @throws IllegalArgumentException
-     *             if {@link ClassGraph#enableInterClassDependencies()} was not called before scanning (since there
-     *             would be nothing to graph).
+     * @throws IllegalArgumentException if
+     *                                  {@link ClassGraph#enableInterClassDependencies()}
+     *                                  was not called before scanning (since there
+     *                                  would be nothing to graph).
      */
     static String generateGraphVizDotFileFromInterClassDependencies(final ClassInfoList classInfoList,
             final float sizeX, final float sizeY, final boolean includeExternalClasses) {
 
-        final StringBuilder buf = new StringBuilder(1024 * 1024);
+        final var buf = new StringBuilder(1024 * 1024);
         buf.append("digraph {\n");
         buf.append("size=\"").append(sizeX).append(',').append(sizeY).append("\";\n");
         buf.append("layout=dot;\n");

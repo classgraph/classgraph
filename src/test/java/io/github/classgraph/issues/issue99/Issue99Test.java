@@ -33,7 +33,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ScanResult;
 
 /**
  * Issue99Test.
@@ -48,7 +47,7 @@ public class Issue99Test {
      */
     @Test
     public void testWithoutReject() {
-        try (ScanResult scanResult = new ClassGraph().overrideClasspath(jarPath).enableClassInfo().scan()) {
+        try (var scanResult = new ClassGraph().overrideClasspath(jarPath).enableClassInfo().scan()) {
             assertThat(scanResult.getAllClasses().getNames()).containsOnly("com.test.Test");
         }
     }
@@ -58,8 +57,8 @@ public class Issue99Test {
      */
     @Test
     public void testWithReject() {
-        try (ScanResult scanResult = new ClassGraph().overrideClasspath(jarPath).rejectJars("level3.jar")
-                .enableClassInfo().scan()) {
+        try (var scanResult = new ClassGraph().overrideClasspath(jarPath).rejectJars("level3.jar").enableClassInfo()
+                .scan()) {
             assertThat(scanResult.getAllClasses().getNames()).isEmpty();
         }
     }

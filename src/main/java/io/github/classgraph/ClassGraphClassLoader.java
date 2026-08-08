@@ -43,7 +43,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.VersionFinder;
 import nonapi.io.github.classgraph.utils.VersionFinder.OperatingSystem;
@@ -72,32 +71,31 @@ public class ClassGraphClassLoader extends ClassLoader {
     /**
      * Constructor.
      *
-     * @param scanResult
-     *            The ScanResult.
+     * @param scanResult The ScanResult.
      */
     ClassGraphClassLoader(final ScanResult scanResult) {
         super(null);
         registerAsParallelCapable();
 
         this.scanResult = scanResult;
-        final ScanSpec scanSpec = scanResult.scanSpec;
+        final var scanSpec = scanResult.scanSpec;
         initializeLoadedClasses = scanSpec.initializeLoadedClasses;
 
-        final boolean classpathOverridden = scanSpec.overrideClasspath != null
-                && !scanSpec.overrideClasspath.isEmpty();
-        final boolean classloadersOverridden = scanSpec.overrideClassLoaders != null
+        final var classpathOverridden = scanSpec.overrideClasspath != null && !scanSpec.overrideClasspath.isEmpty();
+        final var classloadersOverridden = scanSpec.overrideClassLoaders != null
                 && !scanSpec.overrideClassLoaders.isEmpty();
-        final boolean classLoadersAdded = scanSpec.addedClassLoaders != null
-                && !scanSpec.addedClassLoaders.isEmpty();
+        final var classLoadersAdded = scanSpec.addedClassLoaders != null && !scanSpec.addedClassLoaders.isEmpty();
 
-        // Only try environment classloaders if classpath and/or classloaders are not overridden
+        // Only try environment classloaders if classpath and/or classloaders are not
+        // overridden
         if (!classpathOverridden && !classloadersOverridden) {
-            // Try the null classloader first (this will default to the bootstrap class loader)
+            // Try the null classloader first (this will default to the bootstrap class
+            // loader)
             environmentClassLoaderDelegationOrder = new LinkedHashSet<>();
             environmentClassLoaderDelegationOrder.add(null);
 
             // Try environment classloaders
-            final ClassLoader[] envClassLoaderOrder = scanResult.getClassLoaderOrderRespectingParentDelegation();
+            final var envClassLoaderOrder = scanResult.getClassLoaderOrderRespectingParentDelegation();
             if (envClassLoaderOrder != null) {
                 // Try environment classloaders
                 environmentClassLoaderDelegationOrder.addAll(Arrays.asList(envClassLoaderOrder));
@@ -105,27 +103,29 @@ public class ClassGraphClassLoader extends ClassLoader {
         }
 
         // Create classloader from URLs on classpath
-        final List<URL> classpathURLs = scanResult.getClasspathURLs();
-        classpathClassLoader = classpathURLs.isEmpty() ? null
-                : new URLClassLoader(classpathURLs.toArray(new URL[0]));
+        final var classpathURLs = scanResult.getClasspathURLs();
+        classpathClassLoader = classpathURLs.isEmpty() ? null : new URLClassLoader(classpathURLs.toArray(new URL[0]));
 
-        // If the classloaders were overridden, just use the override classloaders, and then fail if the
+        // If the classloaders were overridden, just use the override classloaders, and
+        // then fail if the
         // class couldn't be found.
         overrideClassLoaders = classloadersOverridden ? scanSpec.overrideClassLoaders : null;
 
-        // If the classpath is overridden, and classloaders are not overridden, try loading class from
-        // classpath URLs, as the override classloader, then fail if the class couldn't be found.
+        // If the classpath is overridden, and classloaders are not overridden, try
+        // loading class from
+        // classpath URLs, as the override classloader, then fail if the class couldn't
+        // be found.
         //
-        // N.B. Some classpath URLs might be invalid if the ScanResult has been closed (e.g. in the rare
+        // N.B. Some classpath URLs might be invalid if the ScanResult has been closed
+        // (e.g. in the rare
         // case that an inner jar had to be extracted to a temporary file on disk).
         if (overrideClassLoaders == null && classpathOverridden && classpathClassLoader != null) {
-            overrideClassLoaders = Collections.singletonList(classpathClassLoader);
+            overrideClassLoaders = List.of(classpathClassLoader);
         }
 
         // If classloaders were added, try loading through those classloaders
         if (classLoadersAdded) {
-            addedClassLoaderDelegationOrder = new LinkedHashSet<>();
-            addedClassLoaderDelegationOrder.addAll(scanSpec.addedClassLoaders);
+            addedClassLoaderDelegationOrder = new LinkedHashSet<>(scanSpec.addedClassLoaders);
             // Remove duplicates
             if (environmentClassLoaderDelegationOrder != null) {
                 addedClassLoaderDelegationOrder.removeAll(environmentClassLoaderDelegationOrder);
@@ -133,15 +133,16 @@ public class ClassGraphClassLoader extends ClassLoader {
         }
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.ClassLoader#findClass(java.lang.String)
      */
     @Override
     protected Class<?> findClass(final String className)
             throws ClassNotFoundException, LinkageError, SecurityException {
         // First delegate to outer nested ClassGraphClassLoader, if any (#485)
-        final ClassGraphClassLoader delegateClassGraphClassLoader = scanResult.classpathFinder
-                .getDelegateClassGraphClassLoader();
+        final var delegateClassGraphClassLoader = scanResult.classpathFinder.getDelegateClassGraphClassLoader();
         LinkageError linkageError = null;
         if (delegateClassGraphClassLoader != null) {
             try {
@@ -184,16 +185,21 @@ public class ClassGraphClassLoader extends ClassLoader {
             }
         }
 
-        // Try getting the ClassInfo for the named class, then the ClassLoader from the ClassInfo.
-        // This should still be valid if the ScanResult was closed, since ScanResult#close() leaves
-        // the classNameToClassInfo map intact, but still, this is only attempted if all the above
-        // efforts failed, to avoid accessing ClassInfo objects after the ScanResult is closed (#399).
+        // Try getting the ClassInfo for the named class, then the ClassLoader from the
+        // ClassInfo.
+        // This should still be valid if the ScanResult was closed, since
+        // ScanResult#close() leaves
+        // the classNameToClassInfo map intact, but still, this is only attempted if all
+        // the above
+        // efforts failed, to avoid accessing ClassInfo objects after the ScanResult is
+        // closed (#399).
         ClassLoader classInfoClassLoader = null;
-        final ClassInfo classInfo = scanResult.classNameToClassInfo == null ? null
+        final var classInfo = scanResult.classNameToClassInfo == null ? null
                 : scanResult.classNameToClassInfo.get(className);
         if (classInfo != null) {
             classInfoClassLoader = classInfo.classLoader;
-            // Try specific classloader for the classpath element that the classfile was obtained from,
+            // Try specific classloader for the classpath element that the classfile was
+            // obtained from,
             // as long as it wasn't already tried
             if (classInfoClassLoader != null && (environmentClassLoaderDelegationOrder == null
                     || !environmentClassLoaderDelegationOrder.contains(classInfoClassLoader))) {
@@ -208,11 +214,16 @@ public class ClassGraphClassLoader extends ClassLoader {
                 }
             }
 
-            // If class came from a module, and it was not able to be loaded by the environment classloader,
-            // then it is probable it was a non-public class, and ClassGraph found it by ignoring class visibility
-            // when reading the resources in exported packages directly. Force ClassGraph to respect JPMS
-            // encapsulation rules by refusing to load modular classes that the context/system classloaders
-            // could not load. (A SecurityException should be thrown above, but this is here for completeness.)
+            // If class came from a module, and it was not able to be loaded by the
+            // environment classloader,
+            // then it is probable it was a non-public class, and ClassGraph found it by
+            // ignoring class visibility
+            // when reading the resources in exported packages directly. Force ClassGraph to
+            // respect JPMS
+            // encapsulation rules by refusing to load modular classes that the
+            // context/system classloaders
+            // could not load. (A SecurityException should be thrown above, but this is here
+            // for completeness.)
             if (classInfo.classpathElement instanceof ClasspathElementModule && !classInfo.isPublic()) {
                 throw new ClassNotFoundException("Classfile for class " + className + " was found in a module, "
                         + "but the context and system classloaders could not load the class, probably because "
@@ -250,26 +261,35 @@ public class ClassGraphClassLoader extends ClassLoader {
             }
         }
 
-        // As a last-ditch attempt, if the above efforts all failed, try obtaining the classfile as a
-        // resource, and define the class from the resource content. This should be performed after
-        // environment classloading is attempted, so that classes are not loaded by a mix of environment
-        // classloaders and direct manual classloading, otherwise class compatibility issues can arise.
-        // The ScanResult should only be accessed (to fetch resources) as a last resort, so that wherever
-        // possible, linked classes can be loaded after the ScanResult is closed. Otherwise if you load
-        // classes before a ScanResult is closed, then you close the ScanResult, then you try to access
-        // fields of the ScanResult that have a type that has not yet been loaded, this can trigger an
+        // As a last-ditch attempt, if the above efforts all failed, try obtaining the
+        // classfile as a
+        // resource, and define the class from the resource content. This should be
+        // performed after
+        // environment classloading is attempted, so that classes are not loaded by a
+        // mix of environment
+        // classloaders and direct manual classloading, otherwise class compatibility
+        // issues can arise.
+        // The ScanResult should only be accessed (to fetch resources) as a last resort,
+        // so that wherever
+        // possible, linked classes can be loaded after the ScanResult is closed.
+        // Otherwise if you load
+        // classes before a ScanResult is closed, then you close the ScanResult, then
+        // you try to access
+        // fields of the ScanResult that have a type that has not yet been loaded, this
+        // can trigger an
         // exception that the ScanResult was accessed after it was closed (#399).
-        final ResourceList classfileResources = scanResult
-                .getResourcesWithPath(JarUtils.classNameToClassfilePath(className));
+        final var classfileResources = scanResult.getResourcesWithPath(JarUtils.classNameToClassfilePath(className));
         if (classfileResources != null) {
             for (final Resource resource : classfileResources) {
-                // Iterate through resources (only loading of first resource in the list will be attempted)
+                // Iterate through resources (only loading of first resource in the list will be
+                // attempted)
                 // Load the content of the resource, and define a class from it
-                try (Resource resourceToClose = resource) {
-                    // TODO: is there any need to try java.lang.invoke.MethodHandles.Lookup.defineClass
+                try (resource) {
+                    // TODO: is there any need to try
+                    // java.lang.invoke.MethodHandles.Lookup.defineClass
                     // via reflection (it's implemented in JDK 9), if the following fails?
                     // See: https://bugs.openjdk.java.net/browse/JDK-8202999
-                    return defineClass(className, resourceToClose.read(), (ProtectionDomain) null);
+                    return defineClass(className, resource.read(), (ProtectionDomain) null);
                 } catch (final IOException e) {
                     throw new ClassNotFoundException("Could not load classfile for class " + className + " : " + e);
                 } catch (final LinkageError e) {
@@ -282,16 +302,17 @@ public class ClassGraphClassLoader extends ClassLoader {
 
         if (linkageError != null) {
             if (VersionFinder.OS == OperatingSystem.Windows) {
-                // LinkageError indicates that a classfile was found, but the class couldn't be loaded.
-                // Hackily detect the situation where there are two classfiles with the same case insensitive name
+                // LinkageError indicates that a classfile was found, but the class couldn't be
+                // loaded.
+                // Hackily detect the situation where there are two classfiles with the same
+                // case insensitive name
                 // on Windows filesystems (#494).
-                final String msg = linkageError.getMessage();
+                final var msg = linkageError.getMessage();
                 if (msg != null) {
-                    final String wrongName = "(wrong name: ";
-                    final int wrongNameIdx = msg.indexOf(wrongName);
+                    final var wrongName = "(wrong name: ";
+                    final var wrongNameIdx = msg.indexOf(wrongName);
                     if (wrongNameIdx > -1) {
-                        final String theWrongName = msg.substring(wrongNameIdx + wrongName.length(),
-                                msg.length() - 1);
+                        final var theWrongName = msg.substring(wrongNameIdx + wrongName.length(), msg.length() - 1);
                         if (theWrongName.replace('/', '.').equalsIgnoreCase(className)) {
                             throw new LinkageError("You appear to have two classfiles with the same "
                                     + "case-insensitive name in the same directory on a case-insensitive "
@@ -310,28 +331,33 @@ public class ClassGraphClassLoader extends ClassLoader {
     /**
      * Get classpath URLs.
      * 
-     * @return The classpath URLs in the {@link ScanResult} handled by this {@link ClassLoader}.
+     * @return The classpath URLs in the {@link ScanResult} handled by this
+     *         {@link ClassLoader}.
      */
     public URL[] getURLs() {
         return scanResult.getClasspathURLs().toArray(new URL[0]);
     }
 
     /**
-     * Get the classloaders to delegate resource lookups to, in the same order that {@link #findClass(String)}
-     * delegates classloading to them. The null {@link ClassLoader} that stands for the bootstrap classloader is
-     * not included, since the bootstrap classloader is searched by calling the {@code super} method (the parent
-     * of this classloader is null).
+     * Get the classloaders to delegate resource lookups to, in the same order that
+     * {@link #findClass(String)} delegates classloading to them. The null
+     * {@link ClassLoader} that stands for the bootstrap classloader is not
+     * included, since the bootstrap classloader is searched by calling the
+     * {@code super} method (the parent of this classloader is null).
      *
      * @return the classloaders to delegate to, in delegation order.
      */
     private List<ClassLoader> getResourceDelegationOrder() {
         final List<ClassLoader> delegationOrder = new ArrayList<>();
         if (overrideClassLoaders != null) {
-            // If the classloaders or the classpath were overridden, only the override classloaders are used
+            // If the classloaders or the classpath were overridden, only the override
+            // classloaders are used
             delegationOrder.addAll(overrideClassLoaders);
         } else {
-            // N.B. environmentClassLoaderDelegationOrder is null if the classpath or the classloaders were
-            // overridden, and its first entry is a null ClassLoader, standing for the bootstrap classloader
+            // N.B. environmentClassLoaderDelegationOrder is null if the classpath or the
+            // classloaders were
+            // overridden, and its first entry is a null ClassLoader, standing for the
+            // bootstrap classloader
             if (environmentClassLoaderDelegationOrder != null) {
                 for (final ClassLoader envClassLoader : environmentClassLoaderDelegationOrder) {
                     if (envClassLoader != null) {
@@ -351,11 +377,13 @@ public class ClassGraphClassLoader extends ClassLoader {
     }
 
     /**
-     * Whether the bootstrap classloader should be searched before the classloaders returned by
-     * {@link #getResourceDelegationOrder()}. This is the case when the classpath and the classloaders were not
-     * overridden, since then the first entry of the environment classloader delegation order is a null
-     * {@link ClassLoader}, standing for the bootstrap classloader. If the classpath or the classloaders were
-     * overridden, the bootstrap classloader is only searched as a last resort.
+     * Whether the bootstrap classloader should be searched before the classloaders
+     * returned by {@link #getResourceDelegationOrder()}. This is the case when the
+     * classpath and the classloaders were not overridden, since then the first
+     * entry of the environment classloader delegation order is a null
+     * {@link ClassLoader}, standing for the bootstrap classloader. If the classpath
+     * or the classloaders were overridden, the bootstrap classloader is only
+     * searched as a last resort.
      *
      * @return true if the bootstrap classloader should be searched first.
      */
@@ -364,20 +392,19 @@ public class ClassGraphClassLoader extends ClassLoader {
     }
 
     /**
-     * Add resource URLs to a map from URL string to URL, so that the URLs are deduplicated but stay in the order
-     * they were added in.
+     * Add resource URLs to a map from URL string to URL, so that the URLs are
+     * deduplicated but stay in the order they were added in.
      *
-     * @param resources
-     *            the resource URLs to add (may be null).
-     * @param resourceURLs
-     *            the map to add the resource URLs to.
+     * @param resources    the resource URLs to add (may be null).
+     * @param resourceURLs the map to add the resource URLs to.
      */
     private static void addResourceURLs(final Enumeration<URL> resources, final Map<String, URL> resourceURLs) {
         if (resources != null) {
             while (resources.hasMoreElements()) {
-                final URL resource = resources.nextElement();
+                final var resource = resources.nextElement();
                 if (resource != null) {
-                    // Key on the URL string rather than the URL, since URL#equals(Object) and URL#hashCode()
+                    // Key on the URL string rather than the URL, since URL#equals(Object) and
+                    // URL#hashCode()
                     // can perform a DNS lookup
                     resourceURLs.put(resource.toString(), resource);
                 }
@@ -389,16 +416,16 @@ public class ClassGraphClassLoader extends ClassLoader {
      * Open the bootstrap classloader's copy of a resource.
      *
      * <p>
-     * N.B. {@code super.getResourceAsStream(path)} is not called, since {@link ClassLoader#getResourceAsStream}
-     * calls the overridden {@link #getResource(String)} method, which would repeat the whole search.
+     * N.B. {@code super.getResourceAsStream(path)} is not called, since
+     * {@link ClassLoader#getResourceAsStream} calls the overridden
+     * {@link #getResource(String)} method, which would repeat the whole search.
      *
-     * @param path
-     *            the resource path.
-     * @return an {@link InputStream} for the resource, or null if the bootstrap classloader does not have the
-     *         resource, or if it could not be opened.
+     * @param path the resource path.
+     * @return an {@link InputStream} for the resource, or null if the bootstrap
+     *         classloader does not have the resource, or if it could not be opened.
      */
     private InputStream openBootstrapResource(final String path) {
-        final URL resource = super.getResource(path);
+        final var resource = super.getResource(path);
         if (resource != null) {
             try {
                 return resource.openStream();
@@ -409,7 +436,9 @@ public class ClassGraphClassLoader extends ClassLoader {
         return null;
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.ClassLoader#getResource(java.lang.String)
      */
     @Override
@@ -418,15 +447,16 @@ public class ClassGraphClassLoader extends ClassLoader {
 
         // Try loading resource from the bootstrap classloader
         if (bootstrapClassLoaderFirst()) {
-            final URL resource = super.getResource(path);
+            final var resource = super.getResource(path);
             if (resource != null) {
                 return resource;
             }
         }
 
-        // Try loading resource from the override, environment, classpath and added classloader(s)
+        // Try loading resource from the override, environment, classpath and added
+        // classloader(s)
         for (final ClassLoader classLoader : getResourceDelegationOrder()) {
-            final URL resource = classLoader.getResource(path);
+            final var resource = classLoader.getResource(path);
             if (resource != null) {
                 return resource;
             }
@@ -434,7 +464,7 @@ public class ClassGraphClassLoader extends ClassLoader {
 
         // If the above attempts fail, try retrieving resource from ScanResult.
         // This will throw an exception if ScanResult has already been closed (#399).
-        final ResourceList resourceList = scanResult.getResourcesWithPath(path);
+        final var resourceList = scanResult.getResourcesWithPath(path);
         if (resourceList != null && !resourceList.isEmpty()) {
             return resourceList.get(0).getURL();
         }
@@ -443,13 +473,17 @@ public class ClassGraphClassLoader extends ClassLoader {
         return bootstrapClassLoaderFirst() ? null : super.getResource(path);
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.ClassLoader#getResources(java.lang.String)
      */
     @Override
     public Enumeration<URL> getResources(final String path) throws IOException {
-        // This order should match the order in findClass(String). Unlike getResource(String), which returns
-        // only the first resource found, the resources found by every classloader are returned, in delegation
+        // This order should match the order in findClass(String). Unlike
+        // getResource(String), which returns
+        // only the first resource found, the resources found by every classloader are
+        // returned, in delegation
         // order, deduplicated by URL.
         final Map<String, URL> resourceURLs = new LinkedHashMap<>();
 
@@ -458,17 +492,18 @@ public class ClassGraphClassLoader extends ClassLoader {
             addResourceURLs(super.getResources(path), resourceURLs);
         }
 
-        // Try loading resources from the override, environment, classpath and added classloader(s)
+        // Try loading resources from the override, environment, classpath and added
+        // classloader(s)
         for (final ClassLoader classLoader : getResourceDelegationOrder()) {
             addResourceURLs(classLoader.getResources(path), resourceURLs);
         }
 
         // Also add any resources found by the scan.
         // This will throw an exception if ScanResult has already been closed (#399).
-        final ResourceList resourceList = scanResult.getResourcesWithPath(path);
+        final var resourceList = scanResult.getResourcesWithPath(path);
         if (resourceList != null) {
             for (final Resource resource : resourceList) {
-                final URL resourceURL = resource.getURL();
+                final var resourceURL = resource.getURL();
                 resourceURLs.put(resourceURL.toString(), resourceURL);
             }
         }
@@ -481,7 +516,9 @@ public class ClassGraphClassLoader extends ClassLoader {
         return Collections.enumeration(resourceURLs.values());
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.ClassLoader#getResourceAsStream(java.lang.String)
      */
     @Override
@@ -490,15 +527,16 @@ public class ClassGraphClassLoader extends ClassLoader {
 
         // Try opening resource from the bootstrap classloader
         if (bootstrapClassLoaderFirst()) {
-            final InputStream inputStream = openBootstrapResource(path);
+            final var inputStream = openBootstrapResource(path);
             if (inputStream != null) {
                 return inputStream;
             }
         }
 
-        // Try opening resource from the override, environment, classpath and added classloader(s)
+        // Try opening resource from the override, environment, classpath and added
+        // classloader(s)
         for (final ClassLoader classLoader : getResourceDelegationOrder()) {
-            final InputStream inputStream = classLoader.getResourceAsStream(path);
+            final var inputStream = classLoader.getResourceAsStream(path);
             if (inputStream != null) {
                 return inputStream;
             }
@@ -506,7 +544,7 @@ public class ClassGraphClassLoader extends ClassLoader {
 
         // If the above attempts fail, try opening resource from ScanResult.
         // This will throw an exception if ScanResult has already been closed (#399).
-        final ResourceList resourceList = scanResult.getResourcesWithPath(path);
+        final var resourceList = scanResult.getResourcesWithPath(path);
         if (resourceList != null && !resourceList.isEmpty()) {
             try {
                 return resourceList.get(0).open();

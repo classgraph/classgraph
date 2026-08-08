@@ -8,7 +8,7 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -22,7 +22,8 @@ import nonapi.io.github.classgraph.utils.LogNode;
 public class ClasspathFinderTest {
 
     /**
-     * Test that {@link ScanSpec#enableSystemJarsAndModules}, {@link ScanSpec#ignoreParentClassLoaders}, and
+     * Test that {@link ScanSpec#enableSystemJarsAndModules},
+     * {@link ScanSpec#ignoreParentClassLoaders}, and
      * {@link ScanSpec#overrideClasspath} work in combination:
      * <p>
      * Only the system modules and the override classpath should be found.
@@ -30,15 +31,15 @@ public class ClasspathFinderTest {
     @Test
     public void testOverrideClasspathAndEnableSystemModules(@TempDir final Path tmpDir) throws Exception {
         // Arrange
-        final Path classesDir = tmpDir.toAbsolutePath().normalize().toRealPath();
-        final ScanSpec scanSpec = new ScanSpec();
+        final var classesDir = tmpDir.toAbsolutePath().normalize().toRealPath();
+        final var scanSpec = new ScanSpec();
         scanSpec.enableSystemJarsAndModules = true;
         scanSpec.ignoreParentClassLoaders = true;
-        scanSpec.overrideClasspath = Collections.<Object> singletonList(classesDir);
+        scanSpec.overrideClasspath = List.<Object>of(classesDir);
 
         // Act
-        final ClasspathFinder classpathFinder = new ClasspathFinder(scanSpec, new ReflectionUtils(), new LogNode());
-        final ModuleFinder moduleFinder = classpathFinder.getModuleFinder();
+        final var classpathFinder = new ClasspathFinder(scanSpec, new ReflectionUtils(), new LogNode());
+        final var moduleFinder = classpathFinder.getModuleFinder();
 
         // Assert
         assertNotNull(moduleFinder, "ModuleFinder should be non-null");
@@ -53,7 +54,8 @@ public class ClasspathFinderTest {
     }
 
     /**
-     * Test that {@link ScanSpec#enableSystemJarsAndModules}, {@link ScanSpec#ignoreParentClassLoaders}, and
+     * Test that {@link ScanSpec#enableSystemJarsAndModules},
+     * {@link ScanSpec#ignoreParentClassLoaders}, and
      * {@link ScanSpec#overrideClassLoaders} work in combination:
      * <p>
      * Only the system modules and the override classloaders should be found.
@@ -61,15 +63,15 @@ public class ClasspathFinderTest {
     @Test
     public void testOverrideClassLoaderAndEnableSystemModules(@TempDir final Path tmpDir) throws Exception {
         // Arrange
-        final Path classesDir = tmpDir.toAbsolutePath().normalize().toRealPath();
-        final ScanSpec scanSpec = new ScanSpec();
+        final var classesDir = tmpDir.toAbsolutePath().normalize().toRealPath();
+        final var scanSpec = new ScanSpec();
         scanSpec.enableSystemJarsAndModules = true;
         scanSpec.ignoreParentClassLoaders = true;
         scanSpec.overrideClassLoaders(new URLClassLoader(new URL[] { classesDir.toUri().toURL() }));
 
         // Act
-        final ClasspathFinder classpathFinder = new ClasspathFinder(scanSpec, new ReflectionUtils(), new LogNode());
-        final ModuleFinder moduleFinder = classpathFinder.getModuleFinder();
+        final var classpathFinder = new ClasspathFinder(scanSpec, new ReflectionUtils(), new LogNode());
+        final var moduleFinder = classpathFinder.getModuleFinder();
 
         // Assert
         assertNotNull(moduleFinder, "ModuleFinder should be non-null");

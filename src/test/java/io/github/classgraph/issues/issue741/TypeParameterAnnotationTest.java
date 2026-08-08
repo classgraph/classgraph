@@ -7,12 +7,7 @@ import java.lang.annotation.Target;
 
 import org.junit.jupiter.api.Test;
 
-import io.github.classgraph.AnnotationInfoList;
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ClassInfo;
-import io.github.classgraph.MethodInfo;
-import io.github.classgraph.ScanResult;
-import io.github.classgraph.TypeParameter;
 
 public class TypeParameterAnnotationTest {
     @Target({ ElementType.FIELD, ElementType.TYPE_USE, ElementType.TYPE_PARAMETER })
@@ -42,13 +37,12 @@ public class TypeParameterAnnotationTest {
 
     @Test
     void typeParameterAnnotation() {
-        try (final ScanResult scanResult = new ClassGraph()
+        try (var scanResult = new ClassGraph()
                 .acceptPackages(TypeParameterAnnotationTest.class.getPackage().getName()).enableAllInfo().scan()) {
-            final ClassInfo cls = scanResult.getClassInfo(TypeParameterAnnotationTest.class.getName());
-            final MethodInfo method = cls.getMethodInfo().get("setValue").get(0);
-            final TypeParameter typeParameter = method.getTypeSignatureOrTypeDescriptor().getTypeParameters()
-                    .get(0);
-            final AnnotationInfoList annotationInfoList = typeParameter.getTypeAnnotationInfo();
+            final var cls = scanResult.getClassInfo(TypeParameterAnnotationTest.class.getName());
+            final var method = cls.getMethodInfo().get("setValue").get(0);
+            final var typeParameter = method.getTypeSignatureOrTypeDescriptor().getTypeParameters().get(0);
+            final var annotationInfoList = typeParameter.getTypeAnnotationInfo();
             assertThat(annotationInfoList.get(0).toStringWithSimpleNames()).isEqualTo("@A");
             assertThat(annotationInfoList.get(1).toStringWithSimpleNames()).isEqualTo("@B(\"foo\")");
             assertThat(annotationInfoList.get(2).toStringWithSimpleNames()).isEqualTo("@C(t=U.class)");

@@ -37,7 +37,9 @@ import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
 
-/** ClassLoaderHandler that is able to extract the URLs from a URLClassLoader. */
+/**
+ * ClassLoaderHandler that is able to extract the URLs from a URLClassLoader.
+ */
 class URLClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
@@ -54,7 +56,7 @@ class URLClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
             final ScanSpec scanSpec, final LogNode log) {
-        final URL[] urls = ((URLClassLoader) classLoader).getURLs();
+        final var urls = ((URLClassLoader) classLoader).getURLs();
         if (urls != null) {
             for (final URL url : urls) {
                 if (url != null) {
@@ -65,12 +67,14 @@ class URLClassLoaderHandler implements ClassLoaderHandler {
     }
 
     /**
-     * Get the automatic package root prefixes for classpath elements obtained from this classloader.
+     * Get the automatic package root prefixes for classpath elements obtained from
+     * this classloader.
      *
      * <p>
-     * A URLClassLoader is general-purpose -- it is handed classpath elements in every layout, including
-     * Spring-Boot executable jars and wars directly (the Spring-Boot launcher's own classloader extends
-     * URLClassLoader), and build tool output dirs with a {@code classes/} package root.
+     * A URLClassLoader is general-purpose -- it is handed classpath elements in
+     * every layout, including Spring-Boot executable jars and wars directly (the
+     * Spring-Boot launcher's own classloader extends URLClassLoader), and build
+     * tool output dirs with a {@code classes/} package root.
      *
      * @return the package root prefixes.
      */

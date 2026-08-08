@@ -44,21 +44,25 @@ import io.github.classgraph.ScanResult;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 
 /**
- * The list of fields that can be (de)serialized (non-final, non-transient, non-synthetic, accessible), and their
- * corresponding resolved (concrete) types.
+ * The list of fields that can be (de)serialized (non-final, non-transient,
+ * non-synthetic, accessible), and their corresponding resolved (concrete)
+ * types.
  */
 class ClassFields {
     /**
-     * The list of fields that can be (de)serialized (non-final, non-transient, non-synthetic, accessible), and
-     * their corresponding resolved (concrete) types.
+     * The list of fields that can be (de)serialized (non-final, non-transient,
+     * non-synthetic, accessible), and their corresponding resolved (concrete)
+     * types.
      * 
      * <p>
-     * For arrays, the {@link Type} will be a {@code Class<?>} reference where {@link Class#isArray()} is true, and
-     * {@link Class#getComponentType()} is the element type (the element type will itself be an array-typed
-     * {@code Class<?>} reference for multi-dimensional arrays).
+     * For arrays, the {@link Type} will be a {@code Class<?>} reference where
+     * {@link Class#isArray()} is true, and {@link Class#getComponentType()} is the
+     * element type (the element type will itself be an array-typed {@code Class<?>}
+     * reference for multi-dimensional arrays).
      * 
      * <p>
-     * For generics, the {@link Type} will be an implementation of {@link ParameterizedType}.
+     * For generics, the {@link Type} will be an implementation of
+     * {@link ParameterizedType}.
      */
     final List<FieldTypeInfo> fieldOrder = new ArrayList<>();
 
@@ -73,35 +77,34 @@ class ClassFields {
     private static final Comparator<Field> FIELD_NAME_ORDER_COMPARATOR = Comparator.comparing(Field::getName);
 
     /**
-     * Used to sort fields into deterministic order for SerializationFormat class (which needs to have "format"
-     * field in first position for ClassGraph's serialization format) (#383).
+     * Used to sort fields into deterministic order for SerializationFormat class
+     * (which needs to have "format" field in first position for ClassGraph's
+     * serialization format) (#383).
      */
     private static final Comparator<Field> SERIALIZATION_FORMAT_FIELD_NAME_ORDER_COMPARATOR = //
-            (a, b) -> a.getName().equals("format") ? -1
-                    : b.getName().equals("format") ? 1 : a.getName().compareTo(b.getName());
+            (a, b) -> "format".equals(a.getName()) ? -1
+                    : "format".equals(b.getName()) ? 1 : a.getName().compareTo(b.getName());
 
-    /** The name of the SerializationFormat class (used by ClassGraph to serialize a ScanResult). */
-    private static final String SERIALIZATION_FORMAT_CLASS_NAME = ScanResult.class.getName()
-            + "$SerializationFormat";
+    /**
+     * The name of the SerializationFormat class (used by ClassGraph to serialize a
+     * ScanResult).
+     */
+    private static final String SERIALIZATION_FORMAT_CLASS_NAME = ScanResult.class.getName() + "$SerializationFormat";
 
     /**
      * Constructor.
      *
-     * @param cls
-     *            the class
-     * @param resolveTypes
-     *            whether to resolve types
-     * @param onlySerializePublicFields
-     *            whether to only serialize public fields
-     * @param classFieldCache
-     *            the class field cache
-     * @param reflectionUtils
-     *            the {@link ReflectionUtils} instance
+     * @param cls                       the class
+     * @param resolveTypes              whether to resolve types
+     * @param onlySerializePublicFields whether to only serialize public fields
+     * @param classFieldCache           the class field cache
+     * @param reflectionUtils           the {@link ReflectionUtils} instance
      */
     public ClassFields(final Class<?> cls, final boolean resolveTypes, final boolean onlySerializePublicFields,
             final ClassFieldCache classFieldCache, final ReflectionUtils reflectionUtils) {
 
-        // Find declared accessible fields in all superclasses, and resolve generic types
+        // Find declared accessible fields in all superclasses, and resolve generic
+        // types
         final Set<String> visibleFieldNames = new HashSet<>();
         final List<List<FieldTypeInfo>> fieldSuperclassReversedOrder = new ArrayList<>();
         TypeResolutions currTypeResolutions = null;
@@ -112,12 +115,13 @@ class ClassFields {
             } else if (currType instanceof final Class<?> currClass) {
                 currRawType = currClass;
             } else {
-                // Class definitions should not be of type WildcardType or GenericArrayType 
+                // Class definitions should not be of type WildcardType or GenericArrayType
                 throw new IllegalArgumentException("Illegal class type: " + currType);
             }
 
-            // getDeclaredFields() does not guarantee any given order, so need to sort fields. (#383)
-            final Field[] fields = currRawType.getDeclaredFields();
+            // getDeclaredFields() does not guarantee any given order, so need to sort
+            // fields. (#383)
+            final var fields = currRawType.getDeclaredFields();
             Arrays.sort(fields, cls.getName().equals(SERIALIZATION_FORMAT_CLASS_NAME)
                     // Special sort order for SerializationFormat class: put "format" field first
                     ? SERIALIZATION_FORMAT_FIELD_NAME_ORDER_COMPARATOR
@@ -130,24 +134,26 @@ class ClassFields {
                 // Mask superclass fields if subclass has a field of the same name
                 if (visibleFieldNames.add(field.getName())) {
                     // Check for @Id annotation
-                    final boolean isIdField = field.isAnnotationPresent(Id.class);
+                    final var isIdField = field.isAnnotationPresent(Id.class);
                     if (isIdField) {
                         if (idField != null) {
-                            throw new IllegalArgumentException(
-                                    "More than one @Id annotation: " + idField.getDeclaringClass().getName() + "."
-                                            + idField.getName() + " ; " + currRawType.getName() + "."
-                                            + field.getName());
+                            throw new IllegalArgumentException("More than one @Id annotation: "
+                                    + idField.getDeclaringClass().getName() + "." + idField.getName() + " ; "
+                                    + currRawType.getName() + "." + field.getName());
                         }
                         idField = field;
                     }
 
                     if (JSONUtils.fieldIsSerializable(field, onlySerializePublicFields, reflectionUtils)) {
-                        // Resolve field type variables, if any, using the current type resolutions. This will
-                        // completely resolve some types (in the superclass), if the subclass extends a concrete
-                        // version of a generic superclass, but it will only partially resolve variables in
+                        // Resolve field type variables, if any, using the current type resolutions.
+                        // This will
+                        // completely resolve some types (in the superclass), if the subclass extends a
+                        // concrete
+                        // version of a generic superclass, but it will only partially resolve variables
+                        // in
                         // superclasses in general.
-                        final Type fieldGenericType = field.getGenericType();
-                        final Type fieldTypePartiallyResolved = currTypeResolutions != null && resolveTypes
+                        final var fieldGenericType = field.getGenericType();
+                        final var fieldTypePartiallyResolved = currTypeResolutions != null && resolveTypes
                                 ? currTypeResolutions.resolveTypeVariables(fieldGenericType)
                                 : fieldGenericType;
 
@@ -166,23 +172,31 @@ class ClassFields {
                     }
                 }
             }
-            // Save fields group in the order they were defined in the class, but in reverse order of superclasses
+            // Save fields group in the order they were defined in the class, but in reverse
+            // order of superclasses
             fieldSuperclassReversedOrder.add(fieldOrderWithinClass);
 
-            // Move up to superclass, resolving superclass type variables using current class' type resolutions
-            // e.g. if the current resolutions list is { T => Integer }, and the current class is C<T>, all fields
-            // of type T were resolved above to type Integer. If C<T> extends B<T>, then resolve B<T> to B<Integer>,
-            // and look up B's own generic type to produce the list of resolutions for fields in B (e.g. if B is
-            // defined as B<V>, then after resolving B<T> to B<Integer>, we can produce a new list of resolutions,
-            // { V => Integer } ). 
-            final Type genericSuperType = currRawType.getGenericSuperclass();
+            // Move up to superclass, resolving superclass type variables using current
+            // class' type resolutions
+            // e.g. if the current resolutions list is { T => Integer }, and the current
+            // class is C<T>, all fields
+            // of type T were resolved above to type Integer. If C<T> extends B<T>, then
+            // resolve B<T> to B<Integer>,
+            // and look up B's own generic type to produce the list of resolutions for
+            // fields in B (e.g. if B is
+            // defined as B<V>, then after resolving B<T> to B<Integer>, we can produce a
+            // new list of resolutions,
+            // { V => Integer } ).
+            final var genericSuperType = currRawType.getGenericSuperclass();
             if (resolveTypes) {
                 if (genericSuperType instanceof ParameterizedType) {
-                    // Resolve TypeVariables in the generic supertype of the class, using the current type resolutions
-                    final Type resolvedSupertype = currTypeResolutions == null ? genericSuperType
+                    // Resolve TypeVariables in the generic supertype of the class, using the
+                    // current type resolutions
+                    final var resolvedSupertype = currTypeResolutions == null ? genericSuperType
                             : currTypeResolutions.resolveTypeVariables(genericSuperType);
 
-                    // Produce new type resolutions for the superclass, by comparing its concrete to its generic type 
+                    // Produce new type resolutions for the superclass, by comparing its concrete to
+                    // its generic type
                     currTypeResolutions = resolvedSupertype instanceof final ParameterizedType resolvedParamType
                             ? new TypeResolutions(resolvedParamType)
                             : null;
@@ -191,7 +205,8 @@ class ClassFields {
                     currType = resolvedSupertype;
 
                 } else if (genericSuperType instanceof Class<?>) {
-                    // In the case of a raw class, the generic supertype may already have resolved type variables,
+                    // In the case of a raw class, the generic supertype may already have resolved
+                    // type variables,
                     // e.g. "class A extends B<Integer>"
                     currType = genericSuperType;
                     currTypeResolutions = null;
@@ -204,10 +219,12 @@ class ClassFields {
                 currType = genericSuperType;
             }
         }
-        // Reverse the order of field visibility, so that ancestral superclass fields appear top-down, in field
-        // definition order (if not masked by same-named fields in subclasses), followed by fields in sublcasses.
-        for (int i = fieldSuperclassReversedOrder.size() - 1; i >= 0; i--) {
-            final List<FieldTypeInfo> fieldGroupingForClass = fieldSuperclassReversedOrder.get(i);
+        // Reverse the order of field visibility, so that ancestral superclass fields
+        // appear top-down, in field
+        // definition order (if not masked by same-named fields in subclasses), followed
+        // by fields in sublcasses.
+        for (var i = fieldSuperclassReversedOrder.size() - 1; i >= 0; i--) {
+            final var fieldGroupingForClass = fieldSuperclassReversedOrder.get(i);
             fieldOrder.addAll(fieldGroupingForClass);
         }
     }

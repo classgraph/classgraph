@@ -31,8 +31,6 @@ package io.github.classgraph.issues.issue267;
 import java.io.DataInputStream;
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.Method;
-import java.net.URL;
 
 import org.junit.jupiter.api.Test;
 
@@ -46,18 +44,16 @@ public class ClassLoadingWorksWithParentLastLoadersStubTest {
     /**
      * Same class loader that found A class should load it.
      *
-     * @throws Throwable
-     *             the throwable
+     * @throws Throwable the throwable
      */
     @Test
     public void sameClassLoaderThatFoundAClassShouldLoadIt() throws Throwable {
-        final String currentClassLoadersName = Thread.currentThread().getContextClassLoader().getClass()
-                .getSimpleName();
+        final var currentClassLoadersName = Thread.currentThread().getContextClassLoader().getClass().getSimpleName();
 
         new ClassLoadingWorksWithParentLastLoaders().assertCorrectClassLoaders(currentClassLoadersName,
                 currentClassLoadersName);
 
-        final TestLauncher launcher = new TestLauncher(currentClassLoadersName);
+        final var launcher = new TestLauncher(currentClassLoadersName);
         launcher.start();
         launcher.join();
         if (launcher.thrown != null) {
@@ -81,10 +77,9 @@ class TestLauncher extends Thread {
     @Override
     public void run() {
         try {
-            final Class<?> mainClass = getContextClassLoader()
+            final var mainClass = getContextClassLoader()
                     .loadClass(ClassLoadingWorksWithParentLastLoaders.class.getName());
-            final Method mainMethod = mainClass.getDeclaredMethod("assertCorrectClassLoaders", String.class,
-                    String.class);
+            final var mainMethod = mainClass.getDeclaredMethod("assertCorrectClassLoaders", String.class, String.class);
             mainMethod.invoke(mainClass.getDeclaredConstructor().newInstance(), parentClassLoader,
                     "FakeRestartClassLoader");
         } catch (final Throwable t) {
@@ -96,7 +91,7 @@ class TestLauncher extends Thread {
 class FakeRestartClassLoader extends ClassLoader {
     private Class<?> getClass(final String name) throws ClassNotFoundException {
         try {
-            final byte[] b = loadClassFileData(name.replace('.', File.separatorChar) + ".class");
+            final var b = loadClassFileData(name.replace('.', File.separatorChar) + ".class");
             return defineClass(name, b, 0, b.length);
         } catch (final IOException e) {
             throw new ClassNotFoundException(name);
@@ -107,7 +102,7 @@ class FakeRestartClassLoader extends ClassLoader {
     public Class<?> loadClass(final String name, final boolean resolve) throws ClassNotFoundException {
         if (name.startsWith(A.class.getName())
                 || name.startsWith(ClassLoadingWorksWithParentLastLoaders.class.getName())) {
-            final Class<?> clazz = getClass(name);
+            final var clazz = getClass(name);
             if (resolve) {
                 resolveClass(clazz);
             }
@@ -116,23 +111,21 @@ class FakeRestartClassLoader extends ClassLoader {
     }
 
     private byte[] loadClassFileData(final String name) throws IOException {
-        try (final DataInputStream in = new DataInputStream(
-                getClass().getClassLoader().getResourceAsStream(name))) {
-            final int size = in.available();
-            final byte buff[] = new byte[size];
+        try (var in = new DataInputStream(getClass().getClassLoader().getResourceAsStream(name))) {
+            final var size = in.available();
+            final var buff = new byte[size];
             in.readFully(buff);
             return buff;
         }
     }
 
     public String getClasspath() {
-        final String classfileName = A.class.getName().replace('.', '/') + ".class";
-        final URL classfileResource = getClass().getClassLoader().getResource(classfileName);
+        final var classfileName = A.class.getName().replace('.', '/') + ".class";
+        final var classfileResource = getClass().getClassLoader().getResource(classfileName);
         if (classfileResource == null) {
             throw new IllegalArgumentException("Could not find classfile " + classfileName);
         }
-        final String classfilePath = classfileResource.getFile();
-        final String packageRoot = classfilePath.substring(0, classfilePath.length() - classfileName.length() - 1);
-        return packageRoot;
+        final var classfilePath = classfileResource.getFile();
+        return classfilePath.substring(0, classfilePath.length() - classfileName.length() - 1);
     }
 }

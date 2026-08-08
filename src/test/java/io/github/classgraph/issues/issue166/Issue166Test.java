@@ -30,12 +30,9 @@ package io.github.classgraph.issues.issue166;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.net.URL;
-
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ScanResult;
 
 /**
  * Issue166Test.
@@ -46,8 +43,8 @@ public class Issue166Test {
      */
     @Test
     public void issue166Test() {
-        final URL jarURL = Issue166Test.class.getClassLoader().getResource("issue166-jar-without-extension");
-        try (ScanResult scanResult = new ClassGraph().overrideClasspath(jarURL).scan()) {
+        final var jarURL = Issue166Test.class.getClassLoader().getResource("issue166-jar-without-extension");
+        try (var scanResult = new ClassGraph().overrideClasspath(jarURL).scan()) {
             assertThat(scanResult.getAllResources().getPaths()).containsOnly("Issue166.txt");
         }
     }
@@ -57,8 +54,8 @@ public class Issue166Test {
      */
     @Test
     public void testNonJarFileOnClasspath() {
-        final URL nonJarURL = Issue166Test.class.getClassLoader().getResource("file-content-test.txt");
-        try (ScanResult scanResult = new ClassGraph().overrideClasspath(nonJarURL).scan()) {
+        final var nonJarURL = Issue166Test.class.getClassLoader().getResource("file-content-test.txt");
+        try (var scanResult = new ClassGraph().overrideClasspath(nonJarURL).scan()) {
             assertThat(scanResult.getAllResources().getPaths()).isEmpty();
         }
     }
@@ -68,9 +65,9 @@ public class Issue166Test {
      */
     @Test
     public void testNonExistentJarFileOnClasspath() {
-        final URL nonJarURL = Issue166Test.class.getClassLoader().getResource("file-content-test.txt");
-        final String nonExistentURL = nonJarURL.toString() + "-file-that-does-not-exist";
-        try (ScanResult scanResult = new ClassGraph().overrideClasspath(nonExistentURL).scan()) {
+        final var nonJarURL = Issue166Test.class.getClassLoader().getResource("file-content-test.txt");
+        final var nonExistentURL = nonJarURL.toString() + "-file-that-does-not-exist";
+        try (var scanResult = new ClassGraph().overrideClasspath(nonExistentURL).scan()) {
             assertThat(scanResult.getAllResources().getPaths()).isEmpty();
         }
     }

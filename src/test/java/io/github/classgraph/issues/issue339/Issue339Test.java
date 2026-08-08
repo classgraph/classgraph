@@ -10,10 +10,7 @@ import java.lang.annotation.Target;
 
 import org.junit.jupiter.api.Test;
 
-import io.github.classgraph.AnnotationParameterValueList;
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ClassInfo;
-import io.github.classgraph.ScanResult;
 
 /**
  * Unit test.
@@ -25,7 +22,7 @@ public class Issue339Test {
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.METHOD)
     @Documented
-    //@Repeatable(Grades.class)
+    // @Repeatable(Grades.class)
     public @interface Grade {
         /**
          * Points.
@@ -53,14 +50,13 @@ public class Issue339Test {
     /** Test. */
     @Test
     public void test() {
-        try (ScanResult scanResult = new ClassGraph().enableAllInfo().enableExternalClasses()
+        try (var scanResult = new ClassGraph().enableAllInfo().enableExternalClasses()
                 .acceptClasses(Cls.class.getName()).scan()) {
-            final ClassInfo classInfo = scanResult.getClassInfo(Cls.class.getName());
-            final AnnotationParameterValueList annotationParamVals = classInfo.getMethodInfo("method").get(0)
-                    .getAnnotationInfo().get(0).getParameterValues();
+            final var classInfo = scanResult.getClassInfo(Cls.class.getName());
+            final var annotationParamVals = classInfo.getMethodInfo("method").get(0).getAnnotationInfo().get(0)
+                    .getParameterValues();
             assertThat(Math.abs((Double) annotationParamVals.get("points").getValue() - 0.4)).isLessThan(1.0e-12);
-            assertThat(Math.abs((Double) annotationParamVals.get("maxPoints").getValue() - 0.4))
-                    .isLessThan(1.0e-12);
+            assertThat(Math.abs((Double) annotationParamVals.get("maxPoints").getValue() - 0.4)).isLessThan(1.0e-12);
         }
     }
 }

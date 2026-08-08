@@ -36,11 +36,7 @@ import java.lang.annotation.RetentionPolicy;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.AnnotationEnumValue;
-import io.github.classgraph.AnnotationInfo;
-import io.github.classgraph.AnnotationParameterValue;
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ClassInfo;
-import io.github.classgraph.ScanResult;
 import io.github.classgraph.issues.issue153.Issue153Test.ClassRefAnnotation;
 import io.github.classgraph.issues.issue153.Issue153Test.EnumAnnotation;
 import io.github.classgraph.issues.issue153.Issue153Test.FruitEnum;
@@ -207,25 +203,23 @@ public class Issue153Test {
      */
     @Test
     public void classAnnotationParameters() {
-        try (ScanResult scanResult = new ClassGraph() //
+        try (var scanResult = new ClassGraph() //
                 .acceptPackages(pkg) //
                 .enableMethodInfo() //
                 .enableFieldInfo() //
                 .enableAnnotationInfo() //
                 .scan()) {
-            final ClassInfo classInfo = scanResult //
+            final var classInfo = scanResult //
                     .getClassInfo(Issue153Test.class.getName());
 
             // Read class annotation parameters
             assertThat(classInfo.getAnnotationInfo().getAsStrings()) //
                     .containsOnly("@" + StringAnnotation.class.getName() + "(\"classlabel\")", //
                             "@" + TwoParamAnnotation.class.getName() + "(value1='x', value2={1, 2, 3})", //
-                            "@" + EnumAnnotation.class.getName() + "(" + FruitEnum.class.getName() + ".BANANA"
-                                    + ")", //
+                            "@" + EnumAnnotation.class.getName() + "(" + FruitEnum.class.getName() + ".BANANA" + ")", //
                             "@" + NestedAnnotation.class.getName() + "({@" + StringAnnotation.class.getName()
                                     + "(\"one\"), @" + StringAnnotation.class.getName() + "(\"two\")})", //
-                            "@" + ClassRefAnnotation.class.getName() + "(" + Issue153Test.class.getName()
-                                    + ".class)");
+                            "@" + ClassRefAnnotation.class.getName() + "(" + Issue153Test.class.getName() + ".class)");
 
             assertThat(classInfo.getFieldInfo("testField").getAnnotationInfo().getAsStrings()) //
                     .containsExactly("@" + StringAnnotation.class.getName() + "(\"fieldlabel\")");
@@ -241,10 +235,9 @@ public class Issue153Test {
                     .containsExactly("@" + AnnotationWithOnlyDefaultValue.class.getName() + "(6)");
 
             // Make sure enum constants can be instantiated
-            final AnnotationInfo annotation2 = classInfo.getAnnotationInfo().get(EnumAnnotation.class.getName());
-            final AnnotationParameterValue annotationParam0 = annotation2.getParameterValues().get(0);
-            final Object bananaRef = ((AnnotationEnumValue) annotationParam0.getValue())
-                    .loadClassAndReturnEnumValue();
+            final var annotation2 = classInfo.getAnnotationInfo().get(EnumAnnotation.class.getName());
+            final var annotationParam0 = annotation2.getParameterValues().get(0);
+            final var bananaRef = ((AnnotationEnumValue) annotationParam0.getValue()).loadClassAndReturnEnumValue();
             assertThat(bananaRef.getClass()).isEqualTo(FruitEnum.class);
             assertThat(bananaRef.toString()).isEqualTo(FruitEnum.BANANA.toString());
         }

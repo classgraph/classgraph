@@ -69,18 +69,13 @@ public class MethodParameterInfo {
     /**
      * Constructor.
      *
-     * @param methodInfo
-     *            The {@link MethodInfo} for the defining method.
-     * @param annotationInfo
-     *            {@link AnnotationInfo} for any annotations on this method parameter.
-     * @param modifiers
-     *            The method parameter modifiers.
-     * @param typeDescriptor
-     *            The method parameter type descriptor.
-     * @param typeSignature
-     *            The method parameter type signature.
-     * @param name
-     *            The method parameter name.
+     * @param methodInfo     The {@link MethodInfo} for the defining method.
+     * @param annotationInfo {@link AnnotationInfo} for any annotations on this
+     *                       method parameter.
+     * @param modifiers      The method parameter modifiers.
+     * @param typeDescriptor The method parameter type descriptor.
+     * @param typeSignature  The method parameter type signature.
+     * @param name           The method parameter name.
      */
     MethodParameterInfo(final MethodInfo methodInfo, final AnnotationInfo[] annotationInfo, final int modifiers,
             final TypeSignature typeDescriptor, final TypeSignature typeSignature, final String name) {
@@ -104,8 +99,9 @@ public class MethodParameterInfo {
     }
 
     /**
-     * Method parameter name. May be null, for unnamed parameters (e.g. synthetic parameters), or if compiled for
-     * JDK version lower than 8, or if compiled for JDK version 8+ but without the commandline switch `-parameters`.
+     * Method parameter name. May be null, for unnamed parameters (e.g. synthetic
+     * parameters), or if compiled for JDK version lower than 8, or if compiled for
+     * JDK version 8+ but without the commandline switch `-parameters`.
      *
      * @return The method parameter name.
      */
@@ -114,8 +110,9 @@ public class MethodParameterInfo {
     }
 
     /**
-     * Method parameter modifiers. May be zero, if no modifier bits set, or if compiled for JDK version lower than
-     * 8, or if compiled for JDK version 8+ but without the commandline switch `-parameters`.
+     * Method parameter modifiers. May be zero, if no modifier bits set, or if
+     * compiled for JDK version lower than 8, or if compiled for JDK version 8+ but
+     * without the commandline switch `-parameters`.
      *
      * @return The method parameter modifiers.
      */
@@ -124,8 +121,8 @@ public class MethodParameterInfo {
     }
 
     /**
-     * Get the method parameter modifiers as a String, e.g. "final". For the modifier bits, call
-     * {@link #getModifiers()}.
+     * Get the method parameter modifiers as a String, e.g. "final". For the
+     * modifier bits, call {@link #getModifiers()}.
      *
      * @return The modifiers for the method parameter, as a String.
      */
@@ -136,8 +133,8 @@ public class MethodParameterInfo {
     }
 
     /**
-     * Method parameter type signature, possibly including generic type information (or null if no type signature
-     * information available for this parameter).
+     * Method parameter type signature, possibly including generic type information
+     * (or null if no type signature information available for this parameter).
      *
      * @return The method type signature, if available, else null.
      */
@@ -157,7 +154,8 @@ public class MethodParameterInfo {
     /**
      * Method parameter type signature, or if not available, method type descriptor.
      *
-     * @return The method type signature, if present, otherwise the method type descriptor.
+     * @return The method type signature, if present, otherwise the method type
+     *         descriptor.
      */
     public TypeSignature getTypeSignatureOrTypeDescriptor() {
         return typeSignature != null ? typeSignature : typeDescriptor;
@@ -166,7 +164,8 @@ public class MethodParameterInfo {
     /**
      * Method parameter annotation info.
      *
-     * @return {@link AnnotationInfo} for any annotations on this method parameter, or the empty list if none.
+     * @return {@link AnnotationInfo} for any annotations on this method parameter,
+     *         or the empty list if none.
      */
     public AnnotationInfoList getAnnotationInfo() {
         if (!scanResult.scanSpec.enableAnnotationInfo) {
@@ -182,13 +181,15 @@ public class MethodParameterInfo {
     }
 
     /**
-     * Get the non-{@link Repeatable} annotation on this method, or null if the method parameter does not have the
-     * annotation. (Use {@link #getAnnotationInfoRepeatable(Class)} for {@link Repeatable} annotations.)
+     * Get the non-{@link Repeatable} annotation on this method, or null if the
+     * method parameter does not have the annotation. (Use
+     * {@link #getAnnotationInfoRepeatable(Class)} for {@link Repeatable}
+     * annotations.)
      *
-     * @param annotation
-     *            The annotation.
-     * @return An {@link AnnotationInfo} object representing the annotation on this method parameter, or null if the
-     *         method parameter does not have the annotation.
+     * @param annotation The annotation.
+     * @return An {@link AnnotationInfo} object representing the annotation on this
+     *         method parameter, or null if the method parameter does not have the
+     *         annotation.
      */
     public AnnotationInfo getAnnotationInfo(final Class<? extends Annotation> annotation) {
         Assert.isAnnotation(annotation);
@@ -196,27 +197,28 @@ public class MethodParameterInfo {
     }
 
     /**
-     * Get the named non-{@link Repeatable} annotation on this method, or null if the method parameter does not
-     * have the named annotation. (Use {@link #getAnnotationInfoRepeatable(String)} for {@link Repeatable}
+     * Get the named non-{@link Repeatable} annotation on this method, or null if
+     * the method parameter does not have the named annotation. (Use
+     * {@link #getAnnotationInfoRepeatable(String)} for {@link Repeatable}
      * annotations.)
      *
-     * @param annotationName
-     *            The annotation name.
-     * @return An {@link AnnotationInfo} object representing the named annotation on this method parameter, or null
-     *         if the method parameter does not have the named annotation.
+     * @param annotationName The annotation name.
+     * @return An {@link AnnotationInfo} object representing the named annotation on
+     *         this method parameter, or null if the method parameter does not have
+     *         the named annotation.
      */
     public AnnotationInfo getAnnotationInfo(final String annotationName) {
         return getAnnotationInfo().get(annotationName);
     }
 
     /**
-     * Get the {@link Repeatable} annotation on this method, or the empty list if the method parameter does not
-     * have the annotation.
+     * Get the {@link Repeatable} annotation on this method, or the empty list if
+     * the method parameter does not have the annotation.
      *
-     * @param annotation
-     *            The annotation.
-     * @return An {@link AnnotationInfoList} containing all instances of the annotation on this method parameter, or
-     *         the empty list if the method parameter does not have the annotation.
+     * @param annotation The annotation.
+     * @return An {@link AnnotationInfoList} containing all instances of the
+     *         annotation on this method parameter, or the empty list if the method
+     *         parameter does not have the annotation.
      */
     public AnnotationInfoList getAnnotationInfoRepeatable(final Class<? extends Annotation> annotation) {
         Assert.isAnnotation(annotation);
@@ -224,13 +226,13 @@ public class MethodParameterInfo {
     }
 
     /**
-     * Get the named {@link Repeatable} annotation on this method, or the empty list if the method parameter does
-     * not have the named annotation.
+     * Get the named {@link Repeatable} annotation on this method, or the empty list
+     * if the method parameter does not have the named annotation.
      *
-     * @param annotationName
-     *            The annotation name.
-     * @return An {@link AnnotationInfoList} containing all instances of the named annotation on this method
-     *         parameter, or the empty list if the method parameter does not have the named annotation.
+     * @param annotationName The annotation name.
+     * @return An {@link AnnotationInfoList} containing all instances of the named
+     *         annotation on this method parameter, or the empty list if the method
+     *         parameter does not have the named annotation.
      */
     public AnnotationInfoList getAnnotationInfoRepeatable(final String annotationName) {
         return getAnnotationInfo().getRepeatable(annotationName);
@@ -239,8 +241,7 @@ public class MethodParameterInfo {
     /**
      * Check whether this method parameter has the annotation.
      *
-     * @param annotation
-     *            The annotation.
+     * @param annotation The annotation.
      * @return true if this method parameter has the annotation.
      */
     public boolean hasAnnotation(final Class<? extends Annotation> annotation) {
@@ -251,8 +252,7 @@ public class MethodParameterInfo {
     /**
      * Check whether this method parameter has the named annotation.
      *
-     * @param annotationName
-     *            The name of an annotation.
+     * @param annotationName The name of an annotation.
      * @return true if this method parameter has the named annotation.
      */
     public boolean hasAnnotation(final String annotationName) {
@@ -264,8 +264,7 @@ public class MethodParameterInfo {
     /**
      * Sets the scan result.
      *
-     * @param scanResult
-     *            the new scan result
+     * @param scanResult the new scan result
      */
     protected void setScanResult(final ScanResult scanResult) {
         this.scanResult = scanResult;
@@ -311,24 +310,27 @@ public class MethodParameterInfo {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
     public boolean equals(final Object obj) {
         if (obj == this) {
             return true;
-        } else if (!(obj instanceof MethodParameterInfo)) {
+        }
+        if (!(obj instanceof final MethodParameterInfo other)) {
             return false;
         }
-        final MethodParameterInfo other = (MethodParameterInfo) obj;
-        return Objects.equals(methodInfo, other.methodInfo)
-                && Objects.deepEquals(annotationInfo, other.annotationInfo) && modifiers == other.modifiers
-                && Objects.equals(typeDescriptor, other.typeDescriptor)
+        return Objects.equals(methodInfo, other.methodInfo) && Objects.deepEquals(annotationInfo, other.annotationInfo)
+                && modifiers == other.modifiers && Objects.equals(typeDescriptor, other.typeDescriptor)
                 && Objects.equals(typeSignature, other.typeSignature) && Objects.equals(name, other.name);
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.Object#hashCode()
      */
     @Override
@@ -340,10 +342,8 @@ public class MethodParameterInfo {
     /**
      * Convert modifiers into a string representation, e.g. "public static final".
      *
-     * @param modifiers
-     *            The field or method modifiers.
-     * @param buf
-     *            The buffer to write the result into.
+     * @param modifiers The field or method modifiers.
+     * @param buf       The buffer to write the result into.
      */
     static void modifiersToString(final int modifiers, final StringBuilder buf) {
         if ((modifiers & Modifier.FINAL) != 0) {
@@ -362,10 +362,8 @@ public class MethodParameterInfo {
     /**
      * Render to string.
      *
-     * @param useSimpleNames
-     *            if true, use just the simple name of each class.
-     * @param buf
-     *            the buf
+     * @param useSimpleNames if true, use just the simple name of each class.
+     * @param buf            the buf
      */
     protected void toString(final boolean useSimpleNames, final StringBuilder buf) {
         if (annotationInfo != null) {

@@ -7,7 +7,6 @@ import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassGraph.CircumventEncapsulationMethod;
-import io.github.classgraph.ScanResult;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 
 /**
@@ -24,13 +23,11 @@ class EncapsulationCircumventionTest {
     @Test
     void testNarcissus() {
         ClassGraph.CIRCUMVENT_ENCAPSULATION = CircumventEncapsulationMethod.NARCISSUS;
-        final ReflectionUtils reflectionUtils = new ReflectionUtils();
-        assertThat(
-                reflectionUtils.getFieldVal(true, reflectionUtils, "reflectionDriver").getClass().getSimpleName())
-                        .isEqualTo("NarcissusReflectionDriver");
-        try (ScanResult scanResult = new ClassGraph()
-                .acceptPackages(EncapsulationCircumventionTest.class.getPackage().getName()).enableAllInfo()
-                .scan()) {
+        final var reflectionUtils = new ReflectionUtils();
+        assertThat(reflectionUtils.getFieldVal(true, reflectionUtils, "reflectionDriver").getClass().getSimpleName())
+                .isEqualTo("NarcissusReflectionDriver");
+        try (var scanResult = new ClassGraph()
+                .acceptPackages(EncapsulationCircumventionTest.class.getPackage().getName()).enableAllInfo().scan()) {
             assertThat(scanResult.getAllClasses().getNames()).isNotEmpty();
         }
     }

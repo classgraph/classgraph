@@ -38,7 +38,7 @@ import nonapi.io.github.classgraph.utils.LogNode;
 
 /**
  * Handle the OSGi DefaultClassLoader.
- * 
+ *
  * @author lukehutch
  */
 class OSGiDefaultClassLoaderHandler implements ClassLoaderHandler {
@@ -58,15 +58,13 @@ class OSGiDefaultClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
             final ScanSpec scanSpec, final LogNode log) {
-        final Object classpathManager = classpathOrder.reflectionUtils.invokeMethod(false, classLoader,
+        final var classpathManager = classpathOrder.reflectionUtils.invokeMethod(false, classLoader,
                 "getClasspathManager");
-        final Object[] entries = (Object[]) classpathOrder.reflectionUtils.getFieldVal(false, classpathManager,
-                "entries");
+        final var entries = (Object[]) classpathOrder.reflectionUtils.getFieldVal(false, classpathManager, "entries");
         if (entries != null) {
             for (final Object entry : entries) {
-                final Object bundleFile = classpathOrder.reflectionUtils.invokeMethod(false, entry,
-                        "getBundleFile");
-                final File baseFile = (File) classpathOrder.reflectionUtils.invokeMethod(false, bundleFile,
+                final var bundleFile = classpathOrder.reflectionUtils.invokeMethod(false, entry, "getBundleFile");
+                final var baseFile = (File) classpathOrder.reflectionUtils.invokeMethod(false, bundleFile,
                         "getBaseFile");
                 if (baseFile != null) {
                     classpathOrder.addClasspathEntry(baseFile.getPath(), classLoader, scanSpec, log);
@@ -76,10 +74,12 @@ class OSGiDefaultClassLoaderHandler implements ClassLoaderHandler {
     }
 
     /**
-     * Get the automatic package root prefixes for classpath elements obtained from this classloader.
+     * Get the automatic package root prefixes for classpath elements obtained from
+     * this classloader.
      *
      * <p>
-     * Classpath elements from this classloader may be Spring-Boot executable jars or wars.
+     * Classpath elements from this classloader may be Spring-Boot executable jars
+     * or wars.
      *
      * @return the package root prefixes.
      */

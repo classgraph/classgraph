@@ -38,8 +38,6 @@ import java.lang.annotation.Target;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.MethodInfo;
-import io.github.classgraph.ScanResult;
 
 /**
  * Issue151Test.
@@ -52,12 +50,12 @@ public class Issue151Test {
     public void issue151Test() {
         // Scans io.github.classgraph.issues.issue146.CompiledWithJDK8, which is in
         // src/test/resources
-        final String pkg = Issue151Test.class.getPackage().getName();
-        try (ScanResult scanResult = new ClassGraph().acceptPackages(pkg) //
+        final var pkg = Issue151Test.class.getPackage().getName();
+        try (var scanResult = new ClassGraph().acceptPackages(pkg) //
                 .enableMethodInfo() //
                 .enableAnnotationInfo() //
                 .scan()) {
-            final MethodInfo methodInfo = scanResult //
+            final var methodInfo = scanResult //
                     .getClassInfo(Issue151Test.class.getName()) //
                     .getMethodInfo("method") //
                     .get(0);
@@ -95,10 +93,8 @@ public class Issue151Test {
     /**
      * Method.
      *
-     * @param annotatedValue0
-     *            the annotated value 0
-     * @param annotatedValue1
-     *            the annotated value 1
+     * @param annotatedValue0 the annotated value 0
+     * @param annotatedValue1 the annotated value 1
      */
     public void method(@ParamAnnotation0 final String annotatedValue0,
             @ParamAnnotation1 @ParamAnnotation2 final String annotatedValue1) {

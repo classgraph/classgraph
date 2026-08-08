@@ -32,11 +32,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
 
-import io.github.classgraph.AnnotationInfo;
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ClassInfo;
 import io.github.classgraph.MethodInfo;
-import io.github.classgraph.ScanResult;
 import io.github.classgraph.issues.issue370.annotations.ApiOperation;
 import io.github.classgraph.issues.issue370.impl.ClassWithAnnotation;
 
@@ -49,13 +46,13 @@ public class Issue370Test {
      */
     @Test
     public void issue370Test() {
-        try (ScanResult scanResult = new ClassGraph().enableAllInfo()
+        try (var scanResult = new ClassGraph().enableAllInfo()
                 .acceptPackages(ClassWithAnnotation.class.getPackage().getName()).scan()) {
-            final ClassInfo clazzInfo = scanResult.getClassInfo(ClassWithAnnotation.class.getName());
+            final var clazzInfo = scanResult.getClassInfo(ClassWithAnnotation.class.getName());
             assertThat(clazzInfo).isNotNull();
             for (final MethodInfo methodInfo : clazzInfo.getMethodInfo().filter(MethodInfo::isPublic)) {
-                final AnnotationInfo annotationInfo = methodInfo.getAnnotationInfo(ApiOperation.class);
-                final String value = annotationInfo.getParameterValues().get("notes").getValue().toString();
+                final var annotationInfo = methodInfo.getAnnotationInfo(ApiOperation.class);
+                final var value = annotationInfo.getParameterValues().get("notes").getValue().toString();
                 assertThat(value).isEqualTo("${snippetclassifications.findById}");
             }
         }

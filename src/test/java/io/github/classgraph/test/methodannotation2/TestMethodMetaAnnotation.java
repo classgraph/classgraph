@@ -34,12 +34,10 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ScanResult;
 import io.github.classgraph.test.external.ExternalAnnotation;
 
 /**
@@ -104,10 +102,9 @@ public class TestMethodMetaAnnotation {
     @Test
     @ExternalAnnotation
     public void testMetaAnnotation() {
-        try (ScanResult scanResult = new ClassGraph()
-                .acceptPackages(TestMethodMetaAnnotation.class.getPackage().getName()).enableAnnotationInfo()
-                .scan()) {
-            final List<String> testClasses = scanResult.getClassesWithAnnotation(MetaAnnotation.class).getNames();
+        try (var scanResult = new ClassGraph().acceptPackages(TestMethodMetaAnnotation.class.getPackage().getName())
+                .enableAnnotationInfo().scan()) {
+            final var testClasses = scanResult.getClassesWithAnnotation(MetaAnnotation.class).getNames();
             assertThat(testClasses).containsOnly(MethodAnnotation.class.getName(), ClassAnnotation.class.getName(),
                     MetaAnnotatedClass.class.getName());
         }
@@ -119,11 +116,10 @@ public class TestMethodMetaAnnotation {
     @Test
     @ExternalAnnotation
     public void testMetaAnnotationStandardClassesOnly() {
-        try (ScanResult scanResult = new ClassGraph()
-                .acceptPackages(TestMethodMetaAnnotation.class.getPackage().getName()).enableAnnotationInfo()
-                .scan()) {
-            final List<String> testClasses = scanResult.getClassesWithAnnotation(MetaAnnotation.class)
-                    .getStandardClasses().getNames();
+        try (var scanResult = new ClassGraph().acceptPackages(TestMethodMetaAnnotation.class.getPackage().getName())
+                .enableAnnotationInfo().scan()) {
+            final var testClasses = scanResult.getClassesWithAnnotation(MetaAnnotation.class).getStandardClasses()
+                    .getNames();
             assertThat(testClasses).containsOnly(MetaAnnotatedClass.class.getName());
         }
     }
@@ -134,11 +130,9 @@ public class TestMethodMetaAnnotation {
     @Test
     @ExternalAnnotation
     public void testMethodMetaAnnotation() {
-        try (ScanResult scanResult = new ClassGraph()
-                .acceptPackages(TestMethodMetaAnnotation.class.getPackage().getName()).enableMethodInfo()
-                .enableAnnotationInfo().scan()) {
-            final List<String> testClasses = scanResult.getClassesWithMethodAnnotation(MetaAnnotation.class)
-                    .getNames();
+        try (var scanResult = new ClassGraph().acceptPackages(TestMethodMetaAnnotation.class.getPackage().getName())
+                .enableMethodInfo().enableAnnotationInfo().scan()) {
+            final var testClasses = scanResult.getClassesWithMethodAnnotation(MetaAnnotation.class).getNames();
             assertThat(testClasses).containsOnly(ClassWithMetaAnnotatedMethod.class.getName());
         }
     }

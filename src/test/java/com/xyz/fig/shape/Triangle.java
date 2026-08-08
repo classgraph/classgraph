@@ -15,14 +15,10 @@ public class Triangle extends ShapeImpl {
     /**
      * Constructor.
      *
-     * @param x
-     *            the x
-     * @param y
-     *            the y
-     * @param edgeLen
-     *            the edge len
-     * @param rotation
-     *            the rotation
+     * @param x        the x
+     * @param y        the y
+     * @param edgeLen  the edge len
+     * @param rotation the rotation
      */
     public Triangle(final float x, final float y, final float edgeLen, final float rotation) {
         super(x, y);
@@ -48,7 +44,9 @@ public class Triangle extends ShapeImpl {
         return rotation;
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see com.xyz.fig.shape.ShapeImpl#draw(java.awt.Graphics2D)
      */
     @Override

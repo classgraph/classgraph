@@ -7,8 +7,7 @@ public class Outer {
     /**
      * Creates the anonymous.
      *
-     * @param test
-     *            the test
+     * @param test the test
      * @return the p
      */
     public P createAnonymous(final String test) {

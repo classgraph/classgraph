@@ -2,9 +2,6 @@ package io.github.classgraph.issues;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.io.File;
-import java.util.List;
-
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
@@ -18,7 +15,7 @@ class TestGetUniqueClasspathElements {
      */
     @Test
     void testGetUniqueClasspathElements() {
-        final List<File> classpathElements = new ClassGraph().acceptPackages("com.xyz").getClasspathFiles();
+        final var classpathElements = new ClassGraph().acceptPackages("com.xyz").getClasspathFiles();
         assertThat(classpathElements).isNotEmpty();
     }
 }

@@ -33,7 +33,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ScanResult;
 
 /**
  * Issue46Test.
@@ -44,10 +43,10 @@ public class Issue46Test {
      */
     @Test
     public void issue46Test() {
-        final String jarPath = "jar:file://"
+        final var jarPath = "jar:file://"
                 + Issue46Test.class.getClassLoader().getResource("nested-jars-level1.zip").getPath()
                 + "!/level2.jar!/level3.jar!/classpath1/classpath2";
-        try (ScanResult scanResult = new ClassGraph().overrideClasspath(jarPath).enableClassInfo().scan()) {
+        try (var scanResult = new ClassGraph().overrideClasspath(jarPath).enableClassInfo().scan()) {
             assertThat(scanResult.getAllClasses().getNames()).containsOnly("com.test.Test");
         }
     }

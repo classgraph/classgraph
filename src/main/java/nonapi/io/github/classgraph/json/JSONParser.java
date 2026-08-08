@@ -38,7 +38,7 @@ import nonapi.io.github.classgraph.types.Parser;
 
 /**
  * A JSON parser, based on the PEG grammar found at:
- * 
+ *
  * https://github.com/azatoth/PanPG/blob/master/grammars/JSON.peg
  */
 final class JSONParser extends Parser {
@@ -46,10 +46,8 @@ final class JSONParser extends Parser {
     /**
      * Constructor.
      *
-     * @param string
-     *            the string
-     * @throws ParseException
-     *             if parsing fails
+     * @param string the string
+     * @throws ParseException if parsing fails
      */
     private JSONParser(final String string) throws ParseException {
         super(string);
@@ -61,11 +59,10 @@ final class JSONParser extends Parser {
      * Get and parse a hexadecimal digit character.
      *
      * @return the hex char
-     * @throws ParseException
-     *             if the character was not hexadecimal
+     * @throws ParseException if the character was not hexadecimal
      */
     private int getAndParseHexChar() throws ParseException {
-        final char hexChar = getc();
+        final var hexChar = getc();
         if (hexChar >= '0' && hexChar <= '9') {
             return hexChar - '0';
         } else if (hexChar >= 'a' && hexChar <= 'f') {
@@ -91,8 +88,7 @@ final class JSONParser extends Parser {
      * </pre>
      *
      * @return the char sequence
-     * @throws ParseException
-     *             if the escape sequence was invalid
+     * @throws ParseException if the escape sequence was invalid
      */
     private CharSequence parseString() throws ParseException {
         skipWhitespace();
@@ -100,15 +96,15 @@ final class JSONParser extends Parser {
             return null;
         }
         next();
-        final int startIdx = getPosition();
+        final var startIdx = getPosition();
 
         // Fast path
-        boolean hasEscape = false;
-        boolean foundClosingQuote = false;
+        var hasEscape = false;
+        var foundClosingQuote = false;
         while (hasMore()) {
-            final char c = getc();
+            final var c = getc();
             if (c == '\\') {
-                final char escaped = getc();
+                final var escaped = getc();
                 switch (escaped) {
                 case 'b', 'f', 'n', 'r', 't', '\'', '"', '/', '\\' -> hasEscape = true;
                 case 'u' -> {
@@ -123,13 +119,16 @@ final class JSONParser extends Parser {
             }
         }
         if (!foundClosingQuote) {
-            // The input ran out before the closing quote -- don't silently return a truncated string
+            // The input ran out before the closing quote -- don't silently return a
+            // truncated string
             throw new ParseException(this, "Unterminated string");
         }
-        final int endIdx = getPosition() - 1;
+        final var endIdx = getPosition() - 1;
         if (!hasEscape) {
-            // Skip trailing whitespace, as the slow path below does -- otherwise whitespace between an object
-            // key and the ':' that follows it is left unconsumed, and the object fails to parse
+            // Skip trailing whitespace, as the slow path below does -- otherwise whitespace
+            // between an object
+            // key and the ':' that follows it is left unconsumed, and the object fails to
+            // parse
             skipWhitespace();
             return getSubsequence(startIdx, endIdx);
         }
@@ -139,9 +138,9 @@ final class JSONParser extends Parser {
         foundClosingQuote = false;
         final StringBuilder buf = new StringBuilder();
         while (hasMore()) {
-            final char c = getc();
+            final var c = getc();
             if (c == '\\') {
-                final char c2 = getc();
+                final var c2 = getc();
                 switch (c2) {
                 case 'b' -> buf.append('\b');
                 case 'f' -> buf.append('\f');
@@ -151,7 +150,7 @@ final class JSONParser extends Parser {
                 case '\'', '"', '/', '\\' -> buf.append(c2);
                 case 'u' -> {
                     // (The four hex digits are read in left-to-right order)
-                    final int charVal = (getAndParseHexChar() << 12) | (getAndParseHexChar() << 8)
+                    final var charVal = (getAndParseHexChar() << 12) | (getAndParseHexChar() << 8)
                             | (getAndParseHexChar() << 4) | getAndParseHexChar();
                     buf.append((char) charVal);
                 }
@@ -191,11 +190,10 @@ final class JSONParser extends Parser {
      * </pre>
      *
      * @return the number
-     * @throws ParseException
-     *             if parsing fails
+     * @throws ParseException if parsing fails
      */
     private Number parseNumber() throws ParseException {
-        final int startIdx = getPosition();
+        final var startIdx = getPosition();
         if (peekMatches("Infinity")) {
             advance(8);
             return Double.POSITIVE_INFINITY;
@@ -209,23 +207,23 @@ final class JSONParser extends Parser {
         if (peek() == '-') {
             next();
         }
-        final int integralStartIdx = getPosition();
+        final var integralStartIdx = getPosition();
         for (; hasMore(); next()) {
-            final char c = peek();
+            final var c = peek();
             if (c < '0' || c > '9') {
                 break;
             }
         }
-        final int integralEndIdx = getPosition();
-        final int numIntegralDigits = integralEndIdx - integralStartIdx;
+        final var integralEndIdx = getPosition();
+        final var numIntegralDigits = integralEndIdx - integralStartIdx;
         if (numIntegralDigits == 0) {
             throw new ParseException(this, "Expected a number");
         }
-        final boolean hasFractionalPart = peek() == '.';
+        final var hasFractionalPart = peek() == '.';
         if (hasFractionalPart) {
             next();
             for (; hasMore(); next()) {
-                final char c = peek();
+                final var c = peek();
                 if (c < '0' || c > '9') {
                     break;
                 }
@@ -234,16 +232,16 @@ final class JSONParser extends Parser {
                 throw new ParseException(this, "Expected digits after decimal point");
             }
         }
-        final boolean hasExponentPart = peek() == 'e' || peek() == 'E';
+        final var hasExponentPart = peek() == 'e' || peek() == 'E';
         if (hasExponentPart) {
             next();
-            final char sign = peek();
+            final var sign = peek();
             if (sign == '-' || sign == '+') {
                 next();
             }
-            final int exponentStart = getPosition();
+            final var exponentStart = getPosition();
             for (; hasMore(); next()) {
-                final char c = peek();
+                final var c = peek();
                 if (c < '0' || c > '9') {
                     break;
                 }
@@ -252,15 +250,15 @@ final class JSONParser extends Parser {
                 throw new ParseException(this, "Expected an exponent");
             }
         }
-        final int endIdx = getPosition();
-        final String numberStr = getSubstring(startIdx, endIdx);
+        final var endIdx = getPosition();
+        final var numberStr = getSubstring(startIdx, endIdx);
         if (hasFractionalPart || hasExponentPart) {
             return Double.valueOf(numberStr);
         } else if (numIntegralDigits < 10) {
             return Integer.valueOf(numberStr);
         } else if (numIntegralDigits == 10) {
             // For 10-digit numbers, could be int or long
-            final long longVal = Long.parseLong(numberStr);
+            final var longVal = Long.parseLong(numberStr);
             if (longVal >= Integer.MIN_VALUE && longVal <= Integer.MAX_VALUE) {
                 return (int) longVal;
             } else {
@@ -283,8 +281,7 @@ final class JSONParser extends Parser {
      * .
      *
      * @return the JSON array
-     * @throws ParseException
-     *             if parsing fails
+     * @throws ParseException if parsing fails
      */
     private JSONArray parseJSONArray() throws ParseException {
         expect('[');
@@ -296,7 +293,7 @@ final class JSONParser extends Parser {
         }
 
         final List<Object> elements = new ArrayList<>();
-        boolean first = true;
+        var first = true;
         while (peek() != ']') {
             if (first) {
                 first = false;
@@ -321,8 +318,7 @@ final class JSONParser extends Parser {
      * </pre>
      *
      * @return the JSON object
-     * @throws ParseException
-     *             if parsing fails
+     * @throws ParseException if parsing fails
      */
 
     private JSONObject parseJSONObject() throws ParseException {
@@ -336,24 +332,26 @@ final class JSONParser extends Parser {
 
         final List<Entry<String, Object>> kvPairs = new ArrayList<>();
         final JSONObject jsonObject = new JSONObject(kvPairs);
-        boolean first = true;
+        var first = true;
         while (peek() != '}') {
             if (first) {
                 first = false;
             } else {
                 expect(',');
             }
-            final CharSequence key = parseString();
+            final var key = parseString();
             if (key == null) {
                 throw new ParseException(this, "Object keys must be strings");
             }
-            // (Don't test for ':' and return null here -- silently returning a null object for malformed input
-            // hides the error from the caller; expect() reports it as a ParseException instead)
+            // (Don't test for ':' and return null here -- silently returning a null object
+            // for malformed input
+            // hides the error from the caller; expect() reports it as a ParseException
+            // instead)
             expect(':');
-            final Object value = parseJSON();
+            final var value = parseJSON();
 
             // Check for special object id key
-            if (key.equals(JSONUtils.ID_KEY)) {
+            if (JSONUtils.ID_KEY.equals(key)) {
                 if (value == null) {
                     throw new ParseException(this, "Got null value for \"" + JSONUtils.ID_KEY + "\" key");
                 }
@@ -372,8 +370,8 @@ final class JSONParser extends Parser {
      * Parse a JSON type (object / array / value).
      * 
      * <p>
-     * String values will have CharSequence type. Numerical values will have Integer, Long or Double type. Can
-     * return null for JSON null value.
+     * String values will have CharSequence type. Numerical values will have
+     * Integer, Long or Double type. Can return null for JSON null value.
      * 
      * <pre>
      * 
@@ -382,27 +380,26 @@ final class JSONParser extends Parser {
      * </pre>
      *
      * @return the parsed JSON object
-     * @throws ParseException
-     *             if parsing fails
+     * @throws ParseException if parsing fails
      */
     private Object parseJSON() throws ParseException {
         skipWhitespace();
-        final char c = peek();
+        final var c = peek();
         if (c == '{') {
             // Parse a JSON object
-            final JSONObject obj = parseJSONObject();
+            final var obj = parseJSONObject();
             skipWhitespace();
             return obj;
 
         } else if (c == '[') {
             // Parse a JSON array
-            final JSONArray arr = parseJSONArray();
+            final var arr = parseJSONArray();
             skipWhitespace();
             return arr;
 
         } else if (c == '"') {
             // Parse a JSON string or object reference
-            final CharSequence charSequence = parseString();
+            final var charSequence = parseString();
             skipWhitespace();
             if (charSequence == null) {
                 throw new ParseException(this, "Invalid string");
@@ -429,7 +426,7 @@ final class JSONParser extends Parser {
 
         } else {
             // The only remaining option is that the value must be a number
-            final Number num = parseNumber();
+            final var num = parseNumber();
             skipWhitespace();
             return num;
         }
@@ -438,11 +435,9 @@ final class JSONParser extends Parser {
     /**
      * Parse a JSON object, array, string, value or object reference.
      *
-     * @param str
-     *            the str
+     * @param str the str
      * @return the parsed JSON object
-     * @throws ParseException
-     *             if parsing fails
+     * @throws ParseException if parsing fails
      */
     static Object parseJSON(final String str) throws ParseException {
         return new JSONParser(str).parseJSON();

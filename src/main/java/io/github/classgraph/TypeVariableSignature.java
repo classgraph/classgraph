@@ -59,10 +59,8 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
     /**
      * Constructor.
      *
-     * @param typeVariableName
-     *            The type variable name.
-     * @param definingClassName
-     *            the defining class name.
+     * @param typeVariableName  The type variable name.
+     * @param definingClassName the defining class name.
      */
     private TypeVariableSignature(final String typeVariableName, final String definingClassName) {
         super();
@@ -82,14 +80,17 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
     }
 
     /**
-     * Look up a type variable (e.g. "T") in the defining method and/or enclosing class' type parameters, and return
-     * the type parameter with the same name (e.g. "T extends com.xyz.Cls").
+     * Look up a type variable (e.g. "T") in the defining method and/or enclosing
+     * class' type parameters, and return the type parameter with the same name
+     * (e.g. "T extends com.xyz.Cls").
      * 
-     * @return the type parameter (e.g. "T extends com.xyz.Cls", or simply "T" if the type parameter does not have
-     *         any bounds). If no type parameter of the same name is declared by the defining method or the
-     *         enclosing class, an unbounded type parameter with just the type variable's name is returned (#706).
-     * @throws IllegalArgumentException
-     *             if the enclosing class was not found during the scan.
+     * @return the type parameter (e.g. "T extends com.xyz.Cls", or simply "T" if
+     *         the type parameter does not have any bounds). If no type parameter of
+     *         the same name is declared by the defining method or the enclosing
+     *         class, an unbounded type parameter with just the type variable's name
+     *         is returned (#706).
+     * @throws IllegalArgumentException if the enclosing class was not found during
+     *                                  the scan.
      */
     public TypeParameter resolve() {
         if (typeParameterCached != null) {
@@ -107,7 +108,7 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
         }
         // If that failed, try resolving the type variable against the containing class
         if (getClassName() != null) {
-            final ClassInfo containingClassInfo = getClassInfo();
+            final var containingClassInfo = getClassInfo();
             if (containingClassInfo == null) {
                 throw new IllegalArgumentException("Could not find ClassInfo object for " + definingClassName);
             }
@@ -128,25 +129,25 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
             }
         }
         // If that failed, then this is a type variable that cannot be resolved.
-        // Return a new TypeParameter that only has the name set, with no class or interface bounds. (#706)
-        final TypeParameter typeParameter = new TypeParameter(name, null,
-                Collections.<ReferenceTypeSignature> emptyList());
+        // Return a new TypeParameter that only has the name set, with no class or
+        // interface bounds. (#706)
+        final TypeParameter typeParameter = new TypeParameter(name, null, Collections.emptyList());
         typeParameter.setScanResult(scanResult);
         typeParameterCached = typeParameter;
         return typeParameter;
     }
 
     /**
-     * Look this type variable up in a substitution map built by {@link TypeSignature#resolveTypeVariables(ClassInfo)}
-     * (#735).
+     * Look this type variable up in a substitution map built by
+     * {@link TypeSignature#resolveTypeVariables(ClassInfo)} (#735).
      *
-     * @param substitutions
-     *            the substitution map.
-     * @return the type argument to substitute for this type variable, or null if this type variable is not
-     *         substitutable.
+     * @param substitutions the substitution map.
+     * @return the type argument to substitute for this type variable, or null if
+     *         this type variable is not substitutable.
      */
     TypeArgument substitution(final Map<String, TypeArgument> substitutions) {
-        // A type variable declared by the method itself shadows any type variable of the same name declared by the
+        // A type variable declared by the method itself shadows any type variable of
+        // the same name declared by the
         // enclosing class, and is not bound by the context class
         if (containingMethodSignature != null && containingMethodSignature.typeParameters != null) {
             for (final TypeParameter typeParameter : containingMethodSignature.typeParameters) {
@@ -160,13 +161,15 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
 
     @Override
     TypeSignature substituteTypeVariables(final Map<String, TypeArgument> substitutions) {
-        final TypeArgument typeArgument = substitution(substitutions);
+        final var typeArgument = substitution(substitutions);
         if (typeArgument == null) {
             return this;
         }
-        // Outside type argument position there is no way to express "?" or "? super X", so leave the type variable
-        // unsubstituted in those cases; "? extends X" is substituted as its upper bound X
-        final ReferenceTypeSignature typeSignature = typeArgument.getTypeSignature();
+        // Outside type argument position there is no way to express "?" or "? super X",
+        // so leave the type variable
+        // unsubstituted in those cases; "? extends X" is substituted as its upper bound
+        // X
+        final var typeSignature = typeArgument.getTypeSignature();
         return typeSignature == null || typeArgument.getWildcard() == TypeArgument.Wildcard.ANY
                 || typeArgument.getWildcard() == TypeArgument.Wildcard.SUPER ? this : typeSignature;
     }
@@ -187,16 +190,13 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
     /**
      * Parse a TypeVariableSignature.
      *
-     * @param parser
-     *            the parser
-     * @param definingClassName
-     *            the defining class name
+     * @param parser            the parser
+     * @param definingClassName the defining class name
      * @return the type variable signature
-     * @throws ParseException
-     *             if parsing fails
+     * @throws ParseException if parsing fails
      */
     static TypeVariableSignature parse(final Parser parser, final String definingClassName) throws ParseException {
-        final char peek = parser.peek();
+        final var peek = parser.peek();
         if (peek == 'T') {
             parser.next();
             // Scala can contain '$' in type variable names (#495)
@@ -207,10 +207,11 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
             final TypeVariableSignature typeVariableSignature = new TypeVariableSignature(parser.currToken(),
                     definingClassName);
 
-            // Save type variable signatures in the parser state, so method and class type signatures can link
+            // Save type variable signatures in the parser state, so method and class type
+            // signatures can link
             // to type signatures
             @SuppressWarnings("unchecked")
-            List<TypeVariableSignature> typeVariableSignatures = (List<TypeVariableSignature>) parser.getState();
+            var typeVariableSignatures = (List<TypeVariableSignature>) parser.getState();
             if (typeVariableSignatures == null) {
                 parser.setState(typeVariableSignatures = new ArrayList<>());
             }
@@ -225,8 +226,8 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Return definingClassName, so that getClassInfo() returns the {@link ClassInfo} object for the containing
-     * class.
+     * Return definingClassName, so that getClassInfo() returns the
+     * {@link ClassInfo} object for the containing class.
      *
      * @return the defining class name.
      */
@@ -238,12 +239,12 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
     /**
      * Get the names of any classes referenced in the type signature.
      *
-     * @param refdClassNames
-     *            the referenced class names.
+     * @param refdClassNames the referenced class names.
      */
     @Override
     protected void findReferencedClassNames(final Set<String> refdClassNames) {
-        // Any class names present in resolved type variables have to be present in enclosing method or class,
+        // Any class names present in resolved type variables have to be present in
+        // enclosing method or class,
         // so there's no need to look up class references in resolved type variables
     }
 
@@ -257,7 +258,9 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.Object#hashCode()
      */
     @Override
@@ -265,28 +268,34 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
         return name.hashCode();
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
     public boolean equals(final Object obj) {
         if (obj == this) {
             return true;
-        } else if (!(obj instanceof TypeVariableSignature)) {
+        }
+        if (!(obj instanceof final TypeVariableSignature other)) {
             return false;
         }
-        final TypeVariableSignature other = (TypeVariableSignature) obj;
         return other.name.equals(this.name) && Objects.equals(other.typeAnnotationInfo, this.typeAnnotationInfo);
     }
 
-    /* (non-Javadoc)
-     * @see io.github.classgraph.TypeSignature#equalsIgnoringTypeParams(io.github.classgraph.TypeSignature)
+    /*
+     * (non-Javadoc)
+     *
+     * @see io.github.classgraph.TypeSignature#equalsIgnoringTypeParams(io.github.
+     * classgraph.TypeSignature)
      */
     @Override
     public boolean equalsIgnoringTypeParams(final TypeSignature other) {
-        if (other instanceof ClassRefTypeSignature) {
-            if (((ClassRefTypeSignature) other).className.equals("java.lang.Object")) {
-                // java.lang.Object can be reconciled with any type, so it can be reconciled with
+        if (other instanceof final ClassRefTypeSignature otherClassRef) {
+            if ("java.lang.Object".equals(otherClassRef.className)) {
+                // java.lang.Object can be reconciled with any type, so it can be reconciled
+                // with
                 // any type variable
                 return true;
             }
@@ -301,7 +310,8 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
             }
             if (typeParameter.classBound == null
                     && (typeParameter.interfaceBounds == null || typeParameter.interfaceBounds.isEmpty())) {
-                // If the type parameter has no bounds, just assume the type variable can be reconciled
+                // If the type parameter has no bounds, just assume the type variable can be
+                // reconciled
                 // to the class by type inference
                 return true;
             }
@@ -334,12 +344,15 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
                 }
             }
             // Type variable has a concrete bound that is not reconcilable with 'other'
-            // (we don't follow the class hierarchy to compare the bound against the class reference,
-            // since the compiler should only use the bound during type erasure, not some other class
+            // (we don't follow the class hierarchy to compare the bound against the class
+            // reference,
+            // since the compiler should only use the bound during type erasure, not some
+            // other class
             // in the class hierarchy)
             return false;
         }
-        // Technically I think type variables are never equal to each other, due to capturing,
+        // Technically I think type variables are never equal to each other, due to
+        // capturing,
         // but just compare the variable name for equality here (this should never get
         // triggered in general, since we only compare type-erased signatures to
         // non-type-erased signatures currently).
@@ -347,9 +360,10 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
     }
 
     /**
-     * Returns the type variable along with its type bound, if available (e.g. "X extends xyz.Cls"). You can get
-     * this in structured form by calling {@link #resolve()}. Returns just the type variable if there is no type
-     * bound, or if no type bound is known (i.e. if {@link #resolve()} throws).
+     * Returns the type variable along with its type bound, if available (e.g. "X
+     * extends xyz.Cls"). You can get this in structured form by calling
+     * {@link #resolve()}. Returns just the type variable if there is no type bound,
+     * or if no type bound is known (i.e. if {@link #resolve()} throws).
      * 
      * @return The string representation.
      */

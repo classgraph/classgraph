@@ -9,11 +9,11 @@ import java.net.URLClassLoader;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ScanResult;
 
 /**
- * Verify that a large number of stored/deflated nested JAR entries don't cause memory problems.
- * 
+ * Verify that a large number of stored/deflated nested JAR entries don't cause
+ * memory problems.
+ *
  * @author Róbert Papp ( https://github.com/TWiStErRob )
  */
 public class Issue400 {
@@ -23,11 +23,11 @@ public class Issue400 {
 
     /**
      * @return used JVM heap size allocated in RAM
-     * @see <a href="https://stackoverflow.com/a/42567450/253468">What are Runtime.getRuntime().totalMemory() and
-     *      freeMemory()?</a>
+     * @see <a href="https://stackoverflow.com/a/42567450/253468">What are
+     *      Runtime.getRuntime().totalMemory() and freeMemory()?</a>
      */
     private long usedRam() {
-        final Runtime runtime = Runtime.getRuntime();
+        final var runtime = Runtime.getRuntime();
         runtime.gc();
         System.runFinalization();
         runtime.gc();
@@ -38,24 +38,24 @@ public class Issue400 {
     }
 
     /**
-     * Test whether RAM leaks, or whether nested deflated jars cause large RAM overhead.
+     * Test whether RAM leaks, or whether nested deflated jars cause large RAM
+     * overhead.
      * 
-     * @param jars
-     *            the jar URLs.
+     * @param jars the jar URLs.
      */
     @SuppressWarnings("null")
     private void loadsJarWithManyNestedEntriesAndDoesNotUseMuchMemory(final URL... jars) {
-        final long ramAtStart = usedRam();
+        final var ramAtStart = usedRam();
         long ramAfterScan;
-        try (ScanResult scanResult = new ClassGraph().overrideClassLoaders(new URLClassLoader(jars))
-                .ignoreParentClassLoaders().enableAllInfo().scan()) {
+        try (var scanResult = new ClassGraph().overrideClassLoaders(new URLClassLoader(jars)).ignoreParentClassLoaders()
+                .enableAllInfo().scan()) {
             ramAfterScan = usedRam();
             // There are no classes in any of the JARs.
             assertThat(scanResult.getAllClassesAsMap()).isEmpty();
             // Check if it contains the JAR and all nested entries.
             assertThat(scanResult.getClasspathURLs()).hasSize(1 + 128);
         }
-        final long ramAtEnd = usedRam();
+        final var ramAtEnd = usedRam();
 
         if (ramAtStart < ramAfterScan) {
             assertThat(ramAtStart)

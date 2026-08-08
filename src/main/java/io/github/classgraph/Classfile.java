@@ -33,7 +33,6 @@ import java.lang.reflect.Array;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -51,12 +50,15 @@ import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.StringUtils;
 
 /**
- * A classfile binary format parser. Implements its own buffering to avoid the overhead of using DataInputStream.
- * This class should only be used by a single thread at a time, but can be re-used to scan multiple classfiles in
- * sequence, to avoid re-allocating buffer memory.
+ * A classfile binary format parser. Implements its own buffering to avoid the
+ * overhead of using DataInputStream. This class should only be used by a single
+ * thread at a time, but can be re-used to scan multiple classfiles in sequence,
+ * to avoid re-allocating buffer memory.
  *
  * <p>
- * See <a href="https://docs.oracle.com/javase/specs/jvms/se16/html/jvms-4.html">the class file format spec</a>.
+ * See
+ * <a href="https://docs.oracle.com/javase/specs/jvms/se16/html/jvms-4.html">the
+ * class file format spec</a>.
  */
 class Classfile {
     /** The {@link ClassfileReader} for the current classfile. */
@@ -101,7 +103,10 @@ class Classfile {
     /** Whether this class is an annotation. */
     private boolean isAnnotation;
 
-    /** The superclass name. (can be null if no superclass, or if superclass is rejected.) */
+    /**
+     * The superclass name. (can be null if no superclass, or if superclass is
+     * rejected.)
+     */
     private String superclassName;
 
     /** The implemented interfaces. */
@@ -134,15 +139,21 @@ class Classfile {
     /** The source file, such as Classfile.java */
     private String sourceFile;
 
-    /** The type annotation decorators for the {@link ClassTypeSignature} instance. */
+    /**
+     * The type annotation decorators for the {@link ClassTypeSignature} instance.
+     */
     private List<ClassTypeAnnotationDecorator> classTypeAnnotationDecorators;
 
-    /** The names of accepted classes found in the classpath while scanning paths within classpath elements. */
+    /**
+     * The names of accepted classes found in the classpath while scanning paths
+     * within classpath elements.
+     */
     private final Set<String> acceptedClassNamesFound;
 
     /**
-     * The names of external (non-accepted) classes scheduled for extended scanning (where scanning is extended
-     * upwards to superclasses, interfaces and annotations).
+     * The names of external (non-accepted) classes scheduled for extended scanning
+     * (where scanning is extended upwards to superclasses, interfaces and
+     * annotations).
      */
     private final Set<String> classNamesScheduledForExtendedScanning;
 
@@ -169,39 +180,18 @@ class Classfile {
     // -------------------------------------------------------------------------------------------------------------
 
     /** An empty array for the case where there are no annotations. */
-    private static final AnnotationInfo[] NO_ANNOTATIONS = new AnnotationInfo[0];
+    private static final AnnotationInfo[] NO_ANNOTATIONS = {};
 
     // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Class containment.
+     *
+     * @param innerClassName         the inner class name.
+     * @param innerClassModifierBits the inner class modifier bits.
+     * @param outerClassName         the outer class name.
      */
-    static class ClassContainment {
-        /** The inner class name. */
-        public final String innerClassName;
-
-        /** The inner class modifier bits. */
-        public final int innerClassModifierBits;
-
-        /** The outer class name. */
-        public final String outerClassName;
-
-        /**
-         * Constructor.
-         *
-         * @param innerClassName
-         *            the inner class name.
-         * @param innerClassModifierBits
-         *            the inner class modifier bits.
-         * @param outerClassName
-         *            the outer class name.
-         */
-        public ClassContainment(final String innerClassName, final int innerClassModifierBits,
-                final String outerClassName) {
-            this.innerClassName = innerClassName;
-            this.innerClassModifierBits = innerClassModifierBits;
-            this.outerClassName = outerClassName;
-        }
+    record ClassContainment(String innerClassName, int innerClassModifierBits, String outerClassName) {
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -214,8 +204,7 @@ class Classfile {
         /**
          * Constructor.
          *
-         * @param message
-         *            the message
+         * @param message the message
          */
         public ClassfileFormatException(final String message) {
             super(message);
@@ -224,10 +213,8 @@ class Classfile {
         /**
          * Constructor.
          *
-         * @param message
-         *            the message
-         * @param cause
-         *            the cause
+         * @param message the message
+         * @param cause   the cause
          */
         public ClassfileFormatException(final String message, final Throwable cause) {
             super(message, cause);
@@ -252,8 +239,7 @@ class Classfile {
         /**
          * Constructor.
          *
-         * @param message
-         *            the message
+         * @param message the message
          */
         public SkipClassException(final String message) {
             super(message);
@@ -275,17 +261,13 @@ class Classfile {
     /**
      * Extend scanning to a superclass, interface or annotation.
      *
-     * @param className
-     *            the class name
-     * @param relationship
-     *            the relationship type
-     * @param log
-     *            the log
+     * @param className    the class name
+     * @param relationship the relationship type
+     * @param log          the log
      */
-    private void scheduleScanningIfExternalClass(final String className, final String relationship,
-            final LogNode log) {
+    private void scheduleScanningIfExternalClass(final String className, final String relationship, final LogNode log) {
         // Don't scan Object
-        if (className != null && !className.equals("java.lang.Object")
+        if (className != null && !"java.lang.Object".equals(className)
         // Don't schedule a class for scanning that was already found to be accepted
                 && !acceptedClassNamesFound.contains(className)
                 // Only schedule each external class once for scanning, across all threads
@@ -296,17 +278,21 @@ class Classfile {
                             + ", since it is rejected");
                 }
             } else {
-                // Search for the named class' classfile among classpath elements, in classpath order (this is O(N)
-                // for each class, but there shouldn't be too many cases of extending scanning upwards)
-                final String classfilePath = JarUtils.classNameToClassfilePath(className);
-                // First check current classpath element, to avoid iterating through other classpath elements
-                Resource classResource = classpathElement.getResource(classfilePath);
+                // Search for the named class' classfile among classpath elements, in classpath
+                // order (this is O(N)
+                // for each class, but there shouldn't be too many cases of extending scanning
+                // upwards)
+                final var classfilePath = JarUtils.classNameToClassfilePath(className);
+                // First check current classpath element, to avoid iterating through other
+                // classpath elements
+                var classResource = classpathElement.getResource(classfilePath);
                 ClasspathElement foundInClasspathElt = null;
                 if (classResource != null) {
                     // Found the classfile in the current classpath element
                     foundInClasspathElt = classpathElement;
                 } else {
-                    // Didn't find the classfile in the current classpath element -- iterate through other elements
+                    // Didn't find the classfile in the current classpath element -- iterate through
+                    // other elements
                     for (final ClasspathElement classpathOrderElt : classpathOrder) {
                         if (classpathOrderElt != classpathElement) {
                             classResource = classpathOrderElt.getResource(classfilePath);
@@ -320,14 +306,15 @@ class Classfile {
                 if (classResource != null) {
                     // Found class resource
                     if (log != null) {
-                        // Log the extended scan as a child LogNode of the current class' scan log, since the
-                        // external class is not scanned at the regular place in the classpath element hierarchy
+                        // Log the extended scan as a child LogNode of the current class' scan log,
+                        // since the
+                        // external class is not scanned at the regular place in the classpath element
+                        // hierarchy
                         // traversal
-                        classResource.scanLog = log
-                                .log("Extending scanning to external " + relationship
-                                        + (foundInClasspathElt == classpathElement ? " in same classpath element"
-                                                : " in classpath element " + foundInClasspathElt)
-                                        + ": " + className);
+                        classResource.scanLog = log.log("Extending scanning to external " + relationship
+                                + (foundInClasspathElt == classpathElement ? " in same classpath element"
+                                        : " in classpath element " + foundInClasspathElt)
+                                + ": " + className);
                     }
                     if (additionalWorkUnits == null) {
                         additionalWorkUnits = new ArrayList<>();
@@ -346,29 +333,26 @@ class Classfile {
     }
 
     /**
-     * Check if scanning needs to be extended upwards from an annotation parameter value.
+     * Check if scanning needs to be extended upwards from an annotation parameter
+     * value.
      *
-     * @param annotationParamVal
-     *            the {@link AnnotationInfo} object for an annotation, or for an annotation parameter value.
-     * @param log
-     *            the log
+     * @param annotationParamVal the {@link AnnotationInfo} object for an
+     *                           annotation, or for an annotation parameter value.
+     * @param log                the log
      */
     private void extendScanningUpwardsFromAnnotationParameterValues(final Object annotationParamVal,
             final LogNode log) {
         if (annotationParamVal == null) {
             // Should not be possible -- ignore
-        } else if (annotationParamVal instanceof AnnotationInfo) {
-            final AnnotationInfo annotationInfo = (AnnotationInfo) annotationParamVal;
+        } else if (annotationParamVal instanceof final AnnotationInfo annotationInfo) {
             scheduleScanningIfExternalClass(annotationInfo.getClassName(), "annotation class", log);
             for (final AnnotationParameterValue apv : annotationInfo.getParameterValues()) {
                 extendScanningUpwardsFromAnnotationParameterValues(apv.getValue(), log);
             }
-        } else if (annotationParamVal instanceof AnnotationEnumValue) {
-            scheduleScanningIfExternalClass(((AnnotationEnumValue) annotationParamVal).getClassName(), "enum class",
-                    log);
-        } else if (annotationParamVal instanceof AnnotationClassRef) {
-            scheduleScanningIfExternalClass(((AnnotationClassRef) annotationParamVal).getClassName(), "class ref",
-                    log);
+        } else if (annotationParamVal instanceof final AnnotationEnumValue annotationEnumValue) {
+            scheduleScanningIfExternalClass(annotationEnumValue.getClassName(), "enum class", log);
+        } else if (annotationParamVal instanceof final AnnotationClassRef annotationClassRef) {
+            scheduleScanningIfExternalClass(annotationClassRef.getClassName(), "class ref", log);
         } else if (annotationParamVal.getClass().isArray()) {
             for (int i = 0, n = Array.getLength(annotationParamVal); i < n; i++) {
                 extendScanningUpwardsFromAnnotationParameterValues(Array.get(annotationParamVal, i), log);
@@ -379,10 +363,10 @@ class Classfile {
     }
 
     /**
-     * Check if scanning needs to be extended upwards to an external superclass, interface or annotation.
+     * Check if scanning needs to be extended upwards to an external superclass,
+     * interface or annotation.
      *
-     * @param log
-     *            the log
+     * @param log the log
      */
     private void extendScanningUpwards(final LogNode log) {
         // Check superclass
@@ -416,8 +400,7 @@ class Classfile {
                         scheduleScanningIfExternalClass(methodAnnotationInfo.getName(), "method annotation", log);
                         extendScanningUpwardsFromAnnotationParameterValues(methodAnnotationInfo, log);
                     }
-                    if (methodInfo.parameterAnnotationInfo != null
-                            && methodInfo.parameterAnnotationInfo.length > 0) {
+                    if (methodInfo.parameterAnnotationInfo != null && methodInfo.parameterAnnotationInfo.length > 0) {
                         for (final AnnotationInfo[] paramAnnInfoArr : methodInfo.parameterAnnotationInfo) {
                             if (paramAnnInfoArr != null && paramAnnInfoArr.length > 0) {
                                 for (final AnnotationInfo paramAnnInfo : paramAnnInfoArr) {
@@ -447,11 +430,12 @@ class Classfile {
                 }
             }
         }
-        // Check if this class is an inner class, and if so, extend scanning to outer class
+        // Check if this class is an inner class, and if so, extend scanning to outer
+        // class
         if (classContainmentEntries != null) {
             for (final ClassContainment classContainmentEntry : classContainmentEntries) {
-                if (classContainmentEntry.innerClassName.equals(className)) {
-                    scheduleScanningIfExternalClass(classContainmentEntry.outerClassName, "outer class", log);
+                if (classContainmentEntry.innerClassName().equals(className)) {
+                    scheduleScanningIfExternalClass(classContainmentEntry.outerClassName(), "outer class", log);
                 }
             }
         }
@@ -462,23 +446,20 @@ class Classfile {
     /**
      * Link classes. Not threadsafe, should be run in a single-threaded context.
      *
-     * @param classNameToClassInfo
-     *            map from class name to class info
-     * @param packageNameToPackageInfo
-     *            map from package name to package info
-     * @param moduleNameToModuleInfo
-     *            map from module name to module info
+     * @param classNameToClassInfo     map from class name to class info
+     * @param packageNameToPackageInfo map from package name to package info
+     * @param moduleNameToModuleInfo   map from module name to module info
      */
     void link(final Map<String, ClassInfo> classNameToClassInfo,
             final Map<String, PackageInfo> packageNameToPackageInfo,
             final Map<String, ModuleInfo> moduleNameToModuleInfo) {
-        boolean isModuleDescriptor = false;
-        boolean isPackageDescriptor = false;
+        var isModuleDescriptor = false;
+        var isPackageDescriptor = false;
         ClassInfo classInfo = null;
-        if (className.equals("module-info")) {
+        if ("module-info".equals(className)) {
             isModuleDescriptor = true;
 
-        } else if (className.equals("package-info") || className.endsWith(".package-info")) {
+        } else if ("package-info".equals(className) || className.endsWith(".package-info")) {
             isPackageDescriptor = true;
 
         } else {
@@ -530,11 +511,12 @@ class Classfile {
             }
         }
 
-        // Get or create PackageInfo, if this is not a module descriptor (the module descriptor's package is "")
+        // Get or create PackageInfo, if this is not a module descriptor (the module
+        // descriptor's package is "")
         PackageInfo packageInfo = null;
         if (!isModuleDescriptor) {
             // Get package for this class or package descriptor
-            final String packageName = PackageInfo.getParentPackageName(className);
+            final var packageName = PackageInfo.getParentPackageName(className);
             packageInfo = PackageInfo.getOrCreatePackage(packageName, packageNameToPackageInfo, scanSpec);
             if (isPackageDescriptor) {
                 // Add any class annotations on the package-info.class file to the ModuleInfo
@@ -547,14 +529,11 @@ class Classfile {
         }
 
         // Get or create ModuleInfo, if there is a module name
-        final String moduleName = classpathElement.getModuleName();
+        final var moduleName = classpathElement.getModuleName();
         if (moduleName != null) {
             // Get or create a ModuleInfo object for this module
-            ModuleInfo moduleInfo = moduleNameToModuleInfo.get(moduleName);
-            if (moduleInfo == null) {
-                moduleNameToModuleInfo.put(moduleName,
-                        moduleInfo = new ModuleInfo(classfileResource.getModuleRef(), classpathElement));
-            }
+            final var moduleInfo = moduleNameToModuleInfo.computeIfAbsent(moduleName,
+                    k -> new ModuleInfo(classfileResource.getModuleRef(), classpathElement));
             if (isModuleDescriptor) {
                 // Add any class annotations on the module-info.class file to the ModuleInfo
                 moduleInfo.addAnnotations(classAnnotations);
@@ -576,15 +555,14 @@ class Classfile {
     /**
      * Intern a string.
      *
-     * @param str
-     *            the str
+     * @param str the str
      * @return the string
      */
     private String intern(final String str) {
         if (str == null) {
             return null;
         }
-        final String interned = stringInternMap.putIfAbsent(str, str);
+        final var interned = stringInternMap.putIfAbsent(str, str);
         if (interned != null) {
             return interned;
         }
@@ -592,41 +570,43 @@ class Classfile {
     }
 
     /**
-     * Get the byte offset within the buffer of a string from the constant pool, or 0 for a null string.
+     * Get the byte offset within the buffer of a string from the constant pool, or
+     * 0 for a null string.
      *
-     * @param cpIdx
-     *            the constant pool index
-     * @param subFieldIdx
-     *            should be 0 for CONSTANT_Utf8, CONSTANT_Class and CONSTANT_String, and for
-     *            CONSTANT_NameAndType_info, fetches the name for value 0, or the type descriptor for value 1.
+     * @param cpIdx       the constant pool index
+     * @param subFieldIdx should be 0 for CONSTANT_Utf8, CONSTANT_Class and
+     *                    CONSTANT_String, and for CONSTANT_NameAndType_info,
+     *                    fetches the name for value 0, or the type descriptor for
+     *                    value 1.
      * @return the constant pool string offset
-     * @throws ClassfileFormatException
-     *             If a problem is detected
+     * @throws ClassfileFormatException If a problem is detected
      */
-    private int getConstantPoolStringOffset(final int cpIdx, final int subFieldIdx)
-            throws ClassfileFormatException {
+    private int getConstantPoolStringOffset(final int cpIdx, final int subFieldIdx) throws ClassfileFormatException {
         if (cpIdx < 1 || cpIdx >= cpCount) {
             throw new ClassfileFormatException("Constant pool index " + cpIdx + ", should be in range [1, "
                     + (cpCount - 1) + "] -- cannot continue reading class. "
                     + "Please report this at https://github.com/classgraph/classgraph/issues");
         }
-        final int t = entryTag[cpIdx];
+        final var t = entryTag[cpIdx];
         if ((t != 12 && subFieldIdx != 0) || (t == 12 && subFieldIdx != 0 && subFieldIdx != 1)) {
             throw new ClassfileFormatException(
                     "Bad subfield index " + subFieldIdx + " for tag " + t + ", cannot continue reading class. "
                             + "Please report this at https://github.com/classgraph/classgraph/issues");
         }
-        int cpIdxToUse;
-        if (t == 0) {
+        final int cpIdxToUse;
+        switch (t) {
+        case 0 -> {
             // Assume this means null
             return 0;
-        } else if (t == 1) {
+        }
+        case 1 ->
             // CONSTANT_Utf8
             cpIdxToUse = cpIdx;
-        } else if (t == 7 || t == 8 || t == 19) {
-            // t == 7 => CONSTANT_Class, e.g. "[[I", "[Ljava/lang/Thread;"; t == 8 => CONSTANT_String;
+        case 7, 8, 19 -> {
+            // t == 7 => CONSTANT_Class, e.g. "[[I", "[Ljava/lang/Thread;"; t == 8 =>
+            // CONSTANT_String;
             // t == 19 => CONSTANT_Method_Info
-            final int indirIdx = indirectStringRefs[cpIdx];
+            final var indirIdx = indirectStringRefs[cpIdx];
             if (indirIdx == -1) {
                 // Should not happen
                 throw new ClassfileFormatException("Bad string indirection index, cannot continue reading class. "
@@ -637,25 +617,26 @@ class Classfile {
                 return 0;
             }
             cpIdxToUse = indirIdx;
-        } else if (t == 12) {
+        }
+        case 12 -> {
             // CONSTANT_NameAndType_info
-            final int compoundIndirIdx = indirectStringRefs[cpIdx];
+            final var compoundIndirIdx = indirectStringRefs[cpIdx];
             if (compoundIndirIdx == -1) {
                 // Should not happen
                 throw new ClassfileFormatException("Bad string indirection index, cannot continue reading class. "
                         + "Please report this at https://github.com/classgraph/classgraph/issues");
             }
-            final int indirIdx = (subFieldIdx == 0 ? (compoundIndirIdx >> 16) : compoundIndirIdx) & 0xffff;
+            final var indirIdx = (subFieldIdx == 0 ? (compoundIndirIdx >> 16) : compoundIndirIdx) & 0xffff;
             if (indirIdx == 0) {
                 // Should not happen
                 throw new ClassfileFormatException("Bad string indirection index, cannot continue reading class. "
                         + "Please report this at https://github.com/classgraph/classgraph/issues");
             }
             cpIdxToUse = indirIdx;
-        } else {
-            throw new ClassfileFormatException("Wrong tag number " + t + " at constant pool index " + cpIdx + ", "
-                    + "cannot continue reading class. Please report this at "
-                    + "https://github.com/classgraph/classgraph/issues");
+        }
+        default -> throw new ClassfileFormatException("Wrong tag number " + t + " at constant pool index " + cpIdx
+                + ", cannot continue reading class. Please report this at "
+                + "https://github.com/classgraph/classgraph/issues");
         }
         if (cpIdxToUse < 1 || cpIdxToUse >= cpCount) {
             throw new ClassfileFormatException("Constant pool index " + cpIdx + ", should be in range [1, "
@@ -668,54 +649,47 @@ class Classfile {
     /**
      * Get a string from the constant pool, optionally replacing '/' with '.'.
      *
-     * @param cpIdx
-     *            the constant pool index
-     * @param replaceSlashWithDot
-     *            if true, replace slash with dot in the result.
-     * @param stripLSemicolon
-     *            if true, strip 'L' from the beginning and ';' from the end before returning (for class reference
-     *            constants)
+     * @param cpIdx               the constant pool index
+     * @param replaceSlashWithDot if true, replace slash with dot in the result.
+     * @param stripLSemicolon     if true, strip 'L' from the beginning and ';' from
+     *                            the end before returning (for class reference
+     *                            constants)
      * @return the constant pool string
-     * @throws ClassfileFormatException
-     *             If a problem occurs.
-     * @throws IOException
-     *             If an IO exception occurs.
+     * @throws ClassfileFormatException If a problem occurs.
+     * @throws IOException              If an IO exception occurs.
      */
     private String getConstantPoolString(final int cpIdx, final boolean replaceSlashWithDot,
             final boolean stripLSemicolon) throws ClassfileFormatException, IOException {
-        final int constantPoolStringOffset = getConstantPoolStringOffset(cpIdx, /* subFieldIdx = */ 0);
+        final var constantPoolStringOffset = getConstantPoolStringOffset(cpIdx, /* subFieldIdx = */ 0);
         if (constantPoolStringOffset == 0) {
             return null;
         }
-        final int utfLen = reader.readUnsignedShort(constantPoolStringOffset);
+        final var utfLen = reader.readUnsignedShort(constantPoolStringOffset);
         if (utfLen == 0) {
             return "";
         }
-        return intern(
-                reader.readString(constantPoolStringOffset + 2L, utfLen, replaceSlashWithDot, stripLSemicolon));
+        return intern(reader.readString(constantPoolStringOffset + 2L, utfLen, replaceSlashWithDot, stripLSemicolon));
     }
 
     /**
      * Get a string from the constant pool.
      *
-     * @param cpIdx
-     *            the constant pool index
-     * @param subFieldIdx
-     *            should be 0 for CONSTANT_Utf8, CONSTANT_Class and CONSTANT_String, and for
-     *            CONSTANT_NameAndType_info, fetches the name for value 0, or the type descriptor for value 1.
+     * @param cpIdx       the constant pool index
+     * @param subFieldIdx should be 0 for CONSTANT_Utf8, CONSTANT_Class and
+     *                    CONSTANT_String, and for CONSTANT_NameAndType_info,
+     *                    fetches the name for value 0, or the type descriptor for
+     *                    value 1.
      * @return the constant pool string
-     * @throws ClassfileFormatException
-     *             If a problem occurs.
-     * @throws IOException
-     *             If an IO exception occurs.
+     * @throws ClassfileFormatException If a problem occurs.
+     * @throws IOException              If an IO exception occurs.
      */
     private String getConstantPoolString(final int cpIdx, final int subFieldIdx)
             throws ClassfileFormatException, IOException {
-        final int constantPoolStringOffset = getConstantPoolStringOffset(cpIdx, subFieldIdx);
+        final var constantPoolStringOffset = getConstantPoolStringOffset(cpIdx, subFieldIdx);
         if (constantPoolStringOffset == 0) {
             return null;
         }
-        final int utfLen = reader.readUnsignedShort(constantPoolStringOffset);
+        final var utfLen = reader.readUnsignedShort(constantPoolStringOffset);
         if (utfLen == 0) {
             return "";
         }
@@ -726,35 +700,30 @@ class Classfile {
     /**
      * Get a string from the constant pool.
      *
-     * @param cpIdx
-     *            the constant pool index
+     * @param cpIdx the constant pool index
      * @return the constant pool string
-     * @throws ClassfileFormatException
-     *             If a problem occurs.
-     * @throws IOException
-     *             If an IO exception occurs.
+     * @throws ClassfileFormatException If a problem occurs.
+     * @throws IOException              If an IO exception occurs.
      */
     private String getConstantPoolString(final int cpIdx) throws ClassfileFormatException, IOException {
         return getConstantPoolString(cpIdx, /* subFieldIdx = */ 0);
     }
 
     /**
-     * Get the first UTF8 byte of a string in the constant pool, or '\0' if the string is null or empty.
+     * Get the first UTF8 byte of a string in the constant pool, or '\0' if the
+     * string is null or empty.
      *
-     * @param cpIdx
-     *            the constant pool index
+     * @param cpIdx the constant pool index
      * @return the first byte of the constant pool string
-     * @throws ClassfileFormatException
-     *             If a problem occurs.
-     * @throws IOException
-     *             If an IO exception occurs.
+     * @throws ClassfileFormatException If a problem occurs.
+     * @throws IOException              If an IO exception occurs.
      */
     private byte getConstantPoolStringFirstByte(final int cpIdx) throws ClassfileFormatException, IOException {
-        final int constantPoolStringOffset = getConstantPoolStringOffset(cpIdx, /* subFieldIdx = */ 0);
+        final var constantPoolStringOffset = getConstantPoolStringOffset(cpIdx, /* subFieldIdx = */ 0);
         if (constantPoolStringOffset == 0) {
             return '\0';
         }
-        final int utfLen = reader.readUnsignedShort(constantPoolStringOffset);
+        final var utfLen = reader.readUnsignedShort(constantPoolStringOffset);
         if (utfLen == 0) {
             return '\0';
         }
@@ -762,68 +731,60 @@ class Classfile {
     }
 
     /**
-     * Get a string from the constant pool, and interpret it as a class name by replacing '/' with '.'.
+     * Get a string from the constant pool, and interpret it as a class name by
+     * replacing '/' with '.'.
      *
-     * @param cpIdx
-     *            the constant pool index
+     * @param cpIdx the constant pool index
      * @return the constant pool class name
-     * @throws ClassfileFormatException
-     *             If a problem occurs.
-     * @throws IOException
-     *             If an IO exception occurs.
+     * @throws ClassfileFormatException If a problem occurs.
+     * @throws IOException              If an IO exception occurs.
      */
     private String getConstantPoolClassName(final int cpIdx) throws ClassfileFormatException, IOException {
         return getConstantPoolString(cpIdx, /* replaceSlashWithDot = */ true, /* stripLSemicolon = */ false);
     }
 
     /**
-     * Get a string from the constant pool representing an internal string descriptor for a class name
-     * ("Lcom/xyz/MyClass;"), and interpret it as a class name by replacing '/' with '.', and removing the leading
-     * "L" and the trailing ";".
+     * Get a string from the constant pool representing an internal string
+     * descriptor for a class name ("Lcom/xyz/MyClass;"), and interpret it as a
+     * class name by replacing '/' with '.', and removing the leading "L" and the
+     * trailing ";".
      *
-     * @param cpIdx
-     *            the constant pool index
+     * @param cpIdx the constant pool index
      * @return the constant pool class descriptor
-     * @throws ClassfileFormatException
-     *             If a problem occurs.
-     * @throws IOException
-     *             If an IO exception occurs.
+     * @throws ClassfileFormatException If a problem occurs.
+     * @throws IOException              If an IO exception occurs.
      */
     private String getConstantPoolClassDescriptor(final int cpIdx) throws ClassfileFormatException, IOException {
         return getConstantPoolString(cpIdx, /* replaceSlashWithDot = */ true, /* stripLSemicolon = */ true);
     }
 
     /**
-     * Compare a string in the constant pool with a given ASCII string, without constructing the constant pool
-     * String object.
+     * Compare a string in the constant pool with a given ASCII string, without
+     * constructing the constant pool String object.
      *
-     * @param cpIdx
-     *            the constant pool index
-     * @param asciiStr
-     *            the ASCII string to compare to
+     * @param cpIdx    the constant pool index
+     * @param asciiStr the ASCII string to compare to
      * @return true, if successful
-     * @throws ClassfileFormatException
-     *             If a problem occurs.
-     * @throws IOException
-     *             If an IO exception occurs.
+     * @throws ClassfileFormatException If a problem occurs.
+     * @throws IOException              If an IO exception occurs.
      */
     private boolean constantPoolStringEquals(final int cpIdx, final String asciiStr)
             throws ClassfileFormatException, IOException {
-        final int cpStrOffset = getConstantPoolStringOffset(cpIdx, /* subFieldIdx = */ 0);
+        final var cpStrOffset = getConstantPoolStringOffset(cpIdx, /* subFieldIdx = */ 0);
         if (cpStrOffset == 0) {
             return asciiStr == null;
         } else if (asciiStr == null) {
             return false;
         }
-        final int cpStrLen = reader.readUnsignedShort(cpStrOffset);
-        final int asciiStrLen = asciiStr.length();
+        final var cpStrLen = reader.readUnsignedShort(cpStrOffset);
+        final var asciiStrLen = asciiStr.length();
         if (cpStrLen != asciiStrLen) {
             return false;
         }
-        final int cpStrStart = cpStrOffset + 2;
+        final var cpStrStart = cpStrOffset + 2;
         reader.bufferTo(cpStrStart + cpStrLen);
-        final byte[] buf = reader.buf();
-        for (int i = 0; i < cpStrLen; i++) {
+        final var buf = reader.buf();
+        for (var i = 0; i < cpStrLen; i++) {
             if ((char) (buf[cpStrStart + i] & 0xff) != asciiStr.charAt(i)) {
                 return false;
             }
@@ -836,11 +797,9 @@ class Classfile {
     /**
      * Read an int from the constant pool.
      *
-     * @param cpIdx
-     *            the constant pool index.
+     * @param cpIdx the constant pool index.
      * @return the int
-     * @throws IOException
-     *             If an I/O exception occurred.
+     * @throws IOException If an I/O exception occurred.
      */
     private int cpReadInt(final int cpIdx) throws IOException {
         if (cpIdx < 1 || cpIdx >= cpCount) {
@@ -854,11 +813,9 @@ class Classfile {
     /**
      * Read a long from the constant pool.
      *
-     * @param cpIdx
-     *            the constant pool index.
+     * @param cpIdx the constant pool index.
      * @return the long
-     * @throws IOException
-     *             If an I/O exception occurred.
+     * @throws IOException If an I/O exception occurred.
      */
     private long cpReadLong(final int cpIdx) throws IOException {
         if (cpIdx < 1 || cpIdx >= cpCount) {
@@ -874,58 +831,51 @@ class Classfile {
     /**
      * Get a field constant from the constant pool.
      *
-     * @param tag
-     *            the tag
-     * @param fieldTypeDescriptorFirstChar
-     *            the first char of the field type descriptor
-     * @param cpIdx
-     *            the constant pool index
+     * @param tag                          the tag
+     * @param fieldTypeDescriptorFirstChar the first char of the field type
+     *                                     descriptor
+     * @param cpIdx                        the constant pool index
      * @return the field constant pool value
-     * @throws ClassfileFormatException
-     *             If a problem occurs.
-     * @throws IOException
-     *             If an IO exception occurs.
+     * @throws ClassfileFormatException If a problem occurs.
+     * @throws IOException              If an IO exception occurs.
      */
-    private Object getFieldConstantPoolValue(final int tag, final char fieldTypeDescriptorFirstChar,
-            final int cpIdx) throws ClassfileFormatException, IOException {
-        switch (tag) {
-        case 1: // Modified UTF8
-        case 7: // Class -- N.B. Unused? Class references do not seem to actually be stored as constant initalizers
-        case 8: // String
+    private Object getFieldConstantPoolValue(final int tag, final char fieldTypeDescriptorFirstChar, final int cpIdx)
+            throws ClassfileFormatException, IOException {
+        return switch (tag) {
+        // 1 => Modified UTF8; 7 => Class (N.B. unused? class references do not seem to
+        // actually be stored as
+        // constant initializers); 8 => String
+        case 1, 7, 8 ->
             // Forward or backward indirect reference to a modified UTF8 entry
-            return getConstantPoolString(cpIdx);
-        case 3: // int, short, char, byte, boolean are all represented by Constant_INTEGER
-            final int intVal = cpReadInt(cpIdx);
-            switch (fieldTypeDescriptorFirstChar) {
-            case 'I':
-                return intVal;
-            case 'S':
-                return (short) intVal;
-            case 'C':
-                return (char) intVal;
-            case 'B':
-                return (byte) intVal;
-            case 'Z':
-                return intVal != 0;
-            default:
-                // Fall through
-            }
-            throw new ClassfileFormatException("Unknown Constant_INTEGER type " + fieldTypeDescriptorFirstChar
-                    + ", " + "cannot continue reading class. Please report this at "
+            getConstantPoolString(cpIdx);
+        case 3 -> {
+            // int, short, char, byte, boolean are all represented by Constant_INTEGER
+            final var intVal = cpReadInt(cpIdx);
+            yield switch (fieldTypeDescriptorFirstChar) {
+            case 'I' -> intVal;
+            case 'S' -> (short) intVal;
+            case 'C' -> (char) intVal;
+            case 'B' -> (byte) intVal;
+            case 'Z' -> intVal != 0;
+            default -> throw new ClassfileFormatException("Unknown Constant_INTEGER type "
+                    + fieldTypeDescriptorFirstChar + ", cannot continue reading class. Please report this at "
                     + "https://github.com/classgraph/classgraph/issues");
-        case 4: // float
-            return Float.intBitsToFloat(cpReadInt(cpIdx));
-        case 5: // long
-            return cpReadLong(cpIdx);
-        case 6: // double
-            return Double.longBitsToDouble(cpReadLong(cpIdx));
-        default:
+            };
+        }
+        case 4 -> // float
+            Float.intBitsToFloat(cpReadInt(cpIdx));
+        case 5 -> // long
+            cpReadLong(cpIdx);
+        case 6 -> // double
+            Double.longBitsToDouble(cpReadLong(cpIdx));
+        default ->
             // ClassGraph doesn't expect other types
-            // (N.B. in particular, enum values are not stored in the constant pool, so don't need to be handled)
+            // (N.B. in particular, enum values are not stored in the constant pool, so
+            // don't need to be handled)
             throw new ClassfileFormatException("Unknown field constant pool tag " + tag + ", "
                     + "cannot continue reading class. Please report this at "
                     + "https://github.com/classgraph/classgraph/issues");
-        }
+        };
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -934,19 +884,18 @@ class Classfile {
      * Read annotation entry from classfile.
      *
      * @return the annotation, as an {@link AnnotationInfo} object.
-     * @throws IOException
-     *             If an IO exception occurs.
+     * @throws IOException If an IO exception occurs.
      */
     private AnnotationInfo readAnnotation() throws IOException {
         // Lcom/xyz/Annotation; -> Lcom.xyz.Annotation;
-        final String annotationClassName = getConstantPoolClassDescriptor(reader.readUnsignedShort());
-        final int numElementValuePairs = reader.readUnsignedShort();
+        final var annotationClassName = getConstantPoolClassDescriptor(reader.readUnsignedShort());
+        final var numElementValuePairs = reader.readUnsignedShort();
         AnnotationParameterValueList paramVals = null;
         if (numElementValuePairs > 0) {
             paramVals = new AnnotationParameterValueList(numElementValuePairs);
-            for (int i = 0; i < numElementValuePairs; i++) {
-                final String paramName = getConstantPoolString(reader.readUnsignedShort());
-                final Object paramValue = readAnnotationElementValue();
+            for (var i = 0; i < numElementValuePairs; i++) {
+                final var paramName = getConstantPoolString(reader.readUnsignedShort());
+                final var paramValue = readAnnotationElementValue();
                 paramVals.add(new AnnotationParameterValue(paramName, paramValue));
             }
         }
@@ -957,84 +906,70 @@ class Classfile {
      * Read annotation element value from classfile.
      *
      * @return the annotation element value
-     * @throws IOException
-     *             If an IO exception occurs.
+     * @throws IOException If an IO exception occurs.
      */
     private Object readAnnotationElementValue() throws IOException {
-        final int tag = reader.readUnsignedByte();
-        // This list of element_value tags is complete and up to date as of JDK 26 (JVMS 26 table 4.7.16.1-A).
+        final var tag = reader.readUnsignedByte();
+        // This list of element_value tags is complete and up to date as of JDK 26 (JVMS
+        // 26 table 4.7.16.1-A).
         // No tag has been added since annotations were introduced in Java SE 5.
-        switch (tag) {
-        case 'B':
-            return (byte) cpReadInt(reader.readUnsignedShort());
-        case 'C':
-            return (char) cpReadInt(reader.readUnsignedShort());
-        case 'D':
-            return Double.longBitsToDouble(cpReadLong(reader.readUnsignedShort()));
-        case 'F':
-            return Float.intBitsToFloat(cpReadInt(reader.readUnsignedShort()));
-        case 'I':
-            return cpReadInt(reader.readUnsignedShort());
-        case 'J':
-            return cpReadLong(reader.readUnsignedShort());
-        case 'S':
-            return (short) cpReadInt(reader.readUnsignedShort());
-        case 'Z':
-            return cpReadInt(reader.readUnsignedShort()) != 0;
-        case 's':
-            return getConstantPoolString(reader.readUnsignedShort());
-        case 'e': {
+        return switch (tag) {
+        case 'B' -> (byte) cpReadInt(reader.readUnsignedShort());
+        case 'C' -> (char) cpReadInt(reader.readUnsignedShort());
+        case 'D' -> Double.longBitsToDouble(cpReadLong(reader.readUnsignedShort()));
+        case 'F' -> Float.intBitsToFloat(cpReadInt(reader.readUnsignedShort()));
+        case 'I' -> cpReadInt(reader.readUnsignedShort());
+        case 'J' -> cpReadLong(reader.readUnsignedShort());
+        case 'S' -> (short) cpReadInt(reader.readUnsignedShort());
+        case 'Z' -> cpReadInt(reader.readUnsignedShort()) != 0;
+        case 's' -> getConstantPoolString(reader.readUnsignedShort());
+        case 'e' -> {
             // Return type is AnnotationEnumVal.
-            final String annotationClassName = getConstantPoolClassDescriptor(reader.readUnsignedShort());
-            final String annotationConstName = getConstantPoolString(reader.readUnsignedShort());
-            return new AnnotationEnumValue(annotationClassName, annotationConstName);
+            final var annotationClassName = getConstantPoolClassDescriptor(reader.readUnsignedShort());
+            final var annotationConstName = getConstantPoolString(reader.readUnsignedShort());
+            yield new AnnotationEnumValue(annotationClassName, annotationConstName);
         }
-        case 'c':
+        case 'c' ->
             // Return type is AnnotationClassRef (for class references in annotations)
-            final String classRefTypeDescriptor = getConstantPoolString(reader.readUnsignedShort());
-            return new AnnotationClassRef(classRefTypeDescriptor);
-        case '@':
+            new AnnotationClassRef(getConstantPoolString(reader.readUnsignedShort()));
+        case '@' ->
             // Complex (nested) annotation. Return type is AnnotationInfo.
-            return readAnnotation();
-        case '[':
+            readAnnotation();
+        case '[' -> {
             // Return type is Object[] (of nested annotation element values)
-            final int count = reader.readUnsignedShort();
-            final Object[] arr = new Object[count];
-            for (int i = 0; i < count; ++i) {
+            final var count = reader.readUnsignedShort();
+            final var arr = new Object[count];
+            for (var i = 0; i < count; ++i) {
                 // Nested annotation element value
                 arr[i] = readAnnotationElementValue();
             }
-            return arr;
-        default:
+            yield arr;
+        }
+        default ->
             throw new ClassfileFormatException("Class " + className + " has unknown annotation element type tag '"
                     + ((char) tag) + "': element size unknown, cannot continue reading class. "
                     + "Please report this at https://github.com/classgraph/classgraph/issues");
-        }
+        };
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
+    @FunctionalInterface
     interface ClassTypeAnnotationDecorator {
         void decorate(ClassTypeSignature classTypeSignature);
     }
 
+    @FunctionalInterface
     interface MethodTypeAnnotationDecorator {
         void decorate(MethodTypeSignature methodTypeSignature);
     }
 
+    @FunctionalInterface
     interface TypeAnnotationDecorator {
         void decorate(TypeSignature typeSignature);
     }
 
-    static class TypePathNode {
-        short typePathKind;
-        short typeArgumentIdx;
-
-        public TypePathNode(final int typePathKind, final int typeArgumentIdx) {
-            this.typePathKind = (short) typePathKind;
-            this.typeArgumentIdx = (short) typeArgumentIdx;
-        }
-
+    record TypePathNode(short typePathKind, short typeArgumentIdx) {
         @Override
         public String toString() {
             return "(" + typePathKind + "," + typeArgumentIdx + ")";
@@ -1042,14 +977,14 @@ class Classfile {
     }
 
     private List<TypePathNode> readTypePath() throws IOException {
-        final int typePathLength = reader.readUnsignedByte();
+        final var typePathLength = reader.readUnsignedByte();
         if (typePathLength == 0) {
-            return Collections.emptyList();
+            return List.of();
         } else {
             final List<TypePathNode> list = new ArrayList<>(typePathLength);
-            for (int i = 0; i < typePathLength; i++) {
-                final int typePathKind = reader.readUnsignedByte();
-                final int typeArgumentIdx = reader.readUnsignedByte();
+            for (var i = 0; i < typePathLength; i++) {
+                final var typePathKind = (short) reader.readUnsignedByte();
+                final var typeArgumentIdx = (short) reader.readUnsignedByte();
                 list.add(new TypePathNode(typePathKind, typeArgumentIdx));
             }
             return list;
@@ -1059,28 +994,33 @@ class Classfile {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Read only the name of the class defined by a classfile, skipping everything else. This is a cut-down version
-     * of {@link #readConstantPoolEntries(LogNode)} followed by {@link #readBasicClassInfo()}, for the case where a
-     * classfile has to be read before scanning has started, so none of the scanning context needed by the
-     * {@link Classfile} constructor is available yet. (Used to check whether a candidate package root really is a
-     * package root -- see {@link ClasspathElement#getClassNameDisprovingPackageRoot(ClassfileReader, String)}.)
+     * Read only the name of the class defined by a classfile, skipping everything
+     * else. This is a cut-down version of {@link #readConstantPoolEntries(LogNode)}
+     * followed by {@link #readBasicClassInfo()}, for the case where a classfile has
+     * to be read before scanning has started, so none of the scanning context
+     * needed by the {@link Classfile} constructor is available yet. (Used to check
+     * whether a candidate package root really is a package root -- see
+     * {@link ClasspathElement#getClassNameDisprovingPackageRoot(ClassfileReader, String)}.)
      *
-     * @param reader
-     *            a reader for the classfile.
-     * @return the name of the class defined by the classfile, in binary form, with {@code '/'} as the package
-     *         separator (e.g. {@code "java/lang/String"}), or null if the class name could not be read.
+     * @param reader a reader for the classfile.
+     * @return the name of the class defined by the classfile, in binary form, with
+     *         {@code '/'} as the package separator (e.g.
+     *         {@code "java/lang/String"}), or null if the class name could not be
+     *         read.
      */
     static String readClassName(final ClassfileReader reader) {
         try {
             // Skip the magic number and the minor and major version
             reader.skip(8);
 
-            // Read the constant pool, recording only the offset and tag of each entry, and for tag 7 (class ref)
-            // entries, the index of the tag 1 (modified UTF8) entry that holds the class name
-            final int cpCount = reader.readUnsignedShort();
-            final int[] entryOffset = new int[cpCount];
-            final int[] entryTag = new int[cpCount];
-            final int[] indirectStringRefs = new int[cpCount];
+            // Read the constant pool, recording only the offset and tag of each entry, and
+            // for tag 7 (class ref)
+            // entries, the index of the tag 1 (modified UTF8) entry that holds the class
+            // name
+            final var cpCount = reader.readUnsignedShort();
+            final var entryOffset = new int[cpCount];
+            final var entryTag = new int[cpCount];
+            final var indirectStringRefs = new int[cpCount];
             for (int i = 1, skipSlot = 0; i < cpCount; i++) {
                 if (skipSlot == 1) {
                     skipSlot = 0;
@@ -1088,59 +1028,48 @@ class Classfile {
                 }
                 entryTag[i] = reader.readUnsignedByte();
                 entryOffset[i] = reader.currPos();
-                // Same set of constant pool tags as readConstantPoolEntries() -- see the note there.
+                // Same set of constant pool tags as readConstantPoolEntries() -- see the note
+                // there.
                 // Complete and up to date as of JDK 26.
                 switch (entryTag[i]) {
-                case 1: // Modified UTF8
-                    reader.skip(reader.readUnsignedShort());
-                    break;
-                case 3: // int
-                case 4: // float
-                    reader.skip(4);
-                    break;
-                case 5: // long
-                case 6: // double
+                // Modified UTF8
+                case 1 -> reader.skip(reader.readUnsignedShort());
+                // int, float
+                case 3, 4 -> reader.skip(4);
+                // long, double
+                case 5, 6 -> {
                     reader.skip(8);
                     skipSlot = 1; // double slot
-                    break;
-                case 7: // Class reference
-                    indirectStringRefs[i] = reader.readUnsignedShort();
-                    break;
-                case 8: // String
-                case 16: // method type
-                case 19: // module
-                case 20: // package
-                    reader.skip(2);
-                    break;
-                case 9: // field ref
-                case 10: // method ref
-                case 11: // interface method ref
-                case 12: // name and type
-                case 17: // dynamic
-                case 18: // invoke dynamic
-                    reader.skip(4);
-                    break;
-                case 15: // method handle
-                    reader.skip(3);
-                    break;
-                default:
+                }
+                // Class reference
+                case 7 -> indirectStringRefs[i] = reader.readUnsignedShort();
+                // String, method type, module, package
+                case 8, 16, 19, 20 -> reader.skip(2);
+                // field ref, method ref, interface method ref, name and type, dynamic, invoke
+                // dynamic
+                case 9, 10, 11, 12, 17, 18 -> reader.skip(4);
+                // method handle
+                case 15 -> reader.skip(3);
+                default -> {
                     // Unknown tag -- the size of the entry is unknown, so reading cannot continue
                     return null;
                 }
+                }
             }
 
-            // Skip the access flags, then read the constant pool index of the class' own name
+            // Skip the access flags, then read the constant pool index of the class' own
+            // name
             reader.skip(2);
-            final int thisClassCpIdx = reader.readUnsignedShort();
+            final var thisClassCpIdx = reader.readUnsignedShort();
             if (thisClassCpIdx < 1 || thisClassCpIdx >= cpCount || entryTag[thisClassCpIdx] != 7) {
                 return null;
             }
-            final int classNameCpIdx = indirectStringRefs[thisClassCpIdx];
+            final var classNameCpIdx = indirectStringRefs[thisClassCpIdx];
             if (classNameCpIdx < 1 || classNameCpIdx >= cpCount || entryTag[classNameCpIdx] != 1) {
                 return null;
             }
-            final int classNameOffset = entryOffset[classNameCpIdx];
-            final int classNameLen = reader.readUnsignedShort(classNameOffset);
+            final var classNameOffset = entryOffset[classNameCpIdx];
+            final var classNameLen = reader.readUnsignedShort(classNameOffset);
             return classNameLen == 0 ? null : reader.readString(classNameOffset + 2L, classNameLen);
         } catch (final IOException | RuntimeException e) {
             // Could not read or parse the classfile
@@ -1153,10 +1082,8 @@ class Classfile {
     /**
      * Read constant pool entries.
      *
-     * @param log
-     *            The log
-     * @throws IOException
-     *             Signals that an I/O exception has occurred.
+     * @param log The log
+     * @throws IOException Signals that an I/O exception has occurred.
      */
     private void readConstantPoolEntries(final LogNode log) throws IOException {
         // Only record class dependency info if inter-class dependencies are enabled
@@ -1185,104 +1112,97 @@ class Classfile {
             }
             entryTag[i] = reader.readUnsignedByte();
             entryOffset[i] = reader.currPos();
-            // This list of constant pool tags is complete and up to date as of JDK 26 (JVMS 26 table 4.4-B).
-            // The newest tag is CONSTANT_Dynamic (17), added in Java SE 11; no tag has been added since.
-            // If a future JDK adds a tag, an entry of unknown size follows it, so parsing has to fail (below).
+            // This list of constant pool tags is complete and up to date as of JDK 26 (JVMS
+            // 26 table 4.4-B).
+            // The newest tag is CONSTANT_Dynamic (17), added in Java SE 11; no tag has been
+            // added since.
+            // If a future JDK adds a tag, an entry of unknown size follows it, so parsing
+            // has to fail (below).
             switch (entryTag[i]) {
-            case 0: // Impossible, probably buffer underflow
-                throw new ClassfileFormatException("Invalid constant pool tag 0 in classfile " + relativePath
-                        + " (possible buffer underflow issue). Please report this at "
-                        + "https://github.com/classgraph/classgraph/issues");
-            case 1: // Modified UTF8
-                final int strLen = reader.readUnsignedShort();
+            // Impossible, probably buffer underflow
+            case 0 -> throw new ClassfileFormatException("Invalid constant pool tag 0 in classfile " + relativePath
+                    + " (possible buffer underflow issue). Please report this at "
+                    + "https://github.com/classgraph/classgraph/issues");
+            // Modified UTF8
+            case 1 -> {
+                final var strLen = reader.readUnsignedShort();
                 reader.skip(strLen);
-                break;
+            }
             // There is no constant pool tag type 2
-            case 3: // int, short, char, byte, boolean are all represented by Constant_INTEGER
-            case 4: // float
-                reader.skip(4);
-                break;
-            case 5: // long
-            case 6: // double
+            // int, short, char, byte, boolean are all represented by Constant_INTEGER;
+            // float
+            case 3, 4 -> reader.skip(4);
+            // long, double
+            case 5, 6 -> {
                 reader.skip(8);
                 skipSlot = 1; // double slot
-                break;
-            case 7: // Class reference (format is e.g. "java/lang/String")
+            }
+            // Class reference (format is e.g. "java/lang/String")
+            case 7 -> {
                 // Forward or backward indirect reference to a modified UTF8 entry
                 indirectStringRefs[i] = reader.readUnsignedShort();
                 if (classNameCpIdxs != null) {
-                    // If this is a class ref, and inter-class dependencies are enabled, record the dependency
+                    // If this is a class ref, and inter-class dependencies are enabled, record the
+                    // dependency
                     classNameCpIdxs.add(indirectStringRefs[i]);
                 }
-                break;
-            case 8: // String
-                // Forward or backward indirect reference to a modified UTF8 entry
-                indirectStringRefs[i] = reader.readUnsignedShort();
-                break;
-            case 9: // field ref
-                // Refers to a class ref (case 7) and then a name and type (case 12)
-                reader.skip(4);
-                break;
-            case 10: // method ref
-                // Refers to a class ref (case 7) and then a name and type (case 12)
-                reader.skip(4);
-                break;
-            case 11: // interface method ref
-                // Refers to a class ref (case 7) and then a name and type (case 12)
-                reader.skip(4);
-                break;
-            case 12: // name and type
-                final int nameRef = reader.readUnsignedShort();
-                final int typeRef = reader.readUnsignedShort();
+            }
+            // String -- forward or backward indirect reference to a modified UTF8 entry
+            case 8 -> indirectStringRefs[i] = reader.readUnsignedShort();
+            // Field ref, method ref, interface method ref -- each refers to a class ref
+            // (case 7) and then a
+            // name and type (case 12)
+            case 9, 10, 11 -> reader.skip(4);
+            // Name and type
+            case 12 -> {
+                final var nameRef = reader.readUnsignedShort();
+                final var typeRef = reader.readUnsignedShort();
                 if (typeSignatureIdxs != null) {
                     typeSignatureIdxs.add(typeRef);
                 }
                 indirectStringRefs[i] = (nameRef << 16) | typeRef;
-                break;
+            }
             // There is no constant pool tag type 13 or 14
-            case 15: // method handle
-                reader.skip(3);
-                break;
-            case 16: // method type
-                reader.skip(2);
-                break;
-            case 17: // dynamic
-                reader.skip(4);
-                break;
-            case 18: // invoke dynamic
-                reader.skip(4);
-                break;
-            case 19: // module (for module-info.class in JDK9+)
-                // see https://docs.oracle.com/javase/specs/jvms/se9/html/jvms-4.html#jvms-4.4
-                indirectStringRefs[i] = reader.readUnsignedShort();
-                break;
-            case 20: // package (for module-info.class in JDK9+)
-                // see https://docs.oracle.com/javase/specs/jvms/se9/html/jvms-4.html#jvms-4.4
-                reader.skip(2);
-                break;
-            default:
-                throw new ClassfileFormatException("Unknown constant pool tag " + entryTag[i]
-                        + " (element size unknown, cannot continue reading class). Please report this at "
-                        + "https://github.com/classgraph/classgraph/issues");
+            // method handle
+            case 15 -> reader.skip(3);
+            // method type
+            case 16 -> reader.skip(2);
+            // dynamic, invoke dynamic
+            case 17, 18 -> reader.skip(4);
+            // module (for module-info.class in JDK9+)
+            // see https://docs.oracle.com/javase/specs/jvms/se9/html/jvms-4.html#jvms-4.4
+            case 19 -> indirectStringRefs[i] = reader.readUnsignedShort();
+            // package (for module-info.class in JDK9+)
+            // see https://docs.oracle.com/javase/specs/jvms/se9/html/jvms-4.html#jvms-4.4
+            case 20 -> reader.skip(2);
+            default -> throw new ClassfileFormatException("Unknown constant pool tag " + entryTag[i]
+                    + " (element size unknown, cannot continue reading class). Please report this at "
+                    + "https://github.com/classgraph/classgraph/issues");
             }
         }
 
-        // Find classes referenced in the constant pool. Note that there are some class refs that will not be
-        // found this way, e.g. enum classes and class refs in annotation parameter values, since they are
-        // referenced as strings (tag 1) rather than classes (tag 7) or type signatures (part of tag 12).
-        // Therefore, a hybrid approach needs to be applied of extracting these other class refs from
-        // the ClassInfo graph, and combining them with class names extracted from the constant pool here.
+        // Find classes referenced in the constant pool. Note that there are some class
+        // refs that will not be
+        // found this way, e.g. enum classes and class refs in annotation parameter
+        // values, since they are
+        // referenced as strings (tag 1) rather than classes (tag 7) or type signatures
+        // (part of tag 12).
+        // Therefore, a hybrid approach needs to be applied of extracting these other
+        // class refs from
+        // the ClassInfo graph, and combining them with class names extracted from the
+        // constant pool here.
         if (classNameCpIdxs != null) {
             refdClassNames = new HashSet<>();
             // Get class names from direct class references in constant pool
             for (final int cpIdx : classNameCpIdxs) {
-                final String refdClassName = getConstantPoolString(cpIdx, /* replaceSlashWithDot = */ true,
+                final var refdClassName = getConstantPoolString(cpIdx, /* replaceSlashWithDot = */ true,
                         /* stripLSemicolon = */ false);
                 if (refdClassName != null) {
                     if (refdClassName.startsWith("[")) {
-                        // Parse array type signature, e.g. "[Ljava.lang.String;" -- uses '.' rather than '/'
+                        // Parse array type signature, e.g. "[Ljava.lang.String;" -- uses '.' rather
+                        // than '/'
                         try {
-                            final TypeSignature typeSig = TypeSignature.parse(refdClassName.replace('.', '/'),
+                            final var typeSig = TypeSignature.parse(refdClassName.replace('.', '/'),
                                     /* definingClass = */ null);
                             typeSig.findReferencedClassNames(refdClassNames);
                         } catch (final ParseException e) {
@@ -1296,21 +1216,20 @@ class Classfile {
             }
         }
         if (typeSignatureIdxs != null) {
-            // Get class names from type signatures in "name and type" entries in constant pool
+            // Get class names from type signatures in "name and type" entries in constant
+            // pool
             for (final int cpIdx : typeSignatureIdxs) {
-                final String typeSigStr = getConstantPoolString(cpIdx);
+                final var typeSigStr = getConstantPoolString(cpIdx);
                 if (typeSigStr != null) {
                     try {
                         if (typeSigStr.startsWith("L") && typeSigStr.endsWith(";")) {
                             // Parse the class name
-                            final TypeSignature typeSig = TypeSignature.parse(typeSigStr,
-                                    /* definingClassName = */ null);
+                            final var typeSig = TypeSignature.parse(typeSigStr, /* definingClassName = */ null);
                             // Extract class names from type signature
                             typeSig.findReferencedClassNames(refdClassNames);
                         } else if (typeSigStr.indexOf('(') >= 0 || "<init>".equals(typeSigStr)) {
                             // Parse the type signature
-                            final MethodTypeSignature typeSig = MethodTypeSignature.parse(typeSigStr,
-                                    /* definingClassName = */ null);
+                            final var typeSig = MethodTypeSignature.parse(typeSigStr, /* definingClassName = */ null);
                             // Extract class names from type signature
                             typeSig.findReferencedClassNames(refdClassNames);
                         } else {
@@ -1321,8 +1240,8 @@ class Classfile {
                         }
                     } catch (final ParseException e) {
                         if (log != null) {
-                            log.log("Could not extract referenced class names from constant pool string: "
-                                    + typeSigStr + " : " + e);
+                            log.log("Could not extract referenced class names from constant pool string: " + typeSigStr
+                                    + " : " + e);
                         }
                     }
                 }
@@ -1335,13 +1254,11 @@ class Classfile {
     /**
      * Read basic class information.
      *
-     * @throws IOException
-     *             if an I/O exception occurs.
-     * @throws ClassfileFormatException
-     *             if the classfile is incorrectly formatted.
-     * @throws SkipClassException
-     *             if the classfile needs to be skipped (e.g. the class is non-public, and ignoreClassVisibility is
-     *             false)
+     * @throws IOException              if an I/O exception occurs.
+     * @throws ClassfileFormatException if the classfile is incorrectly formatted.
+     * @throws SkipClassException       if the classfile needs to be skipped (e.g.
+     *                                  the class is non-public, and
+     *                                  ignoreClassVisibility is false)
      */
     private void readBasicClassInfo() throws IOException, ClassfileFormatException, SkipClassException {
         // Modifier flags
@@ -1351,21 +1268,22 @@ class Classfile {
         isAnnotation = (classModifiers & 0x2000) != 0;
 
         // The fully-qualified class name of this class, with slashes replaced with dots
-        final String classNamePath = getConstantPoolString(reader.readUnsignedShort());
+        final var classNamePath = getConstantPoolString(reader.readUnsignedShort());
         if (classNamePath == null) {
             throw new ClassfileFormatException("Class name is null");
         }
         className = classNamePath.replace('/', '.');
         if ("java.lang.Object".equals(className)) {
-            // Don't process java.lang.Object (it has a null superclass), though you can still search for classes
+            // Don't process java.lang.Object (it has a null superclass), though you can
+            // still search for classes
             // that are subclasses of java.lang.Object (as an external class).
             throw new SkipClassException("No need to scan java.lang.Object");
         }
 
         // Check class visibility modifiers
-        final boolean isModule = (classModifiers & 0x8000) != 0; // Equivalently filename is "module-info.class"
-        final boolean isPackage = relativePath.regionMatches(relativePath.lastIndexOf('/') + 1,
-                "package-info.class", 0, 18);
+        final var isModule = (classModifiers & 0x8000) != 0; // Equivalently filename is "module-info.class"
+        final var isPackage = relativePath.regionMatches(relativePath.lastIndexOf('/') + 1, "package-info.class", 0,
+                18);
         if (!scanSpec.ignoreClassVisibility && !Modifier.isPublic(classModifiers) && !isModule && !isPackage) {
             throw new SkipClassException("Class is not public, and ignoreClassVisibility() was not called");
         }
@@ -1375,14 +1293,13 @@ class Classfile {
             // Should not happen
             throw new SkipClassException("Classfile filename " + relativePath + " does not end in \".class\"");
         }
-        final int len = classNamePath.length();
+        final var len = classNamePath.length();
         if (relativePath.length() != len + 6 || !classNamePath.regionMatches(0, relativePath, 0, len)) {
-            throw new SkipClassException(
-                    "Relative path " + relativePath + " does not match class name " + className);
+            throw new SkipClassException("Relative path " + relativePath + " does not match class name " + className);
         }
 
         // Superclass name, with slashes replaced with dots
-        final int superclassNameCpIdx = reader.readUnsignedShort();
+        final var superclassNameCpIdx = reader.readUnsignedShort();
         if (superclassNameCpIdx > 0) {
             superclassName = getConstantPoolClassName(superclassNameCpIdx);
         }
@@ -1393,14 +1310,13 @@ class Classfile {
     /**
      * Read the class' interfaces.
      *
-     * @throws IOException
-     *             if an I/O exception occurs.
+     * @throws IOException if an I/O exception occurs.
      */
     private void readInterfaces() throws IOException {
         // Interfaces
-        final int interfaceCount = reader.readUnsignedShort();
-        for (int i = 0; i < interfaceCount; i++) {
-            final String interfaceName = getConstantPoolClassName(reader.readUnsignedShort());
+        final var interfaceCount = reader.readUnsignedShort();
+        for (var i = 0; i < interfaceCount; i++) {
+            final var interfaceName = getConstantPoolClassName(reader.readUnsignedShort());
             if (implementedInterfaces == null) {
                 implementedInterfaces = new ArrayList<>();
             }
@@ -1413,59 +1329,57 @@ class Classfile {
     /**
      * Read the class' fields.
      *
-     * @throws IOException
-     *             if an I/O exception occurs.
-     * @throws ClassfileFormatException
-     *             if the classfile is incorrectly formatted.
+     * @throws IOException              if an I/O exception occurs.
+     * @throws ClassfileFormatException if the classfile is incorrectly formatted.
      */
     private void readFields() throws IOException, ClassfileFormatException {
         // Fields
-        final int fieldCount = reader.readUnsignedShort();
-        for (int i = 0; i < fieldCount; i++) {
-            // Info on modifier flags: http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.5
-            final int fieldModifierFlags = reader.readUnsignedShort();
-            final boolean isPublicField = ((fieldModifierFlags & 0x0001) == 0x0001);
-            final boolean fieldIsVisible = isPublicField || scanSpec.ignoreFieldVisibility;
-            final boolean getStaticFinalFieldConstValue = scanSpec.enableStaticFinalFieldConstantInitializerValues
+        final var fieldCount = reader.readUnsignedShort();
+        for (var i = 0; i < fieldCount; i++) {
+            // Info on modifier flags:
+            // http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.5
+            final var fieldModifierFlags = reader.readUnsignedShort();
+            final var isPublicField = ((fieldModifierFlags & 0x0001) == 0x0001);
+            final var fieldIsVisible = isPublicField || scanSpec.ignoreFieldVisibility;
+            final var getStaticFinalFieldConstValue = scanSpec.enableStaticFinalFieldConstantInitializerValues
                     && fieldIsVisible;
             List<TypeAnnotationDecorator> fieldTypeAnnotationDecorators = null;
             if (!fieldIsVisible || (!scanSpec.enableFieldInfo && !getStaticFinalFieldConstValue)) {
                 // Skip field
                 reader.readUnsignedShort(); // fieldNameCpIdx
                 reader.readUnsignedShort(); // fieldTypeDescriptorCpIdx
-                final int attributesCount = reader.readUnsignedShort();
-                for (int j = 0; j < attributesCount; j++) {
+                final var attributesCount = reader.readUnsignedShort();
+                for (var j = 0; j < attributesCount; j++) {
                     reader.readUnsignedShort(); // attributeNameCpIdx
-                    final int attributeLength = reader.readInt(); // == 2
+                    final var attributeLength = reader.readInt(); // == 2
                     reader.skip(attributeLength);
                 }
             } else {
-                final int fieldNameCpIdx = reader.readUnsignedShort();
-                final String fieldName = getConstantPoolString(fieldNameCpIdx);
-                final int fieldTypeDescriptorCpIdx = reader.readUnsignedShort();
-                final char fieldTypeDescriptorFirstChar = (char) getConstantPoolStringFirstByte(
+                final var fieldNameCpIdx = reader.readUnsignedShort();
+                final var fieldName = getConstantPoolString(fieldNameCpIdx);
+                final var fieldTypeDescriptorCpIdx = reader.readUnsignedShort();
+                final var fieldTypeDescriptorFirstChar = (char) getConstantPoolStringFirstByte(
                         fieldTypeDescriptorCpIdx);
-                String fieldTypeDescriptor;
+                final var fieldTypeDescriptor = getConstantPoolString(fieldTypeDescriptorCpIdx);
                 String fieldTypeSignatureStr = null;
-                fieldTypeDescriptor = getConstantPoolString(fieldTypeDescriptorCpIdx);
-
                 Object fieldConstValue = null;
                 AnnotationInfoList fieldAnnotationInfo = null;
-                final int attributesCount = reader.readUnsignedShort();
-                for (int j = 0; j < attributesCount; j++) {
-                    final int attributeNameCpIdx = reader.readUnsignedShort();
-                    final int attributeLength = reader.readInt(); // == 2
-                    // See if field name matches one of the requested names for this class, and if it does,
+                final var attributesCount = reader.readUnsignedShort();
+                for (var j = 0; j < attributesCount; j++) {
+                    final var attributeNameCpIdx = reader.readUnsignedShort();
+                    final var attributeLength = reader.readInt(); // == 2
+                    // See if field name matches one of the requested names for this class, and if
+                    // it does,
                     // check if it is initialized with a constant value
                     if ((getStaticFinalFieldConstValue)
                             && constantPoolStringEquals(attributeNameCpIdx, "ConstantValue")) {
                         // http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.2
-                        final int cpIdx = reader.readUnsignedShort();
+                        final var cpIdx = reader.readUnsignedShort();
                         if (cpIdx < 1 || cpIdx >= cpCount) {
-                            throw new ClassfileFormatException("Constant pool index " + cpIdx
-                                    + ", should be in range [1, " + (cpCount - 1)
-                                    + "] -- cannot continue reading class. "
-                                    + "Please report this at https://github.com/classgraph/classgraph/issues");
+                            throw new ClassfileFormatException(
+                                    "Constant pool index " + cpIdx + ", should be in range [1, " + (cpCount - 1)
+                                            + "] -- cannot continue reading class. "
+                                            + "Please report this at https://github.com/classgraph/classgraph/issues");
                         }
                         fieldConstValue = getFieldConstantPoolValue(entryTag[cpIdx], fieldTypeDescriptorFirstChar,
                                 cpIdx);
@@ -1476,13 +1390,13 @@ class Classfile {
                                     || (!scanSpec.disableRuntimeInvisibleAnnotations && constantPoolStringEquals(
                                             attributeNameCpIdx, "RuntimeInvisibleAnnotations")))) {
                         // Read annotation names
-                        final int fieldAnnotationCount = reader.readUnsignedShort();
+                        final var fieldAnnotationCount = reader.readUnsignedShort();
                         if (fieldAnnotationCount > 0) {
                             if (fieldAnnotationInfo == null) {
                                 fieldAnnotationInfo = new AnnotationInfoList(1);
                             }
-                            for (int k = 0; k < fieldAnnotationCount; k++) {
-                                final AnnotationInfo fieldAnnotation = readAnnotation();
+                            for (var k = 0; k < fieldAnnotationCount; k++) {
+                                final var fieldAnnotation = readAnnotation();
                                 fieldAnnotationInfo.add(fieldAnnotation);
                             }
                         }
@@ -1490,11 +1404,11 @@ class Classfile {
                             && (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleTypeAnnotations")
                                     || (!scanSpec.disableRuntimeInvisibleAnnotations && constantPoolStringEquals(
                                             attributeNameCpIdx, "RuntimeInvisibleTypeAnnotations")))) {
-                        final int annotationCount = reader.readUnsignedShort();
+                        final var annotationCount = reader.readUnsignedShort();
                         if (annotationCount > 0) {
                             fieldTypeAnnotationDecorators = new ArrayList<>();
-                            for (int m = 0; m < annotationCount; m++) {
-                                final int targetType = reader.readUnsignedByte();
+                            for (var m = 0; m < annotationCount; m++) {
+                                final var targetType = reader.readUnsignedByte();
                                 // 0x13 is the only target_type that JVMS 26 table 4.7.20-A permits in
                                 // field_info. Complete and up to date as of JDK 26.
                                 if (targetType != 0x13) {
@@ -1505,14 +1419,10 @@ class Classfile {
                                                     + "Please report this at "
                                                     + "https://github.com/classgraph/classgraph/issues");
                                 }
-                                final List<TypePathNode> typePath = readTypePath();
-                                final AnnotationInfo annotationInfo = readAnnotation();
-                                fieldTypeAnnotationDecorators.add(new TypeAnnotationDecorator() {
-                                    @Override
-                                    public void decorate(final TypeSignature typeSignature) {
-                                        typeSignature.addTypeAnnotation(typePath, annotationInfo);
-                                    }
-                                });
+                                final var typePath = readTypePath();
+                                final var annotationInfo = readAnnotation();
+                                fieldTypeAnnotationDecorators.add(
+                                        typeSignature -> typeSignature.addTypeAnnotation(typePath, annotationInfo));
                             }
                         }
                     } else {
@@ -1537,65 +1447,65 @@ class Classfile {
     /**
      * Read the class' methods.
      *
-     * @throws IOException
-     *             if an I/O exception occurs.
-     * @throws ClassfileFormatException
-     *             if the classfile is incorrectly formatted.
+     * @throws IOException              if an I/O exception occurs.
+     * @throws ClassfileFormatException if the classfile is incorrectly formatted.
      */
     private void readMethods() throws IOException, ClassfileFormatException {
         // Methods
-        final int methodCount = reader.readUnsignedShort();
-        for (int i = 0; i < methodCount; i++) {
-            // Info on modifier flags: http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.6
-            final int methodModifierFlags = reader.readUnsignedShort();
-            final boolean isPublicMethod = ((methodModifierFlags & 0x0001) == 0x0001);
-            final boolean methodIsVisible = isPublicMethod || scanSpec.ignoreMethodVisibility;
+        final var methodCount = reader.readUnsignedShort();
+        for (var i = 0; i < methodCount; i++) {
+            // Info on modifier flags:
+            // http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.6
+            final var methodModifierFlags = reader.readUnsignedShort();
+            final var isPublicMethod = ((methodModifierFlags & 0x0001) == 0x0001);
+            final var methodIsVisible = isPublicMethod || scanSpec.ignoreMethodVisibility;
             List<MethodTypeAnnotationDecorator> methodTypeAnnotationDecorators = null;
             String methodName = null;
             String methodTypeDescriptor = null;
             String methodTypeSignatureStr = null;
-            // Always enable MethodInfo for annotations (this is how annotation constants are defined)
-            final boolean enableMethodInfo = scanSpec.enableMethodInfo || isAnnotation;
+            // Always enable MethodInfo for annotations (this is how annotation constants
+            // are defined)
+            final var enableMethodInfo = scanSpec.enableMethodInfo || isAnnotation;
             if (enableMethodInfo) {
-                final int methodNameCpIdx = reader.readUnsignedShort();
+                final var methodNameCpIdx = reader.readUnsignedShort();
                 methodName = getConstantPoolString(methodNameCpIdx);
-                final int methodTypeDescriptorCpIdx = reader.readUnsignedShort();
+                final var methodTypeDescriptorCpIdx = reader.readUnsignedShort();
                 methodTypeDescriptor = getConstantPoolString(methodTypeDescriptorCpIdx);
             } else {
                 reader.skip(4); // name_index, descriptor_index
             }
-            final int attributesCount = reader.readUnsignedShort();
+            final var attributesCount = reader.readUnsignedShort();
             String[] methodParameterNames = null;
             String[] thrownExceptionNames = null;
             int[] methodParameterModifiers = null;
             AnnotationInfo[][] methodParameterAnnotations = null;
             AnnotationInfoList methodAnnotationInfo = null;
-            boolean methodHasBody = false;
-            int minLineNum = 0;
-            int maxLineNum = 0;
+            var methodHasBody = false;
+            var minLineNum = 0;
+            var maxLineNum = 0;
             if (!methodIsVisible || !enableMethodInfo) {
                 // Skip method attributes
-                for (int j = 0; j < attributesCount; j++) {
+                for (var j = 0; j < attributesCount; j++) {
                     reader.skip(2); // attribute_name_index
-                    final int attributeLength = reader.readInt();
+                    final var attributeLength = reader.readInt();
                     reader.skip(attributeLength);
                 }
             } else {
                 // Look for method annotations
-                for (int j = 0; j < attributesCount; j++) {
-                    final int attributeNameCpIdx = reader.readUnsignedShort();
-                    final int attributeLength = reader.readInt();
-                    if (scanSpec.enableAnnotationInfo
-                            && (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleAnnotations")
-                                    || (!scanSpec.disableRuntimeInvisibleAnnotations && constantPoolStringEquals(
-                                            attributeNameCpIdx, "RuntimeInvisibleAnnotations")))) {
-                        final int methodAnnotationCount = reader.readUnsignedShort();
+                for (var j = 0; j < attributesCount; j++) {
+                    final var attributeNameCpIdx = reader.readUnsignedShort();
+                    final var attributeLength = reader.readInt();
+                    if (scanSpec.enableAnnotationInfo && (constantPoolStringEquals(attributeNameCpIdx,
+                            "RuntimeVisibleAnnotations")
+                            || (!scanSpec.disableRuntimeInvisibleAnnotations
+                                    && constantPoolStringEquals(attributeNameCpIdx, "RuntimeInvisibleAnnotations")))) {
+                        final var methodAnnotationCount = reader.readUnsignedShort();
                         if (methodAnnotationCount > 0) {
                             if (methodAnnotationInfo == null) {
                                 methodAnnotationInfo = new AnnotationInfoList(1);
                             }
-                            for (int k = 0; k < methodAnnotationCount; k++) {
-                                final AnnotationInfo annotationInfo = readAnnotation();
+                            for (var k = 0; k < methodAnnotationCount; k++) {
+                                final var annotationInfo = readAnnotation();
                                 methodAnnotationInfo.add(annotationInfo);
                             }
                         }
@@ -1603,12 +1513,16 @@ class Classfile {
                             && (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleParameterAnnotations")
                                     || (!scanSpec.disableRuntimeInvisibleAnnotations && constantPoolStringEquals(
                                             attributeNameCpIdx, "RuntimeInvisibleParameterAnnotations")))) {
-                        // Merge together runtime visible and runtime invisible annotations into a single array
-                        // of annotations for each method parameter (runtime visible and runtime invisible
-                        // annotations are given in separate attributes, so if both attributes are present,
-                        // have to make the parameter annotation arrays larger when the second attribute is
+                        // Merge together runtime visible and runtime invisible annotations into a
+                        // single array
+                        // of annotations for each method parameter (runtime visible and runtime
+                        // invisible
+                        // annotations are given in separate attributes, so if both attributes are
+                        // present,
+                        // have to make the parameter annotation arrays larger when the second attribute
+                        // is
                         // encountered).
-                        final int numParams = reader.readUnsignedByte();
+                        final var numParams = reader.readUnsignedByte();
                         if (methodParameterAnnotations == null) {
                             methodParameterAnnotations = new AnnotationInfo[numParams][];
                         } else if (methodParameterAnnotations.length != numParams) {
@@ -1616,18 +1530,18 @@ class Classfile {
                                     "Mismatch in number of parameters between RuntimeVisibleParameterAnnotations "
                                             + "and RuntimeInvisibleParameterAnnotations");
                         }
-                        for (int paramIdx = 0; paramIdx < numParams; paramIdx++) {
-                            final int numAnnotations = reader.readUnsignedShort();
+                        for (var paramIdx = 0; paramIdx < numParams; paramIdx++) {
+                            final var numAnnotations = reader.readUnsignedShort();
                             if (numAnnotations > 0) {
-                                int annStartIdx = 0;
+                                var annStartIdx = 0;
                                 if (methodParameterAnnotations[paramIdx] != null) {
                                     annStartIdx = methodParameterAnnotations[paramIdx].length;
-                                    methodParameterAnnotations[paramIdx] = Arrays.copyOf(
-                                            methodParameterAnnotations[paramIdx], annStartIdx + numAnnotations);
+                                    methodParameterAnnotations[paramIdx] = Arrays
+                                            .copyOf(methodParameterAnnotations[paramIdx], annStartIdx + numAnnotations);
                                 } else {
                                     methodParameterAnnotations[paramIdx] = new AnnotationInfo[numAnnotations];
                                 }
-                                for (int annIdx = 0; annIdx < numAnnotations; annIdx++) {
+                                for (var annIdx = 0; annIdx < numAnnotations; annIdx++) {
                                     methodParameterAnnotations[paramIdx][annStartIdx + annIdx] = readAnnotation();
                                 }
                             } else if (methodParameterAnnotations[paramIdx] == null) {
@@ -1638,11 +1552,11 @@ class Classfile {
                             && (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleTypeAnnotations")
                                     || (!scanSpec.disableRuntimeInvisibleAnnotations && constantPoolStringEquals(
                                             attributeNameCpIdx, "RuntimeInvisibleTypeAnnotations")))) {
-                        final int annotationCount = reader.readUnsignedShort();
+                        final var annotationCount = reader.readUnsignedShort();
                         if (annotationCount > 0) {
                             methodTypeAnnotationDecorators = new ArrayList<>(annotationCount);
-                            for (int m = 0; m < annotationCount; m++) {
-                                final int targetType = reader.readUnsignedByte();
+                            for (var m = 0; m < annotationCount; m++) {
+                                final var targetType = reader.readUnsignedByte();
                                 final int typeParameterIndex;
                                 final int boundIndex;
                                 final int formalParameterIndex;
@@ -1651,13 +1565,15 @@ class Classfile {
                                 // 0x17 in method_info; all are handled below, plus 0x10 and 0x13, which are
                                 // illegal here but are emitted by buggy compilers (see the notes below).
                                 // Complete and up to date as of JDK 26.
-                                if (targetType == 0x01) {
+                                switch (targetType) {
+                                case 0x01 -> {
                                     // Type parameter declaration of generic method or constructor
                                     typeParameterIndex = reader.readUnsignedByte();
                                     boundIndex = -1;
                                     formalParameterIndex = -1;
                                     throwsTypeIndex = -1;
-                                } else if (targetType == 0x10) {
+                                }
+                                case 0x10 -> {
                                     // This target_type is not supposed to be added to methods, it is intended
                                     // for ClassFile annotations, but Google's Java compiler adds annotations
                                     // of this type to methods in guava for some reason. Just ignore these
@@ -1667,152 +1583,141 @@ class Classfile {
                                     boundIndex = -1;
                                     formalParameterIndex = -1;
                                     throwsTypeIndex = -1;
-                                } else if (targetType == 0x12) {
+                                }
+                                case 0x12 -> {
                                     // Type in bound of type parameter declaration of generic method
                                     // or constructor
                                     typeParameterIndex = reader.readUnsignedByte();
                                     boundIndex = reader.readUnsignedByte();
                                     formalParameterIndex = -1;
                                     throwsTypeIndex = -1;
-                                } else if (targetType == 0x13) {
-                                    // Type in field or record component declaration
-                                    // (empty target)
+                                }
+                                case 0x13, 0x14, 0x15 -> {
+                                    // 0x13: Type in field or record component declaration (empty target).
                                     // This target_type is not supposed to be added to methods, but it seems
                                     // that the JDK 17 compiler is buggy, and adds this target_type to the
                                     // methods of records anyway (#797). Therefore, accept this, but ignore
                                     // it (the same target_type should also be added to the fields of records).
+                                    // 0x14: Return type of method, or type of newly constructed object
+                                    // (empty target).
+                                    // 0x15: Receiver type of method or constructor (empty target).
                                     typeParameterIndex = -1;
                                     boundIndex = -1;
                                     formalParameterIndex = -1;
                                     throwsTypeIndex = -1;
-                                } else if (targetType == 0x14) {
-                                    // Return type of method, or type of newly constructed object
-                                    // (empty target)
-                                    typeParameterIndex = -1;
-                                    boundIndex = -1;
-                                    formalParameterIndex = -1;
-                                    throwsTypeIndex = -1;
-                                } else if (targetType == 0x15) {
-                                    // Receiver type of method or constructor
-                                    // (empty target)
-                                    typeParameterIndex = -1;
-                                    boundIndex = -1;
-                                    formalParameterIndex = -1;
-                                    throwsTypeIndex = -1;
-                                } else if (targetType == 0x16) {
+                                }
+                                case 0x16 -> {
                                     // Type in formal parameter declaration of method, constructor,
                                     // or lambda expression
                                     typeParameterIndex = -1;
                                     boundIndex = -1;
                                     formalParameterIndex = reader.readUnsignedByte();
                                     throwsTypeIndex = -1;
-                                } else if (targetType == 0x17) {
+                                }
+                                case 0x17 -> {
                                     // Type in throws clause of method or constructor
                                     typeParameterIndex = -1;
                                     boundIndex = -1;
                                     formalParameterIndex = -1;
                                     throwsTypeIndex = reader.readUnsignedShort();
-                                } else {
-                                    throw new ClassfileFormatException(
-                                            "Class " + className + " has unknown method type annotation target 0x"
-                                                    + Integer.toHexString(targetType)
-                                                    + ": element size unknown, cannot continue reading class. "
-                                                    + "Please report this at "
-                                                    + "https://github.com/classgraph/classgraph/issues");
                                 }
-                                final List<TypePathNode> typePath = readTypePath();
-                                final AnnotationInfo annotationInfo = readAnnotation();
-                                methodTypeAnnotationDecorators.add(new MethodTypeAnnotationDecorator() {
-                                    @Override
-                                    public void decorate(final MethodTypeSignature methodTypeSignature) {
-                                        if (targetType == 0x01) {
-                                            // Type parameter declaration of generic method or constructor
-                                            final List<TypeParameter> typeParameters = methodTypeSignature
-                                                    .getTypeParameters();
-                                            if (typeParameters != null
-                                                    && typeParameterIndex < typeParameters.size()) {
-                                                typeParameters.get(typeParameterIndex).addTypeAnnotation(typePath,
-                                                        annotationInfo);
-                                            }
-                                            // else this is a method type descriptor, not a method type signature,
-                                            // so there are no type parameters
-                                        } else if (targetType == 0x12) {
-                                            // Type in bound of type parameter declaration of generic method or
-                                            // constructor
-                                            final List<TypeParameter> typeParameters = methodTypeSignature
-                                                    .getTypeParameters();
-                                            if (typeParameters != null
-                                                    && typeParameterIndex < typeParameters.size()) {
-                                                final TypeParameter typeParameter = typeParameters
-                                                        .get(typeParameterIndex);
-                                                // boundIndex == 0 => class bound; boundIndex > 0 => interface bound
-                                                if (boundIndex == 0) {
-                                                    final ReferenceTypeSignature classBound = typeParameter
-                                                            .getClassBound();
-                                                    if (classBound != null) {
-                                                        classBound.addTypeAnnotation(typePath, annotationInfo);
-                                                    }
-                                                } else {
-                                                    final List<ReferenceTypeSignature> interfaceBounds = //
-                                                            typeParameter.getInterfaceBounds();
-                                                    if (interfaceBounds != null
-                                                            && boundIndex - 1 < interfaceBounds.size()) {
-                                                        interfaceBounds.get(boundIndex - 1)
-                                                                .addTypeAnnotation(typePath, annotationInfo);
-                                                    }
+                                default -> throw new ClassfileFormatException("Class " + className
+                                        + " has unknown method type annotation target 0x"
+                                        + Integer.toHexString(targetType)
+                                        + ": element size unknown, cannot continue reading class. "
+                                        + "Please report this at " + "https://github.com/classgraph/classgraph/issues");
+                                }
+                                final var typePath = readTypePath();
+                                final var annotationInfo = readAnnotation();
+                                methodTypeAnnotationDecorators.add(methodTypeSignature -> {
+                                    switch (targetType) {
+                                    case 0x01 -> {
+                                        // Type parameter declaration of generic method or constructor
+                                        final var typeParameters = methodTypeSignature.getTypeParameters();
+                                        if (typeParameters != null && typeParameterIndex < typeParameters.size()) {
+                                            typeParameters.get(typeParameterIndex).addTypeAnnotation(typePath,
+                                                    annotationInfo);
+                                        }
+                                        // else this is a method type descriptor, not a method type signature,
+                                        // so there are no type parameters
+                                    }
+                                    case 0x12 -> {
+                                        // Type in bound of type parameter declaration of generic method or
+                                        // constructor
+                                        final var typeParameters = methodTypeSignature.getTypeParameters();
+                                        if (typeParameters != null && typeParameterIndex < typeParameters.size()) {
+                                            final var typeParameter = typeParameters.get(typeParameterIndex);
+                                            // boundIndex == 0 => class bound; boundIndex > 0 => interface bound
+                                            if (boundIndex == 0) {
+                                                final var classBound = typeParameter.getClassBound();
+                                                if (classBound != null) {
+                                                    classBound.addTypeAnnotation(typePath, annotationInfo);
+                                                }
+                                            } else {
+                                                final var interfaceBounds = typeParameter.getInterfaceBounds();
+                                                if (interfaceBounds != null
+                                                        && boundIndex - 1 < interfaceBounds.size()) {
+                                                    interfaceBounds.get(boundIndex - 1).addTypeAnnotation(typePath,
+                                                            annotationInfo);
                                                 }
                                             }
-                                            // else this is a method type descriptor, not a method type signature,
-                                            // so there are no type parameters
-                                        } else if (targetType == 0x14) {
-                                            // Return type of method, or type of newly constructed object
-                                            methodTypeSignature.getResultType().addTypeAnnotation(typePath,
-                                                    annotationInfo);
-                                        } else if (targetType == 0x15) {
-                                            // Receiver type of method or constructor (explicit receiver parameter)
-                                            methodTypeSignature.addReceiverTypeAnnotation(annotationInfo);
-                                        } else if (targetType == 0x16) {
-                                            // Type in formal parameter declaration of method, constructor,
-                                            // or lambda expression.
-                                            // N.B. formal parameter indices are dodgy, because not all compilers
-                                            // index parameters the same way -- so be robust here.
-                                            // The classfile spec says "A formal_parameter_index value of i may,
-                                            // but is not required to, correspond to the i'th parameter descriptor
-                                            // in the method descriptor". Also "The formal_parameter_target item
-                                            // records that a formal parameter's type is annotated, but does not
-                                            // record the type itself. The type may be found by inspecting the
-                                            // method descriptor, although a formal_parameter_index value of 0
-                                            // does not always indicate the first parameter descriptor in the
-                                            // method descriptor."
-                                            // What the heck, guys.
-                                            final List<TypeSignature> parameterTypeSignatures = methodTypeSignature
-                                                    .getParameterTypeSignatures();
-                                            if (formalParameterIndex < parameterTypeSignatures.size()) {
-                                                parameterTypeSignatures.get(formalParameterIndex)
-                                                        .addTypeAnnotation(typePath, annotationInfo);
-                                            }
-                                        } else if (targetType == 0x17) {
-                                            // Type in throws clause of method or constructor
-                                            final List<ClassRefOrTypeVariableSignature> throwsSignatures = //
-                                                    methodTypeSignature.getThrowsSignatures();
-                                            if (throwsSignatures != null
-                                                    && throwsTypeIndex < throwsSignatures.size()) {
-                                                throwsSignatures.get(throwsTypeIndex).addTypeAnnotation(typePath,
-                                                        annotationInfo);
-                                            }
                                         }
+                                        // else this is a method type descriptor, not a method type signature,
+                                        // so there are no type parameters
+                                    }
+                                    case 0x14 ->
+                                        // Return type of method, or type of newly constructed object
+                                        methodTypeSignature.getResultType().addTypeAnnotation(typePath, annotationInfo);
+                                    case 0x15 ->
+                                        // Receiver type of method or constructor (explicit receiver parameter)
+                                        methodTypeSignature.addReceiverTypeAnnotation(annotationInfo);
+                                    case 0x16 -> {
+                                        // Type in formal parameter declaration of method, constructor,
+                                        // or lambda expression.
+                                        // N.B. formal parameter indices are dodgy, because not all compilers
+                                        // index parameters the same way -- so be robust here.
+                                        // The classfile spec says "A formal_parameter_index value of i may,
+                                        // but is not required to, correspond to the i'th parameter descriptor
+                                        // in the method descriptor". Also "The formal_parameter_target item
+                                        // records that a formal parameter's type is annotated, but does not
+                                        // record the type itself. The type may be found by inspecting the
+                                        // method descriptor, although a formal_parameter_index value of 0
+                                        // does not always indicate the first parameter descriptor in the
+                                        // method descriptor."
+                                        // What the heck, guys.
+                                        final var parameterTypeSignatures = methodTypeSignature
+                                                .getParameterTypeSignatures();
+                                        if (formalParameterIndex < parameterTypeSignatures.size()) {
+                                            parameterTypeSignatures.get(formalParameterIndex)
+                                                    .addTypeAnnotation(typePath, annotationInfo);
+                                        }
+                                    }
+                                    case 0x17 -> {
+                                        // Type in throws clause of method or constructor
+                                        final var throwsSignatures = //
+                                                methodTypeSignature.getThrowsSignatures();
+                                        if (throwsSignatures != null && throwsTypeIndex < throwsSignatures.size()) {
+                                            throwsSignatures.get(throwsTypeIndex).addTypeAnnotation(typePath,
+                                                    annotationInfo);
+                                        }
+                                    }
+                                    default -> {
+                                        // Ignore other target types (e.g. 0x10 and 0x13, which are emitted for
+                                        // methods by some buggy compilers)
+                                    }
                                     }
                                 });
                             }
                         }
                     } else if (constantPoolStringEquals(attributeNameCpIdx, "MethodParameters")) {
-                        // Read method parameters. For Java, these are only produced in JDK8+, and only if the
+                        // Read method parameters. For Java, these are only produced in JDK8+, and only
+                        // if the
                         // commandline switch `-parameters` is provided at compiletime.
-                        final int paramCount = reader.readUnsignedByte();
+                        final var paramCount = reader.readUnsignedByte();
                         methodParameterNames = new String[paramCount];
                         methodParameterModifiers = new int[paramCount];
-                        for (int k = 0; k < paramCount; k++) {
-                            final int cpIdx = reader.readUnsignedShort();
+                        for (var k = 0; k < paramCount; k++) {
+                            final var cpIdx = reader.readUnsignedShort();
                             // If the constant pool index is zero, then the parameter is unnamed => use null
                             methodParameterNames[k] = cpIdx == 0 ? null : getConstantPoolString(cpIdx);
                             methodParameterModifiers[k] = reader.readUnsignedShort();
@@ -1828,28 +1733,28 @@ class Classfile {
                                 // Get annotation parameter default value
                                 readAnnotationElementValue()));
                     } else if (constantPoolStringEquals(attributeNameCpIdx, "Exceptions")) {
-                        final int exceptionCount = reader.readUnsignedShort();
+                        final var exceptionCount = reader.readUnsignedShort();
                         thrownExceptionNames = new String[exceptionCount];
-                        for (int k = 0; k < exceptionCount; k++) {
-                            final int cpIdx = reader.readUnsignedShort();
+                        for (var k = 0; k < exceptionCount; k++) {
+                            final var cpIdx = reader.readUnsignedShort();
                             thrownExceptionNames[k] = getConstantPoolClassName(cpIdx);
                         }
                     } else if (constantPoolStringEquals(attributeNameCpIdx, "Code")) {
                         methodHasBody = true;
                         reader.skip(4); // max_stack, max_locals
-                        final int codeLength = reader.readInt();
+                        final var codeLength = reader.readInt();
                         reader.skip(codeLength);
-                        final int exceptionTableLength = reader.readUnsignedShort();
+                        final var exceptionTableLength = reader.readUnsignedShort();
                         reader.skip(8 * exceptionTableLength);
-                        final int codeAttrCount = reader.readUnsignedShort();
-                        for (int k = 0; k < codeAttrCount; k++) {
-                            final int codeAttrCpIdx = reader.readUnsignedShort();
-                            final int codeAttrLen = reader.readInt();
+                        final var codeAttrCount = reader.readUnsignedShort();
+                        for (var k = 0; k < codeAttrCount; k++) {
+                            final var codeAttrCpIdx = reader.readUnsignedShort();
+                            final var codeAttrLen = reader.readInt();
                             if (constantPoolStringEquals(codeAttrCpIdx, "LineNumberTable")) {
-                                final int lineNumTableLen = reader.readUnsignedShort();
-                                for (int l = 0; l < lineNumTableLen; l++) {
+                                final var lineNumTableLen = reader.readUnsignedShort();
+                                for (var l = 0; l < lineNumTableLen; l++) {
                                     reader.skip(2); // start_pc
-                                    final int lineNum = reader.readUnsignedShort();
+                                    final var lineNum = reader.readUnsignedShort();
                                     minLineNum = minLineNum == 0 ? lineNum : Math.min(minLineNum, lineNum);
                                     maxLineNum = maxLineNum == 0 ? lineNum : Math.max(maxLineNum, lineNum);
                                 }
@@ -1866,10 +1771,10 @@ class Classfile {
                     if (methodInfoList == null) {
                         methodInfoList = new MethodInfoList();
                     }
-                    methodInfoList.add(new MethodInfo(className, methodName, methodAnnotationInfo,
-                            methodModifierFlags, methodTypeDescriptor, methodTypeSignatureStr, methodParameterNames,
-                            methodParameterModifiers, methodParameterAnnotations, methodHasBody, minLineNum,
-                            maxLineNum, methodTypeAnnotationDecorators, thrownExceptionNames));
+                    methodInfoList.add(new MethodInfo(className, methodName, methodAnnotationInfo, methodModifierFlags,
+                            methodTypeDescriptor, methodTypeSignatureStr, methodParameterNames,
+                            methodParameterModifiers, methodParameterAnnotations, methodHasBody, minLineNum, maxLineNum,
+                            methodTypeAnnotationDecorators, thrownExceptionNames));
                 }
             }
         }
@@ -1880,27 +1785,26 @@ class Classfile {
     /**
      * Read class attributes.
      *
-     * @throws IOException
-     *             if an I/O exception occurs.
-     * @throws ClassfileFormatException
-     *             if the classfile is incorrectly formatted.
+     * @throws IOException              if an I/O exception occurs.
+     * @throws ClassfileFormatException if the classfile is incorrectly formatted.
      */
     private void readClassAttributes() throws IOException, ClassfileFormatException {
-        // Class attributes (including class annotations, class type variables, module info, etc.)
-        final int attributesCount = reader.readUnsignedShort();
-        for (int i = 0; i < attributesCount; i++) {
-            final int attributeNameCpIdx = reader.readUnsignedShort();
-            final int attributeLength = reader.readInt();
+        // Class attributes (including class annotations, class type variables, module
+        // info, etc.)
+        final var attributesCount = reader.readUnsignedShort();
+        for (var i = 0; i < attributesCount; i++) {
+            final var attributeNameCpIdx = reader.readUnsignedShort();
+            final var attributeLength = reader.readInt();
             if (scanSpec.enableAnnotationInfo //
                     && (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleAnnotations")
-                            || (!scanSpec.disableRuntimeInvisibleAnnotations && constantPoolStringEquals(
-                                    attributeNameCpIdx, "RuntimeInvisibleAnnotations")))) {
-                final int annotationCount = reader.readUnsignedShort();
+                            || (!scanSpec.disableRuntimeInvisibleAnnotations
+                                    && constantPoolStringEquals(attributeNameCpIdx, "RuntimeInvisibleAnnotations")))) {
+                final var annotationCount = reader.readUnsignedShort();
                 if (annotationCount > 0) {
                     if (classAnnotations == null) {
                         classAnnotations = new AnnotationInfoList();
                     }
-                    for (int m = 0; m < annotationCount; m++) {
+                    for (var m = 0; m < annotationCount; m++) {
                         classAnnotations.add(readAnnotation());
                     }
                 }
@@ -1908,109 +1812,114 @@ class Classfile {
                     && (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleTypeAnnotations")
                             || (!scanSpec.disableRuntimeInvisibleAnnotations && constantPoolStringEquals(
                                     attributeNameCpIdx, "RuntimeInvisibleTypeAnnotations")))) {
-                final int annotationCount = reader.readUnsignedShort();
+                final var annotationCount = reader.readUnsignedShort();
                 if (annotationCount > 0) {
                     classTypeAnnotationDecorators = new ArrayList<>(annotationCount);
-                    for (int m = 0; m < annotationCount; m++) {
-                        final int targetType = reader.readUnsignedByte();
+                    for (var m = 0; m < annotationCount; m++) {
+                        final var targetType = reader.readUnsignedByte();
                         final int typeParameterIndex;
                         final int supertypeIndex;
                         final int boundIndex;
-                        // 0x00, 0x10 and 0x11 are the only target_types that JVMS 26 table 4.7.20-A permits
+                        // 0x00, 0x10 and 0x11 are the only target_types that JVMS 26 table 4.7.20-A
+                        // permits
                         // in ClassFile. Complete and up to date as of JDK 26.
-                        if (targetType == 0x00) {
+                        switch (targetType) {
+                        case 0x00 -> {
                             // Type parameter declaration of generic class or interface
                             typeParameterIndex = reader.readUnsignedByte();
                             supertypeIndex = -1;
                             boundIndex = -1;
-                        } else if (targetType == 0x10) {
+                        }
+                        case 0x10 -> {
                             // Type in extends or implements clause of class declaration (including
                             // the direct superclass or direct superinterface of an anonymous class
                             // declaration), or in extends clause of interface declaration
                             supertypeIndex = reader.readUnsignedShort();
                             typeParameterIndex = -1;
                             boundIndex = -1;
-                        } else if (targetType == 0x11) {
+                        }
+                        case 0x11 -> {
                             // Type in bound of type parameter declaration of generic class or interface
                             typeParameterIndex = reader.readUnsignedByte();
                             boundIndex = reader.readUnsignedByte();
                             supertypeIndex = -1;
-                        } else {
-                            throw new ClassfileFormatException("Class " + className
-                                    + " has unknown class type annotation target 0x"
-                                    + Integer.toHexString(targetType)
-                                    + ": element size unknown, cannot continue reading class. "
-                                    + "Please report this at https://github.com/classgraph/classgraph/issues");
                         }
-                        final List<TypePathNode> typePath = readTypePath();
-                        final AnnotationInfo annotationInfo = readAnnotation();
-                        classTypeAnnotationDecorators.add(new ClassTypeAnnotationDecorator() {
-                            @Override
-                            public void decorate(final ClassTypeSignature classTypeSignature) {
-                                if (targetType == 0x00) {
-                                    // Type parameter declaration of generic class or interface
-                                    final List<TypeParameter> typeParameters = classTypeSignature
-                                            .getTypeParameters();
-                                    if (typeParameters != null && typeParameterIndex < typeParameters.size()) {
-                                        typeParameters.get(typeParameterIndex).addTypeAnnotation(typePath,
-                                                annotationInfo);
-                                    }
-                                } else if (targetType == 0x10) {
-                                    // Type in extends or implements clause of class declaration (including
-                                    // the direct superclass or direct superinterface of an anonymous class
-                                    // declaration), or in extends clause of interface declaration
-                                    if (supertypeIndex == 65535) {
-                                        // Type in extends clause of class declaration
-                                        classTypeSignature.getSuperclassSignature().addTypeAnnotation(typePath,
-                                                annotationInfo);
+                        default -> throw new ClassfileFormatException("Class " + className
+                                + " has unknown class type annotation target 0x" + Integer.toHexString(targetType)
+                                + ": element size unknown, cannot continue reading class. "
+                                + "Please report this at https://github.com/classgraph/classgraph/issues");
+                        }
+                        final var typePath = readTypePath();
+                        final var annotationInfo = readAnnotation();
+                        classTypeAnnotationDecorators.add(classTypeSignature -> {
+                            switch (targetType) {
+                            case 0x00 -> {
+                                // Type parameter declaration of generic class or interface
+                                final var typeParameters = classTypeSignature.getTypeParameters();
+                                if (typeParameters != null && typeParameterIndex < typeParameters.size()) {
+                                    typeParameters.get(typeParameterIndex).addTypeAnnotation(typePath, annotationInfo);
+                                }
+                            }
+                            case 0x10 -> {
+                                // Type in extends or implements clause of class declaration (including
+                                // the direct superclass or direct superinterface of an anonymous class
+                                // declaration), or in extends clause of interface declaration
+                                if (supertypeIndex == 65535) {
+                                    // Type in extends clause of class declaration
+                                    classTypeSignature.getSuperclassSignature().addTypeAnnotation(typePath,
+                                            annotationInfo);
+                                } else {
+                                    // Type in implements clause of interface declaration
+                                    classTypeSignature.getSuperinterfaceSignatures().get(supertypeIndex)
+                                            .addTypeAnnotation(typePath, annotationInfo);
+                                }
+                            }
+                            case 0x11 -> {
+                                // Type in bound of type parameter declaration of generic class or interface
+                                final var typeParameters = classTypeSignature.getTypeParameters();
+                                if (typeParameters != null && typeParameterIndex < typeParameters.size()) {
+                                    final var typeParameter = typeParameters.get(typeParameterIndex);
+                                    // boundIndex == 0 => class bound; boundIndex > 0 => interface bound
+                                    if (boundIndex == 0) {
+                                        final var classBound = typeParameter.getClassBound();
+                                        if (classBound != null) {
+                                            classBound.addTypeAnnotation(typePath, annotationInfo);
+                                        }
                                     } else {
-                                        // Type in implements clause of interface declaration
-                                        classTypeSignature.getSuperinterfaceSignatures().get(supertypeIndex)
-                                                .addTypeAnnotation(typePath, annotationInfo);
-                                    }
-                                } else if (targetType == 0x11) {
-                                    // Type in bound of type parameter declaration of generic class or interface
-                                    final List<TypeParameter> typeParameters = classTypeSignature
-                                            .getTypeParameters();
-                                    if (typeParameters != null && typeParameterIndex < typeParameters.size()) {
-                                        final TypeParameter typeParameter = typeParameters.get(typeParameterIndex);
-                                        // boundIndex == 0 => class bound; boundIndex > 0 => interface bound
-                                        if (boundIndex == 0) {
-                                            final ReferenceTypeSignature classBound = typeParameter.getClassBound();
-                                            if (classBound != null) {
-                                                classBound.addTypeAnnotation(typePath, annotationInfo);
-                                            }
-                                        } else {
-                                            final List<ReferenceTypeSignature> interfaceBounds = typeParameter
-                                                    .getInterfaceBounds();
-                                            if (interfaceBounds != null
-                                                    && boundIndex - 1 < interfaceBounds.size()) {
-                                                typeParameter.getInterfaceBounds().get(boundIndex - 1)
-                                                        .addTypeAnnotation(typePath, annotationInfo);
-                                            }
+                                        final var interfaceBounds = typeParameter.getInterfaceBounds();
+                                        if (interfaceBounds != null && boundIndex - 1 < interfaceBounds.size()) {
+                                            typeParameter.getInterfaceBounds().get(boundIndex - 1)
+                                                    .addTypeAnnotation(typePath, annotationInfo);
                                         }
                                     }
                                 }
+                            }
+                            default -> {
+                                // No other target types are permitted in ClassFile
+                            }
                             }
                         });
                     }
                 }
             } else if (constantPoolStringEquals(attributeNameCpIdx, "Record")) {
                 isRecord = true;
-                // No need to read record_components_info entries -- there is a 1:1 correspondence between
-                // record components and fields/methods of the same name and type as the record component,
-                // so we can just rely on the field and method reading code to work correctly with records.
+                // No need to read record_components_info entries -- there is a 1:1
+                // correspondence between
+                // record components and fields/methods of the same name and type as the record
+                // component,
+                // so we can just rely on the field and method reading code to work correctly
+                // with records.
                 reader.skip(attributeLength);
             } else if (constantPoolStringEquals(attributeNameCpIdx, "InnerClasses")) {
-                final int numInnerClasses = reader.readUnsignedShort();
-                for (int j = 0; j < numInnerClasses; j++) {
-                    final int innerClassInfoCpIdx = reader.readUnsignedShort();
-                    final int outerClassInfoCpIdx = reader.readUnsignedShort();
+                final var numInnerClasses = reader.readUnsignedShort();
+                for (var j = 0; j < numInnerClasses; j++) {
+                    final var innerClassInfoCpIdx = reader.readUnsignedShort();
+                    final var outerClassInfoCpIdx = reader.readUnsignedShort();
                     reader.skip(2); // inner_name_idx
-                    final int innerClassAccessFlags = reader.readUnsignedShort();
+                    final var innerClassAccessFlags = reader.readUnsignedShort();
                     if (innerClassInfoCpIdx != 0 && outerClassInfoCpIdx != 0) {
-                        final String innerClassName = getConstantPoolClassName(innerClassInfoCpIdx);
-                        final String outerClassName = getConstantPoolClassName(outerClassInfoCpIdx);
+                        final var innerClassName = getConstantPoolClassName(innerClassInfoCpIdx);
+                        final var outerClassName = getConstantPoolClassName(outerClassInfoCpIdx);
                         if (innerClassName == null || outerClassName == null) {
                             // Should not happen (fix static analyzer warning)
                             throw new ClassfileFormatException("Inner and/or outer class name is null");
@@ -2019,15 +1928,16 @@ class Classfile {
                             // Invalid according to spec
                             throw new ClassfileFormatException("Inner and outer class name cannot be the same");
                         }
-                        // Record types have a Lookup inner class for boostrap methods in JDK 14 -- drop this
+                        // Record types have a Lookup inner class for boostrap methods in JDK 14 -- drop
+                        // this
                         if (!("java.lang.invoke.MethodHandles$Lookup".equals(innerClassName)
                                 && "java.lang.invoke.MethodHandles".equals(outerClassName))) {
                             // Store relationship between inner class and outer class
                             if (classContainmentEntries == null) {
                                 classContainmentEntries = new ArrayList<>();
                             }
-                            classContainmentEntries.add(
-                                    new ClassContainment(innerClassName, innerClassAccessFlags, outerClassName));
+                            classContainmentEntries
+                                    .add(new ClassContainment(innerClassName, innerClassAccessFlags, outerClassName));
                         }
                     }
                 }
@@ -2037,11 +1947,12 @@ class Classfile {
             } else if (constantPoolStringEquals(attributeNameCpIdx, "SourceFile")) {
                 sourceFile = getConstantPoolString(reader.readUnsignedShort());
             } else if (constantPoolStringEquals(attributeNameCpIdx, "EnclosingMethod")) {
-                final String innermostEnclosingClassName = getConstantPoolClassName(reader.readUnsignedShort());
-                final int enclosingMethodCpIdx = reader.readUnsignedShort();
-                String definingMethodName;
+                final var innermostEnclosingClassName = getConstantPoolClassName(reader.readUnsignedShort());
+                final var enclosingMethodCpIdx = reader.readUnsignedShort();
+                final String definingMethodName;
                 if (enclosingMethodCpIdx == 0) {
-                    // A cpIdx of 0 (which is an invalid value) is used for anonymous inner classes declared in
+                    // A cpIdx of 0 (which is an invalid value) is used for anonymous inner classes
+                    // declared in
                     // class initializer code, e.g. assigned to a class field.
                     definingMethodName = "<clinit>";
                 } else {
@@ -2054,13 +1965,15 @@ class Classfile {
                 }
                 classContainmentEntries
                         .add(new ClassContainment(className, classModifiers, innermostEnclosingClassName));
-                // Also store the fully-qualified name of the enclosing method, to mark this as an anonymous inner
+                // Also store the fully-qualified name of the enclosing method, to mark this as
+                // an anonymous inner
                 // class
                 this.fullyQualifiedDefiningMethodName = innermostEnclosingClassName + "." + definingMethodName;
             } else if (constantPoolStringEquals(attributeNameCpIdx, "Module")) {
-                final int moduleNameCpIdx = reader.readUnsignedShort();
+                final var moduleNameCpIdx = reader.readUnsignedShort();
                 classpathElement.moduleNameFromModuleDescriptor = getConstantPoolString(moduleNameCpIdx);
-                // (Future work): parse the rest of the module descriptor fields, and add to ModuleInfo:
+                // (Future work): parse the rest of the module descriptor fields, and add to
+                // ModuleInfo:
                 // https://docs.oracle.com/javase/specs/jvms/se9/html/jvms-4.html#jvms-4.7.25
                 reader.skip(attributeLength - 2);
             } else {
@@ -2072,47 +1985,43 @@ class Classfile {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Directly examine contents of classfile binary header to determine annotations, implemented interfaces, the
-     * super-class etc. Creates a new ClassInfo object, and adds it to classNameToClassInfoOut. Assumes classpath
-     * masking has already been performed, so that only one class of a given name will be added.
+     * Directly examine contents of classfile binary header to determine
+     * annotations, implemented interfaces, the super-class etc. Creates a new
+     * ClassInfo object, and adds it to classNameToClassInfoOut. Assumes classpath
+     * masking has already been performed, so that only one class of a given name
+     * will be added.
      *
-     * @param classpathElement
-     *            the classpath element
-     * @param classpathOrder
-     *            the classpath order
-     * @param acceptedClassNamesFound
-     *            the names of accepted classes found in the classpath while scanning paths within classpath
-     *            elements.
-     * @param classNamesScheduledForExtendedScanning
-     *            the names of external (non-accepted) classes scheduled for extended scanning (where scanning is
-     *            extended upwards to superclasses, interfaces and annotations).
-     * @param relativePath
-     *            the relative path
-     * @param classfileResource
-     *            the classfile resource
-     * @param isExternalClass
-     *            if this is an external class
-     * @param stringInternMap
-     *            the string intern map
-     * @param workQueue
-     *            the work queue
-     * @param scanSpec
-     *            the scan spec
-     * @param log
-     *            the log
-     * @throws IOException
-     *             If an IO exception occurs.
-     * @throws ClassfileFormatException
-     *             If a problem occurs while parsing the classfile.
-     * @throws SkipClassException
-     *             if the classfile needs to be skipped (e.g. the class is non-public, and ignoreClassVisibility is
-     *             false)
+     * @param classpathElement                       the classpath element
+     * @param classpathOrder                         the classpath order
+     * @param acceptedClassNamesFound                the names of accepted classes
+     *                                               found in the classpath while
+     *                                               scanning paths within classpath
+     *                                               elements.
+     * @param classNamesScheduledForExtendedScanning the names of external
+     *                                               (non-accepted) classes
+     *                                               scheduled for extended scanning
+     *                                               (where scanning is extended
+     *                                               upwards to superclasses,
+     *                                               interfaces and annotations).
+     * @param relativePath                           the relative path
+     * @param classfileResource                      the classfile resource
+     * @param isExternalClass                        if this is an external class
+     * @param stringInternMap                        the string intern map
+     * @param workQueue                              the work queue
+     * @param scanSpec                               the scan spec
+     * @param log                                    the log
+     * @throws IOException              If an IO exception occurs.
+     * @throws ClassfileFormatException If a problem occurs while parsing the
+     *                                  classfile.
+     * @throws SkipClassException       if the classfile needs to be skipped (e.g.
+     *                                  the class is non-public, and
+     *                                  ignoreClassVisibility is false)
      */
     Classfile(final ClasspathElement classpathElement, final List<ClasspathElement> classpathOrder,
             final Set<String> acceptedClassNamesFound, final Set<String> classNamesScheduledForExtendedScanning,
             final String relativePath, final Resource classfileResource, final boolean isExternalClass,
-            final ConcurrentHashMap<String, String> stringInternMap,
-            final WorkQueue<ClassfileScanWorkUnit> workQueue, final ScanSpec scanSpec, final LogNode log)
+            final ConcurrentHashMap<String, String> stringInternMap, final WorkQueue<ClassfileScanWorkUnit> workQueue,
+            final ScanSpec scanSpec, final LogNode log)
             throws IOException, ClassfileFormatException, SkipClassException {
         this.classpathElement = classpathElement;
         this.classpathOrder = classpathOrder;
@@ -2125,7 +2034,7 @@ class Classfile {
         this.scanSpec = scanSpec;
 
         // Open a BufferedSequentialReader for the classfile
-        try (ClassfileReader classfileReader = classfileResource.openClassfile()) {
+        try (var classfileReader = classfileResource.openClassfile()) {
             reader = classfileReader;
 
             // Check magic number
@@ -2159,14 +2068,13 @@ class Classfile {
         }
 
         // Write class info to log
-        final LogNode subLog = log == null ? null
+        final var subLog = log == null ? null
                 : log.log("Found " //
                         + (isAnnotation ? "annotation class" : isInterface ? "interface class" : "class") //
                         + " " + className);
         if (subLog != null) {
             if (superclassName != null) {
-                subLog.log(
-                        "Super" + (isInterface && !isAnnotation ? "interface" : "class") + ": " + superclassName);
+                subLog.log("Super" + (isInterface && !isAnnotation ? "interface" : "class") + ": " + superclassName);
             }
             if (implementedInterfaces != null) {
                 subLog.log("Interfaces: " + StringUtils.join(", ", implementedInterfaces));
@@ -2181,15 +2089,14 @@ class Classfile {
             }
             if (fieldInfoList != null) {
                 for (final FieldInfo fieldInfo : fieldInfoList) {
-                    final String modifierStr = fieldInfo.getModifiersStr();
+                    final var modifierStr = fieldInfo.getModifiersStr();
                     subLog.log("Field: " + modifierStr + (modifierStr.isEmpty() ? "" : " ") + fieldInfo.getName());
                 }
             }
             if (methodInfoList != null) {
                 for (final MethodInfo methodInfo : methodInfoList) {
-                    final String modifierStr = methodInfo.getModifiersStr();
-                    subLog.log(
-                            "Method: " + modifierStr + (modifierStr.isEmpty() ? "" : " ") + methodInfo.getName());
+                    final var modifierStr = methodInfo.getModifiersStr();
+                    subLog.log("Method: " + modifierStr + (modifierStr.isEmpty() ? "" : " ") + methodInfo.getName());
                 }
             }
             if (typeSignatureStr != null) {
@@ -2202,9 +2109,12 @@ class Classfile {
             }
         }
 
-        // Check if any superclasses, interfaces or annotations are external (non-accepted) classes
-        // that need to be scheduled for scanning, so that all of the "upwards" direction of the class
-        // graph is scanned for any accepted class, even if the superclasses / interfaces / annotations
+        // Check if any superclasses, interfaces or annotations are external
+        // (non-accepted) classes
+        // that need to be scheduled for scanning, so that all of the "upwards"
+        // direction of the class
+        // graph is scanned for any accepted class, even if the superclasses /
+        // interfaces / annotations
         // are not themselves accepted.
         if (scanSpec.extendScanningUpwardsToExternalClasses) {
             extendScanningUpwards(subLog);

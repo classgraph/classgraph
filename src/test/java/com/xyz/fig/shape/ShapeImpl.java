@@ -16,10 +16,8 @@ public abstract class ShapeImpl implements Shape {
     /**
      * Constructor.
      *
-     * @param x
-     *            the x
-     * @param y
-     *            the y
+     * @param x the x
+     * @param y the y
      */
     public ShapeImpl(final float x, final float y) {
         this.x = x;
@@ -44,7 +42,9 @@ public abstract class ShapeImpl implements Shape {
         return y;
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see com.xyz.fig.Drawable#draw(java.awt.Graphics2D)
      */
     @Override

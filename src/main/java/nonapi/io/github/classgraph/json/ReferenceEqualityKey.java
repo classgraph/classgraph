@@ -29,11 +29,10 @@
 package nonapi.io.github.classgraph.json;
 
 /**
- * An object for wrapping a HashMap key so that the hashmap performs reference equality on the keys, not equals()
- * equality.
+ * An object for wrapping a HashMap key so that the hashmap performs reference
+ * equality on the keys, not equals() equality.
  *
- * @param <K>
- *            the key type
+ * @param <K> the key type
  */
 public class ReferenceEqualityKey<K> {
 
@@ -43,8 +42,7 @@ public class ReferenceEqualityKey<K> {
     /**
      * Constructor.
      *
-     * @param wrappedKey
-     *            the wrapped key
+     * @param wrappedKey the wrapped key
      */
     public ReferenceEqualityKey(final K wrappedKey) {
         this.wrappedKey = wrappedKey;
@@ -64,13 +62,16 @@ public class ReferenceEqualityKey<K> {
      *
      * @return the int
      */
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.Object#hashCode()
      */
     @Override
     public int hashCode() {
-        final K key = wrappedKey;
-        // Don't call key.hashCode(), because that can be an expensive (deep) hashing method,
+        final var key = wrappedKey;
+        // Don't call key.hashCode(), because that can be an expensive (deep) hashing
+        // method,
         // e.g. for ByteBuffer, it is based on the entire contents of the buffer
         return key == null ? 0 : System.identityHashCode(key);
     }
@@ -78,11 +79,12 @@ public class ReferenceEqualityKey<K> {
     /**
      * Equals.
      *
-     * @param obj
-     *            the obj
+     * @param obj the obj
      * @return true, if successful
      */
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
@@ -101,12 +103,14 @@ public class ReferenceEqualityKey<K> {
      *
      * @return the string
      */
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.Object#toString()
      */
     @Override
     public String toString() {
-        final K key = wrappedKey;
+        final var key = wrappedKey;
         return key == null ? "null" : key.toString();
     }
 }

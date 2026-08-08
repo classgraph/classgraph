@@ -5,24 +5,27 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tests for {@link FileUtils#sanitizeEntryPath(String, boolean, boolean)}: {@code "."} and {@code ".."} segments and
- * empty segments must be normalized away, wherever they appear in the path -- including as the final segment, where
- * they are not followed by a separator.
+ * Tests for {@link FileUtils#sanitizeEntryPath(String, boolean, boolean)}:
+ * {@code "."} and {@code ".."} segments and empty segments must be normalized
+ * away, wherever they appear in the path -- including as the final segment,
+ * where they are not followed by a separator.
  */
 public class FileUtilsSanitizeEntryPathTest {
     /**
-     * Sanitize a path, without stripping leading or trailing slashes, so that the normalization itself is what is
-     * under test.
+     * Sanitize a path, without stripping leading or trailing slashes, so that the
+     * normalization itself is what is under test.
      *
-     * @param path
-     *            the path to sanitize
+     * @param path the path to sanitize
      * @return the sanitized path
      */
     private static String sanitize(final String path) {
         return FileUtils.sanitizeEntryPath(path, /* removeInitialSlash = */ false, /* removeFinalSlash = */ false);
     }
 
-    /** A {@code "."} or {@code ".."} segment in the middle of a path is normalized away. */
+    /**
+     * A {@code "."} or {@code ".."} segment in the middle of a path is normalized
+     * away.
+     */
     @Test
     public void dotSegmentsInMiddleOfPathAreNormalized() {
         assertThat(sanitize("./a")).isEqualTo("a");
@@ -32,8 +35,9 @@ public class FileUtilsSanitizeEntryPathTest {
     }
 
     /**
-     * A trailing {@code "."} or {@code ".."} segment is normalized away too. These are not followed by a separator,
-     * so a detector that only looks for the substrings {@code "./"} and {@code ".!"} misses them entirely.
+     * A trailing {@code "."} or {@code ".."} segment is normalized away too. These
+     * are not followed by a separator, so a detector that only looks for the
+     * substrings {@code "./"} and {@code ".!"} misses them entirely.
      */
     @Test
     public void trailingDotSegmentsAreNormalized() {
@@ -51,7 +55,10 @@ public class FileUtilsSanitizeEntryPathTest {
         assertThat(sanitize("a/../../b")).isEqualTo("b");
     }
 
-    /** A nested jar separator {@code '!'} starts a new hierarchy root, which {@code ".."} may not escape. */
+    /**
+     * A nested jar separator {@code '!'} starts a new hierarchy root, which
+     * {@code ".."} may not escape.
+     */
     @Test
     public void dotDotCannotEscapePrecedingNestedJarSeparator() {
         assertThat(sanitize("x.jar!/a/..")).isEqualTo("x.jar!");
@@ -59,8 +66,9 @@ public class FileUtilsSanitizeEntryPathTest {
     }
 
     /**
-     * More {@code ".."} segments than there are preceding segments to consume must not escape the top of the
-     * hierarchy: the excess is simply discarded, and no {@code ".."} is ever emitted into the result.
+     * More {@code ".."} segments than there are preceding segments to consume must
+     * not escape the top of the hierarchy: the excess is simply discarded, and no
+     * {@code ".."} is ever emitted into the result.
      */
     @Test
     public void excessDotDotSegmentsCannotEscapeRoot() {
@@ -73,8 +81,9 @@ public class FileUtilsSanitizeEntryPathTest {
     }
 
     /**
-     * A path that normalizes away to nothing but slashes must not throw when both the initial and the final slash
-     * are to be removed -- the leading-slash index must not be left pointing past the truncated buffer.
+     * A path that normalizes away to nothing but slashes must not throw when both
+     * the initial and the final slash are to be removed -- the leading-slash index
+     * must not be left pointing past the truncated buffer.
      */
     @Test
     public void pathNormalizingToRootDoesNotThrowWhenStrippingBothSlashes() {
@@ -92,8 +101,9 @@ public class FileUtilsSanitizeEntryPathTest {
     }
 
     /**
-     * A {@code '.'} that does not form a complete segment is an ordinary filename character, so paths containing one
-     * must be returned unchanged -- in particular, a trailing slash must be preserved, since normalizing would drop
+     * A {@code '.'} that does not form a complete segment is an ordinary filename
+     * character, so paths containing one must be returned unchanged -- in
+     * particular, a trailing slash must be preserved, since normalizing would drop
      * it along with the empty final segment.
      */
     @Test

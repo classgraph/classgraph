@@ -45,18 +45,22 @@ class FieldTypeInfo {
     final Field field;
 
     /**
-     * The type of the field after any concrete type arguments of a specific subclass have been substituted into
-     * type parameter variables. There may still be type variables present, if the subclass itself has unresolved
-     * type variables.
+     * The type of the field after any concrete type arguments of a specific
+     * subclass have been substituted into type parameter variables. There may still
+     * be type variables present, if the subclass itself has unresolved type
+     * variables.
      */
     private final Type fieldTypePartiallyResolved;
 
-    /** True if the field still has unresolved type variables from the defining subclass. */
+    /**
+     * True if the field still has unresolved type variables from the defining
+     * subclass.
+     */
     private final boolean hasUnresolvedTypeVariables;
 
     /**
-     * If the type of this field is a type variable, it could be any type, so we need to defer getting and caching
-     * the constructor in this case.
+     * If the type of this field is a type variable, it could be any type, so we
+     * need to defer getting and caching the constructor in this case.
      */
     private final boolean isTypeVariable;
 
@@ -64,14 +68,14 @@ class FieldTypeInfo {
     private final PrimitiveType primitiveType;
 
     /**
-     * The constructor with int-valued size hint for the type of the field, or null if this is not a Collection or
-     * Map.
+     * The constructor with int-valued size hint for the type of the field, or null
+     * if this is not a Collection or Map.
      */
     private Constructor<?> constructorForFieldTypeWithSizeHint;
 
     /**
-     * The default (no-arg) constructor for the type of the field, or null if this is a primitive field, or if
-     * intConstructorForFieldType is non-null.
+     * The default (no-arg) constructor for the type of the field, or null if this
+     * is a primitive field, or if intConstructorForFieldType is non-null.
      */
     private Constructor<?> defaultConstructorForFieldType;
 
@@ -104,8 +108,7 @@ class FieldTypeInfo {
     /**
      * Check if the type has type variables.
      *
-     * @param type
-     *            the type
+     * @param type the type
      * @return true if the type has type variables.
      */
     private static boolean hasTypeVariables(final Type type) {
@@ -124,12 +127,9 @@ class FieldTypeInfo {
     /**
      * Constructor.
      *
-     * @param field
-     *            the field
-     * @param fieldTypePartiallyResolved
-     *            the field type, partially resolved
-     * @param classFieldCache
-     *            the class field cache
+     * @param field                      the field
+     * @param fieldTypePartiallyResolved the field type, partially resolved
+     * @param classFieldCache            the class field cache
      */
     public FieldTypeInfo(final Field field, final Type fieldTypePartiallyResolved,
             final ClassFieldCache classFieldCache) {
@@ -138,7 +138,7 @@ class FieldTypeInfo {
         this.isTypeVariable = fieldTypePartiallyResolved instanceof TypeVariable<?>;
         this.hasUnresolvedTypeVariables = isTypeVariable || hasTypeVariables(fieldTypePartiallyResolved);
 
-        final boolean isArray = fieldTypePartiallyResolved instanceof GenericArrayType
+        final var isArray = fieldTypePartiallyResolved instanceof GenericArrayType
                 || (fieldTypePartiallyResolved instanceof final Class<?> fieldClass && fieldClass.isArray());
 
         if (isArray || isTypeVariable) {
@@ -167,7 +167,8 @@ class FieldTypeInfo {
             } else {
                 this.primitiveType = PrimitiveType.NON_PRIMITIVE;
             }
-            // Get default constructor for field type, if field is not of basic type, and not an array, and not
+            // Get default constructor for field type, if field is not of basic type, and
+            // not an array, and not
             // a type variable
             if (!JSONUtils.isBasicValueType(fieldRawType)) {
                 if (Collection.class.isAssignableFrom(fieldRawType) || Map.class.isAssignableFrom(fieldRawType)) {
@@ -185,10 +186,8 @@ class FieldTypeInfo {
     /**
      * Get the constructor with size hint for the field type.
      *
-     * @param fieldTypeFullyResolved
-     *            the field type
-     * @param classFieldCache
-     *            the class field cache
+     * @param fieldTypeFullyResolved the field type
+     * @param classFieldCache        the class field cache
      * @return the constructor with size hint for the field type
      */
     public Constructor<?> getConstructorForFieldTypeWithSizeHint(final Type fieldTypeFullyResolved,
@@ -210,10 +209,8 @@ class FieldTypeInfo {
     /**
      * Get the default constructor for the field type.
      *
-     * @param fieldTypeFullyResolved
-     *            the field type
-     * @param classFieldCache
-     *            the class field cache
+     * @param fieldTypeFullyResolved the field type
+     * @param classFieldCache        the class field cache
      * @return the default constructor for the field type
      */
     public Constructor<?> getDefaultConstructorForFieldType(final Type fieldTypeFullyResolved,
@@ -229,33 +226,34 @@ class FieldTypeInfo {
     /**
      * Get the fully resolved field type.
      *
-     * @param typeResolutions
-     *            the type resolutions
+     * @param typeResolutions the type resolutions
      * @return the fully resolved field type
      */
     public Type getFullyResolvedFieldType(final TypeResolutions typeResolutions) {
         if (!hasUnresolvedTypeVariables) {
-            // Fast path -- don't try to resolve type variables if there aren't any to resolve
+            // Fast path -- don't try to resolve type variables if there aren't any to
+            // resolve
             return fieldTypePartiallyResolved;
         }
         // Resolve any remaining type variables using type resolutions
-        // (N.B. I tried caching this type resolution process using a HashMap, but it was a bit slower
-        // than this uncached version, because type resolution is relatively fast in most cases.)
+        // (N.B. I tried caching this type resolution process using a HashMap, but it
+        // was a bit slower
+        // than this uncached version, because type resolution is relatively fast in
+        // most cases.)
         return typeResolutions.resolveTypeVariables(fieldTypePartiallyResolved);
     }
 
     /**
      * Set the field's value, appropriately handling primitive-typed fields.
      *
-     * @param containingObj
-     *            the containing object
-     * @param value
-     *            the field value
+     * @param containingObj the containing object
+     * @param value         the field value
      */
     void setFieldValue(final Object containingObj, final Object value) {
         try {
             if (value == null) {
-                // CLASS_REF is a reference type, not a primitive type -- it is only listed in PrimitiveType so
+                // CLASS_REF is a reference type, not a primitive type -- it is only listed in
+                // PrimitiveType so
                 // that setFieldValue can type-check it, so null is a legal value for it
                 if (primitiveType != PrimitiveType.NON_PRIMITIVE && primitiveType != PrimitiveType.CLASS_REF) {
                     throw new IllegalArgumentException("Tried to set primitive-typed field "
@@ -337,7 +335,9 @@ class FieldTypeInfo {
         }
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.Object#toString()
      */
     @Override

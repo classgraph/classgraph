@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.ByteBuffer;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
@@ -15,7 +14,6 @@ import org.junit.jupiter.api.function.Executable;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.Resource;
 import io.github.classgraph.ResourceList;
-import io.github.classgraph.ScanResult;
 
 class Issue600Test {
     private static final int BUFFER_SIZE = 8192;
@@ -26,8 +24,8 @@ class Issue600Test {
 
     @Test
     void testResourcesCanBeOpened() {
-        try (ScanResult scanResult = classGraph.scan()) {
-            final ResourceList resources = scanResult.getAllResources();
+        try (var scanResult = classGraph.scan()) {
+            final var resources = scanResult.getAllResources();
             assertFalse(resources.isEmpty(), "Test is meaningless without resources to open.");
 
             // Check we can open the resources.
@@ -40,8 +38,8 @@ class Issue600Test {
 
     @Test
     void testResourcesCanBeRead() {
-        try (ScanResult scanResult = classGraph.scan()) {
-            final ResourceList resources = scanResult.getAllResources();
+        try (var scanResult = classGraph.scan()) {
+            final var resources = scanResult.getAllResources();
             assertFalse(resources.isEmpty(), "Test is meaningless without resources to open.");
 
             // Check we can read the resources.
@@ -54,20 +52,17 @@ class Issue600Test {
 
     private void assertOpenCloseResources(final ResourceList resources) {
         for (final Resource resource : resources) {
-            assertDoesNotThrow(new Executable() {
-                @Override
-                public void execute() throws Throwable {
-                    try (InputStream input = resource.open()) {
-                        assertThat(consume(input)).isGreaterThan(0);
-                    }
+            assertDoesNotThrow((Executable) () -> {
+                try (var input = resource.open()) {
+                    assertThat(consume(input)).isGreaterThan(0);
                 }
             }, "Resource " + resource.getPath() + " should be closed.");
         }
     }
 
     private int consume(final InputStream input) throws IOException {
-        final byte[] buffer = new byte[BUFFER_SIZE];
-        int totalBytes = 0;
+        final var buffer = new byte[BUFFER_SIZE];
+        var totalBytes = 0;
         int bytesRead;
         while ((bytesRead = input.read(buffer)) != EOF) {
             totalBytes += bytesRead;
@@ -77,15 +72,12 @@ class Issue600Test {
 
     private void assertReadCloseResources(final ResourceList resources) {
         for (final Resource resource : resources) {
-            assertDoesNotThrow(new Executable() {
-                @Override
-                public void execute() throws Throwable {
-                    final ByteBuffer buffer = resource.read();
-                    try {
-                        assertTrue(buffer.hasRemaining());
-                    } finally {
-                        resource.close();
-                    }
+            assertDoesNotThrow((Executable) () -> {
+                final var buffer = resource.read();
+                try {
+                    assertTrue(buffer.hasRemaining());
+                } finally {
+                    resource.close();
                 }
             }, "Resource " + resource.getPath() + " should be closed.");
         }
@@ -94,7 +86,6 @@ class Issue600Test {
     public interface Api {
     }
 
-    @SuppressWarnings("unused")
     public static class Example implements Api {
     }
 }

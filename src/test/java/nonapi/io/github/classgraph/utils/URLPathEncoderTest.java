@@ -10,7 +10,8 @@ import org.junit.jupiter.api.Test;
  * Tests for {@link URLPathEncoder#normalizeURLPath(String)}.
  *
  * <p>
- * All the paths used here are free of Windows drive letters, so the expected results are the same on every platform.
+ * All the paths used here are free of Windows drive letters, so the expected
+ * results are the same on every platform.
  */
 public class URLPathEncoderTest {
     /** A bare absolute path is turned into a "file://" URL. */
@@ -20,16 +21,20 @@ public class URLPathEncoderTest {
     }
 
     /**
-     * A path that already carries a "file:" prefix must have all five characters of that prefix stripped before the
-     * canonical prefix is added back. Stripping only four left the ':' behind, which was then percent-encoded,
-     * producing "file:%3a/tmp/x.jar".
+     * A path that already carries a "file:" prefix must have all five characters of
+     * that prefix stripped before the canonical prefix is added back. Stripping
+     * only four left the ':' behind, which was then percent-encoded, producing
+     * "file:%3a/tmp/x.jar".
      */
     @Test
     public void fileSchemePrefixIsStrippedInFull() {
         assertThat(URLPathEncoder.normalizeURLPath("file:/tmp/x.jar")).isEqualTo("file:///tmp/x.jar");
     }
 
-    /** "file://" and "file:///" carry an empty authority, which must not accumulate extra slashes. */
+    /**
+     * "file://" and "file:///" carry an empty authority, which must not accumulate
+     * extra slashes.
+     */
     @Test
     public void emptyAuthorityDoesNotAccumulateSlashes() {
         assertThat(URLPathEncoder.normalizeURLPath("file://tmp/x.jar")).isEqualTo("file:///tmp/x.jar");
@@ -43,7 +48,9 @@ public class URLPathEncoderTest {
         assertThat(URLPathEncoder.normalizeURLPath("jar:/tmp/x.jar")).isEqualTo("file:///tmp/x.jar");
     }
 
-    /** A path containing a nested jar separator gets the "jar:" prefix added back. */
+    /**
+     * A path containing a nested jar separator gets the "jar:" prefix added back.
+     */
     @Test
     public void nestedJarPathsGetJarPrefix() {
         assertThat(URLPathEncoder.normalizeURLPath("/tmp/x.jar!/BOOT-INF/classes"))
@@ -56,15 +63,14 @@ public class URLPathEncoderTest {
     @Test
     public void nonFileSchemesArePassedThrough() {
         assertThat(URLPathEncoder.normalizeURLPath("jrt:/java.base")).isEqualTo("jrt:/java.base");
-        assertThat(URLPathEncoder.normalizeURLPath("http://example.com/x.jar"))
-                .isEqualTo("http://example.com/x.jar");
-        assertThat(URLPathEncoder.normalizeURLPath("https://example.com/x.jar"))
-                .isEqualTo("https://example.com/x.jar");
+        assertThat(URLPathEncoder.normalizeURLPath("http://example.com/x.jar")).isEqualTo("http://example.com/x.jar");
+        assertThat(URLPathEncoder.normalizeURLPath("https://example.com/x.jar")).isEqualTo("https://example.com/x.jar");
     }
 
     /**
-     * The whole point of normalizing is to produce something the {@link URI} constructor accepts, so check that the
-     * result parses and keeps the path intact. {@code ClasspathElementZip#getURI()} throws if this fails.
+     * The whole point of normalizing is to produce something the {@link URI}
+     * constructor accepts, so check that the result parses and keeps the path
+     * intact. {@code ClasspathElementZip#getURI()} throws if this fails.
      */
     @Test
     public void normalizedPathsParseAsURIs() throws Exception {

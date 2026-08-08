@@ -32,15 +32,17 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
-/** An {@link InputStream} that delegates every method to a wrapped {@link InputStream}. */
+/**
+ * An {@link InputStream} that delegates every method to a wrapped
+ * {@link InputStream}.
+ */
 public class ProxyingInputStream extends InputStream {
     private InputStream inputStream;
 
     /**
      * Constructor.
      *
-     * @param inputStream
-     *            the {@link InputStream} to wrap.
+     * @param inputStream the {@link InputStream} to wrap.
      */
     public ProxyingInputStream(final InputStream inputStream) {
         this.inputStream = inputStream;

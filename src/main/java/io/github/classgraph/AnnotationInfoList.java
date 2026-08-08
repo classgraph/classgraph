@@ -44,9 +44,9 @@ import nonapi.io.github.classgraph.utils.LogNode;
 /** A list of {@link AnnotationInfo} objects. */
 public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     /**
-     * The set of annotations directly related to a class or method and not inherited through a meta-annotated
-     * annotation. This field is nullable, as the annotation info list is incrementally built. See
-     * {@link #directOnly()}.
+     * The set of annotations directly related to a class or method and not
+     * inherited through a meta-annotated annotation. This field is nullable, as the
+     * annotation info list is incrementally built. See {@link #directOnly()}.
      */
     private AnnotationInfoList directlyRelatedAnnotations;
 
@@ -76,21 +76,20 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     }
 
     /**
-     * Construct a new modifiable empty list of {@link AnnotationInfo} objects, given a size hint.
+     * Construct a new modifiable empty list of {@link AnnotationInfo} objects,
+     * given a size hint.
      *
-     * @param sizeHint
-     *            the size hint
+     * @param sizeHint the size hint
      */
     public AnnotationInfoList(final int sizeHint) {
         super(sizeHint);
     }
 
     /**
-     * Construct a new modifiable empty {@link AnnotationInfoList}, given an initial list of {@link AnnotationInfo}
-     * objects.
+     * Construct a new modifiable empty {@link AnnotationInfoList}, given an initial
+     * list of {@link AnnotationInfo} objects.
      *
-     * @param reachableAnnotations
-     *            the reachable annotations
+     * @param reachableAnnotations the reachable annotations
      */
     public AnnotationInfoList(final AnnotationInfoList reachableAnnotations) {
         // If only reachable annotations are given, treat all of them as direct
@@ -100,10 +99,8 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     /**
      * Constructor.
      *
-     * @param reachableAnnotations
-     *            the reachable annotations
-     * @param directlyRelatedAnnotations
-     *            the directly related annotations
+     * @param reachableAnnotations       the reachable annotations
+     * @param directlyRelatedAnnotations the directly related annotations
      */
     AnnotationInfoList(final AnnotationInfoList reachableAnnotations,
             final AnnotationInfoList directlyRelatedAnnotations) {
@@ -114,30 +111,31 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Filter an {@link AnnotationInfoList} using a predicate mapping an {@link AnnotationInfo} object to a boolean,
-     * producing another {@link AnnotationInfoList} for all items in the list for which the predicate is true.
+     * Filter an {@link AnnotationInfoList} using a predicate mapping an
+     * {@link AnnotationInfo} object to a boolean, producing another
+     * {@link AnnotationInfoList} for all items in the list for which the predicate
+     * is true.
      */
     @FunctionalInterface
     public interface AnnotationInfoFilter {
         /**
-         * Whether or not to allow an {@link AnnotationInfo} list item through the filter.
+         * Whether or not to allow an {@link AnnotationInfo} list item through the
+         * filter.
          *
-         * @param annotationInfo
-         *            The {@link AnnotationInfo} item to filter.
-         * @return Whether or not to allow the item through the filter. If true, the item is copied to the output
-         *         list; if false, it is excluded.
+         * @param annotationInfo The {@link AnnotationInfo} item to filter.
+         * @return Whether or not to allow the item through the filter. If true, the
+         *         item is copied to the output list; if false, it is excluded.
          */
         boolean accept(AnnotationInfo annotationInfo);
     }
 
     /**
-     * Find the subset of the {@link AnnotationInfo} objects in this list for which the given filter predicate is
-     * true.
+     * Find the subset of the {@link AnnotationInfo} objects in this list for which
+     * the given filter predicate is true.
      *
-     * @param filter
-     *            The {@link AnnotationInfoFilter} to apply.
-     * @return The subset of the {@link AnnotationInfo} objects in this list for which the given filter predicate is
-     *         true.
+     * @param filter The {@link AnnotationInfoFilter} to apply.
+     * @return The subset of the {@link AnnotationInfo} objects in this list for
+     *         which the given filter predicate is true.
      */
     public AnnotationInfoList filter(final AnnotationInfoFilter filter) {
         final AnnotationInfoList annotationInfoFiltered = new AnnotationInfoList();
@@ -154,12 +152,9 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     /**
      * Get {@link ClassInfo} objects for any classes referenced in this list.
      *
-     * @param classNameToClassInfo
-     *            the map from class name to {@link ClassInfo}.
-     * @param refdClassInfo
-     *            the referenced class info
-     * @param log
-     *            the log
+     * @param classNameToClassInfo the map from class name to {@link ClassInfo}.
+     * @param refdClassInfo        the referenced class info
+     * @param log                  the log
      */
     protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
             final Set<ClassInfo> refdClassInfo, final LogNode log) {
@@ -173,23 +168,21 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     /**
      * Handle {@link Repeatable} annotations.
      *
-     * @param allRepeatableAnnotationNames
-     *            the names of all repeatable annotations
-     * @param containingClassInfo
-     *            the containing class
-     * @param forwardRelType
-     *            the forward relationship type for linking (or null for none)
-     * @param reverseRelType0
-     *            the first reverse relationship type for linking (or null for none)
-     * @param reverseRelType1
-     *            the second reverse relationship type for linking (or null for none)
+     * @param allRepeatableAnnotationNames the names of all repeatable annotations
+     * @param containingClassInfo          the containing class
+     * @param forwardRelType               the forward relationship type for linking
+     *                                     (or null for none)
+     * @param reverseRelType0              the first reverse relationship type for
+     *                                     linking (or null for none)
+     * @param reverseRelType1              the second reverse relationship type for
+     *                                     linking (or null for none)
      */
     void handleRepeatableAnnotations(final Set<String> allRepeatableAnnotationNames,
             final ClassInfo containingClassInfo, final RelType forwardRelType, final RelType reverseRelType0,
             final RelType reverseRelType1) {
         List<AnnotationInfo> repeatableAnnotations = null;
-        for (int i = size() - 1; i >= 0; --i) {
-            final AnnotationInfo ai = get(i);
+        for (var i = size() - 1; i >= 0; --i) {
+            final var ai = get(i);
             if (allRepeatableAnnotationNames.contains(ai.getName())) {
                 if (repeatableAnnotations == null) {
                     repeatableAnnotations = new ArrayList<>();
@@ -199,33 +192,31 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
                 remove(i);
             }
         }
-        // Add the component annotations in each of the parameters of the repeatable annotation
+        // Add the component annotations in each of the parameters of the repeatable
+        // annotation
         if (repeatableAnnotations != null) {
             for (final AnnotationInfo repeatableAnnotation : repeatableAnnotations) {
-                final AnnotationParameterValueList values = repeatableAnnotation.getParameterValues();
+                final var values = repeatableAnnotation.getParameterValues();
                 if (!values.isEmpty()) {
-                    final AnnotationParameterValue apv = values.get("value");
+                    final var apv = values.get("value");
                     if (apv != null) {
-                        final Object arr = apv.getValue();
-                        if (arr instanceof Object[]) {
-                            for (final Object value : (Object[]) arr) {
-                                if (value instanceof AnnotationInfo) {
-                                    final AnnotationInfo ai = (AnnotationInfo) value;
+                        final var arr = apv.getValue();
+                        if (arr instanceof final Object[] arrValues) {
+                            for (final Object value : arrValues) {
+                                if (value instanceof final AnnotationInfo ai) {
                                     add(ai);
 
                                     // Link annotation, if necessary
                                     if (forwardRelType != null
                                             && (reverseRelType0 != null || reverseRelType1 != null)) {
-                                        final ClassInfo annotationClass = ai.getClassInfo();
+                                        final var annotationClass = ai.getClassInfo();
                                         if (annotationClass != null) {
                                             containingClassInfo.addRelatedClass(forwardRelType, annotationClass);
                                             if (reverseRelType0 != null) {
-                                                annotationClass.addRelatedClass(reverseRelType0,
-                                                        containingClassInfo);
+                                                annotationClass.addRelatedClass(reverseRelType0, containingClassInfo);
                                             }
                                             if (reverseRelType1 != null) {
-                                                annotationClass.addRelatedClass(reverseRelType1,
-                                                        containingClassInfo);
+                                                annotationClass.addRelatedClass(reverseRelType1, containingClassInfo);
                                             }
                                         }
                                     }
@@ -243,23 +234,22 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     /**
      * Find the transitive closure of meta-annotations.
      *
-     * @param ai
-     *            the annotationInfo object
-     * @param allAnnotationsOut
-     *            annotations out
-     * @param visited
-     *            visited
+     * @param ai                the annotationInfo object
+     * @param allAnnotationsOut annotations out
+     * @param visited           visited
      */
     private static void findMetaAnnotations(final AnnotationInfo ai, final AnnotationInfoList allAnnotationsOut,
             final Set<ClassInfo> visited) {
-        final ClassInfo annotationClassInfo = ai.getClassInfo();
+        final var annotationClassInfo = ai.getClassInfo();
         if (annotationClassInfo != null && annotationClassInfo.annotationInfo != null
         // Don't get in a cycle
                 && visited.add(annotationClassInfo)) {
             for (final AnnotationInfo metaAnnotationInfo : annotationClassInfo.annotationInfo) {
-                // N.B. read the class name from the AnnotationInfo rather than from its ClassInfo, since
-                // ClassInfo is null if the meta-annotation's class was not encountered during the scan
-                final String metaAnnotationClassName = metaAnnotationInfo.getName();
+                // N.B. read the class name from the AnnotationInfo rather than from its
+                // ClassInfo, since
+                // ClassInfo is null if the meta-annotation's class was not encountered during
+                // the scan
+                final var metaAnnotationClassName = metaAnnotationInfo.getName();
                 // Don't treat java.lang.annotation annotations as meta-annotations
                 if (!metaAnnotationClassName.startsWith("java.lang.annotation.")) {
                     // Add the meta-annotation to the transitive closure
@@ -272,12 +262,13 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     }
 
     /**
-     * Get the indirect annotations on a class (meta-annotations and/or inherited annotations).
+     * Get the indirect annotations on a class (meta-annotations and/or inherited
+     * annotations).
      *
-     * @param directAnnotationInfo
-     *            the direct annotations on the class, method, method parameter or field.
-     * @param annotatedClass
-     *            for class annotations, this is the annotated class, else null.
+     * @param directAnnotationInfo the direct annotations on the class, method,
+     *                             method parameter or field.
+     * @param annotatedClass       for class annotations, this is the annotated
+     *                             class, else null.
      * @return the indirect annotations
      */
     static AnnotationInfoList getIndirectAnnotations(final AnnotationInfoList directAnnotationInfo,
@@ -316,8 +307,7 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
             }
         }
         // Return sorted annotation list
-        final AnnotationInfoList directAnnotationInfoSorted = directAnnotationInfo == null
-                ? AnnotationInfoList.EMPTY_LIST
+        final var directAnnotationInfoSorted = directAnnotationInfo == null ? AnnotationInfoList.EMPTY_LIST
                 : new AnnotationInfoList(directAnnotationInfo);
         CollectionUtils.sortIfNotEmpty(directAnnotationInfoSorted);
         final AnnotationInfoList annotationInfoList = new AnnotationInfoList(reachableAnnotationInfo,
@@ -329,16 +319,20 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * returns the list of direct annotations, excluding meta-annotations. If this {@link AnnotationInfoList}
-     * consists of class annotations, i.e. if it was produced using `ClassInfo#getAnnotationInfo()`, then the
-     * returned list also excludes annotations inherited from a superclass or implemented interface that was
-     * meta-annotated with {@link java.lang.annotation.Inherited @Inherited}.
+     * returns the list of direct annotations, excluding meta-annotations. If this
+     * {@link AnnotationInfoList} consists of class annotations, i.e. if it was
+     * produced using `ClassInfo#getAnnotationInfo()`, then the returned list also
+     * excludes annotations inherited from a superclass or implemented interface
+     * that was meta-annotated with
+     * {@link java.lang.annotation.Inherited @Inherited}.
      *
      * @return The list of directly-related annotations.
      */
     public AnnotationInfoList directOnly() {
-        // If directlyRelatedAnnotations == null, this is already a list of direct annotations (the list of
-        // AnnotationInfo objects created when the classfile is read). Otherwise return a new list consisting
+        // If directlyRelatedAnnotations == null, this is already a list of direct
+        // annotations (the list of
+        // AnnotationInfo objects created when the classfile is read). Otherwise return
+        // a new list consisting
         // of only the direct annotations.
         return this.directlyRelatedAnnotations == null ? this
                 // Make .directOnly() idempotent
@@ -348,11 +342,12 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the {@link Repeatable} annotation with the given class, or the empty list if none found.
+     * Get the {@link Repeatable} annotation with the given class, or the empty list
+     * if none found.
      *
-     * @param annotationClass
-     *            The class to search for.
-     * @return The list of annotations with the given class, or the empty list if none found.
+     * @param annotationClass The class to search for.
+     * @return The list of annotations with the given class, or the empty list if
+     *         none found.
      */
     public AnnotationInfoList getRepeatable(final Class<? extends Annotation> annotationClass) {
         Assert.isAnnotation(annotationClass);
@@ -360,14 +355,15 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     }
 
     /**
-     * Get the {@link Repeatable} annotation with the given name, or the empty list if none found.
+     * Get the {@link Repeatable} annotation with the given name, or the empty list
+     * if none found.
      *
-     * @param name
-     *            The name to search for.
-     * @return The list of annotations with the given name, or the empty list if none found.
+     * @param name The name to search for.
+     * @return The list of annotations with the given name, or the empty list if
+     *         none found.
      */
     public AnnotationInfoList getRepeatable(final String name) {
-        boolean hasNamedAnnotation = false;
+        var hasNamedAnnotation = false;
         for (final AnnotationInfo ai : this) {
             if (ai.getName().equals(name)) {
                 hasNamedAnnotation = true;
@@ -388,18 +384,18 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.util.ArrayList#equals(java.lang.Object)
      */
     @Override
     public boolean equals(final Object obj) {
         if (this == obj) {
             return true;
-        } else if (!(obj instanceof AnnotationInfoList)) {
-            return false;
         }
-        final AnnotationInfoList other = (AnnotationInfoList) obj;
-        if ((directlyRelatedAnnotations == null) != (other.directlyRelatedAnnotations == null)) {
+        if (!(obj instanceof final AnnotationInfoList other)
+                || ((directlyRelatedAnnotations == null) != (other.directlyRelatedAnnotations == null))) {
             return false;
         }
         if (directlyRelatedAnnotations == null) {
@@ -408,7 +404,9 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
         return super.equals(other) && directlyRelatedAnnotations.equals(other.directlyRelatedAnnotations);
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.util.ArrayList#hashCode()
      */
     @Override

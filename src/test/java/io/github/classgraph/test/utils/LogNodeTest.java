@@ -35,21 +35,21 @@ public class LogNodeTest {
     @Test
     public void testLogNodeLoggingToSystemErr() {
         // Set the System.err
-        final ByteArrayOutputStream err = new ByteArrayOutputStream();
+        final var err = new ByteArrayOutputStream();
         System.setErr(new PrintStream(err));
 
         errPrintStreamHandler = new ConsoleHandler();
         errPrintStreamHandler.setLevel(Level.INFO);
         rootLogger.addHandler(errPrintStreamHandler);
 
-        final LogNode node = new LogNode();
+        final var node = new LogNode();
         node.log("any logging message").log("child message").log("sub child message");
         node.log("another root");
         node.flush();
 
-        final Logger log = Logger.getLogger(ClassGraph.class.getName());
+        final var log = Logger.getLogger(ClassGraph.class.getName());
         if (log.isLoggable(Level.INFO)) {
-            final String systemErrMessages = new String(err.toByteArray());
+            final var systemErrMessages = new String(err.toByteArray());
             assertTrue(systemErrMessages.contains("any logging message"));
             assertTrue(systemErrMessages.contains("-- child message"));
             assertTrue(systemErrMessages.contains("---- sub child message"));

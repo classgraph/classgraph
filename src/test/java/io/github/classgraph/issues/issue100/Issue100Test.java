@@ -39,7 +39,6 @@ import org.junit.jupiter.api.Test;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
 import io.github.classgraph.FieldInfo;
-import io.github.classgraph.ScanResult;
 
 /**
  * Issue100Test.
@@ -50,18 +49,19 @@ public class Issue100Test {
      */
     @Test
     public void issue100Test() {
-        final ClassLoader classLoader = Issue100Test.class.getClassLoader();
-        final String aJarName = "issue100-has-field-a.zip";
-        final URL aJarURL = classLoader.getResource(aJarName);
-        final String bJarName = "issue100-has-field-b.zip";
-        final URL bJarURL = classLoader.getResource(bJarName);
-        final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL, bJarURL });
+        final var classLoader = Issue100Test.class.getClassLoader();
+        final var aJarName = "issue100-has-field-a.zip";
+        final var aJarURL = classLoader.getResource(aJarName);
+        final var bJarName = "issue100-has-field-b.zip";
+        final var bJarURL = classLoader.getResource(bJarName);
+        final var overrideClassLoader = new URLClassLoader(new URL[] { aJarURL, bJarURL });
 
-        // Class issue100.Test with field "a" should mask class of same name with field "b", because "...a.jar" is
+        // Class issue100.Test with field "a" should mask class of same name with field
+        // "b", because "...a.jar" is
         // earlier in classpath than "...b.jar"
         final ArrayList<String> fieldNames1 = new ArrayList<>();
-        try (ScanResult scanResult = new ClassGraph().overrideClassLoaders(overrideClassLoader)
-                .acceptPackages("issue100").rejectJars(bJarName).enableFieldInfo().scan()) {
+        try (var scanResult = new ClassGraph().overrideClassLoaders(overrideClassLoader).acceptPackages("issue100")
+                .rejectJars(bJarName).enableFieldInfo().scan()) {
             for (final ClassInfo ci : scanResult.getAllClasses()) {
                 for (final FieldInfo f : ci.getFieldInfo()) {
                     fieldNames1.add(f.getName());
@@ -70,14 +70,18 @@ public class Issue100Test {
         }
         assertThat(fieldNames1).containsOnly("a");
 
-        // However, if "...b.jar" is specifically accepted, "...a.jar" should not be visible. Originally, the
-        // version of the class in "...a.jar" was supposed to mask the same class in "...b.jar" (#100). However,
-        // this resulted in a slowdown in scan time (#117). Since classloading behavior is undefined if you override
-        // the classpath (or in this case, the classloaders), we should only see field "b" in "...b.jar" (which is
+        // However, if "...b.jar" is specifically accepted, "...a.jar" should not be
+        // visible. Originally, the
+        // version of the class in "...a.jar" was supposed to mask the same class in
+        // "...b.jar" (#100). However,
+        // this resulted in a slowdown in scan time (#117). Since classloading behavior
+        // is undefined if you override
+        // the classpath (or in this case, the classloaders), we should only see field
+        // "b" in "...b.jar" (which is
         // what we actually see through scanning the accepted jar, "bJarName").
         final ArrayList<String> fieldNames2 = new ArrayList<>();
-        try (ScanResult scanResult = new ClassGraph().overrideClassLoaders(overrideClassLoader)
-                .acceptPackages("issue100").acceptJars(bJarName).enableFieldInfo().scan()) {
+        try (var scanResult = new ClassGraph().overrideClassLoaders(overrideClassLoader).acceptPackages("issue100")
+                .acceptJars(bJarName).enableFieldInfo().scan()) {
             for (final ClassInfo ci : scanResult.getAllClasses()) {
                 for (final FieldInfo f : ci.getFieldInfo()) {
                     fieldNames2.add(f.getName());

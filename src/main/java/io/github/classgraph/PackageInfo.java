@@ -46,12 +46,15 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
     private String name;
 
     /**
-     * Unique {@link AnnotationInfo} objects for any annotations on the package-info.class file, if present, else
-     * null.
+     * Unique {@link AnnotationInfo} objects for any annotations on the
+     * package-info.class file, if present, else null.
      */
     private Set<AnnotationInfo> annotationInfoSet;
 
-    /** {@link AnnotationInfo} for any annotations on the package-info.class file, if present, else null. */
+    /**
+     * {@link AnnotationInfo} for any annotations on the package-info.class file, if
+     * present, else null.
+     */
     private AnnotationInfoList annotationInfo;
 
     /** The parent package of this package. */
@@ -73,8 +76,7 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
     /**
      * Construct a PackageInfo object.
      *
-     * @param packageName
-     *            the package name
+     * @param packageName the package name
      */
     PackageInfo(final String packageName) {
         this.name = packageName;
@@ -95,8 +97,7 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
     /**
      * Add annotations found in a package descriptor classfile.
      *
-     * @param packageAnnotations
-     *            the package annotations
+     * @param packageAnnotations the package annotations
      */
     void addAnnotations(final AnnotationInfoList packageAnnotations) {
         // Add class annotations from the package-info.class file
@@ -109,11 +110,11 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
     }
 
     /**
-     * Merge a {@link ClassInfo} object for a package-info.class file into this PackageInfo. (The same
-     * package-info.class file may be present in multiple definitions of the package in different modules.)
+     * Merge a {@link ClassInfo} object for a package-info.class file into this
+     * PackageInfo. (The same package-info.class file may be present in multiple
+     * definitions of the package in different modules.)
      *
-     * @param classInfo
-     *            the {@link ClassInfo} object to add to the package.
+     * @param classInfo the {@link ClassInfo} object to add to the package.
      */
     void addClassInfo(final ClassInfo classInfo) {
         if (memberClassNameToClassInfo == null) {
@@ -133,12 +134,12 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
     }
 
     /**
-     * Get the annotation on this package, or null if the package does not have the annotation.
+     * Get the annotation on this package, or null if the package does not have the
+     * annotation.
      * 
-     * @param annotation
-     *            The annotation.
-     * @return An {@link AnnotationInfo} object representing the annotation on this package, or null if the package
-     *         does not have the annotation.
+     * @param annotation The annotation.
+     * @return An {@link AnnotationInfo} object representing the annotation on this
+     *         package, or null if the package does not have the annotation.
      */
     public AnnotationInfo getAnnotationInfo(final Class<? extends Annotation> annotation) {
         Assert.isAnnotation(annotation);
@@ -146,12 +147,13 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
     }
 
     /**
-     * Get the named annotation on this package, or null if the package does not have the named annotation.
+     * Get the named annotation on this package, or null if the package does not
+     * have the named annotation.
      *
-     * @param annotationName
-     *            The annotation name.
-     * @return An {@link AnnotationInfo} object representing the named annotation on this package, or null if the
-     *         package does not have the named annotation.
+     * @param annotationName The annotation name.
+     * @return An {@link AnnotationInfo} object representing the named annotation on
+     *         this package, or null if the package does not have the named
+     *         annotation.
      */
     public AnnotationInfo getAnnotationInfo(final String annotationName) {
         return getAnnotationInfo().get(annotationName);
@@ -177,8 +179,7 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
     /**
      * Check if the package has the annotation.
      *
-     * @param annotation
-     *            The annotation.
+     * @param annotation The annotation.
      * @return true if this package has the annotation.
      */
     public boolean hasAnnotation(final Class<? extends Annotation> annotation) {
@@ -189,8 +190,7 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
     /**
      * Check if the package has the named annotation.
      *
-     * @param annotationName
-     *            The name of an annotation.
+     * @param annotationName The name of an annotation.
      * @return true if this package has the named annotation.
      */
     public boolean hasAnnotation(final String annotationName) {
@@ -219,34 +219,30 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
         }
         final PackageInfoList childrenSorted = new PackageInfoList(children);
         // Ensure children are sorted
-        CollectionUtils.sortIfNotEmpty(childrenSorted, new Comparator<PackageInfo>() {
-            @Override
-            public int compare(final PackageInfo o1, final PackageInfo o2) {
-                return o1.name.compareTo(o2.name);
-            }
-        });
+        CollectionUtils.sortIfNotEmpty(childrenSorted, Comparator.comparing(o1 -> o1.name));
         return childrenSorted;
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the {@link ClassInfo} object for the named class in this package, or null if the class was not found in
-     * this package.
+     * Get the {@link ClassInfo} object for the named class in this package, or null
+     * if the class was not found in this package.
      *
-     * @param className
-     *            the class name
-     * @return the {@link ClassInfo} object for the named class in this package, or null if the class was not found
-     *         in this package.
+     * @param className the class name
+     * @return the {@link ClassInfo} object for the named class in this package, or
+     *         null if the class was not found in this package.
      */
     public ClassInfo getClassInfo(final String className) {
         return memberClassNameToClassInfo == null ? null : memberClassNameToClassInfo.get(className);
     }
 
     /**
-     * Get the {@link ClassInfo} objects for all classes that are members of this package.
+     * Get the {@link ClassInfo} objects for all classes that are members of this
+     * package.
      *
-     * @return the {@link ClassInfo} objects for all classes that are members of this package.
+     * @return the {@link ClassInfo} objects for all classes that are members of
+     *         this package.
      */
     public ClassInfoList getClassInfo() {
         return memberClassNameToClassInfo == null ? ClassInfoList.EMPTY_LIST
@@ -256,8 +252,7 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
     /**
      * Get the {@link ClassInfo} objects within this package recursively.
      *
-     * @param reachableClassInfo
-     *            the reachable class info
+     * @param reachableClassInfo the reachable class info
      */
     private void obtainClassInfoRecursive(final Set<ClassInfo> reachableClassInfo) {
         if (memberClassNameToClassInfo != null) {
@@ -269,9 +264,11 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
     }
 
     /**
-     * Get the {@link ClassInfo} objects for all classes that are members of this package or a sub-package.
+     * Get the {@link ClassInfo} objects for all classes that are members of this
+     * package or a sub-package.
      *
-     * @return the {@link ClassInfo} objects for all classes that are members of this package or a sub-package.
+     * @return the {@link ClassInfo} objects for all classes that are members of
+     *         this package or a sub-package.
      */
     public ClassInfoList getClassInfoRecursive() {
         final Set<ClassInfo> reachableClassInfo = new HashSet<>();
@@ -282,38 +279,35 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the name of the parent package of a parent, or the package of the named class.
+     * Get the name of the parent package of a parent, or the package of the named
+     * class.
      *
-     * @param packageOrClassName
-     *            The package or class name.
-     * @return the parent package, or the package of the named class, or null if packageOrClassName is the root
-     *         package ("").
+     * @param packageOrClassName The package or class name.
+     * @return the parent package, or the package of the named class, or null if
+     *         packageOrClassName is the root package ("").
      */
     static String getParentPackageName(final String packageOrClassName) {
         if (packageOrClassName.isEmpty()) {
             return null;
         }
-        final int lastDotIdx = packageOrClassName.lastIndexOf('.');
+        final var lastDotIdx = packageOrClassName.lastIndexOf('.');
         return lastDotIdx < 0 ? "" : packageOrClassName.substring(0, lastDotIdx);
     }
 
     /**
-     * Get the {@link PackageInfo} object for the named package, creating it if it doesn't exist, and also creating
-     * {@link PackageInfo} objects for any needed parent packages for which a {@link PackageInfo} has not yet been
-     * created.
+     * Get the {@link PackageInfo} object for the named package, creating it if it
+     * doesn't exist, and also creating {@link PackageInfo} objects for any needed
+     * parent packages for which a {@link PackageInfo} has not yet been created.
      *
-     * @param packageName
-     *            the package name
-     * @param packageNameToPackageInfo
-     *            a map from package name to package info
-     * @param scanSpec
-     *            the ScanSpec.
+     * @param packageName              the package name
+     * @param packageNameToPackageInfo a map from package name to package info
+     * @param scanSpec                 the ScanSpec.
      * @return the {@link PackageInfo} for the named package.
      */
     static PackageInfo getOrCreatePackage(final String packageName,
             final Map<String, PackageInfo> packageNameToPackageInfo, final ScanSpec scanSpec) {
         // Get or create PackageInfo object for this package
-        PackageInfo packageInfo = packageNameToPackageInfo.get(packageName);
+        var packageInfo = packageNameToPackageInfo.get(packageName);
         if (packageInfo != null) {
             // PackageInfo object already exists for this package
             return packageInfo;
@@ -324,13 +318,14 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
 
         // If this is not the root package ("")
         if (!packageName.isEmpty()) {
-            // Recursively create PackageInfo objects for parent packages (until a parent package that already
-            // exists or that is not accepted is reached), and connect each ancestral package to its parent
-            final String parentPackageName = getParentPackageName(packageInfo.name);
+            // Recursively create PackageInfo objects for parent packages (until a parent
+            // package that already
+            // exists or that is not accepted is reached), and connect each ancestral
+            // package to its parent
+            final var parentPackageName = getParentPackageName(packageInfo.name);
             if (scanSpec.packageAcceptReject.isAcceptedAndNotRejected(parentPackageName)
                     || scanSpec.packagePrefixAcceptReject.isAcceptedAndNotRejected(parentPackageName)) {
-                final PackageInfo parentPackageInfo = getOrCreatePackage(parentPackageName,
-                        packageNameToPackageInfo, scanSpec);
+                final var parentPackageInfo = getOrCreatePackage(parentPackageName, packageNameToPackageInfo, scanSpec);
                 if (parentPackageInfo != null) {
                     // Link package to parent
                     if (parentPackageInfo.children == null) {
@@ -348,7 +343,9 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.Comparable#compareTo(java.lang.Object)
      */
     @Override
@@ -356,7 +353,9 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
         return this.name.compareTo(o.name);
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.Object#hashCode()
      */
     @Override
@@ -364,20 +363,25 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
         return name.hashCode();
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
     public boolean equals(final Object obj) {
         if (obj == this) {
             return true;
-        } else if (!(obj instanceof PackageInfo)) {
+        }
+        if (!(obj instanceof final PackageInfo other)) {
             return false;
         }
-        return this.name.equals(((PackageInfo) obj).name);
+        return this.name.equals(other.name);
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.Object#toString()
      */
     @Override

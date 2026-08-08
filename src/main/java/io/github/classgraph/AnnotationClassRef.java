@@ -31,7 +31,8 @@ package io.github.classgraph;
 import nonapi.io.github.classgraph.types.ParseException;
 
 /**
- * Stores the type descriptor of a {@code Class<?>}, as found in an annotation parameter value.
+ * Stores the type descriptor of a {@code Class<?>}, as found in an annotation
+ * parameter value.
  */
 public class AnnotationClassRef extends ScanResultObject {
     /** The type descriptor str. */
@@ -53,8 +54,7 @@ public class AnnotationClassRef extends ScanResultObject {
     /**
      * Constructor.
      *
-     * @param typeDescriptorStr
-     *            the type descriptor str
+     * @param typeDescriptorStr the type descriptor str
      */
     AnnotationClassRef(final String typeDescriptorStr) {
         super();
@@ -75,14 +75,16 @@ public class AnnotationClassRef extends ScanResultObject {
     /**
      * Get the type signature.
      *
-     * @return The type signature of the {@code Class<?>} reference. This will be a {@link ClassRefTypeSignature}, a
-     *         {@link BaseTypeSignature}, or an {@link ArrayTypeSignature}.
+     * @return The type signature of the {@code Class<?>} reference. This will be a
+     *         {@link ClassRefTypeSignature}, a {@link BaseTypeSignature}, or an
+     *         {@link ArrayTypeSignature}.
      */
     private TypeSignature getTypeSignature() {
         if (typeSignature == null) {
             try {
                 // There can't be any type variables to resolve in ClassRefTypeSignature,
-                // BaseTypeSignature or ArrayTypeSignature, so just set definingClassName to null
+                // BaseTypeSignature or ArrayTypeSignature, so just set definingClassName to
+                // null
                 typeSignature = TypeSignature.parse(typeDescriptorStr, /* definingClassName = */ null);
                 typeSignature.setScanResult(scanResult);
             } catch (final ParseException e) {
@@ -93,19 +95,20 @@ public class AnnotationClassRef extends ScanResultObject {
     }
 
     /**
-     * Loads the referenced class, returning a {@code Class<?>} reference for the referenced class.
+     * Loads the referenced class, returning a {@code Class<?>} reference for the
+     * referenced class.
      * 
-     * @param ignoreExceptions
-     *            if true, ignore exceptions and instead return null if the class could not be loaded.
+     * @param ignoreExceptions if true, ignore exceptions and instead return null if
+     *                         the class could not be loaded.
      * @return The {@code Class<?>} reference for the referenced class.
-     * @throws IllegalArgumentException
-     *             if the class could not be loaded and ignoreExceptions was false.
+     * @throws IllegalArgumentException if the class could not be loaded and
+     *                                  ignoreExceptions was false.
      */
     @Override
     public Class<?> loadClass(final boolean ignoreExceptions) {
         getTypeSignature();
-        if (typeSignature instanceof BaseTypeSignature) {
-            return ((BaseTypeSignature) typeSignature).getType();
+        if (typeSignature instanceof final BaseTypeSignature baseTypeSignature) {
+            return baseTypeSignature.getType();
         } else if (typeSignature instanceof ClassRefTypeSignature) {
             return typeSignature.loadClass(ignoreExceptions);
         } else if (typeSignature instanceof ArrayTypeSignature) {
@@ -117,11 +120,11 @@ public class AnnotationClassRef extends ScanResultObject {
     }
 
     /**
-     * Loads the referenced class, returning a {@code Class<?>} reference for the referenced class.
+     * Loads the referenced class, returning a {@code Class<?>} reference for the
+     * referenced class.
      * 
      * @return The {@code Class<?>} reference for the referenced class.
-     * @throws IllegalArgumentException
-     *             if the class could not be loaded.
+     * @throws IllegalArgumentException if the class could not be loaded.
      */
     @Override
     public Class<?> loadClass() {
@@ -130,17 +133,19 @@ public class AnnotationClassRef extends ScanResultObject {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see io.github.classgraph.ScanResultObject#getClassName()
      */
     @Override
     protected String getClassName() {
         if (className == null) {
             getTypeSignature();
-            if (typeSignature instanceof BaseTypeSignature) {
-                className = ((BaseTypeSignature) typeSignature).getTypeStr();
-            } else if (typeSignature instanceof ClassRefTypeSignature) {
-                className = ((ClassRefTypeSignature) typeSignature).getFullyQualifiedClassName();
+            if (typeSignature instanceof final BaseTypeSignature baseTypeSignature) {
+                className = baseTypeSignature.getTypeStr();
+            } else if (typeSignature instanceof final ClassRefTypeSignature classRefTypeSignature) {
+                className = classRefTypeSignature.getFullyQualifiedClassName();
             } else if (typeSignature instanceof ArrayTypeSignature) {
                 className = typeSignature.getClassName();
             } else {
@@ -154,10 +159,11 @@ public class AnnotationClassRef extends ScanResultObject {
     /**
      * Get the class info.
      *
-     * @return The {@link ClassInfo} object for the referenced class, or null if the referenced class was not
-     *         encountered during scanning (i.e. if no ClassInfo object was created for the class during scanning).
-     *         N.B. even if this method returns null, {@link #loadClass()} may be able to load the referenced class
-     *         by name.
+     * @return The {@link ClassInfo} object for the referenced class, or null if the
+     *         referenced class was not encountered during scanning (i.e. if no
+     *         ClassInfo object was created for the class during scanning). N.B.
+     *         even if this method returns null, {@link #loadClass()} may be able to
+     *         load the referenced class by name.
      */
     @Override
     public ClassInfo getClassInfo() {
@@ -165,8 +171,12 @@ public class AnnotationClassRef extends ScanResultObject {
         return typeSignature.getClassInfo();
     }
 
-    /* (non-Javadoc)
-     * @see io.github.classgraph.ScanResultObject#setScanResult(io.github.classgraph.ScanResult)
+    /*
+     * (non-Javadoc)
+     *
+     * @see
+     * io.github.classgraph.ScanResultObject#setScanResult(io.github.classgraph.
+     * ScanResult)
      */
     @Override
     void setScanResult(final ScanResult scanResult) {
@@ -178,7 +188,9 @@ public class AnnotationClassRef extends ScanResultObject {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.Object#hashCode()
      */
     @Override
@@ -186,33 +198,39 @@ public class AnnotationClassRef extends ScanResultObject {
         return getTypeSignature().hashCode();
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
     public boolean equals(final Object obj) {
         if (obj == this) {
             return true;
-        } else if (!(obj instanceof AnnotationClassRef)) {
+        }
+        if (!(obj instanceof final AnnotationClassRef other)) {
             return false;
         }
-        return getTypeSignature().equals(((AnnotationClassRef) obj).getTypeSignature());
+        return getTypeSignature().equals(other.getTypeSignature());
     }
 
     @Override
     protected void toString(final boolean useSimpleNames, final StringBuilder buf) {
-        // More recent versions of Annotation::toString() have dropped the "class"/"interface" prefix,
-        // and added ".class" to the end of the class reference (which does not actually match the
+        // More recent versions of Annotation::toString() have dropped the
+        // "class"/"interface" prefix,
+        // and added ".class" to the end of the class reference (which does not actually
+        // match the
         // annotation source syntax...)
 
-        //        String prefix = "class ";
-        //        if (scanResult != null) {
-        //            final ClassInfo ci = getClassInfo();
-        //            // The JDK uses "interface" for both interfaces and annotations in Annotation::toString
-        //            if (ci != null && ci.isInterfaceOrAnnotation()) {
-        //                prefix = "interface ";
-        //            }
-        //        }
+        // String prefix = "class ";
+        // if (scanResult != null) {
+        // final ClassInfo ci = getClassInfo();
+        // // The JDK uses "interface" for both interfaces and annotations in
+        // Annotation::toString
+        // if (ci != null && ci.isInterfaceOrAnnotation()) {
+        // prefix = "interface ";
+        // }
+        // }
 
         /* prefix + */
         buf.append(getTypeSignature().toString(useSimpleNames)).append(".class");

@@ -8,13 +8,9 @@ import java.net.URLClassLoader;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ClassInfo;
-import io.github.classgraph.ClassInfoList;
-import io.github.classgraph.FieldInfo;
-import io.github.classgraph.ScanResult;
 
 /**
- * MultiReleaseJar.
+ * RecordTest.
  */
 public class RecordTest {
     /** The jar URL. */
@@ -23,17 +19,16 @@ public class RecordTest {
     /**
      * Test records (JDK 14+).
      *
-     * @throws Exception
-     *             the exception
+     * @throws Exception the exception
      */
     @Test
     public void recordJar() throws Exception {
-        try (ScanResult scanResult = new ClassGraph().overrideClassLoaders(new URLClassLoader(new URL[] { jarURL }))
+        try (var scanResult = new ClassGraph().overrideClassLoaders(new URLClassLoader(new URL[] { jarURL }))
                 .enableAllInfo().scan()) {
-            final ClassInfoList classInfoList = scanResult.getAllRecords();
+            final var classInfoList = scanResult.getAllRecords();
             assertThat(classInfoList).isNotEmpty();
-            final ClassInfo classInfo = classInfoList.get(0);
-            final FieldInfo fieldInfo = classInfo.getFieldInfo("x");
+            final var classInfo = classInfoList.get(0);
+            final var fieldInfo = classInfo.getFieldInfo("x");
             assertThat(fieldInfo).isNotNull();
         }
     }

@@ -44,7 +44,8 @@ import nonapi.io.github.classgraph.utils.LogNode;
  * Custom Class Loader Handler for OSGi Felix ClassLoader.
  *
  * <p>
- * The handler adds the bundle jar and all associated Bundle-ClassPath jars into the classpath to be scanned.
+ * The handler adds the bundle jar and all associated Bundle-ClassPath jars into
+ * the classpath to be scanned.
  *
  * @author elrufaie
  */
@@ -67,10 +68,8 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
     /**
      * Get the content location.
      *
-     * @param content
-     *            the content object
-     * @param reflectionUtils
-     *            the reflection utils instance
+     * @param content         the content object
+     * @param reflectionUtils the reflection utils instance
      * @return the content location
      */
     private static File getContentLocation(final Object content, final ReflectionUtils reflectionUtils) {
@@ -80,18 +79,12 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
     /**
      * Adds the bundle.
      *
-     * @param bundleWiring
-     *            the bundle wiring
-     * @param classLoader
-     *            the classloader
-     * @param classpathOrderOut
-     *            the classpath order out
-     * @param bundles
-     *            the bundles
-     * @param scanSpec
-     *            the scan spec
-     * @param log
-     *            the log
+     * @param bundleWiring      the bundle wiring
+     * @param classLoader       the classloader
+     * @param classpathOrderOut the classpath order out
+     * @param bundles           the bundles
+     * @param scanSpec          the scan spec
+     * @param log               the log
      */
     private static void addBundle(final Object bundleWiring, final ClassLoader classLoader,
             final ClasspathOrder classpathOrderOut, final Set<Object> bundles, final ScanSpec scanSpec,
@@ -100,22 +93,21 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
         bundles.add(bundleWiring);
 
         // Get the revision for this wiring
-        final Object revision = classpathOrderOut.reflectionUtils.invokeMethod(false, bundleWiring, "getRevision");
+        final var revision = classpathOrderOut.reflectionUtils.invokeMethod(false, bundleWiring, "getRevision");
         // Get the contents
-        final Object content = classpathOrderOut.reflectionUtils.invokeMethod(false, revision, "getContent");
-        final File location = content != null ? getContentLocation(content, classpathOrderOut.reflectionUtils)
-                : null;
+        final var content = classpathOrderOut.reflectionUtils.invokeMethod(false, revision, "getContent");
+        final var location = content != null ? getContentLocation(content, classpathOrderOut.reflectionUtils) : null;
         if (location != null) {
             // Add the bundle object
             classpathOrderOut.addClasspathEntry(location, classLoader, scanSpec, log);
 
             // And any embedded content
-            final List<?> embeddedContent = (List<?>) classpathOrderOut.reflectionUtils.invokeMethod(false,
-                    revision, "getContentPath");
+            final List<?> embeddedContent = (List<?>) classpathOrderOut.reflectionUtils.invokeMethod(false, revision,
+                    "getContentPath");
             if (embeddedContent != null) {
                 for (final Object embedded : embeddedContent) {
                     if (embedded != content) {
-                        final File embeddedLocation = embedded != null
+                        final var embeddedLocation = embedded != null
                                 ? getContentLocation(embedded, classpathOrderOut.reflectionUtils)
                                 : null;
                         if (embeddedLocation != null) {
@@ -132,18 +124,18 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
             final ScanSpec scanSpec, final LogNode log) {
         // Get the wiring for the ClassLoader's bundle
         final Set<Object> bundles = new HashSet<>();
-        final Object bundleWiring = classpathOrder.reflectionUtils.getFieldVal(false, classLoader, "m_wiring");
+        final var bundleWiring = classpathOrder.reflectionUtils.getFieldVal(false, classLoader, "m_wiring");
         addBundle(bundleWiring, classLoader, classpathOrder, bundles, scanSpec, log);
 
-        // Deal with any other bundles we might be wired to. TODO: Use the ScanSpec to narrow down the list of wires
+        // Deal with any other bundles we might be wired to. TODO: Use the ScanSpec to
+        // narrow down the list of wires
         // that we follow.
 
         final List<?> requiredWires = (List<?>) classpathOrder.reflectionUtils.invokeMethod(false, bundleWiring,
                 "getRequiredWires", String.class, null);
         if (requiredWires != null) {
             for (final Object wire : requiredWires) {
-                final Object provider = classpathOrder.reflectionUtils.invokeMethod(false, wire,
-                        "getProviderWiring");
+                final var provider = classpathOrder.reflectionUtils.invokeMethod(false, wire, "getProviderWiring");
                 if (!bundles.contains(provider)) {
                     addBundle(provider, classLoader, classpathOrder, bundles, scanSpec, log);
                 }
@@ -152,10 +144,12 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
     }
 
     /**
-     * Get the automatic package root prefixes for classpath elements obtained from this classloader.
+     * Get the automatic package root prefixes for classpath elements obtained from
+     * this classloader.
      *
      * <p>
-     * Classpath elements from this classloader may be Spring-Boot executable jars or wars.
+     * Classpath elements from this classloader may be Spring-Boot executable jars
+     * or wars.
      *
      * @return the package root prefixes.
      */

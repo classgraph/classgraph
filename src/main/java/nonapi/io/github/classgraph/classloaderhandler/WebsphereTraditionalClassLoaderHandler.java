@@ -36,7 +36,7 @@ import nonapi.io.github.classgraph.utils.LogNode;
 
 /**
  * Handle the WebSphere traditional ClassLoaders.
- * 
+ *
  * @author lukehutch
  */
 class WebsphereTraditionalClassLoaderHandler implements ClassLoaderHandler {
@@ -60,16 +60,17 @@ class WebsphereTraditionalClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
             final ScanSpec scanSpec, final LogNode log) {
-        final String classpath = (String) classpathOrder.reflectionUtils.invokeMethod(false, classLoader,
-                "getClassPath");
+        final var classpath = (String) classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getClassPath");
         classpathOrder.addClasspathPathStr(classpath, classLoader, scanSpec, log);
     }
 
     /**
-     * Get the automatic package root prefixes for classpath elements obtained from this classloader.
+     * Get the automatic package root prefixes for classpath elements obtained from
+     * this classloader.
      *
      * <p>
-     * Classpath elements from this classloader may be Spring-Boot executable jars or wars.
+     * Classpath elements from this classloader may be Spring-Boot executable jars
+     * or wars.
      *
      * @return the package root prefixes.
      */

@@ -32,11 +32,11 @@ package nonapi.io.github.classgraph.json;
  * A class that serves as a placeholder for circular references between objects.
  *
  * <p>
- * Instances are only ever compared by reference (they are wrapped in a {@link ReferenceEqualityKey} when used as a
- * map key), so the record's value-based {@code equals} and {@code hashCode} are never used.
+ * Instances are only ever compared by reference (they are wrapped in a
+ * {@link ReferenceEqualityKey} when used as a map key), so the record's
+ * value-based {@code equals} and {@code hashCode} are never used.
  *
- * @param idObject
- *            the id object
+ * @param idObject the id object
  */
 record JSONReference(Object idObject) {
     JSONReference {

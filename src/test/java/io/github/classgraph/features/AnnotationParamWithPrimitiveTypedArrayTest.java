@@ -8,10 +8,7 @@ import java.util.Arrays;
 
 import org.junit.jupiter.api.Test;
 
-import io.github.classgraph.AnnotationInfo;
-import io.github.classgraph.AnnotationParameterValueList;
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ScanResult;
 
 /**
  * AnnotationParamWithPrimitiveTypedArray.
@@ -93,16 +90,16 @@ public class AnnotationParamWithPrimitiveTypedArrayTest {
      */
     @Test
     public void primitiveArrayParams() {
-        try (ScanResult scanResult = new ClassGraph().enableAllInfo()
+        try (var scanResult = new ClassGraph().enableAllInfo()
                 .acceptPackages(AnnotationParamWithPrimitiveTypedArrayTest.class.getPackage().getName()).scan()) {
-            final AnnotationInfo annotationInfo = scanResult.getClassInfo(AnnotatedClass.class.getName())
-                    .getAnnotationInfo().get(0);
-            final AnnotationParameterValueList annotationParams = annotationInfo.getParameterValues();
-            final Object v0 = annotationParams.getValue("v0");
-            final Object v1 = annotationParams.getValue("v1");
-            final Object v2 = annotationParams.getValue("v2");
-            final Object v3 = annotationParams.getValue("v3");
-            final Object v4 = annotationParams.getValue("v4");
+            final var annotationInfo = scanResult.getClassInfo(AnnotatedClass.class.getName()).getAnnotationInfo()
+                    .get(0);
+            final var annotationParams = annotationInfo.getParameterValues();
+            final var v0 = annotationParams.getValue("v0");
+            final var v1 = annotationParams.getValue("v1");
+            final var v2 = annotationParams.getValue("v2");
+            final var v3 = annotationParams.getValue("v3");
+            final var v4 = annotationParams.getValue("v4");
 
             assertThat(v0.getClass()).isEqualTo(int[].class);
             assertThat(v1.getClass()).isEqualTo(char[].class);
@@ -118,8 +115,7 @@ public class AnnotationParamWithPrimitiveTypedArrayTest {
             assertThat(Arrays.toString((Object[]) v4))
                     .isEqualTo("[@" + NestedAnnotation.class.getName() + "(str=\"Test\", intArray={9})]");
 
-            final AnnotationWithPrimitiveArrayParams annotation = (AnnotationWithPrimitiveArrayParams) annotationInfo
-                    .loadClassAndInstantiate();
+            final var annotation = (AnnotationWithPrimitiveArrayParams) annotationInfo.loadClassAndInstantiate();
             assertThat(annotation.v0()).isEqualTo(new int[] { 1, 2 });
             assertThat(annotation.v1()).isEqualTo(new char[] { 'a' });
             assertThat(annotation.v2()).isEqualTo(new String[] { "x" });

@@ -29,14 +29,14 @@
 package nonapi.io.github.classgraph.recycler;
 
 /**
- * An AutoCloseable wrapper for a recyclable object instance. Obtained by calling
- * {@link Recycler#acquireRecycleOnClose()} in a try-with-resources statement, so that when the try block exits, the
- * acquired instance is recycled.
+ * An AutoCloseable wrapper for a recyclable object instance. Obtained by
+ * calling {@link Recycler#acquireRecycleOnClose()} in a try-with-resources
+ * statement, so that when the try block exits, the acquired instance is
+ * recycled.
  *
- * @param <T>
- *            the type to recycle
- * @param <E>
- *            the exception type that may be thrown when a recyclable item is acquired.
+ * @param <T> the type to recycle
+ * @param <E> the exception type that may be thrown when a recyclable item is
+ *            acquired.
  */
 public class RecycleOnClose<T, E extends Exception> implements AutoCloseable {
     /** The recycler. */
@@ -48,10 +48,9 @@ public class RecycleOnClose<T, E extends Exception> implements AutoCloseable {
     /**
      * Acquire or allocate an instance.
      *
-     * @param recycler
-     *            The {@link Recycler}.
-     * @param instance
-     *            An object instance that was obtained by calling {@link Recycler#acquire()} on the recycler.
+     * @param recycler The {@link Recycler}.
+     * @param instance An object instance that was obtained by calling
+     *                 {@link Recycler#acquire()} on the recycler.
      */
     RecycleOnClose(final Recycler<T, E> recycler, final T instance) {
         this.recycler = recycler;
@@ -67,7 +66,10 @@ public class RecycleOnClose<T, E extends Exception> implements AutoCloseable {
         return instance;
     }
 
-    /** Recycle an instance. Calls {@link Resettable#reset()} if the instance implements {@link Resettable}. */
+    /**
+     * Recycle an instance. Calls {@link Resettable#reset()} if the instance
+     * implements {@link Resettable}.
+     */
     @Override
     public void close() {
         recycler.recycle(instance);

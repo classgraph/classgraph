@@ -5,9 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ClassInfo;
-import io.github.classgraph.ScanResult;
-import io.github.classgraph.TypeArgument;
 import io.github.classgraph.TypeVariableSignature;
 
 public class Issue706Test {
@@ -19,12 +16,12 @@ public class Issue706Test {
 
     @Test
     void genericSuperclass() {
-        final ScanResult scanResult = new ClassGraph().acceptPackages(Issue706Test.class.getPackage().getName())
+        final var scanResult = new ClassGraph().acceptPackages(Issue706Test.class.getPackage().getName())
                 .enableClassInfo().scan();
-        final ClassInfo bypassCls = scanResult.getClassInfo(GenericBypass.class.getName());
-        final TypeArgument superclassArg = bypassCls.getTypeSignature().getSuperclassSignature()
-                .getSuffixTypeArguments().get(0).get(0);
-        final TypeVariableSignature superclassArgTVar = (TypeVariableSignature) superclassArg.getTypeSignature();
+        final var bypassCls = scanResult.getClassInfo(GenericBypass.class.getName());
+        final var superclassArg = bypassCls.getTypeSignature().getSuperclassSignature().getSuffixTypeArguments().get(0)
+                .get(0);
+        final var superclassArgTVar = (TypeVariableSignature) superclassArg.getTypeSignature();
         final Object bypassTParamFromSuperclassArg = superclassArgTVar.resolve();
         assertThat(bypassTParamFromSuperclassArg.toString()).isEqualTo("T");
     }

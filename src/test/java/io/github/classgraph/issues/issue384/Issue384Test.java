@@ -38,7 +38,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ScanResult;
 import io.github.classgraph.features.CustomURLScheme;
 
 /**
@@ -55,11 +54,10 @@ class Issue384Test {
      */
     @Test
     void issue384Test() throws MalformedURLException {
-        final String filePath = Issue384Test.class.getClassLoader().getResource("nested-jars-level1.zip").getPath();
-        final String customSchemeURL = CustomURLScheme.SCHEME + ":" + filePath;
-        final URL url = new URL(customSchemeURL);
-        try (ScanResult scanResult = new ClassGraph().enableURLScheme(CustomURLScheme.SCHEME).overrideClasspath(url)
-                .scan()) {
+        final var filePath = Issue384Test.class.getClassLoader().getResource("nested-jars-level1.zip").getPath();
+        final var customSchemeURL = CustomURLScheme.SCHEME + ":" + filePath;
+        final var url = new URL(customSchemeURL);
+        try (var scanResult = new ClassGraph().enableURLScheme(CustomURLScheme.SCHEME).overrideClasspath(url).scan()) {
             assertThat(scanResult.getAllResources().getPaths()).containsExactly("level2.jar");
             assertThat(CustomURLScheme.remappedURLs.entrySet().iterator().next())
                     .isEqualTo(new SimpleEntry<>(customSchemeURL, "file:" + filePath));

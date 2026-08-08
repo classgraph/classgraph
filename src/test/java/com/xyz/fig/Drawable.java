@@ -10,8 +10,7 @@ public interface Drawable {
     /**
      * Draw.
      *
-     * @param f
-     *            the f
+     * @param f the f
      */
     void draw(Graphics2D f);
 }

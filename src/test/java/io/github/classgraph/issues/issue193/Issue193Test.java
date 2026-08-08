@@ -30,17 +30,14 @@ package io.github.classgraph.issues.issue193;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.ops4j.pax.url.mvn.MavenResolvers;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ScanResult;
 
 /**
  * Issue193Test.
@@ -49,26 +46,26 @@ public class Issue193Test {
     /**
      * Issue 193 test.
      *
-     * @throws IOException
-     *             Signals that an I/O exception has occurred.
+     * @throws IOException Signals that an I/O exception has occurred.
      */
     @Test
     public void issue193Test() throws IOException {
         // Resolve and download scala-library
-        final File resolvedFile = MavenResolvers.createMavenResolver(null, null).resolve("org.scala-lang",
+        final var resolvedFile = MavenResolvers.createMavenResolver(null, null).resolve("org.scala-lang",
                 "scala-library", null, null, "2.12.1");
         assertThat(resolvedFile).isFile();
 
         // Create a new custom class loader
-        final ClassLoader classLoader = new URLClassLoader(new URL[] { resolvedFile.toURI().toURL() }, null);
+        final var classLoader = new URLClassLoader(new URL[] { resolvedFile.toURI().toURL() }, null);
 
-        // Scan the classpath -- used to throw an exception for Stack, since companion object inherits
+        // Scan the classpath -- used to throw an exception for Stack, since companion
+        // object inherits
         // from different class
-        try (ScanResult scanResult = new ClassGraph() //
+        try (var scanResult = new ClassGraph() //
                 .acceptPackages("scala.collection.immutable") //
                 .overrideClassLoaders(classLoader) //
                 .scan()) {
-            final List<String> classes = scanResult //
+            final var classes = scanResult //
                     .getAllClasses() //
                     .filter(ci -> ci.getName().endsWith("$")) //
                     .getNames();

@@ -1,7 +1,6 @@
 package com.xyz;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ScanResult;
 
 /**
  * GenerateClassGraphFigDotFile.
@@ -10,11 +9,10 @@ public class GenerateClassGraphFigDotFile {
     /**
      * The main method.
      *
-     * @param args
-     *            the arguments
+     * @param args the arguments
      */
     public static void main(final String[] args) {
-        try (ScanResult scanResult = new ClassGraph() //
+        try (var scanResult = new ClassGraph() //
                 .acceptPackages("com.xyz.fig") //
                 .ignoreFieldVisibility() //
                 .enableFieldInfo() //

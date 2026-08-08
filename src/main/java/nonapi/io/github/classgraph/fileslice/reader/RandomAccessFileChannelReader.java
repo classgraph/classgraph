@@ -37,8 +37,8 @@ import java.nio.channels.FileChannel;
 import nonapi.io.github.classgraph.utils.StringUtils;
 
 /**
- * {@link RandomAccessReader} for a {@link File}. Reads in <b>little endian</b> order, as required by the zipfile
- * format.
+ * {@link RandomAccessReader} for a {@link File}. Reads in <b>little endian</b>
+ * order, as required by the zipfile format.
  */
 public class RandomAccessFileChannelReader implements RandomAccessReader {
 
@@ -66,12 +66,9 @@ public class RandomAccessFileChannelReader implements RandomAccessReader {
     /**
      * Constructor.
      *
-     * @param fileChannel
-     *            the file channel
-     * @param sliceStartPos
-     *            the slice start pos
-     * @param sliceLength
-     *            the slice length
+     * @param fileChannel   the file channel
+     * @param sliceStartPos the slice start pos
+     * @param sliceLength   the slice length
      */
     public RandomAccessFileChannelReader(final FileChannel fileChannel, final long sliceStartPos,
             final long sliceLength) {
@@ -90,10 +87,10 @@ public class RandomAccessFileChannelReader implements RandomAccessReader {
             if (srcOffset < 0L || numBytes < 0 || numBytes > sliceLength - srcOffset) {
                 throw new IOException("Read index out of bounds");
             }
-            final long srcStart = sliceStartPos + srcOffset;
+            final var srcStart = sliceStartPos + srcOffset;
             dstBuf.position(dstBufStart);
             dstBuf.limit(dstBufStart + numBytes);
-            final int numBytesRead = fileChannel.read(dstBuf, srcStart);
+            final var numBytesRead = fileChannel.read(dstBuf, srcStart);
             return numBytesRead == 0 ? -1 : numBytesRead;
 
         } catch (BufferUnderflowException | IndexOutOfBoundsException e) {
@@ -112,7 +109,8 @@ public class RandomAccessFileChannelReader implements RandomAccessReader {
                 throw new IOException("Read index out of bounds");
             }
             if (reusableByteBuffer == null || reusableByteBuffer.array() != dstArr) {
-                // If reusableByteBuffer is not set, or wraps a different array from a previous operation,
+                // If reusableByteBuffer is not set, or wraps a different array from a previous
+                // operation,
                 // wrap dstArr with a new ByteBuffer
                 reusableByteBuffer = ByteBuffer.wrap(dstArr);
             }
@@ -188,7 +186,8 @@ public class RandomAccessFileChannelReader implements RandomAccessReader {
     @Override
     public String readString(final long offset, final int numBytes, final boolean replaceSlashWithDot,
             final boolean stripLSemicolon) throws IOException {
-        // Reuse UTF8 buffer array if it's non-null from a previous call, and if it's big enough
+        // Reuse UTF8 buffer array if it's non-null from a previous call, and if it's
+        // big enough
         if (utf8Bytes == null || utf8Bytes.length < numBytes) {
             utf8Bytes = new byte[numBytes];
         }

@@ -37,8 +37,8 @@ import java.nio.ReadOnlyBufferException;
 import nonapi.io.github.classgraph.utils.StringUtils;
 
 /**
- * {@link RandomAccessReader} for a {@link ByteBuffer}. Reads in <b>little endian</b> order, as required by the
- * zipfile format.
+ * {@link RandomAccessReader} for a {@link ByteBuffer}. Reads in <b>little
+ * endian</b> order, as required by the zipfile format.
  */
 public class RandomAccessByteBufferReader implements RandomAccessReader {
     /** The byte buffer. */
@@ -53,15 +53,11 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
     /**
      * Constructor.
      *
-     * @param byteBuffer
-     *            the byte buffer
-     * @param sliceStartPos
-     *            the slice start pos
-     * @param sliceLength
-     *            the slice length
+     * @param byteBuffer    the byte buffer
+     * @param sliceStartPos the slice start pos
+     * @param sliceLength   the slice length
      */
-    public RandomAccessByteBufferReader(final ByteBuffer byteBuffer, final long sliceStartPos,
-            final long sliceLength) {
+    public RandomAccessByteBufferReader(final ByteBuffer byteBuffer, final long sliceStartPos, final long sliceLength) {
         this.byteBuffer = byteBuffer.duplicate();
         this.byteBuffer.order(ByteOrder.LITTLE_ENDIAN);
         this.sliceStartPos = (int) sliceStartPos;
@@ -80,11 +76,11 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
             throw new IOException("Read index out of bounds");
         }
         try {
-            final int numBytesToRead = Math.max(Math.min(numBytes, dstArr.length - dstArrStart), 0);
+            final var numBytesToRead = Math.max(Math.min(numBytes, dstArr.length - dstArrStart), 0);
             if (numBytesToRead == 0) {
                 return -1;
             }
-            final int srcStart = (int) srcOffset;
+            final var srcStart = (int) srcOffset;
             byteBuffer.position(sliceStartPos + srcStart);
             byteBuffer.get(dstArr, dstArrStart, numBytesToRead);
             byteBuffer.position(sliceStartPos);
@@ -104,11 +100,11 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
             throw new IOException("Read index out of bounds");
         }
         try {
-            final int numBytesToRead = Math.max(Math.min(numBytes, dstBuf.capacity() - dstBufStart), 0);
+            final var numBytesToRead = Math.max(Math.min(numBytes, dstBuf.capacity() - dstBufStart), 0);
             if (numBytesToRead == 0) {
                 return -1;
             }
-            final int srcStart = (int) (sliceStartPos + srcOffset);
+            final var srcStart = (int) (sliceStartPos + srcOffset);
             byteBuffer.position(srcStart);
             dstBuf.position(dstBufStart);
             dstBuf.limit(dstBufStart + numBytesToRead);
@@ -123,31 +119,32 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
 
     @Override
     public byte readByte(final long offset) throws IOException {
-        final int idx = (int) (sliceStartPos + offset);
+        final var idx = (int) (sliceStartPos + offset);
         return byteBuffer.get(idx);
     }
 
     @Override
     public int readUnsignedByte(final long offset) throws IOException {
-        final int idx = (int) (sliceStartPos + offset);
+        final var idx = (int) (sliceStartPos + offset);
         return byteBuffer.get(idx) & 0xff;
     }
 
     @Override
     public int readUnsignedShort(final long offset) throws IOException {
-        // (Mask with 0xffff, not 0xff -- masking with 0xff would discard the high byte of the short)
+        // (Mask with 0xffff, not 0xff -- masking with 0xff would discard the high byte
+        // of the short)
         return readShort(offset) & 0xffff;
     }
 
     @Override
     public short readShort(final long offset) throws IOException {
-        final int idx = (int) (sliceStartPos + offset);
+        final var idx = (int) (sliceStartPos + offset);
         return byteBuffer.getShort(idx);
     }
 
     @Override
     public int readInt(final long offset) throws IOException {
-        final int idx = (int) (sliceStartPos + offset);
+        final var idx = (int) (sliceStartPos + offset);
         return byteBuffer.getInt(idx);
     }
 
@@ -158,18 +155,19 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
 
     @Override
     public long readLong(final long offset) throws IOException {
-        final int idx = (int) (sliceStartPos + offset);
+        final var idx = (int) (sliceStartPos + offset);
         return byteBuffer.getLong(idx);
     }
 
     @Override
     public String readString(final long offset, final int numBytes, final boolean replaceSlashWithDot,
             final boolean stripLSemicolon) throws IOException {
-        final byte[] arr = new byte[numBytes];
+        final var arr = new byte[numBytes];
         if (read(offset, arr, 0, numBytes) < numBytes) {
             throw new IOException("Premature EOF while reading string");
         }
-        // (Read from index 0 of arr, not from the slice offset -- read() already applied the slice offset
+        // (Read from index 0 of arr, not from the slice offset -- read() already
+        // applied the slice offset
         // when copying into arr, and arr is only numBytes long)
         return StringUtils.readString(arr, 0, numBytes, replaceSlashWithDot, stripLSemicolon);
     }

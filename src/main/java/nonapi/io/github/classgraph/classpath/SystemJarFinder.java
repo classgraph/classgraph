@@ -53,8 +53,7 @@ public final class SystemJarFinder {
     /**
      * Add and search a JRE path.
      *
-     * @param dir
-     *            the JRE directory
+     * @param dir the JRE directory
      * @return true if the directory was readable.
      */
     private static boolean addJREPath(final File dir) {
@@ -62,41 +61,44 @@ public final class SystemJarFinder {
     }
 
     /**
-     * Add and search a JRE path, adding any jars found to the given set. (Package-private, so that this can be
-     * tested against a directory other than the JRE directory of the current JVM.)
+     * Add and search a JRE path, adding any jars found to the given set.
+     * (Package-private, so that this can be tested against a directory other than
+     * the JRE directory of the current JVM.)
      *
-     * @param dir
-     *            the JRE directory
-     * @param jreLibOrExtJars
-     *            the set to add any jar paths to
+     * @param dir             the JRE directory
+     * @param jreLibOrExtJars the set to add any jar paths to
      * @return true if the directory was readable.
      */
     static boolean addJREPath(final File dir, final Set<String> jreLibOrExtJars) {
         if (dir != null && !dir.getPath().isEmpty() && FileUtils.canReadAndIsDir(dir)) {
-            final File[] dirFiles = dir.listFiles();
+            final var dirFiles = dir.listFiles();
             if (dirFiles != null) {
                 for (final File file : dirFiles) {
-                    final String filePath = file.getPath();
+                    final var filePath = file.getPath();
                     if (filePath.endsWith(".jar")) {
-                        final String jarPathResolved = FastPathResolver.resolve(FileUtils.currDirPath(), filePath);
+                        final var jarPathResolved = FastPathResolver.resolve(FileUtils.currDirPath(), filePath);
                         if (jarPathResolved.endsWith("/jrt-fs.jar")) {
-                            // "{java.home}/lib/jrt-fs.jar" is not part of the class library -- it is the jrt:
+                            // "{java.home}/lib/jrt-fs.jar" is not part of the class library -- it is the
+                            // jrt:
                             // filesystem provider, shipped so that tools running on an older JDK can read a
-                            // JDK 9+ runtime image. Its classes (jdk.internal.jimage and jdk.internal.jrtfs)
-                            // are also present in java.base of the JDK it ships with, so when running on JDK 9
-                            // or above, scanning it just duplicates classes that are already reachable through
+                            // JDK 9+ runtime image. Its classes (jdk.internal.jimage and
+                            // jdk.internal.jrtfs)
+                            // are also present in java.base of the JDK it ships with, so when running on
+                            // JDK 9
+                            // or above, scanning it just duplicates classes that are already reachable
+                            // through
                             // the system modules.
                             continue;
                         }
                         jreLibOrExtJars.add(jarPathResolved);
                         try {
-                            final File canonicalFile = file.getCanonicalFile();
-                            final String canonicalFilePath = canonicalFile.getPath();
+                            final var canonicalFile = file.getCanonicalFile();
+                            final var canonicalFilePath = canonicalFile.getPath();
                             if (!canonicalFilePath.equals(filePath)) {
                                 // The jar is a symlink (or is otherwise reachable by more than one path), so
                                 // also add the path it resolves to, since a classpath entry may name either
-                                final String canonicalJarPathResolved = FastPathResolver
-                                        .resolve(FileUtils.currDirPath(), canonicalFilePath);
+                                final var canonicalJarPathResolved = FastPathResolver.resolve(FileUtils.currDirPath(),
+                                        canonicalFilePath);
                                 jreLibOrExtJars.add(canonicalJarPathResolved);
                             }
                         } catch (IOException | SecurityException e) {
@@ -111,30 +113,34 @@ public final class SystemJarFinder {
     }
 
     /**
-     * Determine whether a directory is the root of a JDK installation, by looking for files that are only shipped
-     * with a JDK, and never with a JRE.
+     * Determine whether a directory is the root of a JDK installation, by looking
+     * for files that are only shipped with a JDK, and never with a JRE.
      *
      * <p>
-     * This is needed because bundling a JRE into an application directory, alongside the application's own jars, is
-     * a common deployment layout:
+     * This is needed because bundling a JRE into an application directory,
+     * alongside the application's own jars, is a common deployment layout:
      *
      * <pre>
      * myapp/
-     *     jre/     &lt;-- the bundled JRE ({@code java.home} points here)
+     *     jre/     &lt;-- the bundled JRE ({@code
+     * java.home
+     * } points here)
      *     lib/     &lt;-- the application's own jars
      * </pre>
      *
      * <p>
-     * Without this check, {@code myapp/} would be assumed to be a JDK root simply because {@code java.home} ends in
-     * {@code jre}, and every jar in {@code myapp/lib} would be classified as a JRE lib jar -- which causes those
-     * jars to be silently dropped from the classpath (see {@code ClasspathOrder#addClasspathEntry}), so none of the
-     * application's own classes are found (#816).
+     * Without this check, {@code myapp/} would be assumed to be a JDK root simply
+     * because {@code java.home} ends in {@code jre}, and every jar in
+     * {@code myapp/lib} would be classified as a JRE lib jar -- which causes those
+     * jars to be silently dropped from the classpath (see
+     * {@code ClasspathOrder#addClasspathEntry}), so none of the application's own
+     * classes are found (#816).
      *
      * <p>
-     * Only JDK 8 and earlier nest the JRE inside the JDK, so only JDK 8 and earlier markers need to be tested for.
+     * Only JDK 8 and earlier nest the JRE inside the JDK, so only JDK 8 and earlier
+     * markers need to be tested for.
      *
-     * @param dir
-     *            the candidate JDK root directory.
+     * @param dir the candidate JDK root directory.
      * @return true if the directory looks like the root of a JDK installation.
      */
     // (package-private for testing)
@@ -144,20 +150,24 @@ public final class SystemJarFinder {
                 || FileUtils.canReadAndIsFile(new File(dir, "bin/javac.exe"));
     }
 
-    // Find jars in JRE dirs ({java.home}, {java.home}/lib, {java.home}/lib/ext, etc.)
+    // Find jars in JRE dirs ({java.home}, {java.home}/lib, {java.home}/lib/ext,
+    // etc.)
     static {
-        String javaHome = VersionFinder.getProperty("java.home");
+        var javaHome = VersionFinder.getProperty("java.home");
         if (javaHome == null || javaHome.isEmpty()) {
             javaHome = System.getenv("JAVA_HOME");
         }
         if (javaHome != null && !javaHome.isEmpty()) {
             final File javaHomeFile = new File(javaHome);
             addJREPath(javaHomeFile);
-            if (javaHomeFile.getName().equals("jre")) {
-                // Try adding "{java.home}/.." as a JDK root when java.home is a JRE path -- but only if the
-                // parent directory really is a JDK root, since an application directory containing a bundled
-                // JRE in "jre/" and the application's own jars in "lib/" has the same shape (#816)
-                final File jreParent = javaHomeFile.getParentFile();
+            if ("jre".equals(javaHomeFile.getName())) {
+                // Try adding "{java.home}/.." as a JDK root when java.home is a JRE path -- but
+                // only if the
+                // parent directory really is a JDK root, since an application directory
+                // containing a bundled
+                // JRE in "jre/" and the application's own jars in "lib/" has the same shape
+                // (#816)
+                final var jreParent = javaHomeFile.getParentFile();
                 if (jreParent != null && isJDKRoot(jreParent)) {
                     addJREPath(jreParent);
                     addJREPath(new File(jreParent, "lib"));
@@ -175,7 +185,7 @@ public final class SystemJarFinder {
             addJREPath(new File(javaHomeFile, "packages/lib"));
             addJREPath(new File(javaHomeFile, "packages/lib/ext"));
         }
-        final String javaExtDirs = VersionFinder.getProperty("java.ext.dirs");
+        final var javaExtDirs = VersionFinder.getProperty("java.ext.dirs");
         if (javaExtDirs != null && !javaExtDirs.isEmpty()) {
             for (final String javaExtDir : JarUtils.smartPathSplit(javaExtDirs, /* scanSpec = */ null)) {
                 if (!javaExtDir.isEmpty()) {
@@ -184,7 +194,8 @@ public final class SystemJarFinder {
             }
         }
 
-        // System extension paths -- see: https://docs.oracle.com/javase/tutorial/ext/basics/install.html
+        // System extension paths -- see:
+        // https://docs.oracle.com/javase/tutorial/ext/basics/install.html
         switch (VersionFinder.OS) {
         case Linux, Unix, BSD, Unknown -> {
             addJREPath(new File("/usr/java/packages"));
@@ -197,7 +208,7 @@ public final class SystemJarFinder {
             addJREPath(new File("/System/Library/Java/Extensions"));
         }
         case Windows -> {
-            final String systemRoot = File.separatorChar == '\\' ? System.getenv("SystemRoot") : null;
+            final var systemRoot = File.separatorChar == '\\' ? System.getenv("SystemRoot") : null;
             if (systemRoot != null) {
                 addJREPath(new File(systemRoot, "Sun\\Java"));
                 addJREPath(new File(systemRoot, "Sun\\Java\\lib"));
@@ -222,7 +233,8 @@ public final class SystemJarFinder {
     /**
      * Get the JRE "lib/" and "ext/" jar paths.
      *
-     * @return The paths for any jarfiles found in JRE/JDK "lib/" or "ext/" directories.
+     * @return The paths for any jarfiles found in JRE/JDK "lib/" or "ext/"
+     *         directories.
      */
     public static Set<String> getJreLibOrExtJars() {
         return JRE_LIB_OR_EXT_JARS;

@@ -7,8 +7,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ClassInfo;
-import io.github.classgraph.MethodInfoList;
 import io.github.classgraph.ScanResult;
 
 /**
@@ -31,44 +29,45 @@ public class MethodOverrideOrderTest {
     }
 
     /**
-     * Tests if the correct method is selected if a class implements from two interfaces that inherit from another.
-     * Case of the child class implementing the inherited interface.
+     * Tests if the correct method is selected if a class implements from two
+     * interfaces that inherit from another. Case of the child class implementing
+     * the inherited interface.
      */
     @Test
     public void interfaceMethodOrderingA() {
-        final ClassInfo classInfo = scanResult.getClassInfo("io.github.classgraph.issues.issue772.ExampleA$Child");
+        final var classInfo = scanResult.getClassInfo("io.github.classgraph.issues.issue772.ExampleA$Child");
         assertThat(classInfo).isNotNull();
-        final MethodInfoList closeMethods = classInfo.getMethodInfo("close");
+        final var closeMethods = classInfo.getMethodInfo("close");
         assertThat(closeMethods.size()).isEqualTo(1);
         assertThat(closeMethods.get(0).getClassInfo().getName())
                 .isEqualTo("io.github.classgraph.issues.issue772.MyCloseable");
-        //Reflection in JDK8 will source the method AutoCloseable as well, works as expected from at least JDK11+
-        // ClassLoader.getSystemClassLoader().loadClass("io.github.classgraph.issues.issue772.ExampleA$Child").getMethod("close")
     }
 
     /**
-     * Tests if the correct method is selected if a class implements from two interfaces that inherit from another.
-     * Case of the child class implementing the inherited interface.
+     * Tests if the correct method is selected if a class implements from two
+     * interfaces that inherit from another. Case of the child class implementing
+     * the inherited interface.
      */
     @Test
     public void interfaceMethodOrderingB() {
-        final ClassInfo classInfo = scanResult.getClassInfo("io.github.classgraph.issues.issue772.ExampleB$Child");
+        final var classInfo = scanResult.getClassInfo("io.github.classgraph.issues.issue772.ExampleB$Child");
         assertThat(classInfo).isNotNull();
-        final MethodInfoList closeMethods = classInfo.getMethodInfo("close");
+        final var closeMethods = classInfo.getMethodInfo("close");
         assertThat(closeMethods.size()).isEqualTo(1);
         assertThat(closeMethods.get(0).getClassInfo().getName())
                 .isEqualTo("io.github.classgraph.issues.issue772.MyCloseable");
     }
 
     /**
-     * Tests if the correct method is selected if a class implements from two interfaces that inherit from another.
-     * Case of the child class implementing the inherited interface.
+     * Tests if the correct method is selected if a class implements from two
+     * interfaces that inherit from another. Case of the child class implementing
+     * the inherited interface.
      */
     @Test
     public void interfaceMethodOrderingC() {
-        final ClassInfo classInfo = scanResult.getClassInfo("io.github.classgraph.issues.issue772.ExampleC$Child");
+        final var classInfo = scanResult.getClassInfo("io.github.classgraph.issues.issue772.ExampleC$Child");
         assertThat(classInfo).isNotNull();
-        final MethodInfoList closeMethods = classInfo.getMethodInfo("close");
+        final var closeMethods = classInfo.getMethodInfo("close");
         assertThat(closeMethods.size()).isEqualTo(1);
         assertThat(closeMethods.get(0).getClassInfo().getName())
                 .isEqualTo("io.github.classgraph.issues.issue772.ExampleC");

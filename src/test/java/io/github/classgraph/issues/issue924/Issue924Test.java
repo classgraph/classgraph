@@ -6,13 +6,14 @@ import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfoList;
-import io.github.classgraph.ScanResult;
 
 /**
  * Issue 924: there is no separate "getInterfacesImplementing()" method, because
- * {@code getClassesImplementing()} already returns the transitive subinterfaces of an interface as well as the
- * classes that implement it. This test locks in that contract, and the ability to partition the result with
- * {@link ClassInfoList#getInterfaces()} and {@link ClassInfoList#getStandardClasses()}.
+ * {@code getClassesImplementing()} already returns the transitive subinterfaces
+ * of an interface as well as the classes that implement it. This test locks in
+ * that contract, and the ability to partition the result with
+ * {@link ClassInfoList#getInterfaces()} and
+ * {@link ClassInfoList#getStandardClasses()}.
  */
 public class Issue924Test {
     /** Base interface. */
@@ -35,12 +36,15 @@ public class Issue924Test {
     public static class EImpl implements A {
     }
 
-    /** getClassesImplementing() returns transitive subinterfaces as well as implementing classes. */
+    /**
+     * getClassesImplementing() returns transitive subinterfaces as well as
+     * implementing classes.
+     */
     @Test
     public void getClassesImplementingIncludesSubinterfaces() {
-        try (ScanResult scanResult = new ClassGraph().acceptPackages(Issue924Test.class.getPackage().getName())
-                .enableAllInfo().scan()) {
-            final ClassInfoList implementingA = scanResult.getClassesImplementing(A.class);
+        try (var scanResult = new ClassGraph().acceptPackages(Issue924Test.class.getPackage().getName()).enableAllInfo()
+                .scan()) {
+            final var implementingA = scanResult.getClassesImplementing(A.class);
 
             // Both the subinterfaces and the implementing classes are present
             assertThat(implementingA.getNames()).containsExactlyInAnyOrder(B.class.getName(), C.class.getName(),
@@ -49,25 +53,28 @@ public class Issue924Test {
             // ...and the result can be partitioned into the two
             assertThat(implementingA.getInterfaces().getNames()).containsExactlyInAnyOrder(B.class.getName(),
                     C.class.getName());
-            assertThat(implementingA.getStandardClasses().getNames())
-                    .containsExactlyInAnyOrder(DImpl.class.getName(), EImpl.class.getName());
+            assertThat(implementingA.getStandardClasses().getNames()).containsExactlyInAnyOrder(DImpl.class.getName(),
+                    EImpl.class.getName());
 
-            // getSubclasses() does not traverse the interface hierarchy -- getClassesImplementing() is the
+            // getSubclasses() does not traverse the interface hierarchy --
+            // getClassesImplementing() is the
             // method to use for that
             assertThat(scanResult.getSubclasses(A.class).getNames()).isEmpty();
         }
     }
 
-    /** getSubinterfaces() returns the transitive subinterfaces of an interface, and nothing else. */
+    /**
+     * getSubinterfaces() returns the transitive subinterfaces of an interface, and
+     * nothing else.
+     */
     @Test
     public void getSubinterfacesReturnsOnlySubinterfaces() {
-        try (ScanResult scanResult = new ClassGraph().acceptPackages(Issue924Test.class.getPackage().getName())
-                .enableAllInfo().scan()) {
+        try (var scanResult = new ClassGraph().acceptPackages(Issue924Test.class.getPackage().getName()).enableAllInfo()
+                .scan()) {
             // Transitive: C extends B extends A
-            assertThat(scanResult.getSubinterfaces(A.class).getNames())
-                    .containsExactlyInAnyOrder(B.class.getName(), C.class.getName());
-            assertThat(scanResult.getSubinterfaces(B.class).getNames())
-                    .containsExactlyInAnyOrder(C.class.getName());
+            assertThat(scanResult.getSubinterfaces(A.class).getNames()).containsExactlyInAnyOrder(B.class.getName(),
+                    C.class.getName());
+            assertThat(scanResult.getSubinterfaces(B.class).getNames()).containsExactlyInAnyOrder(C.class.getName());
             assertThat(scanResult.getSubinterfaces(C.class).getNames()).isEmpty();
 
             // The by-name overload and ClassInfo#getSubinterfaces() give the same answer
@@ -76,7 +83,8 @@ public class Issue924Test {
             assertThat(scanResult.getClassInfo(A.class.getName()).getSubinterfaces().getNames())
                     .containsExactlyInAnyOrder(B.class.getName(), C.class.getName());
 
-            // Implementing classes are not subinterfaces, and a standard class has no subinterfaces
+            // Implementing classes are not subinterfaces, and a standard class has no
+            // subinterfaces
             assertThat(scanResult.getSubinterfaces(A.class).getNames()).doesNotContain(DImpl.class.getName(),
                     EImpl.class.getName());
             assertThat(scanResult.getClassInfo(DImpl.class.getName()).getSubinterfaces()).isEmpty();

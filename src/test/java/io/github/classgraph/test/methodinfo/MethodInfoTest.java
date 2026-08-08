@@ -41,10 +41,7 @@ import io.github.classgraph.ArrayClassInfo;
 import io.github.classgraph.ArrayTypeSignature;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.MethodInfo;
-import io.github.classgraph.MethodInfoList.MethodInfoFilter;
 import io.github.classgraph.MethodParameterInfo;
-import io.github.classgraph.ScanResult;
-import io.github.classgraph.TypeSignature;
 import io.github.classgraph.test.external.ExternalAnnotation;
 
 /**
@@ -68,22 +65,14 @@ public class MethodInfoTest {
     /**
      * Public method with args.
      *
-     * @param str
-     *            the str
-     * @param c
-     *            the c
-     * @param j
-     *            the j
-     * @param f
-     *            the f
-     * @param b
-     *            the b
-     * @param l
-     *            the l
-     * @param xArray
-     *            the x array
-     * @param varargs
-     *            the varargs
+     * @param str     the str
+     * @param c       the c
+     * @param j       the j
+     * @param f       the f
+     * @param b       the b
+     * @param l       the l
+     * @param xArray  the x array
+     * @param varargs the varargs
      * @return the int
      */
     @ExternalAnnotation
@@ -114,8 +103,7 @@ public class MethodInfoTest {
     @Test
     public void methodInfoNotEnabled() {
         // .enableSaveMethodInfo() not called
-        try (ScanResult scanResult = new ClassGraph().acceptPackages(MethodInfoTest.class.getPackage().getName())
-                .scan()) {
+        try (var scanResult = new ClassGraph().acceptPackages(MethodInfoTest.class.getPackage().getName()).scan()) {
             Assertions.assertThrows(IllegalArgumentException.class,
                     () -> scanResult.getClassInfo(MethodInfoTest.class.getName()).getMethodInfo());
         }
@@ -126,17 +114,12 @@ public class MethodInfoTest {
      */
     @Test
     public void testGetMethodInfo() {
-        try (ScanResult scanResult = new ClassGraph().acceptPackages(MethodInfoTest.class.getPackage().getName())
+        try (var scanResult = new ClassGraph().acceptPackages(MethodInfoTest.class.getPackage().getName())
                 .enableClassInfo().enableMethodInfo().enableAnnotationInfo().scan()) {
             assertThat(scanResult.getClassInfo(MethodInfoTest.class.getName()).getMethodInfo()
-                    .filter(new MethodInfoFilter() {
-                        @Override
-                        public boolean accept(final MethodInfo methodInfo) {
-                            // JDK 10 fix
-                            return !methodInfo.getName().equals("$closeResource")
-                                    && !methodInfo.getName().equals("lambda$0") && !methodInfo.isSynthetic();
-                        }
-                    }).getAsStrings()).containsOnly( //
+                    .filter(methodInfo -> !"$closeResource".equals(methodInfo.getName())
+                            && !"lambda$0".equals(methodInfo.getName()) && !methodInfo.isSynthetic())
+                    .getAsStrings()).containsOnly( //
                             "@" + ExternalAnnotation.class.getName() //
                                     + " public final int publicMethodWithArgs(final java.lang.String str, "
                                     + "final char c, final long j, final float[] f, final byte[][] b, "
@@ -159,7 +142,7 @@ public class MethodInfoTest {
      */
     @Test
     public void testGetConstructorInfo() {
-        try (ScanResult scanResult = new ClassGraph().acceptPackages(MethodInfoTest.class.getPackage().getName())
+        try (var scanResult = new ClassGraph().acceptPackages(MethodInfoTest.class.getPackage().getName())
                 .enableMethodInfo().scan()) {
             assertThat(scanResult.getClassInfo(MethodInfoTest.class.getName()).getConstructorInfo().getAsStrings())
                     .containsOnly("public <init>()");
@@ -171,17 +154,12 @@ public class MethodInfoTest {
      */
     @Test
     public void testGetMethodInfoIgnoringVisibility() {
-        try (ScanResult scanResult = new ClassGraph().acceptPackages(MethodInfoTest.class.getPackage().getName())
+        try (var scanResult = new ClassGraph().acceptPackages(MethodInfoTest.class.getPackage().getName())
                 .enableClassInfo().enableMethodInfo().enableAnnotationInfo().ignoreMethodVisibility().scan()) {
             assertThat(scanResult.getClassInfo(MethodInfoTest.class.getName()).getMethodInfo()
-                    .filter(new MethodInfoFilter() {
-                        @Override
-                        public boolean accept(final MethodInfo methodInfo) {
-                            // JDK 10 fix
-                            return !methodInfo.getName().equals("$closeResource")
-                                    && !methodInfo.getName().equals("lambda$0") && !methodInfo.isSynthetic();
-                        }
-                    }).getAsStrings()).containsOnly( //
+                    .filter(methodInfo -> !"$closeResource".equals(methodInfo.getName())
+                            && !"lambda$0".equals(methodInfo.getName()) && !methodInfo.isSynthetic())
+                    .getAsStrings()).containsOnly( //
                             "@" + ExternalAnnotation.class.getName() //
                                     + " public final int publicMethodWithArgs(final java.lang.String str, "
                                     + "final char c, final long j, final float[] f, final byte[][] b, "
@@ -205,9 +183,9 @@ public class MethodInfoTest {
      */
     @Test
     public void testMethodInfoLoadMethodForArrayArg() {
-        try (ScanResult scanResult = new ClassGraph().acceptPackages(MethodInfoTest.class.getPackage().getName())
+        try (var scanResult = new ClassGraph().acceptPackages(MethodInfoTest.class.getPackage().getName())
                 .enableClassInfo().enableMethodInfo().enableAnnotationInfo().scan()) {
-            final MethodInfo mi = scanResult.getClassInfo(MethodInfoTest.class.getName()).getMethodInfo()
+            final var mi = scanResult.getClassInfo(MethodInfoTest.class.getName()).getMethodInfo()
                     .getSingleMethod("publicMethodWithArgs");
             assertThat(mi).isNotNull();
             assertThatCode(() -> {
@@ -218,25 +196,25 @@ public class MethodInfoTest {
             // Extract array-typed params from method params
             final List<ArrayClassInfo> arrayClassInfoList = new ArrayList<>();
             for (final MethodParameterInfo mpi : mi.getParameterInfo()) {
-                final TypeSignature paramTypeSig = mpi.getTypeSignatureOrTypeDescriptor();
-                if (paramTypeSig instanceof ArrayTypeSignature) {
-                    arrayClassInfoList.add(((ArrayTypeSignature) paramTypeSig).getArrayClassInfo());
+                final var paramTypeSig = mpi.getTypeSignatureOrTypeDescriptor();
+                if (paramTypeSig instanceof final ArrayTypeSignature arrayTypeSig) {
+                    arrayClassInfoList.add(arrayTypeSig.getArrayClassInfo());
                 }
             }
             assertThat(arrayClassInfoList.toString()).isEqualTo("[class float[], class byte[][], " + "class "
                     + X.class.getName() + "[][][], " + "class java.lang.String[][]]");
-            final ArrayClassInfo p1 = arrayClassInfoList.get(1);
+            final var p1 = arrayClassInfoList.get(1);
             assertThat(p1.loadElementClass()).isEqualTo(byte.class);
             assertThat(p1.loadClass()).isEqualTo(byte[][].class);
             assertThat(p1.getElementClassInfo()).isNull();
             assertThat(p1.getNumDimensions()).isEqualTo(2);
-            final ArrayClassInfo p2 = arrayClassInfoList.get(2);
+            final var p2 = arrayClassInfoList.get(2);
             assertThat(p2.loadElementClass()).isEqualTo(X.class);
             assertThat(p2.getElementClassInfo().getName()).isEqualTo(X.class.getName());
             assertThat(p2.loadClass()).isEqualTo(X[][][].class);
             assertThat(p2.getElementClassInfo().getMethodInfo().get(0).getName()).isEqualTo("xMethod");
             assertThat(p2.getNumDimensions()).isEqualTo(3);
-            final ArrayClassInfo p3 = arrayClassInfoList.get(3);
+            final var p3 = arrayClassInfoList.get(3);
             assertThat(p3.loadElementClass()).isEqualTo(String.class);
             assertThat(p3.loadClass()).isEqualTo(String[][].class);
             assertThat(p3.getElementClassInfo()).isNull();
@@ -246,9 +224,9 @@ public class MethodInfoTest {
 
     @Test
     public void testGetThrownExceptions() {
-        try (ScanResult scanResult = new ClassGraph().acceptPackages(MethodInfoTest.class.getPackage().getName())
+        try (var scanResult = new ClassGraph().acceptPackages(MethodInfoTest.class.getPackage().getName())
                 .enableClassInfo().enableMethodInfo().scan()) {
-            MethodInfo mi = scanResult.getClassInfo(MethodInfoTest.class.getName()).getMethodInfo()
+            var mi = scanResult.getClassInfo(MethodInfoTest.class.getName()).getMethodInfo()
                     .getSingleMethod("throwsException");
             assertThat(mi.getThrownExceptions()).hasSize(1);
             assertThat(mi.getThrownExceptions().get(0).getSimpleName()).isEqualTo("X");

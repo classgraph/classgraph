@@ -38,9 +38,6 @@ import java.net.URLClassLoader;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ClassInfo;
-import io.github.classgraph.ClassInfoList;
-import io.github.classgraph.ScanResult;
 
 /**
  * Test.
@@ -49,25 +46,24 @@ public class Issue495Test {
     /**
      * Test.
      *
-     * @throws IOException
-     *             Signals that an I/O exception has occurred.
+     * @throws IOException Signals that an I/O exception has occurred.
      */
     @Test
     public void testScalaTypeSignatures() throws Exception {
-        final URL resourceURL = Issue495Test.class.getClassLoader().getResource("scalapackage.zip");
+        final var resourceURL = Issue495Test.class.getClassLoader().getResource("scalapackage.zip");
         assertThat(resourceURL).isNotNull();
         assertThat(new File(resourceURL.toURI())).canRead();
-        final ClassLoader classLoader = new URLClassLoader(new URL[] { resourceURL }, null);
-        try (ScanResult scanResult = new ClassGraph() //
+        final var classLoader = new URLClassLoader(new URL[] { resourceURL }, null);
+        try (var scanResult = new ClassGraph() //
                 .enableClassInfo().enableInterClassDependencies() //
                 .acceptPackages("scalapackage") //
                 .overrideClassLoaders(classLoader) //
                 .scan()) {
-            final ClassInfoList allClasses = scanResult.getAllClasses();
+            final var allClasses = scanResult.getAllClasses();
             assertThat(allClasses.getNames()).containsOnly("scalapackage.ScalaClass");
-            final ClassInfo scalaClassInfo = allClasses.get(0);
+            final var scalaClassInfo = allClasses.get(0);
             assertThat(scalaClassInfo.getTypeSignature()).isNotNull();
-            final Class<?> scalaClassClass = scalaClassInfo.loadClass();
+            final var scalaClassClass = scalaClassInfo.loadClass();
             assertThat(scalaClassClass).isNotNull();
         }
     }

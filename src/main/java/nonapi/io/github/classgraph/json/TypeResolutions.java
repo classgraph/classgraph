@@ -45,11 +45,11 @@ class TypeResolutions {
     Type[] resolvedTypeArguments;
 
     /**
-     * Produce a list of type variable resolutions from a resolved type, by comparing its actual type parameters
-     * with the generic (declared) parameters of its generic type.
+     * Produce a list of type variable resolutions from a resolved type, by
+     * comparing its actual type parameters with the generic (declared) parameters
+     * of its generic type.
      *
-     * @param resolvedType
-     *            the resolved type
+     * @param resolvedType the resolved type
      */
     TypeResolutions(final ParameterizedType resolvedType) {
         typeVariables = ((Class<?>) resolvedType.getRawType()).getTypeParameters();
@@ -60,10 +60,10 @@ class TypeResolutions {
     }
 
     /**
-     * Resolve the type variables in a type using a type variable resolution list, producing a resolved type.
+     * Resolve the type variables in a type using a type variable resolution list,
+     * producing a resolved type.
      *
-     * @param type
-     *            the type
+     * @param type the type
      * @return the resolved type
      */
     Type resolveTypeVariables(final Type type) {
@@ -73,15 +73,15 @@ class TypeResolutions {
 
         } else if (type instanceof final ParameterizedType parameterizedType) {
             // Recursively resolve parameterized types
-            final Type[] typeArgs = parameterizedType.getActualTypeArguments();
+            final var typeArgs = parameterizedType.getActualTypeArguments();
             Type[] typeArgsResolved = null;
-            for (int i = 0; i < typeArgs.length; i++) {
+            for (var i = 0; i < typeArgs.length; i++) {
                 // Recursively revolve each parameter of the type
-                final Type typeArgResolved = resolveTypeVariables(typeArgs[i]);
+                final var typeArgResolved = resolveTypeVariables(typeArgs[i]);
                 // Only compare typeArgs to typeArgResolved until the first difference is found
                 if (typeArgsResolved == null) {
                     if (!typeArgResolved.equals(typeArgs[i])) {
-                        // After the first difference is found, lazily allocate typeArgsResolved 
+                        // After the first difference is found, lazily allocate typeArgsResolved
                         typeArgsResolved = new Type[typeArgs.length];
                         // Go back and copy all the previous args
                         System.arraycopy(typeArgs, 0, typeArgsResolved, 0, i);
@@ -89,7 +89,8 @@ class TypeResolutions {
                         typeArgsResolved[i] = typeArgResolved;
                     }
                 } else {
-                    // After the first difference is found, keep copying the resolved args into the array 
+                    // After the first difference is found, keep copying the resolved args into the
+                    // array
                     typeArgsResolved[i] = typeArgResolved;
                 }
             }
@@ -104,7 +105,7 @@ class TypeResolutions {
 
         } else if (type instanceof final TypeVariable<?> typeVariable) {
             // Look up concrete type for type variable
-            for (int i = 0; i < typeVariables.length; i++) {
+            for (var i = 0; i < typeVariables.length; i++) {
                 if (typeVariables[i].getName().equals(typeVariable.getName())) {
                     return resolvedTypeArguments[i];
                 }
@@ -114,23 +115,24 @@ class TypeResolutions {
 
         } else if (type instanceof GenericArrayType) {
             // Count the array dimensions, and resolve the innermost type of the array
-            int numArrayDims = 0;
-            Type t = type;
+            var numArrayDims = 0;
+            var t = type;
             while (t instanceof final GenericArrayType genericArrayType) {
                 numArrayDims++;
                 t = genericArrayType.getGenericComponentType();
             }
-            final Type innermostType = t;
-            final Type innermostTypeResolved = resolveTypeVariables(innermostType);
+            final var innermostType = t;
+            final var innermostTypeResolved = resolveTypeVariables(innermostType);
             if (!(innermostTypeResolved instanceof final Class<?> innermostTypeResolvedClass)) {
                 throw new IllegalArgumentException("Could not resolve generic array type " + type);
             }
 
             // Build an array to hold the size of each dimension, filled with zeroes
-            final int[] dims = (int[]) Array.newInstance(int.class, numArrayDims);
+            final var dims = (int[]) Array.newInstance(int.class, numArrayDims);
 
-            // Build a zero-sized array of the required number of dimensions, using the resolved innermost class 
-            final Object arrayInstance = Array.newInstance(innermostTypeResolvedClass, dims);
+            // Build a zero-sized array of the required number of dimensions, using the
+            // resolved innermost class
+            final var arrayInstance = Array.newInstance(innermostTypeResolvedClass, dims);
 
             // Get the class of this array instance -- this is the resolved array type
             return arrayInstance.getClass();
@@ -144,7 +146,9 @@ class TypeResolutions {
         }
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.Object#toString()
      */
     @Override
@@ -154,7 +158,7 @@ class TypeResolutions {
         } else {
             final StringBuilder buf = new StringBuilder();
             buf.append("{ ");
-            for (int i = 0; i < typeVariables.length; i++) {
+            for (var i = 0; i < typeVariables.length; i++) {
                 if (i > 0) {
                     buf.append(", ");
                 }

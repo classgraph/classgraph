@@ -49,14 +49,12 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
     /**
      * Return true if this classloader delegates to its parent.
      * 
-     * @param classLoader
-     *            the {@link ClassLoader}.
-     * @param reflectionUtils
-     *            the reflection utils instance.
+     * @param classLoader     the {@link ClassLoader}.
+     * @param reflectionUtils the reflection utils instance.
      * @return true if this classloader delegates to its parent.
      */
     private static boolean isParentFirst(final ClassLoader classLoader, final ReflectionUtils reflectionUtils) {
-        final Object delegateObject = reflectionUtils.getFieldVal(false, classLoader, "delegate");
+        final var delegateObject = reflectionUtils.getFieldVal(false, classLoader, "delegate");
         if (delegateObject != null) {
             return (boolean) delegateObject;
         }
@@ -67,14 +65,16 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
     @Override
     public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
             final LogNode log) {
-        final boolean isParentFirst = isParentFirst(classLoader, classLoaderOrder.reflectionUtils);
+        final var isParentFirst = isParentFirst(classLoader, classLoaderOrder.reflectionUtils);
         if (isParentFirst) {
             // Use parent-first delegation order
             classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
         }
         if ("org.apache.tomee.catalina.TomEEWebappClassLoader".equals(classLoader.getClass().getName())) {
-            // TomEEWebappClassLoader has a lot of complex delegation rules, including classname-specific
-            // delegation, which is not supported by the current ClassGraph model, so we just try to approximate
+            // TomEEWebappClassLoader has a lot of complex delegation rules, including
+            // classname-specific
+            // delegation, which is not supported by the current ClassGraph model, so we
+            // just try to approximate
             // the delegation order with a fixed order.
             try {
                 classLoaderOrder.delegateTo(Class.forName("org.apache.openejb.OpenEJB").getClassLoader(),
@@ -94,22 +94,25 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
             final ScanSpec scanSpec, final LogNode log) {
         // type StandardRoot (implements WebResourceRoot)
-        Object resources = classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getResources");
+        var resources = classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getResources");
         if (resources == null) {
-            // WebappClassLoaderBase#getResources() was deprecated in Tomcat 8.5 and 9.0, and removed in Tomcat
-            // 10.1, so fall back to reading the "resources" field that it returned, which is still present.
-            // Without this, none of the WebResourceSets below were found on Tomcat 10.1 or above. (#925)
+            // WebappClassLoaderBase#getResources() was deprecated in Tomcat 8.5 and 9.0,
+            // and removed in Tomcat
+            // 10.1, so fall back to reading the "resources" field that it returned, which
+            // is still present.
+            // Without this, none of the WebResourceSets below were found on Tomcat 10.1 or
+            // above. (#925)
             resources = classpathOrder.reflectionUtils.getFieldVal(false, classLoader, "resources");
         }
         // type List<URL>
-        final Object baseURLs = classpathOrder.reflectionUtils.invokeMethod(false, resources, "getBaseUrls");
+        final var baseURLs = classpathOrder.reflectionUtils.invokeMethod(false, resources, "getBaseUrls");
         classpathOrder.addClasspathEntryObject(baseURLs, classLoader, scanSpec, log);
         // type List<List<WebResourceSet>>
         // members: preResources, mainResources, classResources, jarResources,
         // postResources
         @SuppressWarnings("unchecked")
-        final List<List<?>> allResources = (List<List<?>>) classpathOrder.reflectionUtils.getFieldVal(false,
-                resources, "allResources");
+        final var allResources = (List<List<?>>) classpathOrder.reflectionUtils.getFieldVal(false, resources,
+                "allResources");
         if (allResources != null) {
             // type List<WebResourceSet>
             for (final List<?> webResourceSetList : allResources) {
@@ -119,9 +122,9 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
                 for (final Object webResourceSet : webResourceSetList) {
                     if (webResourceSet != null) {
                         // For DirResourceSet
-                        final File file = (File) classpathOrder.reflectionUtils.invokeMethod(false, webResourceSet,
+                        final var file = (File) classpathOrder.reflectionUtils.invokeMethod(false, webResourceSet,
                                 "getFileBase");
-                        String base = file == null ? null : file.getPath();
+                        var base = file == null ? null : file.getPath();
                         if (base == null) {
                             // For FileResourceSet
                             base = (String) classpathOrder.reflectionUtils.invokeMethod(false, webResourceSet,
@@ -137,25 +140,28 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
                         if (base != null) {
                             // For JarWarResourceSet: the path within the WAR file where the JAR file is
                             // located
-                            final String archivePath = (String) classpathOrder.reflectionUtils.getFieldVal(false,
+                            final var archivePath = (String) classpathOrder.reflectionUtils.getFieldVal(false,
                                     webResourceSet, "archivePath");
                             if (archivePath != null && !archivePath.isEmpty()) {
                                 // If archivePath is non-null, this is a jar within a war
                                 base += "!" + (archivePath.startsWith("/") ? archivePath : "/" + archivePath);
                             }
-                            final String className = webResourceSet.getClass().getName();
-                            // (These class names previously had a spurious "java." prefix, so isJar was always
-                            // false, and the internal path of a resource JAR was appended as a directory path
+                            final var className = webResourceSet.getClass().getName();
+                            // (These class names previously had a spurious "java." prefix, so isJar was
+                            // always
+                            // false, and the internal path of a resource JAR was appended as a directory
+                            // path
                             // rather than as a path within the JAR)
-                            final boolean isJar = className.equals("org.apache.catalina.webresources.JarResourceSet")
-                                    || className.equals("org.apache.catalina.webresources.JarWarResourceSet");
+                            final var isJar = "org.apache.catalina.webresources.JarResourceSet".equals(className)
+                                    || "org.apache.catalina.webresources.JarWarResourceSet".equals(className);
                             // The path within this WebResourceSet where resources will be served from,
                             // e.g. for a resource JAR, this would be "META-INF/resources"
-                            final String internalPath = (String) classpathOrder.reflectionUtils.invokeMethod(false,
+                            final var internalPath = (String) classpathOrder.reflectionUtils.invokeMethod(false,
                                     webResourceSet, "getInternalPath");
-                            if (internalPath != null && !internalPath.isEmpty() && !internalPath.equals("/")) {
-                                classpathOrder.addClasspathEntryObject(base + (isJar ? "!" : "")
-                                        + (internalPath.startsWith("/") ? internalPath : "/" + internalPath),
+                            if (internalPath != null && !internalPath.isEmpty() && !"/".equals(internalPath)) {
+                                classpathOrder.addClasspathEntryObject(
+                                        base + (isJar ? "!" : "")
+                                                + (internalPath.startsWith("/") ? internalPath : "/" + internalPath),
                                         classLoader, scanSpec, log);
                             } else {
                                 classpathOrder.addClasspathEntryObject(base, classLoader, scanSpec, log);
@@ -166,16 +172,18 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
             }
         }
         // This may or may not duplicate the above
-        final Object urls = classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getURLs");
+        final var urls = classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getURLs");
         classpathOrder.addClasspathEntryObject(urls, classLoader, scanSpec, log);
     }
 
     /**
-     * Get the automatic package root prefixes for classpath elements obtained from this classloader.
+     * Get the automatic package root prefixes for classpath elements obtained from
+     * this classloader.
      *
      * <p>
-     * Tomcat serves classes from "WEB-INF/classes/" within a webapp, and from a "classes/" dir within
-     * $CATALINA_BASE, and does not always list these dirs as classpath elements.
+     * Tomcat serves classes from "WEB-INF/classes/" within a webapp, and from a
+     * "classes/" dir within $CATALINA_BASE, and does not always list these dirs as
+     * classpath elements.
      *
      * @return the package root prefixes.
      */

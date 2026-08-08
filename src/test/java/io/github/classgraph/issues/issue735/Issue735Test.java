@@ -13,9 +13,7 @@ import org.junit.jupiter.api.Test;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
 import io.github.classgraph.ClassRefTypeSignature;
-import io.github.classgraph.MethodInfo;
 import io.github.classgraph.ScanResult;
-import io.github.classgraph.TypeSignature;
 
 public class Issue735Test {
     interface Base<T> {
@@ -23,6 +21,7 @@ public class Issue735Test {
     }
 
     static class Derived1 implements Base<String> {
+        @Override
         public String get() {
             return null;
         }
@@ -33,12 +32,12 @@ public class Issue735Test {
 
     @Test
     void genericSuperclass() {
-        try (ScanResult scanResult = new ClassGraph().acceptPackages(Issue735Test.class.getPackage().getName())
-                .enableAllInfo().ignoreClassVisibility().ignoreMethodVisibility().scan()) {
-            final ClassInfo ci1 = scanResult.getClassInfo(Derived1.class.getName());
+        try (var scanResult = new ClassGraph().acceptPackages(Issue735Test.class.getPackage().getName()).enableAllInfo()
+                .ignoreClassVisibility().ignoreMethodVisibility().scan()) {
+            final var ci1 = scanResult.getClassInfo(Derived1.class.getName());
             assertThat(ci1.getMethodInfo().get(0).getTypeSignatureOrTypeDescriptor().getResultType().toString())
                     .isEqualTo(String.class.getName());
-            final ClassInfo ci2 = scanResult.getClassInfo(Derived2.class.getName());
+            final var ci2 = scanResult.getClassInfo(Derived2.class.getName());
             assertThat(ci2.getMethodInfo().get(0).getTypeSignatureOrTypeDescriptor().getResultType().toString())
                     .isEqualTo("T");
         }
@@ -55,7 +54,10 @@ public class Issue735Test {
 
         T[] getArrayOfT();
 
-        /** A generic method whose own type parameter T shadows the interface's type parameter T. */
+        /**
+         * A generic method whose own type parameter T shadows the interface's type
+         * parameter T.
+         */
         <T> T identity(T t);
 
         void setT(T t);
@@ -74,7 +76,10 @@ public class Issue735Test {
     abstract static class PassesThrough<U> implements Generic<U> {
     }
 
-    /** Binds PassesThrough's U to Integer, which must compose into a binding of Generic's T to Integer. */
+    /**
+     * Binds PassesThrough's U to Integer, which must compose into a binding of
+     * Generic's T to Integer.
+     */
     abstract static class BoundToIntegerIndirectly extends PassesThrough<Integer> {
     }
 
@@ -91,7 +96,10 @@ public class Issue735Test {
     abstract static class FieldBoundToLong extends GenericField<Long> {
     }
 
-    /** Binds Generic's T to a class that is itself within the scanned package, so has a {@link ClassInfo}. */
+    /**
+     * Binds Generic's T to a class that is itself within the scanned package, so
+     * has a {@link ClassInfo}.
+     */
     abstract static class BoundToScannedClass implements Generic<Derived1> {
     }
 
@@ -118,18 +126,25 @@ public class Issue735Test {
     abstract static class PairSwapped<X, Y> implements Pair<Y, X> {
     }
 
-    /** Binds PairSwapped's X and Y, so Pair's A must compose to Integer and B to String. */
+    /**
+     * Binds PairSwapped's X and Y, so Pair's A must compose to Integer and B to
+     * String.
+     */
     abstract static class PairSwappedBound extends PairSwapped<String, Integer> {
     }
 
     /**
-     * Extends one generic class and implements another generic interface, both of which name their type parameter
-     * {@code T}, so the two bindings must not collide.
+     * Extends one generic class and implements another generic interface, both of
+     * which name their type parameter {@code T}, so the two bindings must not
+     * collide.
      */
     abstract static class BoundOnBothBranches extends GenericField<Long> implements Generic<String> {
     }
 
-    /** A self-referential ("f-bounded") type parameter, which must not send resolution into infinite recursion. */
+    /**
+     * A self-referential ("f-bounded") type parameter, which must not send
+     * resolution into infinite recursion.
+     */
     interface Recursive<R extends Recursive<R>> {
         R self();
     }
@@ -138,7 +153,10 @@ public class Issue735Test {
     abstract static class RecursiveBound implements Recursive<RecursiveBound> {
     }
 
-    /** A generic class with a generic inner (non-static) class, whose type variable is the outer class'. */
+    /**
+     * A generic class with a generic inner (non-static) class, whose type variable
+     * is the outer class'.
+     */
     static class Outer<O> {
         class Inner {
             O getO() {
@@ -166,17 +184,15 @@ public class Issue735Test {
     }
 
     /**
-     * Get the declared result type of a method of {@link Generic}, resolved against a context class.
+     * Get the declared result type of a method of {@link Generic}, resolved against
+     * a context class.
      *
-     * @param methodName
-     *            the name of the method of {@link Generic}.
-     * @param contextClass
-     *            the class to resolve type variables against.
+     * @param methodName   the name of the method of {@link Generic}.
+     * @param contextClass the class to resolve type variables against.
      * @return the resolved result type, as a string.
      */
     private static String resolvedResultType(final String methodName, final Class<?> contextClass) {
-        final MethodInfo methodInfo = scanResult.getClassInfo(Generic.class.getName()).getMethodInfo(methodName)
-                .get(0);
+        final var methodInfo = scanResult.getClassInfo(Generic.class.getName()).getMethodInfo(methodName).get(0);
         return methodInfo.getTypeSignatureOrTypeDescriptor().getResultType()
                 .resolveTypeVariables(scanResult.getClassInfo(contextClass.getName())).toString();
     }
@@ -184,16 +200,18 @@ public class Issue735Test {
     /** Without resolution, the declared types are the type variables themselves. */
     @Test
     void unresolvedTypesAreTypeVariables() {
-        final ClassInfo generic = scanResult.getClassInfo(Generic.class.getName());
-        assertThat(generic.getMethodInfo("getT").get(0).getTypeSignatureOrTypeDescriptor().getResultType()
-                .toString()).isEqualTo("T");
+        final var generic = scanResult.getClassInfo(Generic.class.getName());
+        assertThat(generic.getMethodInfo("getT").get(0).getTypeSignatureOrTypeDescriptor().getResultType().toString())
+                .isEqualTo("T");
         assertThat(generic.getMethodInfo("getListOfT").get(0).getTypeSignatureOrTypeDescriptor().getResultType()
                 .toString()).isEqualTo("java.util.List<T>");
         assertThat(generic.getMethodInfo("getArrayOfT").get(0).getTypeSignatureOrTypeDescriptor().getResultType()
                 .toString()).isEqualTo("T[]");
     }
 
-    /** The case from the issue: a type variable bound directly by the context class. */
+    /**
+     * The case from the issue: a type variable bound directly by the context class.
+     */
     @Test
     void typeVariableIsResolvedAgainstDirectSubtype() {
         assertThat(resolvedResultType("getT", BoundToString.class)).isEqualTo("java.lang.String");
@@ -202,8 +220,7 @@ public class Issue735Test {
     /** A type variable in type argument position. */
     @Test
     void typeVariableIsResolvedInTypeArgumentPosition() {
-        assertThat(resolvedResultType("getListOfT", BoundToString.class))
-                .isEqualTo("java.util.List<java.lang.String>");
+        assertThat(resolvedResultType("getListOfT", BoundToString.class)).isEqualTo("java.util.List<java.lang.String>");
     }
 
     /** A type variable as the element type of an array. */
@@ -220,7 +237,10 @@ public class Issue735Test {
                 .isEqualTo("java.util.List<java.lang.Integer>");
     }
 
-    /** Resolving against the intermediate class itself gives that class' own type variable. */
+    /**
+     * Resolving against the intermediate class itself gives that class' own type
+     * variable.
+     */
     @Test
     void typeVariableIsResolvedToAnotherTypeVariable() {
         assertThat(resolvedResultType("getT", PassesThrough.class)).isEqualTo("U");
@@ -233,7 +253,10 @@ public class Issue735Test {
                 .isEqualTo("java.util.List<? extends java.lang.Number>");
     }
 
-    /** A method's own type parameter shadows the interface's type parameter of the same name, so is not bound. */
+    /**
+     * A method's own type parameter shadows the interface's type parameter of the
+     * same name, so is not bound.
+     */
     @Test
     void methodTypeParameterShadowsClassTypeParameter() {
         assertThat(resolvedResultType("identity", BoundToString.class)).isEqualTo("T");
@@ -245,24 +268,28 @@ public class Issue735Test {
         assertThat(resolvedResultType("getT", BoundRaw.class)).isEqualTo("T");
     }
 
-    /** A context class that is not a subtype of the declaring class supplies no type argument. */
+    /**
+     * A context class that is not a subtype of the declaring class supplies no type
+     * argument.
+     */
     @Test
     void unrelatedContextClassLeavesTypeVariableUnresolved() {
         assertThat(resolvedResultType("getT", FieldBoundToLong.class)).isEqualTo("T");
     }
 
     /**
-     * A resolved type signature is fully wired up to the {@link ScanResult}, so a substituted node that was built
-     * during resolution can still resolve its own {@link ClassInfo}.
+     * A resolved type signature is fully wired up to the {@link ScanResult}, so a
+     * substituted node that was built during resolution can still resolve its own
+     * {@link ClassInfo}.
      */
     @Test
     void resolvedTypeSignatureHasScanResult() {
-        final TypeSignature resolved = scanResult.getClassInfo(Generic.class.getName()).getMethodInfo("getListOfT")
-                .get(0).getTypeSignatureOrTypeDescriptor().getResultType()
+        final var resolved = scanResult.getClassInfo(Generic.class.getName()).getMethodInfo("getListOfT").get(0)
+                .getTypeSignatureOrTypeDescriptor().getResultType()
                 .resolveTypeVariables(scanResult.getClassInfo(BoundToScannedClass.class.getName()));
         assertThat(resolved.toString()).isEqualTo("java.util.List<" + Derived1.class.getName() + ">");
-        final ClassRefTypeSignature typeArgument = (ClassRefTypeSignature) ((ClassRefTypeSignature) resolved)
-                .getTypeArguments().get(0).getTypeSignature();
+        final var typeArgument = (ClassRefTypeSignature) ((ClassRefTypeSignature) resolved).getTypeArguments().get(0)
+                .getTypeSignature();
         assertThat(typeArgument.getClassInfo()).isNotNull();
         assertThat(typeArgument.getClassInfo().getName()).isEqualTo(Derived1.class.getName());
     }
@@ -270,29 +297,28 @@ public class Issue735Test {
     /** Method parameter types are resolved by the same method. */
     @Test
     void methodParameterTypeIsResolved() {
-        final MethodInfo setT = scanResult.getClassInfo(Generic.class.getName()).getMethodInfo("setT").get(0);
+        final var setT = scanResult.getClassInfo(Generic.class.getName()).getMethodInfo("setT").get(0);
         assertThat(setT.getParameterInfo()[0].getTypeSignatureOrTypeDescriptor()
                 .resolveTypeVariables(scanResult.getClassInfo(BoundToString.class.getName())).toString())
-                        .isEqualTo("java.lang.String");
+                .isEqualTo("java.lang.String");
     }
 
     /** Field types are resolved by the same method. */
     @Test
     void fieldTypeIsResolved() {
-        final TypeSignature fieldType = scanResult.getClassInfo(GenericField.class.getName())
-                .getFieldInfo("field").getTypeSignatureOrTypeDescriptor();
+        final var fieldType = scanResult.getClassInfo(GenericField.class.getName()).getFieldInfo("field")
+                .getTypeSignatureOrTypeDescriptor();
         assertThat(fieldType.toString()).isEqualTo("T");
-        assertThat(fieldType.resolveTypeVariables(scanResult.getClassInfo(FieldBoundToLong.class.getName()))
-                .toString()).isEqualTo("java.lang.Long");
+        assertThat(fieldType.resolveTypeVariables(scanResult.getClassInfo(FieldBoundToLong.class.getName())).toString())
+                .isEqualTo("java.lang.Long");
     }
 
     /**
-     * Get the declared result type of a method of {@link Pair}, resolved against a context class.
+     * Get the declared result type of a method of {@link Pair}, resolved against a
+     * context class.
      *
-     * @param methodName
-     *            the name of the method of {@link Pair}.
-     * @param contextClass
-     *            the class to resolve type variables against.
+     * @param methodName   the name of the method of {@link Pair}.
+     * @param contextClass the class to resolve type variables against.
      * @return the resolved result type, as a string.
      */
     private static String resolvedPairResultType(final String methodName, final Class<?> contextClass) {
@@ -301,21 +327,30 @@ public class Issue735Test {
                 .resolveTypeVariables(scanResult.getClassInfo(contextClass.getName())).toString();
     }
 
-    /** Several type parameters are mapped to their type arguments by position, not by name. */
+    /**
+     * Several type parameters are mapped to their type arguments by position, not
+     * by name.
+     */
     @Test
     void severalTypeParametersAreMappedByPosition() {
         assertThat(resolvedPairResultType("getA", PairBound.class)).isEqualTo("java.lang.String");
         assertThat(resolvedPairResultType("getB", PairBound.class)).isEqualTo("java.lang.Integer");
     }
 
-    /** An intermediate class that swaps its type parameters must produce swapped bindings. */
+    /**
+     * An intermediate class that swaps its type parameters must produce swapped
+     * bindings.
+     */
     @Test
     void typeParametersSwappedByAnIntermediateClassAreComposedInTheRightOrder() {
         assertThat(resolvedPairResultType("getA", PairSwappedBound.class)).isEqualTo("java.lang.Integer");
         assertThat(resolvedPairResultType("getB", PairSwappedBound.class)).isEqualTo("java.lang.String");
     }
 
-    /** Type variables nested inside type arguments of type arguments are substituted. */
+    /**
+     * Type variables nested inside type arguments of type arguments are
+     * substituted.
+     */
     @Test
     void typeVariablesAreSubstitutedAtEveryDepth() {
         assertThat(resolvedPairResultType("getNested", PairBound.class))
@@ -324,37 +359,43 @@ public class Issue735Test {
                 .isEqualTo("java.util.Map<java.lang.Integer, java.util.List<java.lang.String>>");
     }
 
-    /** A multi-dimensional array's element type is substituted, and the dimensionality is preserved. */
+    /**
+     * A multi-dimensional array's element type is substituted, and the
+     * dimensionality is preserved.
+     */
     @Test
     void multiDimensionalArrayElementTypeIsResolved() {
         assertThat(resolvedPairResultType("getGrid", PairBound.class)).isEqualTo("java.lang.String[][]");
     }
 
-    /** A type containing no type variables is returned unchanged, as the very same object. */
+    /**
+     * A type containing no type variables is returned unchanged, as the very same
+     * object.
+     */
     @Test
     void typesWithoutTypeVariablesAreReturnedUnchanged() {
-        final ClassInfo pair = scanResult.getClassInfo(Pair.class.getName());
-        final ClassInfo contextClass = scanResult.getClassInfo(PairBound.class.getName());
+        final var pair = scanResult.getClassInfo(Pair.class.getName());
+        final var contextClass = scanResult.getClassInfo(PairBound.class.getName());
         for (final String methodName : new String[] { "getInt", "getString" }) {
-            final TypeSignature resultType = pair.getMethodInfo(methodName).get(0)
-                    .getTypeSignatureOrTypeDescriptor().getResultType();
+            final var resultType = pair.getMethodInfo(methodName).get(0).getTypeSignatureOrTypeDescriptor()
+                    .getResultType();
             assertThat(resultType.resolveTypeVariables(contextClass)).isSameAs(resultType);
         }
     }
 
     /**
-     * Two type variables that share the name {@code T} but are declared by different classes must be resolved
-     * independently of each other.
+     * Two type variables that share the name {@code T} but are declared by
+     * different classes must be resolved independently of each other.
      */
     @Test
     void identicallyNamedTypeVariablesOfDifferentClassesDoNotCollide() {
-        final ClassInfo contextClass = scanResult.getClassInfo(BoundOnBothBranches.class.getName());
+        final var contextClass = scanResult.getClassInfo(BoundOnBothBranches.class.getName());
         assertThat(scanResult.getClassInfo(Generic.class.getName()).getMethodInfo("getT").get(0)
                 .getTypeSignatureOrTypeDescriptor().getResultType().resolveTypeVariables(contextClass).toString())
-                        .isEqualTo("java.lang.String");
+                .isEqualTo("java.lang.String");
         assertThat(scanResult.getClassInfo(GenericField.class.getName()).getFieldInfo("field")
                 .getTypeSignatureOrTypeDescriptor().resolveTypeVariables(contextClass).toString())
-                        .isEqualTo("java.lang.Long");
+                .isEqualTo("java.lang.Long");
     }
 
     /** A self-referential type parameter resolves without recursing forever. */
@@ -363,36 +404,43 @@ public class Issue735Test {
         assertThat(scanResult.getClassInfo(Recursive.class.getName()).getMethodInfo("self").get(0)
                 .getTypeSignatureOrTypeDescriptor().getResultType()
                 .resolveTypeVariables(scanResult.getClassInfo(RecursiveBound.class.getName())).toString())
-                        .isEqualTo(RecursiveBound.class.getName());
+                .isEqualTo(RecursiveBound.class.getName());
     }
 
     /**
-     * A type variable that an inner class inherits from its enclosing class is left unresolved: the classfile
-     * records it as declared by the inner class itself, and the inner class is not on the supertype chain of a
-     * subclass of the enclosing class, so no type argument is ever supplied for it.
+     * A type variable that an inner class inherits from its enclosing class is left
+     * unresolved: the classfile records it as declared by the inner class itself,
+     * and the inner class is not on the supertype chain of a subclass of the
+     * enclosing class, so no type argument is ever supplied for it.
      */
     @Test
     void typeVariableOfEnclosingClassIsNotResolved() {
-        final TypeSignature resultType = scanResult.getClassInfo(Outer.Inner.class.getName()).getMethodInfo("getO")
-                .get(0).getTypeSignatureOrTypeDescriptor().getResultType();
+        final var resultType = scanResult.getClassInfo(Outer.Inner.class.getName()).getMethodInfo("getO").get(0)
+                .getTypeSignatureOrTypeDescriptor().getResultType();
         assertThat(resultType.toString()).isEqualTo("O");
         assertThat(resultType.resolveTypeVariables(scanResult.getClassInfo(OuterBound.class.getName())).toString())
                 .isEqualTo("O");
     }
 
-    /** Resolving against the declaring class itself leaves its own type variables unbound. */
+    /**
+     * Resolving against the declaring class itself leaves its own type variables
+     * unbound.
+     */
     @Test
     void declaringClassAsContextLeavesTypeVariablesUnresolved() {
         assertThat(resolvedResultType("getT", Generic.class)).isEqualTo("T");
         assertThat(resolvedResultType("getListOfT", Generic.class)).isEqualTo("java.util.List<T>");
     }
 
-    /** Resolution is repeatable: it must not mutate the type signature it is called on. */
+    /**
+     * Resolution is repeatable: it must not mutate the type signature it is called
+     * on.
+     */
     @Test
     void resolutionDoesNotMutateTheOriginalTypeSignature() {
-        final TypeSignature resultType = scanResult.getClassInfo(Generic.class.getName())
-                .getMethodInfo("getListOfT").get(0).getTypeSignatureOrTypeDescriptor().getResultType();
-        final ClassInfo contextClass = scanResult.getClassInfo(BoundToString.class.getName());
+        final var resultType = scanResult.getClassInfo(Generic.class.getName()).getMethodInfo("getListOfT").get(0)
+                .getTypeSignatureOrTypeDescriptor().getResultType();
+        final var contextClass = scanResult.getClassInfo(BoundToString.class.getName());
         assertThat(resultType.resolveTypeVariables(contextClass).toString())
                 .isEqualTo("java.util.List<java.lang.String>");
         assertThat(resultType.toString()).isEqualTo("java.util.List<T>");
@@ -404,9 +452,8 @@ public class Issue735Test {
     /** A null context class is rejected. */
     @Test
     void nullContextClassIsRejected() {
-        final TypeSignature resultType = scanResult.getClassInfo(Generic.class.getName()).getMethodInfo("getT")
-                .get(0).getTypeSignatureOrTypeDescriptor().getResultType();
-        assertThatThrownBy(() -> resultType.resolveTypeVariables(null))
-                .isInstanceOf(IllegalArgumentException.class);
+        final var resultType = scanResult.getClassInfo(Generic.class.getName()).getMethodInfo("getT").get(0)
+                .getTypeSignatureOrTypeDescriptor().getResultType();
+        assertThatThrownBy(() -> resultType.resolveTypeVariables(null)).isInstanceOf(IllegalArgumentException.class);
     }
 }

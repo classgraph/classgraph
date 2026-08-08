@@ -52,23 +52,25 @@ public class ClassLoaderOrder {
     public final ReflectionUtils reflectionUtils;
 
     /**
-     * The set of all {@link ClassLoader} instances that have been added to the order so far, so that classloaders
-     * don't get added twice.
+     * The set of all {@link ClassLoader} instances that have been added to the
+     * order so far, so that classloaders don't get added twice.
      */
-    // Need to use IdentityHashMap for maps and sets here, because TomEE weirdly makes instances of
-    // CxfContainerClassLoader equal to (via .equals()) the instance of TomEEWebappClassLoader that it
+    // Need to use IdentityHashMap for maps and sets here, because TomEE weirdly
+    // makes instances of
+    // CxfContainerClassLoader equal to (via .equals()) the instance of
+    // TomEEWebappClassLoader that it
     // delegates to (#515)
     private final Set<ClassLoader> added = Collections.newSetFromMap(new IdentityHashMap<>());
 
     /**
-     * The set of all {@link ClassLoader} instances that have been delegated to so far, to prevent an infinite loop
-     * in delegation.
+     * The set of all {@link ClassLoader} instances that have been delegated to so
+     * far, to prevent an infinite loop in delegation.
      */
     private final Set<ClassLoader> delegatedTo = Collections.newSetFromMap(new IdentityHashMap<>());
 
     /**
-     * The set of all parent {@link ClassLoader} instances that have been delegated to so far, to enable
-     * {@link ClassGraph#ignoreParentClassLoaders()}.
+     * The set of all parent {@link ClassLoader} instances that have been delegated
+     * to so far, to enable {@link ClassGraph#ignoreParentClassLoaders()}.
      */
     private final Set<ClassLoader> allParentClassLoaders = Collections.newSetFromMap(new IdentityHashMap<>());
 
@@ -77,8 +79,7 @@ public class ClassLoaderOrder {
     /**
      * Constructor.
      *
-     * @param reflectionUtils
-     *            the reflection utils instance.
+     * @param reflectionUtils the reflection utils instance.
      */
     public ClassLoaderOrder(final ReflectionUtils reflectionUtils) {
         this.reflectionUtils = reflectionUtils;
@@ -106,20 +107,19 @@ public class ClassLoaderOrder {
     /**
      * Get the ClassLoaderHandler(s) that can handle a given ClassLoader.
      *
-     * @param classLoader
-     *            the class loader
-     * @param log
-     *            the log
-     * @return the registry entries that can handle the classloader, or a singleton list containing the fallback
-     *         handler if none can.
+     * @param classLoader the class loader
+     * @param log         the log
+     * @return the registry entries that can handle the classloader, or a singleton
+     *         list containing the fallback handler if none can.
      */
     private static List<ClassLoaderHandlerRegistryEntry> getClassLoaderHandlerRegistryEntries(
             final ClassLoader classLoader, final LogNode log) {
         final List<ClassLoaderHandlerRegistryEntry> ents = new ArrayList<>();
-        boolean matched = false;
+        var matched = false;
         for (final ClassLoaderHandlerRegistryEntry ent : ClassLoaderHandlerRegistry.CLASS_LOADER_HANDLERS) {
             if (ent.canHandle(classLoader.getClass(), log)) {
-                // This ClassLoaderHandler can handle the ClassLoader class, or one of its superclasses
+                // This ClassLoaderHandler can handle the ClassLoader class, or one of its
+                // superclasses
                 ents.add(ent);
                 matched = true;
             }
@@ -133,10 +133,8 @@ public class ClassLoaderOrder {
     /**
      * Add a {@link ClassLoader} to the ClassLoader order at the current position.
      *
-     * @param classLoader
-     *            the class loader
-     * @param log
-     *            the log
+     * @param classLoader the class loader
+     * @param log         the log
      */
     public void add(final ClassLoader classLoader, final LogNode log) {
         if (classLoader == null) {
@@ -150,19 +148,18 @@ public class ClassLoaderOrder {
     /**
      * Recursively delegate to another {@link ClassLoader}.
      *
-     * @param classLoader
-     *            the class loader
-     * @param isParent
-     *            true if this is a parent of another classloader
-     * @param log
-     *            the log
+     * @param classLoader the class loader
+     * @param isParent    true if this is a parent of another classloader
+     * @param log         the log
      */
     public void delegateTo(final ClassLoader classLoader, final boolean isParent, final LogNode log) {
         if (classLoader == null) {
             return;
         }
-        // Check if this is a parent before checking if the classloader is already in the delegatedTo set,
-        // so that if the classloader is a context classloader but also a parent, it still gets marked as
+        // Check if this is a parent before checking if the classloader is already in
+        // the delegatedTo set,
+        // so that if the classloader is a context classloader but also a parent, it
+        // still gets marked as
         // a parent classloader.
         if (isParent) {
             allParentClassLoaders.add(classLoader);
@@ -171,7 +168,8 @@ public class ClassLoaderOrder {
         if (delegatedTo.add(classLoader)) {
             add(classLoader, log);
             // Recurse to get delegation order
-            // (note: may be wrong if multiple ClassLoaderHandlers can handle this classloader)
+            // (note: may be wrong if multiple ClassLoaderHandlers can handle this
+            // classloader)
             for (final ClassLoaderHandlerRegistryEntry entry : getClassLoaderHandlerRegistryEntries(classLoader,
                     /* Don't log twice -- also logged by add method above */ null)) {
                 entry.findClassLoaderOrder(classLoader, this, log);

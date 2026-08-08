@@ -32,14 +32,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
+import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ScanResult;
 
 /**
  * Issue128Test.
@@ -59,37 +58,35 @@ public class Issue128Test {
     /**
      * Issue 128 test.
      *
-     * @throws Exception
-     *             the exception
+     * @throws Exception the exception
      */
     @Test
     public void issue128Test() throws Exception {
         // Test a nested jar inside a jar fetched over HTTP
-        final URL jarURL = new URL(NESTED_JAR_URL);
-        try (ScanResult scanResult = new ClassGraph()
-                .overrideClassLoaders(new URLClassLoader(new URL[] { jarURL }, null)).enableRemoteJarScanning()
-                .scan()) {
-            final List<String> filesInsideLevel3 = scanResult.getAllResources().getPaths();
+        final var jarURL = new URL(NESTED_JAR_URL);
+        try (var scanResult = new ClassGraph().overrideClassLoaders(new URLClassLoader(new URL[] { jarURL }, null))
+                .enableRemoteJarScanning().scan()) {
+            final var filesInsideLevel3 = scanResult.getAllResources().getPaths();
             if (filesInsideLevel3.isEmpty()) {
-                // If there were no files inside jar, it is possible that remote jar could not be downloaded
+                // If there were no files inside jar, it is possible that remote jar could not
+                // be downloaded
                 try {
-                    final HttpURLConnection connection = (HttpURLConnection) jarURL.openConnection();
+                    final var connection = (HttpURLConnection) jarURL.openConnection();
                     connection.setRequestMethod("GET");
                     connection.setConnectTimeout(2000);
                     connection.connect();
-                    final int code = connection.getResponseCode();
+                    final var code = connection.getResponseCode();
                     if (code != 200) {
-                        throw new Exception(
-                                "Got bad response code " + code + " when trying to fetch URL " + jarURL);
+                        throw new Exception("Got bad response code " + code + " when trying to fetch URL " + jarURL);
                     } else {
                         throw new Exception("Able to download remote jar, but could not find files within jar");
                     }
-                } catch (final java.net.SocketTimeoutException e) {
+                } catch (final SocketTimeoutException e) {
                     System.err.println("Timeout while trying to download remote jar, skipping test "
                             + Issue128Test.class.getName() + ": " + e);
                 } catch (final IOException | SecurityException e) {
-                    System.err.println("Could not download remote jar, skipping test "
-                            + Issue128Test.class.getName() + ": " + e);
+                    System.err.println(
+                            "Could not download remote jar, skipping test " + Issue128Test.class.getName() + ": " + e);
                 }
             } else {
                 assertThat(filesInsideLevel3).containsOnly("com/test/Test.java", "com/test/Test.class");

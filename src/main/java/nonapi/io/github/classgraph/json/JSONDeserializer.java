@@ -38,14 +38,13 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.types.ParseException;
 
 /**
- * Fast, lightweight Java object to JSON serializer, and JSON to Java object deserializer. Handles cycles in the
- * object graph by inserting reference ids.
+ * Fast, lightweight Java object to JSON serializer, and JSON to Java object
+ * deserializer. Handles cycles in the object graph by inserting reference ids.
  */
 public final class JSONDeserializer {
     /**
@@ -56,15 +55,12 @@ public final class JSONDeserializer {
     }
 
     /**
-     * Deserialize a JSON basic value (String, Integer, Long, or Double), conforming it to the expected type
-     * (Character, Short, etc.).
+     * Deserialize a JSON basic value (String, Integer, Long, or Double), conforming
+     * it to the expected type (Character, Short, etc.).
      *
-     * @param jsonVal
-     *            the json val
-     * @param expectedType
-     *            the expected type
-     * @param convertStringToNumber
-     *            if true, convert strings to numbers
+     * @param jsonVal               the json val
+     * @param expectedType          the expected type
+     * @param convertStringToNumber if true, convert strings to numbers
      * @return the object
      */
     private static Object jsonBasicValueToObject(final Object jsonVal, final Type expectedType,
@@ -76,9 +72,9 @@ public final class JSONDeserializer {
         }
         if (expectedType instanceof final ParameterizedType parameterizedType) {
             if (parameterizedType.getRawType().getClass() == Class.class) {
-                final String str = jsonVal.toString();
-                final int idx = str.indexOf('<');
-                final String className = str.substring(0, idx < 0 ? str.length() : idx);
+                final var str = jsonVal.toString();
+                final var idx = str.indexOf('<');
+                final var className = str.substring(0, idx < 0 ? str.length() : idx);
                 try {
                     return Class.forName(className);
                 } catch (final ClassNotFoundException e) {
@@ -114,8 +110,8 @@ public final class JSONDeserializer {
             return jsonVal;
 
         } else if (rawType == Long.class || rawType == long.class) {
-            final boolean isLong = jsonVal instanceof Long;
-            final boolean isInteger = jsonVal instanceof Integer;
+            final var isLong = jsonVal instanceof Long;
+            final var isInteger = jsonVal instanceof Integer;
             if (convertStringToNumber && jsonVal instanceof CharSequence) {
                 return isLong ? Long.parseLong(jsonVal.toString()) : Integer.parseInt(jsonVal.toString());
             }
@@ -201,7 +197,6 @@ public final class JSONDeserializer {
             @SuppressWarnings({ "rawtypes", "unchecked" })
             final Enum enumValue = Enum.valueOf((Class<Enum>) rawType, jsonVal.toString());
             return enumValue;
-
         } else if (JSONUtils.getRawType(expectedType).isAssignableFrom(jsonVal.getClass())) {
             return jsonVal;
 
@@ -211,16 +206,14 @@ public final class JSONDeserializer {
     }
 
     /**
-     * Used to hold object instantiations temporarily before their fields can be populated, so that object
-     * references can be resolved in the same order during deserialization as they were created during
-     * serialization.
+     * Used to hold object instantiations temporarily before their fields can be
+     * populated, so that object references can be resolved in the same order during
+     * deserialization as they were created during serialization.
      *
-     * @param objectInstance
-     *            the Java object instance to populate from the JSONObject or JSONArray
-     * @param type
-     *            the resolved type of the object instance
-     * @param jsonVal
-     *            the JSONObject or JSONArray to recurse into
+     * @param objectInstance the Java object instance to populate from the
+     *                       JSONObject or JSONArray
+     * @param type           the resolved type of the object instance
+     * @param jsonVal        the JSONObject or JSONArray to recurse into
      */
     private record ObjectInstantiation(Object objectInstance, Type type, Object jsonVal) {
     }
@@ -228,18 +221,12 @@ public final class JSONDeserializer {
     /**
      * Populate object from json object.
      *
-     * @param objectInstance
-     *            the object instance
-     * @param objectResolvedType
-     *            the object resolved type
-     * @param jsonVal
-     *            the json val
-     * @param classFieldCache
-     *            the class field cache
-     * @param idToObjectInstance
-     *            a map from id to object instance
-     * @param collectionElementAdders
-     *            the collection element adders
+     * @param objectInstance          the object instance
+     * @param objectResolvedType      the object resolved type
+     * @param jsonVal                 the json val
+     * @param classFieldCache         the class field cache
+     * @param idToObjectInstance      a map from id to object instance
+     * @param collectionElementAdders the collection element adders
      */
     private static void populateObjectFromJsonObject(final Object objectInstance, final Type objectResolvedType,
             final Object jsonVal, final ClassFieldCache classFieldCache,
@@ -251,10 +238,10 @@ public final class JSONDeserializer {
         }
 
         // Check jsonVal is JSONObject or JSONArray
-        final JSONObject jsonObject = jsonVal instanceof final JSONObject obj ? obj : null;
-        final JSONArray jsonArray = jsonVal instanceof final JSONArray arr ? arr : null;
-        final boolean isJsonObject = jsonObject != null;
-        final boolean isJsonArray = jsonArray != null;
+        final var jsonObject = jsonVal instanceof final JSONObject obj ? obj : null;
+        final var jsonArray = jsonVal instanceof final JSONArray arr ? arr : null;
+        final var isJsonObject = jsonObject != null;
+        final var isJsonArray = jsonArray != null;
         if (!(isJsonArray || isJsonObject)) {
             throw new IllegalArgumentException(
                     "Expected JSONObject or JSONArray, got " + jsonVal.getClass().getSimpleName());
@@ -262,20 +249,21 @@ public final class JSONDeserializer {
 
         // Check concrete type of object instance
         final Class<?> rawType = objectInstance.getClass();
-        final boolean isMap = Map.class.isAssignableFrom(rawType);
+        final var isMap = Map.class.isAssignableFrom(rawType);
         @SuppressWarnings("unchecked")
-        final Map<Object, Object> mapInstance = isMap ? (Map<Object, Object>) objectInstance : null;
-        final boolean isCollection = Collection.class.isAssignableFrom(rawType);
+        final var mapInstance = isMap ? (Map<Object, Object>) objectInstance : null;
+        final var isCollection = Collection.class.isAssignableFrom(rawType);
         @SuppressWarnings("unchecked")
-        final Collection<Object> collectionInstance = isCollection ? (Collection<Object>) objectInstance : null;
-        final boolean isArray = rawType.isArray();
-        final boolean isObj = !(isMap || isCollection || isArray);
+        final var collectionInstance = isCollection ? (Collection<Object>) objectInstance : null;
+        final var isArray = rawType.isArray();
+        final var isObj = !(isMap || isCollection || isArray);
         if ((isMap || isObj) != isJsonObject || (isCollection || isArray) != isJsonArray) {
             throw new IllegalArgumentException("Wrong JSON type for class " + objectInstance.getClass().getName());
         }
 
-        // Handle concrete subclasses of generic classes, e.g. ClassInfoList extends List<ClassInfo>
-        Type objectResolvedTypeGeneric = objectResolvedType;
+        // Handle concrete subclasses of generic classes, e.g. ClassInfoList extends
+        // List<ClassInfo>
+        var objectResolvedTypeGeneric = objectResolvedType;
         if (objectResolvedType instanceof final Class<?> objectResolvedCls) {
             if (Map.class.isAssignableFrom(objectResolvedCls)) {
                 if (!isMap) {
@@ -294,7 +282,8 @@ public final class JSONDeserializer {
         TypeResolutions typeResolutions;
         // keyType is the first type parameter for maps, otherwise null
         Type mapKeyType;
-        // valueType is the component type for arrays, the second type parameter for maps,
+        // valueType is the component type for arrays, the second type parameter for
+        // maps,
         // the first type parameter for collections, or null for standard objects (since
         // fields may be of a range of different types for standard objects)
         Type commonResolvedValueType;
@@ -313,11 +302,12 @@ public final class JSONDeserializer {
             }
             commonResolvedValueType = null;
         } else if (objectResolvedTypeGeneric instanceof final ParameterizedType parameterizedResolvedType) {
-            // Get mapping from type variables to resolved types, by comparing the concrete type arguments
+            // Get mapping from type variables to resolved types, by comparing the concrete
+            // type arguments
             // of the expected type to its type parameters
             typeResolutions = new TypeResolutions(parameterizedResolvedType);
             // Correlate type variables with resolved types
-            final int numTypeArgs = typeResolutions.resolvedTypeArguments.length;
+            final var numTypeArgs = typeResolutions.resolvedTypeArguments.length;
             if (isMap && numTypeArgs != 2) {
                 throw new IllegalArgumentException(
                         "Wrong number of type arguments for Map: got " + numTypeArgs + "; expected 2");
@@ -333,48 +323,53 @@ public final class JSONDeserializer {
         } else {
             throw new IllegalArgumentException("Got illegal type: " + objectResolvedTypeGeneric);
         }
-        final Class<?> commonValueRawType = commonResolvedValueType == null ? null
+        final var commonValueRawType = commonResolvedValueType == null ? null
                 : JSONUtils.getRawType(commonResolvedValueType);
 
-        // For maps and collections, or 1D arrays, all the elements are of the same type. 
+        // For maps and collections, or 1D arrays, all the elements are of the same
+        // type.
         // Look up the constructor for the value type just once for speed.
         Constructor<?> commonValueConstructorWithSizeHint;
         Constructor<?> commonValueDefaultConstructor;
         if (isMap || isCollection || (is1DArray && !JSONUtils.isBasicValueType(arrayComponentType))) {
             // Get value type constructor for Collection, Map or 1D array
-            commonValueConstructorWithSizeHint = classFieldCache.getConstructorWithSizeHintForConcreteTypeOf(
-                    is1DArray ? arrayComponentType : commonValueRawType);
+            commonValueConstructorWithSizeHint = classFieldCache
+                    .getConstructorWithSizeHintForConcreteTypeOf(is1DArray ? arrayComponentType : commonValueRawType);
             if (commonValueConstructorWithSizeHint != null) {
-                // No need for a default constructor if there is a constructor that takes a size hint
+                // No need for a default constructor if there is a constructor that takes a size
+                // hint
                 commonValueDefaultConstructor = null;
             } else {
-                commonValueDefaultConstructor = classFieldCache.getDefaultConstructorForConcreteTypeOf(
-                        is1DArray ? arrayComponentType : commonValueRawType);
+                commonValueDefaultConstructor = classFieldCache
+                        .getDefaultConstructorForConcreteTypeOf(is1DArray ? arrayComponentType : commonValueRawType);
             }
         } else {
-            // There is no single constructor for the fields of objects, and arrays and basic value types
+            // There is no single constructor for the fields of objects, and arrays and
+            // basic value types
             // have no constructor
             commonValueConstructorWithSizeHint = null;
             commonValueDefaultConstructor = null;
         }
 
         // For standard objects, look up the list of deserializable fields
-        final ClassFields classFields = isObj ? classFieldCache.get(rawType) : null;
+        final var classFields = isObj ? classFieldCache.get(rawType) : null;
 
-        // Need to deserialize items in the same order as serialization: create all deserialized objects
-        // at the current level in Pass 1, recording any ids that are found, then recurse into child nodes
+        // Need to deserialize items in the same order as serialization: create all
+        // deserialized objects
+        // at the current level in Pass 1, recording any ids that are found, then
+        // recurse into child nodes
         // in Pass 2 after objects at the current level have all been instantiated.
         ArrayList<ObjectInstantiation> itemsToRecurseToInPass2 = null;
 
         // Pass 1: Convert JSON objects in JSONObject items into Java objects
-        final int numItems = jsonObject != null ? jsonObject.items.size()
+        final var numItems = jsonObject != null ? jsonObject.items.size()
                 : jsonArray != null ? jsonArray.items.size() : /* can't happen */ 0;
-        for (int i = 0; i < numItems; i++) {
+        for (var i = 0; i < numItems; i++) {
             // Iterate through items of JSONObject or JSONArray (key is null for JSONArray)
             final String itemJsonKey;
             final Object itemJsonValue;
             if (jsonObject != null) {
-                final Entry<String, Object> jsonObjectItem = jsonObject.items.get(i);
+                final var jsonObjectItem = jsonObject.items.get(i);
                 itemJsonKey = jsonObjectItem.getKey();
                 itemJsonValue = jsonObjectItem.getValue();
             } else if (jsonArray != null) {
@@ -384,15 +379,16 @@ public final class JSONDeserializer {
                 // Can't happen (keep static analyzers happy)
                 throw new RuntimeException("This exception should not be thrown");
             }
-            final JSONObject itemJsonValueJsonObject = itemJsonValue instanceof final JSONObject obj ? obj : null;
-            final JSONArray itemJsonValueJsonArray = itemJsonValue instanceof final JSONArray arr ? arr : null;
-            final boolean itemJsonValueIsJsonObject = itemJsonValueJsonObject != null;
-            final boolean itemJsonValueIsJsonArray = itemJsonValueJsonArray != null;
+            final var itemJsonValueJsonObject = itemJsonValue instanceof final JSONObject obj ? obj : null;
+            final var itemJsonValueJsonArray = itemJsonValue instanceof final JSONArray arr ? arr : null;
+            final var itemJsonValueIsJsonObject = itemJsonValueJsonObject != null;
+            final var itemJsonValueIsJsonArray = itemJsonValueJsonArray != null;
 
             // If this is a standard object, look up the field info in the type cache
             FieldTypeInfo fieldTypeInfo;
             if (classFields != null) {
-                // Standard objects must interpret the key as a string, since field names are strings.
+                // Standard objects must interpret the key as a string, since field names are
+                // strings.
                 // Look up field name directly, using the itemJsonKey string
                 fieldTypeInfo = classFields.fieldNameToFieldTypeInfo.get(itemJsonKey);
                 if (fieldTypeInfo == null) {
@@ -403,12 +399,16 @@ public final class JSONDeserializer {
                 fieldTypeInfo = null;
             }
 
-            // Standard objects have a different type for each field; arrays have a nested value type;
+            // Standard objects have a different type for each field; arrays have a nested
+            // value type;
             // collections and maps have a single common value type for all elements.
-            final Type resolvedItemValueType =
-                    // For objects, finish resolving partially resolve field types using the set of type
-                    // resolutions found by comparing the resolved type of the concrete containing object
-                    // with its generic type. (Fields were partially resolved before by substituting type
+            final var resolvedItemValueType =
+                    // For objects, finish resolving partially resolve field types using the set of
+                    // type
+                    // resolutions found by comparing the resolved type of the concrete containing
+                    // object
+                    // with its generic type. (Fields were partially resolved before by substituting
+                    // type
                     // arguments of subclasses into type variables of superclasses.)
                     fieldTypeInfo != null ? fieldTypeInfo.getFullyResolvedFieldType(typeResolutions)
                             // For arrays, the item type is the array component type
@@ -423,8 +423,10 @@ public final class JSONDeserializer {
                 instantiatedItemObject = null;
 
             } else if (resolvedItemValueType == Object.class) {
-                // For Object-typed fields, we can only deserialize a JSONObject to Map<Object, Object>
-                // or a JSONArray to List<Object>, since we don't have any other type information
+                // For Object-typed fields, we can only deserialize a JSONObject to Map<Object,
+                // Object>
+                // or a JSONArray to List<Object>, since we don't have any other type
+                // information
                 if (itemJsonValueIsJsonObject) {
                     instantiatedItemObject = new HashMap<>();
                     if (itemsToRecurseToInPass2 == null) {
@@ -442,7 +444,8 @@ public final class JSONDeserializer {
                             ParameterizedTypeImpl.LIST_OF_UNKNOWN_TYPE, itemJsonValue));
 
                 } else {
-                    // Deserialize basic JSON value for assigning to Object-typed field or as Object-typed element
+                    // Deserialize basic JSON value for assigning to Object-typed field or as
+                    // Object-typed element
                     instantiatedItemObject = jsonBasicValueToObject(itemJsonValue, resolvedItemValueType,
                             /* convertStringToNumber = */ false);
                 }
@@ -461,11 +464,12 @@ public final class JSONDeserializer {
                 // Value type is a recursive type (has fields or items)
 
                 if (CharSequence.class.isAssignableFrom(itemJsonValue.getClass())) {
-                    // This must be an id ref -- it is a string in a position that requires a recursive type.  
+                    // This must be an id ref -- it is a string in a position that requires a
+                    // recursive type.
                     // Look up JSON reference, based on the id in itemJsonValue.
-                    final Object linkedObject = idToObjectInstance.get(itemJsonValue);
+                    final var linkedObject = idToObjectInstance.get(itemJsonValue);
                     if (linkedObject == null) {
-                        // Since we are deserializing objects in the same order as they were 
+                        // Since we are deserializing objects in the same order as they were
                         // serialized, this should not happen
                         throw new IllegalArgumentException("Object id not found: " + itemJsonValue);
                     }
@@ -480,11 +484,12 @@ public final class JSONDeserializer {
                                 "Got simple value type when expecting a JSON object or JSON array");
                     }
                     try {
-                        // Call the appropriate constructor for the item, whether its type is array, Collection,
-                        // Map or other class type. For collections and Maps, call the size hint constructor
+                        // Call the appropriate constructor for the item, whether its type is array,
+                        // Collection,
+                        // Map or other class type. For collections and Maps, call the size hint
+                        // constructor
                         // for speed when adding items.
-                        final int numSubItems = itemJsonValueJsonObject != null
-                                ? itemJsonValueJsonObject.items.size()
+                        final var numSubItems = itemJsonValueJsonObject != null ? itemJsonValueJsonObject.items.size()
                                 : itemJsonValueJsonArray != null ? itemJsonValueJsonArray.items.size()
                                         : /* can't happen */ 0;
                         if (resolvedItemValueType instanceof final Class<?> resolvedItemValueClass
@@ -494,8 +499,8 @@ public final class JSONDeserializer {
                                 throw new IllegalArgumentException(
                                         "Expected JSONArray, got " + itemJsonValue.getClass().getName());
                             }
-                            instantiatedItemObject = Array
-                                    .newInstance(resolvedItemValueClass.getComponentType(), numSubItems);
+                            instantiatedItemObject = Array.newInstance(resolvedItemValueClass.getComponentType(),
+                                    numSubItems);
                         } else {
                             // For maps and collections, all the elements are of the same type
                             if (isCollection || isMap || is1DArray) {
@@ -511,13 +516,13 @@ public final class JSONDeserializer {
                                 // For object types, each field has its own constructor, and the constructor can
                                 // vary if the field type is completely generic (e.g. "T field").
                                 final Constructor<?> valueConstructorWithSizeHint = fieldTypeInfo
-                                        .getConstructorForFieldTypeWithSizeHint(resolvedItemValueType,
-                                                classFieldCache);
+                                        .getConstructorForFieldTypeWithSizeHint(resolvedItemValueType, classFieldCache);
                                 if (valueConstructorWithSizeHint != null) {
                                     instantiatedItemObject = valueConstructorWithSizeHint.newInstance(numSubItems);
                                 } else {
-                                    instantiatedItemObject = fieldTypeInfo.getDefaultConstructorForFieldType(
-                                            resolvedItemValueType, classFieldCache).newInstance();
+                                    instantiatedItemObject = fieldTypeInfo
+                                            .getDefaultConstructorForFieldType(resolvedItemValueType, classFieldCache)
+                                            .newInstance();
                                 }
                             } else if (isArray && !is1DArray) {
                                 // Construct next innermost array for an array of 2+ dimensions
@@ -528,25 +533,25 @@ public final class JSONDeserializer {
                             }
                         }
                     } catch (final ReflectiveOperationException | SecurityException e) {
-                        throw new IllegalArgumentException("Could not instantiate type " + resolvedItemValueType,
-                                e);
+                        throw new IllegalArgumentException("Could not instantiate type " + resolvedItemValueType, e);
                     }
 
-                    // Look up any id field in the object (it will be the first field), and if present,
-                    // add it to the idToObjectInstance map, so that it is available before recursing 
+                    // Look up any id field in the object (it will be the first field), and if
+                    // present,
+                    // add it to the idToObjectInstance map, so that it is available before
+                    // recursing
                     // into any sibling objects.
-                    if (itemJsonValue instanceof final JSONObject itemJsonObject) {
-                        if (itemJsonObject.objectId != null) {
-                            idToObjectInstance.put(itemJsonObject.objectId, instantiatedItemObject);
-                        }
+                    if ((itemJsonValue instanceof final JSONObject itemJsonObject)
+                            && (itemJsonObject.objectId != null)) {
+                        idToObjectInstance.put(itemJsonObject.objectId, instantiatedItemObject);
                     }
 
                     // Defer recursing into items
                     if (itemsToRecurseToInPass2 == null) {
                         itemsToRecurseToInPass2 = new ArrayList<>();
                     }
-                    itemsToRecurseToInPass2.add(
-                            new ObjectInstantiation(instantiatedItemObject, resolvedItemValueType, itemJsonValue));
+                    itemsToRecurseToInPass2
+                            .add(new ObjectInstantiation(instantiatedItemObject, resolvedItemValueType, itemJsonValue));
                 }
             }
 
@@ -554,16 +559,17 @@ public final class JSONDeserializer {
             if (fieldTypeInfo != null) {
                 fieldTypeInfo.setFieldValue(objectInstance, instantiatedItemObject);
             } else if (mapInstance != null) {
-                // For maps, key type should be deserialized from strings, to support e.g. Integer as a key type.
+                // For maps, key type should be deserialized from strings, to support e.g.
+                // Integer as a key type.
                 // This only works for basic object types though (String, Integer, Enum, etc.)
-                final Object mapKey = jsonBasicValueToObject(itemJsonKey, mapKeyType,
-                        /* convertStringToNumber = */ true);
+                final var mapKey = jsonBasicValueToObject(itemJsonKey, mapKeyType, /* convertStringToNumber = */ true);
                 mapInstance.put(mapKey, instantiatedItemObject);
             } else if (isArray) {
                 Array.set(objectInstance, i, instantiatedItemObject);
             } else if (collectionInstance != null) {
                 // Can't add partially-deserialized item objects to Collections yet, since their
-                // hashCode() and equals() methods may depend upon fields that have not yet been set.
+                // hashCode() and equals() methods may depend upon fields that have not yet been
+                // set.
                 collectionElementAdders.add(() -> collectionInstance.add(instantiatedItemObject));
             }
         }
@@ -580,26 +586,22 @@ public final class JSONDeserializer {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Set up the initial mapping from id to object, by adding the id of the toplevel object, if it has an id field
-     * in JSON.
+     * Set up the initial mapping from id to object, by adding the id of the
+     * toplevel object, if it has an id field in JSON.
      *
-     * @param objectInstance
-     *            the object instance
-     * @param parsedJSON
-     *            the parsed JSON
+     * @param objectInstance the object instance
+     * @param parsedJSON     the parsed JSON
      * @return the initial id to object map
      */
     private static Map<CharSequence, Object> getInitialIdToObjectMap(final Object objectInstance,
             final Object parsedJSON) {
         final Map<CharSequence, Object> idToObjectInstance = new HashMap<>();
-        if (parsedJSON instanceof final JSONObject itemJsonObject) {
-            if (!itemJsonObject.items.isEmpty()) {
-                final Entry<String, Object> firstItem = itemJsonObject.items.get(0);
-                if (firstItem.getKey().equals(JSONUtils.ID_KEY)) {
-                    final Object firstItemValue = firstItem.getValue();
-                    if (firstItemValue == null || !CharSequence.class.isAssignableFrom(firstItemValue.getClass())) {
-                        idToObjectInstance.put((CharSequence) firstItemValue, objectInstance);
-                    }
+        if ((parsedJSON instanceof final JSONObject itemJsonObject) && !itemJsonObject.items.isEmpty()) {
+            final var firstItem = itemJsonObject.items.get(0);
+            if (JSONUtils.ID_KEY.equals(firstItem.getKey())) {
+                final var firstItemValue = firstItem.getValue();
+                if (firstItemValue == null || !CharSequence.class.isAssignableFrom(firstItemValue.getClass())) {
+                    idToObjectInstance.put((CharSequence) firstItemValue, objectInstance);
                 }
             }
         }
@@ -609,22 +611,20 @@ public final class JSONDeserializer {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Deserialize JSON to a new object graph, with the root object of the specified expected type, using or reusing
-     * the given type cache. Does not work for generic types, since it is not possible to obtain the generic type of
-     * a Class reference.
+     * Deserialize JSON to a new object graph, with the root object of the specified
+     * expected type, using or reusing the given type cache. Does not work for
+     * generic types, since it is not possible to obtain the generic type of a Class
+     * reference.
      *
-     * @param <T>
-     *            the expected type
-     * @param expectedType
-     *            The type that the JSON should conform to.
-     * @param json
-     *            the JSON string to deserialize.
-     * @param classFieldCache
-     *            The class field cache. Reusing this cache will increase the speed if many JSON documents of the
-     *            same type need to be parsed.
+     * @param <T>             the expected type
+     * @param expectedType    The type that the JSON should conform to.
+     * @param json            the JSON string to deserialize.
+     * @param classFieldCache The class field cache. Reusing this cache will
+     *                        increase the speed if many JSON documents of the same
+     *                        type need to be parsed.
      * @return The object graph after deserialization.
-     * @throws IllegalArgumentException
-     *             If anything goes wrong during deserialization.
+     * @throws IllegalArgumentException If anything goes wrong during
+     *                                  deserialization.
      */
     private static <T> T deserializeObject(final Class<T> expectedType, final String json,
             final ClassFieldCache classFieldCache) throws IllegalArgumentException {
@@ -641,7 +641,7 @@ public final class JSONDeserializer {
             // Construct an object of the expected type
             final Constructor<?> constructor = classFieldCache.getDefaultConstructorForConcreteTypeOf(expectedType);
             @SuppressWarnings("unchecked")
-            final T newInstance = (T) constructor.newInstance();
+            final var newInstance = (T) constructor.newInstance();
             objectInstance = newInstance;
         } catch (final ReflectiveOperationException | SecurityException e) {
             throw new IllegalArgumentException("Could not construct object of type " + expectedType.getName(), e);
@@ -659,20 +659,18 @@ public final class JSONDeserializer {
     }
 
     /**
-     * Deserialize JSON to a new object graph, with the root object of the specified expected type. Does not work
-     * for generic types, since it is not possible to obtain the generic type of a Class reference.
+     * Deserialize JSON to a new object graph, with the root object of the specified
+     * expected type. Does not work for generic types, since it is not possible to
+     * obtain the generic type of a Class reference.
      * 
-     * @param <T>
-     *            The type that the JSON should conform to.
-     * @param expectedType
-     *            The class reference for the type that the JSON should conform to.
-     * @param json
-     *            the JSON string to deserialize.
-     * @param reflectionUtils
-     *            the {@link ReflectionUtils} instance.
+     * @param <T>             The type that the JSON should conform to.
+     * @param expectedType    The class reference for the type that the JSON should
+     *                        conform to.
+     * @param json            the JSON string to deserialize.
+     * @param reflectionUtils the {@link ReflectionUtils} instance.
      * @return The object graph after deserialization.
-     * @throws IllegalArgumentException
-     *             If anything goes wrong during deserialization.
+     * @throws IllegalArgumentException If anything goes wrong during
+     *                                  deserialization.
      */
     public static <T> T deserializeObject(final Class<T> expectedType, final String json,
             final ReflectionUtils reflectionUtils) throws IllegalArgumentException {
@@ -682,18 +680,17 @@ public final class JSONDeserializer {
     }
 
     /**
-     * Deserialize JSON to a new object graph, with the root object of the specified expected type. Does not work
-     * for generic types, since it is not possible to obtain the generic type of a Class reference.
+     * Deserialize JSON to a new object graph, with the root object of the specified
+     * expected type. Does not work for generic types, since it is not possible to
+     * obtain the generic type of a Class reference.
      * 
-     * @param <T>
-     *            The type that the JSON should conform to.
-     * @param expectedType
-     *            The class reference for the type that the JSON should conform to.
-     * @param json
-     *            the JSON string to deserialize.
+     * @param <T>          The type that the JSON should conform to.
+     * @param expectedType The class reference for the type that the JSON should
+     *                     conform to.
+     * @param json         the JSON string to deserialize.
      * @return The object graph after deserialization.
-     * @throws IllegalArgumentException
-     *             If anything goes wrong during deserialization.
+     * @throws IllegalArgumentException If anything goes wrong during
+     *                                  deserialization.
      */
     public static <T> T deserializeObject(final Class<T> expectedType, final String json)
             throws IllegalArgumentException {
@@ -701,21 +698,20 @@ public final class JSONDeserializer {
     }
 
     /**
-     * Deserialize JSON to a new object graph, with the root object of the specified expected type, and store the
-     * root object in the named field of the given containing object. Works for generic types, since it is possible
-     * to obtain the generic type of a field.
+     * Deserialize JSON to a new object graph, with the root object of the specified
+     * expected type, and store the root object in the named field of the given
+     * containing object. Works for generic types, since it is possible to obtain
+     * the generic type of a field.
      * 
-     * @param containingObject
-     *            The object containing the named field to deserialize the object graph into.
-     * @param fieldName
-     *            The name of the field to set with the result.
-     * @param json
-     *            the JSON string to deserialize.
-     * @param classFieldCache
-     *            The class field cache. Reusing this cache will increase the speed if many JSON documents of the
-     *            same type need to be parsed.
-     * @throws IllegalArgumentException
-     *             If anything goes wrong during deserialization.
+     * @param containingObject The object containing the named field to deserialize
+     *                         the object graph into.
+     * @param fieldName        The name of the field to set with the result.
+     * @param json             the JSON string to deserialize.
+     * @param classFieldCache  The class field cache. Reusing this cache will
+     *                         increase the speed if many JSON documents of the same
+     *                         type need to be parsed.
+     * @throws IllegalArgumentException If anything goes wrong during
+     *                                  deserialization.
      */
     public static void deserializeToField(final Object containingObject, final String fieldName, final String json,
             final ClassFieldCache classFieldCache) throws IllegalArgumentException {
@@ -731,12 +727,14 @@ public final class JSONDeserializer {
             throw new IllegalArgumentException("Could not parse JSON", e);
         }
 
-        // Create a JSONObject with one field of the requested name, and deserialize that into the requested object
+        // Create a JSONObject with one field of the requested name, and deserialize
+        // that into the requested object
         final JSONObject wrapperJsonObj = new JSONObject(1);
         wrapperJsonObj.items.add(new SimpleEntry<>(fieldName, parsedJSON));
 
         // Populate the object field
-        // (no need to call getInitialIdToObjectMap(), since toplevel object is a wrapper, which doesn't have an id)
+        // (no need to call getInitialIdToObjectMap(), since toplevel object is a
+        // wrapper, which doesn't have an id)
         final List<Runnable> collectionElementAdders = new ArrayList<>();
         populateObjectFromJsonObject(containingObject, containingObject.getClass(), wrapperJsonObj, classFieldCache,
                 new HashMap<>(), collectionElementAdders);
@@ -746,20 +744,18 @@ public final class JSONDeserializer {
     }
 
     /**
-     * Deserialize JSON to a new object graph, with the root object of the specified expected type, and store the
-     * root object in the named field of the given containing object. Works for generic types, since it is possible
-     * to obtain the generic type of a field.
+     * Deserialize JSON to a new object graph, with the root object of the specified
+     * expected type, and store the root object in the named field of the given
+     * containing object. Works for generic types, since it is possible to obtain
+     * the generic type of a field.
      * 
-     * @param containingObject
-     *            The object containing the named field to deserialize the object graph into.
-     * @param fieldName
-     *            The name of the field to set with the result.
-     * @param json
-     *            the JSON string to deserialize.
-     * @param reflectionUtils
-     *            the {@link ReflectionUtils} instance.
-     * @throws IllegalArgumentException
-     *             If anything goes wrong during deserialization.
+     * @param containingObject The object containing the named field to deserialize
+     *                         the object graph into.
+     * @param fieldName        The name of the field to set with the result.
+     * @param json             the JSON string to deserialize.
+     * @param reflectionUtils  the {@link ReflectionUtils} instance.
+     * @throws IllegalArgumentException If anything goes wrong during
+     *                                  deserialization.
      */
     public static void deserializeToField(final Object containingObject, final String fieldName, final String json,
             final ReflectionUtils reflectionUtils) throws IllegalArgumentException {
@@ -769,18 +765,17 @@ public final class JSONDeserializer {
     }
 
     /**
-     * Deserialize JSON to a new object graph, with the root object of the specified expected type, and store the
-     * root object in the named field of the given containing object. Works for generic types, since it is possible
-     * to obtain the generic type of a field.
+     * Deserialize JSON to a new object graph, with the root object of the specified
+     * expected type, and store the root object in the named field of the given
+     * containing object. Works for generic types, since it is possible to obtain
+     * the generic type of a field.
      * 
-     * @param containingObject
-     *            The object containing the named field to deserialize the object graph into.
-     * @param fieldName
-     *            The name of the field to set with the result.
-     * @param json
-     *            the JSON string to deserialize.
-     * @throws IllegalArgumentException
-     *             If anything goes wrong during deserialization.
+     * @param containingObject The object containing the named field to deserialize
+     *                         the object graph into.
+     * @param fieldName        The name of the field to set with the result.
+     * @param json             the JSON string to deserialize.
+     * @throws IllegalArgumentException If anything goes wrong during
+     *                                  deserialization.
      */
     public static void deserializeToField(final Object containingObject, final String fieldName, final String json)
             throws IllegalArgumentException {

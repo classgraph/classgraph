@@ -30,12 +30,9 @@ package io.github.classgraph.test.fieldannotation;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.List;
-
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ScanResult;
 import io.github.classgraph.test.external.ExternalAnnotation;
 
 /**
@@ -57,11 +54,9 @@ public class FieldAndMethodAnnotationTest {
      */
     @Test
     public void testGetNamesOfClassesWithFieldAnnotation() {
-        try (ScanResult scanResult = new ClassGraph()
-                .acceptPackages(FieldAndMethodAnnotationTest.class.getPackage().getName()).enableFieldInfo()
-                .enableAnnotationInfo().scan()) {
-            final List<String> testClasses = scanResult.getClassesWithFieldAnnotation(ExternalAnnotation.class)
-                    .getNames();
+        try (var scanResult = new ClassGraph().acceptPackages(FieldAndMethodAnnotationTest.class.getPackage().getName())
+                .enableFieldInfo().enableAnnotationInfo().scan()) {
+            final var testClasses = scanResult.getClassesWithFieldAnnotation(ExternalAnnotation.class).getNames();
             assertThat(testClasses).isEmpty();
         }
     }
@@ -71,11 +66,9 @@ public class FieldAndMethodAnnotationTest {
      */
     @Test
     public void testGetNamesOfClassesWithFieldAnnotationIgnoringVisibility() {
-        try (ScanResult scanResult = new ClassGraph()
-                .acceptPackages(FieldAndMethodAnnotationTest.class.getPackage().getName()).enableFieldInfo()
-                .ignoreFieldVisibility().enableAnnotationInfo().scan()) {
-            final List<String> testClasses = scanResult.getClassesWithFieldAnnotation(ExternalAnnotation.class)
-                    .getNames();
+        try (var scanResult = new ClassGraph().acceptPackages(FieldAndMethodAnnotationTest.class.getPackage().getName())
+                .enableFieldInfo().ignoreFieldVisibility().enableAnnotationInfo().scan()) {
+            final var testClasses = scanResult.getClassesWithFieldAnnotation(ExternalAnnotation.class).getNames();
             assertThat(testClasses).containsOnly(FieldAndMethodAnnotationTest.class.getName());
         }
     }
@@ -86,11 +79,9 @@ public class FieldAndMethodAnnotationTest {
     @Test
     @ExternalAnnotation
     public void testGetNamesOfClassesWithMethodAnnotation() {
-        try (ScanResult scanResult = new ClassGraph()
-                .acceptPackages(FieldAndMethodAnnotationTest.class.getPackage().getName()).enableMethodInfo()
-                .enableAnnotationInfo().scan()) {
-            final List<String> testClasses = scanResult.getClassesWithMethodAnnotation(ExternalAnnotation.class)
-                    .getNames();
+        try (var scanResult = new ClassGraph().acceptPackages(FieldAndMethodAnnotationTest.class.getPackage().getName())
+                .enableMethodInfo().enableAnnotationInfo().scan()) {
+            final var testClasses = scanResult.getClassesWithMethodAnnotation(ExternalAnnotation.class).getNames();
             assertThat(testClasses).containsOnly(FieldAndMethodAnnotationTest.class.getName());
         }
     }

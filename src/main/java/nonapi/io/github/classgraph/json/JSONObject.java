@@ -33,7 +33,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-/** An intermediate object in the (de)serialization process, representing a JSON Object. */
+/**
+ * An intermediate object in the (de)serialization process, representing a JSON
+ * Object.
+ */
 class JSONObject {
     /** Key/value mappings, in display order. */
     List<Entry<String, Object>> items;
@@ -44,8 +47,7 @@ class JSONObject {
     /**
      * Constructor.
      *
-     * @param sizeHint
-     *            the size hint
+     * @param sizeHint the size hint
      */
     public JSONObject(final int sizeHint) {
         items = new ArrayList<>(sizeHint);
@@ -54,8 +56,7 @@ class JSONObject {
     /**
      * Constructor.
      *
-     * @param items
-     *            the items
+     * @param items the items
      */
     public JSONObject(final List<Entry<String, Object>> items) {
         this.items = items;
@@ -64,22 +65,16 @@ class JSONObject {
     /**
      * Serialize this JSONObject to a string.
      *
-     * @param jsonReferenceToId
-     *            a map from json reference to id
-     * @param includeNullValuedFields
-     *            if true, include null valued fields
-     * @param depth
-     *            the nesting depth
-     * @param indentWidth
-     *            the indent width
-     * @param buf
-     *            the buf
+     * @param jsonReferenceToId       a map from json reference to id
+     * @param includeNullValuedFields if true, include null valued fields
+     * @param depth                   the nesting depth
+     * @param indentWidth             the indent width
+     * @param buf                     the buf
      */
     void toJSONString(final Map<ReferenceEqualityKey<JSONReference>, CharSequence> jsonReferenceToId,
-            final boolean includeNullValuedFields, final int depth, final int indentWidth,
-            final StringBuilder buf) {
-        final boolean prettyPrint = indentWidth > 0;
-        final int n = items.size();
+            final boolean includeNullValuedFields, final int depth, final int indentWidth, final StringBuilder buf) {
+        final var prettyPrint = indentWidth > 0;
+        final var n = items.size();
         int numDisplayedFields;
         if (includeNullValuedFields) {
             numDisplayedFields = n;
@@ -96,7 +91,8 @@ class JSONObject {
         } else {
             buf.append(prettyPrint ? "{\n" : "{");
             if (objectId != null) {
-                // id will be non-null if this object does not have an @Id field, but was referenced by
+                // id will be non-null if this object does not have an @Id field, but was
+                // referenced by
                 // another object (need to include ID_TAG)
                 if (prettyPrint) {
                     JSONUtils.indent(depth + 1, indentWidth, buf);
@@ -114,10 +110,10 @@ class JSONObject {
                 }
             }
             for (int i = 0, j = 0; i < n; i++) {
-                final Entry<String, Object> item = items.get(i);
-                final Object val = item.getValue();
+                final var item = items.get(i);
+                final var val = item.getValue();
                 if (val != null || includeNullValuedFields) {
-                    final String key = item.getKey();
+                    final var key = item.getKey();
                     if (key == null) {
                         // Keys must be quoted, so the unquoted null value cannot be a key
                         // (Should not happen -- JSONParser.parseJSONObject checks for null keys)

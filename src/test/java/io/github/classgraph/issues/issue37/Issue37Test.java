@@ -37,9 +37,7 @@ import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
-import io.github.classgraph.ClassInfoList;
 import io.github.classgraph.MethodInfo;
-import io.github.classgraph.ScanResult;
 
 /**
  * Issue37Test.
@@ -59,11 +57,11 @@ public class Issue37Test {
     @Test
     public void issue37Test() {
         final List<String> methodNames = new ArrayList<>();
-        final String pkg = Issue37Test.class.getPackage().getName();
-        try (ScanResult scanResult = new ClassGraph().acceptPackages(pkg) //
+        final var pkg = Issue37Test.class.getPackage().getName();
+        try (var scanResult = new ClassGraph().acceptPackages(pkg) //
                 .enableMethodInfo() //
                 .scan()) {
-            final ClassInfoList classes = scanResult.getAllClasses();
+            final var classes = scanResult.getAllClasses();
             for (final ClassInfo ci : classes) {
                 for (final MethodInfo mi : ci.getMethodAndConstructorInfo()) {
                     methodNames.add(mi.getName());

@@ -36,10 +36,15 @@ import java.util.Set;
 
 import nonapi.io.github.classgraph.utils.LogNode;
 
-/** A union type, used for typesafe serialization/deserialization to/from JSON. Only one field is ever set. */
+/**
+ * A union type, used for typesafe serialization/deserialization to/from JSON.
+ * Only one field is ever set.
+ */
 class ObjectTypedValueWrapper extends ScanResultObject {
-    // Parameter value is split into different fields by type, so that serialization and deserialization
-    // works properly (can't properly serialize a field of Object type, since the concrete type is not
+    // Parameter value is split into different fields by type, so that serialization
+    // and deserialization
+    // works properly (can't properly serialize a field of Object type, since the
+    // concrete type is not
     // stored in JSON).
     // TODO: remove this class once JSON serialization is removed
 
@@ -121,15 +126,15 @@ class ObjectTypedValueWrapper extends ScanResultObject {
     /**
      * Constructor.
      *
-     * @param annotationParamValue
-     *            annotation parameter value
+     * @param annotationParamValue annotation parameter value
      */
     public ObjectTypedValueWrapper(final Object annotationParamValue) {
         super();
         if (annotationParamValue != null) {
             final Class<?> annotationParameterValueClass = annotationParamValue.getClass();
             if (annotationParameterValueClass.isArray()) {
-                // Support for 1D primitive and string arrays is needed for annotation parameter values
+                // Support for 1D primitive and string arrays is needed for annotation parameter
+                // values
                 if (annotationParameterValueClass == String[].class) {
                     stringArrayValue = (String[]) annotationParamValue;
                 } else if (annotationParameterValueClass == int[].class) {
@@ -150,36 +155,36 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                     byteArrayValue = (byte[]) annotationParamValue;
                 } else {
                     // Object array type -- wrap each individual element
-                    final int n = Array.getLength(annotationParamValue);
+                    final var n = Array.getLength(annotationParamValue);
                     objectArrayValue = new ObjectTypedValueWrapper[n];
-                    for (int i = 0; i < n; i++) {
+                    for (var i = 0; i < n; i++) {
                         objectArrayValue[i] = new ObjectTypedValueWrapper(Array.get(annotationParamValue, i));
                     }
                 }
-            } else if (annotationParamValue instanceof AnnotationEnumValue) {
-                annotationEnumValue = (AnnotationEnumValue) annotationParamValue;
-            } else if (annotationParamValue instanceof AnnotationClassRef) {
-                annotationClassRef = (AnnotationClassRef) annotationParamValue;
-            } else if (annotationParamValue instanceof AnnotationInfo) {
-                annotationInfo = (AnnotationInfo) annotationParamValue;
-            } else if (annotationParamValue instanceof String) {
-                stringValue = (String) annotationParamValue;
-            } else if (annotationParamValue instanceof Integer) {
-                integerValue = (Integer) annotationParamValue;
-            } else if (annotationParamValue instanceof Long) {
-                longValue = (Long) annotationParamValue;
-            } else if (annotationParamValue instanceof Short) {
-                shortValue = (Short) annotationParamValue;
-            } else if (annotationParamValue instanceof Boolean) {
-                booleanValue = (Boolean) annotationParamValue;
-            } else if (annotationParamValue instanceof Character) {
-                characterValue = (Character) annotationParamValue;
-            } else if (annotationParamValue instanceof Float) {
-                floatValue = (Float) annotationParamValue;
-            } else if (annotationParamValue instanceof Double) {
-                doubleValue = (Double) annotationParamValue;
-            } else if (annotationParamValue instanceof Byte) {
-                byteValue = (Byte) annotationParamValue;
+            } else if (annotationParamValue instanceof final AnnotationEnumValue enumValue) {
+                annotationEnumValue = enumValue;
+            } else if (annotationParamValue instanceof final AnnotationClassRef classRef) {
+                annotationClassRef = classRef;
+            } else if (annotationParamValue instanceof final AnnotationInfo annotation) {
+                annotationInfo = annotation;
+            } else if (annotationParamValue instanceof final String str) {
+                stringValue = str;
+            } else if (annotationParamValue instanceof final Integer intVal) {
+                integerValue = intVal;
+            } else if (annotationParamValue instanceof final Long longVal) {
+                longValue = longVal;
+            } else if (annotationParamValue instanceof final Short shortVal) {
+                shortValue = shortVal;
+            } else if (annotationParamValue instanceof final Boolean boolVal) {
+                booleanValue = boolVal;
+            } else if (annotationParamValue instanceof final Character charVal) {
+                characterValue = charVal;
+            } else if (annotationParamValue instanceof final Float floatVal) {
+                floatValue = floatVal;
+            } else if (annotationParamValue instanceof final Double doubleVal) {
+                doubleValue = doubleVal;
+            } else if (annotationParamValue instanceof final Byte byteVal) {
+                byteValue = byteVal;
             } else {
                 throw new IllegalArgumentException(
                         "Unsupported annotation parameter value type: " + annotationParameterValueClass.getName());
@@ -192,14 +197,14 @@ class ObjectTypedValueWrapper extends ScanResultObject {
     /**
      * Instantiate or get the wrapped value.
      *
-     * @param annotationClassInfo
-     *            if non-null, instantiate this object as a parameter value of this annotation class.
-     * @param paramName
-     *            if non-null, instantiate this object as a value of this named parameter.
+     * @param annotationClassInfo if non-null, instantiate this object as a
+     *                            parameter value of this annotation class.
+     * @param paramName           if non-null, instantiate this object as a value of
+     *                            this named parameter.
      * @return The value wrapped by this wrapper class.
      */
     Object instantiateOrGet(final ClassInfo annotationClassInfo, final String paramName) {
-        final boolean instantiate = annotationClassInfo != null;
+        final var instantiate = annotationClassInfo != null;
         if (annotationEnumValue != null) {
             return instantiate ? annotationEnumValue.loadClassAndReturnEnumValue() : annotationEnumValue;
         } else if (annotationClassRef != null) {
@@ -244,18 +249,19 @@ class ObjectTypedValueWrapper extends ScanResultObject {
             return byteArrayValue;
         } else if (objectArrayValue != null) {
             // Get the element type of the array
-            final Class<?> eltClass = instantiate
+            final var eltClass = instantiate
                     ? (Class<?>) getArrayValueClassOrName(annotationClassInfo, paramName, /* getClass = */ true)
                     : null;
-            // Allocate array as either a generic Object[] array, if the element type could not be determined,
+            // Allocate array as either a generic Object[] array, if the element type could
+            // not be determined,
             // or as an array of specific element type, if the element type was determined.
-            final Object annotationValueObjectArray = eltClass == null ? new Object[objectArrayValue.length]
+            final var annotationValueObjectArray = eltClass == null ? new Object[objectArrayValue.length]
                     : Array.newInstance(eltClass, objectArrayValue.length);
             // Fill the array instance.
-            for (int i = 0; i < objectArrayValue.length; i++) {
+            for (var i = 0; i < objectArrayValue.length; i++) {
                 if (objectArrayValue[i] != null) {
                     // Get the element value (may also cause the element to be instantiated)
-                    final Object eltValue = objectArrayValue[i].instantiateOrGet(annotationClassInfo, paramName);
+                    final var eltValue = objectArrayValue[i].instantiateOrGet(annotationClassInfo, paramName);
                     // Store the possibly-instantiated value in the array
                     Array.set(annotationValueObjectArray, i, eltValue);
                 }
@@ -280,52 +286,49 @@ class ObjectTypedValueWrapper extends ScanResultObject {
     /**
      * Get the element type of an array element.
      *
-     * @param annotationClassInfo
-     *            annotation class
-     * @param paramName
-     *            the parameter name
-     * @param getClass
-     *            If true, return a {@code Class<?>} reference, otherwise return the class name.
-     * @return the array value type as a {@code Class<?>} reference if getClass is true, otherwise the class name as
-     *         a String.
+     * @param annotationClassInfo annotation class
+     * @param paramName           the parameter name
+     * @param getClass            If true, return a {@code Class<?>} reference,
+     *                            otherwise return the class name.
+     * @return the array value type as a {@code Class<?>} reference if getClass is
+     *         true, otherwise the class name as a String.
      */
     private Object getArrayValueClassOrName(final ClassInfo annotationClassInfo, final String paramName,
             final boolean getClass) {
-        // Find the method in the annotation class with the same name as the annotation parameter.
-        final MethodInfoList annotationMethodList = annotationClassInfo == null
-                || annotationClassInfo.methodInfo == null ? null : annotationClassInfo.methodInfo.get(paramName);
+        // Find the method in the annotation class with the same name as the annotation
+        // parameter.
+        final var annotationMethodList = annotationClassInfo == null || annotationClassInfo.methodInfo == null ? null
+                : annotationClassInfo.methodInfo.get(paramName);
         if (annotationClassInfo != null && annotationMethodList != null && !annotationMethodList.isEmpty()) {
             if (annotationMethodList.size() > 1) {
                 // There should only be one method with a given name in an annotation
                 throw new IllegalArgumentException("Duplicated annotation parameter method " + paramName + "()"
                         + " in annotation class " + annotationClassInfo.getName());
             }
-            // Get the result type of the method with the same name as the annotation parameter
-            final TypeSignature annotationMethodResultTypeSig = annotationMethodList.get(0)
-                    .getTypeSignatureOrTypeDescriptor().getResultType();
+            // Get the result type of the method with the same name as the annotation
+            // parameter
+            final var annotationMethodResultTypeSig = annotationMethodList.get(0).getTypeSignatureOrTypeDescriptor()
+                    .getResultType();
             // The result type has to be an array type
-            if (!(annotationMethodResultTypeSig instanceof ArrayTypeSignature)) {
+            if (!(annotationMethodResultTypeSig instanceof final ArrayTypeSignature arrayTypeSig)) {
                 throw new IllegalArgumentException("Annotation parameter " + paramName + " in annotation class "
-                        + annotationClassInfo.getName()
-                        + " holds an array, but does not have an array type signature");
+                        + annotationClassInfo.getName() + " holds an array, but does not have an array type signature");
             }
-            final ArrayTypeSignature arrayTypeSig = (ArrayTypeSignature) annotationMethodResultTypeSig;
             if (arrayTypeSig.getNumDimensions() != 1) {
                 throw new IllegalArgumentException("Annotations only support 1-dimensional arrays");
             }
-            final TypeSignature elementTypeSig = arrayTypeSig.getElementTypeSignature();
-            if (elementTypeSig instanceof ClassRefTypeSignature) {
+            final var elementTypeSig = arrayTypeSig.getElementTypeSignature();
+            if (elementTypeSig instanceof final ClassRefTypeSignature classRefTypeSignature) {
                 // Look up the name of the element type, for non-primitive arrays
-                final ClassRefTypeSignature classRefTypeSignature = (ClassRefTypeSignature) elementTypeSig;
                 return getClass ? classRefTypeSignature.loadClass() : classRefTypeSignature.getClassName();
-            } else if (elementTypeSig instanceof BaseTypeSignature) {
+            } else if (elementTypeSig instanceof final BaseTypeSignature baseTypeSignature) {
                 // Look up the name of the primitive class, for primitive arrays
-                final BaseTypeSignature baseTypeSignature = (BaseTypeSignature) elementTypeSig;
                 return getClass ? baseTypeSignature.getType() : baseTypeSignature.getTypeStr();
             }
         } else {
             // Could not find a method with this name -- this is an external class.
-            // Find first non-null object in array, and use its type as the element type of the array.
+            // Find first non-null object in array, and use its type as the element type of
+            // the array.
             for (final ObjectTypedValueWrapper elt : objectArrayValue) {
                 if (elt != null) {
                     // Primitive typed arrays will be turned into arrays of boxed types
@@ -348,9 +351,12 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                     } else if (elt.floatValue != null) {
                         return getClass ? Float.class : "float";
                     } else {
-                        // The element type could not be determined (the element is an enum value, a class
-                        // reference or a nested annotation) -- fall through and use Object as the element type.
-                        // N.B. don't use the type of the wrapper object itself here, since the array is filled
+                        // The element type could not be determined (the element is an enum value, a
+                        // class
+                        // reference or a nested annotation) -- fall through and use Object as the
+                        // element type.
+                        // N.B. don't use the type of the wrapper object itself here, since the array is
+                        // filled
                         // with the values that the wrappers wrap, not with the wrappers.
                         break;
                     }
@@ -364,10 +370,8 @@ class ObjectTypedValueWrapper extends ScanResultObject {
     /**
      * Replace Object[] arrays containing boxed types with primitive arrays.
      *
-     * @param annotationClassInfo
-     *            annotation class info
-     * @param paramName
-     *            the param name
+     * @param annotationClassInfo annotation class info
+     * @param paramName           the param name
      */
     void convertWrapperArraysToPrimitiveArrays(final ClassInfo annotationClassInfo, final String paramName) {
         if (annotationInfo != null) {
@@ -382,28 +386,31 @@ class ObjectTypedValueWrapper extends ScanResultObject {
             }
 
             if (objectArrayValue.getClass().getComponentType().isArray()) {
-                // More than one array dimension -- not possible for annotation parameter values => skip
+                // More than one array dimension -- not possible for annotation parameter values
+                // => skip
                 return;
             }
 
-            // Find the method in the annotation class with the same name as the annotation parameter.
-            final String targetElementTypeName = (String) getArrayValueClassOrName(annotationClassInfo, paramName,
+            // Find the method in the annotation class with the same name as the annotation
+            // parameter.
+            final var targetElementTypeName = (String) getArrayValueClassOrName(annotationClassInfo, paramName,
                     /* getClass = */ false);
 
-            // Get array element type for 1D non-primitive arrays, and convert to a primitive array
+            // Get array element type for 1D non-primitive arrays, and convert to a
+            // primitive array
             switch (targetElementTypeName) {
-            case "java.lang.String":
+            case "java.lang.String" -> {
                 // Convert Object[] array containing String objects to String[] array
                 stringArrayValue = new String[objectArrayValue.length];
-                for (int j = 0; j < objectArrayValue.length; j++) {
+                for (var j = 0; j < objectArrayValue.length; j++) {
                     stringArrayValue[j] = objectArrayValue[j].stringValue;
                 }
                 objectArrayValue = null;
-                break;
-            case "int":
+            }
+            case "int" -> {
                 intArrayValue = new int[objectArrayValue.length];
-                for (int j = 0; j < objectArrayValue.length; j++) {
-                    final ObjectTypedValueWrapper elt = objectArrayValue[j];
+                for (var j = 0; j < objectArrayValue.length; j++) {
+                    final var elt = objectArrayValue[j];
                     if (elt == null) {
                         throw new IllegalArgumentException("Illegal null value for array of element type "
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
@@ -413,11 +420,11 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                     intArrayValue[j] = objectArrayValue[j].integerValue;
                 }
                 objectArrayValue = null;
-                break;
-            case "long":
+            }
+            case "long" -> {
                 longArrayValue = new long[objectArrayValue.length];
-                for (int j = 0; j < objectArrayValue.length; j++) {
-                    final ObjectTypedValueWrapper elt = objectArrayValue[j];
+                for (var j = 0; j < objectArrayValue.length; j++) {
+                    final var elt = objectArrayValue[j];
                     if (elt == null) {
                         throw new IllegalArgumentException("Illegal null value for array of element type "
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
@@ -427,11 +434,11 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                     longArrayValue[j] = objectArrayValue[j].longValue;
                 }
                 objectArrayValue = null;
-                break;
-            case "short":
+            }
+            case "short" -> {
                 shortArrayValue = new short[objectArrayValue.length];
-                for (int j = 0; j < objectArrayValue.length; j++) {
-                    final ObjectTypedValueWrapper elt = objectArrayValue[j];
+                for (var j = 0; j < objectArrayValue.length; j++) {
+                    final var elt = objectArrayValue[j];
                     if (elt == null) {
                         throw new IllegalArgumentException("Illegal null value for array of element type "
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
@@ -441,11 +448,11 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                     shortArrayValue[j] = objectArrayValue[j].shortValue;
                 }
                 objectArrayValue = null;
-                break;
-            case "char":
+            }
+            case "char" -> {
                 charArrayValue = new char[objectArrayValue.length];
-                for (int j = 0; j < objectArrayValue.length; j++) {
-                    final ObjectTypedValueWrapper elt = objectArrayValue[j];
+                for (var j = 0; j < objectArrayValue.length; j++) {
+                    final var elt = objectArrayValue[j];
                     if (elt == null) {
                         throw new IllegalArgumentException("Illegal null value for array of element type "
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
@@ -455,11 +462,11 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                     charArrayValue[j] = objectArrayValue[j].characterValue;
                 }
                 objectArrayValue = null;
-                break;
-            case "float":
+            }
+            case "float" -> {
                 floatArrayValue = new float[objectArrayValue.length];
-                for (int j = 0; j < objectArrayValue.length; j++) {
-                    final ObjectTypedValueWrapper elt = objectArrayValue[j];
+                for (var j = 0; j < objectArrayValue.length; j++) {
+                    final var elt = objectArrayValue[j];
                     if (elt == null) {
                         throw new IllegalArgumentException("Illegal null value for array of element type "
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
@@ -469,11 +476,11 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                     floatArrayValue[j] = objectArrayValue[j].floatValue;
                 }
                 objectArrayValue = null;
-                break;
-            case "double":
+            }
+            case "double" -> {
                 doubleArrayValue = new double[objectArrayValue.length];
-                for (int j = 0; j < objectArrayValue.length; j++) {
-                    final ObjectTypedValueWrapper elt = objectArrayValue[j];
+                for (var j = 0; j < objectArrayValue.length; j++) {
+                    final var elt = objectArrayValue[j];
                     if (elt == null) {
                         throw new IllegalArgumentException("Illegal null value for array of element type "
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
@@ -483,11 +490,11 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                     doubleArrayValue[j] = objectArrayValue[j].doubleValue;
                 }
                 objectArrayValue = null;
-                break;
-            case "boolean":
+            }
+            case "boolean" -> {
                 booleanArrayValue = new boolean[objectArrayValue.length];
-                for (int j = 0; j < objectArrayValue.length; j++) {
-                    final ObjectTypedValueWrapper elt = objectArrayValue[j];
+                for (var j = 0; j < objectArrayValue.length; j++) {
+                    final var elt = objectArrayValue[j];
                     if (elt == null) {
                         throw new IllegalArgumentException("Illegal null value for array of element type "
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
@@ -497,11 +504,11 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                     booleanArrayValue[j] = objectArrayValue[j].booleanValue;
                 }
                 objectArrayValue = null;
-                break;
-            case "byte":
+            }
+            case "byte" -> {
                 byteArrayValue = new byte[objectArrayValue.length];
-                for (int j = 0; j < objectArrayValue.length; j++) {
-                    final ObjectTypedValueWrapper elt = objectArrayValue[j];
+                for (var j = 0; j < objectArrayValue.length; j++) {
+                    final var elt = objectArrayValue[j];
                     if (elt == null) {
                         throw new IllegalArgumentException("Illegal null value for array of element type "
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
@@ -511,26 +518,31 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                     byteArrayValue[j] = objectArrayValue[j].byteValue;
                 }
                 objectArrayValue = null;
-                break;
-            default:
+            }
+            default -> {
                 // Leave objectArrayValue as-is
-                break;
+            }
             }
         }
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see io.github.classgraph.ScanResultObject#getClassName()
      */
     @Override
     protected String getClassName() {
-        // getClassInfo() is not valid for this type, so getClassName() does not need to be implemented
+        // getClassInfo() is not valid for this type, so getClassName() does not need to
+        // be implemented
         throw new IllegalArgumentException("getClassName() cannot be called here");
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see io.github.classgraph.ScanResultObject#getClassInfo()
      */
     @Override
@@ -538,8 +550,12 @@ class ObjectTypedValueWrapper extends ScanResultObject {
         throw new IllegalArgumentException("getClassInfo() cannot be called here");
     }
 
-    /* (non-Javadoc)
-     * @see io.github.classgraph.ScanResultObject#setScanResult(io.github.classgraph.ScanResult)
+    /*
+     * (non-Javadoc)
+     *
+     * @see
+     * io.github.classgraph.ScanResultObject#setScanResult(io.github.classgraph.
+     * ScanResult)
      */
     @Override
     void setScanResult(final ScanResult scanResult) {
@@ -560,12 +576,11 @@ class ObjectTypedValueWrapper extends ScanResultObject {
     }
 
     /**
-     * Get {@link ClassInfo} objects for any classes referenced in annotation parameters.
+     * Get {@link ClassInfo} objects for any classes referenced in annotation
+     * parameters.
      *
-     * @param classNameToClassInfo
-     *            the map from class name to {@link ClassInfo}.
-     * @param refdClassInfo
-     *            the referenced class info
+     * @param classNameToClassInfo the map from class name to {@link ClassInfo}.
+     * @param refdClassInfo        the referenced class info
      */
     @Override
     protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
@@ -573,7 +588,7 @@ class ObjectTypedValueWrapper extends ScanResultObject {
         if (annotationEnumValue != null) {
             annotationEnumValue.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
         } else if (annotationClassRef != null) {
-            final ClassInfo classInfo = annotationClassRef.getClassInfo();
+            final var classInfo = annotationClassRef.getClassInfo();
             if (classInfo != null) {
                 refdClassInfo.add(classInfo);
             }
@@ -588,7 +603,9 @@ class ObjectTypedValueWrapper extends ScanResultObject {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.Object#hashCode()
      */
     @Override
@@ -596,23 +613,24 @@ class ObjectTypedValueWrapper extends ScanResultObject {
         return Objects.hash(annotationEnumValue, annotationClassRef, annotationInfo, stringValue, integerValue,
                 longValue, shortValue, booleanValue, characterValue, floatValue, doubleValue, byteValue,
                 Arrays.hashCode(stringArrayValue), Arrays.hashCode(intArrayValue), Arrays.hashCode(longArrayValue),
-                Arrays.hashCode(shortArrayValue), Arrays.hashCode(booleanArrayValue),
-                Arrays.hashCode(charArrayValue), Arrays.hashCode(floatArrayValue),
-                Arrays.hashCode(doubleArrayValue), Arrays.hashCode(byteArrayValue),
+                Arrays.hashCode(shortArrayValue), Arrays.hashCode(booleanArrayValue), Arrays.hashCode(charArrayValue),
+                Arrays.hashCode(floatArrayValue), Arrays.hashCode(doubleArrayValue), Arrays.hashCode(byteArrayValue),
                 Arrays.hashCode(objectArrayValue));
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
     public boolean equals(final Object other) {
         if (other == this) {
             return true;
-        } else if (!(other instanceof ObjectTypedValueWrapper)) {
+        }
+        if (!(other instanceof final ObjectTypedValueWrapper o)) {
             return false;
         }
-        final ObjectTypedValueWrapper o = (ObjectTypedValueWrapper) other;
         return Objects.equals(annotationEnumValue, o.annotationEnumValue)
                 && Objects.equals(annotationClassRef, o.annotationClassRef)
                 && Objects.equals(annotationInfo, o.annotationInfo) && Objects.equals(stringValue, o.stringValue)
@@ -620,12 +638,10 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                 && Objects.equals(shortValue, o.shortValue) && Objects.equals(booleanValue, o.booleanValue)
                 && Objects.equals(characterValue, o.characterValue) && Objects.equals(floatValue, o.floatValue)
                 && Objects.equals(doubleValue, o.doubleValue) && Objects.equals(byteValue, o.byteValue)
-                && Arrays.equals(stringArrayValue, o.stringArrayValue)
-                && Arrays.equals(intArrayValue, o.intArrayValue) && Arrays.equals(longArrayValue, o.longArrayValue)
-                && Arrays.equals(shortArrayValue, o.shortArrayValue)
+                && Arrays.equals(stringArrayValue, o.stringArrayValue) && Arrays.equals(intArrayValue, o.intArrayValue)
+                && Arrays.equals(longArrayValue, o.longArrayValue) && Arrays.equals(shortArrayValue, o.shortArrayValue)
                 && Arrays.equals(booleanArrayValue, o.booleanArrayValue)
-                && Arrays.equals(charArrayValue, o.charArrayValue)
-                && Arrays.equals(floatArrayValue, o.floatArrayValue)
+                && Arrays.equals(charArrayValue, o.charArrayValue) && Arrays.equals(floatArrayValue, o.floatArrayValue)
                 && Arrays.equals(doubleArrayValue, o.doubleArrayValue)
                 && Arrays.equals(byteArrayValue, o.byteArrayValue)
                 && Arrays.deepEquals(objectArrayValue, o.objectArrayValue);
@@ -678,7 +694,8 @@ class ObjectTypedValueWrapper extends ScanResultObject {
         } else if (byteArrayValue != null) {
             buf.append(Arrays.toString(byteArrayValue));
         } else if (objectArrayValue != null) {
-            // TODO this doesn't handle nested arrays, but this toString() method is only used for debugging
+            // TODO this doesn't handle nested arrays, but this toString() method is only
+            // used for debugging
             buf.append(Arrays.toString(objectArrayValue));
         }
     }

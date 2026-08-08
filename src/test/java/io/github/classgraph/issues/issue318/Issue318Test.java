@@ -11,7 +11,6 @@ import java.lang.annotation.Target;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ScanResult;
 
 /**
  * Unit test.
@@ -75,14 +74,15 @@ public class Issue318Test {
      */
     @Test
     public void issue318() {
-        try (final ScanResult scanResult = new ClassGraph().acceptPackages(Issue318Test.class.getPackage().getName())
+        try (var scanResult = new ClassGraph().acceptPackages(Issue318Test.class.getPackage().getName())
                 .enableAnnotationInfo().enableClassInfo().ignoreClassVisibility() //
-                //.verbose() //
+                // .verbose() //
                 .scan()) {
-            assertThat(scanResult.getClassesWithAnnotation(MyAnn.class).getNames()).containsOnly(
-                    With1MyAnn.class.getName(), With2MyAnn.class.getName(), With3MyAnn.class.getName());
-            assertThat(scanResult.getClassInfo(With3MyAnn.class.getName()).getAnnotationInfoRepeatable(MyAnn.class)
-                    .size()).isEqualTo(3);
+            assertThat(scanResult.getClassesWithAnnotation(MyAnn.class).getNames())
+                    .containsOnly(With1MyAnn.class.getName(), With2MyAnn.class.getName(), With3MyAnn.class.getName());
+            assertThat(
+                    scanResult.getClassInfo(With3MyAnn.class.getName()).getAnnotationInfoRepeatable(MyAnn.class).size())
+                    .isEqualTo(3);
         }
     }
 }

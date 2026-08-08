@@ -51,7 +51,8 @@ import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.StringUtils;
 
 /**
- * A logical zipfile, which represents a zipfile contained within a ZipFileSlice of a PhysicalZipFile.
+ * A logical zipfile, which represents a zipfile contained within a ZipFileSlice
+ * of a PhysicalZipFile.
  */
 public class LogicalZipFile extends ZipFileSlice {
     /** The zipfile entries. */
@@ -63,19 +64,34 @@ public class LogicalZipFile extends ZipFileSlice {
     /** A set of classpath roots found in the classpath for this zipfile. */
     Set<String> classpathRoots = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
-    /** The value of the "Class-Path" manifest entry, if present in the manifest, else null. */
+    /**
+     * The value of the "Class-Path" manifest entry, if present in the manifest,
+     * else null.
+     */
     public String classPathManifestEntryValue;
 
-    /** The value of the "Bundle-ClassPath" manifest entry, if present in the manifest, else null. */
+    /**
+     * The value of the "Bundle-ClassPath" manifest entry, if present in the
+     * manifest, else null.
+     */
     public String bundleClassPathManifestEntryValue;
 
-    /** The value of the "Add-Exports" manifest entry, if present in the manifest, else null. */
+    /**
+     * The value of the "Add-Exports" manifest entry, if present in the manifest,
+     * else null.
+     */
     public String addExportsManifestEntryValue;
 
-    /** The value of the "Add-Opens" manifest entry, if present in the manifest, else null. */
+    /**
+     * The value of the "Add-Opens" manifest entry, if present in the manifest, else
+     * null.
+     */
     public String addOpensManifestEntryValue;
 
-    /** The value of the "Automatic-Module-Name" manifest entry, if present in the manifest, else null. */
+    /**
+     * The value of the "Automatic-Module-Name" manifest entry, if present in the
+     * manifest, else null.
+     */
     public String automaticModuleNameManifestEntryValue;
 
     /** If true, this is a JRE jar. */
@@ -128,7 +144,7 @@ public class LogicalZipFile extends ZipFileSlice {
     /** For quickly converting ASCII characters to lower case. */
     private static final byte[] toLowerCase = new byte[256];
     static {
-        for (int i = 32; i < 127; i++) {
+        for (var i = 32; i < 127; i++) {
             toLowerCase[i] = (byte) Character.toLowerCase((char) i);
         }
     }
@@ -138,18 +154,13 @@ public class LogicalZipFile extends ZipFileSlice {
     /**
      * Construct a logical zipfile from a slice of a physical zipfile.
      *
-     * @param zipFileSlice
-     *            the zipfile slice
-     * @param nestedJarHandler
-     *            the nested jar handler
-     * @param log
-     *            the log
-     * @param enableMultiReleaseVersions
-     *            if true, multi-release versions should not be stripped from resource names
-     * @throws IOException
-     *             If an I/O exception occurs.
-     * @throws InterruptedException
-     *             if the thread was interrupted.
+     * @param zipFileSlice               the zipfile slice
+     * @param nestedJarHandler           the nested jar handler
+     * @param log                        the log
+     * @param enableMultiReleaseVersions if true, multi-release versions should not
+     *                                   be stripped from resource names
+     * @throws IOException          If an I/O exception occurs.
+     * @throws InterruptedException if the thread was interrupted.
      */
     LogicalZipFile(final ZipFileSlice zipFileSlice, final NestedJarHandler nestedJarHandler, final LogNode log,
             final boolean enableMultiReleaseVersions) throws IOException, InterruptedException {
@@ -161,28 +172,27 @@ public class LogicalZipFile extends ZipFileSlice {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Extract a value from the manifest, and return the value as a string, along with the index after the
-     * terminating newline. Manifest files support three different line terminator types, and entries can be split
-     * across lines with a line terminator followed by a space.
+     * Extract a value from the manifest, and return the value as a string, along
+     * with the index after the terminating newline. Manifest files support three
+     * different line terminator types, and entries can be split across lines with a
+     * line terminator followed by a space.
      *
-     * @param manifest
-     *            the manifest bytes
-     * @param startIdx
-     *            the start index of the manifest value
+     * @param manifest the manifest bytes
+     * @param startIdx the start index of the manifest value
      * @return the manifest value
      */
     private static Entry<String, Integer> getManifestValue(final byte[] manifest, final int startIdx) {
         // See if manifest entry is split across multiple lines
-        int curr = startIdx;
-        final int len = manifest.length;
+        var curr = startIdx;
+        final var len = manifest.length;
         while (curr < len && manifest[curr] == (byte) ' ') {
             // Skip initial spaces
             curr++;
         }
-        final int firstNonSpaceIdx = curr;
-        boolean isMultiLine = false;
+        final var firstNonSpaceIdx = curr;
+        var isMultiLine = false;
         for (; curr < len && !isMultiLine; curr++) {
-            final byte b = manifest[curr];
+            final var b = manifest[curr];
             if (b == (byte) '\r' && curr < len - 1 && manifest[curr + 1] == (byte) '\n') {
                 if (curr < len - 2 && manifest[curr + 2] == (byte) ' ') {
                     isMultiLine = true;
@@ -204,7 +214,7 @@ public class LogicalZipFile extends ZipFileSlice {
             final ByteArrayOutputStream buf = new ByteArrayOutputStream();
             curr = firstNonSpaceIdx;
             for (; curr < len; curr++) {
-                final byte b = manifest[curr];
+                final var b = manifest[curr];
                 boolean isLineEnd;
                 if (b == (byte) '\r' && curr < len - 1 && manifest[curr + 1] == (byte) '\n') {
                     // CRLF
@@ -222,7 +232,8 @@ public class LogicalZipFile extends ZipFileSlice {
                     // Value ends if line break is not followed by a space
                     break;
                 }
-                // If line break was followed by a space, then the curr++ in the for loop header will skip it
+                // If line break was followed by a space, then the curr++ in the for loop header
+                // will skip it
             }
             val = buf.toString(StandardCharsets.UTF_8);
         }
@@ -232,13 +243,12 @@ public class LogicalZipFile extends ZipFileSlice {
     /**
      * Manifest key to bytes.
      *
-     * @param key
-     *            the manifest key
+     * @param key the manifest key
      * @return the manifest key bytes, lowercased.
      */
     private static byte[] manifestKeyToBytes(final String key) {
-        final byte[] bytes = new byte[key.length()];
-        for (int i = 0; i < key.length(); i++) {
+        final var bytes = new byte[key.length()];
+        for (var i = 0; i < key.length(); i++) {
             bytes[i] = (byte) Character.toLowerCase(key.charAt(i));
         }
         return bytes;
@@ -247,19 +257,16 @@ public class LogicalZipFile extends ZipFileSlice {
     /**
      * Key matches at position.
      *
-     * @param manifest
-     *            the manifest
-     * @param key
-     *            the key
-     * @param pos
-     *            the position to try matching
+     * @param manifest the manifest
+     * @param key      the key
+     * @param pos      the position to try matching
      * @return true if the key matches at this position
      */
     private static boolean keyMatchesAtPosition(final byte[] manifest, final byte[] key, final int pos) {
         if (pos + key.length + 1 > manifest.length || manifest[pos + key.length] != ':') {
             return false;
         }
-        for (int i = 0; i < key.length; i++) {
+        for (var i = 0; i < key.length; i++) {
             // Manifest keys are case insensitive
             if (toLowerCase[manifest[i + pos]] != key[i]) {
                 return false;
@@ -271,47 +278,41 @@ public class LogicalZipFile extends ZipFileSlice {
     /**
      * Parse the manifest entry of a zipfile.
      *
-     * @param manifestZipEntry
-     *            the manifest zip entry
-     * @param log
-     *            the log
-     * @throws IOException
-     *             If an I/O exception occurs.
-     * @throws InterruptedException
-     *             If the thread was interrupted.
+     * @param manifestZipEntry the manifest zip entry
+     * @param log              the log
+     * @throws IOException          If an I/O exception occurs.
+     * @throws InterruptedException If the thread was interrupted.
      */
     private void parseManifest(final FastZipEntry manifestZipEntry, final LogNode log)
             throws IOException, InterruptedException {
         // Load contents of manifest entry as a byte array
-        final byte[] manifest = manifestZipEntry.getSlice().load();
+        final var manifest = manifestZipEntry.getSlice().load();
 
         // Find field keys (separated by newlines)
-        for (int i = 0; i < manifest.length;) {
-            // There cannot be any space after a newline before the manifest key, so key starts immediately
-            boolean skip = false;
+        for (var i = 0; i < manifest.length;) {
+            // There cannot be any space after a newline before the manifest key, so key
+            // starts immediately
+            var skip = false;
             if (manifest[i] == (byte) '\n' || manifest[i] == (byte) '\r') {
                 // Skip blank lines
                 skip = true;
 
             } else if (keyMatchesAtPosition(manifest, IMPLEMENTATION_TITLE_KEY, i)) {
-                final Entry<String, Integer> manifestValueAndEndIdx = getManifestValue(manifest,
-                        i + IMPLEMENTATION_TITLE_KEY.length + 1);
-                if (manifestValueAndEndIdx.getKey().equalsIgnoreCase("Java Runtime Environment")) {
+                final var manifestValueAndEndIdx = getManifestValue(manifest, i + IMPLEMENTATION_TITLE_KEY.length + 1);
+                if ("Java Runtime Environment".equalsIgnoreCase(manifestValueAndEndIdx.getKey())) {
                     isJREJar = true;
                 }
                 i = manifestValueAndEndIdx.getValue();
 
             } else if (keyMatchesAtPosition(manifest, SPECIFICATION_TITLE_KEY, i)) {
-                final Entry<String, Integer> manifestValueAndEndIdx = getManifestValue(manifest,
-                        i + SPECIFICATION_TITLE_KEY.length + 1);
-                if (manifestValueAndEndIdx.getKey().equalsIgnoreCase("Java Platform API Specification")) {
+                final var manifestValueAndEndIdx = getManifestValue(manifest, i + SPECIFICATION_TITLE_KEY.length + 1);
+                if ("Java Platform API Specification".equalsIgnoreCase(manifestValueAndEndIdx.getKey())) {
                     isJREJar = true;
                 }
                 i = manifestValueAndEndIdx.getValue();
 
             } else if (keyMatchesAtPosition(manifest, CLASS_PATH_KEY, i)) {
-                final Entry<String, Integer> manifestValueAndEndIdx = getManifestValue(manifest,
-                        i + CLASS_PATH_KEY.length + 1);
+                final var manifestValueAndEndIdx = getManifestValue(manifest, i + CLASS_PATH_KEY.length + 1);
                 // Add Class-Path manifest entry values to classpath
                 classPathManifestEntryValue = manifestValueAndEndIdx.getKey();
                 if (log != null) {
@@ -320,8 +321,7 @@ public class LogicalZipFile extends ZipFileSlice {
                 i = manifestValueAndEndIdx.getValue();
 
             } else if (keyMatchesAtPosition(manifest, BUNDLE_CLASSPATH_KEY, i)) {
-                final Entry<String, Integer> manifestValueAndEndIdx = getManifestValue(manifest,
-                        i + BUNDLE_CLASSPATH_KEY.length + 1);
+                final var manifestValueAndEndIdx = getManifestValue(manifest, i + BUNDLE_CLASSPATH_KEY.length + 1);
                 // Add Bundle-ClassPath manifest entry values to classpath
                 bundleClassPathManifestEntryValue = manifestValueAndEndIdx.getKey();
                 if (log != null) {
@@ -330,13 +330,12 @@ public class LogicalZipFile extends ZipFileSlice {
                 i = manifestValueAndEndIdx.getValue();
 
             } else if (keyMatchesAtPosition(manifest, SPRING_BOOT_CLASSES_KEY, i)) {
-                final Entry<String, Integer> manifestValueAndEndIdx = getManifestValue(manifest,
-                        i + SPRING_BOOT_CLASSES_KEY.length + 1);
-                final String springBootClassesFieldVal = manifestValueAndEndIdx.getKey();
-                if (!springBootClassesFieldVal.equals("BOOT-INF/classes")
-                        && !springBootClassesFieldVal.equals("BOOT-INF/classes/")
-                        && !springBootClassesFieldVal.equals("WEB-INF/classes")
-                        && !springBootClassesFieldVal.equals("WEB-INF/classes/")) {
+                final var manifestValueAndEndIdx = getManifestValue(manifest, i + SPRING_BOOT_CLASSES_KEY.length + 1);
+                final var springBootClassesFieldVal = manifestValueAndEndIdx.getKey();
+                if (!"BOOT-INF/classes".equals(springBootClassesFieldVal)
+                        && !"BOOT-INF/classes/".equals(springBootClassesFieldVal)
+                        && !"WEB-INF/classes".equals(springBootClassesFieldVal)
+                        && !"WEB-INF/classes/".equals(springBootClassesFieldVal)) {
                     throw new IOException("Spring boot classes are at \"" + springBootClassesFieldVal
                             + "\" rather than the standard location \"BOOT-INF/classes/\" or \"WEB-INF/classes/\" "
                             + "-- please report this at https://github.com/classgraph/classgraph/issues");
@@ -344,12 +343,11 @@ public class LogicalZipFile extends ZipFileSlice {
                 i = manifestValueAndEndIdx.getValue();
 
             } else if (keyMatchesAtPosition(manifest, SPRING_BOOT_LIB_KEY, i)) {
-                final Entry<String, Integer> manifestValueAndEndIdx = getManifestValue(manifest,
-                        i + SPRING_BOOT_LIB_KEY.length + 1);
-                final String springBootLibFieldVal = manifestValueAndEndIdx.getKey();
-                if (!springBootLibFieldVal.equals("BOOT-INF/lib") && !springBootLibFieldVal.equals("BOOT-INF/lib/")
-                        && !springBootLibFieldVal.equals("WEB-INF/lib")
-                        && !springBootLibFieldVal.equals("WEB-INF/lib/")) {
+                final var manifestValueAndEndIdx = getManifestValue(manifest, i + SPRING_BOOT_LIB_KEY.length + 1);
+                final var springBootLibFieldVal = manifestValueAndEndIdx.getKey();
+                if (!"BOOT-INF/lib".equals(springBootLibFieldVal) && !"BOOT-INF/lib/".equals(springBootLibFieldVal)
+                        && !"WEB-INF/lib".equals(springBootLibFieldVal)
+                        && !"WEB-INF/lib/".equals(springBootLibFieldVal)) {
                     throw new IOException("Spring boot lib jars are at \"" + springBootLibFieldVal
                             + "\" rather than the standard location \"BOOT-INF/lib/\" or \"WEB-INF/lib/\" "
                             + "-- please report this at https://github.com/classgraph/classgraph/issues");
@@ -357,16 +355,14 @@ public class LogicalZipFile extends ZipFileSlice {
                 i = manifestValueAndEndIdx.getValue();
 
             } else if (keyMatchesAtPosition(manifest, MULTI_RELEASE_KEY, i)) {
-                final Entry<String, Integer> manifestValueAndEndIdx = getManifestValue(manifest,
-                        i + MULTI_RELEASE_KEY.length + 1);
-                if (manifestValueAndEndIdx.getKey().equalsIgnoreCase("true")) {
+                final var manifestValueAndEndIdx = getManifestValue(manifest, i + MULTI_RELEASE_KEY.length + 1);
+                if ("true".equalsIgnoreCase(manifestValueAndEndIdx.getKey())) {
                     isMultiReleaseJar = true;
                 }
                 i = manifestValueAndEndIdx.getValue();
 
             } else if (keyMatchesAtPosition(manifest, ADD_EXPORTS_KEY, i)) {
-                final Entry<String, Integer> manifestValueAndEndIdx = getManifestValue(manifest,
-                        i + ADD_EXPORTS_KEY.length + 1);
+                final var manifestValueAndEndIdx = getManifestValue(manifest, i + ADD_EXPORTS_KEY.length + 1);
                 addExportsManifestEntryValue = manifestValueAndEndIdx.getKey();
                 if (log != null) {
                     log.log("Found Add-Exports entry in manifest file: " + addExportsManifestEntryValue);
@@ -374,8 +370,7 @@ public class LogicalZipFile extends ZipFileSlice {
                 i = manifestValueAndEndIdx.getValue();
 
             } else if (keyMatchesAtPosition(manifest, ADD_OPENS_KEY, i)) {
-                final Entry<String, Integer> manifestValueAndEndIdx = getManifestValue(manifest,
-                        i + ADD_OPENS_KEY.length + 1);
+                final var manifestValueAndEndIdx = getManifestValue(manifest, i + ADD_OPENS_KEY.length + 1);
                 addOpensManifestEntryValue = manifestValueAndEndIdx.getKey();
                 if (log != null) {
                     log.log("Found Add-Opens entry in manifest file: " + addOpensManifestEntryValue);
@@ -383,8 +378,7 @@ public class LogicalZipFile extends ZipFileSlice {
                 i = manifestValueAndEndIdx.getValue();
 
             } else if (keyMatchesAtPosition(manifest, AUTOMATIC_MODULE_NAME_KEY, i)) {
-                final Entry<String, Integer> manifestValueAndEndIdx = getManifestValue(manifest,
-                        i + AUTOMATIC_MODULE_NAME_KEY.length + 1);
+                final var manifestValueAndEndIdx = getManifestValue(manifest, i + AUTOMATIC_MODULE_NAME_KEY.length + 1);
                 automaticModuleNameManifestEntryValue = manifestValueAndEndIdx.getKey();
                 if (log != null) {
                     log.log("Found Automatic-Module-Name entry in manifest file: "
@@ -399,10 +393,10 @@ public class LogicalZipFile extends ZipFileSlice {
             }
 
             if (skip) {
-                // Field key didn't match -- skip to next key (after next newline that is not followed by a space)
+                // Field key didn't match -- skip to next key (after next newline that is not
+                // followed by a space)
                 for (; i < manifest.length - 2; i++) {
-                    if (manifest[i] == (byte) '\r' && manifest[i + 1] == (byte) '\n'
-                            && manifest[i + 2] != (byte) ' ') {
+                    if (manifest[i] == (byte) '\r' && manifest[i + 1] == (byte) '\n' && manifest[i + 2] != (byte) ' ') {
                         i += 2;
                         break;
                     } else if ((manifest[i] == (byte) '\r' || manifest[i] == (byte) '\n')
@@ -423,14 +417,10 @@ public class LogicalZipFile extends ZipFileSlice {
     /**
      * Read the central directory of the zipfile.
      * 
-     * @param nestedJarHandler
-     *            the nested jar handler
-     * @param log
-     *            the log
-     * @throws IOException
-     *             If an I/O exception occurs.
-     * @throws InterruptedException
-     *             if the thread was interrupted.
+     * @param nestedJarHandler the nested jar handler
+     * @param log              the log
+     * @throws IOException          If an I/O exception occurs.
+     * @throws InterruptedException if the thread was interrupted.
      */
     @SuppressWarnings("resource")
     private void readCentralDirectory(final NestedJarHandler nestedJarHandler, final LogNode log)
@@ -439,10 +429,12 @@ public class LogicalZipFile extends ZipFileSlice {
             throw new IOException("Zipfile too short to have a central directory");
         }
 
-        final RandomAccessReader reader = slice.randomAccessReader();
+        final var reader = slice.randomAccessReader();
 
-        // Scan for End Of Central Directory (EOCD) signature. Final comment can be up to 64kB in length,
-        // so need to scan back that far to determine if this is a valid zipfile. However for speed,
+        // Scan for End Of Central Directory (EOCD) signature. Final comment can be up
+        // to 64kB in length,
+        // so need to scan back that far to determine if this is a valid zipfile.
+        // However for speed,
         // initially just try reading back a maximum of 32 characters.
         long eocdPos = -1;
         for (long i = slice.sliceLength - 22, iMin = slice.sliceLength - 22 - 32; i >= iMin && i >= 0L; --i) {
@@ -452,19 +444,21 @@ public class LogicalZipFile extends ZipFileSlice {
             }
         }
         if (eocdPos < 0 && slice.sliceLength > 22 + 32) {
-            // If EOCD signature was not found, read the last 64kB of file to RAM in a single chunk
-            // so that we can scan back through it at higher speed to locate the EOCD signature
-            final int bytesToRead = (int) Math.min(slice.sliceLength, 65536);
-            final byte[] eocdBytes = new byte[bytesToRead];
-            final long readStartOff = slice.sliceLength - bytesToRead;
+            // If EOCD signature was not found, read the last 64kB of file to RAM in a
+            // single chunk
+            // so that we can scan back through it at higher speed to locate the EOCD
+            // signature
+            final var bytesToRead = (int) Math.min(slice.sliceLength, 65536);
+            final var eocdBytes = new byte[bytesToRead];
+            final var readStartOff = slice.sliceLength - bytesToRead;
             if (reader.read(readStartOff, eocdBytes, 0, bytesToRead) < bytesToRead) {
                 // Should not happen
                 throw new IOException("Zipfile is truncated");
             }
             try (final ArraySlice arraySlice = new ArraySlice(eocdBytes, /* isDeflatedZipEntry = */ false,
                     /* inflatedLengthHint = */ 0L, nestedJarHandler)) {
-                final RandomAccessReader eocdReader = arraySlice.randomAccessReader();
-                for (long i = eocdBytes.length - 22L; i >= 0L; --i) {
+                final var eocdReader = arraySlice.randomAccessReader();
+                for (var i = eocdBytes.length - 22L; i >= 0L; --i) {
                     if (eocdReader.readUnsignedInt(i) == 0x06054b50L) {
                         eocdPos = i + readStartOff;
                         break;
@@ -480,22 +474,22 @@ public class LogicalZipFile extends ZipFileSlice {
                 || numEnt != reader.readUnsignedShort(eocdPos + 10)) {
             throw new IOException("Multi-disk jarfiles not supported: " + getPath());
         }
-        long cenSize = reader.readUnsignedInt(eocdPos + 12);
-        long cenOff = reader.readUnsignedInt(eocdPos + 16);
-        long cenPos = eocdPos - cenSize;
+        var cenSize = reader.readUnsignedInt(eocdPos + 12);
+        var cenOff = reader.readUnsignedInt(eocdPos + 16);
+        var cenPos = eocdPos - cenSize;
 
         // Check for Zip64 End Of Central Directory Locator record
-        final long zip64cdLocIdx = eocdPos - 20;
+        final var zip64cdLocIdx = eocdPos - 20;
         if (zip64cdLocIdx >= 0 && reader.readUnsignedInt(zip64cdLocIdx) == 0x07064b50L) {
             if (reader.readUnsignedInt(zip64cdLocIdx + 4) > 0 || reader.readUnsignedInt(zip64cdLocIdx + 16) > 1) {
                 throw new IOException("Multi-disk jarfiles not supported: " + getPath());
             }
-            final long eocdPos64 = reader.readLong(zip64cdLocIdx + 8);
+            final var eocdPos64 = reader.readLong(zip64cdLocIdx + 8);
             if (reader.readUnsignedInt(eocdPos64) != 0x06064b50L) {
                 throw new IOException("Zip64 central directory at location " + eocdPos64
                         + " does not have Zip64 central directory header: " + getPath());
             }
-            final long numEnt64 = reader.readLong(eocdPos64 + 24);
+            final var numEnt64 = reader.readLong(eocdPos64 + 24);
             if (reader.readUnsignedInt(eocdPos64 + 16) > 0 || reader.readUnsignedInt(eocdPos64 + 20) > 0
                     || numEnt64 != reader.readLong(eocdPos64 + 32)) {
                 throw new IOException("Multi-disk jarfiles not supported: " + getPath());
@@ -507,7 +501,7 @@ public class LogicalZipFile extends ZipFileSlice {
                 numEnt = -1L;
             }
 
-            final long cenSize64 = reader.readLong(eocdPos64 + 40);
+            final var cenSize64 = reader.readLong(eocdPos64 + 40);
             if (cenSize == 0xffffffffL) {
                 cenSize = cenSize64;
             } else if (cenSize != cenSize64) {
@@ -518,7 +512,7 @@ public class LogicalZipFile extends ZipFileSlice {
             // Recalculate the central directory position
             cenPos = eocdPos64 - cenSize;
 
-            final long cenOff64 = reader.readLong(eocdPos64 + 48);
+            final var cenOff64 = reader.readLong(eocdPos64 + 48);
             if (cenOff == 0xffffffffL) {
                 cenOff = cenOff64;
             } else if (cenOff != cenOff64) {
@@ -533,26 +527,32 @@ public class LogicalZipFile extends ZipFileSlice {
         }
 
         // Get offset of first local file header
-        final long locPos = cenPos - cenOff;
+        final var locPos = cenPos - cenOff;
         if (locPos < 0) {
             throw new IOException("Local file header offset out of range: " + locPos + ": " + getPath());
         }
 
-        // Read entries into a byte array, if central directory is smaller than 2GB. If central directory
-        // is larger than 2GB, need to read each entry field from the file directly using ZipFileSliceReader.
+        // Read entries into a byte array, if central directory is smaller than 2GB. If
+        // central directory
+        // is larger than 2GB, need to read each entry field from the file directly
+        // using ZipFileSliceReader.
         RandomAccessReader cenReader;
         if (cenSize > FileUtils.MAX_BUFFER_SIZE) {
-            // Create a slice that covers the central directory (this allows a central directory larger than
-            // 2GB to be accessed using the slower FileSlice API, which reads the file directly, but also
-            // the slice can be accessed without adding cenPos to each read offset, so that this slice or
-            // the slice in the "else" clause below are accessed with the same index, which is the offset
+            // Create a slice that covers the central directory (this allows a central
+            // directory larger than
+            // 2GB to be accessed using the slower FileSlice API, which reads the file
+            // directly, but also
+            // the slice can be accessed without adding cenPos to each read offset, so that
+            // this slice or
+            // the slice in the "else" clause below are accessed with the same index, which
+            // is the offset
             // from the start of the central directory).
             cenReader = slice.slice(cenPos, cenSize, /* isDeflatedZipEntry = */ false, /* inflatedSizeHint = */ 0L)
                     .randomAccessReader();
         } else {
             // Read the central directory into RAM for speed, then wrap it in an ArraySlice
             // (random access is faster for ArraySlice than for FileSlice)
-            final byte[] entryBytes = new byte[(int) cenSize];
+            final var entryBytes = new byte[(int) cenSize];
             if (reader.read(cenPos, entryBytes, 0, (int) cenSize) < cenSize) {
                 // Should not happen
                 throw new IOException("Zipfile is truncated");
@@ -564,23 +564,25 @@ public class LogicalZipFile extends ZipFileSlice {
         if (numEnt == -1L) {
             // numEnt and numEnt64 were inconsistent -- manually count entries
             numEnt = 0;
-            for (long entOff = 0; entOff + 46 <= cenSize;) {
-                final long sig = cenReader.readUnsignedInt(entOff);
+            for (var entOff = 0L; entOff + 46 <= cenSize;) {
+                final var sig = cenReader.readUnsignedInt(entOff);
                 if (sig != 0x02014b50L) {
-                    throw new IOException("Invalid central directory signature: 0x"
-                            + Integer.toString((int) sig, 16) + ": " + getPath());
+                    throw new IOException("Invalid central directory signature: 0x" + Integer.toString((int) sig, 16)
+                            + ": " + getPath());
                 }
-                final int filenameLen = cenReader.readUnsignedShort(entOff + 28);
-                final int extraFieldLen = cenReader.readUnsignedShort(entOff + 30);
-                final int commentLen = cenReader.readUnsignedShort(entOff + 32);
+                final var filenameLen = cenReader.readUnsignedShort(entOff + 28);
+                final var extraFieldLen = cenReader.readUnsignedShort(entOff + 30);
+                final var commentLen = cenReader.readUnsignedShort(entOff + 32);
                 entOff += 46 + filenameLen + extraFieldLen + commentLen;
                 numEnt++;
             }
         }
 
-        //  Can't have more than (Integer.MAX_VALUE - 8) entries, since they are stored in an ArrayList
+        // Can't have more than (Integer.MAX_VALUE - 8) entries, since they are stored
+        // in an ArrayList
         if (numEnt > FileUtils.MAX_BUFFER_SIZE) {
-            // One alternative in this (impossibly rare) situation would be to return only the first 2B entries
+            // One alternative in this (impossibly rare) situation would be to return only
+            // the first 2B entries
             throw new IOException("Too many zipfile entries: " + numEnt);
         }
 
@@ -595,29 +597,29 @@ public class LogicalZipFile extends ZipFileSlice {
         entries = new ArrayList<>((int) numEnt);
         FastZipEntry manifestZipEntry = null;
         try {
-            int entSize = 0;
-            for (long entOff = 0; entOff + 46 <= cenSize; entOff += entSize) {
-                final long sig = cenReader.readUnsignedInt(entOff);
+            var entSize = 0;
+            for (var entOff = 0L; entOff + 46 <= cenSize; entOff += entSize) {
+                final var sig = cenReader.readUnsignedInt(entOff);
                 if (sig != 0x02014b50L) {
-                    throw new IOException("Invalid central directory signature: 0x"
-                            + Integer.toString((int) sig, 16) + ": " + getPath());
+                    throw new IOException("Invalid central directory signature: 0x" + Integer.toString((int) sig, 16)
+                            + ": " + getPath());
                 }
-                final int filenameLen = cenReader.readUnsignedShort(entOff + 28);
-                final int extraFieldLen = cenReader.readUnsignedShort(entOff + 30);
-                final int commentLen = cenReader.readUnsignedShort(entOff + 32);
+                final var filenameLen = cenReader.readUnsignedShort(entOff + 28);
+                final var extraFieldLen = cenReader.readUnsignedShort(entOff + 30);
+                final var commentLen = cenReader.readUnsignedShort(entOff + 32);
                 entSize = 46 + filenameLen + extraFieldLen + commentLen;
 
                 // Get and sanitize entry name
-                final long filenameStartOff = entOff + 46;
-                final long filenameEndOff = filenameStartOff + filenameLen;
+                final var filenameStartOff = entOff + 46;
+                final var filenameEndOff = filenameStartOff + filenameLen;
                 if (filenameEndOff > cenSize) {
                     if (log != null) {
                         log.log("Filename extends past end of entry -- skipping entry at offset " + entOff);
                     }
                     break;
                 }
-                final String entryName = cenReader.readString(filenameStartOff, filenameLen);
-                String entryNameSanitized = FileUtils.sanitizeEntryPath(entryName, /* removeInitialSlash = */ true,
+                final var entryName = cenReader.readString(filenameStartOff, filenameLen);
+                var entryNameSanitized = FileUtils.sanitizeEntryPath(entryName, /* removeInitialSlash = */ true,
                         /* removeFinalSlash = */ false);
                 if (entryNameSanitized.isEmpty() || entryName.endsWith("/")) {
                     // Skip directory entries
@@ -625,7 +627,7 @@ public class LogicalZipFile extends ZipFileSlice {
                 }
 
                 // Check entry flag bits
-                final int flags = cenReader.readUnsignedShort(entOff + 8);
+                final var flags = cenReader.readUnsignedShort(entOff + 8);
                 if ((flags & 1) != 0) {
                     if (log != null) {
                         log.log("Skipping encrypted zip entry: " + entryNameSanitized);
@@ -634,7 +636,7 @@ public class LogicalZipFile extends ZipFileSlice {
                 }
 
                 // Check compression method
-                final int compressionMethod = cenReader.readUnsignedShort(entOff + 10);
+                final var compressionMethod = cenReader.readUnsignedShort(entOff + 10);
                 if (compressionMethod != /* stored */ 0 && compressionMethod != /* deflated */ 8) {
                     if (log != null) {
                         log.log("Skipping zip entry with invalid compression method " + compressionMethod + ": "
@@ -642,27 +644,27 @@ public class LogicalZipFile extends ZipFileSlice {
                     }
                     continue;
                 }
-                final boolean isDeflated = compressionMethod == /* deflated */ 8;
+                final var isDeflated = compressionMethod == /* deflated */ 8;
 
                 // Get compressed and uncompressed size
-                long compressedSize = (cenReader.readUnsignedInt(entOff + 20));
-                long uncompressedSize = (cenReader.readUnsignedInt(entOff + 24));
+                var compressedSize = (cenReader.readUnsignedInt(entOff + 20));
+                var uncompressedSize = (cenReader.readUnsignedInt(entOff + 24));
 
                 // Get external file attributes
-                final int fileAttributes = cenReader.readUnsignedShort(entOff + 40);
+                final var fileAttributes = cenReader.readUnsignedShort(entOff + 40);
 
-                long pos = cenReader.readUnsignedInt(entOff + 42);
+                var pos = cenReader.readUnsignedInt(entOff + 42);
 
                 // Check for Zip64 header in extra fields
                 // See:
                 // https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT
                 // https://github.com/LuaDist/zip/blob/master/proginfo/extrafld.txt
-                long lastModifiedMillis = 0L;
+                var lastModifiedMillis = 0L;
                 if (extraFieldLen > 0) {
-                    for (int extraFieldOff = 0; extraFieldOff + 4 < extraFieldLen;) {
-                        final long tagOff = filenameEndOff + extraFieldOff;
-                        final int tag = cenReader.readUnsignedShort(tagOff);
-                        final int size = cenReader.readUnsignedShort(tagOff + 2);
+                    for (var extraFieldOff = 0; extraFieldOff + 4 < extraFieldLen;) {
+                        final var tagOff = filenameEndOff + extraFieldOff;
+                        final var tag = cenReader.readUnsignedShort(tagOff);
+                        final var size = cenReader.readUnsignedShort(tagOff + 2);
                         if (extraFieldOff + 4 + size > extraFieldLen) {
                             // Invalid size
                             if (log != null) {
@@ -672,14 +674,14 @@ public class LogicalZipFile extends ZipFileSlice {
                         }
                         if (tag == 1 && size >= 20) {
                             // Zip64 extended information extra field
-                            final long uncompressedSize64 = cenReader.readLong(tagOff + 4 + 0);
+                            final var uncompressedSize64 = cenReader.readLong(tagOff + 4 + 0);
                             if (uncompressedSize == 0xffffffffL) {
                                 uncompressedSize = uncompressedSize64;
                             } else if (uncompressedSize != uncompressedSize64) {
                                 throw new IOException("Mismatch in uncompressed size: " + uncompressedSize + " vs. "
                                         + uncompressedSize64 + ": " + entryNameSanitized);
                             }
-                            final long compressedSize64 = cenReader.readLong(tagOff + 4 + 8);
+                            final var compressedSize64 = cenReader.readLong(tagOff + 4 + 8);
                             if (compressedSize == 0xffffffffL) {
                                 compressedSize = compressedSize64;
                             } else if (compressedSize != compressedSize64) {
@@ -688,7 +690,7 @@ public class LogicalZipFile extends ZipFileSlice {
                             }
                             // Only compressed size and uncompressed size are required fields
                             if (size >= 28) {
-                                final long pos64 = cenReader.readLong(tagOff + 4 + 16);
+                                final var pos64 = cenReader.readLong(tagOff + 4 + 16);
                                 if (pos == 0xffffffffL) {
                                     pos = pos64;
                                 } else if (pos != pos64) {
@@ -700,7 +702,7 @@ public class LogicalZipFile extends ZipFileSlice {
 
                         } else if (tag == 0x5455 && size >= 5) {
                             // Extended Unix timestamp
-                            final int bits = cenReader.readUnsignedByte(tagOff + 4 + 0);
+                            final var bits = cenReader.readUnsignedByte(tagOff + 4 + 0);
                             if ((bits & 1) == 1 && size >= 5 + 8) {
                                 lastModifiedMillis = cenReader.readLong(tagOff + 4 + 1) * 1000L;
                             }
@@ -708,26 +710,28 @@ public class LogicalZipFile extends ZipFileSlice {
                         } else if (tag == 0x5855 && size >= 20) {
                             // Unix extra field (deprecated)
                             lastModifiedMillis = cenReader.readLong(tagOff + 4 + 8) * 1000L;
-                            // There are also optional UID and GID fields in this extra field (currently ignored)
+                            // There are also optional UID and GID fields in this extra field (currently
+                            // ignored)
 
                         } else if (tag == 0x7855) {
                             // Info-ZIP Unix UID and GID fields (currently ignored)
 
                         } else if (tag == 0x7075) {
                             // Info-ZIP Unicode path extra field
-                            final int version = cenReader.readUnsignedByte(tagOff + 4 + 0);
+                            final var version = cenReader.readUnsignedByte(tagOff + 4 + 0);
                             if (version != 1) {
                                 throw new IOException("Unknown Unicode entry name format " + version
                                         + " in extra field: " + entryNameSanitized);
                             } else if (size > 5) {
                                 // Replace non-Unicode entry name with Unicode version. The data area of this
                                 // extra field is version(1) + nameCRC32(4) + name, so the name starts 5 bytes
-                                // into the data area (i.e. 9 bytes after the tag), and is (size - 5) bytes long.
+                                // into the data area (i.e. 9 bytes after the tag), and is (size - 5) bytes
+                                // long.
                                 try {
                                     entryNameSanitized = cenReader.readString(tagOff + 9, size - 5);
                                 } catch (final IllegalArgumentException e) {
-                                    throw new IOException("Malformed extended Unicode entry name for entry: "
-                                            + entryNameSanitized);
+                                    throw new IOException(
+                                            "Malformed extended Unicode entry name for entry: " + entryNameSanitized);
                                 }
                             }
                         }
@@ -735,10 +739,11 @@ public class LogicalZipFile extends ZipFileSlice {
                     }
                 }
 
-                int lastModifiedTimeMSDOS = 0;
-                int lastModifiedDateMSDOS = 0;
+                var lastModifiedTimeMSDOS = 0;
+                var lastModifiedDateMSDOS = 0;
                 if (lastModifiedMillis == 0L) {
-                    // If Unix timestamp was not provided, convert zip entry timestamp from MS-DOS format
+                    // If Unix timestamp was not provided, convert zip entry timestamp from MS-DOS
+                    // format
                     lastModifiedTimeMSDOS = cenReader.readUnsignedShort(entOff + 12);
                     lastModifiedDateMSDOS = cenReader.readUnsignedShort(entOff + 14);
                 }
@@ -764,7 +769,7 @@ public class LogicalZipFile extends ZipFileSlice {
                     continue;
                 }
 
-                final long locHeaderPos = locPos + pos;
+                final var locHeaderPos = locPos + pos;
                 if (locHeaderPos < 0) {
                     if (log != null) {
                         log.log("Skipping zip entry with invalid loc header position (" + locHeaderPos + "): "
@@ -786,7 +791,7 @@ public class LogicalZipFile extends ZipFileSlice {
                 entries.add(entry);
 
                 // Record manifest entry
-                if (entry.entryName.equals(MANIFEST_PATH)) {
+                if (MANIFEST_PATH.equals(entry.entryName)) {
                     manifestZipEntry = entry;
                 }
             }
@@ -803,7 +808,8 @@ public class LogicalZipFile extends ZipFileSlice {
             parseManifest(manifestZipEntry, log);
         }
 
-        // For multi-release jars, drop any older or non-versioned entries that are masked by the most recent
+        // For multi-release jars, drop any older or non-versioned entries that are
+        // masked by the most recent
         // version-specific entry
         if (isMultiReleaseJar) {
             if (log != null) {
@@ -816,19 +822,20 @@ public class LogicalZipFile extends ZipFileSlice {
                 }
                 final List<Integer> versionsFoundSorted = new ArrayList<>(versionsFound);
                 CollectionUtils.sortIfNotEmpty(versionsFoundSorted);
-                log.log("This is a multi-release jar, with versions: "
-                        + StringUtils.join(", ", versionsFoundSorted));
+                log.log("This is a multi-release jar, with versions: " + StringUtils.join(", ", versionsFoundSorted));
             }
 
             // Sort in decreasing order of version in preparation for version masking
             CollectionUtils.sortIfNotEmpty(entries);
 
-            // Mask files that appear in multiple version sections, so that there is only one entry
-            // for each unversioned path, i.e. the versioned path with the highest version number
+            // Mask files that appear in multiple version sections, so that there is only
+            // one entry
+            // for each unversioned path, i.e. the versioned path with the highest version
+            // number
             final List<FastZipEntry> unversionedZipEntriesMasked = new ArrayList<>(entries.size());
             final Map<String, String> unversionedPathToVersionedPath = new HashMap<>();
             for (final FastZipEntry versionedZipEntry : entries) {
-                final String maskingEntryName = unversionedPathToVersionedPath
+                final var maskingEntryName = unversionedPathToVersionedPath
                         .putIfAbsent(versionedZipEntry.entryNameUnversioned, versionedZipEntry.entryName);
                 if (maskingEntryName == null) {
                     // This is the first FastZipEntry for this entry's unversioned path
@@ -845,7 +852,9 @@ public class LogicalZipFile extends ZipFileSlice {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see nonapi.io.github.classgraph.fastzipfilereader.ZipFileSlice#toString()
      */
     @Override

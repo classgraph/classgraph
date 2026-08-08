@@ -30,7 +30,6 @@ package nonapi.io.github.classgraph.fileslice;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
@@ -65,10 +64,12 @@ public class FileSlice extends Slice {
     private ByteBuffer backingByteBuffer;
 
     /**
-     * The {@code java.lang.foreign.Arena} (JDK 22+) used to memory-map the file, if any. Typed as {@link Object},
-     * since ClassGraph needs to compile and run on JDK 17+. Closing the arena unmaps {@link #backingByteBuffer},
-     * without needing to call the terminally-deprecated {@code Unsafe::invokeCleaner} method (#939). Only set for
-     * toplevel file slices, which own the mapping (sub slices just duplicate the backing byte buffer).
+     * The {@code java.lang.foreign.Arena} (JDK 22+) used to memory-map the file, if
+     * any. Typed as {@link Object}, since ClassGraph needs to compile and run on
+     * JDK 17+. Closing the arena unmaps {@link #backingByteBuffer}, without needing
+     * to call the terminally-deprecated {@code Unsafe::invokeCleaner} method
+     * (#939). Only set for toplevel file slices, which own the mapping (sub slices
+     * just duplicate the backing byte buffer).
      */
     private Object arena;
 
@@ -81,23 +82,17 @@ public class FileSlice extends Slice {
     /**
      * Constructor for treating a range of a file as a slice.
      *
-     * @param parentSlice
-     *            the parent slice
-     * @param offset
-     *            the offset of the sub-slice within the parent slice
-     * @param length
-     *            the length of the sub-slice
-     * @param isDeflatedZipEntry
-     *            true if this is a deflated zip entry
-     * @param inflatedLengthHint
-     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
-     *            zip entry.
-     * @param nestedJarHandler
-     *            the nested jar handler
+     * @param parentSlice        the parent slice
+     * @param offset             the offset of the sub-slice within the parent slice
+     * @param length             the length of the sub-slice
+     * @param isDeflatedZipEntry true if this is a deflated zip entry
+     * @param inflatedLengthHint the uncompressed size of a deflated zip entry, or
+     *                           -1 if unknown, or 0 of this is not a deflated zip
+     *                           entry.
+     * @param nestedJarHandler   the nested jar handler
      */
     private FileSlice(final FileSlice parentSlice, final long offset, final long length,
-            final boolean isDeflatedZipEntry, final long inflatedLengthHint,
-            final NestedJarHandler nestedJarHandler) {
+            final boolean isDeflatedZipEntry, final long inflatedLengthHint, final NestedJarHandler nestedJarHandler) {
         super(parentSlice, offset, length, isDeflatedZipEntry, inflatedLengthHint, nestedJarHandler);
         this.file = parentSlice.file;
         this.raf = parentSlice.raf;
@@ -112,26 +107,23 @@ public class FileSlice extends Slice {
             this.backingByteBuffer.limit((int) (sliceStartPos + sliceLength));
         }
 
-        // Only mark toplevel file slices as open (sub slices don't need to be marked as open since
-        // they don't need to be closed, they just copy the resource references of the toplevel slice) 
+        // Only mark toplevel file slices as open (sub slices don't need to be marked as
+        // open since
+        // they don't need to be closed, they just copy the resource references of the
+        // toplevel slice)
     }
 
     /**
      * Constructor for toplevel file slice.
      *
-     * @param file
-     *            the file
-     * @param isDeflatedZipEntry
-     *            true if this is a deflated zip entry
-     * @param inflatedLengthHint
-     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
-     *            zip entry.
-     * @param nestedJarHandler
-     *            the nested jar handler
-     * @param log
-     *            the log
-     * @throws IOException
-     *             if the file cannot be opened.
+     * @param file               the file
+     * @param isDeflatedZipEntry true if this is a deflated zip entry
+     * @param inflatedLengthHint the uncompressed size of a deflated zip entry, or
+     *                           -1 if unknown, or 0 of this is not a deflated zip
+     *                           entry.
+     * @param nestedJarHandler   the nested jar handler
+     * @param log                the log
+     * @throws IOException if the file cannot be opened.
      */
     public FileSlice(final File file, final boolean isDeflatedZipEntry, final long inflatedLengthHint,
             final NestedJarHandler nestedJarHandler, final LogNode log) throws IOException {
@@ -144,11 +136,14 @@ public class FileSlice extends Slice {
         this.fileLength = file.length();
         this.isTopLevelFileSlice = true;
 
-        // (Files larger than MAX_BUFFER_SIZE cannot be memory-mapped to a single ByteBuffer -- for those,
+        // (Files larger than MAX_BUFFER_SIZE cannot be memory-mapped to a single
+        // ByteBuffer -- for those,
         // fall through and use the RandomAccessFile API instead)
         if (nestedJarHandler.scanSpec.enableMemoryMapping && fileLength <= FileUtils.MAX_BUFFER_SIZE) {
-            // On JDK 22+, memory-map the file using the java.lang.foreign.Arena API, so that the mapped
-            // ByteBuffer can be unmapped by closing the arena when this slice is closed, rather than by
+            // On JDK 22+, memory-map the file using the java.lang.foreign.Arena API, so
+            // that the mapped
+            // ByteBuffer can be unmapped by closing the arena when this slice is closed,
+            // rather than by
             // calling the terminally-deprecated method Unsafe::invokeCleaner (#939).
             // (openArena returns null on JDK older than 22.)
             arena = FileUtils.openArena(nestedJarHandler.reflectionUtils);
@@ -182,23 +177,27 @@ public class FileSlice extends Slice {
     }
 
     /**
-     * Memory-map the file to a {@link ByteBuffer}, using an {@code Arena} to perform the mapping on JDK 22+, or
+     * Memory-map the file to a {@link ByteBuffer}, using an {@code Arena} to
+     * perform the mapping on JDK 22+, or
      * {@link FileChannel#map(MapMode, long, long)} on older JDK versions.
      *
-     * @return the mapped byte buffer, or null if the arena-based mapping API could not be invoked reflectively.
-     * @throws IOException
-     *             if an I/O exception occurred while mapping the file (mapping may succeed if retried after
-     *             garbage collection).
+     * @return the mapped byte buffer, or null if the arena-based mapping API could
+     *         not be invoked reflectively.
+     * @throws IOException if an I/O exception occurred while mapping the file
+     *                     (mapping may succeed if retried after garbage
+     *                     collection).
      */
     private ByteBuffer mapFile() throws IOException {
         if (arena != null) {
-            return FileUtils.mapFileUsingArena(arena, fileChannel, 0L, fileLength,
-                    nestedJarHandler.reflectionUtils);
+            return FileUtils.mapFileUsingArena(arena, fileChannel, 0L, fileLength, nestedJarHandler.reflectionUtils);
         }
         if (VersionFinder.JAVA_MAJOR_VERSION >= 22) {
-            // An arena could not be opened, even though the arena API should be available -- don't fall
-            // back to FileChannel#map, since the resulting MappedByteBuffer could only be unmapped by the
-            // garbage collector (Unsafe::invokeCleaner is not used on JDK 22+, see #939) -- use the
+            // An arena could not be opened, even though the arena API should be available
+            // -- don't fall
+            // back to FileChannel#map, since the resulting MappedByteBuffer could only be
+            // unmapped by the
+            // garbage collector (Unsafe::invokeCleaner is not used on JDK 22+, see #939) --
+            // use the
             // RandomAccessFile API instead
             return null;
         }
@@ -208,32 +207,24 @@ public class FileSlice extends Slice {
     /**
      * Constructor for toplevel file slice.
      *
-     * @param file
-     *            the file
-     * @param nestedJarHandler
-     *            the nested jar handler
-     * @param log
-     *            the log
-     * @throws IOException
-     *             if the file cannot be opened.
+     * @param file             the file
+     * @param nestedJarHandler the nested jar handler
+     * @param log              the log
+     * @throws IOException if the file cannot be opened.
      */
-    public FileSlice(final File file, final NestedJarHandler nestedJarHandler, final LogNode log)
-            throws IOException {
+    public FileSlice(final File file, final NestedJarHandler nestedJarHandler, final LogNode log) throws IOException {
         this(file, /* isDeflatedZipEntry = */ false, /* inflatedSizeHint = */ 0L, nestedJarHandler, log);
     }
 
     /**
      * Slice the file.
      *
-     * @param offset
-     *            the offset of the sub-slice within the parent slice
-     * @param length
-     *            the length of the sub-slice
-     * @param isDeflatedZipEntry
-     *            true if this is a deflated zip entry
-     * @param inflatedLengthHint
-     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
-     *            zip entry.
+     * @param offset             the offset of the sub-slice within the parent slice
+     * @param length             the length of the sub-slice
+     * @param isDeflatedZipEntry true if this is a deflated zip entry
+     * @param inflatedLengthHint the uncompressed size of a deflated zip entry, or
+     *                           -1 if unknown, or 0 of this is not a deflated zip
+     *                           entry.
      * @return the slice
      */
     @Override
@@ -265,8 +256,7 @@ public class FileSlice extends Slice {
      * Load the slice as a byte array.
      *
      * @return the byte[]
-     * @throws IOException
-     *             Signals that an I/O exception has occurred.
+     * @throws IOException Signals that an I/O exception has occurred.
      */
     @Override
     public byte[] load() throws IOException {
@@ -275,7 +265,7 @@ public class FileSlice extends Slice {
             if (inflatedLengthHint > FileUtils.MAX_BUFFER_SIZE) {
                 throw new IOException("Uncompressed size is larger than 2GB");
             }
-            try (InputStream inputStream = open()) {
+            try (var inputStream = open()) {
                 return NestedJarHandler.readAllBytesAsArray(inputStream, inflatedLengthHint);
             }
         } else {
@@ -283,8 +273,8 @@ public class FileSlice extends Slice {
             if (sliceLength > FileUtils.MAX_BUFFER_SIZE) {
                 throw new IOException("File is larger than 2GB");
             }
-            final RandomAccessReader reader = randomAccessReader();
-            final byte[] content = new byte[(int) sliceLength];
+            final var reader = randomAccessReader();
+            final var content = new byte[(int) sliceLength];
             if (reader.read(0, content, 0, content.length) < content.length) {
                 // Should not happen
                 throw new IOException("File is truncated");
@@ -294,18 +284,20 @@ public class FileSlice extends Slice {
     }
 
     /**
-     * Read the slice into a {@link ByteBuffer} (or memory-map the slice to a {@link MappedByteBuffer}, if
-     * {@link ClassGraph#enableMemoryMapping()} was called.)
+     * Read the slice into a {@link ByteBuffer} (or memory-map the slice to a
+     * {@link MappedByteBuffer}, if {@link ClassGraph#enableMemoryMapping()} was
+     * called.)
      *
      * @return the byte buffer
-     * @throws IOException
-     *             Signals that an I/O exception has occurred.
+     * @throws IOException Signals that an I/O exception has occurred.
      */
     @Override
     public ByteBuffer read() throws IOException {
         if (isDeflatedZipEntry) {
-            // Inflate to RAM if deflated (unfortunately there is no lazy-loading ByteBuffer that will
-            // decompress partial streams on demand, so we have to decompress the whole zip entry) 
+            // Inflate to RAM if deflated (unfortunately there is no lazy-loading ByteBuffer
+            // that will
+            // decompress partial streams on demand, so we have to decompress the whole zip
+            // entry)
             if (inflatedLengthHint > FileUtils.MAX_BUFFER_SIZE) {
                 throw new IOException("Uncompressed size is larger than 2GB");
             }
@@ -317,7 +309,8 @@ public class FileSlice extends Slice {
             }
             return ByteBuffer.wrap(load());
         } else {
-            // FileSlice is backed with a MappedByteBuffer -- duplicate it and return it (low-cost operation)
+            // FileSlice is backed with a MappedByteBuffer -- duplicate it and return it
+            // (low-cost operation)
             return backingByteBuffer.duplicate();
         }
     }
@@ -337,10 +330,13 @@ public class FileSlice extends Slice {
     public void close() {
         if (!isClosed.getAndSet(true)) {
             if (isTopLevelFileSlice && backingByteBuffer != null) {
-                // Only unmap the backing ByteBuffer in the toplevel file slice, so that it is only closed
-                // once (also duplicates of mapped ByteBuffers cannot be closed by the cleaner API)
+                // Only unmap the backing ByteBuffer in the toplevel file slice, so that it is
+                // only closed
+                // once (also duplicates of mapped ByteBuffers cannot be closed by the cleaner
+                // API)
                 if (arena != null) {
-                    // JDK 22+: unmap the ByteBuffer by closing the arena that was used to map it (#939)
+                    // JDK 22+: unmap the ByteBuffer by closing the arena that was used to map it
+                    // (#939)
                     FileUtils.closeArena(arena, nestedJarHandler.reflectionUtils, /* log = */ null);
                     arena = null;
                 } else {

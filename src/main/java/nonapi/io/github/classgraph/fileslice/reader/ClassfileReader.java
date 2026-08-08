@@ -39,25 +39,33 @@ import java.util.Arrays;
 
 import io.github.classgraph.Resource;
 import nonapi.io.github.classgraph.fileslice.ArraySlice;
+import nonapi.io.github.classgraph.fileslice.FileSlice;
 import nonapi.io.github.classgraph.fileslice.Slice;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.StringUtils;
 
 /**
- * A {@link Slice} reader that works as either a {@link RandomAccessReader} or a {@link SequentialReader}. The file
- * is buffered up to the point it has been read so far. Reads in <b>big endian</b> order, as required by the
- * classfile format.
+ * A {@link Slice} reader that works as either a {@link RandomAccessReader} or a
+ * {@link SequentialReader}. The file is buffered up to the point it has been
+ * read so far. Reads in <b>big endian</b> order, as required by the classfile
+ * format.
  */
 public class ClassfileReader implements RandomAccessReader, SequentialReader, Closeable {
-    /** The underlying resource to close when {@link ClassfileReader#close()} is called. */
+    /**
+     * The underlying resource to close when {@link ClassfileReader#close()} is
+     * called.
+     */
     private Resource resourceToClose;
 
-    /** If slice is deflated, a wrapper for {@link InflateInputStream}. */
+    /**
+     * If slice is deflated, a wrapper for
+     * {@link java.util.zip.InflaterInputStream}.
+     */
     private InputStream inflaterInputStream;
 
     /**
-     * If slice is not deflated, a {@link RandomAccessReader} for either the {@link ArraySlice} or {@link FileSlice}
-     * concrete subclass.
+     * If slice is not deflated, a {@link RandomAccessReader} for either the
+     * {@link ArraySlice} or {@link FileSlice} concrete subclass.
      */
     private RandomAccessReader randomAccessReader;
 
@@ -71,52 +79,56 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
     private int currIdx;
 
     /**
-     * The length of the classfile if known (because it is not deflated), or -1 if unknown (because it is deflated).
+     * The length of the classfile if known (because it is not deflated), or -1 if
+     * unknown (because it is deflated).
      */
     private int classfileLengthHint = -1;
 
     /**
-     * Initial buffer size. For most classfiles, only the first 16-64kb needs to be read (we don't read the
-     * bytecodes).
+     * Initial buffer size. For most classfiles, only the first 16-64kb needs to be
+     * read (we don't read the bytecodes).
      */
     private static final int INITIAL_BUF_SIZE = 16384;
 
     /**
-     * Read this many bytes each time there is a buffer underrun. This is smaller than 8k by 8 bytes to prevent the
-     * doubling of the array size when the last chunk doesn't quite fit within the 16kb of INITIAL_BUF_SIZE, since
-     * the number of bytes that can be requested is up to 8 (for longs). Otherwise we could request to read to (8kb
-     * * 2 + 8), which would double the size of the buffer to 32kb, but if we only need to read between 8kb and
-     * 16kb, then we unnecessarily copied the buffer content one extra time.
+     * Read this many bytes each time there is a buffer underrun. This is smaller
+     * than 8k by 8 bytes to prevent the doubling of the array size when the last
+     * chunk doesn't quite fit within the 16kb of INITIAL_BUF_SIZE, since the number
+     * of bytes that can be requested is up to 8 (for longs). Otherwise we could
+     * request to read to (8kb * 2 + 8), which would double the size of the buffer
+     * to 32kb, but if we only need to read between 8kb and 16kb, then we
+     * unnecessarily copied the buffer content one extra time.
      */
     private static final int BUF_CHUNK_SIZE = 8192 - 8;
 
     /**
      * Constructor.
      * 
-     * @param slice
-     *            the {@link Slice} to read.
-     * @param resourceToClose
-     *            the resource to close when {@link ClassfileReader#close()} is called, or null.
-     * @throws IOException
-     *             If an inflater cannot be opened on the {@link Slice}.
+     * @param slice           the {@link Slice} to read.
+     * @param resourceToClose the resource to close when
+     *                        {@link ClassfileReader#close()} is called, or null.
+     * @throws IOException If an inflater cannot be opened on the {@link Slice}.
      */
     public ClassfileReader(final Slice slice, final Resource resourceToClose) throws IOException {
         this.classfileLengthHint = (int) slice.sliceLength;
         this.resourceToClose = resourceToClose;
         if (slice.isDeflatedZipEntry) {
-            // If this is a deflated slice, need to read from an InflaterInputStream to fill buffer
+            // If this is a deflated slice, need to read from an InflaterInputStream to fill
+            // buffer
             inflaterInputStream = slice.open();
             arr = new byte[INITIAL_BUF_SIZE];
             classfileLengthHint = (int) Math.min(slice.inflatedLengthHint, FileUtils.MAX_BUFFER_SIZE);
         } else {
             if (slice instanceof final ArraySlice arraySlice) {
-                // If slice is an ArraySlice, avoid copying by simply reusing the wrapped byte array
+                // If slice is an ArraySlice, avoid copying by simply reusing the wrapped byte
+                // array
                 // in place of the buffer array, and mark it as fully loaded
                 if (arraySlice.sliceStartPos == 0 && arraySlice.sliceLength == arraySlice.arr.length) {
                     // ArraySlice is the whole array
                     arr = arraySlice.arr;
                 } else {
-                    // ArraySlice covers only a partial array, and this class doesn't support a starting
+                    // ArraySlice covers only a partial array, and this class doesn't support a
+                    // starting
                     // offset, so copy the sliced part of the array to a new buffer
                     arr = Arrays.copyOfRange(arraySlice.arr, (int) arraySlice.sliceStartPos,
                             (int) (arraySlice.sliceStartPos + arraySlice.sliceLength));
@@ -124,7 +136,8 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
                 arrUsed = arr.length;
                 classfileLengthHint = arr.length;
             } else {
-                // Otherwise this is a FileSlice -- need to fetch chunks of bytes using a random access reader
+                // Otherwise this is a FileSlice -- need to fetch chunks of bytes using a random
+                // access reader
                 randomAccessReader = slice.randomAccessReader();
                 arr = new byte[INITIAL_BUF_SIZE];
                 classfileLengthHint = (int) Math.min(slice.sliceLength, FileUtils.MAX_BUFFER_SIZE);
@@ -135,12 +148,10 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
     /**
      * Constructor for reader of module {@link InputStream} (which is not deflated).
      * 
-     * @param inputStream
-     *            the {@link InputStream} to read from.
-     * @param resourceToClose
-     *            the underlying resource to close when {@link ClassfileReader#close()} is called, or null.
-     * @throws IOException
-     *             If an inflater cannot be opened on the {@link Slice}.
+     * @param inputStream     the {@link InputStream} to read from.
+     * @param resourceToClose the underlying resource to close when
+     *                        {@link ClassfileReader#close()} is called, or null.
+     * @throws IOException If an inflater cannot be opened on the {@link Slice}.
      */
     public ClassfileReader(final InputStream inputStream, final Resource resourceToClose) throws IOException {
         inflaterInputStream = inputStream;
@@ -167,21 +178,25 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
     }
 
     /**
-     * Called when there is a buffer underrun to ensure there are sufficient bytes available in the array to read
-     * the given number of bytes at the given start index.
+     * Called when there is a buffer underrun to ensure there are sufficient bytes
+     * available in the array to read the given number of bytes at the given start
+     * index.
      *
-     * @param targetArrUsed
-     *            the target value for {@link #arrUsed} (i.e. the number of bytes that must be filled in the array)
-     * @throws IOException
-     *             Signals that an I/O exception has occurred.
+     * @param targetArrUsed the target value for {@link #arrUsed} (i.e. the number
+     *                      of bytes that must be filled in the array)
+     * @throws IOException Signals that an I/O exception has occurred.
      */
     private void readTo(final int targetArrUsed) throws IOException {
-        // Array does not need to grow larger than the length hint (if the uncompressed size of the zip entry
-        // is an underestimate, classfile will be truncated). If -1, assume 2GB is the max size.
-        final int maxArrLen = classfileLengthHint == -1 ? FileUtils.MAX_BUFFER_SIZE : classfileLengthHint;
+        // Array does not need to grow larger than the length hint (if the uncompressed
+        // size of the zip entry
+        // is an underestimate, classfile will be truncated). If -1, assume 2GB is the
+        // max size.
+        final var maxArrLen = classfileLengthHint == -1 ? FileUtils.MAX_BUFFER_SIZE : classfileLengthHint;
         if (inflaterInputStream == null && randomAccessReader == null) {
-            // If neither inflaterInputStream nor randomAccessReader is set, then slice is an ArraySlice,
-            // and array is already "fully loaded" (the ArraySlice's backing array is used as the buffer).
+            // If neither inflaterInputStream nor randomAccessReader is set, then slice is
+            // an ArraySlice,
+            // and array is already "fully loaded" (the ArraySlice's backing array is used
+            // as the buffer).
             throw new IOException("Tried to read past end of fixed array buffer");
         }
         if (targetArrUsed > FileUtils.MAX_BUFFER_SIZE || targetArrUsed < 0 || arrUsed == maxArrLen) {
@@ -189,10 +204,10 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
         }
 
         // Need to read at least BUF_CHUNK_SIZE (but don't overshoot past 2GB limit)
-        final int maxNewArrUsed = (int) Math.min(Math.max(targetArrUsed, (long) (arrUsed + BUF_CHUNK_SIZE)),
-                maxArrLen);
+        final var maxNewArrUsed = (int) Math.min(Math.max(targetArrUsed, (long) (arrUsed + BUF_CHUNK_SIZE)), maxArrLen);
 
-        // Double the size of the array if it's too small to contain the new chunk of bytes
+        // Double the size of the array if it's too small to contain the new chunk of
+        // bytes
         long newArrLength = arr.length;
         while (newArrLength < maxNewArrUsed) {
             newArrLength = Math.min(maxNewArrUsed, newArrLength * 2L);
@@ -203,20 +218,20 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
         arr = Arrays.copyOf(arr, (int) Math.min(newArrLength, maxArrLen));
 
         // Figure out the maximum number of bytes that can be read into the array
-        final int maxBytesToRead = arr.length - arrUsed;
+        final var maxBytesToRead = arr.length - arrUsed;
 
         // Read a new chunk into the buffer, starting at position arrUsed
         if (inflaterInputStream != null) {
             // Read from inflater input stream
-            final int numRead = inflaterInputStream.read(arr, arrUsed, maxBytesToRead);
+            final var numRead = inflaterInputStream.read(arr, arrUsed, maxBytesToRead);
             if (numRead > 0) {
                 arrUsed += numRead;
             }
         } else /* inflaterInputStream == null, so this is a (non-deflated) FileSlice */ {
             // Don't read past end of slice
-            final int bytesToRead = Math.min(maxBytesToRead, maxArrLen - arrUsed);
+            final var bytesToRead = Math.min(maxBytesToRead, maxArrLen - arrUsed);
             // Read bytes from FileSlice into arr
-            final int numBytesRead = randomAccessReader.read(/* srcOffset = */ arrUsed, /* dstArr = */ arr,
+            final var numBytesRead = randomAccessReader.read(/* srcOffset = */ arrUsed, /* dstArr = */ arr,
                     /* dstArrStart = */ arrUsed, /* numBytes = */ bytesToRead);
             if (numBytesRead > 0) {
                 arrUsed += numBytesRead;
@@ -230,12 +245,11 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
     }
 
     /**
-     * Ensure that the given number of bytes have been read into the buffer from the beginning of the slice.
+     * Ensure that the given number of bytes have been read into the buffer from the
+     * beginning of the slice.
      *
-     * @param numBytes
-     *            the number of bytes to ensure have been buffered
-     * @throws IOException
-     *             on EOF or if the bytes could not be read.
+     * @param numBytes the number of bytes to ensure have been buffered
+     * @throws IOException on EOF or if the bytes could not be read.
      */
     public void bufferTo(final int numBytes) throws IOException {
         if (numBytes > arrUsed) {
@@ -249,11 +263,11 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
         if (numBytes == 0) {
             return 0;
         }
-        final int idx = (int) srcOffset;
+        final var idx = (int) srcOffset;
         if (idx + numBytes > arrUsed) {
             readTo(idx + numBytes);
         }
-        final int numBytesToRead = Math.max(Math.min(numBytes, dstArr.length - dstArrStart), 0);
+        final var numBytesToRead = Math.max(Math.min(numBytes, dstArr.length - dstArrStart), 0);
         if (numBytesToRead == 0) {
             return -1;
         }
@@ -271,11 +285,11 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
         if (numBytes == 0) {
             return 0;
         }
-        final int idx = (int) srcOffset;
+        final var idx = (int) srcOffset;
         if (idx + numBytes > arrUsed) {
             readTo(idx + numBytes);
         }
-        final int numBytesToRead = Math.max(Math.min(numBytes, dstBuf.capacity() - dstBufStart), 0);
+        final var numBytesToRead = Math.max(Math.min(numBytes, dstBuf.capacity() - dstBufStart), 0);
         if (numBytesToRead == 0) {
             return -1;
         }
@@ -291,7 +305,7 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
 
     @Override
     public byte readByte(final long offset) throws IOException {
-        final int idx = (int) offset;
+        final var idx = (int) offset;
         if (idx + 1 > arrUsed) {
             readTo(idx + 1);
         }
@@ -300,7 +314,7 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
 
     @Override
     public int readUnsignedByte(final long offset) throws IOException {
-        final int idx = (int) offset;
+        final var idx = (int) offset;
         if (idx + 1 > arrUsed) {
             readTo(idx + 1);
         }
@@ -314,7 +328,7 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
 
     @Override
     public int readUnsignedShort(final long offset) throws IOException {
-        final int idx = (int) offset;
+        final var idx = (int) offset;
         if (idx + 2 > arrUsed) {
             readTo(idx + 2);
         }
@@ -324,7 +338,7 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
 
     @Override
     public int readInt(final long offset) throws IOException {
-        final int idx = (int) offset;
+        final var idx = (int) offset;
         if (idx + 4 > arrUsed) {
             readTo(idx + 4);
         }
@@ -341,7 +355,7 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
 
     @Override
     public long readLong(final long offset) throws IOException {
-        final int idx = (int) offset;
+        final var idx = (int) offset;
         if (idx + 8 > arrUsed) {
             readTo(idx + 8);
         }
@@ -357,49 +371,49 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
 
     @Override
     public byte readByte() throws IOException {
-        final byte val = readByte(currIdx);
+        final var val = readByte(currIdx);
         currIdx++;
         return val;
     }
 
     @Override
     public int readUnsignedByte() throws IOException {
-        final int val = readUnsignedByte(currIdx);
+        final var val = readUnsignedByte(currIdx);
         currIdx++;
         return val;
     }
 
     @Override
     public short readShort() throws IOException {
-        final short val = readShort(currIdx);
+        final var val = readShort(currIdx);
         currIdx += 2;
         return val;
     }
 
     @Override
     public int readUnsignedShort() throws IOException {
-        final int val = readUnsignedShort(currIdx);
+        final var val = readUnsignedShort(currIdx);
         currIdx += 2;
         return val;
     }
 
     @Override
     public int readInt() throws IOException {
-        final int val = readInt(currIdx);
+        final var val = readInt(currIdx);
         currIdx += 4;
         return val;
     }
 
     @Override
     public long readUnsignedInt() throws IOException {
-        final long val = readUnsignedInt(currIdx);
+        final var val = readUnsignedInt(currIdx);
         currIdx += 4;
         return val;
     }
 
     @Override
     public long readLong() throws IOException {
-        final long val = readLong(currIdx);
+        final var val = readLong(currIdx);
         currIdx += 8;
         return val;
     }
@@ -409,7 +423,7 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
         if (bytesToSkip < 0) {
             throw new IllegalArgumentException("Tried to skip a negative number of bytes");
         }
-        final int idx = currIdx;
+        final var idx = currIdx;
         if (idx + bytesToSkip > arrUsed) {
             readTo(idx + bytesToSkip);
         }
@@ -419,7 +433,7 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
     @Override
     public String readString(final long offset, final int numBytes, final boolean replaceSlashWithDot,
             final boolean stripLSemicolon) throws IOException {
-        final int idx = (int) offset;
+        final var idx = (int) offset;
         if (idx + numBytes > arrUsed) {
             readTo(idx + numBytes);
         }
@@ -429,10 +443,12 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
     @Override
     public String readString(final int numBytes, final boolean replaceSlashWithDot, final boolean stripLSemicolon)
             throws IOException {
-        // Delegate to the random access overload, as the other sequential read methods do, so that the buffer is
-        // grown to cover the requested bytes first. Reading straight out of arr would silently return whatever
+        // Delegate to the random access overload, as the other sequential read methods
+        // do, so that the buffer is
+        // grown to cover the requested bytes first. Reading straight out of arr would
+        // silently return whatever
         // happened to be in the buffer past arrUsed.
-        final String val = readString(currIdx, numBytes, replaceSlashWithDot, stripLSemicolon);
+        final var val = readString(currIdx, numBytes, replaceSlashWithDot, stripLSemicolon);
         currIdx += numBytes;
         return val;
     }

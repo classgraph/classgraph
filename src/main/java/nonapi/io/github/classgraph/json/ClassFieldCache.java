@@ -64,8 +64,8 @@ import java.util.concurrent.TransferQueue;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 
 /**
- * A cache of field types and associated constructors for each encountered class, used to speed up constructor
- * lookup.
+ * A cache of field types and associated constructors for each encountered
+ * class, used to speed up constructor lookup.
  */
 class ClassFieldCache {
 
@@ -80,7 +80,8 @@ class ClassFieldCache {
 
     /** The default constructor for each concrete type. */
     // TODO: replace these with constructor MethodHandles for speed
-    // TODO: (although MethodHandles are disabled for now, due to Animal Sniffer bug):
+    // TODO: (although MethodHandles are disabled for now, due to Animal Sniffer
+    // bug):
     // https://github.com/mojohaus/animal-sniffer/issues/67
     private final Map<Class<?>, Constructor<?>> defaultConstructorForConcreteType = new HashMap<>();
 
@@ -98,8 +99,7 @@ class ClassFieldCache {
             NO_CONSTRUCTOR = NoConstructor.class.getDeclaredConstructor();
         } catch (NoSuchMethodException | SecurityException e) {
             // Should not happen
-            throw new RuntimeException("Could not find or access constructor for " + NoConstructor.class.getName(),
-                    e);
+            throw new RuntimeException("Could not find or access constructor for " + NoConstructor.class.getName(), e);
         }
     }
 
@@ -115,13 +115,14 @@ class ClassFieldCache {
     /**
      * Create a class field cache.
      * 
-     * @param forDeserialization
-     *            Set this to true if the cache will be used for deserialization (or both serialization and
-     *            deserialization), or false if just used for serialization (for speed).
-     * @param onlySerializePublicFields
-     *            Set this to true if you only want to serialize public fields (ignored for deserialization).
-     * @param reflectionUtils
-     *            the {@link ReflectionUtils} instance
+     * @param forDeserialization        Set this to true if the cache will be used
+     *                                  for deserialization (or both serialization
+     *                                  and deserialization), or false if just used
+     *                                  for serialization (for speed).
+     * @param onlySerializePublicFields Set this to true if you only want to
+     *                                  serialize public fields (ignored for
+     *                                  deserialization).
+     * @param reflectionUtils           the {@link ReflectionUtils} instance
      */
     ClassFieldCache(final boolean forDeserialization, final boolean onlySerializePublicFields,
             final ReflectionUtils reflectionUtils) {
@@ -131,34 +132,34 @@ class ClassFieldCache {
     }
 
     /**
-     * For a given resolved type, find the visible and accessible fields, resolve the types of any generically typed
-     * fields, and return the resolved fields.
+     * For a given resolved type, find the visible and accessible fields, resolve
+     * the types of any generically typed fields, and return the resolved fields.
      *
-     * @param cls
-     *            the cls
+     * @param cls the cls
      * @return the class fields
      */
     ClassFields get(final Class<?> cls) {
-        ClassFields classFields = classToClassFields.get(cls);
+        var classFields = classToClassFields.get(cls);
         if (classFields == null) {
-            classToClassFields.put(cls, classFields = new ClassFields(cls, resolveTypes, onlySerializePublicFields,
-                    this, reflectionUtils));
+            classToClassFields.put(cls,
+                    classFields = new ClassFields(cls, resolveTypes, onlySerializePublicFields, this, reflectionUtils));
         }
         return classFields;
     }
 
     /**
-     * Get the concrete type for a map or collection whose raw type is an interface or abstract class.
+     * Get the concrete type for a map or collection whose raw type is an interface
+     * or abstract class.
      *
-     * @param rawType
-     *            the raw type
-     * @param returnNullIfNotMapOrCollection
-     *            return null if not map or collection
+     * @param rawType                        the raw type
+     * @param returnNullIfNotMapOrCollection return null if not map or collection
      * @return the concrete type
      */
     private static Class<?> getConcreteType(final Class<?> rawType, final boolean returnNullIfNotMapOrCollection) {
-        // This list is not complete (e.g. EnumMap cannot be instantiated directly, you need to pass the
-        // enum key type into a factory method), but this should cover a lot of the common types
+        // This list is not complete (e.g. EnumMap cannot be instantiated directly, you
+        // need to pass the
+        // enum key type into a factory method), but this should cover a lot of the
+        // common types
         if (rawType == Map.class || rawType == AbstractMap.class || rawType == HashMap.class) {
             return HashMap.class;
         } else if (rawType == ConcurrentMap.class || rawType == ConcurrentHashMap.class) {
@@ -191,13 +192,13 @@ class ClassFieldCache {
     }
 
     /**
-     * Get the concrete type of the given class, then return the default constructor for that type.
+     * Get the concrete type of the given class, then return the default constructor
+     * for that type.
      *
-     * @param cls
-     *            the class
+     * @param cls the class
      * @return the default constructor for concrete type of class
-     * @throws IllegalArgumentException
-     *             if no default constructor is both found and accessible.
+     * @throws IllegalArgumentException if no default constructor is both found and
+     *                                  accessible.
      */
     Constructor<?> getDefaultConstructorForConcreteTypeOf(final Class<?> cls) {
         if (cls == null) {
@@ -226,12 +227,12 @@ class ClassFieldCache {
     }
 
     /**
-     * Get the concrete type of the given class, then return the constructor for that type that takes a single
-     * integer parameter (the initial size hint, for Collection or Map). Returns null if not a Collection or Map, or
-     * there is no constructor with size hint.
+     * Get the concrete type of the given class, then return the constructor for
+     * that type that takes a single integer parameter (the initial size hint, for
+     * Collection or Map). Returns null if not a Collection or Map, or there is no
+     * constructor with size hint.
      *
-     * @param cls
-     *            the class
+     * @param cls the class
      * @return the constructor with size hint for concrete type of class
      */
     Constructor<?> getConstructorWithSizeHintForConcreteTypeOf(final Class<?> cls) {

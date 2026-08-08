@@ -34,20 +34,25 @@ package io.github.classgraph.issues.issue141;
  * @author wuetherich
  */
 public class Issue141Test {
-    // Disabled because ClassGraph no longer stops if an invalid classfile is found (the classfile is simply skipped)
+    // Disabled because ClassGraph no longer stops if an invalid classfile is found
+    // (the classfile is simply skipped)
 
-    //    @Test
-    //    public void issue141Test() throws IOException {
-    //        // resolve and download org.ow2.asm:asm:6.0_BETA (which contains a module-info.class)
-    //        final File resolvedFile = MavenResolvers.createMavenResolver(null, null).resolve("org.ow2.asm", "asm", null,
-    //                null, "6.0_BETA");
-    //        assertThat(resolvedFile).isFile();
+    // @Test
+    // public void issue141Test() throws IOException {
+    // // resolve and download org.ow2.asm:asm:6.0_BETA (which contains a
+    // module-info.class)
+    // final File resolvedFile = MavenResolvers.createMavenResolver(null,
+    // null).resolve("org.ow2.asm", "asm", null,
+    // null, "6.0_BETA");
+    // assertThat(resolvedFile).isFile();
     //
-    //        // create a new custom class loader
-    //        final ClassLoader classLoader = new URLClassLoader(new URL[] { resolvedFile.toURI().toURL() }, null);
+    // // create a new custom class loader
+    // final ClassLoader classLoader = new URLClassLoader(new URL[] {
+    // resolvedFile.toURI().toURL() }, null);
     //
-    //        // scan the classpath
-    //        try (ScanResult scanResult = new ClassGraph().overrideClassLoaders(classLoader).enableClassInfo().scan()) {
-    //        }
-    //    }
+    // // scan the classpath
+    // try (ScanResult scanResult = new
+    // ClassGraph().overrideClassLoaders(classLoader).enableClassInfo().scan()) {
+    // }
+    // }
 }

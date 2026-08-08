@@ -7,7 +7,9 @@ import java.lang.annotation.Annotation;
  */
 @SuppressWarnings("all")
 public class ImplementsSuppressWarnings implements SuppressWarnings {
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.annotation.Annotation#annotationType()
      */
     @Override
@@ -15,7 +17,9 @@ public class ImplementsSuppressWarnings implements SuppressWarnings {
         return ImplementsSuppressWarnings.class;
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.SuppressWarnings#value()
      */
     @Override

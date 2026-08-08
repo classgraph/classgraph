@@ -36,15 +36,17 @@ import java.lang.reflect.Proxy;
 import java.util.concurrent.Callable;
 
 /**
- * Standard reflection driver (uses {@link AccessibleObject#setAccessible(boolean)} to access non-public fields if
- * necessary).
+ * Standard reflection driver (uses
+ * {@link AccessibleObject#setAccessible(boolean)} to access non-public fields
+ * if necessary).
  */
 class StandardReflectionDriver extends ReflectionDriver {
     private static Class<?> privilegedActionClass;
     private static Method accessControllerDoPrivileged;
 
     static {
-        // AccessController is deprecated for removal in JDK 17, so it is called reflectively, to avoid a
+        // AccessController is deprecated for removal in JDK 17, so it is called
+        // reflectively, to avoid a
         // deprecation warning (the build compiles with -Xlint:all -Werror)
         try {
             final Class<?> accessControllerClass = Class.forName("java.security.AccessController");
@@ -58,13 +60,13 @@ class StandardReflectionDriver extends ReflectionDriver {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Call a method in the AccessController.doPrivileged(PrivilegedAction) context, using reflection, if possible
-     * (AccessController is deprecated in JDK 17).
+     * Call a method in the AccessController.doPrivileged(PrivilegedAction) context,
+     * using reflection, if possible (AccessController is deprecated in JDK 17).
      */
     @SuppressWarnings("unchecked")
     private <T> T doPrivileged(final Callable<T> callable) throws Throwable {
         if (accessControllerDoPrivileged != null) {
-            final Object privilegedAction = Proxy.newProxyInstance(privilegedActionClass.getClassLoader(),
+            final var privilegedAction = Proxy.newProxyInstance(privilegedActionClass.getClassLoader(),
                     new Class<?>[] { privilegedActionClass }, (proxy, method, args) -> callable.call());
             return (T) accessControllerDoPrivileged.invoke(null, privilegedAction);
         } else {

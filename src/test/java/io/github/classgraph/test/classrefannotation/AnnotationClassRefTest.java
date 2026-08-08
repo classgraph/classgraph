@@ -32,19 +32,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
-import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.AnnotationClassRef;
-import io.github.classgraph.AnnotationInfo;
-import io.github.classgraph.AnnotationInfoList;
-import io.github.classgraph.AnnotationParameterValue;
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ClassInfo;
-import io.github.classgraph.ClassInfoList;
-import io.github.classgraph.MethodInfo;
-import io.github.classgraph.ScanResult;
 
 /**
  * AnnotationClassRefTest.
@@ -82,23 +74,22 @@ public class AnnotationClassRefTest {
      */
     @Test
     public void testClassRefAnnotation() {
-        try (ScanResult scanResult = new ClassGraph()
-                .acceptPackages(AnnotationClassRefTest.class.getPackage().getName()).enableMethodInfo()
-                .enableAnnotationInfo().scan()) {
-            final ClassInfoList testClasses = scanResult.getClassesWithMethodAnnotation(ClassRefAnnotation.class);
+        try (var scanResult = new ClassGraph().acceptPackages(AnnotationClassRefTest.class.getPackage().getName())
+                .enableMethodInfo().enableAnnotationInfo().scan()) {
+            final var testClasses = scanResult.getClassesWithMethodAnnotation(ClassRefAnnotation.class);
             assertThat(testClasses.size()).isEqualTo(1);
-            final ClassInfo testClass = testClasses.get(0);
-            final MethodInfo method = testClass.getMethodInfo().getSingleMethod("methodWithAnnotation");
+            final var testClass = testClasses.get(0);
+            final var method = testClass.getMethodInfo().getSingleMethod("methodWithAnnotation");
             assertThat(method).isNotNull();
-            final AnnotationInfoList annotations = method.getAnnotationInfo();
+            final var annotations = method.getAnnotationInfo();
             assertThat(annotations.size()).isEqualTo(1);
-            final AnnotationInfo annotation = annotations.get(0);
-            final List<AnnotationParameterValue> paramVals = annotation.getParameterValues();
+            final var annotation = annotations.get(0);
+            final var paramVals = annotation.getParameterValues();
             assertThat(paramVals.size()).isEqualTo(1);
-            final AnnotationParameterValue paramVal = paramVals.get(0);
-            final Object val = paramVal.getValue();
+            final var paramVal = paramVals.get(0);
+            final var val = paramVal.getValue();
             assertThat(val instanceof AnnotationClassRef).isTrue();
-            final AnnotationClassRef classRefVal = (AnnotationClassRef) val;
+            final var classRefVal = (AnnotationClassRef) val;
             assertThat(classRefVal.loadClass()).isEqualTo(Void.class);
         }
     }

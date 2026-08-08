@@ -2,16 +2,12 @@ package io.github.classgraph.features;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.lang.annotation.Annotation;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
 import org.junit.jupiter.api.Test;
 
-import io.github.classgraph.AnnotationInfo;
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ClassInfo;
-import io.github.classgraph.ScanResult;
 
 /**
  * AnnotationEqualityTest.
@@ -20,7 +16,7 @@ class AnnotationEqualityTest {
     /**
      * The Interface W.
      */
-    private static interface W {
+    private interface W {
     }
 
     /**
@@ -51,22 +47,23 @@ class AnnotationEqualityTest {
          */
         Class<?>[] c();
 
-        // Right now Annotation::toString does not quote strings or chars, which seems like an oversight,
+        // Right now Annotation::toString does not quote strings or chars, which seems
+        // like an oversight,
         // so maybe it's better to break compatibility for these parameter value types.
 
-        //        /**
-        //         * D.
-        //         *
-        //         * @return the string
-        //         */
-        //        String d();
+        // /**
+        // * D.
+        // *
+        // * @return the string
+        // */
+        // String d();
         //
-        //        /**
-        //         * E.
-        //         *
-        //         * @return the char
-        //         */
-        //        char e();
+        // /**
+        // * E.
+        // *
+        // * @return the char
+        // */
+        // char e();
     }
 
     /**
@@ -79,21 +76,22 @@ class AnnotationEqualityTest {
     }
 
     /**
-     * Test equality of JRE-instantiated Annotation with proxy instance instantiated by ClassGraph.
+     * Test equality of JRE-instantiated Annotation with proxy instance instantiated
+     * by ClassGraph.
      */
     @Test
     void annotationEquality() {
-        try (ScanResult scanResult = new ClassGraph()
-                .acceptPackages(AnnotationEqualityTest.class.getPackage().getName()).enableAllInfo().scan()) {
-            final ClassInfo classInfo = scanResult.getClassInfo(Y.class.getName());
+        try (var scanResult = new ClassGraph().acceptPackages(AnnotationEqualityTest.class.getPackage().getName())
+                .enableAllInfo().scan()) {
+            final var classInfo = scanResult.getClassInfo(Y.class.getName());
             assertThat(classInfo).isNotNull();
-            final Class<?> cls = classInfo.loadClass();
-            final X annotation = (X) cls.getAnnotations()[0];
+            final var cls = classInfo.loadClass();
+            final var annotation = (X) cls.getAnnotations()[0];
             assertThat(X.class.isInstance(annotation));
-            final AnnotationInfo annotationInfo = classInfo.getAnnotationInfo().get(0);
-            final Annotation proxyAnnotationGeneric = annotationInfo.loadClassAndInstantiate();
+            final var annotationInfo = classInfo.getAnnotationInfo().get(0);
+            final var proxyAnnotationGeneric = annotationInfo.loadClassAndInstantiate();
             assertThat(X.class.isInstance(proxyAnnotationGeneric));
-            final X proxyAnnotation = (X) proxyAnnotationGeneric;
+            final var proxyAnnotation = (X) proxyAnnotationGeneric;
             assertThat(proxyAnnotation.b()).isEqualTo(annotation.b());
             assertThat(proxyAnnotation.c()).isEqualTo(annotation.c());
             assertThat(annotation.hashCode()).isEqualTo(proxyAnnotation.hashCode());

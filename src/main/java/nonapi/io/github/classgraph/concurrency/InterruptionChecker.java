@@ -33,8 +33,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Check if this thread or any other thread that shares this InterruptionChecker instance has been interrupted or
- * has thrown an exception.
+ * Check if this thread or any other thread that shares this InterruptionChecker
+ * instance has been interrupted or has thrown an exception.
  */
 public class InterruptionChecker {
     /** Set to true when a thread is interrupted. */
@@ -53,8 +53,7 @@ public class InterruptionChecker {
     /**
      * Set the {@link ExecutionException} that was thrown by a worker.
      *
-     * @param executionException
-     *            the execution exception that was thrown
+     * @param executionException the execution exception that was thrown
      */
     public void setExecutionException(final ExecutionException executionException) {
         // Only set the execution exception once
@@ -64,9 +63,11 @@ public class InterruptionChecker {
     }
 
     /**
-     * Get the {@link ExecutionException} that was thrown by a worker, or null if none.
+     * Get the {@link ExecutionException} that was thrown by a worker, or null if
+     * none.
      * 
-     * @return the {@link ExecutionException} that was thrown by a worker, or null if none.
+     * @return the {@link ExecutionException} that was thrown by a worker, or null
+     *         if none.
      */
     public ExecutionException getExecutionException() {
         return thrownExecutionException.get();
@@ -75,13 +76,12 @@ public class InterruptionChecker {
     /**
      * Get the cause of an {@link ExecutionException}.
      *
-     * @param throwable
-     *            the Throwable
+     * @param throwable the Throwable
      * @return the cause
      */
     public static Throwable getCause(final Throwable throwable) {
         // Unwrap possibly-nested ExecutionExceptions to get to root cause
-        Throwable cause = throwable;
+        var cause = throwable;
         while (cause instanceof ExecutionException) {
             cause = cause.getCause();
         }
@@ -91,8 +91,9 @@ public class InterruptionChecker {
     /**
      * Check for interruption and return interruption status.
      *
-     * @return true if this thread or any other thread that shares this InterruptionChecker instance has been
-     *         interrupted or has thrown an exception.
+     * @return true if this thread or any other thread that shares this
+     *         InterruptionChecker instance has been interrupted or has thrown an
+     *         exception.
      */
     public boolean checkAndReturn() {
         // Check if any thread has been interrupted
@@ -111,21 +112,21 @@ public class InterruptionChecker {
     }
 
     /**
-     * Check if this thread or any other thread that shares this InterruptionChecker instance has been interrupted
-     * or has thrown an exception, and if so, throw InterruptedException.
+     * Check if this thread or any other thread that shares this InterruptionChecker
+     * instance has been interrupted or has thrown an exception, and if so, throw
+     * InterruptedException.
      *
-     * @throws InterruptedException
-     *             If a thread has been interrupted.
-     * @throws ExecutionException
-     *             if a thread has thrown an uncaught exception.
+     * @throws InterruptedException If a thread has been interrupted.
+     * @throws ExecutionException   if a thread has thrown an uncaught exception.
      */
     public void check() throws InterruptedException, ExecutionException {
         // If a thread threw an uncaught exception, re-throw it.
-        final ExecutionException executionException = getExecutionException();
+        final var executionException = getExecutionException();
         if (executionException != null) {
             throw executionException;
         }
-        // If this thread or another thread has been interrupted, throw InterruptedException
+        // If this thread or another thread has been interrupted, throw
+        // InterruptedException
         if (checkAndReturn()) {
             throw new InterruptedException();
         }

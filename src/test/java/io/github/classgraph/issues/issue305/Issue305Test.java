@@ -14,7 +14,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ScanResult;
 
 /**
  * Issue305.
@@ -32,17 +31,17 @@ public class Issue305Test {
     }
 
     /**
-     * Test that multi-line continuations in manifest file values are correctly assembled into a string.
+     * Test that multi-line continuations in manifest file values are correctly
+     * assembled into a string.
      *
-     * @throws Exception
-     *             the exception
+     * @throws Exception the exception
      */
     @Test
     public void issue305() throws Exception {
         // Record log output
-        final ByteArrayOutputStream err = new ByteArrayOutputStream();
+        final var err = new ByteArrayOutputStream();
         System.setErr(new PrintStream(err));
-        final Logger log = Logger.getLogger(ClassGraph.class.getName());
+        final var log = Logger.getLogger(ClassGraph.class.getName());
         if (!log.isLoggable(Level.INFO)) {
             throw new Exception("Could not create log");
         }
@@ -50,14 +49,14 @@ public class Issue305Test {
         errPrintStreamHandler.setLevel(Level.INFO);
         rootLogger.addHandler(errPrintStreamHandler);
 
-        try (ScanResult scanResult = new ClassGraph()
+        try (var scanResult = new ClassGraph()
                 .overrideClassLoaders(new URLClassLoader(
                         new URL[] { Issue305Test.class.getClassLoader().getResource("class-path-manifest-entry.jar") }))
                 // This .verbose() is needed (stderr is captured)
                 .verbose().scan()) {
         }
 
-        final String systemErrMessages = new String(err.toByteArray());
+        final var systemErrMessages = new String(err.toByteArray());
         assertThat(systemErrMessages.indexOf("Found Class-Path entry in manifest file: "
                 + "file:///C:/Program%20Files/Java/jdk1.8.0_162/jre/lib/charsets.jar "
                 + "file:///C:/Program%20Files/Java/jdk1.8.0_162/jre/lib/deploy.jar "
@@ -85,6 +84,6 @@ public class Issue305Test {
                 + "file:///Z:/classgraphtest/target/classes/ "
                 + "file:///C:/Users/flame/.m2/repository/io/github/classgraph/classgraph/4.6.19/classgraph-4.6.19.jar "
                 + "file:///C:/Program%20Files/JetBrains/IntelliJ%20IDEA%20Community%20Edition%202018.2.1/lib/idea_rt.jar"))
-                        .isGreaterThan(0);
+                .isGreaterThan(0);
     }
 }

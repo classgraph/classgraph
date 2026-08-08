@@ -38,10 +38,8 @@ public class ParseException extends Exception {
     /**
      * A parsing exception.
      * 
-     * @param parser
-     *            The parser.
-     * @param msg
-     *            The exception message.
+     * @param parser The parser.
+     * @param msg    The exception message.
      */
     public ParseException(final Parser parser, final String msg) {
         super(parser == null ? msg : msg + " (" + parser.getPositionInfo() + ")");

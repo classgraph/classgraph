@@ -34,9 +34,10 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
 /**
- * Narcissus reflection driver (uses the <a href="https://github.com/toolfactory/narcissus">Narcissus</a> library,
- * if it is available, which allows access to non-public fields and methods, circumventing encapsulation and
- * visibility controls via JNI).
+ * Narcissus reflection driver (uses the
+ * <a href="https://github.com/toolfactory/narcissus">Narcissus</a> library, if
+ * it is available, which allows access to non-public fields and methods,
+ * circumventing encapsulation and visibility controls via JNI).
  */
 class NarcissusReflectionDriver extends ReflectionDriver {
     private final Method getDeclaredMethods;
@@ -67,10 +68,8 @@ class NarcissusReflectionDriver extends ReflectionDriver {
         setField = drv.findStaticMethod(narcissusClass, "setField", Object.class, Field.class, Object.class);
         getStaticField = drv.findStaticMethod(narcissusClass, "getStaticField", Field.class);
         setStaticField = drv.findStaticMethod(narcissusClass, "setStaticField", Field.class, Object.class);
-        invokeMethod = drv.findStaticMethod(narcissusClass, "invokeMethod", Object.class, Method.class,
-                Object[].class);
-        invokeStaticMethod = drv.findStaticMethod(narcissusClass, "invokeStaticMethod", Method.class,
-                Object[].class);
+        invokeMethod = drv.findStaticMethod(narcissusClass, "invokeMethod", Object.class, Method.class, Object[].class);
+        invokeStaticMethod = drv.findStaticMethod(narcissusClass, "invokeStaticMethod", Method.class, Object[].class);
     }
 
     @Override

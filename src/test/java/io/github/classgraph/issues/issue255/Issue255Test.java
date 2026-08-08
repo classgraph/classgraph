@@ -35,8 +35,6 @@ import java.io.IOException;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ResourceList;
-import io.github.classgraph.ScanResult;
 
 /**
  * Issue255Test.
@@ -46,16 +44,15 @@ public class Issue255Test {
     /**
      * Issue 255 test.
      *
-     * @throws IOException
-     *             If an I/O exception occurs.
+     * @throws IOException If an I/O exception occurs.
      */
     @Test
     public void issue255Test() throws IOException {
-        final String dirPath = Issue255Test.class.getClassLoader().getResource("issue255").getPath()
+        final var dirPath = Issue255Test.class.getClassLoader().getResource("issue255").getPath()
                 + "/test%20percent%20encoding";
 
-        try (ScanResult scanResult = new ClassGraph().overrideClasspath(dirPath).scan()) {
-            final ResourceList resources = scanResult.getAllResources();
+        try (var scanResult = new ClassGraph().overrideClasspath(dirPath).scan()) {
+            final var resources = scanResult.getAllResources();
             assertThat(resources.size()).isEqualTo(1);
             resources.forEachByteArrayThrowingIOException(
                     (resource, byteArray) -> assertThat(new String(byteArray)).isEqualTo("Issue 255"));

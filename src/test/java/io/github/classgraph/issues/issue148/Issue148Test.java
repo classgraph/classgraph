@@ -34,13 +34,14 @@ import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
-import io.github.classgraph.ScanResult;
 
 /**
  * Issue148Test.
  */
 public class Issue148Test {
     /** The anonymous inner class 1. */
+    // N.B. this must remain an anonymous inner class rather than a lambda -- the test asserts on the
+    // Issue148Test$1 classfile that the compiler generates for it.
     final Runnable anonymousInnerClass1 = new Runnable() {
         @Override
         public void run() {
@@ -52,6 +53,7 @@ public class Issue148Test {
      */
     @Test
     public void issue148Test() {
+        // N.B. as above, this must remain an anonymous inner class (Issue148Test$2), not a lambda.
         final Runnable anonymousInnerClass2 = new Runnable() {
             @Override
             public void run() {
@@ -59,11 +61,11 @@ public class Issue148Test {
         };
         // Fix FindBugs warning (dead store to anonymousInnerClass2)
         @SuppressWarnings("unused")
-        final String s = anonymousInnerClass2.toString();
+        final var s = anonymousInnerClass2.toString();
 
-        final String pkg = Issue148Test.class.getPackage().getName();
-        final StringBuilder buf = new StringBuilder();
-        try (ScanResult scanResult = new ClassGraph().acceptPackages(pkg).enableAllInfo().scan()) {
+        final var pkg = Issue148Test.class.getPackage().getName();
+        final var buf = new StringBuilder();
+        try (var scanResult = new ClassGraph().acceptPackages(pkg).enableAllInfo().scan()) {
             for (final ClassInfo ci : scanResult.getAllClasses()) {
                 buf.append(ci.getName()).append("|");
                 buf.append(ci.isInnerClass()).append(" ").append(ci.isAnonymousInnerClass()).append(" ")
@@ -73,7 +75,7 @@ public class Issue148Test {
                 buf.append(ci.getFullyQualifiedDefiningMethodName()).append("\n");
             }
         }
-        final String bufStr = buf.toString().replace(pkg + ".", "");
+        final var bufStr = buf.toString().replace(pkg + ".", "");
 
         // System.out.println("\"" + bufStr.replace("\n", "\\n\" //\n+\"") + "\"");
 
@@ -87,7 +89,6 @@ public class Issue148Test {
                         + "O1$I$II$1|true true false|[]|[O1$I$II, O1$I, O1]|O1$I$II.newSI\n"
                         + "O1$I$II$2|true true false|[]|[O1$I$II, O1$I, O1]|O1$I$II.newI\n"
                         + "O1$SI|true false false|[]|[O1]|null\n" + "O2|false false true|[O2$1, O2$2]|[]|null\n"
-                        + "O2$1|true true false|[]|[O2]|O2.<clinit>\n"
-                        + "O2$2|true true false|[]|[O2]|O2.<init>\n");
+                        + "O2$1|true true false|[]|[O2]|O2.<clinit>\n" + "O2$2|true true false|[]|[O2]|O2.<init>\n");
     }
 }

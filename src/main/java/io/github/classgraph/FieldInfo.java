@@ -43,8 +43,8 @@ import nonapi.io.github.classgraph.types.TypeUtils.ModifierType;
 import nonapi.io.github.classgraph.utils.LogNode;
 
 /**
- * Holds metadata about fields of a class encountered during a scan. All values are taken directly out of the
- * classfile for the class.
+ * Holds metadata about fields of a class encountered during a scan. All values
+ * are taken directly out of the classfile for the class.
  */
 public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> {
     /** The parsed type signature. */
@@ -54,10 +54,14 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
     private transient TypeSignature typeDescriptor;
 
     /** The constant initializer value for the field, if any. */
-    // This is transient because the constant initializer value is final, so the value doesn't need to be serialized
+    // This is transient because the constant initializer value is final, so the
+    // value doesn't need to be serialized
     private ObjectTypedValueWrapper constantInitializerValue;
 
-    /** The type annotation decorators for the {@link TypeSignature} instance of this field. */
+    /**
+     * The type annotation decorators for the {@link TypeSignature} instance of this
+     * field.
+     */
     private transient List<TypeAnnotationDecorator> typeAnnotationDecorators;
 
     // -------------------------------------------------------------------------------------------------------------
@@ -70,22 +74,17 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
     /**
      * Constructor.
      *
-     * @param definingClassName
-     *            The class the field is defined within.
-     * @param fieldName
-     *            The name of the field.
-     * @param modifiers
-     *            The field modifiers.
-     * @param typeDescriptorStr
-     *            The field type descriptor.
-     * @param typeSignatureStr
-     *            The field type signature.
-     * @param constantInitializerValue
-     *            The static constant value the field is initialized to, if any.
-     * @param annotationInfo
-     *            {@link AnnotationInfo} for any annotations on the field.
-     * @param typeAnnotationDecorators
-     *            the type annotation decorators to apply to the parsed field type, or null if none.
+     * @param definingClassName        The class the field is defined within.
+     * @param fieldName                The name of the field.
+     * @param modifiers                The field modifiers.
+     * @param typeDescriptorStr        The field type descriptor.
+     * @param typeSignatureStr         The field type signature.
+     * @param constantInitializerValue The static constant value the field is
+     *                                 initialized to, if any.
+     * @param annotationInfo           {@link AnnotationInfo} for any annotations on
+     *                                 the field.
+     * @param typeAnnotationDecorators the type annotation decorators to apply to
+     *                                 the parsed field type, or null if none.
      */
     FieldInfo(final String definingClassName, final String fieldName, final int modifiers,
             final String typeDescriptorStr, final String typeSignatureStr, final Object constantInitializerValue,
@@ -113,7 +112,8 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
     }
 
     /**
-     * Get the field modifiers as a string, e.g. "public static final". For the modifier bits, call getModifiers().
+     * Get the field modifiers as a string, e.g. "public static final". For the
+     * modifier bits, call getModifiers().
      *
      * @return The field modifiers, as a string.
      */
@@ -143,8 +143,9 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
     }
 
     /**
-     * Returns the parsed type descriptor for the field, which will not include type parameters. If you need generic
-     * type parameters, call {@link #getTypeSignature()} instead.
+     * Returns the parsed type descriptor for the field, which will not include type
+     * parameters. If you need generic type parameters, call
+     * {@link #getTypeSignature()} instead.
      *
      * @return The parsed type descriptor string for the field.
      */
@@ -168,12 +169,12 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
     }
 
     /**
-     * Run the type annotation decorators on the given parsed field type. Any individual type annotation that
-     * cannot be matched to the type (e.g. an unresolvable nested type, or a compiler bug) is skipped rather than
-     * being allowed to abort parsing of the whole field type. (#897)
+     * Run the type annotation decorators on the given parsed field type. Any
+     * individual type annotation that cannot be matched to the type (e.g. an
+     * unresolvable nested type, or a compiler bug) is skipped rather than being
+     * allowed to abort parsing of the whole field type. (#897)
      *
-     * @param fieldType
-     *            the parsed field type signature or descriptor to decorate.
+     * @param fieldType the parsed field type signature or descriptor to decorate.
      */
     private void decorateType(final TypeSignature fieldType) {
         if (typeAnnotationDecorators != null) {
@@ -181,7 +182,8 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
                 try {
                     decorator.decorate(fieldType);
                 } catch (final IllegalArgumentException e) {
-                    // Skip a type annotation that cannot be matched to the field type, rather than failing to
+                    // Skip a type annotation that cannot be matched to the field type, rather than
+                    // failing to
                     // produce the whole field type (best effort). (#897)
                 }
             }
@@ -189,15 +191,17 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
     }
 
     /**
-     * Returns the parsed type signature for the field, possibly including type parameters. If this returns null,
-     * indicating that no type signature information is available for this field, call {@link #getTypeDescriptor()}
+     * Returns the parsed type signature for the field, possibly including type
+     * parameters. If this returns null, indicating that no type signature
+     * information is available for this field, call {@link #getTypeDescriptor()}
      * instead.
      *
      * @return The parsed type signature for the field, or null if not available.
-     * @throws IllegalArgumentException
-     *             if the field type signature cannot be parsed (this should only be thrown in the case of classfile
-     *             corruption, or a compiler bug that causes an invalid type signature to be written to the
-     *             classfile).
+     * @throws IllegalArgumentException if the field type signature cannot be parsed
+     *                                  (this should only be thrown in the case of
+     *                                  classfile corruption, or a compiler bug that
+     *                                  causes an invalid type signature to be
+     *                                  written to the classfile).
      */
     @Override
     public TypeSignature getTypeSignature() {
@@ -225,12 +229,12 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
     }
 
     /**
-     * Returns the type signature for the field, possibly including type parameters. If the type signature is null,
-     * indicating that no type signature information is available for this field, returns the type descriptor
-     * instead.
+     * Returns the type signature for the field, possibly including type parameters.
+     * If the type signature is null, indicating that no type signature information
+     * is available for this field, returns the type descriptor instead.
      *
-     * @return The parsed type signature for the field, or if not available, the parsed type descriptor for the
-     *         field.
+     * @return The parsed type signature for the field, or if not available, the
+     *         parsed type descriptor for the field.
      */
     @Override
     public TypeSignature getTypeSignatureOrTypeDescriptor() {
@@ -248,14 +252,17 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
 
     /**
      * Returns the constant initializer value of a field. Requires
-     * {@link ClassGraph#enableStaticFinalFieldConstantInitializerValues()} to have been called. Will only return
-     * non-null for fields that have constant initializers, which is usually only fields of primitive type, or
-     * String constants. Also note that it is up to the compiler as to whether or not a constant-valued field is
-     * assigned as a constant in the field definition itself, or whether it is assigned manually in static or
-     * non-static class initializer blocks or the constructor -- so your mileage may vary in being able to extract
-     * constant initializer values.
+     * {@link ClassGraph#enableStaticFinalFieldConstantInitializerValues()} to have
+     * been called. Will only return non-null for fields that have constant
+     * initializers, which is usually only fields of primitive type, or String
+     * constants. Also note that it is up to the compiler as to whether or not a
+     * constant-valued field is assigned as a constant in the field definition
+     * itself, or whether it is assigned manually in static or non-static class
+     * initializer blocks or the constructor -- so your mileage may vary in being
+     * able to extract constant initializer values.
      *
-     * @return The initializer value, if this field has a constant initializer value, or null if none.
+     * @return The initializer value, if this field has a constant initializer
+     *         value, or null if none.
      */
     public Object getConstantInitializerValue() {
         if (!scanResult.scanSpec.enableStaticFinalFieldConstantInitializerValues) {
@@ -268,11 +275,12 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Load the class this field is associated with, and get the {@link Field} reference for this field.
+     * Load the class this field is associated with, and get the {@link Field}
+     * reference for this field.
      *
      * @return The {@link Field} reference for this field.
-     * @throws IllegalArgumentException
-     *             if the class can't be loaded or the field does not exist.
+     * @throws IllegalArgumentException if the class can't be loaded or the field
+     *                                  does not exist.
      */
     public Field loadClassAndGetField() throws IllegalArgumentException {
         try {
@@ -291,8 +299,7 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
     /**
      * Handle {@link Repeatable} annotations.
      *
-     * @param allRepeatableAnnotationNames
-     *            the names of all repeatable annotations
+     * @param allRepeatableAnnotationNames the names of all repeatable annotations
      */
     void handleRepeatableAnnotations(final Set<String> allRepeatableAnnotationNames) {
         if (annotationInfo != null) {
@@ -304,8 +311,12 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /* (non-Javadoc)
-     * @see io.github.classgraph.ScanResultObject#setScanResult(io.github.classgraph.ScanResult)
+    /*
+     * (non-Javadoc)
+     *
+     * @see
+     * io.github.classgraph.ScanResultObject#setScanResult(io.github.classgraph.
+     * ScanResult)
      */
     @Override
     void setScanResult(final ScanResult scanResult) {
@@ -324,20 +335,18 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
     }
 
     /**
-     * Get {@link ClassInfo} objects for any classes referenced in the type descriptor or type signature.
+     * Get {@link ClassInfo} objects for any classes referenced in the type
+     * descriptor or type signature.
      *
-     * @param classNameToClassInfo
-     *            the map from class name to {@link ClassInfo}.
-     * @param refdClassInfo
-     *            the referenced class info
-     * @param log
-     *            the log
+     * @param classNameToClassInfo the map from class name to {@link ClassInfo}.
+     * @param refdClassInfo        the referenced class info
+     * @param log                  the log
      */
     @Override
     protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
             final Set<ClassInfo> refdClassInfo, final LogNode log) {
         try {
-            final TypeSignature fieldSig = getTypeSignature();
+            final var fieldSig = getTypeSignature();
             if (fieldSig != null) {
                 fieldSig.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
             }
@@ -348,7 +357,7 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
             }
         }
         try {
-            final TypeSignature fieldDesc = getTypeDescriptor();
+            final var fieldDesc = getTypeDescriptor();
             if (fieldDesc != null) {
                 fieldDesc.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
             }
@@ -370,18 +379,17 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
     /**
      * Use class name and field name for equals().
      *
-     * @param obj
-     *            the object to compare to
+     * @param obj the object to compare to
      * @return true if equal
      */
     @Override
     public boolean equals(final Object obj) {
         if (obj == this) {
             return true;
-        } else if (!(obj instanceof FieldInfo)) {
+        }
+        if (!(obj instanceof final FieldInfo other)) {
             return false;
         }
-        final FieldInfo other = (FieldInfo) obj;
         return declaringClassName.equals(other.declaringClassName) && name.equals(other.name);
     }
 
@@ -398,13 +406,12 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
     /**
      * Sort in order of class name then field name.
      *
-     * @param other
-     *            the other FieldInfo object to compare to.
+     * @param other the other FieldInfo object to compare to.
      * @return the result of comparison.
      */
     @Override
     public int compareTo(final FieldInfo other) {
-        final int diff = declaringClassName.compareTo(other.declaringClassName);
+        final var diff = declaringClassName.compareTo(other.declaringClassName);
         if (diff != 0) {
             return diff;
         }
@@ -416,9 +423,9 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
     void toString(final boolean includeModifiers, final boolean useSimpleNames, final StringBuilder buf) {
         if (annotationInfo != null) {
             for (final AnnotationInfo annotation : annotationInfo) {
-                // There can be a paren in the previous position if this field is a record parameter
-                if (buf.length() > 0 && buf.charAt(buf.length() - 1) != ' '
-                        && buf.charAt(buf.length() - 1) != '(') {
+                // There can be a paren in the previous position if this field is a record
+                // parameter
+                if (!buf.isEmpty() && buf.charAt(buf.length() - 1) != ' ' && buf.charAt(buf.length() - 1) != '(') {
                     buf.append(' ');
                 }
                 annotation.toString(useSimpleNames, buf);
@@ -426,31 +433,32 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
         }
 
         if (modifiers != 0 && includeModifiers) {
-            if (buf.length() > 0 && buf.charAt(buf.length() - 1) != ' ' && buf.charAt(buf.length() - 1) != '(') {
+            if (!buf.isEmpty() && buf.charAt(buf.length() - 1) != ' ' && buf.charAt(buf.length() - 1) != '(') {
                 buf.append(' ');
             }
             TypeUtils.modifiersToString(modifiers, ModifierType.FIELD, /* ignored */ false, buf);
         }
 
-        if (buf.length() > 0 && buf.charAt(buf.length() - 1) != ' ' && buf.charAt(buf.length() - 1) != '(') {
+        if (!buf.isEmpty() && buf.charAt(buf.length() - 1) != ' ' && buf.charAt(buf.length() - 1) != '(') {
             buf.append(' ');
         }
-        final TypeSignature typeSig = getTypeSignatureOrTypeDescriptor();
+        final var typeSig = getTypeSignatureOrTypeDescriptor();
         typeSig.toStringInternal(useSimpleNames, /* annotationsToExclude = */ annotationInfo, buf);
 
         buf.append(' ');
         buf.append(name);
 
         if (constantInitializerValue != null) {
-            final Object val = constantInitializerValue.get();
+            final var val = constantInitializerValue.get();
             buf.append(" = ");
-            if (val instanceof String) {
-                buf.append('"').append(((String) val).replace("\\", "\\\\").replace("\"", "\\\"")).append('"');
-            } else if (val instanceof Character) {
-                // N.B. use replace() rather than replaceAll() -- in a replaceAll() replacement string, a
-                // backslash escapes the character that follows it, so the backslash would be dropped
-                buf.append('\'').append(((Character) val).toString().replace("\\", "\\\\").replace("'", "\\'"))
-                        .append('\'');
+            if (val instanceof final String str) {
+                buf.append('"').append(str.replace("\\", "\\\\").replace("\"", "\\\"")).append('"');
+            } else if (val instanceof final Character chr) {
+                // N.B. use replace() rather than replaceAll() -- in a replaceAll() replacement
+                // string, a
+                // backslash escapes the character that follows it, so the backslash would be
+                // dropped
+                buf.append('\'').append(chr.toString().replace("\\", "\\\\").replace("'", "\\'")).append('\'');
             } else {
                 buf.append(val == null ? "null" : val.toString());
             }

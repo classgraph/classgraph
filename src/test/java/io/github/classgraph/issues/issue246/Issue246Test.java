@@ -33,7 +33,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ScanResult;
 
 /**
  * Issue246Test.
@@ -44,7 +43,7 @@ public class Issue246Test {
      */
     @Test
     public void testMethodParameterAnnotations() {
-        try (ScanResult scanResult = new ClassGraph() //
+        try (var scanResult = new ClassGraph() //
                 .acceptClasses(Issue246Test.class.getName()) //
                 .enableAllInfo() //
                 .scan()) {
@@ -53,15 +52,14 @@ public class Issue246Test {
                             .getMethodInfo() //
                             .getSingleMethod("dummyMethodWithParameter") //
                             .getParameterInfo()[0] //
-                                    .getAnnotationInfo().size());
+                            .getAnnotationInfo().size());
         }
     }
 
     /**
      * Dummy method with parameter.
      *
-     * @param dummyParam
-     *            the dummy param
+     * @param dummyParam the dummy param
      */
     void dummyMethodWithParameter(final int dummyParam) {
     }

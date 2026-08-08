@@ -61,21 +61,20 @@ public class MethodInfoList extends InfoList<MethodInfo> {
     }
 
     /**
-     * Construct a new modifiable empty list of {@link MethodInfo} objects, given a size hint.
+     * Construct a new modifiable empty list of {@link MethodInfo} objects, given a
+     * size hint.
      *
-     * @param sizeHint
-     *            the size hint
+     * @param sizeHint the size hint
      */
     public MethodInfoList(final int sizeHint) {
         super(sizeHint);
     }
 
     /**
-     * Construct a new modifiable empty {@link MethodInfoList}, given an initial collection of {@link MethodInfo}
-     * objects.
+     * Construct a new modifiable empty {@link MethodInfoList}, given an initial
+     * collection of {@link MethodInfo} objects.
      *
-     * @param methodInfoCollection
-     *            the collection of {@link MethodInfo} objects.
+     * @param methodInfoCollection the collection of {@link MethodInfo} objects.
      */
     public MethodInfoList(final Collection<MethodInfo> methodInfoCollection) {
         super(methodInfoCollection);
@@ -84,14 +83,12 @@ public class MethodInfoList extends InfoList<MethodInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get {@link ClassInfo} objects for any classes referenced in the type descriptor or type signature.
+     * Get {@link ClassInfo} objects for any classes referenced in the type
+     * descriptor or type signature.
      *
-     * @param classNameToClassInfo
-     *            the map from class name to {@link ClassInfo}.
-     * @param refdClassInfo
-     *            the referenced class info
-     * @param log
-     *            the log
+     * @param classNameToClassInfo the map from class name to {@link ClassInfo}.
+     * @param refdClassInfo        the referenced class info
+     * @param log                  the log
      */
     protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
             final Set<ClassInfo> refdClassInfo, final LogNode log) {
@@ -103,25 +100,22 @@ public class MethodInfoList extends InfoList<MethodInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get this {@link MethodInfoList} as a map from method name to a {@link MethodInfoList} of methods with that
-     * name.
+     * Get this {@link MethodInfoList} as a map from method name to a
+     * {@link MethodInfoList} of methods with that name.
      *
-     * @return This {@link MethodInfoList} as a map from method name to a {@link MethodInfoList} of methods with
-     *         that name.
+     * @return This {@link MethodInfoList} as a map from method name to a
+     *         {@link MethodInfoList} of methods with that name.
      */
     public Map<String, MethodInfoList> asMap() {
-        // Note that MethodInfoList extends InfoList rather than MappableInfoList, because one
-        // name can be shared by multiple MethodInfo objects (so asMap() needs to be of type
+        // Note that MethodInfoList extends InfoList rather than MappableInfoList,
+        // because one
+        // name can be shared by multiple MethodInfo objects (so asMap() needs to be of
+        // type
         // Map<String, MethodInfoList> rather than Map<String, MethodInfo>)
         final Map<String, MethodInfoList> methodNameToMethodInfoList = new HashMap<>();
         for (final MethodInfo methodInfo : this) {
-            final String name = methodInfo.getName();
-            MethodInfoList methodInfoList = methodNameToMethodInfoList.get(name);
-            if (methodInfoList == null) {
-                methodInfoList = new MethodInfoList(1);
-                methodNameToMethodInfoList.put(name, methodInfoList);
-            }
-            methodInfoList.add(methodInfo);
+            methodNameToMethodInfoList.computeIfAbsent(methodInfo.getName(), k -> new MethodInfoList(1))
+                    .add(methodInfo);
         }
         return methodNameToMethodInfoList;
     }
@@ -131,8 +125,7 @@ public class MethodInfoList extends InfoList<MethodInfo> {
     /**
      * Check whether the list contains a method with the given name.
      *
-     * @param methodName
-     *            The name of a class.
+     * @param methodName The name of a class.
      * @return true if the list contains a method with the given name.
      */
     public boolean containsName(final String methodName) {
@@ -145,18 +138,19 @@ public class MethodInfoList extends InfoList<MethodInfo> {
     }
 
     /**
-     * Returns a list of all methods matching a given name. (There may be more than one method with a given name,
-     * due to overloading, so this returns a {@link MethodInfoList} rather than a single {@link MethodInfo}.)
+     * Returns a list of all methods matching a given name. (There may be more than
+     * one method with a given name, due to overloading, so this returns a
+     * {@link MethodInfoList} rather than a single {@link MethodInfo}.)
      * 
-     * @param methodName
-     *            The name of a method.
-     * @return A {@link MethodInfoList} of {@link MethodInfo} objects from this list that have the given name (there
-     *         may be more than one method with a given name, due to overloading, so this returns a
-     *         {@link MethodInfoList} rather than a single {@link MethodInfo}). Returns the empty list if no method
-     *         had a matching name.
+     * @param methodName The name of a method.
+     * @return A {@link MethodInfoList} of {@link MethodInfo} objects from this list
+     *         that have the given name (there may be more than one method with a
+     *         given name, due to overloading, so this returns a
+     *         {@link MethodInfoList} rather than a single {@link MethodInfo}).
+     *         Returns the empty list if no method had a matching name.
      */
     public MethodInfoList get(final String methodName) {
-        boolean hasMethodWithName = false;
+        var hasMethodWithName = false;
         for (final MethodInfo mi : this) {
             if (mi.getName().equals(methodName)) {
                 hasMethodWithName = true;
@@ -177,18 +171,19 @@ public class MethodInfoList extends InfoList<MethodInfo> {
     }
 
     /**
-     * Returns a single method with the given name, or null if not found. Throws {@link IllegalArgumentException} if
-     * there are two methods with the given name.
+     * Returns a single method with the given name, or null if not found. Throws
+     * {@link IllegalArgumentException} if there are two methods with the given
+     * name.
      * 
-     * @param methodName
-     *            The name of a method.
-     * @return The {@link MethodInfo} object from the list with the given name, if there is exactly one method with
-     *         the given name. Returns null if there were no methods with the given name.
-     * @throws IllegalArgumentException
-     *             if there are two or more methods with the given name.
+     * @param methodName The name of a method.
+     * @return The {@link MethodInfo} object from the list with the given name, if
+     *         there is exactly one method with the given name. Returns null if
+     *         there were no methods with the given name.
+     * @throws IllegalArgumentException if there are two or more methods with the
+     *                                  given name.
      */
     public MethodInfo getSingleMethod(final String methodName) {
-        int numMethodsWithName = 0;
+        var numMethodsWithName = 0;
         MethodInfo lastFoundMethod = null;
         for (final MethodInfo mi : this) {
             if (mi.getName().equals(methodName)) {
@@ -209,29 +204,30 @@ public class MethodInfoList extends InfoList<MethodInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Filter an {@link MethodInfoList} using a predicate mapping an {@link MethodInfo} object to a boolean,
-     * producing another {@link MethodInfoList} for all items in the list for which the predicate is true.
+     * Filter an {@link MethodInfoList} using a predicate mapping an
+     * {@link MethodInfo} object to a boolean, producing another
+     * {@link MethodInfoList} for all items in the list for which the predicate is
+     * true.
      */
     @FunctionalInterface
     public interface MethodInfoFilter {
         /**
          * Whether or not to allow an {@link MethodInfo} list item through the filter.
          *
-         * @param methodInfo
-         *            The {@link MethodInfo} item to filter.
-         * @return Whether or not to allow the item through the filter. If true, the item is copied to the output
-         *         list; if false, it is excluded.
+         * @param methodInfo The {@link MethodInfo} item to filter.
+         * @return Whether or not to allow the item through the filter. If true, the
+         *         item is copied to the output list; if false, it is excluded.
          */
         boolean accept(MethodInfo methodInfo);
     }
 
     /**
-     * Find the subset of the {@link MethodInfo} objects in this list for which the given filter predicate is true.
+     * Find the subset of the {@link MethodInfo} objects in this list for which the
+     * given filter predicate is true.
      *
-     * @param filter
-     *            The {@link MethodInfoFilter} to apply.
-     * @return The subset of the {@link MethodInfo} objects in this list for which the given filter predicate is
-     *         true.
+     * @param filter The {@link MethodInfoFilter} to apply.
+     * @return The subset of the {@link MethodInfo} objects in this list for which
+     *         the given filter predicate is true.
      */
     public MethodInfoList filter(final MethodInfoFilter filter) {
         final MethodInfoList methodInfoFiltered = new MethodInfoList();

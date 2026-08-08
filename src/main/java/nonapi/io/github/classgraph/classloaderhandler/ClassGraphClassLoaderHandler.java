@@ -38,13 +38,13 @@ import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
 
 /**
- * Allow for overrideClassLoaders to be called with a ClassGraphClassLoader as a parameter, so that nested scans can
- * share a single classloader (#485).
+ * Allow for overrideClassLoaders to be called with a ClassGraphClassLoader as a
+ * parameter, so that nested scans can share a single classloader (#485).
  */
 class ClassGraphClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
-        final boolean matches = ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass,
+        final var matches = ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass,
                 "io.github.classgraph.ClassGraphClassLoader");
         if (matches && log != null) {
             log.log("Sharing a `ClassGraphClassLoader` between multiple nested scans is not advisable, "
@@ -64,10 +64,14 @@ class ClassGraphClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
             final ScanSpec scanSpec, final LogNode log) {
-        // ClassGraphClassLoader overrides URLClassLoader, so we can get the basic classpath URLs the same
-        // way as for URLClassLoader. However, classloading will try to preferentially reuse the older
-        // ClassGraphClassLoader before loading with the new ClassGraphClassLoader from the current scan,
-        // so the following URLs will be scanned by the current scan, but classes will only be loaded from
+        // ClassGraphClassLoader overrides URLClassLoader, so we can get the basic
+        // classpath URLs the same
+        // way as for URLClassLoader. However, classloading will try to preferentially
+        // reuse the older
+        // ClassGraphClassLoader before loading with the new ClassGraphClassLoader from
+        // the current scan,
+        // so the following URLs will be scanned by the current scan, but classes will
+        // only be loaded from
         // these URLs if the older classloader fails.
         for (final URL url : ((ClassGraphClassLoader) classLoader).getURLs()) {
             if (url != null) {
@@ -77,11 +81,12 @@ class ClassGraphClassLoaderHandler implements ClassLoaderHandler {
     }
 
     /**
-     * Get the automatic package root prefixes for classpath elements obtained from this classloader.
+     * Get the automatic package root prefixes for classpath elements obtained from
+     * this classloader.
      *
      * <p>
-     * This handler only delegates to a previous scan's ClassGraphClassLoader, and adds no classpath
-     * elements of its own.
+     * This handler only delegates to a previous scan's ClassGraphClassLoader, and
+     * adds no classpath elements of its own.
      *
      * @return the package root prefixes.
      */

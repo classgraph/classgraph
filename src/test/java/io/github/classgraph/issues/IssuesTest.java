@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ScanResult;
 import io.github.classgraph.test.accepted.Impl1;
 import io.github.classgraph.test.accepted.Impl1Sub;
 import io.github.classgraph.test.external.ExternalSuperclass;
@@ -20,7 +19,7 @@ public class IssuesTest {
      */
     @Test
     public void issue70() {
-        try (ScanResult scanResult = new ClassGraph().acceptPackages(Impl1.class.getPackage().getName()).scan()) {
+        try (var scanResult = new ClassGraph().acceptPackages(Impl1.class.getPackage().getName()).scan()) {
             assertThat(scanResult.getSubclasses(Object.class).getNames()).contains(Impl1.class.getName());
         }
     }
@@ -30,7 +29,7 @@ public class IssuesTest {
      */
     @Test
     public void issue70EnableExternalClasses() {
-        try (ScanResult scanResult = new ClassGraph().acceptPackages(Impl1.class.getPackage().getName())
+        try (var scanResult = new ClassGraph().acceptPackages(Impl1.class.getPackage().getName())
                 .enableExternalClasses().scan()) {
             assertThat(scanResult.getSubclasses(Object.class).getNames()).contains(Impl1.class.getName());
             assertThat(scanResult.getSuperclasses(Impl1Sub.class.getName()).getNames())
@@ -43,8 +42,8 @@ public class IssuesTest {
      */
     @Test
     public void extendsExternal() {
-        try (ScanResult scanResult = new ClassGraph()
-                .acceptPackages(InternalExtendsExternal.class.getPackage().getName()).scan()) {
+        try (var scanResult = new ClassGraph().acceptPackages(InternalExtendsExternal.class.getPackage().getName())
+                .scan()) {
             assertThat(scanResult.getSuperclasses(InternalExtendsExternal.class.getName()).getNames())
                     .containsOnly(ExternalSuperclass.class.getName());
         }
@@ -55,9 +54,8 @@ public class IssuesTest {
      */
     @Test
     public void extendsExternalWithEnableExternal() {
-        try (ScanResult scanResult = new ClassGraph()
-                .acceptPackages(InternalExtendsExternal.class.getPackage().getName()).enableExternalClasses()
-                .scan()) {
+        try (var scanResult = new ClassGraph().acceptPackages(InternalExtendsExternal.class.getPackage().getName())
+                .enableExternalClasses().scan()) {
             assertThat(scanResult.getSuperclasses(InternalExtendsExternal.class.getName()).getNames())
                     .containsOnly(ExternalSuperclass.class.getName());
         }
@@ -68,8 +66,8 @@ public class IssuesTest {
      */
     @Test
     public void extendsExternalSubclass() {
-        try (ScanResult scanResult = new ClassGraph()
-                .acceptPackages(InternalExtendsExternal.class.getPackage().getName()).scan()) {
+        try (var scanResult = new ClassGraph().acceptPackages(InternalExtendsExternal.class.getPackage().getName())
+                .scan()) {
             assertThat(scanResult.getSubclasses(ExternalSuperclass.class).getNames())
                     .containsOnly(InternalExtendsExternal.class.getName());
         }
@@ -80,9 +78,8 @@ public class IssuesTest {
      */
     @Test
     public void nonStrictExtendsExternalSubclass() {
-        try (ScanResult scanResult = new ClassGraph()
-                .acceptPackages(InternalExtendsExternal.class.getPackage().getName()).enableExternalClasses()
-                .scan()) {
+        try (var scanResult = new ClassGraph().acceptPackages(InternalExtendsExternal.class.getPackage().getName())
+                .enableExternalClasses().scan()) {
             assertThat(scanResult.getSubclasses(ExternalSuperclass.class).getNames())
                     .containsOnly(InternalExtendsExternal.class.getName());
         }

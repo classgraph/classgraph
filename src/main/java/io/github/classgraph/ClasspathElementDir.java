@@ -34,7 +34,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.nio.ByteBuffer;
-import java.nio.file.DirectoryStream;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -45,7 +44,6 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -66,13 +64,19 @@ import nonapi.io.github.classgraph.utils.LogNode;
 
 /** A directory classpath element, using the {@link Path} API. */
 class ClasspathElementDir extends ClasspathElement {
-    /** The {@link Resource#length} value indicating that the resource length has not yet been read. */
+    /**
+     * The {@link Resource#length} value indicating that the resource length has not
+     * yet been read.
+     */
     private static final int NOT_YET_LOADED_LENGTH = -2;
 
     /** The directory at the root of the classpath element. */
     private final Path classpathEltPath;
 
-    /** Used to ensure that recursive scanning doesn't get into an infinite loop due to a link cycle. */
+    /**
+     * Used to ensure that recursive scanning doesn't get into an infinite loop due
+     * to a link cycle.
+     */
     private final Set<Path> scannedCanonicalPaths = new HashSet<>();
 
     /** The nested jar handler. */
@@ -81,12 +85,10 @@ class ClasspathElementDir extends ClasspathElement {
     /**
      * A directory classpath element.
      *
-     * @param workUnit
-     *            the work unit -- workUnit.classpathEntryObj must be a {@link Path} object
-     * @param nestedJarHandler
-     *            the nested jar handler
-     * @param scanSpec
-     *            the scan spec
+     * @param workUnit         the work unit -- workUnit.classpathEntryObj must be a
+     *                         {@link Path} object
+     * @param nestedJarHandler the nested jar handler
+     * @param scanSpec         the scan spec
      */
     ClasspathElementDir(final ClasspathEntryWorkUnit workUnit, final NestedJarHandler nestedJarHandler,
             final ScanSpec scanSpec) {
@@ -95,9 +97,12 @@ class ClasspathElementDir extends ClasspathElement {
         this.nestedJarHandler = nestedJarHandler;
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see io.github.classgraph.ClasspathElement#open(
-     * nonapi.io.github.classgraph.concurrency.WorkQueue, nonapi.io.github.classgraph.utils.LogNode)
+     * nonapi.io.github.classgraph.concurrency.WorkQueue,
+     * nonapi.io.github.classgraph.utils.LogNode)
      */
     @Override
     void open(final WorkQueue<ClasspathEntryWorkUnit> workQueue, final LogNode log) {
@@ -111,19 +116,14 @@ class ClasspathElementDir extends ClasspathElement {
         }
         try {
             // Auto-add nested lib dirs
-            int childClasspathEntryIdx = 0;
+            var childClasspathEntryIdx = 0;
             for (final String libDirPrefix : ClassLoaderHandlerRegistry.AUTOMATIC_LIB_DIR_PREFIXES) {
-                final Path libDirPath = classpathEltPath.resolve(libDirPrefix);
+                final var libDirPath = classpathEltPath.resolve(libDirPrefix);
                 if (FileUtils.canReadAndIsDir(libDirPath)) {
                     // Add all jarfiles within the lib dir as child classpath entries
-                    try (DirectoryStream<Path> stream = Files.newDirectoryStream(libDirPath,
-                            new DirectoryStream.Filter<Path>() {
-                                @Override
-                                public boolean accept(final Path filePath) {
-                                    return filePath.toString().toLowerCase().endsWith(".jar")
-                                            && Files.isRegularFile(filePath);
-                                }
-                            })) {
+                    try (var stream = Files.newDirectoryStream(libDirPath,
+                            filePath -> filePath.toString().toLowerCase().endsWith(".jar")
+                                    && Files.isRegularFile(filePath))) {
                         for (final Path filePath : stream) {
                             if (log != null) {
                                 log(classpathElementIdx, "Found lib jar: " + filePath, log);
@@ -141,11 +141,12 @@ class ClasspathElementDir extends ClasspathElement {
             // Only look for package roots if the package root is empty
             if (packageRootPrefix.isEmpty()) {
                 for (final String packageRootPrefix : packageRootPrefixes) {
-                    final Path packageRoot = classpathEltPath.resolve(packageRootPrefix);
+                    final var packageRoot = classpathEltPath.resolve(packageRootPrefix);
                     if (FileUtils.canReadAndIsDir(packageRoot)) {
-                        // "classes/" and "test-classes/" are legal package names, so check that the candidate
+                        // "classes/" and "test-classes/" are legal package names, so check that the
+                        // candidate
                         // package root is not simply a package with the same name (#929)
-                        final String disprovingClassName = getClassNameDisprovingPackageRoot(packageRoot);
+                        final var disprovingClassName = getClassNameDisprovingPackageRoot(packageRoot);
                         if (disprovingClassName != null) {
                             if (log != null) {
                                 log(classpathElementIdx,
@@ -160,8 +161,8 @@ class ClasspathElementDir extends ClasspathElement {
                         }
                         workQueue.addWorkUnit(new ClasspathEntryWorkUnit(packageRoot, getClassLoader(),
                                 /* parentClasspathElement = */ this,
-                                /* orderWithinParentClasspathElement = */ childClasspathEntryIdx++,
-                                packageRootPrefix, packageRootPrefixes));
+                                /* orderWithinParentClasspathElement = */ childClasspathEntryIdx++, packageRootPrefix,
+                                packageRootPrefixes));
                     }
                 }
             }
@@ -175,23 +176,24 @@ class ClasspathElementDir extends ClasspathElement {
     }
 
     /**
-     * Find the first classfile beneath a directory, so that the class it declares can be compared to its path.
+     * Find the first classfile beneath a directory, so that the class it declares
+     * can be compared to its path.
      *
-     * @param dir
-     *            the directory to search.
-     * @return the first classfile found beneath the directory, or null if there are none. Classfiles beneath a
-     *         {@code META-INF} directory are ignored, since the path of a classfile in a multi-release jar layout
-     *         ({@code META-INF/versions/N/}) does not correspond to the name of the class it declares.
+     * @param dir the directory to search.
+     * @return the first classfile found beneath the directory, or null if there are
+     *         none. Classfiles beneath a {@code META-INF} directory are ignored,
+     *         since the path of a classfile in a multi-release jar layout
+     *         ({@code META-INF/versions/N/}) does not correspond to the name of the
+     *         class it declares.
      */
     private static Path findFirstClassfile(final Path dir) {
-        final Path[] firstClassfile = new Path[1];
+        final var firstClassfile = new Path[1];
         try {
-            Files.walkFileTree(dir, new SimpleFileVisitor<Path>() {
+            Files.walkFileTree(dir, new SimpleFileVisitor<>() {
                 @Override
                 public FileVisitResult preVisitDirectory(final Path subDir, final BasicFileAttributes attrs) {
-                    final Path subDirName = subDir.getFileName();
-                    return subDirName != null && "META-INF".equals(subDirName.toString())
-                            ? FileVisitResult.SKIP_SUBTREE
+                    final var subDirName = subDir.getFileName();
+                    return subDirName != null && "META-INF".equals(subDirName.toString()) ? FileVisitResult.SKIP_SUBTREE
                             : FileVisitResult.CONTINUE;
                 }
 
@@ -217,65 +219,68 @@ class ClasspathElementDir extends ClasspathElement {
     }
 
     /**
-     * Check whether a candidate package root directory is really a package root, or is simply a package that has
-     * the same name as one of the automatic package root prefixes (#929).
+     * Check whether a candidate package root directory is really a package root, or
+     * is simply a package that has the same name as one of the automatic package
+     * root prefixes (#929).
      *
-     * @param packageRoot
-     *            the candidate package root directory.
-     * @return null if the candidate is a package root, otherwise the name of the class that disproves it (see
+     * @param packageRoot the candidate package root directory.
+     * @return null if the candidate is a package root, otherwise the name of the
+     *         class that disproves it (see
      *         {@link ClasspathElement#getClassNameDisprovingPackageRoot(ClassfileReader, String)}).
      */
     private static String getClassNameDisprovingPackageRoot(final Path packageRoot) {
-        final Path classfilePath = findFirstClassfile(packageRoot);
+        final var classfilePath = findFirstClassfile(packageRoot);
         if (classfilePath == null) {
-            // There are no classfiles beneath the candidate package root, so there is nothing to check
+            // There are no classfiles beneath the candidate package root, so there is
+            // nothing to check
             return null;
         }
-        final String classfileRelativePath = packageRoot.relativize(classfilePath).toString()
-                .replace(File.separatorChar, '/');
-        try (InputStream inputStream = Files.newInputStream(classfilePath);
-                ClassfileReader classfileReader = new ClassfileReader(inputStream, /* resourceToClose = */ null)) {
+        final var classfileRelativePath = packageRoot.relativize(classfilePath).toString().replace(File.separatorChar,
+                '/');
+        try (var inputStream = Files.newInputStream(classfilePath);
+                var classfileReader = new ClassfileReader(inputStream, /* resourceToClose = */ null)) {
             return getClassNameDisprovingPackageRoot(classfileReader, classfileRelativePath);
         } catch (final IOException | SecurityException e) {
-            // If the classfile cannot be read, give the candidate package root the benefit of the doubt
+            // If the classfile cannot be read, give the candidate package root the benefit
+            // of the doubt
             return null;
         }
     }
 
     /**
-     * Create a new {@link Resource} object for a resource or classfile discovered while scanning paths.
+     * Create a new {@link Resource} object for a resource or classfile discovered
+     * while scanning paths.
      *
-     * @param resourcePath
-     *            the {@link Path} for the resource
-     * @param attributes
-     *            the file attributes of the resource, or null if not yet known
+     * @param resourcePath the {@link Path} for the resource
+     * @param attributes   the file attributes of the resource, or null if not yet
+     *                     known
      * @return the resource
      */
     private Resource newResource(final Path resourcePath, final BasicFileAttributes attributes) {
-        return newResource(resourcePath,
-                FastPathResolver.resolve(classpathEltPath.relativize(resourcePath).toString()), attributes);
+        return newResource(resourcePath, FastPathResolver.resolve(classpathEltPath.relativize(resourcePath).toString()),
+                attributes);
     }
 
     /**
-     * Create a new {@link Resource} object for a resource or classfile discovered while scanning paths, where the
-     * resolved path of the resource relative to the classpath element has already been computed by the caller.
+     * Create a new {@link Resource} object for a resource or classfile discovered
+     * while scanning paths, where the resolved path of the resource relative to the
+     * classpath element has already been computed by the caller.
      *
-     * @param resourcePath
-     *            the {@link Path} for the resource
-     * @param resourcePathRelativeStr
-     *            the path of the resource relative to the classpath element root, as already resolved by
-     *            {@link FastPathResolver#resolve(String)}
-     * @param attributes
-     *            the file attributes of the resource, or null if not yet known
+     * @param resourcePath            the {@link Path} for the resource
+     * @param resourcePathRelativeStr the path of the resource relative to the
+     *                                classpath element root, as already resolved by
+     *                                {@link FastPathResolver#resolve(String)}
+     * @param attributes              the file attributes of the resource, or null
+     *                                if not yet known
      * @return the resource
      */
     private Resource newResource(final Path resourcePath, final String resourcePathRelativeStr,
             final BasicFileAttributes attributes) {
-        int startIdx = 0;
+        var startIdx = 0;
         while (startIdx < resourcePathRelativeStr.length() && resourcePathRelativeStr.charAt(startIdx) == '/') {
             startIdx++;
         }
-        final String path = startIdx == 0 ? resourcePathRelativeStr : resourcePathRelativeStr.substring(startIdx);
+        final var path = startIdx == 0 ? resourcePathRelativeStr : resourcePathRelativeStr.substring(startIdx);
         return new Resource(this, attributes == null ? NOT_YET_LOADED_LENGTH : attributes.size()) {
             /** The {@link PathSlice} opened on the file. */
             private PathSlice pathSlice;
@@ -320,8 +325,8 @@ class ClasspathElementDir extends ClasspathElement {
             public Set<PosixFilePermission> getPosixFilePermissions() {
                 Set<PosixFilePermission> posixFilePermissions = null;
                 try {
-                    if (attributes instanceof PosixFileAttributes) {
-                        posixFilePermissions = ((PosixFileAttributes) attributes).permissions();
+                    if (attributes instanceof final PosixFileAttributes posixFileAttributes) {
+                        posixFilePermissions = posixFileAttributes.permissions();
                     } else {
                         posixFilePermissions = Files.readAttributes(resourcePath, PosixFileAttributes.class)
                                 .permissions();
@@ -406,29 +411,27 @@ class ClasspathElementDir extends ClasspathElement {
     /**
      * Get the {@link Resource} for a given relative path.
      *
-     * @param relativePath
-     *            The relative path of the {@link Resource} to return.
-     * @return The {@link Resource} for the given relative path, or null if relativePath does not exist in this
-     *         classpath element.
+     * @param relativePath The relative path of the {@link Resource} to return.
+     * @return The {@link Resource} for the given relative path, or null if
+     *         relativePath does not exist in this classpath element.
      */
     @Override
     Resource getResource(final String relativePath) {
-        final Path resourcePath = classpathEltPath.resolve(relativePath);
+        final var resourcePath = classpathEltPath.resolve(relativePath);
         return FileUtils.canReadAndIsFile(resourcePath) ? newResource(resourcePath, null) : null;
     }
 
     /**
      * Recursively scan a {@link Path} for sub-path patterns matching the scan spec.
      *
-     * @param path
-     *            the {@link Path}
-     * @param log
-     *            the log
+     * @param path the {@link Path}
+     * @param log  the log
      */
     private void scanPathRecursively(final Path path, final LogNode log) {
-        // See if this canonical path has been scanned before, so that recursive scanning doesn't get stuck in an
+        // See if this canonical path has been scanned before, so that recursive
+        // scanning doesn't get stuck in an
         // infinite loop due to symlinks
-        Path canonicalPath;
+        final Path canonicalPath;
         try {
             canonicalPath = path.toRealPath();
             if (!scannedCanonicalPaths.add(canonicalPath)) {
@@ -444,14 +447,14 @@ class ClasspathElementDir extends ClasspathElement {
             return;
         }
 
-        String dirRelativePathStr = FastPathResolver.resolve(classpathEltPath.relativize(path).toString());
+        var dirRelativePathStr = FastPathResolver.resolve(classpathEltPath.relativize(path).toString());
         while (dirRelativePathStr.startsWith("/")) {
             dirRelativePathStr = dirRelativePathStr.substring(1);
         }
         if (!dirRelativePathStr.endsWith("/")) {
             dirRelativePathStr += "/";
         }
-        final boolean isDefaultPackage = dirRelativePathStr.equals("/");
+        final var isDefaultPackage = "/".equals(dirRelativePathStr);
 
         if (nestedClasspathRootPrefixes != null && nestedClasspathRootPrefixes.contains(dirRelativePathStr)) {
             if (log != null) {
@@ -461,9 +464,12 @@ class ClasspathElementDir extends ClasspathElement {
             return;
         }
 
-        // Ignore versioned sections in exploded jars -- they are only supposed to be used in jars.
-        // TODO: is it necessary to support multi-versioned exploded jars anyway? If so, all the paths in a
-        // directory classpath entry will have to be pre-scanned and masked, as happens in ClasspathElementZip.
+        // Ignore versioned sections in exploded jars -- they are only supposed to be
+        // used in jars.
+        // TODO: is it necessary to support multi-versioned exploded jars anyway? If so,
+        // all the paths in a
+        // directory classpath entry will have to be pre-scanned and masked, as happens
+        // in ClasspathElementZip.
         if (!scanSpec.enableMultiReleaseVersions
                 && dirRelativePathStr.startsWith(LogicalZipFile.MULTI_RELEASE_PATH_PREFIX)) {
             if (log != null) {
@@ -478,7 +484,7 @@ class ClasspathElementDir extends ClasspathElement {
             return;
         }
 
-        final ScanSpecPathMatch parentMatchStatus = scanSpec.dirAcceptMatchStatus(dirRelativePathStr);
+        final var parentMatchStatus = scanSpec.dirAcceptMatchStatus(dirRelativePathStr);
         if (parentMatchStatus == ScanSpecPathMatch.HAS_REJECTED_PATH_PREFIX) {
             // Reached a non-accepted or rejected path -- stop the recursive scan
             if (log != null) {
@@ -491,15 +497,14 @@ class ClasspathElementDir extends ClasspathElement {
             return;
         }
 
-        final LogNode subLog = log == null ? null
+        final var subLog = log == null ? null
                 // Log dirs after files (addAcceptedResources() precedes log entry with "0:")
                 : log.log("1:" + canonicalPath,
-                        "Scanning Path: " + FastPathResolver.resolve(path.toString()) + (path.equals(canonicalPath)
-                                ? ""
+                        "Scanning Path: " + FastPathResolver.resolve(path.toString()) + (path.equals(canonicalPath) ? ""
                                 : " ; canonical path: " + FastPathResolver.resolve(canonicalPath.toString())));
 
         final List<Path> pathsInDir = new ArrayList<>();
-        try (DirectoryStream<Path> stream = Files.newDirectoryStream(path)) {
+        try (var stream = Files.newDirectoryStream(path)) {
             for (final Path subPath : stream) {
                 pathsInDir.add(subPath);
             }
@@ -510,27 +515,30 @@ class ClasspathElementDir extends ClasspathElement {
             return;
         }
         Collections.sort(pathsInDir);
-        final FileUtils.FileAttributesGetter getFileAttributes = FileUtils.createCachedAttributesGetter();
+        final var getFileAttributes = FileUtils.createCachedAttributesGetter();
 
         // Determine whether this is a modular jar
-        final boolean isModularJar = getModuleName() != null;
+        final var isModularJar = getModuleName() != null;
 
-        // Only scan files in directory if directory is not only an ancestor of an accepted path
+        // Only scan files in directory if directory is not only an ancestor of an
+        // accepted path
         if (parentMatchStatus != ScanSpecPathMatch.ANCESTOR_OF_ACCEPTED_PATH) {
-            // Do preorder traversal (files in dir, then subdirs), to reduce filesystem cache misses
-            final Iterator<Path> pathsIterator = pathsInDir.iterator();
+            // Do preorder traversal (files in dir, then subdirs), to reduce filesystem
+            // cache misses
+            final var pathsIterator = pathsInDir.iterator();
             while (pathsIterator.hasNext()) {
-                final Path subPath = pathsIterator.next();
+                final var subPath = pathsIterator.next();
                 // Process files in dir before recursing
-                final BasicFileAttributes fileAttributes = getFileAttributes.get(subPath);
+                final var fileAttributes = getFileAttributes.get(subPath);
                 if (fileAttributes.isRegularFile()) {
                     pathsIterator.remove();
-                    final Path subPathRelative = classpathEltPath.relativize(subPath);
-                    final String subPathRelativeStr = FastPathResolver.resolve(subPathRelative.toString());
-                    // If this is a modular jar, ignore all classfiles other than "module-info.class" in the
+                    final var subPathRelative = classpathEltPath.relativize(subPath);
+                    final var subPathRelativeStr = FastPathResolver.resolve(subPathRelative.toString());
+                    // If this is a modular jar, ignore all classfiles other than
+                    // "module-info.class" in the
                     // default package, since these are disallowed.
                     if (isModularJar && isDefaultPackage && subPathRelativeStr.endsWith(".class")
-                            && !subPathRelativeStr.equals("module-info.class")) {
+                            && !"module-info.class".equals(subPathRelativeStr)) {
                         continue;
                     }
 
@@ -545,7 +553,7 @@ class ClasspathElementDir extends ClasspathElement {
                             || (parentMatchStatus == ScanSpecPathMatch.AT_ACCEPTED_CLASS_PACKAGE
                                     && scanSpec.classfileIsSpecificallyAccepted(subPathRelativeStr))) {
                         // Resource is accepted
-                        final Resource resource = newResource(subPath, subPathRelativeStr, fileAttributes);
+                        final var resource = newResource(subPath, subPathRelativeStr, fileAttributes);
                         addAcceptedResource(resource, parentMatchStatus, /* isClassfileOnly = */ false, subLog);
 
                         // Save last modified time
@@ -561,16 +569,17 @@ class ClasspathElementDir extends ClasspathElement {
                     }
                 }
             }
-        } else if (scanSpec.enableClassInfo && dirRelativePathStr.equals("/")) {
-            // Always check for module descriptor in package root, even if package root isn't in accept
-            final Iterator<Path> pathsIterator = pathsInDir.iterator();
+        } else if (scanSpec.enableClassInfo && "/".equals(dirRelativePathStr)) {
+            // Always check for module descriptor in package root, even if package root
+            // isn't in accept
+            final var pathsIterator = pathsInDir.iterator();
             while (pathsIterator.hasNext()) {
-                final Path subPath = pathsIterator.next();
-                if (subPath.getFileName().toString().equals("module-info.class")) {
-                    final BasicFileAttributes fileAttributes = getFileAttributes.get(subPath);
+                final var subPath = pathsIterator.next();
+                if ("module-info.class".equals(subPath.getFileName().toString())) {
+                    final var fileAttributes = getFileAttributes.get(subPath);
                     if (fileAttributes.isRegularFile()) {
                         pathsIterator.remove();
-                        final Resource resource = newResource(subPath, fileAttributes);
+                        final var resource = newResource(subPath, fileAttributes);
                         addAcceptedResource(resource, parentMatchStatus, /* isClassfileOnly = */ true, subLog);
                         try {
                             fileToLastModified.put(subPath.toFile(), fileAttributes.lastModifiedTime().toMillis());
@@ -601,7 +610,7 @@ class ClasspathElementDir extends ClasspathElement {
 
         // Save the last modified time of the directory
         try {
-            final File file = path.toFile();
+            final var file = path.toFile();
             fileToLastModified.put(file, file.lastModified());
         } catch (final UnsupportedOperationException e) {
             // Ignore
@@ -611,8 +620,7 @@ class ClasspathElementDir extends ClasspathElement {
     /**
      * Hierarchically scan directory structure for classfiles and matching files.
      *
-     * @param log
-     *            the log
+     * @param log the log
      */
     @Override
     void scanPaths(final LogNode log) {
@@ -627,7 +635,7 @@ class ClasspathElementDir extends ClasspathElement {
             throw new IllegalArgumentException("Already scanned classpath element " + this);
         }
 
-        final LogNode subLog = log == null ? null
+        final var subLog = log == null ? null
                 : log(classpathElementIdx, "Scanning Path classpath element " + getURI(), log);
 
         scanPathRecursively(classpathEltPath, subLog);
@@ -649,8 +657,8 @@ class ClasspathElementDir extends ClasspathElement {
     /**
      * Get the directory {@link File}.
      *
-     * @return The classpath element directory as a {@link File}, or null if this classpath element is not backed by
-     *         a directory (should not happen).
+     * @return The classpath element directory as a {@link File}, or null if this
+     *         classpath element is not backed by a directory (should not happen).
      */
     @Override
     public File getFile() {
@@ -661,7 +669,9 @@ class ClasspathElementDir extends ClasspathElement {
         }
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see io.github.classgraph.ClasspathElement#getURI()
      */
     @Override
@@ -675,7 +685,7 @@ class ClasspathElementDir extends ClasspathElement {
 
     @Override
     List<URI> getAllURIs() {
-        return Collections.singletonList(getURI());
+        return List.of(getURI());
     }
 
     /**
@@ -693,7 +703,9 @@ class ClasspathElementDir extends ClasspathElement {
         }
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.Object#hashCode()
      */
     @Override
@@ -701,17 +713,19 @@ class ClasspathElementDir extends ClasspathElement {
         return Objects.hash(classpathEltPath);
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
     public boolean equals(final Object obj) {
         if (obj == this) {
             return true;
-        } else if (!(obj instanceof ClasspathElementDir)) {
+        }
+        if (!(obj instanceof final ClasspathElementDir other)) {
             return false;
         }
-        final ClasspathElementDir other = (ClasspathElementDir) obj;
         return Objects.equals(this.classpathEltPath, other.classpathEltPath);
     }
 }

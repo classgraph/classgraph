@@ -30,12 +30,9 @@
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.List;
-
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ScanResult;
 import io.github.classgraph.test.accepted.Cls;
 import io.github.classgraph.test.accepted.rejectedsub.RejectedSub;
 
@@ -51,8 +48,8 @@ public class DefaultPackageTest {
      */
     @Test
     public void scan() {
-        try (ScanResult scanResult = new ClassGraph().acceptPackagesNonRecursive("").scan()) {
-            final List<String> allClasses = scanResult.getAllClasses().getNames();
+        try (var scanResult = new ClassGraph().acceptPackagesNonRecursive("").scan()) {
+            final var allClasses = scanResult.getAllClasses().getNames();
             assertThat(allClasses).contains(DefaultPackageTest.class.getName());
             assertThat(allClasses).contains(ClassInDefaultPackage.class.getName());
             assertThat(allClasses).doesNotContain(Cls.class.getName());
@@ -67,8 +64,8 @@ public class DefaultPackageTest {
      */
     @Test
     public void scanWithAccept() {
-        try (ScanResult scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE).scan()) {
-            final List<String> allClasses = scanResult.getAllClasses().getNames();
+        try (var scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE).scan()) {
+            final var allClasses = scanResult.getAllClasses().getNames();
             assertThat(allClasses).doesNotContain(DefaultPackageTest.class.getName());
             assertThat(allClasses).contains(RejectedSub.class.getName());
             assertThat(allClasses).contains(Cls.class.getName());

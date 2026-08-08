@@ -10,9 +10,6 @@ import java.lang.annotation.Target;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ClassInfo;
-import io.github.classgraph.MethodParameterInfo;
-import io.github.classgraph.ScanResult;
 import io.github.classgraph.issues.issue696.Issue696Test.BrokenAnnotation.Dynamic;
 
 public class Issue696Test {
@@ -35,10 +32,10 @@ public class Issue696Test {
 
     @Test
     void genericSuperclass() {
-        final ScanResult scanResult = new ClassGraph().acceptPackages(Issue696Test.class.getPackage().getName())
+        final var scanResult = new ClassGraph().acceptPackages(Issue696Test.class.getPackage().getName())
                 .enableMethodInfo().enableAnnotationInfo().scan();
-        final ClassInfo dynamic = scanResult.getClassInfo(Dynamic.class.getName());
-        final MethodParameterInfo[] paramInfo = dynamic.getConstructorInfo().get(0).getParameterInfo();
+        final var dynamic = scanResult.getClassInfo(Dynamic.class.getName());
+        final var paramInfo = dynamic.getConstructorInfo().get(0).getParameterInfo();
         // Inner classes have an initial "mandated" param
         assertThat(paramInfo.length).isEqualTo(3);
         assertThat(paramInfo[0].getAnnotationInfo()).isEmpty();

@@ -69,12 +69,9 @@ public class Issue431Test {
     /**
      * Test field equality.
      * 
-     * @param fieldName
-     *            The field name
-     * @param classInfo1
-     *            The first ClassInfo
-     * @param classInfo2
-     *            The second ClassInfo
+     * @param fieldName  The field name
+     * @param classInfo1 The first ClassInfo
+     * @param classInfo2 The second ClassInfo
      */
     private void testFieldEquality(final String fieldName, final ClassInfo classInfo1, final ClassInfo classInfo2) {
         assertThat(Objects.equals(classInfo1.getFieldInfo(fieldName).getConstantInitializerValue(),
@@ -84,16 +81,16 @@ public class Issue431Test {
     /** Test serializing and deserializing primitive types. */
     @Test
     public void primitiveTypeSerialization() {
-        final ClassGraph classGraph = new ClassGraph().acceptPackages(Issue431Test.class.getPackage().getName())
+        final var classGraph = new ClassGraph().acceptPackages(Issue431Test.class.getPackage().getName())
                 .enableAllInfo();
-        try (ScanResult scanResult1 = classGraph.scan()) {
-            final ClassInfo classInfo1 = scanResult1.getClassInfo(X.class.getName());
+        try (var scanResult1 = classGraph.scan()) {
+            final var classInfo1 = scanResult1.getClassInfo(X.class.getName());
             assertThat(classInfo1).isNotNull();
-            final String jsonResult = scanResult1.toJSON(2);
-            final ScanResult scanResult2 = ScanResult.fromJSON(jsonResult);
-            final ClassInfo classInfo2 = scanResult2.getClassInfo(X.class.getName());
+            final var jsonResult = scanResult1.toJSON(2);
+            final var scanResult2 = ScanResult.fromJSON(jsonResult);
+            final var classInfo2 = scanResult2.getClassInfo(X.class.getName());
             assertThat(classInfo2).isNotNull();
-            for (char fieldName = 'a'; fieldName <= 'i'; fieldName++) {
+            for (var fieldName = 'a'; fieldName <= 'i'; fieldName++) {
                 testFieldEquality("" + fieldName, classInfo1, classInfo2);
             }
         }

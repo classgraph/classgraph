@@ -39,8 +39,7 @@ class AntClassLoaderHandler implements ClassLoaderHandler {
 
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
-        return ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass,
-                "org.apache.tools.ant.AntClassLoader");
+        return ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass, "org.apache.tools.ant.AntClassLoader");
     }
 
     @Override
@@ -54,16 +53,18 @@ class AntClassLoaderHandler implements ClassLoaderHandler {
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
             final ScanSpec scanSpec, final LogNode log) {
         classpathOrder.addClasspathPathStr(
-                (String) classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getClasspath"),
-                classLoader, scanSpec, log);
+                (String) classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getClasspath"), classLoader,
+                scanSpec, log);
     }
 
     /**
-     * Get the automatic package root prefixes for classpath elements obtained from this classloader.
+     * Get the automatic package root prefixes for classpath elements obtained from
+     * this classloader.
      *
      * <p>
-     * Ant builds put compiled classes in a "classes/" or "test-classes/" dir within the build dir, and
-     * AntClassLoader lists the build dir rather than these dirs as the classpath element.
+     * Ant builds put compiled classes in a "classes/" or "test-classes/" dir within
+     * the build dir, and AntClassLoader lists the build dir rather than these dirs
+     * as the classpath element.
      *
      * @return the package root prefixes.
      */

@@ -55,12 +55,9 @@ public final class TypeParameter extends HierarchicalTypeSignature {
     /**
      * Constructor.
      *
-     * @param identifier
-     *            The type parameter identifier.
-     * @param classBound
-     *            The type parameter class bound.
-     * @param interfaceBounds
-     *            The type parameter interface bound.
+     * @param identifier      The type parameter identifier.
+     * @param classBound      The type parameter class bound.
+     * @param interfaceBounds The type parameter interface bound.
      */
     protected TypeParameter(final String identifier, final ReferenceTypeSignature classBound,
             final List<ReferenceTypeSignature> interfaceBounds) {
@@ -91,7 +88,8 @@ public final class TypeParameter extends HierarchicalTypeSignature {
     /**
      * Get the type parameter interface bound(s).
      * 
-     * @return Get the type parameter interface bound(s), which may be the empty list.
+     * @return Get the type parameter interface bound(s), which may be the empty
+     *         list.
      */
     public List<ReferenceTypeSignature> getInterfaceBounds() {
         return interfaceBounds;
@@ -111,16 +109,12 @@ public final class TypeParameter extends HierarchicalTypeSignature {
     /**
      * Parse a list of type parameters into {@link TypeParameter} objects.
      *
-     * @param parser
-     *            the parser
-     * @param definingClassName
-     *            the defining class name
+     * @param parser            the parser
+     * @param definingClassName the defining class name
      * @return the list of {@link TypeParameter} objects.
-     * @throws ParseException
-     *             if parsing fails
+     * @throws ParseException if parsing fails
      */
-    static List<TypeParameter> parseList(final Parser parser, final String definingClassName)
-            throws ParseException {
+    static List<TypeParameter> parseList(final Parser parser, final String definingClassName) throws ParseException {
         if (parser.peek() != '<') {
             return Collections.emptyList();
         }
@@ -134,17 +128,16 @@ public final class TypeParameter extends HierarchicalTypeSignature {
             if (!TypeUtils.getIdentifierToken(parser, /* stopAtDollarSign = */ false, /* stopAtDot = */ true)) {
                 throw new ParseException(parser, "Could not parse identifier token");
             }
-            final String identifier = parser.currToken();
+            final var identifier = parser.currToken();
             // classBound may be null
-            final ReferenceTypeSignature classBound = ReferenceTypeSignature.parseClassBound(parser,
-                    definingClassName);
+            final var classBound = ReferenceTypeSignature.parseClassBound(parser, definingClassName);
             List<ReferenceTypeSignature> interfaceBounds;
             if (parser.peek() == ':') {
                 interfaceBounds = new ArrayList<>();
                 while (parser.peek() == ':') {
                     parser.expect(':');
-                    final ReferenceTypeSignature interfaceTypeSignature = ReferenceTypeSignature
-                            .parseReferenceTypeSignature(parser, definingClassName);
+                    final var interfaceTypeSignature = ReferenceTypeSignature.parseReferenceTypeSignature(parser,
+                            definingClassName);
                     if (interfaceTypeSignature == null) {
                         throw new ParseException(parser, "Missing interface type signature");
                     }
@@ -161,16 +154,21 @@ public final class TypeParameter extends HierarchicalTypeSignature {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see io.github.classgraph.ScanResultObject#getClassName()
      */
     @Override
     protected String getClassName() {
-        // getClassInfo() is not valid for this type, so getClassName() does not need to be implemented
+        // getClassInfo() is not valid for this type, so getClassName() does not need to
+        // be implemented
         throw new IllegalArgumentException("getClassName() cannot be called here");
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see io.github.classgraph.ScanResultObject#getClassInfo()
      */
     @Override
@@ -178,8 +176,12 @@ public final class TypeParameter extends HierarchicalTypeSignature {
         throw new IllegalArgumentException("getClassInfo() cannot be called here");
     }
 
-    /* (non-Javadoc)
-     * @see io.github.classgraph.ScanResultObject#setScanResult(io.github.classgraph.ScanResult)
+    /*
+     * (non-Javadoc)
+     *
+     * @see
+     * io.github.classgraph.ScanResultObject#setScanResult(io.github.classgraph.
+     * ScanResult)
      */
     @Override
     void setScanResult(final ScanResult scanResult) {
@@ -197,8 +199,7 @@ public final class TypeParameter extends HierarchicalTypeSignature {
     /**
      * Get the names of any classes referenced in the type signature.
      *
-     * @param refdClassNames
-     *            the referenced class names.
+     * @param refdClassNames the referenced class names.
      */
     protected void findReferencedClassNames(final Set<String> refdClassNames) {
         if (classBound != null) {
@@ -211,26 +212,29 @@ public final class TypeParameter extends HierarchicalTypeSignature {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.Object#hashCode()
      */
     @Override
     public int hashCode() {
-        return name.hashCode() + (classBound == null ? 0 : classBound.hashCode() * 7)
-                + interfaceBounds.hashCode() * 15;
+        return name.hashCode() + (classBound == null ? 0 : classBound.hashCode() * 7) + interfaceBounds.hashCode() * 15;
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
     public boolean equals(final Object obj) {
         if (obj == this) {
             return true;
-        } else if (!(obj instanceof TypeParameter)) {
+        }
+        if (!(obj instanceof final TypeParameter other)) {
             return false;
         }
-        final TypeParameter other = (TypeParameter) obj;
         return other.name.equals(this.name) && Objects.equals(other.typeAnnotationInfo, this.typeAnnotationInfo)
                 && ((other.classBound == null && this.classBound == null)
                         || (other.classBound != null && other.classBound.equals(this.classBound)))
@@ -256,11 +260,13 @@ public final class TypeParameter extends HierarchicalTypeSignature {
             classBoundStr = null;
         } else {
             classBoundStr = classBound.toString(useSimpleNames);
-            // A type parameter may itself be named "Object", in which case a bound referring to it also renders
-            // as "Object" but is a TypeVariableSignature, not java.lang.Object -- so check the type too
-            if (classBoundStr.equals("java.lang.Object")
-                    || (classBoundStr.equals("Object") && classBound instanceof ClassRefTypeSignature
-                            && ((ClassRefTypeSignature) classBound).className.equals("java.lang.Object"))) {
+            // A type parameter may itself be named "Object", in which case a bound
+            // referring to it also renders
+            // as "Object" but is a TypeVariableSignature, not java.lang.Object -- so check
+            // the type too
+            if ("java.lang.Object".equals(classBoundStr) || ("Object".equals(classBoundStr)
+                    && classBound instanceof final ClassRefTypeSignature classRefTypeSignature
+                    && "java.lang.Object".equals(classRefTypeSignature.className))) {
                 // Don't add "extends java.lang.Object"
                 classBoundStr = null;
             }
@@ -272,7 +278,7 @@ public final class TypeParameter extends HierarchicalTypeSignature {
             buf.append(' ');
             buf.append(classBoundStr);
         }
-        for (int i = 0; i < interfaceBounds.size(); i++) {
+        for (var i = 0; i < interfaceBounds.size(); i++) {
             if (i > 0 || classBoundStr != null) {
                 buf.append(" &");
             }

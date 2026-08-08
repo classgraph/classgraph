@@ -38,9 +38,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ClassInfo;
 import io.github.classgraph.MethodInfo;
-import io.github.classgraph.ScanResult;
 
 /**
  * Issue175Test.
@@ -51,17 +49,17 @@ public class Issue175Test {
      */
     @Test
     public void testSynthetic() {
-        final ClassLoader classLoader = Issue175Test.class.getClassLoader();
-        final String aJarName = "issue175-has-kotlin-enum.zip";
-        final URL aJarURL = classLoader.getResource(aJarName);
-        final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
+        final var classLoader = Issue175Test.class.getClassLoader();
+        final var aJarName = "issue175-has-kotlin-enum.zip";
+        final var aJarURL = classLoader.getResource(aJarName);
+        final var overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
-        try (ScanResult result = new ClassGraph().acceptPackages("net.corda.core.contracts") //
+        try (var result = new ClassGraph().acceptPackages("net.corda.core.contracts") //
                 .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().ignoreMethodVisibility()
                 .ignoreFieldVisibility().enableMethodInfo().enableFieldInfo().scan()) {
             final List<String> methods = new ArrayList<>();
             for (final String className : result.getAllClasses().getNames()) {
-                final ClassInfo classInfo = result.getClassInfo(className);
+                final var classInfo = result.getClassInfo(className);
                 for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
                     methods.add(method.toString());
                 }
@@ -78,16 +76,16 @@ public class Issue175Test {
      */
     @Test
     public void testMandated() {
-        final ClassLoader classLoader = Issue175Test.class.getClassLoader();
-        final String aJarName = "issue175-parameter-arity-mismatch.zip";
-        final URL aJarURL = classLoader.getResource(aJarName);
-        final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
+        final var classLoader = Issue175Test.class.getClassLoader();
+        final var aJarName = "issue175-parameter-arity-mismatch.zip";
+        final var aJarURL = classLoader.getResource(aJarName);
+        final var overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
-        try (ScanResult result = new ClassGraph().acceptPackages("net.corda.core") //
+        try (var result = new ClassGraph().acceptPackages("net.corda.core") //
                 .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan()) {
             final List<String> methods = new ArrayList<>();
             for (final String className : result.getAllClasses().getNames()) {
-                final ClassInfo classInfo = result.getClassInfo(className);
+                final var classInfo = result.getClassInfo(className);
                 for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
                     methods.add(method.toString());
                 }
@@ -103,16 +101,16 @@ public class Issue175Test {
      */
     @Test
     public void testMismatchedTypes() {
-        final ClassLoader classLoader = Issue175Test.class.getClassLoader();
-        final String aJarName = "issue175-type-signature-mismatch.zip";
-        final URL aJarURL = classLoader.getResource(aJarName);
-        final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
+        final var classLoader = Issue175Test.class.getClassLoader();
+        final var aJarName = "issue175-type-signature-mismatch.zip";
+        final var aJarURL = classLoader.getResource(aJarName);
+        final var overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
-        try (ScanResult result = new ClassGraph().acceptPackages("net.corda.core") //
+        try (var result = new ClassGraph().acceptPackages("net.corda.core") //
                 .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan()) {
             final List<String> methods = new ArrayList<>();
             for (final String className : result.getAllClasses().getNames()) {
-                final ClassInfo classInfo = result.getClassInfo(className);
+                final var classInfo = result.getClassInfo(className);
                 for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
                     methods.add(method.toString());
                 }
@@ -130,16 +128,16 @@ public class Issue175Test {
      */
     @Test
     public void testResultTypesNotReconciled1() {
-        final ClassLoader classLoader = Issue175Test.class.getClassLoader();
-        final String aJarName = "issue175-corresponding-type-parameters-do-not-refer-to-the same-bare-types.zip";
-        final URL aJarURL = classLoader.getResource(aJarName);
-        final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
+        final var classLoader = Issue175Test.class.getClassLoader();
+        final var aJarName = "issue175-corresponding-type-parameters-do-not-refer-to-the same-bare-types.zip";
+        final var aJarURL = classLoader.getResource(aJarName);
+        final var overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
-        try (ScanResult result = new ClassGraph().acceptPackages("net.corda.core.contracts") //
+        try (var result = new ClassGraph().acceptPackages("net.corda.core.contracts") //
                 .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan()) {
             final List<String> methods = new ArrayList<>();
             for (final String className : result.getAllClasses().getNames()) {
-                final ClassInfo classInfo = result.getClassInfo(className);
+                final var classInfo = result.getClassInfo(className);
                 for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
                     methods.add(method.toString());
                 }
@@ -164,16 +162,16 @@ public class Issue175Test {
      */
     @Test
     public void testResultTypesNotReconciled2() {
-        final ClassLoader classLoader = Issue175Test.class.getClassLoader();
-        final String aJarName = "issue175-result-types-couldnt-be-reconciled.zip";
-        final URL aJarURL = classLoader.getResource(aJarName);
-        final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
+        final var classLoader = Issue175Test.class.getClassLoader();
+        final var aJarName = "issue175-result-types-couldnt-be-reconciled.zip";
+        final var aJarURL = classLoader.getResource(aJarName);
+        final var overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
-        try (ScanResult result = new ClassGraph().acceptPackages("net.corda.testing.node") //
+        try (var result = new ClassGraph().acceptPackages("net.corda.testing.node") //
                 .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan()) {
             final List<String> methods = new ArrayList<>();
             for (final String className : result.getAllClasses().getNames()) {
-                final ClassInfo classInfo = result.getClassInfo(className);
+                final var classInfo = result.getClassInfo(className);
                 for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
                     methods.add(method.toString());
                 }
@@ -226,16 +224,16 @@ public class Issue175Test {
      */
     @Test
     public void testAttributeParameterMismatch() {
-        final ClassLoader classLoader = Issue175Test.class.getClassLoader();
-        final String aJarName = "issue175-attribute-parameter-mismatch.zip";
-        final URL aJarURL = classLoader.getResource(aJarName);
-        final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
+        final var classLoader = Issue175Test.class.getClassLoader();
+        final var aJarName = "issue175-attribute-parameter-mismatch.zip";
+        final var aJarURL = classLoader.getResource(aJarName);
+        final var overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
-        try (ScanResult result = new ClassGraph().acceptPackages("net.corda.core.node.services.vault") //
+        try (var result = new ClassGraph().acceptPackages("net.corda.core.node.services.vault") //
                 .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan()) {
             final List<String> methods = new ArrayList<>();
             for (final String className : result.getAllClasses().getNames()) {
-                final ClassInfo classInfo = result.getClassInfo(className);
+                final var classInfo = result.getClassInfo(className);
                 for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
                     methods.add(method.toString());
                 }
@@ -253,16 +251,16 @@ public class Issue175Test {
      */
     @Test
     public void testResultTypeReconciliationIssue() {
-        final ClassLoader classLoader = Issue175Test.class.getClassLoader();
-        final String aJarName = "issue175-result-type-could-not-reconcile.zip";
-        final URL aJarURL = classLoader.getResource(aJarName);
-        final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
+        final var classLoader = Issue175Test.class.getClassLoader();
+        final var aJarName = "issue175-result-type-could-not-reconcile.zip";
+        final var aJarURL = classLoader.getResource(aJarName);
+        final var overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
-        try (ScanResult result = new ClassGraph().acceptPackages("net.corda.client.jackson") //
+        try (var result = new ClassGraph().acceptPackages("net.corda.client.jackson") //
                 .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan()) {
             final List<String> methods = new ArrayList<>();
             for (final String className : result.getAllClasses().getNames()) {
-                final ClassInfo classInfo = result.getClassInfo(className);
+                final var classInfo = result.getClassInfo(className);
                 for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
                     methods.add(method.toString());
                 }
@@ -289,16 +287,16 @@ public class Issue175Test {
      */
     @Test
     public void testParameterArityMismatch() {
-        final ClassLoader classLoader = Issue175Test.class.getClassLoader();
-        final String aJarName = "issue175-missing-bare-types.zip";
-        final URL aJarURL = classLoader.getResource(aJarName);
-        final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
+        final var classLoader = Issue175Test.class.getClassLoader();
+        final var aJarName = "issue175-missing-bare-types.zip";
+        final var aJarURL = classLoader.getResource(aJarName);
+        final var overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
-        try (ScanResult result = new ClassGraph().acceptPackages("net.corda.core.node.services.vault") //
+        try (var result = new ClassGraph().acceptPackages("net.corda.core.node.services.vault") //
                 .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan()) {
             final List<String> methods = new ArrayList<>();
             for (final String className : result.getAllClasses().getNames()) {
-                final ClassInfo classInfo = result.getClassInfo(className);
+                final var classInfo = result.getClassInfo(className);
                 for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
                     methods.add(method.toString());
                 }
@@ -313,16 +311,16 @@ public class Issue175Test {
      */
     @Test
     public void testBareTypeIssue() {
-        final ClassLoader classLoader = Issue175Test.class.getClassLoader();
-        final String aJarName = "issue175-missing-bare-types2.zip";
-        final URL aJarURL = classLoader.getResource(aJarName);
-        final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
+        final var classLoader = Issue175Test.class.getClassLoader();
+        final var aJarName = "issue175-missing-bare-types2.zip";
+        final var aJarURL = classLoader.getResource(aJarName);
+        final var overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
-        try (ScanResult result = new ClassGraph().acceptPackages("net.corda.client.jackson") //
+        try (var result = new ClassGraph().acceptPackages("net.corda.client.jackson") //
                 .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan()) {
             final List<String> methods = new ArrayList<>();
             for (final String className : result.getAllClasses().getNames()) {
-                final ClassInfo classInfo = result.getClassInfo(className);
+                final var classInfo = result.getClassInfo(className);
                 for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
                     methods.add(method.toString());
                 }

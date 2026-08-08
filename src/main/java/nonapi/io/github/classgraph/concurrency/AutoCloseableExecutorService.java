@@ -43,8 +43,7 @@ public class AutoCloseableExecutorService extends ThreadPoolExecutor implements 
     /**
      * A ThreadPoolExecutor that can be used in a try-with-resources block.
      * 
-     * @param numThreads
-     *            The number of threads to allocate.
+     * @param numThreads The number of threads to allocate.
      */
     public AutoCloseableExecutorService(final int numThreads) {
         super(numThreads, numThreads, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(),
@@ -52,13 +51,11 @@ public class AutoCloseableExecutorService extends ThreadPoolExecutor implements 
     }
 
     /**
-     * Catch exceptions from both submit() and execute(), and call {@link InterruptionChecker#interrupt()} to
-     * interrupt all threads.
+     * Catch exceptions from both submit() and execute(), and call
+     * {@link InterruptionChecker#interrupt()} to interrupt all threads.
      *
-     * @param runnable
-     *            the Runnable
-     * @param throwable
-     *            the Throwable
+     * @param runnable  the Runnable
+     * @param throwable the Throwable
      */
     @Override
     public void afterExecute(final Runnable runnable, final Throwable throwable) {
@@ -69,7 +66,7 @@ public class AutoCloseableExecutorService extends ThreadPoolExecutor implements 
             // execute() was called and an uncaught exception or error was thrown
             interruptionChecker.interrupt();
         } else if (/* throwable == null && */ runnable instanceof final Future<?> future) {
-            // submit() was called, so throwable is not set 
+            // submit() was called, so throwable is not set
             try {
                 // This call will not block, since execution has finished
                 future.get();
@@ -94,7 +91,7 @@ public class AutoCloseableExecutorService extends ThreadPoolExecutor implements 
         } catch (final SecurityException e) {
             // Ignore for now (caught again if shutdownNow() fails)
         }
-        boolean terminated = false;
+        var terminated = false;
         try {
             // Await termination of any running tasks
             terminated = awaitTermination(2500, TimeUnit.MILLISECONDS);

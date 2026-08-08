@@ -28,15 +28,16 @@
  */
 
 /**
- * <a href="https://github.com/classgraph/classgraph">ClassGraph</a>: the uber-fast, ultra-lightweight classpath
- * and module scanner for JVM languages.
- * 
+ * <a href="https://github.com/classgraph/classgraph">ClassGraph</a>: the
+ * uber-fast, ultra-lightweight classpath and module scanner for JVM languages.
+ *
  * @author Luke Hutchison
  */
 module io.github.classgraph {
     exports io.github.classgraph;
 
-    // N.B. make sure the "Import-Package" entries in the manifest (in pom.xml) match these "requires" statements
+    // N.B. make sure the "Import-Package" entries in the manifest (in pom.xml)
+    // match these "requires" statements
     // VersionFinder requires java.xml
     requires java.xml;
     // FileUtils requires jdk.unsupported (for usage of Unsafe)

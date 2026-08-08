@@ -12,12 +12,9 @@ public class Square extends ShapeImpl {
     /**
      * Constructor.
      *
-     * @param x
-     *            the x
-     * @param y
-     *            the y
-     * @param size
-     *            the size
+     * @param x    the x
+     * @param y    the y
+     * @param size the size
      */
     public Square(final float x, final float y, final float size) {
         super(x, y);
@@ -33,7 +30,9 @@ public class Square extends ShapeImpl {
         return size;
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see com.xyz.fig.shape.ShapeImpl#draw(java.awt.Graphics2D)
      */
     @Override

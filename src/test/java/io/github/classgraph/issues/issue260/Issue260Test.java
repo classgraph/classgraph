@@ -33,7 +33,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ScanResult;
 
 /**
  * Issue260Test.
@@ -44,8 +43,8 @@ public class Issue260Test {
      */
     @Test
     public void issue260Test() {
-        try (ScanResult scanResult = new ClassGraph().acceptPackages(Issue260Test.class.getPackage().getName())
-                .enableAllInfo().scan()) {
+        try (var scanResult = new ClassGraph().acceptPackages(Issue260Test.class.getPackage().getName()).enableAllInfo()
+                .scan()) {
             // Should be no exception here
             assertThat(true).isTrue();
         }

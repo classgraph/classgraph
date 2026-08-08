@@ -37,8 +37,9 @@ import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
 
 /**
- * A placeloader ClassLoaderHandler that matches Java 9+ classloaders, but does not attempt to extract URLs from
- * them (module scanning uses a different mechanism from classpath scanning).
+ * A placeloader ClassLoaderHandler that matches Java 9+ classloaders, but does
+ * not attempt to extract URLs from them (module scanning uses a different
+ * mechanism from classpath scanning).
  */
 class JPMSClassLoaderHandler implements ClassLoaderHandler {
     @Override
@@ -59,20 +60,25 @@ class JPMSClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
             final ScanSpec scanSpec, final LogNode log) {
-        // The JDK9 classloaders have a field, `URLClassPath ucp`, containing URLs for unnamed modules,
-        // but it is not visible. Modules therefore have to be scanned using the JPMS API.
-        // However, it is possible for a Java agent to extend UCP by adding directly to the `ucp` field
-        // (#537), and there is no way to read this field. Therefore, we need to use Narcissus to break
+        // The JDK9 classloaders have a field, `URLClassPath ucp`, containing URLs for
+        // unnamed modules,
+        // but it is not visible. Modules therefore have to be scanned using the JPMS
+        // API.
+        // However, it is possible for a Java agent to extend UCP by adding directly to
+        // the `ucp` field
+        // (#537), and there is no way to read this field. Therefore, we need to use
+        // Narcissus to break
         // Java's encapsulation to read this, for this small corner case.
-        final Object ucpVal = classpathOrder.reflectionUtils.getFieldVal(false, classLoader, "ucp");
+        final var ucpVal = classpathOrder.reflectionUtils.getFieldVal(false, classLoader, "ucp");
         if (ucpVal != null) {
-            final URL[] urls = (URL[]) classpathOrder.reflectionUtils.invokeMethod(false, ucpVal, "getURLs");
+            final var urls = (URL[]) classpathOrder.reflectionUtils.invokeMethod(false, ucpVal, "getURLs");
             classpathOrder.addClasspathEntryObject(urls, classLoader, scanSpec, log);
         }
     }
 
     /**
-     * Get the automatic package root prefixes for classpath elements obtained from this classloader.
+     * Get the automatic package root prefixes for classpath elements obtained from
+     * this classloader.
      *
      * <p>
      * Modules always have their classes at the root of the module.

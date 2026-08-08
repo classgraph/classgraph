@@ -9,13 +9,8 @@ import java.lang.annotation.RetentionPolicy;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.AnnotationClassRef;
-import io.github.classgraph.ArrayClassInfo;
 import io.github.classgraph.ArrayTypeSignature;
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ClassInfo;
-import io.github.classgraph.ClassInfoList;
-import io.github.classgraph.MethodParameterInfo;
-import io.github.classgraph.ScanResult;
 
 /**
  * Unit test.
@@ -51,8 +46,7 @@ public class Issue355Test {
         /**
          * method with array-typed param.
          *
-         * @param x
-         *            the x
+         * @param x the x
          */
         public void y(final X[] x) {
         }
@@ -61,36 +55,33 @@ public class Issue355Test {
     /**
      * Test.
      *
-     * @throws IOException
-     *             Signals that an I/O exception has occurred.
+     * @throws IOException Signals that an I/O exception has occurred.
      */
     @Test
     public void test() throws IOException {
-        try (ScanResult scanResult = new ClassGraph()
-                .acceptPackagesNonRecursive(Issue355Test.class.getPackage().getName()).enableClassInfo()
-                .enableInterClassDependencies().scan()) {
-            final ClassInfo y = scanResult.getClassInfo(Y.class.getName());
-            final ClassInfo x = scanResult.getClassInfo(X.class.getName());
+        try (var scanResult = new ClassGraph().acceptPackagesNonRecursive(Issue355Test.class.getPackage().getName())
+                .enableClassInfo().enableInterClassDependencies().scan()) {
+            final var y = scanResult.getClassInfo(Y.class.getName());
+            final var x = scanResult.getClassInfo(X.class.getName());
             assertThat(y).isNotNull();
             assertThat(x).isNotNull();
 
             // Test array-typed annotation parameter
-            final Object annParamVal = ((Object[]) y.getAnnotationInfo().get(0).getParameterValues().get(0)
-                    .getValue())[0];
+            final var annParamVal = ((Object[]) y.getAnnotationInfo().get(0).getParameterValues().get(0).getValue())[0];
             assertThat(annParamVal).isInstanceOf(AnnotationClassRef.class);
-            final AnnotationClassRef annClassRef = (AnnotationClassRef) annParamVal;
+            final var annClassRef = (AnnotationClassRef) annParamVal;
             assertThat(annClassRef.getClassInfo().getName()).isEqualTo(X.class.getName());
 
-            // Test class dep from annotation param of array element type shows up in class deps
-            final ClassInfoList yDeps = scanResult.getClassDependencyMap().get(y);
+            // Test class dep from annotation param of array element type shows up in class
+            // deps
+            final var yDeps = scanResult.getClassDependencyMap().get(y);
             assertThat(yDeps).isNotNull();
             assertThat(yDeps).contains(x);
 
             // Test array-typed method parameter
-            final MethodParameterInfo yParam = y.getMethodInfo().get(0).getParameterInfo()[0];
-            final ArrayTypeSignature paramTypeSignature = (ArrayTypeSignature) yParam
-                    .getTypeSignatureOrTypeDescriptor();
-            final ArrayClassInfo arrayClassInfo = paramTypeSignature.getArrayClassInfo();
+            final var yParam = y.getMethodInfo().get(0).getParameterInfo()[0];
+            final var paramTypeSignature = (ArrayTypeSignature) yParam.getTypeSignatureOrTypeDescriptor();
+            final var arrayClassInfo = paramTypeSignature.getArrayClassInfo();
             assertThat(arrayClassInfo.getElementClassInfo().equals(x));
             assertThat(arrayClassInfo.loadClass()).isEqualTo(X[].class);
             assertThat(arrayClassInfo.loadElementClass()).isEqualTo(X.class);

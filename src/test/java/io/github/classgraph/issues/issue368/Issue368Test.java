@@ -33,7 +33,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ScanResult;
 import nonapi.io.github.classgraph.json.JSONDeserializer;
 import nonapi.io.github.classgraph.json.JSONSerializer;
 
@@ -56,12 +55,11 @@ public class Issue368Test {
      */
     @Test
     public void issue368Test() {
-        try (ScanResult scanResult = new ClassGraph().acceptPackages(Issue368Test.class.getPackage().getName())
-                .enableAllInfo().scan()) {
-            final String json = JSONSerializer.serializeObject(new InnerClass());
-            assertThat(json)
-                    .isEqualTo("{\"innerClassField\":\"io.github.classgraph.issues.issue368.Issue368Test\"}");
-            final InnerClass deserialized = JSONDeserializer.deserializeObject(InnerClass.class, json);
+        try (var scanResult = new ClassGraph().acceptPackages(Issue368Test.class.getPackage().getName()).enableAllInfo()
+                .scan()) {
+            final var json = JSONSerializer.serializeObject(new InnerClass());
+            assertThat(json).isEqualTo("{\"innerClassField\":\"io.github.classgraph.issues.issue368.Issue368Test\"}");
+            final var deserialized = JSONDeserializer.deserializeObject(InnerClass.class, json);
             assertThat(deserialized.innerClassField == Issue368Test.class);
         }
     }

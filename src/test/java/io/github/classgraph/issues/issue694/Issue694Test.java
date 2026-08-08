@@ -2,7 +2,6 @@ package io.github.classgraph.issues.issue694;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -12,7 +11,6 @@ import org.junit.jupiter.api.Test;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
 import io.github.classgraph.MethodInfo;
-import io.github.classgraph.ScanResult;
 
 public class Issue694Test {
     static class TestClass {
@@ -24,7 +22,7 @@ public class Issue694Test {
 
     @Test
     void methodWithParam() {
-        final ScanResult scan = new ClassGraph().acceptClasses(Issue694Test.class.getName()).enableAnnotationInfo()
+        final var scan = new ClassGraph().acceptClasses(Issue694Test.class.getName()).enableAnnotationInfo()
                 .enableMethodInfo().scan();
 
         final List<String> foundMethods = new ArrayList<>();
@@ -32,7 +30,7 @@ public class Issue694Test {
         for (final ClassInfo info : scan.getAllStandardClasses()) {
             for (final MethodInfo methodInfo : info.getDeclaredMethodInfo()) {
                 foundMethodInfo.add(methodInfo.toString());
-                final Method method = methodInfo.loadClassAndGetMethod();
+                final var method = methodInfo.loadClassAndGetMethod();
                 foundMethods.add(method.toString());
             }
         }

@@ -27,7 +27,7 @@ jobs:
         java-version: ${{ matrix.java }}
         # Cache ~/.m2/repository and (as a separate entry, keyed on
         # .mvn/wrapper/maven-wrapper.properties) ~/.m2/wrapper/dists, so that the Maven
-        # distribution and the dependencies are not re-downloaded by all 24 matrix jobs on
+        # distribution and the dependencies are not re-downloaded by all 27 matrix jobs on
         # every run. repo.maven.apache.org rate-limits (HTTP 429), which has failed builds.
         cache: 'maven'
     - name: print Java version

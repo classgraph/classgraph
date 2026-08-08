@@ -35,7 +35,10 @@ import java.util.Set;
 
 import nonapi.io.github.classgraph.utils.LogNode;
 
-/** A wrapper used to pair annotation parameter names with annotation parameter values. */
+/**
+ * A wrapper used to pair annotation parameter names with annotation parameter
+ * values.
+ */
 public class AnnotationParameterValue extends ScanResultObject
         implements HasName, Comparable<AnnotationParameterValue> {
     /** The parameter name. */
@@ -52,10 +55,8 @@ public class AnnotationParameterValue extends ScanResultObject
     /**
      * Constructor.
      *
-     * @param name
-     *            The annotation parameter name.
-     * @param value
-     *            The annotation parameter value.
+     * @param name  The annotation parameter name.
+     * @param value The annotation parameter value.
      */
     AnnotationParameterValue(final String name, final Object value) {
         super();
@@ -80,15 +81,17 @@ public class AnnotationParameterValue extends ScanResultObject
      *         <ul>
      *         <li>String for string constants
      *         <li>String[] for arrays of strings
-     *         <li>A boxed type, e.g. Integer or Character, for primitive-typed constants
-     *         <li>A 1-dimensional primitive-typed array (i.e. int[], long[], short[], char[], byte[], boolean[],
-     *         float[], or double[]), for arrays of primitives
-     *         <li>A 1-dimensional {@link Object}[] array for array types (and then the array element type may be
-     *         one of the types in this list)
-     *         <li>{@link AnnotationEnumValue}, for enum constants (this wraps the enum class and the string name of
-     *         the constant)
-     *         <li>{@link AnnotationClassRef}, for Class references within annotations (this wraps the name of the
-     *         referenced class)
+     *         <li>A boxed type, e.g. Integer or Character, for primitive-typed
+     *         constants
+     *         <li>A 1-dimensional primitive-typed array (i.e. int[], long[],
+     *         short[], char[], byte[], boolean[], float[], or double[]), for arrays
+     *         of primitives
+     *         <li>A 1-dimensional {@link Object}[] array for array types (and then
+     *         the array element type may be one of the types in this list)
+     *         <li>{@link AnnotationEnumValue}, for enum constants (this wraps the
+     *         enum class and the string name of the constant)
+     *         <li>{@link AnnotationClassRef}, for Class references within
+     *         annotations (this wraps the name of the referenced class)
      *         <li>{@link AnnotationInfo}, for nested annotations
      *         </ul>
      */
@@ -97,11 +100,10 @@ public class AnnotationParameterValue extends ScanResultObject
     }
 
     /**
-     * Set (update) the value of the annotation parameter. Used to replace Object[] arrays containing boxed types
-     * into primitive arrays.
+     * Set (update) the value of the annotation parameter. Used to replace Object[]
+     * arrays containing boxed types into primitive arrays.
      *
-     * @param newValue
-     *            the new value
+     * @param newValue the new value
      */
     void setValue(final Object newValue) {
         this.value = new ObjectTypedValueWrapper(newValue);
@@ -109,16 +111,21 @@ public class AnnotationParameterValue extends ScanResultObject
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see io.github.classgraph.ScanResultObject#getClassName()
      */
     @Override
     protected String getClassName() {
-        // getClassInfo() is not valid for this type, so getClassName() does not need to be implemented
+        // getClassInfo() is not valid for this type, so getClassName() does not need to
+        // be implemented
         throw new IllegalArgumentException("getClassName() cannot be called here");
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see io.github.classgraph.ScanResultObject#getClassInfo()
      */
     @Override
@@ -126,8 +133,12 @@ public class AnnotationParameterValue extends ScanResultObject
         throw new IllegalArgumentException("getClassInfo() cannot be called here");
     }
 
-    /* (non-Javadoc)
-     * @see io.github.classgraph.ScanResultObject#setScanResult(io.github.classgraph.ScanResult)
+    /*
+     * (non-Javadoc)
+     *
+     * @see
+     * io.github.classgraph.ScanResultObject#setScanResult(io.github.classgraph.
+     * ScanResult)
      */
     @Override
     void setScanResult(final ScanResult scanResult) {
@@ -138,12 +149,11 @@ public class AnnotationParameterValue extends ScanResultObject
     }
 
     /**
-     * Get {@link ClassInfo} objects for any classes referenced in the annotation parameters.
+     * Get {@link ClassInfo} objects for any classes referenced in the annotation
+     * parameters.
      *
-     * @param classNameToClassInfo
-     *            the map from class name to {@link ClassInfo}.
-     * @param refdClassInfo
-     *            the referenced class info
+     * @param classNameToClassInfo the map from class name to {@link ClassInfo}.
+     * @param refdClassInfo        the referenced class info
      */
     @Override
     protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
@@ -156,11 +166,11 @@ public class AnnotationParameterValue extends ScanResultObject
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * For primitive array type params, replace Object[] arrays containing boxed types with primitive arrays (need
-     * to check the type of each method of the annotation class to determine if it is a primitive array type).
+     * For primitive array type params, replace Object[] arrays containing boxed
+     * types with primitive arrays (need to check the type of each method of the
+     * annotation class to determine if it is a primitive array type).
      *
-     * @param annotationClassInfo
-     *            the annotation class info
+     * @param annotationClassInfo the annotation class info
      */
     void convertWrapperArraysToPrimitiveArrays(final ClassInfo annotationClassInfo) {
         if (value != null) {
@@ -171,8 +181,7 @@ public class AnnotationParameterValue extends ScanResultObject
     /**
      * Instantiate an annotation parameter value.
      *
-     * @param annotationClassInfo
-     *            the annotation class info
+     * @param annotationClassInfo the annotation class info
      * @return the instance
      */
     Object instantiate(final ClassInfo annotationClassInfo) {
@@ -181,7 +190,9 @@ public class AnnotationParameterValue extends ScanResultObject
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.Comparable#compareTo(java.lang.Object)
      */
     @Override
@@ -189,38 +200,45 @@ public class AnnotationParameterValue extends ScanResultObject
         if (other == this) {
             return 0;
         }
-        final int diff = name.compareTo(other.getName());
+        final var diff = name.compareTo(other.getName());
         if (diff != 0) {
             return diff;
         }
-        // N.B. value is null for an AnnotationParameterValue that has been deserialized but not yet populated
+        // N.B. value is null for an AnnotationParameterValue that has been deserialized
+        // but not yet populated
         if (value == null ? other.value == null : value.equals(other.value)) {
             return 0;
         }
-        // Use toString() order (which can be slow) as a last-ditch effort -- only happens
-        // if the annotation has multiple parameters of the same name but different value.
-        final Object p0 = getValue();
-        final Object p1 = other.getValue();
+        // Use toString() order (which can be slow) as a last-ditch effort -- only
+        // happens
+        // if the annotation has multiple parameters of the same name but different
+        // value.
+        final var p0 = getValue();
+        final var p1 = other.getValue();
         return p0 == null || p1 == null ? (p0 == null ? 0 : 1) - (p1 == null ? 0 : 1)
                 : toStringParamValueOnly().compareTo(other.toStringParamValueOnly());
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
     public boolean equals(final Object obj) {
         if (obj == this) {
             return true;
-        } else if (!(obj instanceof AnnotationParameterValue)) {
+        }
+        if (!(obj instanceof final AnnotationParameterValue other)) {
             return false;
         }
-        final AnnotationParameterValue other = (AnnotationParameterValue) obj;
         return this.name.equals(other.name) && (value == null) == (other.value == null)
                 && (value == null || value.equals(other.value));
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.Object#hashCode()
      */
     @Override
@@ -240,18 +258,15 @@ public class AnnotationParameterValue extends ScanResultObject
     /**
      * Write an annotation parameter value's string representation to the buffer.
      *
-     * @param val
-     *            the value
-     * @param useSimpleNames
-     *            the use simple names
-     * @param buf
-     *            the buffer
+     * @param val            the value
+     * @param useSimpleNames the use simple names
+     * @param buf            the buffer
      */
     private static void toString(final Object val, final boolean useSimpleNames, final StringBuilder buf) {
         if (val == null) {
             buf.append("null");
-        } else if (val instanceof ScanResultObject) {
-            ((ScanResultObject) val).toString(useSimpleNames, buf);
+        } else if (val instanceof final ScanResultObject scanResultObject) {
+            scanResultObject.toString(useSimpleNames, buf);
         } else {
             buf.append(val);
         }
@@ -260,16 +275,14 @@ public class AnnotationParameterValue extends ScanResultObject
     /**
      * To string, param value only.
      *
-     * @param useSimpleNames
-     *            whether to use simple names for classes
-     * @param buf
-     *            the buf
+     * @param useSimpleNames whether to use simple names for classes
+     * @param buf            the buf
      */
     void toStringParamValueOnly(final boolean useSimpleNames, final StringBuilder buf) {
         if (value == null) {
             buf.append("null");
         } else {
-            final Object paramVal = value.get();
+            final var paramVal = value.get();
             final Class<?> valClass = paramVal.getClass();
             if (valClass.isArray()) {
                 buf.append('{');
@@ -277,17 +290,17 @@ public class AnnotationParameterValue extends ScanResultObject
                     if (j > 0) {
                         buf.append(", ");
                     }
-                    final Object elt = Array.get(paramVal, j);
+                    final var elt = Array.get(paramVal, j);
                     toString(elt, useSimpleNames, buf);
                 }
                 buf.append('}');
-            } else if (paramVal instanceof String) {
+            } else if (paramVal instanceof final String str) {
                 buf.append('"');
-                buf.append(paramVal.toString().replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r"));
+                buf.append(str.replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r"));
                 buf.append('"');
-            } else if (paramVal instanceof Character) {
+            } else if (paramVal instanceof final Character chr) {
                 buf.append('\'');
-                buf.append(paramVal.toString().replace("'", "\\'").replace("\n", "\\n").replace("\r", "\\r"));
+                buf.append(chr.toString().replace("'", "\\'").replace("\n", "\\n").replace("\r", "\\r"));
                 buf.append('\'');
             } else {
                 toString(paramVal, useSimpleNames, buf);

@@ -34,8 +34,9 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Annotate a class field with this annotation to use that field's value instead of the automatically-generated id
- * for object references in JSON output. The field value must be a unique identifier across the whole object graph.
+ * Annotate a class field with this annotation to use that field's value instead
+ * of the automatically-generated id for object references in JSON output. The
+ * field value must be a unique identifier across the whole object graph.
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.FIELD)

@@ -33,7 +33,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ScanResult;
 
 /**
  * Issue101Test.
@@ -44,8 +43,8 @@ public class Issue101Test {
      */
     @Test
     public void nonInheritedAnnotation() {
-        try (ScanResult scanResult = new ClassGraph().acceptPackages(Issue101Test.class.getPackage().getName())
-                .enableAllInfo().scan()) {
+        try (var scanResult = new ClassGraph().acceptPackages(Issue101Test.class.getPackage().getName()).enableAllInfo()
+                .scan()) {
             assertThat(scanResult.getClassesWithAnnotation(NonInheritedAnnotation.class).getNames())
                     .containsOnly(AnnotatedClass.class.getName());
         }
@@ -56,10 +55,11 @@ public class Issue101Test {
      */
     @Test
     public void inheritedMetaAnnotation() {
-        try (ScanResult scanResult = new ClassGraph().acceptPackages(Issue101Test.class.getPackage().getName())
-                .enableAllInfo().scan()) {
-            assertThat(scanResult.getClassesWithAnnotation(InheritedMetaAnnotation.class).getStandardClasses()
-                    .getNames()).containsOnly(AnnotatedClass.class.getName(), NonAnnotatedSubclass.class.getName());
+        try (var scanResult = new ClassGraph().acceptPackages(Issue101Test.class.getPackage().getName()).enableAllInfo()
+                .scan()) {
+            assertThat(
+                    scanResult.getClassesWithAnnotation(InheritedMetaAnnotation.class).getStandardClasses().getNames())
+                    .containsOnly(AnnotatedClass.class.getName(), NonAnnotatedSubclass.class.getName());
         }
     }
 
@@ -68,8 +68,8 @@ public class Issue101Test {
      */
     @Test
     public void inheritedAnnotation() {
-        try (ScanResult scanResult = new ClassGraph().acceptPackages(Issue101Test.class.getPackage().getName())
-                .enableAllInfo().scan()) {
+        try (var scanResult = new ClassGraph().acceptPackages(Issue101Test.class.getPackage().getName()).enableAllInfo()
+                .scan()) {
             assertThat(scanResult.getClassesWithAnnotation(InheritedAnnotation.class).getNames()).containsOnly(
                     AnnotatedClass.class.getName(), NonAnnotatedSubclass.class.getName(),
                     AnnotatedInterface.class.getName());

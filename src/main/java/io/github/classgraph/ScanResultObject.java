@@ -35,7 +35,8 @@ import java.util.Set;
 import nonapi.io.github.classgraph.utils.LogNode;
 
 /**
- * A superclass of objects accessible from a {@link ScanResult} that are associated with a {@link ClassInfo} object.
+ * A superclass of objects accessible from a {@link ScanResult} that are
+ * associated with a {@link ClassInfo} object.
  */
 abstract class ScanResultObject {
     /** The scan result. */
@@ -52,8 +53,7 @@ abstract class ScanResultObject {
     /**
      * Set ScanResult backreferences in info objects after scan has completed.
      *
-     * @param scanResult
-     *            the scan result
+     * @param scanResult the scan result
      */
     void setScanResult(final ScanResult scanResult) {
         this.scanResult = scanResult;
@@ -62,8 +62,7 @@ abstract class ScanResultObject {
     /**
      * Get {@link ClassInfo} objects for any classes referenced by this object.
      *
-     * @param log
-     *            the log
+     * @param log the log
      * @return the referenced class info.
      */
     final Set<ClassInfo> findReferencedClassInfo(final LogNode log) {
@@ -77,16 +76,13 @@ abstract class ScanResultObject {
     /**
      * Get {@link ClassInfo} objects for any classes referenced by this object.
      *
-     * @param classNameToClassInfo
-     *            the map from class name to {@link ClassInfo}.
-     * @param refdClassInfo
-     *            the referenced class info
-     * @param log
-     *            the log
+     * @param classNameToClassInfo the map from class name to {@link ClassInfo}.
+     * @param refdClassInfo        the referenced class info
+     * @param log                  the log
      */
     protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
             final Set<ClassInfo> refdClassInfo, final LogNode log) {
-        final ClassInfo ci = getClassInfo();
+        final var ci = getClassInfo();
         if (ci != null) {
             refdClassInfo.add(ci);
         }
@@ -95,16 +91,19 @@ abstract class ScanResultObject {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * The name of the class (used by {@link #getClassInfo()} to fetch the {@link ClassInfo} object for the class).
+     * The name of the class (used by {@link #getClassInfo()} to fetch the
+     * {@link ClassInfo} object for the class).
      * 
      * @return The class name.
      */
     protected abstract String getClassName();
 
     /**
-     * Get the {@link ClassInfo} object for the referenced class, or null if the referenced class was not
-     * encountered during scanning (i.e. no ClassInfo object was created for the class during scanning). N.B. even
-     * if this method returns null, {@link #loadClass()} may be able to load the referenced class by name.
+     * Get the {@link ClassInfo} object for the referenced class, or null if the
+     * referenced class was not encountered during scanning (i.e. no ClassInfo
+     * object was created for the class during scanning). N.B. even if this method
+     * returns null, {@link #loadClass()} may be able to load the referenced class
+     * by name.
      * 
      * @return The {@link ClassInfo} object for the referenced class.
      */
@@ -113,7 +112,7 @@ abstract class ScanResultObject {
             if (scanResult == null) {
                 return null;
             }
-            final String className = getClassName();
+            final var className = getClassName();
             if (className == null) {
                 throw new IllegalArgumentException("Class name is not set");
             }
@@ -123,7 +122,8 @@ abstract class ScanResultObject {
     }
 
     /**
-     * Get the class name by calling getClassInfo().getName(), or as a fallback, by calling getClassName().
+     * Get the class name by calling getClassInfo().getName(), or as a fallback, by
+     * calling getClassName().
      *
      * @return the class name
      */
@@ -139,10 +139,10 @@ abstract class ScanResultObject {
             ci = classInfo;
         }
         if (ci != null) {
-            // Get class name from getClassInfo().getName() 
+            // Get class name from getClassInfo().getName()
             className = ci.getName();
         } else {
-            // Get class name from getClassName() 
+            // Get class name from getClassName()
             className = getClassName();
         }
         if (className == null) {
@@ -154,26 +154,26 @@ abstract class ScanResultObject {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Load the class named returned by {@link #getClassInfo()}, or if that returns null, the class named by
-     * {@link #getClassName()}. Returns a {@code Class<?>} reference for the class, cast to the requested superclass
-     * or interface type.
+     * Load the class named returned by {@link #getClassInfo()}, or if that returns
+     * null, the class named by {@link #getClassName()}. Returns a {@code Class<?>}
+     * reference for the class, cast to the requested superclass or interface type.
      *
-     * @param <T>
-     *            the superclass or interface type
-     * @param superclassOrInterfaceType
-     *            The type to cast the resulting class reference to.
-     * @param ignoreExceptions
-     *            If true, ignore classloading exceptions and return null on failure.
-     * @return The {@code Class<?>} reference for the referenced class, or null if the class could not be loaded (or
-     *         casting failed) and ignoreExceptions is true.
-     * @throws IllegalArgumentException
-     *             if the class could not be loaded or cast, and ignoreExceptions was false.
+     * @param <T>                       the superclass or interface type
+     * @param superclassOrInterfaceType The type to cast the resulting class
+     *                                  reference to.
+     * @param ignoreExceptions          If true, ignore classloading exceptions and
+     *                                  return null on failure.
+     * @return The {@code Class<?>} reference for the referenced class, or null if
+     *         the class could not be loaded (or casting failed) and
+     *         ignoreExceptions is true.
+     * @throws IllegalArgumentException if the class could not be loaded or cast,
+     *                                  and ignoreExceptions was false.
      */
     <T> Class<T> loadClass(final Class<T> superclassOrInterfaceType, final boolean ignoreExceptions) {
         synchronized (this) {
             // If class is not already loaded, try loading class
             if (classRef == null) {
-                final String className = getClassInfoNameOrClassName();
+                final var className = getClassInfoNameOrClassName();
                 try {
                     classRef = scanResult != null
                             ? scanResult.loadClass(className, superclassOrInterfaceType, ignoreExceptions)
@@ -195,37 +195,38 @@ abstract class ScanResultObject {
     }
 
     /**
-     * Load the class named returned by {@link #getClassInfo()}, or if that returns null, the class named by
-     * {@link #getClassName()}. Returns a {@code Class<?>} reference for the class, cast to the requested superclass
-     * or interface type.
+     * Load the class named returned by {@link #getClassInfo()}, or if that returns
+     * null, the class named by {@link #getClassName()}. Returns a {@code Class<?>}
+     * reference for the class, cast to the requested superclass or interface type.
      *
-     * @param <T>
-     *            the superclass or interface type
-     * @param superclassOrInterfaceType
-     *            The type to cast the resulting class reference to.
-     * @return The {@code Class<?>} reference for the referenced class, or null if the class could not be loaded (or
-     *         casting failed) and ignoreExceptions is true.
-     * @throws IllegalArgumentException
-     *             if the class could not be loaded or cast, and ignoreExceptions was false.
+     * @param <T>                       the superclass or interface type
+     * @param superclassOrInterfaceType The type to cast the resulting class
+     *                                  reference to.
+     * @return The {@code Class<?>} reference for the referenced class, or null if
+     *         the class could not be loaded (or casting failed) and
+     *         ignoreExceptions is true.
+     * @throws IllegalArgumentException if the class could not be loaded or cast,
+     *                                  and ignoreExceptions was false.
      */
     <T> Class<T> loadClass(final Class<T> superclassOrInterfaceType) {
         return loadClass(superclassOrInterfaceType, /* ignoreExceptions = */ false);
     }
 
     /**
-     * Load the class named returned by {@link #getClassInfo()}, or if that returns null, the class named by
-     * {@link #getClassName()}. Returns a {@code Class<?>} reference for the class.
+     * Load the class named returned by {@link #getClassInfo()}, or if that returns
+     * null, the class named by {@link #getClassName()}. Returns a {@code Class<?>}
+     * reference for the class.
      * 
-     * @param ignoreExceptions
-     *            If true, ignore classloading exceptions and return null on failure.
-     * @return The {@code Class<?>} reference for the referenced class, or null if the class could not be loaded and
-     *         ignoreExceptions is true.
-     * @throws IllegalArgumentException
-     *             if the class could not be loaded and ignoreExceptions was false.
+     * @param ignoreExceptions If true, ignore classloading exceptions and return
+     *                         null on failure.
+     * @return The {@code Class<?>} reference for the referenced class, or null if
+     *         the class could not be loaded and ignoreExceptions is true.
+     * @throws IllegalArgumentException if the class could not be loaded and
+     *                                  ignoreExceptions was false.
      */
     Class<?> loadClass(final boolean ignoreExceptions) {
         if (classRef == null) {
-            final String className = getClassInfoNameOrClassName();
+            final var className = getClassInfoNameOrClassName();
             if (scanResult != null) {
                 classRef = scanResult.loadClass(className, ignoreExceptions);
             } else {
@@ -243,12 +244,12 @@ abstract class ScanResultObject {
     }
 
     /**
-     * Load the class named returned by {@link #getClassInfo()}, or if that returns null, the class named by
-     * {@link #getClassName()}. Returns a {@code Class<?>} reference for the class.
+     * Load the class named returned by {@link #getClassInfo()}, or if that returns
+     * null, the class named by {@link #getClassName()}. Returns a {@code Class<?>}
+     * reference for the class.
      * 
      * @return The {@code Class<?>} reference for the referenced class.
-     * @throws IllegalArgumentException
-     *             if the class could not be loaded.
+     * @throws IllegalArgumentException if the class could not be loaded.
      */
     Class<?> loadClass() {
         return loadClass(/* ignoreExceptions = */ false);
@@ -259,18 +260,15 @@ abstract class ScanResultObject {
     /**
      * Render to string.
      *
-     * @param useSimpleNames
-     *            if true, use just the simple name of each class.
-     * @param buf
-     *            the buf
+     * @param useSimpleNames if true, use just the simple name of each class.
+     * @param buf            the buf
      */
     protected abstract void toString(final boolean useSimpleNames, StringBuilder buf);
 
     /**
      * Render to string, with simple names for classes if useSimpleNames is true.
      *
-     * @param useSimpleNames
-     *            if true, use just the simple name of each class.
+     * @param useSimpleNames if true, use just the simple name of each class.
      * @return the string representation.
      */
     String toString(final boolean useSimpleNames) {

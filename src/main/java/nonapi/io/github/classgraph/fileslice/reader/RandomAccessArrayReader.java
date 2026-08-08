@@ -36,8 +36,8 @@ import java.nio.ReadOnlyBufferException;
 import nonapi.io.github.classgraph.utils.StringUtils;
 
 /**
- * {@link RandomAccessReader} backed by a byte array. Reads in <b>little endian</b> order, as required by the
- * zipfile format.
+ * {@link RandomAccessReader} backed by a byte array. Reads in <b>little
+ * endian</b> order, as required by the zipfile format.
  */
 public class RandomAccessArrayReader implements RandomAccessReader {
     /** The array. */
@@ -52,12 +52,9 @@ public class RandomAccessArrayReader implements RandomAccessReader {
     /**
      * Constructor for slicing an array.
      *
-     * @param arr
-     *            the array to slice.
-     * @param sliceStartPos
-     *            the start index of the slice within the array.
-     * @param sliceLength
-     *            the length of the slice within the array.
+     * @param arr           the array to slice.
+     * @param sliceStartPos the start index of the slice within the array.
+     * @param sliceLength   the length of the slice within the array.
      */
     public RandomAccessArrayReader(final byte[] arr, final int sliceStartPos, final int sliceLength) {
         this.arr = arr;
@@ -75,11 +72,11 @@ public class RandomAccessArrayReader implements RandomAccessReader {
             throw new IOException("Read index out of bounds");
         }
         try {
-            final int numBytesToRead = Math.max(Math.min(numBytes, dstArr.length - dstArrStart), 0);
+            final var numBytesToRead = Math.max(Math.min(numBytes, dstArr.length - dstArrStart), 0);
             if (numBytesToRead == 0) {
                 return -1;
             }
-            final int srcStart = (int) (sliceStartPos + srcOffset);
+            final var srcStart = (int) (sliceStartPos + srcOffset);
             System.arraycopy(arr, srcStart, dstArr, dstArrStart, numBytesToRead);
             return numBytesToRead;
         } catch (final IndexOutOfBoundsException e) {
@@ -97,11 +94,11 @@ public class RandomAccessArrayReader implements RandomAccessReader {
             throw new IOException("Read index out of bounds");
         }
         try {
-            final int numBytesToRead = Math.max(Math.min(numBytes, dstBuf.capacity() - dstBufStart), 0);
+            final var numBytesToRead = Math.max(Math.min(numBytes, dstBuf.capacity() - dstBufStart), 0);
             if (numBytesToRead == 0) {
                 return -1;
             }
-            final int srcStart = (int) (sliceStartPos + srcOffset);
+            final var srcStart = (int) (sliceStartPos + srcOffset);
             dstBuf.position(dstBufStart);
             dstBuf.limit(dstBufStart + numBytesToRead);
             dstBuf.put(arr, srcStart, numBytesToRead);
@@ -113,13 +110,13 @@ public class RandomAccessArrayReader implements RandomAccessReader {
 
     @Override
     public byte readByte(final long offset) throws IOException {
-        final int idx = sliceStartPos + (int) offset;
+        final var idx = sliceStartPos + (int) offset;
         return arr[idx];
     }
 
     @Override
     public int readUnsignedByte(final long offset) throws IOException {
-        final int idx = sliceStartPos + (int) offset;
+        final var idx = sliceStartPos + (int) offset;
         return arr[idx] & 0xff;
     }
 
@@ -130,14 +127,14 @@ public class RandomAccessArrayReader implements RandomAccessReader {
 
     @Override
     public int readUnsignedShort(final long offset) throws IOException {
-        final int idx = sliceStartPos + (int) offset;
+        final var idx = sliceStartPos + (int) offset;
         return ((arr[idx + 1] & 0xff) << 8) //
                 | (arr[idx] & 0xff);
     }
 
     @Override
     public int readInt(final long offset) throws IOException {
-        final int idx = sliceStartPos + (int) offset;
+        final var idx = sliceStartPos + (int) offset;
         return ((arr[idx + 3] & 0xff) << 24) //
                 | ((arr[idx + 2] & 0xff) << 16) //
                 | ((arr[idx + 1] & 0xff) << 8) //
@@ -151,7 +148,7 @@ public class RandomAccessArrayReader implements RandomAccessReader {
 
     @Override
     public long readLong(final long offset) throws IOException {
-        final int idx = sliceStartPos + (int) offset;
+        final var idx = sliceStartPos + (int) offset;
         return ((arr[idx + 7] & 0xffL) << 56) //
                 | ((arr[idx + 6] & 0xffL) << 48) //
                 | ((arr[idx + 5] & 0xffL) << 40) //
@@ -165,7 +162,7 @@ public class RandomAccessArrayReader implements RandomAccessReader {
     @Override
     public String readString(final long offset, final int numBytes, final boolean replaceSlashWithDot,
             final boolean stripLSemicolon) throws IOException {
-        final int idx = sliceStartPos + (int) offset;
+        final var idx = sliceStartPos + (int) offset;
         return StringUtils.readString(arr, idx, numBytes, replaceSlashWithDot, stripLSemicolon);
     }
 

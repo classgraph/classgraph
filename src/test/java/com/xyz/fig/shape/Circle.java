@@ -12,12 +12,9 @@ public class Circle extends ShapeImpl {
     /**
      * Constructor.
      *
-     * @param x
-     *            the x
-     * @param y
-     *            the y
-     * @param r
-     *            the r
+     * @param x the x
+     * @param y the y
+     * @param r the r
      */
     public Circle(final float x, final float y, final float r) {
         super(x, y);
@@ -33,7 +30,9 @@ public class Circle extends ShapeImpl {
         return r;
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see com.xyz.fig.shape.ShapeImpl#draw(java.awt.Graphics2D)
      */
     @Override

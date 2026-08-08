@@ -31,8 +31,8 @@ package io.github.classgraph;
 import java.lang.reflect.Field;
 
 /**
- * Class for wrapping an enum constant value (split into class name and constant name), as used as an annotation
- * parameter value.
+ * Class for wrapping an enum constant value (split into class name and constant
+ * name), as used as an annotation parameter value.
  */
 public class AnnotationEnumValue extends ScanResultObject implements Comparable<AnnotationEnumValue> {
     /** The class name. */
@@ -49,10 +49,8 @@ public class AnnotationEnumValue extends ScanResultObject implements Comparable<
     /**
      * Constructor.
      *
-     * @param className
-     *            The enum class name.
-     * @param constValueName
-     *            The enum const value name.
+     * @param className      The enum class name.
+     * @param constValueName The enum const value name.
      */
     AnnotationEnumValue(final String className, final String constValueName) {
         super();
@@ -84,23 +82,25 @@ public class AnnotationEnumValue extends ScanResultObject implements Comparable<
     /**
      * Get the name.
      *
-     * @return The fully-qualified name of the enum constant value, i.e. {@link #getClassName()} + {@code "."} +
-     *         {@link #getValueName()}.
+     * @return The fully-qualified name of the enum constant value, i.e.
+     *         {@link #getClassName()} + {@code "."} + {@link #getValueName()}.
      */
     public String getName() {
         return className + "." + valueName;
     }
 
     /**
-     * Loads the enum class, instantiates the enum constants for the class, and returns the enum constant value
-     * represented by this {@link AnnotationEnumValue}.
+     * Loads the enum class, instantiates the enum constants for the class, and
+     * returns the enum constant value represented by this
+     * {@link AnnotationEnumValue}.
      * 
-     * @param ignoreExceptions
-     *            If true, ignore classloading exceptions and return null on failure.
-     * @return The enum constant value represented by this {@link AnnotationEnumValue}
-     * @throws IllegalArgumentException
-     *             if the class could not be loaded and ignoreExceptions was false, or if the enum constant is
-     *             invalid.
+     * @param ignoreExceptions If true, ignore classloading exceptions and return
+     *                         null on failure.
+     * @return The enum constant value represented by this
+     *         {@link AnnotationEnumValue}
+     * @throws IllegalArgumentException if the class could not be loaded and
+     *                                  ignoreExceptions was false, or if the enum
+     *                                  constant is invalid.
      */
     public Object loadClassAndReturnEnumValue(final boolean ignoreExceptions) throws IllegalArgumentException {
         final Class<?> classRef = super.loadClass(ignoreExceptions);
@@ -131,12 +131,14 @@ public class AnnotationEnumValue extends ScanResultObject implements Comparable<
     }
 
     /**
-     * Loads the enum class, instantiates the enum constants for the class, and returns the enum constant value
-     * represented by this {@link AnnotationEnumValue}.
+     * Loads the enum class, instantiates the enum constants for the class, and
+     * returns the enum constant value represented by this
+     * {@link AnnotationEnumValue}.
      * 
-     * @return The enum constant value represented by this {@link AnnotationEnumValue}
-     * @throws IllegalArgumentException
-     *             if the class could not be loaded, or the enum constant is invalid.
+     * @return The enum constant value represented by this
+     *         {@link AnnotationEnumValue}
+     * @throws IllegalArgumentException if the class could not be loaded, or the
+     *                                  enum constant is invalid.
      */
     public Object loadClassAndReturnEnumValue() throws IllegalArgumentException {
         return loadClassAndReturnEnumValue(/* ignoreExceptions = */ false);
@@ -144,29 +146,36 @@ public class AnnotationEnumValue extends ScanResultObject implements Comparable<
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.Comparable#compareTo(java.lang.Object)
      */
     @Override
     public int compareTo(final AnnotationEnumValue o) {
-        final int diff = className.compareTo(o.className);
+        final var diff = className.compareTo(o.className);
         return diff == 0 ? valueName.compareTo(o.valueName) : diff;
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
     public boolean equals(final Object obj) {
         if (obj == this) {
             return true;
-        } else if (!(obj instanceof AnnotationEnumValue)) {
+        }
+        if (!(obj instanceof final AnnotationEnumValue other)) {
             return false;
         }
-        return compareTo((AnnotationEnumValue) obj) == 0;
+        return compareTo(other) == 0;
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.Object#hashCode()
      */
     @Override

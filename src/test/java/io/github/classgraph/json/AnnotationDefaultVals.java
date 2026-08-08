@@ -12,7 +12,6 @@ import io.github.classgraph.ScanResult;
 
 /**
  */
-@SuppressWarnings("unused")
 public class AnnotationDefaultVals {
     @Retention(RetentionPolicy.RUNTIME)
     @interface MyAnnotation {
@@ -28,22 +27,24 @@ public class AnnotationDefaultVals {
      */
     @Test
     public void testSerializeThenDeserializeWithAnnotation() {
-        // Get URL base for overriding classpath (otherwise the JSON representation of the ScanResult won't be
-        // the same after the first and second deserialization, because overrideClasspath is set by the first
+        // Get URL base for overriding classpath (otherwise the JSON representation of
+        // the ScanResult won't be
+        // the same after the first and second deserialization, because
+        // overrideClasspath is set by the first
         // serialization for consistency.)
-        final String classfileURL = getClass().getClassLoader()
+        final var classfileURL = getClass().getClassLoader()
                 .getResource(AnnotationDefaultVals.class.getName().replace('.', '/') + ".class").toString();
-        final String classpathBase = classfileURL.substring(0,
+        final var classpathBase = classfileURL.substring(0,
                 classfileURL.length() - (AnnotationDefaultVals.class.getName().length() + 6));
-        try (ScanResult scanResult = new ClassGraph().overrideClasspath(classpathBase)
-                .acceptPackagesNonRecursive(AnnotationDefaultVals.class.getPackage().getName())
-                .ignoreClassVisibility().enableAllInfo().scan()) {
+        try (var scanResult = new ClassGraph().overrideClasspath(classpathBase)
+                .acceptPackagesNonRecursive(AnnotationDefaultVals.class.getPackage().getName()).ignoreClassVisibility()
+                .enableAllInfo().scan()) {
             assertThat(scanResult.getClassInfo(MyClass.class.getName()).getAnnotationInfo().get(0)
                     .getDefaultParameterValues().get(0).getValue()).isEqualTo("hello");
-            final int indent = 2;
-            final String scanResultJSON = scanResult.toJSON(indent);
-            final ScanResult scanResultDeserialized = ScanResult.fromJSON(scanResultJSON);
-            final String scanResultReserializedJSON = scanResultDeserialized.toJSON(indent);
+            final var indent = 2;
+            final var scanResultJSON = scanResult.toJSON(indent);
+            final var scanResultDeserialized = ScanResult.fromJSON(scanResultJSON);
+            final var scanResultReserializedJSON = scanResultDeserialized.toJSON(indent);
             assertThat(scanResultReserializedJSON).isEqualTo(scanResultJSON);
             assertThat(scanResultDeserialized.getClassInfo(MyClass.class.getName()).getAnnotationInfo().get(0)
                     .getDefaultParameterValues().get(0).getValue()).isEqualTo("hello");

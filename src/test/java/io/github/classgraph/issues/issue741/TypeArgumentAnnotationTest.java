@@ -8,14 +8,8 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import io.github.classgraph.AnnotationInfoList;
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ClassInfo;
 import io.github.classgraph.ClassRefTypeSignature;
-import io.github.classgraph.MethodInfo;
-import io.github.classgraph.MethodParameterInfo;
-import io.github.classgraph.ScanResult;
-import io.github.classgraph.TypeArgument;
 
 public class TypeArgumentAnnotationTest {
     @Target({ ElementType.FIELD, ElementType.TYPE_USE, ElementType.TYPE_PARAMETER })
@@ -45,14 +39,14 @@ public class TypeArgumentAnnotationTest {
 
     @Test
     void typeArgumentAnnotation() {
-        try (final ScanResult scanResult = new ClassGraph()
+        try (var scanResult = new ClassGraph()
                 .acceptPackages(TypeArgumentAnnotationTest.class.getPackage().getName()).enableAllInfo().scan()) {
-            final ClassInfo cls = scanResult.getClassInfo(TypeArgumentAnnotationTest.class.getName());
-            final MethodInfo method = cls.getMethodInfo().get("setValueList").get(0);
-            final MethodParameterInfo parameterInfo = method.getParameterInfo()[0];
-            final TypeArgument typeArgument = ((ClassRefTypeSignature) parameterInfo
-                    .getTypeSignatureOrTypeDescriptor()).getTypeArguments().get(0);
-            final AnnotationInfoList annotationInfoList = typeArgument.getTypeAnnotationInfo();
+            final var cls = scanResult.getClassInfo(TypeArgumentAnnotationTest.class.getName());
+            final var method = cls.getMethodInfo().get("setValueList").get(0);
+            final var parameterInfo = method.getParameterInfo()[0];
+            final var typeArgument = ((ClassRefTypeSignature) parameterInfo.getTypeSignatureOrTypeDescriptor())
+                    .getTypeArguments().get(0);
+            final var annotationInfoList = typeArgument.getTypeAnnotationInfo();
             assertThat(annotationInfoList.get(0).toStringWithSimpleNames()).isEqualTo("@A");
             assertThat(annotationInfoList.get(1).toStringWithSimpleNames()).isEqualTo("@B(\"foo\")");
             assertThat(annotationInfoList.get(2).toStringWithSimpleNames()).isEqualTo("@C(t=U.class)");

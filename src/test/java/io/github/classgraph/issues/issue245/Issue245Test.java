@@ -30,12 +30,9 @@ package io.github.classgraph.issues.issue245;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.net.URL;
-
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ScanResult;
 
 /**
  * Issue245Test.
@@ -46,18 +43,17 @@ public class Issue245Test {
      */
     @Test
     public void testCustomPackageRoot() {
-        final ClassLoader classLoader = Issue245Test.class.getClassLoader();
-        final String jarName = "spring-boot-fully-executable-jar.jar";
-        final URL jarURL = classLoader.getResource(jarName);
+        final var classLoader = Issue245Test.class.getClassLoader();
+        final var jarName = "spring-boot-fully-executable-jar.jar";
+        final var jarURL = classLoader.getResource(jarName);
 
-        try (ScanResult scanResult = new ClassGraph() //
+        try (var scanResult = new ClassGraph() //
                 .overrideClasspath(jarURL.toString() + "!/META-INF/maven") //
                 .acceptPaths("org.springframework/gs-spring-boot") //
                 .disableNestedJarScanning() //
                 .scan()) {
             assertThat(scanResult.getAllResources().getPaths()).containsOnly(
-                    "org.springframework/gs-spring-boot/pom.xml",
-                    "org.springframework/gs-spring-boot/pom.properties");
+                    "org.springframework/gs-spring-boot/pom.xml", "org.springframework/gs-spring-boot/pom.properties");
         }
     }
 }

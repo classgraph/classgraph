@@ -33,9 +33,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ClassInfo;
-import io.github.classgraph.MethodInfo;
-import io.github.classgraph.ScanResult;
 
 /**
  * Issue146Test.
@@ -48,13 +45,13 @@ public class Issue146Test {
     public void issue146Test() {
         // Scans io.github.classgraph.issues.issue146.CompiledWithJDK8, which is in
         // src/test/resources
-        final String pkg = Issue146Test.class.getPackage().getName();
-        try (ScanResult scanResult = new ClassGraph().acceptPackages(pkg) //
+        final var pkg = Issue146Test.class.getPackage().getName();
+        try (var scanResult = new ClassGraph().acceptPackages(pkg) //
                 .enableMethodInfo() //
                 .scan()) {
-            final ClassInfo classInfo = scanResult.getClassInfo(pkg + "." + "CompiledWithJDK8");
+            final var classInfo = scanResult.getClassInfo(pkg + "." + "CompiledWithJDK8");
             assertThat(classInfo).isNotNull();
-            final MethodInfo methodInfo = classInfo //
+            final var methodInfo = classInfo //
                     .getMethodInfo("method") //
                     .get(0);
             assertThat(methodInfo.toString()) //

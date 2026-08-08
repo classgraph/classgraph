@@ -31,20 +31,22 @@ public class Issue310Test {
      */
     @Test
     public void issue310() {
-        // Get URL base for overriding classpath (otherwise the JSON representation of the ScanResult won't be
-        // the same after the first and second deserialization, because overrideClasspath is set by the first
+        // Get URL base for overriding classpath (otherwise the JSON representation of
+        // the ScanResult won't be
+        // the same after the first and second deserialization, because
+        // overrideClasspath is set by the first
         // serialization for consistency.)
-        final String classfileURL = getClass().getClassLoader()
+        final var classfileURL = getClass().getClassLoader()
                 .getResource(Issue310Test.class.getName().replace('.', '/') + ".class").toString();
-        final String classpathBase = classfileURL.substring(0,
+        final var classpathBase = classfileURL.substring(0,
                 classfileURL.length() - (Issue310Test.class.getName().length() + 6));
-        try (ScanResult scanResult1 = new ClassGraph().overrideClasspath(classpathBase)
+        try (var scanResult1 = new ClassGraph().overrideClasspath(classpathBase)
                 .acceptClasses(Issue310Test.class.getName()).enableAllInfo().scan()) {
             assertThat(scanResult1.getClassInfo(Issue310Test.class.getName()).getFieldInfo("B")).isNotNull();
-            final String json1 = scanResult1.toJSON(2);
+            final var json1 = scanResult1.toJSON(2);
             assertThat(json1).isNotEmpty();
-            try (ScanResult scanResult2 = ScanResult.fromJSON(scanResult1.toJSON())) {
-                final String json2 = scanResult2.toJSON(2);
+            try (var scanResult2 = ScanResult.fromJSON(scanResult1.toJSON())) {
+                final var json2 = scanResult2.toJSON(2);
                 assertThat(json1).isEqualTo(json2);
             }
         }

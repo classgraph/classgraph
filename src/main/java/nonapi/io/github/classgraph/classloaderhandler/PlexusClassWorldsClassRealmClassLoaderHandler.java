@@ -39,7 +39,7 @@ import nonapi.io.github.classgraph.utils.LogNode;
 
 /**
  * Handle the Plexus ClassWorlds ClassRealm ClassLoader.
- * 
+ *
  * @author lukehutch
  */
 class PlexusClassWorldsClassRealmClassLoaderHandler extends URLClassLoaderHandler {
@@ -52,24 +52,23 @@ class PlexusClassWorldsClassRealmClassLoaderHandler extends URLClassLoaderHandle
     /**
      * Checks if is this classloader uses a parent-first strategy.
      *
-     * @param classRealmInstance
-     *            the ClassRealm instance
-     * @param reflectionUtils
-     *            the reflection utils instance
+     * @param classRealmInstance the ClassRealm instance
+     * @param reflectionUtils    the reflection utils instance
      * @return true if classloader uses a parent-first strategy
      */
     private static boolean isParentFirstStrategy(final ClassLoader classRealmInstance,
             final ReflectionUtils reflectionUtils) {
-        final Object strategy = reflectionUtils.getFieldVal(false, classRealmInstance, "strategy");
+        final var strategy = reflectionUtils.getFieldVal(false, classRealmInstance, "strategy");
         if (strategy != null) {
-            final String strategyClassName = strategy.getClass().getName();
-            if (strategyClassName.equals("org.codehaus.plexus.classworlds.strategy.SelfFirstStrategy")
-                    || strategyClassName.equals("org.codehaus.plexus.classworlds.strategy.OsgiBundleStrategy")) {
+            final var strategyClassName = strategy.getClass().getName();
+            if ("org.codehaus.plexus.classworlds.strategy.SelfFirstStrategy".equals(strategyClassName)
+                    || "org.codehaus.plexus.classworlds.strategy.OsgiBundleStrategy".equals(strategyClassName)) {
                 // Strategy is self-first
                 return false;
             }
         }
-        // Strategy is org.codehaus.plexus.classworlds.strategy.ParentFirstStrategy (or failed to find strategy)
+        // Strategy is org.codehaus.plexus.classworlds.strategy.ParentFirstStrategy (or
+        // failed to find strategy)
         return true;
     }
 
@@ -77,37 +76,41 @@ class PlexusClassWorldsClassRealmClassLoaderHandler extends URLClassLoaderHandle
     public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
             final LogNode log) {
         // From ClassRealm#loadClassFromImport(String) -> getImportClassLoader(String)
-        final Object foreignImports = classLoaderOrder.reflectionUtils.getFieldVal(false, classLoader,
-                "foreignImports");
+        final var foreignImports = classLoaderOrder.reflectionUtils.getFieldVal(false, classLoader, "foreignImports");
         if (foreignImports != null) {
             @SuppressWarnings("unchecked")
-            final SortedSet<Object> foreignImportEntries = (SortedSet<Object>) foreignImports;
+            final var foreignImportEntries = (SortedSet<Object>) foreignImports;
             for (final Object entry : foreignImportEntries) {
-                final ClassLoader foreignImportClassLoader = (ClassLoader) classLoaderOrder.reflectionUtils
-                        .invokeMethod(false, entry, "getClassLoader");
+                final var foreignImportClassLoader = (ClassLoader) classLoaderOrder.reflectionUtils.invokeMethod(false,
+                        entry, "getClassLoader");
                 // Treat foreign import classloader as if it is a parent classloader
                 classLoaderOrder.delegateTo(foreignImportClassLoader, /* isParent = */ true, log);
             }
         }
 
         // Get delegation order -- different strategies have different delegation orders
-        final boolean isParentFirst = isParentFirstStrategy(classLoader, classLoaderOrder.reflectionUtils);
+        final var isParentFirst = isParentFirstStrategy(classLoader, classLoaderOrder.reflectionUtils);
 
-        // From ClassRealm#loadClassFromSelf(String) -> findLoadedClass(String) for self-first strategy
+        // From ClassRealm#loadClassFromSelf(String) -> findLoadedClass(String) for
+        // self-first strategy
         if (!isParentFirst) {
             // Add self before parent
             classLoaderOrder.add(classLoader, log);
         }
 
-        // From ClassRealm#loadClassFromParent -- N.B. we are ignoring parentImports, which is used to filter
-        // a class name before deciding whether or not to call the parent classloader (so ClassGraph will be
-        // able to load classes by name that are not imported from the parent classloader).
-        final ClassLoader parentClassLoader = (ClassLoader) classLoaderOrder.reflectionUtils.invokeMethod(false,
-                classLoader, "getParentClassLoader");
+        // From ClassRealm#loadClassFromParent -- N.B. we are ignoring parentImports,
+        // which is used to filter
+        // a class name before deciding whether or not to call the parent classloader
+        // (so ClassGraph will be
+        // able to load classes by name that are not imported from the parent
+        // classloader).
+        final var parentClassLoader = (ClassLoader) classLoaderOrder.reflectionUtils.invokeMethod(false, classLoader,
+                "getParentClassLoader");
         classLoaderOrder.delegateTo(parentClassLoader, /* isParent = */ true, log);
         classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
 
-        // From ClassRealm#loadClassFromSelf(String) -> findLoadedClass(String) for parent-first strategy
+        // From ClassRealm#loadClassFromSelf(String) -> findLoadedClass(String) for
+        // parent-first strategy
         if (isParentFirst) {
             // Add self after parent
             classLoaderOrder.add(classLoader, log);
@@ -122,10 +125,12 @@ class PlexusClassWorldsClassRealmClassLoaderHandler extends URLClassLoaderHandle
     }
 
     /**
-     * Get the automatic package root prefixes for classpath elements obtained from this classloader.
+     * Get the automatic package root prefixes for classpath elements obtained from
+     * this classloader.
      *
      * <p>
-     * Classpath elements from this classloader may be Spring-Boot executable jars or wars.
+     * Classpath elements from this classloader may be Spring-Boot executable jars
+     * or wars.
      *
      * @return the package root prefixes.
      */

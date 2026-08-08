@@ -30,12 +30,9 @@
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.List;
-
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ScanResult;
 import io.github.classgraph.test.accepted.Cls;
 import io.github.classgraph.test.accepted.rejectedsub.RejectedSub;
 
@@ -51,8 +48,8 @@ public class DisableRecursiveScanningTest {
      */
     @Test
     public void nonRootPackage() {
-        try (ScanResult scanResult = new ClassGraph().acceptPackagesNonRecursive(PKG).scan()) {
-            final List<String> allClasses = scanResult.getAllClasses().getNames();
+        try (var scanResult = new ClassGraph().acceptPackagesNonRecursive(PKG).scan()) {
+            final var allClasses = scanResult.getAllClasses().getNames();
             assertThat(allClasses).contains(Cls.class.getName());
             assertThat(allClasses).doesNotContain(RejectedSub.class.getName());
         }
@@ -63,8 +60,8 @@ public class DisableRecursiveScanningTest {
      */
     @Test
     public void rootPackage() {
-        try (ScanResult scanResult = new ClassGraph().acceptPackagesNonRecursive("").scan()) {
-            final List<String> allClasses = scanResult.getAllClasses().getNames();
+        try (var scanResult = new ClassGraph().acceptPackagesNonRecursive("").scan()) {
+            final var allClasses = scanResult.getAllClasses().getNames();
             assertThat(allClasses).contains(ClassInDefaultPackage.class.getName());
             assertThat(allClasses).doesNotContain(Cls.class.getName());
         }

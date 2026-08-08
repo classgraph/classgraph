@@ -36,8 +36,7 @@ import java.util.ListIterator;
 /**
  * A potentially unmodifiable list of objects.
  *
- * @param <T>
- *            the element type
+ * @param <T> the element type
  */
 class PotentiallyUnmodifiableList<T> extends ArrayList<T> {
     /** serialVersionUID. */
@@ -56,8 +55,7 @@ class PotentiallyUnmodifiableList<T> extends ArrayList<T> {
     /**
      * Constructor.
      *
-     * @param sizeHint
-     *            the size hint
+     * @param sizeHint the size hint
      */
     PotentiallyUnmodifiableList(final int sizeHint) {
         super(sizeHint);
@@ -66,8 +64,7 @@ class PotentiallyUnmodifiableList<T> extends ArrayList<T> {
     /**
      * Constructor.
      *
-     * @param collection
-     *            the initial elements.
+     * @param collection the initial elements.
      */
     PotentiallyUnmodifiableList(final Collection<T> collection) {
         super(collection);
@@ -186,8 +183,8 @@ class PotentiallyUnmodifiableList<T> extends ArrayList<T> {
 
     @Override
     public Iterator<T> iterator() {
-        final Iterator<T> iterator = super.iterator();
-        return new Iterator<T>() {
+        final var iterator = super.iterator();
+        return new Iterator<>() {
             @Override
             public boolean hasNext() {
                 if (isEmpty()) {
@@ -215,8 +212,8 @@ class PotentiallyUnmodifiableList<T> extends ArrayList<T> {
 
     @Override
     public ListIterator<T> listIterator() {
-        final ListIterator<T> iterator = super.listIterator();
-        return new ListIterator<T>() {
+        final var iterator = super.listIterator();
+        return new ListIterator<>() {
             @Override
             public boolean hasNext() {
                 if (isEmpty()) {

@@ -10,22 +10,26 @@ import java.lang.annotation.RetentionPolicy;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ClassInfo;
 import io.github.classgraph.ScanResult;
 
 /**
  * Issue 930: calling {@code equals()} on an annotation instance returned by
- * {@code AnnotationInfo#loadClassAndInstantiate()} threw a {@link NullPointerException} once the {@link ScanResult}
- * it came from had been closed.
+ * {@code AnnotationInfo#loadClassAndInstantiate()} threw a
+ * {@link NullPointerException} once the {@link ScanResult} it came from had
+ * been closed.
  *
  * <p>
- * {@code ScanResult#close()} sets {@code ScanResult#reflectionUtils} to null but leaves
- * {@code AnnotationInfo#scanResult} pointing at the closed {@code ScanResult}, so the guard
- * {@code scanResult == null ? new ReflectionUtils() : scanResult.reflectionUtils} yielded null rather than
- * falling back to a fresh {@code ReflectionUtils}.
+ * {@code ScanResult#close()} sets {@code ScanResult#reflectionUtils} to null
+ * but leaves {@code AnnotationInfo#scanResult} pointing at the closed
+ * {@code ScanResult}, so the guard
+ * {@code scanResult == null ? new ReflectionUtils() : scanResult.reflectionUtils}
+ * yielded null rather than falling back to a fresh {@code ReflectionUtils}.
  */
 public class Issue930Test {
-    /** An annotation with a parameter, so that {@code equals()} has to reflectively read a parameter value. */
+    /**
+     * An annotation with a parameter, so that {@code equals()} has to reflectively
+     * read a parameter value.
+     */
     @Retention(RetentionPolicy.RUNTIME)
     public @interface Issue930Annotation {
         /**
@@ -42,15 +46,15 @@ public class Issue930Test {
     }
 
     /**
-     * An annotation instance obtained from a {@link ScanResult} must remain usable after that {@link ScanResult}
-     * has been closed.
+     * An annotation instance obtained from a {@link ScanResult} must remain usable
+     * after that {@link ScanResult} has been closed.
      */
     @Test
     public void annotationEqualsWorksAfterScanResultIsClosed() {
         final Annotation proxyAnnotation;
-        try (ScanResult scanResult = new ClassGraph()
-                .acceptPackages(Issue930Test.class.getPackage().getName()).enableAllInfo().scan()) {
-            final ClassInfo classInfo = scanResult.getClassInfo(Annotated.class.getName());
+        try (var scanResult = new ClassGraph().acceptPackages(Issue930Test.class.getPackage().getName()).enableAllInfo()
+                .scan()) {
+            final var classInfo = scanResult.getClassInfo(Annotated.class.getName());
             assertThat(classInfo).isNotNull();
             proxyAnnotation = classInfo.getAnnotationInfo(Issue930Annotation.class).loadClassAndInstantiate();
             assertThat(proxyAnnotation).isNotNull();

@@ -8,8 +8,7 @@ public abstract class P {
     /**
      * Constructor.
      *
-     * @param strings
-     *            the strings
+     * @param strings the strings
      */
     public P(final String... strings) {
     }

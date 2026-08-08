@@ -34,7 +34,10 @@ import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
 
-/** ClassLoaderHandler that is able to extract the URLs from a CxfContainerClassLoader. */
+/**
+ * ClassLoaderHandler that is able to extract the URLs from a
+ * CxfContainerClassLoader.
+ */
 class CxfContainerClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
@@ -56,21 +59,25 @@ class CxfContainerClassLoaderHandler implements ClassLoaderHandler {
         classLoaderOrder.delegateTo(
                 (ClassLoader) classLoaderOrder.reflectionUtils.invokeMethod(false, classLoader, "tccl"),
                 /* isParent = */ false, log);
-        // This classloader doesn't actually load any classes, but add it to the order to improve logging
+        // This classloader doesn't actually load any classes, but add it to the order
+        // to improve logging
         classLoaderOrder.add(classLoader, log);
     }
 
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
             final ScanSpec scanSpec, final LogNode log) {
-        // Classloader doesn't do any classloading of its own, it only delegates to other classloaders
+        // Classloader doesn't do any classloading of its own, it only delegates to
+        // other classloaders
     }
 
     /**
-     * Get the automatic package root prefixes for classpath elements obtained from this classloader.
+     * Get the automatic package root prefixes for classpath elements obtained from
+     * this classloader.
      *
      * <p>
-     * Classpath elements from this classloader may be Spring-Boot executable jars or wars.
+     * Classpath elements from this classloader may be Spring-Boot executable jars
+     * or wars.
      *
      * @return the package root prefixes.
      */

@@ -40,10 +40,12 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 
-/** Holds metadata about a specific annotation instance on a class, method, method parameter or field. */
+/**
+ * Holds metadata about a specific annotation instance on a class, method,
+ * method parameter or field.
+ */
 public class AnnotationInfo extends ScanResultObject implements Comparable<AnnotationInfo>, HasName {
     /** The name. */
     private String name;
@@ -52,8 +54,8 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     private AnnotationParameterValueList annotationParamValues;
 
     /**
-     * Set to true once any Object[] arrays of boxed types in annotationParamValues have been lazily converted to
-     * primitive arrays.
+     * Set to true once any Object[] arrays of boxed types in annotationParamValues
+     * have been lazily converted to primitive arrays.
      */
     private transient boolean annotationParamValuesHasBeenConvertedToPrimitive;
 
@@ -70,10 +72,9 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     /**
      * Constructor.
      *
-     * @param name
-     *            The name of the annotation.
-     * @param annotationParamValues
-     *            The annotation parameter values, or null if none.
+     * @param name                  The name of the annotation.
+     * @param annotationParamValues The annotation parameter values, or null if
+     *                              none.
      */
     AnnotationInfo(final String name, final AnnotationParameterValueList annotationParamValues) {
         super();
@@ -105,7 +106,8 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     /**
      * Get the default parameter values.
      *
-     * @return the list of default parameter values for this annotation, or the empty list if none.
+     * @return the list of default parameter values for this annotation, or the
+     *         empty list if none.
      */
     public AnnotationParameterValueList getDefaultParameterValues() {
         return getClassInfo().getAnnotationDefaultParameterValues();
@@ -114,16 +116,18 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     /**
      * Get the parameter values.
      *
-     * @param includeDefaultValues
-     *            if true, include default values for any annotation parameter value that is missing.
-     * @return The parameter values of this annotation, including any default parameter values inherited from the
-     *         annotation class definition (if requested), or the empty list if none.
+     * @param includeDefaultValues if true, include default values for any
+     *                             annotation parameter value that is missing.
+     * @return The parameter values of this annotation, including any default
+     *         parameter values inherited from the annotation class definition (if
+     *         requested), or the empty list if none.
      */
     public AnnotationParameterValueList getParameterValues(final boolean includeDefaultValues) {
-        final ClassInfo classInfo = getClassInfo();
+        final var classInfo = getClassInfo();
         if (classInfo == null) {
             // ClassInfo has not yet been set, just return values without defaults
-            // (happens when trying to log AnnotationInfo during scanning, before ScanResult is available)
+            // (happens when trying to log AnnotationInfo during scanning, before ScanResult
+            // is available)
             return annotationParamValues == null ? AnnotationParameterValueList.EMPTY_LIST : annotationParamValues;
         }
         // Lazily convert any Object[] arrays of boxed types to primitive arrays
@@ -142,8 +146,9 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
                 classInfo.annotationDefaultParamValuesHasBeenConvertedToPrimitive = true;
             }
 
-            // Check if one or both of the defaults and the values in this annotation instance are null (empty)
-            final AnnotationParameterValueList defaultParamValues = classInfo.annotationDefaultParamValues;
+            // Check if one or both of the defaults and the values in this annotation
+            // instance are null (empty)
+            final var defaultParamValues = classInfo.annotationDefaultParamValues;
             if (defaultParamValues == null && annotationParamValues == null) {
                 return AnnotationParameterValueList.EMPTY_LIST;
             } else if (defaultParamValues == null) {
@@ -161,36 +166,36 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
                 allParamValues.put(annotationParamValue.getName(), annotationParamValue.getValue());
             }
 
-            // Put annotation values in the same order as the annotation methods (there is one method for each
+            // Put annotation values in the same order as the annotation methods (there is
+            // one method for each
             // annotation constant)
             if (classInfo.methodInfo == null) {
-                // Should not happen (when classfile is read, methods are always read, whether or not
+                // Should not happen (when classfile is read, methods are always read, whether
+                // or not
                 // scanSpec.enableMethodInfo is true)
                 throw new IllegalArgumentException("Could not find methods for annotation " + classInfo.getName());
             }
             annotationParamValuesWithDefaults = new AnnotationParameterValueList();
             for (final MethodInfo mi : classInfo.methodInfo) {
-                final String paramName = mi.getName();
+                final var paramName = mi.getName();
                 switch (paramName) {
-                // None of these method names should be present in the @interface class itself, it should only
-                // contain methods for the annotation constants (but skip them anyway to be safe). These methods
+                // None of these method names should be present in the @interface class itself,
+                // it should only
+                // contain methods for the annotation constants (but skip them anyway to be
+                // safe). These methods
                 // should only exist in concrete instances of the annotation.
-                case "<init>":
-                case "<clinit>":
-                case "hashCode":
-                case "equals":
-                case "toString":
-                case "annotationType":
+                case "<init>", "<clinit>", "hashCode", "equals", "toString", "annotationType" -> {
                     // Skip
-                    break;
-                default:
+                }
+                default -> {
                     // Annotation constant
-                    final Object paramValue = allParamValues.get(paramName);
-                    // Annotation values cannot be null (or absent, from either defaults or annotation instance)
+                    final var paramValue = allParamValues.get(paramName);
+                    // Annotation values cannot be null (or absent, from either defaults or
+                    // annotation instance)
                     if (paramValue != null) {
                         annotationParamValuesWithDefaults.add(new AnnotationParameterValue(paramName, paramValue));
                     }
-                    break;
+                }
                 }
             }
         }
@@ -200,8 +205,9 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     /**
      * Get the parameter values.
      *
-     * @return The parameter values of this annotation, including any default parameter values inherited from the
-     *         annotation class definition, or the empty list if none.
+     * @return The parameter values of this annotation, including any default
+     *         parameter values inherited from the annotation class definition, or
+     *         the empty list if none.
      */
     public AnnotationParameterValueList getParameterValues() {
         return getParameterValues(true);
@@ -219,8 +225,12 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
         return name;
     }
 
-    /* (non-Javadoc)
-     * @see io.github.classgraph.ScanResultObject#setScanResult(io.github.classgraph.ScanResult)
+    /*
+     * (non-Javadoc)
+     *
+     * @see
+     * io.github.classgraph.ScanResultObject#setScanResult(io.github.classgraph.
+     * ScanResult)
      */
     @Override
     void setScanResult(final ScanResult scanResult) {
@@ -233,12 +243,11 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     }
 
     /**
-     * Get {@link ClassInfo} objects for any classes referenced in the type descriptor or type signature.
+     * Get {@link ClassInfo} objects for any classes referenced in the type
+     * descriptor or type signature.
      *
-     * @param classNameToClassInfo
-     *            the map from class name to {@link ClassInfo}.
-     * @param refdClassInfo
-     *            the referenced class info
+     * @param classNameToClassInfo the map from class name to {@link ClassInfo}.
+     * @param refdClassInfo        the referenced class info
      */
     @Override
     protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
@@ -260,38 +269,48 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     }
 
     /**
-     * Load the {@link Annotation} class corresponding to this {@link AnnotationInfo} object, by calling
-     * {@code getClassInfo().loadClass()}, then create a new instance of the annotation, with the annotation
-     * parameter values obtained from this {@link AnnotationInfo} object, possibly overriding default annotation
-     * parameter values obtained from calling {@link AnnotationInfo#getClassInfo()} then
+     * Load the {@link Annotation} class corresponding to this
+     * {@link AnnotationInfo} object, by calling {@code getClassInfo().loadClass()},
+     * then create a new instance of the annotation, with the annotation parameter
+     * values obtained from this {@link AnnotationInfo} object, possibly overriding
+     * default annotation parameter values obtained from calling
+     * {@link AnnotationInfo#getClassInfo()} then
      * {@link ClassInfo#getAnnotationDefaultParameterValues()}.
      *
      * <p>
-     * Note that the returned {@link Annotation} will have some sort of {@link InvocationHandler} proxy type, such
-     * as {@code io.github.classgraph.features.$Proxy4} or {@code com.sun.proxy.$Proxy6}. This is an unavoidable
-     * side effect of the fact that concrete {@link Annotation} instances cannot be instantiated directly.
+     * Note that the returned {@link Annotation} will have some sort of
+     * {@link InvocationHandler} proxy type, such as
+     * {@code io.github.classgraph.features.$Proxy4} or
+     * {@code com.sun.proxy.$Proxy6}. This is an unavoidable side effect of the fact
+     * that concrete {@link Annotation} instances cannot be instantiated directly.
      * (ClassGraph uses <a href=
      * "http://hg.openjdk.java.net/jdk7/jdk7/jdk/file/9b8c96f96a0f/src/share/classes/sun/reflect/annotation/AnnotationParser.java#l255">the
-     * same approach that the JDK uses to instantiate annotations from a map</a>.) However, proxy instances are
-     * <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/reflect/Proxy.html">handled
-     * specially</a> when it comes to casting and {@code instanceof}: you are able to cast the returned proxy
-     * instance to the annotation type, and {@code instanceof} checks against the annotation class will succeed.
+     * same approach that the JDK uses to instantiate annotations from a map</a>.)
+     * However, proxy instances are <a href=
+     * "https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/reflect/Proxy.html">handled
+     * specially</a> when it comes to casting and {@code instanceof}: you are able
+     * to cast the returned proxy instance to the annotation type, and
+     * {@code instanceof} checks against the annotation class will succeed.
      *
      * <p>
-     * Of course another option you have for getting the concrete annotations, rather than instantiating the
-     * annotations on a {@link ClassInfo} object via this method, is to call {@link ClassInfo#loadClass()}, and read
-     * the annotations directly from the returned {@link Class} object.
+     * Of course another option you have for getting the concrete annotations,
+     * rather than instantiating the annotations on a {@link ClassInfo} object via
+     * this method, is to call {@link ClassInfo#loadClass()}, and read the
+     * annotations directly from the returned {@link Class} object.
      *
-     * @return The new {@link Annotation} instance, as a dynamic proxy object that can be cast to the expected
-     *         annotation type.
+     * @return The new {@link Annotation} instance, as a dynamic proxy object that
+     *         can be cast to the expected annotation type.
      */
     public Annotation loadClassAndInstantiate() {
         final Class<? extends Annotation> annotationClass = getClassInfo().loadClass(Annotation.class);
-        return (Annotation) Proxy.newProxyInstance(annotationClass.getClassLoader(),
-                new Class<?>[] { annotationClass }, new AnnotationInvocationHandler(annotationClass, this));
+        return (Annotation) Proxy.newProxyInstance(annotationClass.getClassLoader(), new Class<?>[] { annotationClass },
+                new AnnotationInvocationHandler(annotationClass, this));
     }
 
-    /** {@link InvocationHandler} for dynamically instantiating an {@link Annotation} object. */
+    /**
+     * {@link InvocationHandler} for dynamically instantiating an {@link Annotation}
+     * object.
+     */
     private static class AnnotationInvocationHandler implements InvocationHandler {
 
         /** The annotation class. */
@@ -306,20 +325,19 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
         /**
          * Constructor.
          *
-         * @param annotationClass
-         *            the annotation class
-         * @param annotationInfo
-         *            the annotation info
+         * @param annotationClass the annotation class
+         * @param annotationInfo  the annotation info
          */
         AnnotationInvocationHandler(final Class<? extends Annotation> annotationClass,
                 final AnnotationInfo annotationInfo) {
             this.annotationClass = annotationClass;
             this.annotationInfo = annotationInfo;
 
-            // Instantiate the annotation parameter values (this loads and gets references for class literals,
+            // Instantiate the annotation parameter values (this loads and gets references
+            // for class literals,
             // enum constants, etc.)
             for (final AnnotationParameterValue apv : annotationInfo.getParameterValues()) {
-                final Object instantiatedValue = apv.instantiate(annotationInfo.getClassInfo());
+                final var instantiatedValue = apv.instantiate(annotationInfo.getClassInfo());
                 if (instantiatedValue == null) {
                     // Annotations cannot contain null values
                     throw new IllegalArgumentException("Got null value for annotation parameter " + apv.getName()
@@ -329,37 +347,40 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
             }
         }
 
-        /* (non-Javadoc)
-         * @see java.lang.reflect.InvocationHandler#invoke(java.lang.Object, java.lang.reflect.Method,
-         * java.lang.Object[])
+        /*
+         * (non-Javadoc)
+         *
+         * @see java.lang.reflect.InvocationHandler#invoke(java.lang.Object,
+         * java.lang.reflect.Method, java.lang.Object[])
          */
         @Override
         public Object invoke(final Object proxy, final Method method, final Object[] args) {
-            final String methodName = method.getName();
-            final Class<?>[] paramTypes = method.getParameterTypes();
+            final var methodName = method.getName();
+            final var paramTypes = method.getParameterTypes();
             if ((args == null ? 0 : args.length) != paramTypes.length) {
-                throw new IllegalArgumentException(
-                        "Wrong number of arguments for " + annotationClass.getName() + "." + methodName + ": got "
-                                + (args == null ? 0 : args.length) + ", expected " + paramTypes.length);
+                throw new IllegalArgumentException("Wrong number of arguments for " + annotationClass.getName() + "."
+                        + methodName + ": got " + (args == null ? 0 : args.length) + ", expected " + paramTypes.length);
             }
             if (args != null && paramTypes.length == 1) {
                 if ("equals".equals(methodName) && paramTypes[0] == Object.class) {
                     // equals() needs to function the same as the JDK implementation
-                    // (see src/share/classes/sun/reflect/annotation/AnnotationInvocationHandler.java in the JDK)
-                    // N.B. compare against the proxy, not against this InvocationHandler, which is never
+                    // (see
+                    // src/share/classes/sun/reflect/annotation/AnnotationInvocationHandler.java in
+                    // the JDK)
+                    // N.B. compare against the proxy, not against this InvocationHandler, which is
+                    // never
                     // the object that equals() was called with
                     if (proxy == args[0]) {
                         return true;
                     } else if (!annotationClass.isInstance(args[0])) {
                         return false;
                     }
-                    final ReflectionUtils reflectionUtils = ScanResult
-                            .getReflectionUtils(annotationInfo.scanResult);
+                    final var reflectionUtils = ScanResult.getReflectionUtils(annotationInfo.scanResult);
                     for (final Entry<String, Object> ent : annotationParameterValuesInstantiated.entrySet()) {
-                        final String paramName = ent.getKey();
-                        final Object paramVal = ent.getValue();
-                        final Object otherParamVal = reflectionUtils.invokeMethod(/* throwException = */ false,
-                                args[0], paramName);
+                        final var paramName = ent.getKey();
+                        final var paramVal = ent.getValue();
+                        final var otherParamVal = reflectionUtils.invokeMethod(/* throwException = */ false, args[0],
+                                paramName);
                         // Annotation values should never be null, but just to be safe
                         if (paramVal == null || otherParamVal == null) {
                             if (paramVal != otherParamVal) {
@@ -377,16 +398,19 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
             } else if (paramTypes.length == 0) {
                 // Handle .toString(), .hashCode(), .annotationType()
                 switch (methodName) {
-                case "toString":
+                case "toString" -> {
                     return annotationInfo.toString();
-                case "hashCode": {
+                }
+                case "hashCode" -> {
                     // hashCode() needs to function the same as the JDK implementation
-                    // (see src/share/classes/sun/reflect/annotation/AnnotationInvocationHandler.java in the JDK)
-                    int result = 0;
+                    // (see
+                    // src/share/classes/sun/reflect/annotation/AnnotationInvocationHandler.java in
+                    // the JDK)
+                    var result = 0;
                     for (final Entry<String, Object> ent : annotationParameterValuesInstantiated.entrySet()) {
-                        final String paramName = ent.getKey();
-                        final Object paramVal = ent.getValue();
-                        int paramValHashCode;
+                        final var paramName = ent.getKey();
+                        final var paramVal = ent.getValue();
+                        final int paramValHashCode;
                         if (paramVal == null) {
                             // Annotation values should never be null, but just to be safe
                             paramValHashCode = 0;
@@ -418,26 +442,30 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
                     }
                     return result;
                 }
-                case "annotationType":
+                case "annotationType" -> {
                     return annotationClass;
-                default:
-                    // Fall through (other method names are used for returning annotation parameter values)
-                    break;
+                }
+                default -> {
+                    // Fall through (other method names are used for returning annotation parameter
+                    // values)
+                }
                 }
             } else {
                 // Throw exception for 2 or more params
                 throw new IllegalArgumentException();
             }
 
-            // Instantiate the annotation parameter value (this loads and gets references for class literals,
+            // Instantiate the annotation parameter value (this loads and gets references
+            // for class literals,
             // enum constants, etc.)
-            final Object annotationParameterValue = annotationParameterValuesInstantiated.get(methodName);
+            final var annotationParameterValue = annotationParameterValuesInstantiated.get(methodName);
             if (annotationParameterValue == null) {
                 // Undefined enum constant (enum values cannot be null)
                 throw new IncompleteAnnotationException(annotationClass, methodName);
             }
 
-            // Clone any array-typed annotation parameter values, in keeping with the Java Annotation API
+            // Clone any array-typed annotation parameter values, in keeping with the Java
+            // Annotation API
             final Class<?> annotationParameterValueClass = annotationParameterValue.getClass();
             if (annotationParameterValueClass.isArray()) {
                 // Handle array types
@@ -461,7 +489,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
                     return ((boolean[]) annotationParameterValue).clone();
                 } else {
                     // Handle arrays of nested annotation types
-                    final Object[] arr = (Object[]) annotationParameterValue;
+                    final var arr = (Object[]) annotationParameterValue;
                     return arr.clone();
                 }
             }
@@ -480,12 +508,14 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.Comparable#compareTo(java.lang.Object)
      */
     @Override
     public int compareTo(final AnnotationInfo o) {
-        final int diff = this.name.compareTo(o.name);
+        final var diff = this.name.compareTo(o.name);
         if (diff != 0) {
             return diff;
         }
@@ -503,7 +533,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
                 } else if (i >= o.annotationParamValues.size()) {
                     return 1;
                 } else {
-                    final int diff2 = annotationParamValues.get(i).compareTo(o.annotationParamValues.get(i));
+                    final var diff2 = annotationParamValues.get(i).compareTo(o.annotationParamValues.get(i));
                     if (diff2 != 0) {
                         return diff2;
                     }
@@ -513,26 +543,30 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
         return 0;
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
     public boolean equals(final Object obj) {
         if (obj == this) {
             return true;
-        } else if (!(obj instanceof AnnotationInfo)) {
+        }
+        if (!(obj instanceof final AnnotationInfo other)) {
             return false;
         }
-        final AnnotationInfo other = (AnnotationInfo) obj;
         return this.compareTo(other) == 0;
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     *
      * @see java.lang.Object#hashCode()
      */
     @Override
     public int hashCode() {
-        int h = name.hashCode();
+        var h = name.hashCode();
         if (annotationParamValues != null) {
             for (final AnnotationParameterValue e : annotationParamValues) {
                 h = h * 7 + e.getName().hashCode() * 3 + e.getValue().hashCode();
@@ -544,14 +578,14 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     @Override
     protected void toString(final boolean useSimpleNames, final StringBuilder buf) {
         buf.append('@').append(useSimpleNames ? ClassInfo.getSimpleName(name) : name);
-        final AnnotationParameterValueList paramVals = getParameterValues();
+        final var paramVals = getParameterValues();
         if (!paramVals.isEmpty()) {
             buf.append('(');
-            for (int i = 0; i < paramVals.size(); i++) {
+            for (var i = 0; i < paramVals.size(); i++) {
                 if (i > 0) {
                     buf.append(", ");
                 }
-                final AnnotationParameterValue paramVal = paramVals.get(i);
+                final var paramVal = paramVals.get(i);
                 if (paramVals.size() > 1 || !"value".equals(paramVal.getName())) {
                     paramVal.toString(useSimpleNames, buf);
                 } else {

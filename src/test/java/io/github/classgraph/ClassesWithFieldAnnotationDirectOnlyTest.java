@@ -8,9 +8,10 @@ import java.lang.annotation.RetentionPolicy;
 import org.junit.jupiter.api.Test;
 
 /**
- * {@link ClassInfo#getClassesWithFieldAnnotation()} passed the classes with a <i>method</i> annotation as the set of
- * directly-annotated classes, so calling {@link ClassInfoList#directOnly()} on the result returned the classes with
- * an annotated method rather than the classes with an annotated field.
+ * {@link ClassInfo#getClassesWithFieldAnnotation()} passed the classes with a
+ * <i>method</i> annotation as the set of directly-annotated classes, so calling
+ * {@link ClassInfoList#directOnly()} on the result returned the classes with an
+ * annotated method rather than the classes with an annotated field.
  */
 public class ClassesWithFieldAnnotationDirectOnlyTest {
     /** An annotation that is placed on both a field and a method. */
@@ -33,14 +34,17 @@ public class ClassesWithFieldAnnotationDirectOnlyTest {
         }
     }
 
-    /** {@code directOnly()} returns the classes with an annotated field, not with an annotated method. */
+    /**
+     * {@code directOnly()} returns the classes with an annotated field, not with an
+     * annotated method.
+     */
     @Test
     public void directOnlyReturnsClassesWithAnnotatedField() {
-        try (ScanResult scanResult = new ClassGraph()
+        try (var scanResult = new ClassGraph()
                 .acceptClasses(FieldOrMethodAnnotation.class.getName(), ClassWithAnnotatedField.class.getName(),
                         ClassWithAnnotatedMethod.class.getName())
                 .enableFieldInfo().enableMethodInfo().enableAnnotationInfo().scan()) {
-            final ClassInfo annotation = scanResult.getClassInfo(FieldOrMethodAnnotation.class.getName());
+            final var annotation = scanResult.getClassInfo(FieldOrMethodAnnotation.class.getName());
             assertThat(annotation.getClassesWithFieldAnnotation().directOnly().getNames())
                     .containsExactly(ClassWithAnnotatedField.class.getName());
         }

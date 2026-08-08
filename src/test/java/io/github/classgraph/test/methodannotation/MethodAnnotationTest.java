@@ -30,15 +30,11 @@ package io.github.classgraph.test.methodannotation;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.List;
-
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
-import io.github.classgraph.ClassInfoList;
 import io.github.classgraph.MethodInfo;
-import io.github.classgraph.ScanResult;
 import io.github.classgraph.test.external.ExternalAnnotation;
 
 /**
@@ -50,11 +46,9 @@ public class MethodAnnotationTest {
      */
     @Test
     public void testGetNamesOfClassesWithMethodAnnotation() {
-        try (ScanResult scanResult = new ClassGraph()
-                .acceptPackages(MethodAnnotationTest.class.getPackage().getName()).enableClassInfo()
-                .enableMethodInfo().enableAnnotationInfo().scan()) {
-            final List<String> testClasses = scanResult.getClassesWithMethodAnnotation(ExternalAnnotation.class)
-                    .getNames();
+        try (var scanResult = new ClassGraph().acceptPackages(MethodAnnotationTest.class.getPackage().getName())
+                .enableClassInfo().enableMethodInfo().enableAnnotationInfo().scan()) {
+            final var testClasses = scanResult.getClassesWithMethodAnnotation(ExternalAnnotation.class).getNames();
             assertThat(testClasses).isEmpty();
         }
     }
@@ -64,14 +58,12 @@ public class MethodAnnotationTest {
      */
     @Test
     public void testGetNamesOfClassesWithMethodAnnotationIgnoringVisibility() {
-        try (ScanResult scanResult = new ClassGraph()
-                .acceptPackages(MethodAnnotationTest.class.getPackage().getName()).enableClassInfo()
-                .enableMethodInfo().enableAnnotationInfo().ignoreMethodVisibility().scan()) {
-            final ClassInfoList classesWithMethodAnnotation = scanResult
-                    .getClassesWithMethodAnnotation(ExternalAnnotation.class);
-            final List<String> testClasses = classesWithMethodAnnotation.getNames();
+        try (var scanResult = new ClassGraph().acceptPackages(MethodAnnotationTest.class.getPackage().getName())
+                .enableClassInfo().enableMethodInfo().enableAnnotationInfo().ignoreMethodVisibility().scan()) {
+            final var classesWithMethodAnnotation = scanResult.getClassesWithMethodAnnotation(ExternalAnnotation.class);
+            final var testClasses = classesWithMethodAnnotation.getNames();
             assertThat(testClasses).containsOnly(MethodAnnotationTest.class.getName());
-            boolean found = false;
+            var found = false;
             for (final ClassInfo ci : classesWithMethodAnnotation) {
                 for (final MethodInfo mi : ci.getMethodInfo()) {
                     if (mi.getAnnotationInfo().containsName(ExternalAnnotation.class.getName())) {

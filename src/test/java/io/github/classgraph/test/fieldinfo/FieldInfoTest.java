@@ -30,13 +30,10 @@ package io.github.classgraph.test.fieldinfo;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.List;
-
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ScanResult;
 import io.github.classgraph.test.external.ExternalAnnotation;
 
 /**
@@ -55,9 +52,10 @@ public class FieldInfoTest {
     public int fieldWithoutAnnotation;
 
     /**
-     * Field with initializer but without static or final modifier. In Java, the constant pool is not currently used
-     * by the compiler to assign initializer values for non-static, non-final fields, whereas it supposedly is in
-     * Kotlin (#379).
+     * Field with initializer but without static or final modifier. In Java, the
+     * constant pool is not currently used by the compiler to assign initializer
+     * values for non-static, non-final fields, whereas it supposedly is in Kotlin
+     * (#379).
      */
     public int nonStaticNonFinalFieldWithInitializer = 5;
 
@@ -71,8 +69,7 @@ public class FieldInfoTest {
      */
     @Test
     public void fieldInfoNotEnabled() {
-        try (ScanResult scanResult = new ClassGraph().acceptPackages(FieldInfoTest.class.getPackage().getName())
-                .scan()) {
+        try (var scanResult = new ClassGraph().acceptPackages(FieldInfoTest.class.getPackage().getName()).scan()) {
             Assertions.assertThrows(IllegalArgumentException.class,
                     () -> scanResult.getClassInfo(FieldInfoTest.class.getName()).getFieldInfo());
         }
@@ -83,14 +80,12 @@ public class FieldInfoTest {
      */
     @Test
     public void testGetFieldInfo() {
-        try (ScanResult scanResult = new ClassGraph().acceptPackages(FieldInfoTest.class.getPackage().getName())
-                .enableFieldInfo().enableStaticFinalFieldConstantInitializerValues().enableAnnotationInfo()
-                .scan()) {
-            final List<String> fieldInfoStrs = scanResult.getClassInfo(FieldInfoTest.class.getName()).getFieldInfo()
+        try (var scanResult = new ClassGraph().acceptPackages(FieldInfoTest.class.getPackage().getName())
+                .enableFieldInfo().enableStaticFinalFieldConstantInitializerValues().enableAnnotationInfo().scan()) {
+            final var fieldInfoStrs = scanResult.getClassInfo(FieldInfoTest.class.getName()).getFieldInfo()
                     .getAsStrings();
             assertThat(fieldInfoStrs).containsOnly(
-                    "@" + ExternalAnnotation.class.getName()
-                            + " public static final int publicFieldWithAnnotation = 3",
+                    "@" + ExternalAnnotation.class.getName() + " public static final int publicFieldWithAnnotation = 3",
                     "public int fieldWithoutAnnotation", "public int nonStaticNonFinalFieldWithInitializer",
                     "public static int staticNonFinalFieldWithInitializer");
         }
@@ -101,14 +96,13 @@ public class FieldInfoTest {
      */
     @Test
     public void testGetFieldInfoIgnoringVisibility() {
-        try (ScanResult scanResult = new ClassGraph().acceptPackages(FieldInfoTest.class.getPackage().getName())
+        try (var scanResult = new ClassGraph().acceptPackages(FieldInfoTest.class.getPackage().getName())
                 .enableFieldInfo().enableStaticFinalFieldConstantInitializerValues().enableAnnotationInfo()
                 .ignoreFieldVisibility().scan()) {
-            final List<String> fieldInfoStrs = scanResult.getClassInfo(FieldInfoTest.class.getName()).getFieldInfo()
+            final var fieldInfoStrs = scanResult.getClassInfo(FieldInfoTest.class.getName()).getFieldInfo()
                     .getAsStrings();
             assertThat(fieldInfoStrs).containsOnly(
-                    "@" + ExternalAnnotation.class.getName()
-                            + " public static final int publicFieldWithAnnotation = 3",
+                    "@" + ExternalAnnotation.class.getName() + " public static final int publicFieldWithAnnotation = 3",
                     "@" + ExternalAnnotation.class.getName()
                             + " private static final java.lang.String privateFieldWithAnnotation = \"test\"",
                     "public int fieldWithoutAnnotation", "public int nonStaticNonFinalFieldWithInitializer",

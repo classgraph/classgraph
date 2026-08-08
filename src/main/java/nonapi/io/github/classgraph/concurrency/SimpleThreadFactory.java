@@ -28,7 +28,6 @@
  */
 package nonapi.io.github.classgraph.concurrency;
 
-import java.lang.reflect.Method;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -49,10 +48,8 @@ public class SimpleThreadFactory implements java.util.concurrent.ThreadFactory {
     /**
      * Constructor.
      *
-     * @param threadNamePrefix
-     *            prefix for created threads.
-     * @param daemon
-     *            create daemon threads?
+     * @param threadNamePrefix prefix for created threads.
+     * @param daemon           create daemon threads?
      */
     SimpleThreadFactory(final String threadNamePrefix, final boolean daemon) {
         this.threadNamePrefix = threadNamePrefix;
@@ -62,31 +59,38 @@ public class SimpleThreadFactory implements java.util.concurrent.ThreadFactory {
     /**
      * New thread.
      *
-     * @param runnable
-     *            the runnable
+     * @param runnable the runnable
      * @return the thread
      */
     @Override
     public Thread newThread(final Runnable runnable) {
-        // Call System.getSecurityManager().getThreadGroup() via reflection, since it is deprecated in JDK 17
+        // Call System.getSecurityManager().getThreadGroup() via reflection, since it is
+        // deprecated in JDK 17
         ThreadGroup securityManagerThreadGroup = null;
         try {
-            final Method getSecurityManager = System.class.getDeclaredMethod("getSecurityManager");
-            final Object securityManager = getSecurityManager.invoke(null);
+            final var getSecurityManager = System.class.getDeclaredMethod("getSecurityManager");
+            final var securityManager = getSecurityManager.invoke(null);
             if (securityManager != null) {
-                // (Use getMethod() rather than getDeclaredMethod(), since getThreadGroup() is a public method
-                // inherited from SecurityManager -- an installed security manager is almost always a subclass
-                // that does not redeclare it, and getDeclaredMethod() would not find it in that case)
-                final Method getThreadGroup = securityManager.getClass().getMethod("getThreadGroup");
+                // (Use getMethod() rather than getDeclaredMethod(), since getThreadGroup() is a
+                // public method
+                // inherited from SecurityManager -- an installed security manager is almost
+                // always a subclass
+                // that does not redeclare it, and getDeclaredMethod() would not find it in that
+                // case)
+                final var getThreadGroup = securityManager.getClass().getMethod("getThreadGroup");
                 securityManagerThreadGroup = (ThreadGroup) getThreadGroup.invoke(securityManager);
             }
         } catch (final Throwable t) {
             // Fall through
         }
-        // Use the current thread's ThreadGroup as the fallback, as java.util.concurrent.Executors'
-        // defaultThreadFactory does. Allocating a new ThreadGroup per thread leaks: a ThreadGroup registers
-        // itself with its parent on construction, and a non-daemon ThreadGroup is unregistered only when it is
-        // explicitly destroyed, so one ThreadGroup (plus its Thread[] array) accumulated per created thread and
+        // Use the current thread's ThreadGroup as the fallback, as
+        // java.util.concurrent.Executors'
+        // defaultThreadFactory does. Allocating a new ThreadGroup per thread leaks: a
+        // ThreadGroup registers
+        // itself with its parent on construction, and a non-daemon ThreadGroup is
+        // unregistered only when it is
+        // explicitly destroyed, so one ThreadGroup (plus its Thread[] array)
+        // accumulated per created thread and
         // stayed reachable from the parent group forever. (#931)
         final Thread thread = new Thread(
                 securityManagerThreadGroup != null ? securityManagerThreadGroup

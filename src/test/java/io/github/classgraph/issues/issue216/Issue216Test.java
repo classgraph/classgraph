@@ -35,9 +35,6 @@ import javax.persistence.Entity;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ClassInfo;
-import io.github.classgraph.ClassInfoList.ClassInfoFilter;
-import io.github.classgraph.ScanResult;
 
 /**
  * Issue216Test.
@@ -49,14 +46,10 @@ public class Issue216Test {
      */
     @Test
     public void testSpringBootJarWithLibJars() {
-        try (ScanResult result = new ClassGraph().acceptPackages(Issue216Test.class.getPackage().getName())
-                .enableAllInfo().scan()) {
-            assertThat(result.getAllClasses().filter(new ClassInfoFilter() {
-                @Override
-                public boolean accept(final ClassInfo ci) {
-                    return ci.hasAnnotation(Entity.class);
-                }
-            }).getNames()).containsOnly(Issue216Test.class.getName());
+        try (var result = new ClassGraph().acceptPackages(Issue216Test.class.getPackage().getName()).enableAllInfo()
+                .scan()) {
+            assertThat(result.getAllClasses().filter(ci -> ci.hasAnnotation(Entity.class)).getNames())
+                    .containsOnly(Issue216Test.class.getName());
         }
     }
 }

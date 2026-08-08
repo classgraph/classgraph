@@ -30,12 +30,11 @@ package io.github.classgraph.issues.issue107;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.Arrays;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ScanResult;
 
 /**
  * Issue107Test.
@@ -47,15 +46,16 @@ public class Issue107Test {
     @Test
     public void issue107Test() {
         // Package annotations should have "package-info" as their class name
-        try (ScanResult scanResult = new ClassGraph().acceptPackages("io.github.classgraph").enableAnnotationInfo()
+        try (var scanResult = new ClassGraph().acceptPackages("io.github.classgraph").enableAnnotationInfo()
                 // package-info is a non-public class
                 .ignoreClassVisibility() //
                 .scan()) {
             assertThat(scanResult.getClassesWithAnnotation(PackageAnnotation.class).getNames()).isEmpty();
             assertThat(scanResult.getPackageInfo().getNames())
-                    .containsAll(Arrays.asList("io.github.classgraph", Issue107Test.class.getPackage().getName()));
-            assertThat(scanResult.getPackageInfo(Issue107Test.class.getPackage().getName()).getAnnotationInfo()
-                    .getNames()).containsOnly(PackageAnnotation.class.getName());
+                    .containsAll(List.of("io.github.classgraph", Issue107Test.class.getPackage().getName()));
+            assertThat(
+                    scanResult.getPackageInfo(Issue107Test.class.getPackage().getName()).getAnnotationInfo().getNames())
+                    .containsOnly(PackageAnnotation.class.getName());
         }
     }
 }

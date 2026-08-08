@@ -33,24 +33,26 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 /**
- * A wrapper for {@link ByteBuffer} that implements the {@link Closeable} interface, releasing the
- * {@link ByteBuffer} when it is no longer needed.
+ * A wrapper for {@link ByteBuffer} that implements the {@link Closeable}
+ * interface, releasing the {@link ByteBuffer} when it is no longer needed.
  */
 public class CloseableByteBuffer implements Closeable {
-    /** The wrapped {@link ByteBuffer}, or null once this wrapper has been closed. */
+    /**
+     * The wrapped {@link ByteBuffer}, or null once this wrapper has been closed.
+     */
     private ByteBuffer byteBuffer;
 
-    /** The method to run on close, or null if this wrapper has already been closed. */
+    /**
+     * The method to run on close, or null if this wrapper has already been closed.
+     */
     private Runnable onClose;
 
     /**
-     * A wrapper for {@link ByteBuffer} that implements the {@link Closeable} interface, releasing the
-     * {@link ByteBuffer} when it is no longer needed.
+     * A wrapper for {@link ByteBuffer} that implements the {@link Closeable}
+     * interface, releasing the {@link ByteBuffer} when it is no longer needed.
      * 
-     * @param byteBuffer
-     *            The {@link ByteBuffer} to wrap
-     * @param onClose
-     *            The method to run when {@link #close()} is called.
+     * @param byteBuffer The {@link ByteBuffer} to wrap
+     * @param onClose    The method to run when {@link #close()} is called.
      */
     CloseableByteBuffer(final ByteBuffer byteBuffer, final Runnable onClose) {
         this.byteBuffer = byteBuffer;
