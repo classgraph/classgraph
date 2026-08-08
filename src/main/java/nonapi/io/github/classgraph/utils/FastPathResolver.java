@@ -84,7 +84,7 @@ public final class FastPathResolver {
                 // Strip trailing separator, if necessary
                 if (i < endIdx - 1 || !stripFinalSeparator) {
                     // Remove duplicate separators
-                    final char prevChar = buf.length() == 0 ? '\0' : buf.charAt(buf.length() - 1);
+                    final char prevChar = buf.isEmpty() ? '\0' : buf.charAt(buf.length() - 1);
                     if (prevChar != '/') {
                         buf.append('/');
                     }

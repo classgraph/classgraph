@@ -77,20 +77,11 @@ public final class StringUtils {
         while (byteIdx < numBytes) {
             final int c = arr[startOffset + byteIdx] & 0xff;
             switch (c >> 4) {
-            case 0:
-            case 1:
-            case 2:
-            case 3:
-            case 4:
-            case 5:
-            case 6:
-            case 7: {
+            case 0, 1, 2, 3, 4, 5, 6, 7 -> {
                 byteIdx++;
                 chars[charIdx++] = (char) (replaceSlashWithDot && c == '/' ? '.' : c);
-                break;
             }
-            case 12:
-            case 13: {
+            case 12, 13 -> {
                 byteIdx += 2;
                 if (byteIdx > numBytes) {
                     throw new IllegalArgumentException("Bad modified UTF8");
@@ -101,9 +92,8 @@ public final class StringUtils {
                 }
                 final int c3 = ((c & 0x1f) << 6) | (c2 & 0x3f);
                 chars[charIdx++] = (char) (replaceSlashWithDot && c3 == '/' ? '.' : c3);
-                break;
             }
-            case 14: {
+            case 14 -> {
                 byteIdx += 3;
                 if (byteIdx > numBytes) {
                     throw new IllegalArgumentException("Bad modified UTF8");
@@ -115,10 +105,8 @@ public final class StringUtils {
                 }
                 final int c4 = ((c & 0x0f) << 12) | ((c2 & 0x3f) << 6) | (c3 & 0x3f);
                 chars[charIdx++] = (char) (replaceSlashWithDot && c4 == '/' ? '.' : c4);
-                break;
             }
-            default:
-                throw new IllegalArgumentException("Bad modified UTF8");
+            default -> throw new IllegalArgumentException("Bad modified UTF8");
             }
         }
         if (charIdx == numBytes && !stripLSemicolon) {

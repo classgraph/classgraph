@@ -36,7 +36,6 @@ import java.util.Calendar;
 import java.util.Collection;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
@@ -89,7 +88,7 @@ public final class LogNode {
     private final String sortKeyPrefix;
 
     /** The sort key suffix for this log entry, used to make sort keys unique. */
-    private static AtomicInteger sortKeyUniqueSuffix = new AtomicInteger(0);
+    private static final AtomicInteger sortKeyUniqueSuffix = new AtomicInteger(0);
 
     /** The date/time formatter (not threadsafe). */
     private static final SimpleDateFormat dateTimeFormatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZZ",
@@ -221,8 +220,7 @@ public final class LogNode {
             }
         }
 
-        for (final Entry<String, LogNode> ent : children.entrySet()) {
-            final LogNode child = ent.getValue();
+        for (final LogNode child : children.values()) {
             child.toString(indentLevel + 1, buf);
         }
     }

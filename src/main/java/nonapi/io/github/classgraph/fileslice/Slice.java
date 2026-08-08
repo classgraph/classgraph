@@ -309,10 +309,9 @@ public abstract class Slice implements Closeable {
     public boolean equals(final Object o) {
         if (o == this) {
             return true;
-        } else if (!(o instanceof Slice)) {
+        } else if (!(o instanceof final Slice other)) {
             return false;
         } else {
-            final Slice other = (Slice) o;
             return this.parentSlice == other.parentSlice && this.sliceStartPos == other.sliceStartPos
                     && this.sliceLength == other.sliceLength;
         }

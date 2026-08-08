@@ -34,7 +34,6 @@ import java.io.InputStream;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Locale;
 import java.util.Properties;
 
@@ -192,7 +191,7 @@ public final class VersionFinder {
             final String className = cls.getName();
             final URL classpathResource = cls.getResource("/" + JarUtils.classNameToClassfilePath(className));
             if (classpathResource != null) {
-                final Path absolutePackagePath = Paths.get(classpathResource.toURI()).getParent();
+                final Path absolutePackagePath = Path.of(classpathResource.toURI()).getParent();
                 final int packagePathSegments = className.length() - className.replace(".", "").length();
                 // Remove package segments from path
                 Path path = absolutePackagePath;

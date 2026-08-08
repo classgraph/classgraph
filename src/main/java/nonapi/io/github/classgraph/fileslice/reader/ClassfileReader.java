@@ -109,10 +109,9 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
             arr = new byte[INITIAL_BUF_SIZE];
             classfileLengthHint = (int) Math.min(slice.inflatedLengthHint, FileUtils.MAX_BUFFER_SIZE);
         } else {
-            if (slice instanceof ArraySlice) {
+            if (slice instanceof final ArraySlice arraySlice) {
                 // If slice is an ArraySlice, avoid copying by simply reusing the wrapped byte array
                 // in place of the buffer array, and mark it as fully loaded
-                final ArraySlice arraySlice = (ArraySlice) slice;
                 if (arraySlice.sliceStartPos == 0 && arraySlice.sliceLength == arraySlice.arr.length) {
                     // ArraySlice is the whole array
                     arr = arraySlice.arr;
@@ -213,7 +212,7 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
             if (numRead > 0) {
                 arrUsed += numRead;
             }
-        } else /* randomAccessReader == null, so this is a (non-deflated) FileSlice */ {
+        } else /* inflaterInputStream == null, so this is a (non-deflated) FileSlice */ {
             // Don't read past end of slice
             final int bytesToRead = Math.min(maxBytesToRead, maxArrLen - arrUsed);
             // Read bytes from FileSlice into arr

@@ -221,7 +221,7 @@ public final class JarUtils {
      *            the buf
      */
     private static void appendPathElt(final Object pathElt, final StringBuilder buf) {
-        if (buf.length() > 0) {
+        if (!buf.isEmpty()) {
             buf.append(File.pathSeparatorChar);
         }
         // Escape any rogue path separators, as long as file separator is not '\\' (on Windows, if there are any
@@ -437,7 +437,7 @@ public final class JarUtils {
         moduleName = REPEATING_DOTS.matcher(moduleName).replaceAll(".");
 
         // Drop leading dots
-        if (moduleName.length() > 0 && moduleName.charAt(0) == '.') {
+        if (!moduleName.isEmpty() && moduleName.charAt(0) == '.') {
             moduleName = LEADING_DOTS.matcher(moduleName).replaceAll("");
         }
 

@@ -47,7 +47,7 @@ import nonapi.io.github.classgraph.utils.LogNode;
 /** Reflection driver */
 abstract class ReflectionDriver {
     private final SingletonMap<Class<?>, ClassMemberCache, Exception> classToClassMemberCache //
-            = new SingletonMap<Class<?>, ClassMemberCache, Exception>() {
+            = new SingletonMap<>() {
                 @Override
                 public ClassMemberCache newInstance(final Class<?> cls, final LogNode log)
                         throws Exception, InterruptedException {
@@ -63,7 +63,7 @@ abstract class ReflectionDriver {
         private ClassMemberCache(final Class<?> cls) throws Exception {
             // Iterate from class to its superclasses, and find initial interfaces to start traversing from
             final Set<Class<?>> visited = new HashSet<>();
-            final LinkedList<Class<?>> interfaceQueue = new LinkedList<Class<?>>();
+            final LinkedList<Class<?>> interfaceQueue = new LinkedList<>();
             for (Class<?> c = cls; c != null; c = c.getSuperclass()) {
                 try {
                     // Cache any declared methods and fields
@@ -105,19 +105,13 @@ abstract class ReflectionDriver {
         }
 
         private void cacheMethod(final Method method) {
-            List<Method> methodsForName = methodNameToMethods.get(method.getName());
-            if (methodsForName == null) {
-                methodNameToMethods.put(method.getName(), methodsForName = new ArrayList<>());
-            }
-            methodsForName.add(method);
+            methodNameToMethods.computeIfAbsent(method.getName(), name -> new ArrayList<>()).add(method);
         }
 
         private void cacheField(final Field field) {
-            // Only put a field name to field mapping if it is absent, so that subclasses mask fields 
+            // Only put a field name to field mapping if it is absent, so that subclasses mask fields
             // of the same name in superclasses
-            if (!fieldNameToField.containsKey(field.getName())) {
-                fieldNameToField.put(field.getName(), field);
-            }
+            fieldNameToField.putIfAbsent(field.getName(), field);
         }
     }
 

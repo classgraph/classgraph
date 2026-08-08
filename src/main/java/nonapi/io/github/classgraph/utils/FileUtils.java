@@ -40,7 +40,6 @@ import java.nio.channels.FileChannel.MapMode;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
 import java.util.ArrayList;
@@ -108,7 +107,7 @@ public final class FileUtils {
             final String currDirPathStr = VersionFinder.getProperty("user.dir");
             if (currDirPathStr != null) {
                 try {
-                    path = Paths.get(currDirPathStr);
+                    path = Path.of(currDirPathStr);
                 } catch (final InvalidPathException e) {
                     // Fall through
                 }
@@ -117,7 +116,7 @@ public final class FileUtils {
                 // user.dir should probably always be set. But just in case it is not, try reading the
                 // actual current directory at the time ClassGraph is first invoked.
                 try {
-                    path = Paths.get("");
+                    path = Path.of("");
                 } catch (final InvalidPathException e) {
                     // Fall through
                 }
@@ -224,7 +223,7 @@ public final class FileUtils {
             for (final List<CharSequence> sectionSegments : allSectionSegments) {
                 if (!sectionSegments.isEmpty()) {
                     // Delineate segments with "!"
-                    if (pathSanitized.length() > 0) {
+                    if (!pathSanitized.isEmpty()) {
                         pathSanitized.append('!');
                     }
                     for (final CharSequence sectionSegment : sectionSegments) {
@@ -233,7 +232,7 @@ public final class FileUtils {
                     }
                 }
             }
-            if (pathSanitized.length() == 0 && pathHasInitialSlash) {
+            if (pathSanitized.isEmpty() && pathHasInitialSlash) {
                 pathSanitized.append('/');
             }
         } else {
@@ -249,7 +248,7 @@ public final class FileUtils {
         // Strip the final slashes before the initial ones, so that for a path consisting only of slashes (which is
         // what "/.." and "/." normalize to), truncating the buffer cannot leave it shorter than startIdx
         if (removeFinalSlash) {
-            while (pathSanitized.length() > 0 && pathSanitized.charAt(pathSanitized.length() - 1) == '/') {
+            while (!pathSanitized.isEmpty() && pathSanitized.charAt(pathSanitized.length() - 1) == '/') {
                 pathSanitized.setLength(pathSanitized.length() - 1);
             }
         }
@@ -759,10 +758,10 @@ public final class FileUtils {
             // invocation wraps in other exceptions -- unwrap and rethrow, so that the caller can retry
             // mapping after running garbage collection
             for (Throwable t = e; t != null; t = t.getCause()) {
-                if (t instanceof IOException) {
-                    throw (IOException) t;
-                } else if (t instanceof OutOfMemoryError) {
-                    throw (OutOfMemoryError) t;
+                if (t instanceof final IOException ioException) {
+                    throw ioException;
+                } else if (t instanceof final OutOfMemoryError outOfMemoryError) {
+                    throw outOfMemoryError;
                 }
             }
             // The reflective invocation itself failed -- the caller will fall back to the FileChannel API
@@ -807,17 +806,8 @@ public final class FileUtils {
      */
     public static FileAttributesGetter createCachedAttributesGetter() {
         final Map<Path, BasicFileAttributes> cache = new HashMap<>();
-        return new FileAttributesGetter() {
-            @Override
-            public BasicFileAttributes get(final Path path) {
-                BasicFileAttributes attributes = cache.get(path);
-                if (attributes == null) {
-                    attributes = readAttributes(path);
-                    cache.put(path, attributes);
-                }
-                return attributes;
-            }
-        };
+        // readAttributes never returns null, so computeIfAbsent caches every path after the first read
+        return path -> cache.computeIfAbsent(path, FileUtils::readAttributes);
     }
 
     /**
