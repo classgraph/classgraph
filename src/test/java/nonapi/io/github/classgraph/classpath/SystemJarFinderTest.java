@@ -11,8 +11,6 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledForJreRange;
-import org.junit.jupiter.api.condition.JRE;
 import org.junit.jupiter.api.io.TempDir;
 
 import nonapi.io.github.classgraph.utils.FastPathResolver;
@@ -83,28 +81,6 @@ public class SystemJarFinderTest {
     }
 
     /**
-     * Regression guard for the #816 fix: on a real JDK 8 install, {@code java.home} is {@code <jdk>/jre}, so the
-     * JDK root check must succeed, and the JDK's own {@code lib/} jars (e.g. {@code tools.jar}) must still be
-     * classified as system jars.
-     */
-    @Test
-    @EnabledForJreRange(max = JRE.JAVA_8)
-    public void realJdkLibJarsAreStillFound() {
-        final File javaHome = new File(System.getProperty("java.home"));
-        if (!"jre".equals(javaHome.getName())) {
-            // A standalone JRE install, rather than the JRE inside a JDK -- nothing to check
-            return;
-        }
-        assertThat(SystemJarFinder.isJDKRoot(javaHome.getParentFile())).isTrue();
-        assertThat(SystemJarFinder.getJreLibOrExtJars()).anyMatch(new java.util.function.Predicate<String>() {
-            @Override
-            public boolean test(final String path) {
-                return path.endsWith("/tools.jar");
-            }
-        });
-    }
-
-    /**
      * A JRE lib jar that is a symlink is reachable both by the symlink path and by the path it resolves to, so both
      * paths must be recorded -- otherwise a classpath entry naming the other path is not recognized as a system jar.
      */
@@ -123,9 +99,8 @@ public class SystemJarFinderTest {
             assumeTrue(false, "Cannot create symlinks on this platform: " + e);
         }
 
-        final Set<String> rtJars = new LinkedHashSet<>();
         final Set<String> libOrExtJars = new LinkedHashSet<>();
-        assertThat(SystemJarFinder.addJREPath(libDir.toFile(), rtJars, libOrExtJars)).isTrue();
+        assertThat(SystemJarFinder.addJREPath(libDir.toFile(), libOrExtJars)).isTrue();
 
         final String symlinkPathResolved = FastPathResolver.resolve(FileUtils.currDirPath(),
                 symlinkedJar.toFile().getPath());
@@ -133,7 +108,6 @@ public class SystemJarFinderTest {
                 symlinkedJar.toFile().getCanonicalPath());
         assertThat(canonicalPathResolved).isNotEqualTo(symlinkPathResolved);
         assertThat(libOrExtJars).containsExactlyInAnyOrder(symlinkPathResolved, canonicalPathResolved);
-        assertThat(rtJars).isEmpty();
     }
 
     /**
@@ -142,7 +116,6 @@ public class SystemJarFinderTest {
      * jar.
      */
     @Test
-    @EnabledForJreRange(min = JRE.JAVA_9)
     public void jrtFsJarIsNotAJreLibJar() {
         assertThat(SystemJarFinder.getJreLibOrExtJars()).noneMatch(new java.util.function.Predicate<String>() {
             @Override

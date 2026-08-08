@@ -307,9 +307,8 @@ public class ClasspathOrder {
         } else {
             final String pathElementStrResolved = FastPathResolver.resolve(FileUtils.currDirPath(),
                     pathElementStrWithoutSuffix);
-            if (scanSpec.overrideClasspath == null //
-                    && (SystemJarFinder.getJreLibOrExtJars().contains(pathElementStrResolved)
-                            || pathElementStrResolved.equals(SystemJarFinder.getJreRtJarPath()))) {
+            if (scanSpec.overrideClasspath == null
+                    && SystemJarFinder.getJreLibOrExtJars().contains(pathElementStrResolved)) {
                 // JRE lib and ext jars are handled separately, so reject them as duplicates if they are 
                 // returned by a system classloader
                 return false;

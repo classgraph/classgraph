@@ -202,19 +202,10 @@ public class ClasspathFinder {
             classLoaderOrderRespectingParentDelegation = contextClassLoaders;
         }
 
-        // If system jars and modules are enabled, add JRE rt.jar to the beginning of the classpath
+        // If system jars and modules are enabled, add the JRE lib and ext jars to the beginning of the classpath
         if (scanSpec.enableSystemJarsAndModules) {
-            final String jreRtJar = SystemJarFinder.getJreRtJarPath();
-
-            // Add rt.jar and/or lib/ext jars to beginning of classpath, if enabled
             final LogNode systemJarsLog = classpathFinderLog == null ? null
                     : classpathFinderLog.log("System jars:");
-            if (jreRtJar != null) {
-                classpathOrder.addSystemClasspathEntry(jreRtJar, defaultClassLoader);
-                if (systemJarsLog != null) {
-                    systemJarsLog.log("Found rt.jar: " + jreRtJar);
-                }
-            }
             for (final String libOrExtJarPath : SystemJarFinder.getJreLibOrExtJars()) {
                 // If no lib or ext jar accept/reject criteria were added, all lib and ext jars are accepted;
                 // if only reject criteria were added, all but the rejected jars are accepted; if accept criteria

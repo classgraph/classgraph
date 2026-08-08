@@ -42,7 +42,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 
 import io.github.classgraph.ClassGraph;
-import nonapi.io.github.classgraph.classpath.SystemJarFinder;
 
 /**
  * A tree-structured threadsafe log that allows you to add log entries in arbitrary order, and have the output
@@ -152,7 +151,7 @@ public final class LogNode {
     }
 
     /**
-     * Log the Java version and the JRE paths that were found.
+     * Log the Java version and the Java home directory.
      */
     private void logJavaInfo() {
         log("Operating system: " + VersionFinder.getProperty("os.name") + " "
@@ -161,10 +160,6 @@ public final class LogNode {
                 + VersionFinder.getProperty("java.runtime.version") + " ("
                 + VersionFinder.getProperty("java.vendor") + ")");
         log("Java home: " + VersionFinder.getProperty("java.home"));
-        final String jreRtJarPath = SystemJarFinder.getJreRtJarPath();
-        if (jreRtJarPath != null) {
-            log("JRE rt.jar:").log(jreRtJarPath);
-        }
     }
 
     /**

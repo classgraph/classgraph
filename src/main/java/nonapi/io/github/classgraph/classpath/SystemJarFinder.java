@@ -38,14 +38,8 @@ import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.VersionFinder;
 
-/** A class to find rt.jar and any JRE "lib/" or "ext/" jars. */
+/** A class to find any JRE "lib/" or "ext/" jars. */
 public final class SystemJarFinder {
-    /** The paths of any "rt.jar" files found in the JRE. */
-    private static final Set<String> RT_JARS = new LinkedHashSet<>();
-
-    /** The path of the first "rt.jar" found. */
-    private static final String RT_JAR;
-
     /** The paths of any "lib/" or "ext/" jars found in the JRE. */
     private static final Set<String> JRE_LIB_OR_EXT_JARS = new LinkedHashSet<>();
 
@@ -64,22 +58,20 @@ public final class SystemJarFinder {
      * @return true if the directory was readable.
      */
     private static boolean addJREPath(final File dir) {
-        return addJREPath(dir, RT_JARS, JRE_LIB_OR_EXT_JARS);
+        return addJREPath(dir, JRE_LIB_OR_EXT_JARS);
     }
 
     /**
-     * Add and search a JRE path, adding any jars found to the given sets. (Package-private, so that this can be
+     * Add and search a JRE path, adding any jars found to the given set. (Package-private, so that this can be
      * tested against a directory other than the JRE directory of the current JVM.)
      *
      * @param dir
      *            the JRE directory
-     * @param rtJars
-     *            the set to add any "rt.jar" paths to
      * @param jreLibOrExtJars
-     *            the set to add any other jar paths to
+     *            the set to add any jar paths to
      * @return true if the directory was readable.
      */
-    static boolean addJREPath(final File dir, final Set<String> rtJars, final Set<String> jreLibOrExtJars) {
+    static boolean addJREPath(final File dir, final Set<String> jreLibOrExtJars) {
         if (dir != null && !dir.getPath().isEmpty() && FileUtils.canReadAndIsDir(dir)) {
             final File[] dirFiles = dir.listFiles();
             if (dirFiles != null) {
@@ -96,11 +88,7 @@ public final class SystemJarFinder {
                             // the system modules.
                             continue;
                         }
-                        if (jarPathResolved.endsWith("/rt.jar")) {
-                            rtJars.add(jarPathResolved);
-                        } else {
-                            jreLibOrExtJars.add(jarPathResolved);
-                        }
+                        jreLibOrExtJars.add(jarPathResolved);
                         try {
                             final File canonicalFile = file.getCanonicalFile();
                             final String canonicalFilePath = canonicalFile.getPath();
@@ -231,18 +219,6 @@ public final class SystemJarFinder {
         default:
             break;
         }
-
-        RT_JAR = RT_JARS.isEmpty() ? null : FastPathResolver.resolve(RT_JARS.iterator().next());
-    }
-
-    /**
-     * Get the JRE "rt.jar" path.
-     *
-     * @return The path of rt.jar (in JDK 7 or 8), or null if it wasn't found (e.g. in JDK 9+).
-     */
-    public static String getJreRtJarPath() {
-        // Only include the first rt.jar -- if there is a copy in both the JDK and JRE, no need to scan both
-        return RT_JAR;
     }
 
     /**

@@ -9,8 +9,6 @@ import java.net.URL;
 import java.net.URLClassLoader;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledForJreRange;
-import org.junit.jupiter.api.condition.JRE;
 
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
@@ -33,7 +31,6 @@ public class MultiReleaseJarTest {
      *             the exception
      */
     @Test
-    @EnabledForJreRange(min = JRE.JAVA_9)
     public void multiReleaseJar() throws Exception {
         try (ScanResult scanResult = new ClassGraph()
                 .overrideClassLoaders(new URLClassLoader(new URL[] { jarURL })).enableAllInfo().scan()) {
@@ -66,7 +63,6 @@ public class MultiReleaseJarTest {
      *             the exception
      */
     @Test
-    @EnabledForJreRange(min = JRE.JAVA_9)
     public void multiReleaseVersioningOfResources() throws Exception {
         try (ScanResult scanResult = new ClassGraph()
                 .overrideClassLoaders(new URLClassLoader(new URL[] { jarURL })).acceptPaths("nonexistent_path")
@@ -83,7 +79,6 @@ public class MultiReleaseJarTest {
      *             the exception
      */
     @Test
-    @EnabledForJreRange(min = JRE.JAVA_9)
     public void enableMultiReleaseVersions() throws Exception {
         try (ScanResult scanResult = new ClassGraph()
                 .overrideClassLoaders(new URLClassLoader(new URL[] { jarURL })).enableMultiReleaseVersions()
@@ -113,7 +108,6 @@ public class MultiReleaseJarTest {
      *             the exception
      */
     @Test
-    @EnabledForJreRange(min = JRE.JAVA_9)
     public void enableMultiReleaseVersionsWithClassInfo() throws Exception {
         try (ScanResult scanResult = new ClassGraph()
                 .overrideClassLoaders(new URLClassLoader(new URL[] { jarURL })).enableAllInfo()
