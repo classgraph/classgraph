@@ -962,6 +962,8 @@ class Classfile {
      */
     private Object readAnnotationElementValue() throws IOException {
         final int tag = (char) reader.readUnsignedByte();
+        // This list of element_value tags is complete and up to date as of JDK 26 (JVMS 26 table 4.7.16.1-A).
+        // No tag has been added since annotations were introduced in Java SE 5.
         switch (tag) {
         case 'B':
             return (byte) cpReadInt(reader.readUnsignedShort());
@@ -1086,6 +1088,8 @@ class Classfile {
                 }
                 entryTag[i] = reader.readUnsignedByte();
                 entryOffset[i] = reader.currPos();
+                // Same set of constant pool tags as readConstantPoolEntries() -- see the note there.
+                // Complete and up to date as of JDK 26.
                 switch (entryTag[i]) {
                 case 1: // Modified UTF8
                     reader.skip(reader.readUnsignedShort());
@@ -1181,6 +1185,9 @@ class Classfile {
             }
             entryTag[i] = reader.readUnsignedByte();
             entryOffset[i] = reader.currPos();
+            // This list of constant pool tags is complete and up to date as of JDK 26 (JVMS 26 table 4.4-B).
+            // The newest tag is CONSTANT_Dynamic (17), added in Java SE 11; no tag has been added since.
+            // If a future JDK adds a tag, an entry of unknown size follows it, so parsing has to fail (below).
             switch (entryTag[i]) {
             case 0: // Impossible, probably buffer underflow
                 throw new ClassfileFormatException("Invalid constant pool tag 0 in classfile " + relativePath
@@ -1488,6 +1495,8 @@ class Classfile {
                             fieldTypeAnnotationDecorators = new ArrayList<>();
                             for (int m = 0; m < annotationCount; m++) {
                                 final int targetType = reader.readUnsignedByte();
+                                // 0x13 is the only target_type that JVMS 26 table 4.7.20-A permits in
+                                // field_info. Complete and up to date as of JDK 26.
                                 if (targetType != 0x13) {
                                     throw new ClassfileFormatException(
                                             "Class " + className + " has unknown field type annotation target 0x"
@@ -1638,6 +1647,10 @@ class Classfile {
                                 final int boundIndex;
                                 final int formalParameterIndex;
                                 final int throwsTypeIndex;
+                                // JVMS 26 table 4.7.20-A permits target_types 0x01, 0x12, 0x14, 0x15, 0x16 and
+                                // 0x17 in method_info; all are handled below, plus 0x10 and 0x13, which are
+                                // illegal here but are emitted by buggy compilers (see the notes below).
+                                // Complete and up to date as of JDK 26.
                                 if (targetType == 0x01) {
                                     // Type parameter declaration of generic method or constructor
                                     typeParameterIndex = reader.readUnsignedByte();
@@ -1903,6 +1916,8 @@ class Classfile {
                         final int typeParameterIndex;
                         final int supertypeIndex;
                         final int boundIndex;
+                        // 0x00, 0x10 and 0x11 are the only target_types that JVMS 26 table 4.7.20-A permits
+                        // in ClassFile. Complete and up to date as of JDK 26.
                         if (targetType == 0x00) {
                             // Type parameter declaration of generic class or interface
                             typeParameterIndex = reader.readUnsignedByte();
