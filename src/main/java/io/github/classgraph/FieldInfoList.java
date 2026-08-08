@@ -90,7 +90,7 @@ public class FieldInfoList extends MappableInfoList<FieldInfo> {
      * @param refdClassInfo        the referenced class info
      * @param log                  the log
      */
-    protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
+    void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
             final Set<ClassInfo> refdClassInfo, final LogNode log) {
         for (final FieldInfo fi : this) {
             fi.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);

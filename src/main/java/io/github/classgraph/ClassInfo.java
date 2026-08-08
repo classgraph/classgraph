@@ -3744,7 +3744,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @param log                  the log
      */
     @Override
-    protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
+    void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
             final Set<ClassInfo> refdClassInfo, final LogNode log) {
         // Add this class to the set of references
         super.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);

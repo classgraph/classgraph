@@ -171,7 +171,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
     }
 
     @Override
-    protected void addTypeAnnotation(final List<TypePathNode> typePath, final AnnotationInfo annotationInfo) {
+    void addTypeAnnotation(final List<TypePathNode> typePath, final AnnotationInfo annotationInfo) {
         // Individual parts of a class' type each have their own addTypeAnnotation
         // methods
         throw new IllegalArgumentException("Cannot call this method on " + ClassTypeSignature.class.getSimpleName());
@@ -256,7 +256,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
      * @param refdClassInfo        the referenced class info
      */
     @Override
-    protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
+    void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
             final Set<ClassInfo> refdClassInfo, final LogNode log) {
         final Set<String> refdClassNames = new HashSet<>();
         findReferencedClassNames(refdClassNames);

@@ -50,7 +50,7 @@ public abstract class HierarchicalTypeSignature extends ScanResultObject {
      *
      * @param annotationInfo the annotation
      */
-    protected void addTypeAnnotation(final AnnotationInfo annotationInfo) {
+    void addTypeAnnotation(final AnnotationInfo annotationInfo) {
         if (typeAnnotationInfo == null) {
             typeAnnotationInfo = new AnnotationInfoList(1);
         }
@@ -84,7 +84,7 @@ public abstract class HierarchicalTypeSignature extends ScanResultObject {
      * @param typePath       the type path
      * @param annotationInfo the annotation
      */
-    protected abstract void addTypeAnnotation(List<TypePathNode> typePath, AnnotationInfo annotationInfo);
+    abstract void addTypeAnnotation(List<TypePathNode> typePath, AnnotationInfo annotationInfo);
 
     /**
      * Render type signature to string.

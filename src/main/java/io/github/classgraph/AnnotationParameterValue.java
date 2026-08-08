@@ -156,7 +156,7 @@ public class AnnotationParameterValue extends ScanResultObject
      * @param refdClassInfo        the referenced class info
      */
     @Override
-    protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
+    void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
             final Set<ClassInfo> refdClassInfo, final LogNode log) {
         if (value != null) {
             value.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);

@@ -920,7 +920,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
      * @param log                  the log
      */
     @Override
-    protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
+    void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
             final Set<ClassInfo> refdClassInfo, final LogNode log) {
         try {
             final var methodSig = getTypeSignature();

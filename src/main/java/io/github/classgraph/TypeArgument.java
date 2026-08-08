@@ -154,7 +154,7 @@ public final class TypeArgument extends HierarchicalTypeSignature {
     }
 
     @Override
-    protected void addTypeAnnotation(final List<TypePathNode> typePath, final AnnotationInfo annotationInfo) {
+    void addTypeAnnotation(final List<TypePathNode> typePath, final AnnotationInfo annotationInfo) {
         if (typePath.isEmpty() && wildcard != Wildcard.NONE) {
             // Annotation before wildcard
             addTypeAnnotation(annotationInfo);

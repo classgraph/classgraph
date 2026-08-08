@@ -347,11 +347,6 @@
 						<useIncrementalCompilation>false</useIncrementalCompilation>
 						<compilerArgs>
 							<arg>-Xlint:all</arg>             <!-- Max lint -->
-							<!-- Several public and protected members of the exported io.github.classgraph -->
-							<!-- package take parameters whose types are internal (LogNode, TypePathNode, -->
-							<!-- ClasspathElement). Narrowing their visibility is an API change, so it is -->
-							<!-- part of the v5 API audit rather than of this build change. -->
-							<arg>-Xlint:-exports</arg>
 							<arg>-Werror</arg>
 						</compilerArgs>
 					</configuration>

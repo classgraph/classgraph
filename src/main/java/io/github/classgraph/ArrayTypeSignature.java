@@ -150,7 +150,7 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
     }
 
     @Override
-    protected void addTypeAnnotation(final List<TypePathNode> typePath, final AnnotationInfo annotationInfo) {
+    void addTypeAnnotation(final List<TypePathNode> typePath, final AnnotationInfo annotationInfo) {
         if (typePath.isEmpty()) {
             addTypeAnnotation(annotationInfo);
         } else {

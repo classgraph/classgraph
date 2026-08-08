@@ -361,7 +361,7 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
      * @param log                  the log.
      */
     @Override
-    protected final void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
+    final void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
             final Set<ClassInfo> refdClassInfo, final LogNode log) {
         final Set<String> refdClassNames = new HashSet<>();
         findReferencedClassNames(refdClassNames);
@@ -440,5 +440,5 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
      * @param annotationInfo The annotation to add.
      */
     @Override
-    protected abstract void addTypeAnnotation(List<TypePathNode> typePath, AnnotationInfo annotationInfo);
+    abstract void addTypeAnnotation(List<TypePathNode> typePath, AnnotationInfo annotationInfo);
 }

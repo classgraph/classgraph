@@ -69,12 +69,26 @@ The differences to be aware of when porting:
 
 * The month of an MS-DOS zip entry timestamp was read from three bits rather than
   four, so a zip entry that carries only an MS-DOS timestamp (i.e. no extended
-  timestamp extra field) and was last modified in August or later reported a last
-  modified time in the first five months of the year instead. This affects
+  timestamp extra field) reported the wrong last modified time if it was modified
+  in August or later: September to December were read as January to April, and
+  August was read as December of the previous year. This affects
   `Resource#getLastModified()`. (Also fixed in ClassGraph 4.x.)
 
 ### Reduced visibility
 
+Several members of the exported `io.github.classgraph` package were `public` or
+`protected` even though their types or parameters are internal, so nothing outside
+ClassGraph could usefully call or override them. They are now package-private, and the
+compiler's `-Xlint:exports` check is enabled to keep it that way.
+
 * `ScanResult#reflectionUtils` was `protected`, exposing the internal
-  `nonapi.io.github.classgraph.reflection.ReflectionUtils` type to subclasses. It is now
-  package-private.
+  `nonapi.io.github.classgraph.reflection.ReflectionUtils` type to subclasses.
+* `Resource(ClasspathElement, long)` was a `public` constructor taking the internal
+  `ClasspathElement` type. `Resource` instances only ever come from a scan.
+* The `protected` `findReferencedClassInfo(Map, Set, LogNode)` methods of `ClassInfo`,
+  `MethodInfo`, `MethodInfoList`, `FieldInfo`, `FieldInfoList`, `AnnotationInfo`,
+  `AnnotationInfoList`, `AnnotationParameterValue`, `AnnotationParameterValueList`,
+  `TypeSignature`, `ClassTypeSignature` and `MethodTypeSignature` took the internal
+  `LogNode` type.
+* The `protected` `addTypeAnnotation` methods of `HierarchicalTypeSignature`,
+  `TypeSignature` and their subclasses took the internal `Classfile.TypePathNode` type.

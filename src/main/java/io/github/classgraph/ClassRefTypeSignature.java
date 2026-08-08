@@ -193,7 +193,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
     }
 
     @Override
-    protected void addTypeAnnotation(final List<TypePathNode> typePath, final AnnotationInfo annotationInfo) {
+    void addTypeAnnotation(final List<TypePathNode> typePath, final AnnotationInfo annotationInfo) {
         // Find how many deeper nested levels to descend to
         var numDeeperNestedLevels = 0;
         var nextTypeArgIdx = -1;

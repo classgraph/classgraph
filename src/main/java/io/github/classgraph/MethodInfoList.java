@@ -90,7 +90,7 @@ public class MethodInfoList extends InfoList<MethodInfo> {
      * @param refdClassInfo        the referenced class info
      * @param log                  the log
      */
-    protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
+    void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
             final Set<ClassInfo> refdClassInfo, final LogNode log) {
         for (final MethodInfo mi : this) {
             mi.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);

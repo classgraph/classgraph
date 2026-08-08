@@ -82,7 +82,7 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
      *                         from.
      * @param length           the length the length of the resource.
      */
-    public Resource(final ClasspathElement classpathElement, final long length) {
+    Resource(final ClasspathElement classpathElement, final long length) {
         this.classpathElement = classpathElement;
         this.length = length;
     }

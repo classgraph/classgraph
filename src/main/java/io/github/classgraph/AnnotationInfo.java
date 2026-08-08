@@ -250,7 +250,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      * @param refdClassInfo        the referenced class info
      */
     @Override
-    protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
+    void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
             final Set<ClassInfo> refdClassInfo, final LogNode log) {
         super.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
         if (annotationParamValues != null) {

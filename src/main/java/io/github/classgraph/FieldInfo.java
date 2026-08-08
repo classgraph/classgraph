@@ -343,7 +343,7 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
      * @param log                  the log
      */
     @Override
-    protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
+    void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
             final Set<ClassInfo> refdClassInfo, final LogNode log) {
         try {
             final var fieldSig = getTypeSignature();

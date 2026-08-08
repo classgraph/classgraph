@@ -158,7 +158,7 @@ public class BaseTypeSignature extends TypeSignature {
     // -------------------------------------------------------------------------------------------------------------
 
     @Override
-    protected void addTypeAnnotation(final List<TypePathNode> typePath, final AnnotationInfo annotationInfo) {
+    void addTypeAnnotation(final List<TypePathNode> typePath, final AnnotationInfo annotationInfo) {
         addTypeAnnotation(annotationInfo);
     }
 

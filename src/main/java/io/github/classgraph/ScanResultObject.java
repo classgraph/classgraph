@@ -80,7 +80,7 @@ abstract class ScanResultObject {
      * @param refdClassInfo        the referenced class info
      * @param log                  the log
      */
-    protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
+    void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
             final Set<ClassInfo> refdClassInfo, final LogNode log) {
         final var ci = getClassInfo();
         if (ci != null) {
