@@ -68,7 +68,7 @@ public class ClassLoaderHandlerRegistry {
                     // JPMS support (this handler does nothing, since modules are handled separately)
                     new ClassLoaderHandlerRegistryEntry(new JPMSClassLoaderHandler()),
 
-                    // Java 7/8 URLClassLoader support (should be second-to-last, so that subclasses of
+                    // URLClassLoader support (should be second-to-last, so that subclasses of
                     // URLClassLoader are handled by more specific handlers above)
                     new ClassLoaderHandlerRegistryEntry(new URLClassLoaderHandler()),
 

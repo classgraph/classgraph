@@ -32,7 +32,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
-import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
@@ -67,7 +66,7 @@ public class FileSlice extends Slice {
 
     /**
      * The {@code java.lang.foreign.Arena} (JDK 22+) used to memory-map the file, if any. Typed as {@link Object},
-     * since ClassGraph needs to compile and run on JDK 8+. Closing the arena unmaps {@link #backingByteBuffer},
+     * since ClassGraph needs to compile and run on JDK 17+. Closing the arena unmaps {@link #backingByteBuffer},
      * without needing to call the terminally-deprecated {@code Unsafe::invokeCleaner} method (#939). Only set for
      * toplevel file slices, which own the mapping (sub slices just duplicate the backing byte buffer).
      */
@@ -78,21 +77,6 @@ public class FileSlice extends Slice {
 
     /** True if {@link #close} has been called. */
     private final AtomicBoolean isClosed = new AtomicBoolean();
-
-    /**
-     * Needed because the JDK team changed several API methods to return ByteBuffer rather than Buffer
-     * in JDK 9, which caused some methods to throw NoSuchMethodError in a way that cannot be statically
-     * detected (see #284). This is implemented as a method rather than as an in-place cast so that IDEs
-     * are unlikely to remove the cast operations as (as they assume) statically superfluous, which
-     * re-introduces the same runtime crash every time it happens.
-     *
-     * @param buf
-     *            the {@link ByteBuffer} to widen to {@link Buffer}
-     * @return the same buffer, typed as {@link Buffer}
-     */
-    public static Buffer toBuffer(final ByteBuffer buf) {
-        return buf;
-    }
 
     /**
      * Constructor for treating a range of a file as a slice.
@@ -124,9 +108,8 @@ public class FileSlice extends Slice {
         if (parentSlice.backingByteBuffer != null) {
             // Duplicate and slice the backing byte buffer, if there is one
             this.backingByteBuffer = parentSlice.backingByteBuffer.duplicate();
-            final Buffer bb = toBuffer(this.backingByteBuffer);
-            bb.position((int) sliceStartPos);
-            bb.limit((int) (sliceStartPos + sliceLength));
+            this.backingByteBuffer.position((int) sliceStartPos);
+            this.backingByteBuffer.limit((int) (sliceStartPos + sliceLength));
         }
 
         // Only mark toplevel file slices as open (sub slices don't need to be marked as open since

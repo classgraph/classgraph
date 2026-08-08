@@ -137,7 +137,8 @@ public final class StringUtils {
     }
 
     /**
-     * A replacement for Java 8's String.join().
+     * Append the string representations of the elements of an {@link Iterable} to a buffer, separated by a
+     * separator string. (Unlike {@link String#join}, the elements may be of any type, and may be null.)
      * 
      * @param buf
      *            The buffer to append to.
@@ -170,7 +171,8 @@ public final class StringUtils {
     }
 
     /**
-     * A replacement for Java 8's String.join().
+     * Join the string representations of the elements of an {@link Iterable}, separated by a separator string.
+     * (Unlike {@link String#join}, the elements may be of any type, and may be null.)
      * 
      * @param sep
      *            The separator string.
@@ -185,7 +187,8 @@ public final class StringUtils {
     }
 
     /**
-     * A replacement for Java 8's String.join().
+     * Join the string representations of the given items, separated by a separator string. (Unlike
+     * {@link String#join}, the items may be of any type.)
      * 
      * @param sep
      *            The separator string.

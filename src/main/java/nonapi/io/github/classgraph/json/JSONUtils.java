@@ -30,93 +30,34 @@ package nonapi.io.github.classgraph.json;
 
 import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.Collection;
-import java.util.concurrent.Callable;
 
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 
 /** Utils for Java serialization and deserialization. */
 public final class JSONUtils {
-    /** {@code AccessibleObject#isAccessible()} (deprecated in JDK 9+), or null if not available. */
-    private static Method isAccessibleMethod;
-
-    /** {@code AccessibleObject#setAccessible(boolean)}, or null if not available. */
-    private static Method setAccessibleMethod;
-
-    /** {@code AccessibleObject#trySetAccessible()} (added in JDK 9), or null if not available. */
-    private static Method trySetAccessibleMethod;
-
-    static {
-        // Find deprecated methods isAccessible/setAccessible, to remove compile-time warnings
-        // TODO Switch to using  MethodHandles once this is fixed:
-        // https://github.com/mojohaus/animal-sniffer/issues/67
-        try {
-            isAccessibleMethod = AccessibleObject.class.getDeclaredMethod("isAccessible");
-        } catch (final Throwable t) {
-            // Ignore
-        }
-        try {
-            setAccessibleMethod = AccessibleObject.class.getDeclaredMethod("setAccessible", boolean.class);
-        } catch (final Throwable t) {
-            // Ignore
-        }
-        try {
-            trySetAccessibleMethod = AccessibleObject.class.getDeclaredMethod("trySetAccessible");
-        } catch (final Throwable t) {
-            // Ignore
-        }
-    }
-
-    /**
-     * Check whether a field or method is already accessible.
-     *
-     * @param obj
-     *            the field or method to check
-     * @return true if the field or method is already accessible
-     */
-    private static boolean isAccessible(final AccessibleObject obj) {
-        if (isAccessibleMethod != null) {
-            // JDK 7/8: use isAccessible (deprecated in JDK 9+)
-            try {
-                if ((Boolean) isAccessibleMethod.invoke(obj)) {
-                    return true;
-                }
-            } catch (final Throwable e) {
-                // Ignore
-            }
-        }
-        return false;
-    }
-
     /**
      * Try to make a field or method accessible, using {@code setAccessible(true)} if possible, and falling back to
-     * {@code trySetAccessible()} (JDK 9+) if {@code setAccessible(true)} threw.
+     * {@code trySetAccessible()} if {@code setAccessible(true)} threw.
      *
      * @param obj
      *            the field or method to make accessible
      * @return true if the field or method was made accessible
      */
     private static boolean tryMakeAccessible(final AccessibleObject obj) {
-        if (setAccessibleMethod != null) {
-            try {
-                setAccessibleMethod.invoke(obj, true);
-                return true;
-            } catch (final Throwable e) {
-                // Ignore
-            }
+        try {
+            obj.setAccessible(true);
+            return true;
+        } catch (final Throwable e) {
+            // Ignore
         }
-        if (trySetAccessibleMethod != null) {
-            try {
-                if ((Boolean) trySetAccessibleMethod.invoke(obj)) {
-                    return true;
-                }
-            } catch (final Throwable e) {
-                // Ignore
-            }
+        try {
+            return obj.trySetAccessible();
+        } catch (final Throwable e) {
+            // Ignore
         }
         return false;
     }
@@ -134,16 +75,11 @@ public final class JSONUtils {
         // This reflection code is duplicated from StandardReflectionDriver, because calling
         // ReflectionUtils.reflectionDriver.makeAccessible(obj) does not work when called from here
         // (private fields can't be accessed from outside this package even after calling setAccessible(true))
-        if (isAccessible(obj) || tryMakeAccessible(obj)) {
+        if (tryMakeAccessible(obj)) {
             return true;
         }
         try {
-            return reflectionUtils.doPrivileged(new Callable<Boolean>() {
-                @Override
-                public Boolean call() throws Exception {
-                    return tryMakeAccessible(obj);
-                }
-            });
+            return reflectionUtils.doPrivileged(() -> tryMakeAccessible(obj));
         } catch (final Throwable t) {
             return false;
         }
