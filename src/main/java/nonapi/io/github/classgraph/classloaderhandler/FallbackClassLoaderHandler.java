@@ -30,7 +30,6 @@ package nonapi.io.github.classgraph.classloaderhandler;
 
 import java.io.IOException;
 import java.net.URL;
-import java.util.Collections;
 import java.util.Enumeration;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -240,7 +239,7 @@ class FallbackClassLoaderHandler implements ClassLoaderHandler {
      */
     private static Set<String> getResourceURLs(final ClassLoader classLoader, final String resourcePath) {
         if (classLoader == null) {
-            return Collections.emptySet();
+            return Set.of();
         }
         final Set<String> resourceURLs = new LinkedHashSet<>();
         try {

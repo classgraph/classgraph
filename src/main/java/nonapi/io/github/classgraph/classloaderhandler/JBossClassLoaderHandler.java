@@ -31,7 +31,6 @@ package nonapi.io.github.classgraph.classloaderhandler;
 import java.io.File;
 import java.lang.reflect.Array;
 import java.nio.file.Path;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -287,8 +286,7 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
         @SuppressWarnings("unchecked")
         final Map<Object, Object> moduleMap = (Map<Object, Object>) classpathOrder.reflectionUtils
                 .getFieldVal(false, callerModuleLoader, "moduleMap");
-        final Set<Entry<Object, Object>> moduleMapEntries = moduleMap != null ? moduleMap.entrySet()
-                : Collections.<Entry<Object, Object>> emptySet();
+        final Set<Entry<Object, Object>> moduleMapEntries = moduleMap != null ? moduleMap.entrySet() : Set.of();
         for (final Entry<Object, Object> ent : moduleMapEntries) {
             // type FutureModule
             final Object val = ent.getValue();
@@ -301,8 +299,7 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
         final Map<String, List<?>> pathsMap = (Map<String, List<?>>) classpathOrder.reflectionUtils
                 .invokeMethod(false, module, "getPaths");
         // (invokeMethod returns null if the method is not present, so don't assume it was found)
-        final Set<Entry<String, List<?>>> pathsMapEntries = pathsMap != null ? pathsMap.entrySet()
-                : Collections.<Entry<String, List<?>>> emptySet();
+        final Set<Entry<String, List<?>>> pathsMapEntries = pathsMap != null ? pathsMap.entrySet() : Set.of();
         for (final Entry<String, List<?>> ent : pathsMapEntries) {
             for (final Object /* ModuleClassLoader$1 */ localLoader : ent.getValue()) {
                 // type ModuleClassLoader (outer class)

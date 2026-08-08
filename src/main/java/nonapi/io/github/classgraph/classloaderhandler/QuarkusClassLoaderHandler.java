@@ -33,8 +33,6 @@ import java.net.URI;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 
 import nonapi.io.github.classgraph.classpath.ClassLoaderFinder;
@@ -57,13 +55,9 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
     private static final String RUNNER_CLASSLOADER = "io.quarkus.bootstrap.runner.RunnerClassLoader";
 
     // Class path elements prior to Quarkus 3.11
-    private static final Map<String, String> PRE_311_RESOURCE_BASED_ELEMENTS;
-    static {
-        final Map<String, String> hlp = new HashMap<>();
-        hlp.put("io.quarkus.bootstrap.classloading.JarClassPathElement", "file");
-        hlp.put("io.quarkus.bootstrap.classloading.DirectoryClassPathElement", "root");
-        PRE_311_RESOURCE_BASED_ELEMENTS = Collections.unmodifiableMap(hlp);
-    }
+    private static final Map<String, String> PRE_311_RESOURCE_BASED_ELEMENTS = Map.of(
+            "io.quarkus.bootstrap.classloading.JarClassPathElement", "file",
+            "io.quarkus.bootstrap.classloading.DirectoryClassPathElement", "root");
 
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {

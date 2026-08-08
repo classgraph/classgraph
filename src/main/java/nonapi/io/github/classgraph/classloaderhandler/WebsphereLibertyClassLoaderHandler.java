@@ -33,7 +33,6 @@ package nonapi.io.github.classgraph.classloaderhandler;
 import java.io.File;
 import java.net.URL;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 
@@ -93,7 +92,7 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
     private static Collection<Object> getPaths(final Object containerClassLoader,
             final ReflectionUtils reflectionUtils) {
         if (containerClassLoader == null) {
-            return Collections.emptyList();
+            return List.of();
         }
 
         // Expecting this to be an instance of
@@ -107,7 +106,7 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
         // "getContainerURLs" didn't work, try getting the container object...
         final Object container = reflectionUtils.getFieldVal(false, containerClassLoader, "container");
         if (container == null) {
-            return Collections.emptyList();
+            return List.of();
         }
 
         // Should be an instance of "com.ibm.wsspi.adaptable.module.Container".
@@ -120,26 +119,26 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
         // "getURLs" did not work, reverting to previous logic of introspection of the "delegate".
         final Object delegate = reflectionUtils.getFieldVal(false, container, "delegate");
         if (delegate == null) {
-            return Collections.emptyList();
+            return List.of();
         }
 
         final String path = (String) reflectionUtils.getFieldVal(false, delegate, "path");
-        if (path != null && path.length() > 0) {
-            return Collections.singletonList((Object) path);
+        if (path != null && !path.isEmpty()) {
+            return List.of(path);
         }
 
         final Object base = reflectionUtils.getFieldVal(false, delegate, "base");
         if (base == null) {
             // giving up.
-            return Collections.emptyList();
+            return List.of();
         }
 
         final Object archiveFile = reflectionUtils.getFieldVal(false, base, "archiveFile");
         if (archiveFile != null) {
             final File file = (File) archiveFile;
-            return Collections.singletonList((Object) file.getAbsolutePath());
+            return List.of(file.getAbsolutePath());
         }
-        return Collections.emptyList();
+        return List.of();
     }
 
     /**
@@ -171,9 +170,9 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
                 if (results != null && !results.isEmpty()) {
                     final Collection<Object> allUrls = new HashSet<>();
                     for (final Object result : results) {
-                        if (result instanceof Collection) {
+                        if (result instanceof final Collection<?> resultCollection) {
                             // SmartClassPath returns collection of collection of URLs.
-                            for (final Object url : ((Collection<Object>) result)) {
+                            for (final Object url : resultCollection) {
                                 if (url != null) {
                                     allUrls.add(url);
                                 }
@@ -188,7 +187,7 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
                 /* ignore */
             }
         }
-        return Collections.emptyList();
+        return List.of();
     }
 
     @Override
