@@ -80,15 +80,19 @@ public class Issue148Test {
         // System.out.println("\"" + bufStr.replace("\n", "\\n\" //\n+\"") + "\"");
 
         assertThat(bufStr) //
-                .isEqualTo("Issue148Test|false false true|[Issue148Test$1, Issue148Test$2]|[]|null\n"
-                        + "Issue148Test$1|true true false|[]|[Issue148Test]|Issue148Test.<clinit>\n"
-                        + "Issue148Test$2|true true false|[]|[Issue148Test]|Issue148Test.issue148Test\n"
-                        + "O1|false false true|[O1$I, O1$I$II, O1$I$II$1, O1$I$II$2, O1$SI]|[]|null\n"
-                        + "O1$I|true false true|[O1$I$II, O1$I$II$1, O1$I$II$2]|[O1]|null\n"
-                        + "O1$I$II|true false true|[O1$I$II$1, O1$I$II$2]|[O1$I, O1]|null\n"
-                        + "O1$I$II$1|true true false|[]|[O1$I$II, O1$I, O1]|O1$I$II.newSI\n"
-                        + "O1$I$II$2|true true false|[]|[O1$I$II, O1$I, O1]|O1$I$II.newI\n"
-                        + "O1$SI|true false false|[]|[O1]|null\n" + "O2|false false true|[O2$1, O2$2]|[]|null\n"
-                        + "O2$1|true true false|[]|[O2]|O2.<clinit>\n" + "O2$2|true true false|[]|[O2]|O2.<init>\n");
+                .isEqualTo("""
+                        Issue148Test|false false true|[Issue148Test$1, Issue148Test$2]|[]|null
+                        Issue148Test$1|true true false|[]|[Issue148Test]|Issue148Test.<clinit>
+                        Issue148Test$2|true true false|[]|[Issue148Test]|Issue148Test.issue148Test
+                        O1|false false true|[O1$I, O1$I$II, O1$I$II$1, O1$I$II$2, O1$SI]|[]|null
+                        O1$I|true false true|[O1$I$II, O1$I$II$1, O1$I$II$2]|[O1]|null
+                        O1$I$II|true false true|[O1$I$II$1, O1$I$II$2]|[O1$I, O1]|null
+                        O1$I$II$1|true true false|[]|[O1$I$II, O1$I, O1]|O1$I$II.newSI
+                        O1$I$II$2|true true false|[]|[O1$I$II, O1$I, O1]|O1$I$II.newI
+                        O1$SI|true false false|[]|[O1]|null
+                        O2|false false true|[O2$1, O2$2]|[]|null
+                        O2$1|true true false|[]|[O2]|O2.<clinit>
+                        O2$2|true true false|[]|[O2]|O2.<init>
+                        """);
     }
 }

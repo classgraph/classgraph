@@ -35,7 +35,7 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.nio.file.Path;
 
 import org.junit.jupiter.api.Test;
 
@@ -56,7 +56,7 @@ public class Issue420Test {
     @Test
     public void testScanningFileBackedByFileSystem() throws IOException, URISyntaxException {
         try (var memFs = Jimfs.newFileSystem()) {
-            final var jarPath = Paths.get(getClass().getClassLoader().getResource("multi-release-jar.jar").toURI());
+            final var jarPath = Path.of(getClass().getClassLoader().getResource("multi-release-jar.jar").toURI());
             final var memFsPath = memFs.getPath("multi-release-jar.jar");
             final var memFsCopyOfJar = Files.copy(jarPath, memFsPath);
             final var memFsCopyOfJarURL = memFsCopyOfJar.toUri().toURL();
@@ -87,7 +87,7 @@ public class Issue420Test {
             final var packagePath = packageName.replace('.', '/');
             final var classFullyQualifiedName = packageName + ".CompiledWithJDK8";
             final var classFilePath = classFullyQualifiedName.replace('.', '/') + ".class";
-            final var jarPath = Paths.get(Issue420Test.class.getClassLoader().getResource(classFilePath).toURI());
+            final var jarPath = Path.of(Issue420Test.class.getClassLoader().getResource(classFilePath).toURI());
             final var memFsDirPath = memFs.getPath(packageRootPrefix + packagePath);
             Files.createDirectories(memFsDirPath);
             final var memFsFilePath = memFs.getPath(memFsDirPath + "/" + className + ".class");

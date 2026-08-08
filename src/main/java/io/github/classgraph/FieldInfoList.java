@@ -28,6 +28,7 @@
  */
 package io.github.classgraph;
 
+import java.io.Serial;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
@@ -37,6 +38,7 @@ import nonapi.io.github.classgraph.utils.LogNode;
 /** A list of {@link FieldInfo} objects. */
 public class FieldInfoList extends MappableInfoList<FieldInfo> {
     /** serialVersionUID */
+    @Serial
     private static final long serialVersionUID = 1L;
 
     /** An unmodifiable empty {@link FieldInfoList}. */

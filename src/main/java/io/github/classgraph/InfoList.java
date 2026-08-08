@@ -28,6 +28,7 @@
  */
 package io.github.classgraph;
 
+import java.io.Serial;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -40,6 +41,7 @@ import java.util.List;
  */
 public class InfoList<T extends HasName> extends PotentiallyUnmodifiableList<T> {
     /** serialVersionUID. */
+    @Serial
     private static final long serialVersionUID = 1L;
 
     /**

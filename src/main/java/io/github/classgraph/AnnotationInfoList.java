@@ -28,6 +28,7 @@
  */
 package io.github.classgraph;
 
+import java.io.Serial;
 import java.lang.annotation.Annotation;
 import java.lang.annotation.Repeatable;
 import java.util.ArrayList;
@@ -51,6 +52,7 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     private AnnotationInfoList directlyRelatedAnnotations;
 
     /** serialVersionUID */
+    @Serial
     private static final long serialVersionUID = 1L;
 
     /** An unmodifiable empty {@link AnnotationInfoList}. */

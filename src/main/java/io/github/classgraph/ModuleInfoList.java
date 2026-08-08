@@ -28,11 +28,13 @@
  */
 package io.github.classgraph;
 
+import java.io.Serial;
 import java.util.Collection;
 
 /** A list of {@link ModuleInfo} objects. */
 public class ModuleInfoList extends MappableInfoList<ModuleInfo> {
     /** serialVersionUID */
+    @Serial
     private static final long serialVersionUID = 1L;
 
     /**

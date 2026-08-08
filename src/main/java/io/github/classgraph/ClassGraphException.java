@@ -28,6 +28,8 @@
  */
 package io.github.classgraph;
 
+import java.io.Serial;
+
 /**
  * An unchecked exception that is thrown when an error state occurs or an
  * unhandled exception is caught during scanning.
@@ -39,6 +41,7 @@ package io.github.classgraph;
  */
 public class ClassGraphException extends IllegalArgumentException {
     /** serialVersionUID. */
+    @Serial
     private static final long serialVersionUID = 1L;
 
     /**

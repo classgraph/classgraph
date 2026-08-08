@@ -28,6 +28,7 @@
  */
 package io.github.classgraph;
 
+import java.io.Serial;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -38,6 +39,7 @@ import nonapi.io.github.classgraph.utils.LogNode;
 /** A list of {@link MethodInfo} objects. */
 public class MethodInfoList extends InfoList<MethodInfo> {
     /** serialVersionUID */
+    @Serial
     private static final long serialVersionUID = 1L;
 
     /** An unmodifiable empty {@link MethodInfoList}. */

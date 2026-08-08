@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
@@ -47,7 +46,7 @@ public class ClasspathFinderTest {
 
         final Set<Path> paths = new TreeSet<>();
         for (final String path : classpathFinder.getClasspathOrder().getClasspathEntryUniqueResolvedPaths()) {
-            paths.add(Paths.get(path));
+            paths.add(Path.of(path));
         }
         assertTrue(paths.remove(classesDir), "Classpath should have contained " + classesDir + ": " + paths);
         assertEquals(0, paths.size(), "Classpath should have no other entries: " + paths);
@@ -79,7 +78,7 @@ public class ClasspathFinderTest {
 
         final Set<Path> paths = new TreeSet<>();
         for (final String path : classpathFinder.getClasspathOrder().getClasspathEntryUniqueResolvedPaths()) {
-            paths.add(Paths.get(path));
+            paths.add(Path.of(path));
         }
         assertTrue(paths.remove(classesDir), "Classpath should have contained " + classesDir + ": " + paths);
         assertEquals(0, paths.size(), "Classpath should have no other entries: " + paths);

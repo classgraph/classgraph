@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.nio.file.Paths;
+import java.nio.file.Path;
 
 import org.junit.jupiter.api.Test;
 
@@ -37,7 +37,7 @@ class ClasspathElementReferenceTest {
      */
     private static ClasspathElement classpathElementCreatedBy(final ClassLoader classLoader,
             final boolean isToplevelRef, final int idx) {
-        final var dir = Paths.get(".");
+        final var dir = Path.of(".");
         final var workUnit = new ClasspathEntryWorkUnit(dir, classLoader,
                 /* parentClasspathElement = */ null, idx, /* packageRootPrefix = */ "",
                 ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES);

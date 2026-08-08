@@ -28,6 +28,7 @@
  */
 package io.github.classgraph;
 
+import java.io.Serial;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
@@ -40,6 +41,7 @@ import java.util.ListIterator;
  */
 class PotentiallyUnmodifiableList<T> extends ArrayList<T> {
     /** serialVersionUID. */
+    @Serial
     private static final long serialVersionUID = 1L;
 
     /** Whether or not the list is modifiable. */

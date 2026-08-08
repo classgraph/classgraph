@@ -28,6 +28,7 @@
  */
 package io.github.classgraph;
 
+import java.io.Serial;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -39,6 +40,7 @@ import java.util.Map;
  */
 public class MappableInfoList<T extends HasName> extends InfoList<T> {
     /** serialVersionUID */
+    @Serial
     private static final long serialVersionUID = 1L;
 
     /**

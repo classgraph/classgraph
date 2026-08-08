@@ -31,6 +31,7 @@ package io.github.classgraph;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.io.Serial;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -74,6 +75,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
     private final boolean sortByName;
 
     /** serialVersionUID */
+    @Serial
     private static final long serialVersionUID = 1L;
 
     /** An unmodifiable empty {@link ClassInfoList}. */
