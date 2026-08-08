@@ -16,7 +16,7 @@ import nonapi.io.github.classgraph.scanspec.AcceptReject;
  * Issue 940: since 4.8.186, {@code '*'} in an accepted package name matches within a single package segment only,
  * which left no way to match an unknown number of intermediate package segments (before 4.8.186, e.g.
  * {@code "org.creekservice.*.schema"} matched {@code org.creekservice.api.base.schema}). {@code "**"}, used as a
- * complete segment, now matches one or more package segments.
+ * complete segment, now matches zero or more package segments.
  */
 public class Issue940Test {
     /** The package containing the test fixture packages. */
@@ -40,25 +40,26 @@ public class Issue940Test {
         }
     }
 
-    /** {@code "**"} in the middle of a package name matches one or more package segments. */
+    /** {@code "**"} in the middle of a package name matches zero or more package segments. */
     @Test
     public void midPackageDoubleGlobSpansSegments() {
-        assertThat(scan(PKG + ".**.schema")).contains(API_BASE_SCHEMA_THING, OTHER_SCHEMA_THING)
-                .doesNotContain(TOP_LEVEL_SCHEMA_THING, NON_SCHEMA_THING);
+        assertThat(scan(PKG + ".**.schema"))
+                .contains(API_BASE_SCHEMA_THING, OTHER_SCHEMA_THING, TOP_LEVEL_SCHEMA_THING)
+                .doesNotContain(NON_SCHEMA_THING);
     }
 
     /**
-     * {@code "**"} matches <i>one or more</i> segments, so it does not match zero segments, while {@code '*'}
-     * still matches exactly one segment.
+     * {@code "**"} matches <i>zero</i> or more segments (just as {@code '*'} matches zero or more characters),
+     * while {@code '*'} still matches exactly one whole segment.
      */
     @Test
-    public void doubleGlobRequiresAtLeastOneSegment() {
-        assertThat(scan(PKG + ".**.schema")).doesNotContain(TOP_LEVEL_SCHEMA_THING);
+    public void doubleGlobMatchesZeroSegments() {
+        assertThat(scan(PKG + ".**.schema")).contains(TOP_LEVEL_SCHEMA_THING);
         assertThat(scan(PKG + ".*.schema")).contains(OTHER_SCHEMA_THING) //
                 .doesNotContain(API_BASE_SCHEMA_THING, TOP_LEVEL_SCHEMA_THING);
     }
 
-    /** A leading {@code "**"} matches one or more package segments at the start of a package name. */
+    /** A leading {@code "**"} matches zero or more package segments at the start of a package name. */
     @Test
     public void leadingDoubleGlobSpansSegments() {
         assertThat(scan("**.issue940.api")).contains(API_BASE_SCHEMA_THING, NON_SCHEMA_THING)
@@ -72,14 +73,13 @@ public class Issue940Test {
                 .doesNotContain(OTHER_SCHEMA_THING, TOP_LEVEL_SCHEMA_THING);
     }
 
-    /** {@code "**"} works in reject criteria too, and rejects recursively. */
+    /** {@code "**"} works in reject criteria too, and rejects recursively (including the zero-segment case). */
     @Test
     public void doubleGlobRejectSpansSegments() {
         try (ScanResult scanResult = new ClassGraph().enableClassInfo().acceptPackages(PKG)
                 .rejectPackages(PKG + ".**.schema").scan()) {
-            assertThat(scanResult.getAllClasses().getNames())
-                    .contains(TOP_LEVEL_SCHEMA_THING, NON_SCHEMA_THING)
-                    .doesNotContain(API_BASE_SCHEMA_THING, OTHER_SCHEMA_THING);
+            assertThat(scanResult.getAllClasses().getNames()).contains(NON_SCHEMA_THING)
+                    .doesNotContain(API_BASE_SCHEMA_THING, OTHER_SCHEMA_THING, TOP_LEVEL_SCHEMA_THING);
         }
     }
 
@@ -90,19 +90,22 @@ public class Issue940Test {
                 /* prefixMatch = */ false);
         assertThat(packagePattern.matcher("org.creekservice.api.base.schema").matches()).isTrue();
         assertThat(packagePattern.matcher("org.creekservice.other.schema").matches()).isTrue();
-        assertThat(packagePattern.matcher("org.creekservice.schema").matches()).isFalse();
+        assertThat(packagePattern.matcher("org.creekservice.schema").matches()).isTrue();
         assertThat(packagePattern.matcher("org.creekservice.api.base.schemaX").matches()).isFalse();
         assertThat(packagePattern.matcher("org.creekservice.api.base.schema.sub").matches()).isFalse();
+        assertThat(packagePattern.matcher("org.creekserviceschema").matches()).isFalse();
 
         final Pattern leadingPattern = AcceptReject.segmentGlobToPattern("**.api.*", '.',
                 /* prefixMatch = */ false);
         assertThat(leadingPattern.matcher("org.creekservice.api.base").matches()).isTrue();
-        assertThat(leadingPattern.matcher("api.base").matches()).isFalse();
+        assertThat(leadingPattern.matcher("api.base").matches()).isTrue();
+        assertThat(leadingPattern.matcher("xapi.base").matches()).isFalse();
 
         final Pattern pathPattern = AcceptReject.segmentGlobToPattern("org/creekservice/**/schema/", '/',
                 /* prefixMatch = */ false);
         assertThat(pathPattern.matcher("org/creekservice/api/base/schema/").matches()).isTrue();
-        assertThat(pathPattern.matcher("org/creekservice/schema/").matches()).isFalse();
+        assertThat(pathPattern.matcher("org/creekservice/schema/").matches()).isTrue();
+        assertThat(pathPattern.matcher("org/creekservice/api/other/").matches()).isFalse();
     }
 
     /** {@code "**"} that does not form a complete segment is still rejected. */

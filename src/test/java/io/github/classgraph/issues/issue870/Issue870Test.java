@@ -107,7 +107,7 @@ public class Issue870Test {
     }
 
     /**
-     * {@code "**"} used as a complete segment matches one or more whole segments (#940), but {@code "**"} glued
+     * {@code "**"} used as a complete segment matches zero or more whole segments (#940), but {@code "**"} glued
      * to other characters within a segment is rejected.
      */
     @Test
