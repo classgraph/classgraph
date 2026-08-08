@@ -186,20 +186,17 @@ public final class SystemJarFinder {
 
         // System extension paths -- see: https://docs.oracle.com/javase/tutorial/ext/basics/install.html
         switch (VersionFinder.OS) {
-        case Linux:
-        case Unix:
-        case BSD:
-        case Unknown:
+        case Linux, Unix, BSD, Unknown -> {
             addJREPath(new File("/usr/java/packages"));
             addJREPath(new File("/usr/java/packages/lib"));
             addJREPath(new File("/usr/java/packages/lib/ext"));
-            break;
-        case MacOSX:
+        }
+        case MacOSX -> {
             addJREPath(new File("/System/Library/Java"));
             addJREPath(new File("/System/Library/Java/Libraries"));
             addJREPath(new File("/System/Library/Java/Extensions"));
-            break;
-        case Windows:
+        }
+        case Windows -> {
             final String systemRoot = File.separatorChar == '\\' ? System.getenv("SystemRoot") : null;
             if (systemRoot != null) {
                 addJREPath(new File(systemRoot, "Sun\\Java"));
@@ -209,15 +206,16 @@ public final class SystemJarFinder {
                 addJREPath(new File(systemRoot, "Oracle\\Java\\lib"));
                 addJREPath(new File(systemRoot, "Oracle\\Java\\lib\\ext"));
             }
-            break;
-        case Solaris:
+        }
+        case Solaris -> {
             // Solaris paths:
             addJREPath(new File("/usr/jdk/packages"));
             addJREPath(new File("/usr/jdk/packages/lib"));
             addJREPath(new File("/usr/jdk/packages/lib/ext"));
-            break;
-        default:
-            break;
+        }
+        default -> {
+            // No system extension paths for other operating systems
+        }
         }
     }
 

@@ -281,8 +281,8 @@ public class ClasspathFinder {
                                         + classLoaderHandlerRegistryEntry.getHandlerName());
                     }
                     // See if a previous scan's ClassGraphClassLoader should be delegated to first
-                    if (classLoader instanceof ClassGraphClassLoader) {
-                        delegateClassGraphClassLoader = (ClassGraphClassLoader) classLoader;
+                    if (classLoader instanceof final ClassGraphClassLoader classGraphClassLoader) {
+                        delegateClassGraphClassLoader = classGraphClassLoader;
                     }
                 }
             }

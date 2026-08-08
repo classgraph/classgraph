@@ -33,7 +33,6 @@ import java.lang.module.ModuleReference;
 import java.lang.module.ResolvedModule;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -132,7 +131,7 @@ public class ModuleFinder {
     private static List<ModuleRef> findModuleRefs(final LinkedHashSet<ModuleLayer> layers, final ScanSpec scanSpec,
             final LogNode log) {
         if (layers.isEmpty()) {
-            return Collections.emptyList();
+            return List.of();
         }
 
         // Traverse the layer DAG to find the layer resolution order

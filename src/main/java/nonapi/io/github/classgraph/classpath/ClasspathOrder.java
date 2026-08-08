@@ -37,7 +37,6 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -146,10 +145,10 @@ public class ClasspathOrder {
         public boolean equals(final Object obj) {
             if (obj == this) {
                 return true;
-            } else if (!(obj instanceof ClasspathEntry)) {
+            }
+            if (!(obj instanceof final ClasspathEntry other)) {
                 return false;
             }
-            final ClasspathEntry other = (ClasspathEntry) obj;
             return Objects.equals(this.classpathEntryObj, other.classpathEntryObj);
         }
 
@@ -216,11 +215,10 @@ public class ClasspathOrder {
     private boolean filter(final URL classpathElementURL, final String classpathElementPath) {
         if (scanSpec.classpathElementFilters != null) {
             for (final Object filterObj : scanSpec.classpathElementFilters) {
-                if ((classpathElementURL != null && filterObj instanceof ClasspathElementURLFilter
-                        && !((ClasspathElementURLFilter) filterObj).includeClasspathElement(classpathElementURL))
-                        || (classpathElementPath != null && filterObj instanceof ClasspathElementFilter
-                                && !((ClasspathElementFilter) filterObj)
-                                        .includeClasspathElement(classpathElementPath))) {
+                if ((classpathElementURL != null && filterObj instanceof final ClasspathElementURLFilter urlFilter
+                        && !urlFilter.includeClasspathElement(classpathElementURL))
+                        || (classpathElementPath != null && filterObj instanceof final ClasspathElementFilter filter
+                                && !filter.includeClasspathElement(classpathElementPath))) {
                     return false;
                 }
             }
@@ -284,7 +282,7 @@ public class ClasspathOrder {
                 try {
                     pathElementWithoutSuffix = pathElement instanceof URL ? new URL(pathElementStrWithoutSuffix)
                             : pathElement instanceof URI ? new URI(pathElementStrWithoutSuffix)
-                                    : pathElement instanceof Path ? Paths.get(pathElementStrWithoutSuffix)
+                                    : pathElement instanceof Path ? Path.of(pathElementStrWithoutSuffix)
                                             // For File, just use path string
                                             : pathElementStrWithoutSuffix;
                 } catch (MalformedURLException | URISyntaxException | InvalidPathException e) {
@@ -343,14 +341,14 @@ public class ClasspathOrder {
             return false;
         }
         String pathElementStr;
-        if (pathElement instanceof Path) {
+        if (pathElement instanceof final Path pathElementPath) {
             try {
-                // Path objects have to be converted to URIs before calling .toString(), otherwise scheme is dropped 
-                pathElementStr = ((Path) pathElement).toUri().toString();
+                // Path objects have to be converted to URIs before calling .toString(), otherwise scheme is dropped
+                pathElementStr = pathElementPath.toUri().toString();
                 // Windows paths ("C:\x\y") are encoded as "file:///C:/x/y" by Path.toUri().toString(),
-                // but then Paths.get() can't handle paths of the form "///C:/x/y"
+                // but then Path.of() can't handle paths of the form "///C:/x/y"
                 if (pathElementStr.startsWith("file:///")) {
-                    pathElementStr = ((Path) pathElement).toFile().toString();
+                    pathElementStr = pathElementPath.toFile().toString();
                 }
             } catch (IOError | SecurityException e) {
                 pathElementStr = pathElement.toString();
@@ -379,11 +377,10 @@ public class ClasspathOrder {
                 // Path element string is URL with scheme other than `[jar:]file:`, so need to actually
                 // parse URL, since the scheme may be a custom scheme
                 try {
-                    pathElementURL = pathElement instanceof URL ? (URL) pathElement
-                            : pathElement instanceof URI ? ((URI) pathElement).toURL()
-                                    : pathElement instanceof Path ? ((Path) pathElement).toUri().toURL()
-                                            : pathElement instanceof File ? ((File) pathElement).toURI().toURL()
-                                                    : null;
+                    pathElementURL = pathElement instanceof final URL url ? url
+                            : pathElement instanceof final URI uri ? uri.toURL()
+                                    : pathElement instanceof final Path path ? path.toUri().toURL()
+                                            : pathElement instanceof final File file ? file.toURI().toURL() : null;
                 } catch (final MalformedURLException | IllegalArgumentException | IOError | SecurityException e2) {
                     // Fall through
                 }
@@ -642,8 +639,8 @@ public class ClasspathOrder {
             if (pathObject instanceof URL || pathObject instanceof URI || pathObject instanceof Path
                     || pathObject instanceof File) {
                 valid |= addClasspathEntry(pathObject, classLoader, scanSpec, log);
-            } else if (pathObject instanceof Iterable) {
-                for (final Object elt : (Iterable<?>) pathObject) {
+            } else if (pathObject instanceof final Iterable<?> iterable) {
+                for (final Object elt : iterable) {
                     valid |= addClasspathEntryObject(elt, classLoader, scanSpec, log);
                 }
             } else {

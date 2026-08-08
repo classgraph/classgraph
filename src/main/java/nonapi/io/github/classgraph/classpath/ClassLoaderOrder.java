@@ -58,21 +58,19 @@ public class ClassLoaderOrder {
     // Need to use IdentityHashMap for maps and sets here, because TomEE weirdly makes instances of
     // CxfContainerClassLoader equal to (via .equals()) the instance of TomEEWebappClassLoader that it
     // delegates to (#515)
-    private final Set<ClassLoader> added = Collections.newSetFromMap(new IdentityHashMap<ClassLoader, Boolean>());
+    private final Set<ClassLoader> added = Collections.newSetFromMap(new IdentityHashMap<>());
 
     /**
      * The set of all {@link ClassLoader} instances that have been delegated to so far, to prevent an infinite loop
      * in delegation.
      */
-    private final Set<ClassLoader> delegatedTo = Collections
-            .newSetFromMap(new IdentityHashMap<ClassLoader, Boolean>());
+    private final Set<ClassLoader> delegatedTo = Collections.newSetFromMap(new IdentityHashMap<>());
 
     /**
      * The set of all parent {@link ClassLoader} instances that have been delegated to so far, to enable
      * {@link ClassGraph#ignoreParentClassLoaders()}.
      */
-    private final Set<ClassLoader> allParentClassLoaders = Collections
-            .newSetFromMap(new IdentityHashMap<ClassLoader, Boolean>());
+    private final Set<ClassLoader> allParentClassLoaders = Collections.newSetFromMap(new IdentityHashMap<>());
 
     // -------------------------------------------------------------------------------------------------------------
 
