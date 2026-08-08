@@ -67,6 +67,9 @@ import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /** A directory classpath element, using the {@link Path} API. */
 class ClasspathElementDir extends ClasspathElement {
+    /** The {@link Resource#length} value indicating that the resource length has not yet been read. */
+    private static final int NOT_YET_LOADED_LENGTH = -2;
+
     /** The directory at the root of the classpath element. */
     private final Path classpathEltPath;
 
@@ -248,8 +251,31 @@ class ClasspathElementDir extends ClasspathElement {
      * @return the resource
      */
     private Resource newResource(final Path resourcePath, final BasicFileAttributes attributes) {
-        final int notYetLoadedLength = -2;
-        return new Resource(this, attributes == null ? notYetLoadedLength : attributes.size()) {
+        return newResource(resourcePath,
+                FastPathResolver.resolve(classpathEltPath.relativize(resourcePath).toString()), attributes);
+    }
+
+    /**
+     * Create a new {@link Resource} object for a resource or classfile discovered while scanning paths, where the
+     * resolved path of the resource relative to the classpath element has already been computed by the caller.
+     *
+     * @param resourcePath
+     *            the {@link Path} for the resource
+     * @param resourcePathRelativeStr
+     *            the path of the resource relative to the classpath element root, as already resolved by
+     *            {@link FastPathResolver#resolve(String)}
+     * @param attributes
+     *            the file attributes of the resource, or null if not yet known
+     * @return the resource
+     */
+    private Resource newResource(final Path resourcePath, final String resourcePathRelativeStr,
+            final BasicFileAttributes attributes) {
+        int startIdx = 0;
+        while (startIdx < resourcePathRelativeStr.length() && resourcePathRelativeStr.charAt(startIdx) == '/') {
+            startIdx++;
+        }
+        final String path = startIdx == 0 ? resourcePathRelativeStr : resourcePathRelativeStr.substring(startIdx);
+        return new Resource(this, attributes == null ? NOT_YET_LOADED_LENGTH : attributes.size()) {
             /** The {@link PathSlice} opened on the file. */
             private PathSlice pathSlice;
 
@@ -258,7 +284,7 @@ class ClasspathElementDir extends ClasspathElement {
 
             @Override
             public long getLength() {
-                if (length == notYetLoadedLength) {
+                if (length == NOT_YET_LOADED_LENGTH) {
                     try {
                         length = Files.size(resourcePath);
                     } catch (IOException | SecurityException e) {
@@ -270,10 +296,6 @@ class ClasspathElementDir extends ClasspathElement {
 
             @Override
             public String getPath() {
-                String path = FastPathResolver.resolve(classpathEltPath.relativize(resourcePath).toString());
-                while (path.startsWith("/")) {
-                    path = path.substring(1);
-                }
                 return path;
             }
 
@@ -522,7 +544,7 @@ class ClasspathElementDir extends ClasspathElement {
                             || (parentMatchStatus == ScanSpecPathMatch.AT_ACCEPTED_CLASS_PACKAGE
                                     && scanSpec.classfileIsSpecificallyAccepted(subPathRelativeStr))) {
                         // Resource is accepted
-                        final Resource resource = newResource(subPath, fileAttributes);
+                        final Resource resource = newResource(subPath, subPathRelativeStr, fileAttributes);
                         addAcceptedResource(resource, parentMatchStatus, /* isClassfileOnly = */ false, subLog);
 
                         // Save last modified time
