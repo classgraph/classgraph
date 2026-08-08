@@ -237,7 +237,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
             final int lastModifiedMinute = lastModifiedTimeMSDOS >> 5 & 0b111111;
             final int lastModifiedHour = lastModifiedTimeMSDOS >> 11;
             final int lastModifiedDay = lastModifiedDateMSDOS & 0b11111;
-            final int lastModifiedMonth = (lastModifiedDateMSDOS >> 5 & 0b111) - 1;
+            final int lastModifiedMonth = (lastModifiedDateMSDOS >> 5 & 0b1111) - 1;
             final int lastModifiedYear = (lastModifiedDateMSDOS >> 9) + 1980;
 
             final Calendar lastModifiedCalendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
