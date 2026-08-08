@@ -52,9 +52,16 @@ public class AddOpensManifestEntryTest {
 
         final NestedJarHandler nestedJarHandler = new NestedJarHandler(new ScanSpec(), new InterruptionChecker(),
                 new ReflectionUtils());
-        final Entry<LogicalZipFile, String> logicalZipFileAndPackageRoot = nestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap
-                .get(jarFile.getPath(), /* log = */ null);
-        return logicalZipFileAndPackageRoot.getKey();
+        try {
+            final Entry<LogicalZipFile, String> logicalZipFileAndPackageRoot = nestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap
+                    .get(jarFile.getPath(), /* log = */ null);
+            return logicalZipFileAndPackageRoot.getKey();
+        } finally {
+            // The manifest values have already been read into fields of the LogicalZipFile, so the zipfile can be
+            // closed. (The jarfile must not be left open, otherwise the temporary directory cannot be deleted on
+            // Windows.)
+            nestedJarHandler.close(/* log = */ null);
+        }
     }
 
     /** Add-Exports and Add-Opens must not overwrite each other. */

@@ -76,11 +76,16 @@ public class UnicodePathExtraFieldTest {
 
         final NestedJarHandler nestedJarHandler = new NestedJarHandler(new ScanSpec(), new InterruptionChecker(),
                 new ReflectionUtils());
-        final Entry<LogicalZipFile, String> logicalZipFileAndPackageRoot = nestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap
-                .get(jarFile.getPath(), /* log = */ null);
         final List<String> entryNames = new ArrayList<>();
-        for (final FastZipEntry zipEntry : logicalZipFileAndPackageRoot.getKey().entries) {
-            entryNames.add(zipEntry.entryName);
+        try {
+            final Entry<LogicalZipFile, String> logicalZipFileAndPackageRoot = nestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap
+                    .get(jarFile.getPath(), /* log = */ null);
+            for (final FastZipEntry zipEntry : logicalZipFileAndPackageRoot.getKey().entries) {
+                entryNames.add(zipEntry.entryName);
+            }
+        } finally {
+            // The jarfile must not be left open, otherwise the temporary directory cannot be deleted on Windows
+            nestedJarHandler.close(/* log = */ null);
         }
         assertThat(entryNames).containsExactly(UNICODE_NAME);
     }
