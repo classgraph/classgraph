@@ -80,6 +80,30 @@ public class ClasspathOrder {
      */
     private String[] currPackageRootPrefixes = ClassLoaderHandlerRegistry.DEFAULT_PACKAGE_ROOT_PREFIXES;
 
+    /** True once the Equinox system bundles have been added to this classpath order. */
+    private boolean addedEquinoxSystemBundles;
+
+    /**
+     * Test whether the Equinox system bundles still need to be added to the classpath order, and if so, atomically
+     * record that they are being added, so that they are only added once.
+     *
+     * <p>
+     * All Equinox bundles yield the same system bundles, so they only need to be read from the first Equinox
+     * classloader encountered. This flag is held here, on a per-scan object, rather than in a static field of the
+     * {@link nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler}: a single handler instance is
+     * shared between all scans, so a static flag would stay set after the first scan, and every subsequent scan in
+     * the same JVM would silently omit the system bundles from the classpath.
+     *
+     * @return true the first time this method is called for a given scan, false every time thereafter.
+     */
+    public synchronized boolean tryAddEquinoxSystemBundles() {
+        if (addedEquinoxSystemBundles) {
+            return false;
+        }
+        addedEquinoxSystemBundles = true;
+        return true;
+    }
+
     /**
      * A classpath element and the {@link ClassLoader} it was obtained from.
      */

@@ -1149,16 +1149,20 @@ public class NestedJarHandler {
     /**
      * System.runFinalization() -- deprecated in JDK 18, so accessed by reflection.
      */
-    private static Method runFinalizationMethod;
+    private static volatile Method runFinalizationMethod;
 
     public void runFinalizationMethod() {
-        if (runFinalizationMethod == null) {
-            runFinalizationMethod = reflectionUtils.staticMethodForNameOrNull("System", "runFinalization");
+        // Read the volatile field once, so that the method invoked cannot differ from the method tested. Two
+        // threads racing here resolve the same method, so whichever write lands last is equivalent.
+        Method runFinalizationMethodCached = runFinalizationMethod;
+        if (runFinalizationMethodCached == null) {
+            runFinalizationMethodCached = reflectionUtils.staticMethodForNameOrNull("System", "runFinalization");
+            runFinalizationMethod = runFinalizationMethodCached;
         }
-        if (runFinalizationMethod != null) {
+        if (runFinalizationMethodCached != null) {
             try {
                 // Call System.runFinalization() (deprecated in JDK 18)
-                runFinalizationMethod.invoke(null);
+                runFinalizationMethodCached.invoke(null);
             } catch (final Throwable t) {
                 // Ignore
             }

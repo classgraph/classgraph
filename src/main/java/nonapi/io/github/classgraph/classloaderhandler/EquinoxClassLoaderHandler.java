@@ -42,12 +42,6 @@ import nonapi.io.github.classgraph.utils.LogNode;
  * Extract classpath entries from the Eclipse Equinox ClassLoader.
  */
 class EquinoxClassLoaderHandler implements ClassLoaderHandler {
-    /**
-     * True if system bundles have been read. We assume there is only one system bundle on the classpath, so this is
-     * static.
-     */
-    private static boolean alreadyReadSystemBundles;
-
     /** Field names. */
     private static final String[] FIELD_NAMES = { "cp", "nestedDirName" };
 
@@ -171,8 +165,8 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
                 addClasspathEntries(fragment, classLoader, classpathOrder, scanSpec, log);
             }
         }
-        // Only read system bundles once (all bundles should give the same results for this).
-        if (!alreadyReadSystemBundles) {
+        // Only read system bundles once per scan (all bundles should give the same results for this).
+        if (classpathOrder.tryAddEquinoxSystemBundles()) {
             // type BundleLoader
             final Object delegate = classpathOrder.reflectionUtils.getFieldVal(false, classLoader, "delegate");
             // type EquinoxContainer
@@ -217,7 +211,6 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
                     }
                 }
             }
-            alreadyReadSystemBundles = true;
         }
     }
 

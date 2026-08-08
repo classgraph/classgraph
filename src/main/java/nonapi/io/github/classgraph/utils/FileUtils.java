@@ -48,7 +48,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.utils.VersionFinder.OperatingSystem;
@@ -69,14 +68,19 @@ public final class FileUtils {
     /** The Unsafe object. */
     private static Object theUnsafe;
 
-    /** True if class' static fields have been initialized. */
-    private static AtomicBoolean initialized = new AtomicBoolean();
+    /**
+     * True if the reflective handles above have been initialized. Volatile, and only ever assigned while holding
+     * the lock on {@link FileUtils}, so that the double-checked locking in {@link #closeDirectByteBuffer} is
+     * correctly synchronized: a thread that reads true here is guaranteed to see the fully-initialized handles.
+     */
+    private static volatile boolean initialized;
 
     /**
      * The current directory path (only reads the current directory once, the first time this field is accessed, so
-     * will not reflect subsequent changes to the current directory).
+     * will not reflect subsequent changes to the current directory). Volatile, so that the lazy initialization in
+     * {@link #currDirPath()} is not a data race.
      */
-    private static String currDirPath;
+    private static volatile String currDirPath;
 
     /**
      * The maximum size of a file buffer array. Eight bytes smaller than {@link Integer#MAX_VALUE}, since some VMs
@@ -102,7 +106,9 @@ public final class FileUtils {
      * @return The current directory, as a string
      */
     public static String currDirPath() {
-        if (currDirPath == null) {
+        // Read the volatile field once, so that the value returned cannot differ from the value tested
+        String currDirPathCached = currDirPath;
+        if (currDirPathCached == null) {
             // user.dir should be the current directory at the time the JVM is started, which is
             // where classpath elements should be resolved relative to
             Path path = null;
@@ -126,9 +132,11 @@ public final class FileUtils {
 
             // Normalize current directory the same way all other paths are normalized in ClassGraph,
             // for consistency
-            currDirPath = FastPathResolver.resolve(path == null ? "" : path.toString());
+            // Two threads racing here compute the same value, so whichever write lands last is equivalent
+            currDirPathCached = FastPathResolver.resolve(path == null ? "" : path.toString());
+            currDirPath = currDirPathCached;
         }
-        return currDirPath;
+        return currDirPathCached;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -683,19 +691,25 @@ public final class FileUtils {
     public static boolean closeDirectByteBuffer(final ByteBuffer byteBuffer, final ReflectionUtils reflectionUtils,
             final LogNode log) {
         if (byteBuffer != null && byteBuffer.isDirect()) {
-            if (!initialized.get()) {
-                try {
-                    reflectionUtils.doPrivileged(new Callable<Void>() {
-                        @Override
-                        public Void call() throws Exception {
-                            lookupCleanMethodPrivileged();
-                            return null;
+            // Double-checked locking, so that two threads calling this for the first time concurrently cannot
+            // both run the lookup and race on the static fields it assigns
+            if (!initialized) {
+                synchronized (FileUtils.class) {
+                    if (!initialized) {
+                        try {
+                            reflectionUtils.doPrivileged(new Callable<Void>() {
+                                @Override
+                                public Void call() throws Exception {
+                                    lookupCleanMethodPrivileged();
+                                    return null;
+                                }
+                            });
+                        } catch (final Throwable e) {
+                            throw new RuntimeException("Cannot get buffer cleaner method", e);
                         }
-                    });
-                } catch (final Throwable e) {
-                    throw new RuntimeException("Cannot get buffer cleaner method", e);
+                        initialized = true;
+                    }
                 }
-                initialized.set(true);
             }
             try {
                 return reflectionUtils.doPrivileged(new Callable<Boolean>() {
