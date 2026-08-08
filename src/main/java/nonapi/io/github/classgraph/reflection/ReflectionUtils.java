@@ -271,6 +271,51 @@ public final class ReflectionUtils {
     }
 
     /**
+     * Invoke the named method in the given object or its superclasses. If an exception is thrown while trying to
+     * call the method, and throwException is true, then IllegalArgumentException is thrown wrapping the cause,
+     * otherwise this will return null. If passed a null object, returns null unless throwException is true, then
+     * throws IllegalArgumentException.
+     *
+     * @param throwException
+     *            Whether to throw an exception on failure.
+     * @param obj
+     *            The object.
+     * @param methodName
+     *            The method name.
+     * @param argTypes
+     *            The types of the method arguments.
+     * @param params
+     *            The parameter values to use when invoking the method.
+     *
+     * @return The result of the method invocation.
+     * @throws IllegalArgumentException
+     *             If the method could not be invoked.
+     */
+    public Object invokeMethod(final boolean throwException, final Object obj, final String methodName,
+            final Class<?>[] argTypes, final Object[] params) throws IllegalArgumentException {
+        if (reflectionDriver == null) {
+            throw new RuntimeException("Cannot use reflection after ScanResult has been closed");
+        }
+        if (obj == null || methodName == null || argTypes == null || params == null
+                || argTypes.length != params.length) {
+            if (throwException) {
+                throw new IllegalArgumentException("Unexpected null argument");
+            } else {
+                return null;
+            }
+        }
+        try {
+            return reflectionDriver.invokeMethod(obj, reflectionDriver.findInstanceMethod(obj, methodName, argTypes),
+                    params);
+        } catch (final Throwable e) {
+            if (throwException) {
+                throw new IllegalArgumentException("Method \"" + methodName + "\" could not be invoked", e);
+            }
+            return null;
+        }
+    }
+
+    /**
      * Invoke the named method. If an exception is thrown while trying to call the method, and throwException is
      * true, then IllegalArgumentException is thrown wrapping the cause, otherwise this will return null. If passed
      * a null class reference, returns null unless throwException is true, then throws IllegalArgumentException.

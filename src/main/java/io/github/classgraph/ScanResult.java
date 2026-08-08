@@ -241,13 +241,23 @@ public final class ScanResult implements Closeable {
             // originally for use in
             // a shutdown hook (#331), which has now been removed, but it is probably still
             // a good idea to
-            // ensure that classes needed to unmap DirectByteBuffer instances are available
-            // at init.
-            // We achieve this by mmap'ing a file and then closing it, since the only
-            // problematic classes are
-            // the PriviledgedAction anonymous inner classes used by
-            // FileUtils::closeDirectByteBuffer.
-            FileUtils.closeDirectByteBuffer(ByteBuffer.allocateDirect(32), reflectionUtils, /* log = */ null);
+            // ensure that classes needed to free/unmap DirectByteBuffer instances are
+            // available at init.
+            // We achieve this by allocating a small direct ByteBuffer and then freeing it.
+            final Object arena = FileUtils.openArena(reflectionUtils);
+            if (arena != null) {
+                // On JDK 22+, direct ByteBuffers are allocated and memory-mapped using the
+                // java.lang.foreign.Arena API, and freed/unmapped by closing the arena that
+                // created them, rather than by calling the terminally-deprecated method
+                // Unsafe::invokeCleaner (#939) -- warm up the reflective arena code paths
+                FileUtils.allocateDirectByteBufferUsingArena(arena, 32, reflectionUtils);
+                FileUtils.closeArena(arena, reflectionUtils, /* log = */ null);
+            } else {
+                // On JDK less than 22, the only problematic classes are the PrivilegedAction
+                // anonymous inner classes used by FileUtils::closeDirectByteBuffer
+                FileUtils.closeDirectByteBuffer(ByteBuffer.allocateDirect(32), reflectionUtils,
+                        /* log = */ null);
+            }
         }
     }
 

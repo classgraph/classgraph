@@ -35,6 +35,8 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
+import java.nio.channels.FileChannel;
+import java.nio.channels.FileChannel.MapMode;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
@@ -60,15 +62,6 @@ public final class FileUtils {
 
     /** The Cleaner.clean() method. */
     private static Method cleanerCleanMethod;
-
-    //    /** The jdk.incubator.foreign.MemorySegment class (JDK14+). */
-    //    private static Class<?> memorySegmentClass;
-    //
-    //    /** The jdk.incubator.foreign.MemorySegment.ofByteBuffer method (JDK14+). */
-    //    private static Method memorySegmentOfByteBufferMethod;
-    //
-    //    /** The jdk.incubator.foreign.MemorySegment.ofByteBuffer method (JDK14+). */
-    //    private static Method memorySegmentCloseMethod;
 
     /** The attachment() method. */
     private static Method attachmentMethod;
@@ -542,12 +535,14 @@ public final class FileUtils {
             } catch (final ReflectiveOperationException | LinkageError e) {
                 // Ignore
             }
-        } else if (VersionFinder.JAVA_MAJOR_VERSION < 24) {
-            // JDK 24+ reports: "A terminally deprecated method in sun.misc.Unsafe has been called"
-            // if Unsafe::invokeCleaner is used, and we don't actually need the cleaner method unless
-            // direct memory mapping is used rather than FileChannel (ClassGraph#enableMemoryMapping
-            // disables this now for JDK 24+).
+        } else if (VersionFinder.JAVA_MAJOR_VERSION < 22) {
+            // Unsafe::invokeCleaner is terminally deprecated, and JDK 24+ reports: "A terminally
+            // deprecated method in sun.misc.Unsafe has been called" if it is used. On JDK 22+, direct
+            // ByteBuffers are allocated and memory-mapped using the java.lang.foreign.Arena API instead,
+            // and they are freed/unmapped by closing the arena that created them, so the cleaner method
+            // is only needed on JDK 9-21.
             // See: https://github.com/classgraph/classgraph/issues/899
+            // and: https://github.com/classgraph/classgraph/issues/939
             try {
                 Class<?> unsafeClass;
                 try {
@@ -568,7 +563,6 @@ public final class FileUtils {
             } catch (final ReflectiveOperationException | LinkageError ex) {
                 // Ignore
             }
-            //}
         }
     }
 
@@ -639,18 +633,7 @@ public final class FileUtils {
                     }
                     return false;
                 }
-                //    } else if (memorySegmentOfByteBufferMethod != null) {
-                //        // JDK 14+
-                //        final Object memorySegment = memorySegmentOfByteBufferMethod.invoke(null, byteBuffer);
-                //        if (memorySegment == null) {
-                //            if (log != null) {
-                //                log.log("Got null MemorySegment, could not unmap ByteBuffer");
-                //            }
-                //            return false;
-                //        }
-                //        memorySegmentCloseMethod.invoke(memorySegment);
-                //        return true;
-            } else if (VersionFinder.JAVA_MAJOR_VERSION < 24) {
+            } else if (VersionFinder.JAVA_MAJOR_VERSION < 22) {
                 if (theUnsafe == null) {
                     if (log != null) {
                         log.log("Could not unmap ByteBuffer, theUnsafe == null");
@@ -671,7 +654,11 @@ public final class FileUtils {
                     return false;
                 }
             } else {
-                // TODO: on JDK 24+, use Arena -- see FileSlice
+                // JDK 22+: direct ByteBuffers are allocated or memory-mapped using the
+                // java.lang.foreign.Arena API, and they are freed/unmapped by closing the arena that
+                // created them (see FileSlice#close()), rather than by calling the terminally-deprecated
+                // Unsafe::invokeCleaner method (#939). A ByteBuffer that was not created from an arena
+                // cannot be closed explicitly, so return false here.
                 return false;
             }
         } catch (final ReflectiveOperationException | SecurityException e) {
@@ -723,6 +710,146 @@ public final class FileUtils {
             return false;
         }
     }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    // TODO: once ClassGraph's minimum supported JDK version is 22 or later, the Unsafe reflection code above
+    // (lookupCleanMethodPrivileged and closeDirectByteBufferPrivileged) can be removed, and the arena methods
+    // below can open and close arenas, and allocate and memory-map ByteBuffers, by calling the
+    // java.lang.foreign API directly rather than through reflection.
+
+    /** The fully-qualified name of the JDK 22+ {@code java.lang.foreign.Arena} interface. */
+    private static final String ARENA_CLASS_NAME = "java.lang.foreign.Arena";
+
+    /**
+     * Open a new shared {@code java.lang.foreign.Arena} (JDK 22+), which can be used to allocate direct
+     * {@link ByteBuffer}s ({@link #allocateDirectByteBufferUsingArena(Object, long, ReflectionUtils)}) and to
+     * memory-map files to {@link ByteBuffer}s
+     * ({@link #mapFileUsingArena(Object, FileChannel, long, long, ReflectionUtils)}). Closing the arena
+     * ({@link #closeArena(Object, ReflectionUtils, LogNode)}) frees or unmaps all {@link ByteBuffer}s obtained
+     * from it, which on JDK 22+ replaces the use of the terminally-deprecated {@code Unsafe::invokeCleaner}
+     * method (#939).
+     *
+     * @param reflectionUtils
+     *            the reflection utils (the {@code java.lang.foreign} API has to be invoked using reflection,
+     *            since ClassGraph needs to compile and run on JDK 8+)
+     * @return a new shared {@code Arena} instance, or null if the arena API is not available (JDK older than 22).
+     */
+    public static Object openArena(final ReflectionUtils reflectionUtils) {
+        if (VersionFinder.JAVA_MAJOR_VERSION < 22) {
+            // The java.lang.foreign API was only finalized in JDK 22 (the preview versions of the API in
+            // JDK 19-21 cannot be invoked reflectively without --enable-preview)
+            return null;
+        }
+        final Class<?> arenaClass = reflectionUtils.classForNameOrNull(ARENA_CLASS_NAME);
+        if (arenaClass == null) {
+            return null;
+        }
+        // Invoke Arena.ofShared() -- a shared arena is needed rather than a confined arena, since the
+        // ByteBuffers obtained from the arena may be read and closed by multiple threads
+        return reflectionUtils.invokeStaticMethod(/* throwException = */ false, arenaClass, "ofShared");
+    }
+
+    /**
+     * Allocate a direct {@link ByteBuffer} using a shared arena (JDK 22+). The buffer is freed by closing the
+     * arena.
+     *
+     * @param arena
+     *            an arena obtained from {@link #openArena(ReflectionUtils)}.
+     * @param size
+     *            the number of bytes to allocate.
+     * @param reflectionUtils
+     *            the reflection utils
+     * @return the allocated {@link ByteBuffer}, or null if the buffer could not be allocated.
+     */
+    public static ByteBuffer allocateDirectByteBufferUsingArena(final Object arena, final long size,
+            final ReflectionUtils reflectionUtils) {
+        // Invoke arena.allocate(size).asByteBuffer()
+        final Object memorySegment = reflectionUtils.invokeMethod(/* throwException = */ false, arena, "allocate",
+                long.class, size);
+        return memorySegment == null ? null
+                : (ByteBuffer) reflectionUtils.invokeMethod(/* throwException = */ false, memorySegment,
+                        "asByteBuffer");
+    }
+
+    /**
+     * Memory-map a region of a {@link FileChannel} to a read-only {@link ByteBuffer} using a shared arena
+     * (JDK 22+). The buffer is unmapped by closing the arena.
+     *
+     * @param arena
+     *            an arena obtained from {@link #openArena(ReflectionUtils)}.
+     * @param fileChannel
+     *            the file channel to map.
+     * @param position
+     *            the position within the file at which the mapped region is to start.
+     * @param size
+     *            the size of the region to map (must not be larger than {@link #MAX_BUFFER_SIZE}, since the
+     *            mapped memory segment has to be projected to a single {@link ByteBuffer}).
+     * @param reflectionUtils
+     *            the reflection utils
+     * @return the mapped {@link ByteBuffer}, or null if the arena-based mapping API could not be invoked
+     *         reflectively.
+     * @throws IOException
+     *             if mapping the file failed with an I/O error (mapping may succeed if retried after garbage
+     *             collection, see FileSlice).
+     */
+    public static ByteBuffer mapFileUsingArena(final Object arena, final FileChannel fileChannel,
+            final long position, final long size, final ReflectionUtils reflectionUtils) throws IOException {
+        final Class<?> arenaClass = reflectionUtils.classForNameOrNull(ARENA_CLASS_NAME);
+        if (arenaClass == null) {
+            return null;
+        }
+        try {
+            // Invoke fileChannel.map(MapMode.READ_ONLY, position, size, arena).asByteBuffer()
+            final Object memorySegment = reflectionUtils.invokeMethod(/* throwException = */ true, fileChannel,
+                    "map", new Class<?>[] { MapMode.class, long.class, long.class, arenaClass },
+                    new Object[] { MapMode.READ_ONLY, position, size, arena });
+            return memorySegment == null ? null
+                    : (ByteBuffer) reflectionUtils.invokeMethod(/* throwException = */ true, memorySegment,
+                            "asByteBuffer");
+        } catch (final Exception e) {
+            // Mapping the file can fail with IOException or OutOfMemoryError, which the reflective method
+            // invocation wraps in other exceptions -- unwrap and rethrow, so that the caller can retry
+            // mapping after running garbage collection
+            for (Throwable t = e; t != null; t = t.getCause()) {
+                if (t instanceof IOException) {
+                    throw (IOException) t;
+                } else if (t instanceof OutOfMemoryError) {
+                    throw (OutOfMemoryError) t;
+                }
+            }
+            // The reflective invocation itself failed -- the caller will fall back to the FileChannel API
+            return null;
+        }
+    }
+
+    /**
+     * Close an arena obtained from {@link #openArena(ReflectionUtils)}, freeing any direct {@link ByteBuffer}s
+     * allocated from it and unmapping any files mapped with it. The buffers must no longer be in use by any
+     * thread.
+     *
+     * @param arena
+     *            the arena to close.
+     * @param reflectionUtils
+     *            the reflection utils
+     * @param log
+     *            the log
+     * @return true if the arena was successfully closed.
+     */
+    public static boolean closeArena(final Object arena, final ReflectionUtils reflectionUtils,
+            final LogNode log) {
+        try {
+            reflectionUtils.invokeMethod(/* throwException = */ true, arena, "close");
+            return true;
+        } catch (final Exception e) {
+            if (log != null) {
+                log.log("Could not close arena: " + e);
+            }
+            return false;
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     public static FileAttributesGetter createCachedAttributesGetter() {
         final Map<Path, BasicFileAttributes> cache = new HashMap<>();

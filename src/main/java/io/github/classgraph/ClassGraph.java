@@ -1444,16 +1444,13 @@ public class ClassGraph {
 
     /**
      * If true, use a {@link MappedByteBuffer} rather than the {@link FileChannel} API to open files, which may be
-     * faster for large classpaths consisting of many large jarfiles, but uses up virtual memory space.
-     * Not available on Java 24+ currently, because of the deprecation of the Unsafe API.
-     * 
+     * faster for large classpaths consisting of many large jarfiles, but uses up virtual memory space. On JDK
+     * 22+, files are memory-mapped using the {@code java.lang.foreign.Arena} API, so that they can be unmapped
+     * without calling the terminally-deprecated {@code Unsafe::invokeCleaner} method (#939).
+     *
      * @return this (for method chaining).
      */
     public ClassGraph enableMemoryMapping() {
-        if (VersionFinder.JAVA_MAJOR_VERSION > 23) {
-            // See FileUtils.java
-            throw new IllegalArgumentException("enableMemoryMapping() is not supported on Java 24+");
-        }
         scanSpec.enableMemoryMapping = true;
         return this;
     }
