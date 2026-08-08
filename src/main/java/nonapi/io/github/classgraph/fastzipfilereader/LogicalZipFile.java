@@ -647,8 +647,8 @@ public class LogicalZipFile extends ZipFileSlice {
                 final var isDeflated = compressionMethod == /* deflated */ 8;
 
                 // Get compressed and uncompressed size
-                var compressedSize = (cenReader.readUnsignedInt(entOff + 20));
-                var uncompressedSize = (cenReader.readUnsignedInt(entOff + 24));
+                var compressedSize = cenReader.readUnsignedInt(entOff + 20);
+                var uncompressedSize = cenReader.readUnsignedInt(entOff + 24);
 
                 // Get external file attributes
                 final var fileAttributes = cenReader.readUnsignedShort(entOff + 40);

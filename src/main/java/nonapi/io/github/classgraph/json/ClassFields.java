@@ -122,7 +122,7 @@ class ClassFields {
             // getDeclaredFields() does not guarantee any given order, so need to sort
             // fields. (#383)
             final var fields = currRawType.getDeclaredFields();
-            Arrays.sort(fields, cls.getName().equals(SERIALIZATION_FORMAT_CLASS_NAME)
+            Arrays.sort(fields, SERIALIZATION_FORMAT_CLASS_NAME.equals(cls.getName())
                     // Special sort order for SerializationFormat class: put "format" field first
                     ? SERIALIZATION_FORMAT_FIELD_NAME_ORDER_COMPARATOR
                     // Otherwise just sort by name so that order is deterministic

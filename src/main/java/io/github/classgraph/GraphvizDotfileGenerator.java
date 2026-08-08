@@ -206,7 +206,7 @@ final class GraphvizDotfileGenerator {
         buf.append("</b></font></td></tr>");
 
         // Create a color that matches the box background color, but is darker
-        final var darkness = 0.8f;
+        final var darkness = 0.8F;
         final var r = (int) (Integer.parseInt(boxBgColor.substring(0, 2), 16) * darkness);
         final var g = (int) (Integer.parseInt(boxBgColor.substring(2, 4), 16) * darkness);
         final var b = (int) (Integer.parseInt(boxBgColor.substring(4, 6), 16) * darkness);

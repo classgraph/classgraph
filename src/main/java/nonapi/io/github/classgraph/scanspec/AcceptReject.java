@@ -79,7 +79,7 @@ public abstract class AcceptReject {
     protected boolean segmentGlobs;
 
     /** Deserialization constructor. */
-    public AcceptReject() {
+    protected AcceptReject() {
     }
 
     /**
@@ -87,7 +87,7 @@ public abstract class AcceptReject {
      *
      * @param separatorChar the separator char
      */
-    public AcceptReject(final char separatorChar) {
+    protected AcceptReject(final char separatorChar) {
         this.separatorChar = separatorChar;
     }
 
@@ -98,7 +98,7 @@ public abstract class AcceptReject {
      * @param segmentGlobs  if true, a {@code '*'} matches only within a single
      *                      package or path segment
      */
-    public AcceptReject(final char separatorChar, final boolean segmentGlobs) {
+    protected AcceptReject(final char separatorChar, final boolean segmentGlobs) {
         this.separatorChar = separatorChar;
         this.segmentGlobs = segmentGlobs;
     }

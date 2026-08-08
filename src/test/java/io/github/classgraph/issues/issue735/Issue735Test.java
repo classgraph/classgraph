@@ -27,7 +27,7 @@ public class Issue735Test {
         }
     }
 
-    static abstract class Derived2 implements Base<String> {
+    abstract static class Derived2 implements Base<String> {
     }
 
     @Test

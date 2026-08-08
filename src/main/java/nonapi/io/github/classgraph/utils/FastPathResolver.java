@@ -99,8 +99,8 @@ public final class FastPathResolver {
      * @return the integer value of the character
      */
     private static int hexCharToInt(final char c) {
-        return (c >= '0' && c <= '9') ? (c - '0') //
-                : (c >= 'a' && c <= 'f') ? (c - 'a' + 10) //
+        return c >= '0' && c <= '9' ? (c - '0') //
+                : c >= 'a' && c <= 'f' ? (c - 'a' + 10) //
                         : (c - 'A' + 10);
     }
 

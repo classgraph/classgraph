@@ -68,7 +68,7 @@ class ParameterizedTypeImpl implements ParameterizedType {
     ParameterizedTypeImpl(final Class<?> rawType, final Type[] actualTypeArguments, final Type ownerType) {
         this.actualTypeArguments = actualTypeArguments;
         this.rawType = rawType;
-        this.ownerType = (ownerType != null) ? ownerType : rawType.getDeclaringClass();
+        this.ownerType = ownerType != null ? ownerType : rawType.getDeclaringClass();
         if (rawType.getTypeParameters().length != actualTypeArguments.length) {
             throw new IllegalArgumentException("Argument length mismatch");
         }

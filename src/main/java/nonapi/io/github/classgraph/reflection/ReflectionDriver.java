@@ -56,7 +56,7 @@ abstract class ReflectionDriver {
             };
 
     /** Caches class members. */
-    public class ClassMemberCache {
+    public final class ClassMemberCache {
         private final Map<String, List<Method>> methodNameToMethods = new HashMap<>();
         private final Map<String, Field> fieldNameToField = new HashMap<>();
 

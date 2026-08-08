@@ -45,7 +45,7 @@ import nonapi.io.github.classgraph.utils.LogNode;
  *
  * @param <T> The work unit type.
  */
-public class WorkQueue<T> implements AutoCloseable {
+public final class WorkQueue<T> implements AutoCloseable {
     /** The work unit processor. */
     private final WorkUnitProcessor<T> workUnitProcessor;
 

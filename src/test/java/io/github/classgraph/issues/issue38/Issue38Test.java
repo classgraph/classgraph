@@ -17,7 +17,7 @@ class Issue38Test {
      *
      * @param <T> the generic type
      */
-    public static abstract class AnnotationLiteral<T extends Annotation> implements Annotation {
+    public abstract static class AnnotationLiteral<T extends Annotation> implements Annotation {
     }
 
     /**

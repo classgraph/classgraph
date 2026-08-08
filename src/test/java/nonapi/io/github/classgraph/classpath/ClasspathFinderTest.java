@@ -1,6 +1,7 @@
 package nonapi.io.github.classgraph.classpath;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -34,7 +35,7 @@ public class ClasspathFinderTest {
         final var scanSpec = new ScanSpec();
         scanSpec.enableSystemJarsAndModules = true;
         scanSpec.ignoreParentClassLoaders = true;
-        scanSpec.overrideClasspath = List.<Object>of(classesDir);
+        scanSpec.overrideClasspath = List.of(classesDir);
 
         // Act
         final var classpathFinder = new ClasspathFinder(scanSpec, new ReflectionUtils(), new LogNode());
@@ -42,7 +43,7 @@ public class ClasspathFinderTest {
 
         // Assert
         assertNotNull(moduleFinder, "ModuleFinder should be non-null");
-        assertTrue(moduleFinder.getSystemModuleRefs().size() > 0, "ModuleFinder should have found system modules");
+        assertFalse(moduleFinder.getSystemModuleRefs().isEmpty(), "ModuleFinder should have found system modules");
 
         final Set<Path> paths = new TreeSet<>();
         for (final String path : classpathFinder.getClasspathOrder().getClasspathEntryUniqueResolvedPaths()) {
@@ -74,7 +75,7 @@ public class ClasspathFinderTest {
 
         // Assert
         assertNotNull(moduleFinder, "ModuleFinder should be non-null");
-        assertTrue(moduleFinder.getSystemModuleRefs().size() > 0, "ModuleFinder should have found system modules");
+        assertFalse(moduleFinder.getSystemModuleRefs().isEmpty(), "ModuleFinder should have found system modules");
 
         final Set<Path> paths = new TreeSet<>();
         for (final String path : classpathFinder.getClasspathOrder().getClasspathEntryUniqueResolvedPaths()) {

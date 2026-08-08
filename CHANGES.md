@@ -92,3 +92,6 @@ compiler's `-Xlint:exports` check is enabled to keep it that way.
   `LogNode` type.
 * The `protected` `addTypeAnnotation` methods of `HierarchicalTypeSignature`,
   `TypeSignature` and their subclasses took the internal `Classfile.TypePathNode` type.
+* The constructors of the abstract classes `ClassMemberInfo` and
+  `HierarchicalTypeSignature` were `public`, which is meaningless on an abstract class:
+  they are now `protected`. Subclasses are unaffected.

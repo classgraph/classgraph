@@ -8,10 +8,10 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.TypeVariableSignature;
 
 public class Issue706Test {
-    static public class GenericBase<T> {
+    public static class GenericBase<T> {
     }
 
-    static public class GenericBypass<T> extends GenericBase<T> {
+    public static class GenericBypass<T> extends GenericBase<T> {
     }
 
     @Test

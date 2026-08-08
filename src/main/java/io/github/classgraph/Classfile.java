@@ -1339,7 +1339,7 @@ class Classfile {
             // Info on modifier flags:
             // http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.5
             final var fieldModifierFlags = reader.readUnsignedShort();
-            final var isPublicField = ((fieldModifierFlags & 0x0001) == 0x0001);
+            final var isPublicField = (fieldModifierFlags & 0x0001) == 0x0001;
             final var fieldIsVisible = isPublicField || scanSpec.ignoreFieldVisibility;
             final var getStaticFinalFieldConstValue = scanSpec.enableStaticFinalFieldConstantInitializerValues
                     && fieldIsVisible;
@@ -1371,7 +1371,7 @@ class Classfile {
                     // See if field name matches one of the requested names for this class, and if
                     // it does,
                     // check if it is initialized with a constant value
-                    if ((getStaticFinalFieldConstValue)
+                    if (getStaticFinalFieldConstValue
                             && constantPoolStringEquals(attributeNameCpIdx, "ConstantValue")) {
                         // http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.2
                         final var cpIdx = reader.readUnsignedShort();
@@ -1457,7 +1457,7 @@ class Classfile {
             // Info on modifier flags:
             // http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.6
             final var methodModifierFlags = reader.readUnsignedShort();
-            final var isPublicMethod = ((methodModifierFlags & 0x0001) == 0x0001);
+            final var isPublicMethod = (methodModifierFlags & 0x0001) == 0x0001;
             final var methodIsVisible = isPublicMethod || scanSpec.ignoreMethodVisibility;
             List<MethodTypeAnnotationDecorator> methodTypeAnnotationDecorators = null;
             String methodName = null;

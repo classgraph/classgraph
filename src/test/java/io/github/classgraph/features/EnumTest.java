@@ -12,7 +12,7 @@ import io.github.classgraph.ClassGraph;
 public class EnumTest {
     /** Regular enum */
     private enum MyEnumWithoutMethod {
-        A, B, C;
+        A, B, C
     }
 
     private enum EnumWithMethod {

@@ -38,7 +38,7 @@ import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
 
 /** The registry for ClassLoaderHandler classes. */
-public class ClassLoaderHandlerRegistry {
+public final class ClassLoaderHandlerRegistry {
     /**
      * Default ClassLoaderHandlers. If a ClassLoaderHandler is added to ClassGraph,
      * it should be added to this list.
@@ -168,7 +168,7 @@ public class ClassLoaderHandlerRegistry {
      * A list of fully-qualified ClassLoader class names paired with the
      * ClassLoaderHandler that can handle them.
      */
-    public static class ClassLoaderHandlerRegistryEntry {
+    public static final class ClassLoaderHandlerRegistryEntry {
         /** The {@link ClassLoaderHandler} instance. */
         public final ClassLoaderHandler classLoaderHandler;
 

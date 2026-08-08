@@ -34,7 +34,7 @@ public class Issue400 {
         System.runFinalization();
         runtime.gc();
         System.runFinalization();
-        return (runtime.totalMemory() - runtime.freeMemory());
+        return runtime.totalMemory() - runtime.freeMemory();
     }
 
     /**

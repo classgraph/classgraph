@@ -69,7 +69,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
     // Marking this transient will mean direct relationships will be lost on
     // serialization, but the
     // Serializable interface is not widely used today anyway.
-    private transient final Set<ClassInfo> directlyRelatedClasses;
+    private final transient Set<ClassInfo> directlyRelatedClasses;
 
     /** Whether to sort by name. */
     private final boolean sortByName;

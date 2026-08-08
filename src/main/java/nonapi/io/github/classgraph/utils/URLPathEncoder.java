@@ -86,10 +86,9 @@ public final class URLPathEncoder {
         for (int chrIdx = 0, len = str.length(); chrIdx < len; chrIdx++) {
             final var c = str.charAt(chrIdx);
             if (c == '%') {
-                // Decode %-escaped char sequence, e.g. %5D
-                if (chrIdx > len - 3) {
-                    // Ignore truncated %-seq at end of string
-                } else {
+                // Decode %-escaped char sequence, e.g. %5D, ignoring a truncated %-seq at
+                // the end of the string
+                if (chrIdx <= len - 3) {
                     final var c1 = str.charAt(++chrIdx);
                     final var digit1 = c1 >= '0' && c1 <= '9' ? (c1 - '0')
                             : c1 >= 'a' && c1 <= 'f' ? (c1 - 'a' + 10) : c1 >= 'A' && c1 <= 'F' ? (c1 - 'A' + 10) : -1;

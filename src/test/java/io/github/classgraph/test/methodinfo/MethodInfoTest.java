@@ -188,9 +188,7 @@ public class MethodInfoTest {
             final var mi = scanResult.getClassInfo(MethodInfoTest.class.getName()).getMethodInfo()
                     .getSingleMethod("publicMethodWithArgs");
             assertThat(mi).isNotNull();
-            assertThatCode(() -> {
-                mi.loadClassAndGetMethod();
-            }).doesNotThrowAnyException();
+            assertThatCode(mi::loadClassAndGetMethod).doesNotThrowAnyException();
             assertThat(mi.loadClassAndGetMethod()).isNotNull();
 
             // Extract array-typed params from method params

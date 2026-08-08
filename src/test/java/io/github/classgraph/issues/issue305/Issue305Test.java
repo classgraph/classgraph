@@ -19,7 +19,7 @@ import io.github.classgraph.ClassGraph;
  * Issue305.
  */
 public class Issue305Test {
-    private ConsoleHandler errPrintStreamHandler = null;
+    private ConsoleHandler errPrintStreamHandler;
     private final Logger rootLogger = Logger.getLogger("");
 
     /** Reset encapsulation circumvention method after each test. */

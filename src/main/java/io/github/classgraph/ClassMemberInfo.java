@@ -82,7 +82,7 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
      * @param annotationInfo    {@link AnnotationInfo} for any annotations on the
      *                          class member.
      */
-    public ClassMemberInfo(final String definingClassName, final String memberName, final int modifiers,
+    protected ClassMemberInfo(final String definingClassName, final String memberName, final int modifiers,
             final String typeDescriptorStr, final String typeSignatureStr, final AnnotationInfoList annotationInfo) {
         super();
         this.declaringClassName = definingClassName;

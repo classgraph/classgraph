@@ -18,7 +18,7 @@ import nonapi.io.github.classgraph.utils.LogNode;
  * LogNodeTest.
  */
 public class LogNodeTest {
-    private ConsoleHandler errPrintStreamHandler = null;
+    private ConsoleHandler errPrintStreamHandler;
     private final Logger rootLogger = Logger.getLogger("");
 
     /** Reset encapsulation circumvention method after each test. */

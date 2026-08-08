@@ -41,7 +41,7 @@ public abstract class HierarchicalTypeSignature extends ScanResultObject {
     protected AnnotationInfoList typeAnnotationInfo;
 
     /** A hierarchical type signature. */
-    public HierarchicalTypeSignature() {
+    protected HierarchicalTypeSignature() {
         super();
     }
 

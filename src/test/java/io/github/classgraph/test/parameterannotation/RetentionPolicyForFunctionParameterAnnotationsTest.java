@@ -33,13 +33,13 @@ public class RetentionPolicyForFunctionParameterAnnotationsTest {
     private static ClassInfo classInfo;
 
     /** The Constant RETENTION_CLASS. */
-    private final static String RETENTION_CLASS = "retention_class";
+    private static final String RETENTION_CLASS = "retention_class";
 
     /** The Constant RETENTION_RUNTIME. */
-    private final static String RETENTION_RUNTIME = "retention_runtime";
+    private static final String RETENTION_RUNTIME = "retention_runtime";
 
     /** The Constant RETENTION_SOURCE. */
-    private final static String RETENTION_SOURCE = "retention_source";
+    private static final String RETENTION_SOURCE = "retention_source";
 
     /**
      * The Interface ParamAnnoRuntime.

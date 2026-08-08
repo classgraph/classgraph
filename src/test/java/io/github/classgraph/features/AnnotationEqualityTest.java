@@ -87,10 +87,10 @@ class AnnotationEqualityTest {
             assertThat(classInfo).isNotNull();
             final var cls = classInfo.loadClass();
             final var annotation = (X) cls.getAnnotations()[0];
-            assertThat(X.class.isInstance(annotation));
+            assertThat(annotation).isInstanceOf(X.class);
             final var annotationInfo = classInfo.getAnnotationInfo().get(0);
             final var proxyAnnotationGeneric = annotationInfo.loadClassAndInstantiate();
-            assertThat(X.class.isInstance(proxyAnnotationGeneric));
+            assertThat(proxyAnnotationGeneric).isInstanceOf(X.class);
             final var proxyAnnotation = (X) proxyAnnotationGeneric;
             assertThat(proxyAnnotation.b()).isEqualTo(annotation.b());
             assertThat(proxyAnnotation.c()).isEqualTo(annotation.c());
