@@ -55,16 +55,12 @@ public class Issue407Test {
                 null, null, "25.0-jre");
         assertThat(resolvedFile).isFile();
 
-        // Create a new custom class loader
-        final var classLoader = new URLClassLoader(new URL[] { resolvedFile.toURI().toURL() }, null);
-
-        // Scan the classpath -- used to throw an exception for Stack, since companion
-        // object inherits
-        // from different class
-        try (var scanResult = new ClassGraph() //
-                .acceptPackages("com.google.thirdparty.publicsuffix") //
-                .overrideClassLoaders(classLoader) //
-                .scan()) {
+        // Scan the classpath, using a new custom class loader
+        try (var classLoader = new URLClassLoader(new URL[] { resolvedFile.toURI().toURL() }, null);
+                var scanResult = new ClassGraph() //
+                        .acceptPackages("com.google.thirdparty.publicsuffix") //
+                        .overrideClassLoaders(classLoader) //
+                        .scan()) {
             final var classNames = scanResult //
                     .getAllClasses() //
                     .getNames();

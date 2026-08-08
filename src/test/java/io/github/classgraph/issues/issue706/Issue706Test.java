@@ -16,13 +16,14 @@ public class Issue706Test {
 
     @Test
     void genericSuperclass() {
-        final var scanResult = new ClassGraph().acceptPackages(Issue706Test.class.getPackage().getName())
-                .enableClassInfo().scan();
-        final var bypassCls = scanResult.getClassInfo(GenericBypass.class.getName());
-        final var superclassArg = bypassCls.getTypeSignature().getSuperclassSignature().getSuffixTypeArguments().get(0)
-                .get(0);
-        final var superclassArgTVar = (TypeVariableSignature) superclassArg.getTypeSignature();
-        final Object bypassTParamFromSuperclassArg = superclassArgTVar.resolve();
-        assertThat(bypassTParamFromSuperclassArg.toString()).isEqualTo("T");
+        try (var scanResult = new ClassGraph().acceptPackages(Issue706Test.class.getPackage().getName())
+                .enableClassInfo().scan()) {
+            final var bypassCls = scanResult.getClassInfo(GenericBypass.class.getName());
+            final var superclassArg = bypassCls.getTypeSignature().getSuperclassSignature().getSuffixTypeArguments()
+                    .get(0).get(0);
+            final var superclassArgTVar = (TypeVariableSignature) superclassArg.getTypeSignature();
+            final Object bypassTParamFromSuperclassArg = superclassArgTVar.resolve();
+            assertThat(bypassTParamFromSuperclassArg.toString()).isEqualTo("T");
+        }
     }
 }

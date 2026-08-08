@@ -14,9 +14,9 @@ class Issue673Test {
     void testResourcesCanBeRead() {
         // a has Class-Path manifest entry that points to b, b points to c
         final var aURL = Issue673Test.class.getClassLoader().getResource("issue673/a.zip");
-        assertThat(aURL != null);
+        assertThat(aURL).isNotNull();
         final var bURL = Issue673Test.class.getClassLoader().getResource("issue673/b.zip");
-        assertThat(bURL != null);
+        assertThat(bURL).isNotNull();
 
         // This succeeded before issue 673 was fixed
         try (var scanResult = new ClassGraph().overrideClasspath(bURL, aURL).scan()) {

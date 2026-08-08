@@ -60,7 +60,7 @@ public class Issue368Test {
             final var json = JSONSerializer.serializeObject(new InnerClass());
             assertThat(json).isEqualTo("{\"innerClassField\":\"io.github.classgraph.issues.issue368.Issue368Test\"}");
             final var deserialized = JSONDeserializer.deserializeObject(InnerClass.class, json);
-            assertThat(deserialized.innerClassField == Issue368Test.class);
+            assertThat(deserialized.innerClassField).isSameAs(Issue368Test.class);
         }
     }
 }

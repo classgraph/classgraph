@@ -34,9 +34,9 @@ public class EnumTest {
     public void enumWithoutMethod() throws Exception {
         try (var scanResult = new ClassGraph().acceptClasses(MyEnumWithoutMethod.class.getName()).enableAllInfo()
                 .scan()) {
-            assertThat(scanResult.getAllEnums().size() == 1);
+            assertThat(scanResult.getAllEnums()).hasSize(1);
             final var myEnum = scanResult.getAllEnums().get(0);
-            assertThat(myEnum.getName().equals(MyEnumWithoutMethod.class.getName()));
+            assertThat(myEnum.getName()).isEqualTo(MyEnumWithoutMethod.class.getName());
             assertThat(myEnum.getEnumConstants().getNames()).containsExactly("A", "B", "C");
         }
     }
@@ -45,9 +45,9 @@ public class EnumTest {
     @Test
     public void enumWithMethod() throws Exception {
         try (var scanResult = new ClassGraph().acceptClasses(EnumWithMethod.class.getName()).enableAllInfo().scan()) {
-            assertThat(scanResult.getAllEnums().size() == 1);
+            assertThat(scanResult.getAllEnums()).hasSize(1);
             final var myEnum = scanResult.getAllEnums().get(0);
-            assertThat(myEnum.getName().equals(EnumWithMethod.class.getName()));
+            assertThat(myEnum.getName()).isEqualTo(EnumWithMethod.class.getName());
             assertThat(myEnum.getEnumConstants().getNames()).containsExactly("P", "Q");
             assertThat(((EnumWithMethod) myEnum.getEnumConstantObjects().get(0)).getVal()).isEqualTo(1);
             assertThat(((EnumWithMethod) myEnum.getEnumConstantObjects().get(1)).getVal()).isEqualTo(2);

@@ -22,16 +22,16 @@ public class Issue694Test {
 
     @Test
     void methodWithParam() {
-        final var scan = new ClassGraph().acceptClasses(Issue694Test.class.getName()).enableAnnotationInfo()
-                .enableMethodInfo().scan();
-
         final List<String> foundMethods = new ArrayList<>();
         final List<String> foundMethodInfo = new ArrayList<>();
-        for (final ClassInfo info : scan.getAllStandardClasses()) {
-            for (final MethodInfo methodInfo : info.getDeclaredMethodInfo()) {
-                foundMethodInfo.add(methodInfo.toString());
-                final var method = methodInfo.loadClassAndGetMethod();
-                foundMethods.add(method.toString());
+        try (var scan = new ClassGraph().acceptClasses(Issue694Test.class.getName()).enableAnnotationInfo()
+                .enableMethodInfo().scan()) {
+            for (final ClassInfo info : scan.getAllStandardClasses()) {
+                for (final MethodInfo methodInfo : info.getDeclaredMethodInfo()) {
+                    foundMethodInfo.add(methodInfo.toString());
+                    final var method = methodInfo.loadClassAndGetMethod();
+                    foundMethods.add(method.toString());
+                }
             }
         }
         assertThat(foundMethodInfo).containsOnly(

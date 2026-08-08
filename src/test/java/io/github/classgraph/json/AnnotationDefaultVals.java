@@ -43,11 +43,12 @@ public class AnnotationDefaultVals {
                     .getDefaultParameterValues().get(0).getValue()).isEqualTo("hello");
             final var indent = 2;
             final var scanResultJSON = scanResult.toJSON(indent);
-            final var scanResultDeserialized = ScanResult.fromJSON(scanResultJSON);
-            final var scanResultReserializedJSON = scanResultDeserialized.toJSON(indent);
-            assertThat(scanResultReserializedJSON).isEqualTo(scanResultJSON);
-            assertThat(scanResultDeserialized.getClassInfo(MyClass.class.getName()).getAnnotationInfo().get(0)
-                    .getDefaultParameterValues().get(0).getValue()).isEqualTo("hello");
+            try (var scanResultDeserialized = ScanResult.fromJSON(scanResultJSON)) {
+                final var scanResultReserializedJSON = scanResultDeserialized.toJSON(indent);
+                assertThat(scanResultReserializedJSON).isEqualTo(scanResultJSON);
+                assertThat(scanResultDeserialized.getClassInfo(MyClass.class.getName()).getAnnotationInfo().get(0)
+                        .getDefaultParameterValues().get(0).getValue()).isEqualTo("hello");
+            }
         }
     }
 }

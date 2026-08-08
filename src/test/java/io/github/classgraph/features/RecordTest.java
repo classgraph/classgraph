@@ -23,8 +23,8 @@ public class RecordTest {
      */
     @Test
     public void recordJar() throws Exception {
-        try (var scanResult = new ClassGraph().overrideClassLoaders(new URLClassLoader(new URL[] { jarURL }))
-                .enableAllInfo().scan()) {
+        try (var classLoader = new URLClassLoader(new URL[] { jarURL });
+                var scanResult = new ClassGraph().overrideClassLoaders(classLoader).enableAllInfo().scan()) {
             final var classInfoList = scanResult.getAllRecords();
             assertThat(classInfoList).isNotEmpty();
             final var classInfo = classInfoList.get(0);
