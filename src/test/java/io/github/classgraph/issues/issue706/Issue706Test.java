@@ -19,13 +19,14 @@ public class Issue706Test {
 
     @Test
     void genericSuperclass() {
-        final ScanResult scanResult = new ClassGraph().acceptPackages(Issue706Test.class.getPackage().getName())
-                .enableClassInfo().scan();
-        final ClassInfo bypassCls = scanResult.getClassInfo(GenericBypass.class.getName());
-        final TypeArgument superclassArg = bypassCls.getTypeSignature().getSuperclassSignature()
-                .getSuffixTypeArguments().get(0).get(0);
-        final TypeVariableSignature superclassArgTVar = (TypeVariableSignature) superclassArg.getTypeSignature();
-        final Object bypassTParamFromSuperclassArg = superclassArgTVar.resolve();
-        assertThat(bypassTParamFromSuperclassArg.toString()).isEqualTo("T");
+        try (ScanResult scanResult = new ClassGraph().acceptPackages(Issue706Test.class.getPackage().getName())
+                .enableClassInfo().scan()) {
+            final ClassInfo bypassCls = scanResult.getClassInfo(GenericBypass.class.getName());
+            final TypeArgument superclassArg = bypassCls.getTypeSignature().getSuperclassSignature()
+                    .getSuffixTypeArguments().get(0).get(0);
+            final TypeVariableSignature superclassArgTVar = (TypeVariableSignature) superclassArg.getTypeSignature();
+            final Object bypassTParamFromSuperclassArg = superclassArgTVar.resolve();
+            assertThat(bypassTParamFromSuperclassArg.toString()).isEqualTo("T");
+        }
     }
 }

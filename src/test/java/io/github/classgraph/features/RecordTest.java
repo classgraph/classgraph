@@ -28,8 +28,8 @@ public class RecordTest {
      */
     @Test
     public void recordJar() throws Exception {
-        try (ScanResult scanResult = new ClassGraph().overrideClassLoaders(new URLClassLoader(new URL[] { jarURL }))
-                .enableAllInfo().scan()) {
+        try (URLClassLoader classLoader = new URLClassLoader(new URL[] { jarURL });
+                ScanResult scanResult = new ClassGraph().overrideClassLoaders(classLoader).enableAllInfo().scan()) {
             final ClassInfoList classInfoList = scanResult.getAllRecords();
             assertThat(classInfoList).isNotEmpty();
             final ClassInfo classInfo = classInfoList.get(0);

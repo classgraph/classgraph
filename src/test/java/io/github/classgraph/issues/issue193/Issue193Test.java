@@ -59,15 +59,13 @@ public class Issue193Test {
                 "scala-library", null, null, "2.12.1");
         assertThat(resolvedFile).isFile();
 
-        // Create a new custom class loader
-        final ClassLoader classLoader = new URLClassLoader(new URL[] { resolvedFile.toURI().toURL() }, null);
-
-        // Scan the classpath -- used to throw an exception for Stack, since companion object inherits
-        // from different class
-        try (ScanResult scanResult = new ClassGraph() //
-                .acceptPackages("scala.collection.immutable") //
-                .overrideClassLoaders(classLoader) //
-                .scan()) {
+        // Create a new custom class loader, then scan the classpath -- scanning used to throw an exception
+        // for Stack, since the companion object inherits from a different class
+        try (URLClassLoader classLoader = new URLClassLoader(new URL[] { resolvedFile.toURI().toURL() }, null);
+                ScanResult scanResult = new ClassGraph() //
+                        .acceptPackages("scala.collection.immutable") //
+                        .overrideClassLoaders(classLoader) //
+                        .scan()) {
             final List<String> classes = scanResult //
                     .getAllClasses() //
                     .filter(ci -> ci.getName().endsWith("$")) //

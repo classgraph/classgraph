@@ -59,15 +59,12 @@ public class Issue407Test {
                 "guava", null, null, "25.0-jre");
         assertThat(resolvedFile).isFile();
 
-        // Create a new custom class loader
-        final ClassLoader classLoader = new URLClassLoader(new URL[] { resolvedFile.toURI().toURL() }, null);
-
-        // Scan the classpath -- used to throw an exception for Stack, since companion object inherits
-        // from different class
-        try (ScanResult scanResult = new ClassGraph() //
-                .acceptPackages("com.google.thirdparty.publicsuffix") //
-                .overrideClassLoaders(classLoader) //
-                .scan()) {
+        // Create a new custom class loader, and scan the classpath
+        try (URLClassLoader classLoader = new URLClassLoader(new URL[] { resolvedFile.toURI().toURL() }, null);
+                ScanResult scanResult = new ClassGraph() //
+                        .acceptPackages("com.google.thirdparty.publicsuffix") //
+                        .overrideClassLoaders(classLoader) //
+                        .scan()) {
             final List<String> classNames = scanResult //
                     .getAllClasses() //
                     .getNames();

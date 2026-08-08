@@ -30,6 +30,7 @@ package io.github.classgraph.issues.issue364;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.attribute.PosixFilePermission;
@@ -46,16 +47,19 @@ public class Issue364Test {
 
     /**
      * Test No Permissions.
+     *
+     * @throws IOException
+     *             if the classloader could not be closed.
      */
     @Test
-    public void testNoPermissions() {
+    public void testNoPermissions() throws IOException {
         final ClassLoader classLoader = Issue364Test.class.getClassLoader();
         final String aJarName = "issue364-no-permissions.jar";
         final URL aJarURL = classLoader.getResource(aJarName);
-        final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
-        try (ScanResult result = new ClassGraph().overrideClassLoaders(overrideClassLoader)
-                .ignoreParentClassLoaders().scan()) {
+        try (URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
+                ScanResult result = new ClassGraph().overrideClassLoaders(overrideClassLoader)
+                        .ignoreParentClassLoaders().scan()) {
             assertThat(result.getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/all")
                     .get(0).getLastModified()).isEqualTo(1434543812000L);
             assertThat(result.getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/all")
@@ -83,16 +87,19 @@ public class Issue364Test {
 
     /**
      * Test Permissions.
+     *
+     * @throws IOException
+     *             if the classloader could not be closed.
      */
     @Test
-    public void testPermissions() {
+    public void testPermissions() throws IOException {
         final ClassLoader classLoader = Issue364Test.class.getClassLoader();
         final String aJarName = "issue364-permissions.jar";
         final URL aJarURL = classLoader.getResource(aJarName);
-        final URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
-        try (ScanResult result = new ClassGraph().overrideClassLoaders(overrideClassLoader)
-                .ignoreParentClassLoaders().scan()) {
+        try (URLClassLoader overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
+                ScanResult result = new ClassGraph().overrideClassLoaders(overrideClassLoader)
+                        .ignoreParentClassLoaders().scan()) {
             assertThat(result.getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/all")
                     .get(0).getLastModified()).isEqualTo(1434543812000L);
             assertThat(result.getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/all")

@@ -14,23 +14,24 @@ class Issue854Test {
     @Test
     void getFullyQualifiedClassName() {
         final ClassLoader mainClassLoader = Issue854Test.class.getClassLoader();
-        final ScanResult scanResult = new ClassGraph().enableClassInfo().enableAnnotationInfo()
+        try (ScanResult scanResult = new ClassGraph().enableClassInfo().enableAnnotationInfo()
                 .ignoreClassVisibility().ignoreFieldVisibility().ignoreMethodVisibility()
-                .overrideClassLoaders(mainClassLoader).acceptPackages("com.google.common.collect").scan();
+                .overrideClassLoaders(mainClassLoader).acceptPackages("com.google.common.collect").scan()) {
 
-        final String anonymousClass = "com.google.common.collect.TreeRangeMap$SubRangeMap$1";
-        final ClassInfo classInfo = scanResult.getClassInfo(anonymousClass);
-        final ClassRefTypeSignature signature = classInfo.getTypeSignatureOrTypeDescriptor()
-                .getSuperclassSignature();
+            final String anonymousClass = "com.google.common.collect.TreeRangeMap$SubRangeMap$1";
+            final ClassInfo classInfo = scanResult.getClassInfo(anonymousClass);
+            final ClassRefTypeSignature signature = classInfo.getTypeSignatureOrTypeDescriptor()
+                    .getSuperclassSignature();
 
-        // Before the fix to 854, this would give the following, because type parameter token parsing
-        // did not stop at '.':
-        // com.google.common.collect.TreeRangeMap$SubRangeMap.SubRangeMapAsMap
-        // But the fully-qualified class name in the classfile is:
-        // com.google.common.collect.TreeRangeMap$SubRangeMap$SubRangeMapAsMap
-        final String subRangeMapAsMapClassName = signature.getFullyQualifiedClassName();
-        assertThat(subRangeMapAsMapClassName)
-                .isEqualTo("com.google.common.collect.TreeRangeMap$SubRangeMap$SubRangeMapAsMap");
-        assertNotNull(scanResult.getClassInfo(subRangeMapAsMapClassName));
+            // Before the fix to 854, this would give the following, because type parameter token parsing
+            // did not stop at '.':
+            // com.google.common.collect.TreeRangeMap$SubRangeMap.SubRangeMapAsMap
+            // But the fully-qualified class name in the classfile is:
+            // com.google.common.collect.TreeRangeMap$SubRangeMap$SubRangeMapAsMap
+            final String subRangeMapAsMapClassName = signature.getFullyQualifiedClassName();
+            assertThat(subRangeMapAsMapClassName)
+                    .isEqualTo("com.google.common.collect.TreeRangeMap$SubRangeMap$SubRangeMapAsMap");
+            assertNotNull(scanResult.getClassInfo(subRangeMapAsMapClassName));
+        }
     }
 }

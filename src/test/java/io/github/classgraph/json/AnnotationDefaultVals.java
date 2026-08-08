@@ -42,11 +42,12 @@ public class AnnotationDefaultVals {
                     .getDefaultParameterValues().get(0).getValue()).isEqualTo("hello");
             final int indent = 2;
             final String scanResultJSON = scanResult.toJSON(indent);
-            final ScanResult scanResultDeserialized = ScanResult.fromJSON(scanResultJSON);
-            final String scanResultReserializedJSON = scanResultDeserialized.toJSON(indent);
-            assertThat(scanResultReserializedJSON).isEqualTo(scanResultJSON);
-            assertThat(scanResultDeserialized.getClassInfo(MyClass.class.getName()).getAnnotationInfo().get(0)
-                    .getDefaultParameterValues().get(0).getValue()).isEqualTo("hello");
+            try (ScanResult scanResultDeserialized = ScanResult.fromJSON(scanResultJSON)) {
+                final String scanResultReserializedJSON = scanResultDeserialized.toJSON(indent);
+                assertThat(scanResultReserializedJSON).isEqualTo(scanResultJSON);
+                assertThat(scanResultDeserialized.getClassInfo(MyClass.class.getName()).getAnnotationInfo().get(0)
+                        .getDefaultParameterValues().get(0).getValue()).isEqualTo("hello");
+            }
         }
     }
 }
