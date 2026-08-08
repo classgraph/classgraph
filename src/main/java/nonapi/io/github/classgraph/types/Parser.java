@@ -186,7 +186,10 @@ public class Parser {
      *             If there are insufficient characters remaining in the string.
      */
     public void advance(final int numChars) {
-        if (position + numChars >= string.length()) {
+        // Advancing to exactly the end of the string is valid -- peek() and hasMore() both handle that position.
+        // Compare by subtraction rather than addition, so that a large numChars cannot overflow int and slip
+        // past the range check.
+        if (numChars < 0 || numChars > string.length() - position) {
             throw new IllegalArgumentException("Invalid skip distance");
         }
         position += numChars;
@@ -219,7 +222,10 @@ public class Parser {
      *             If the position is out of range.
      */
     public void setPosition(final int position) {
-        if (position < 0 || position >= string.length()) {
+        // The end-of-string position is valid, since that is the position getPosition() returns once the whole
+        // input has been consumed, and code that saves and restores a parser position needs to be able to
+        // restore that position
+        if (position < 0 || position > string.length()) {
             throw new IllegalArgumentException("Invalid position");
         }
         this.position = position;

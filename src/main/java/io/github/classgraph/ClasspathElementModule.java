@@ -89,7 +89,7 @@ class ClasspathElementModule extends ClasspathElement {
      *            the scan spec
      */
     ClasspathElementModule(final ModuleRef moduleRef,
-            final SingletonMap<ModuleRef, Recycler<ModuleReaderProxy, IOException>, IOException> // 
+            final SingletonMap<ModuleRef, Recycler<ModuleReaderProxy, IOException>, IOException> //
             moduleRefToModuleReaderProxyRecyclerMap, final ClasspathEntryWorkUnit workUnit,
             final ScanSpec scanSpec) {
         super(workUnit, scanSpec);
@@ -484,7 +484,8 @@ class ClasspathElementModule extends ClasspathElement {
     File getFile() {
         try {
             final URI uri = moduleRef.getLocation();
-            if (uri != null && !uri.getScheme().equals("jrt")) {
+            // N.B. uri.getScheme() is null for a relative URI, so compare in this order
+            if (uri != null && !"jrt".equals(uri.getScheme())) {
                 final File file = new File(uri);
                 if (file.exists()) {
                     return file;

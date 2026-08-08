@@ -54,6 +54,7 @@ public class ModuleFinder {
     /** If true, must forcibly scan {@code java.class.path}, since there was an anonymous module layer. */
     private boolean forceScanJavaClassPath;
 
+    /** The reflection utils instance. */
     private final ReflectionUtils reflectionUtils;
 
     // -------------------------------------------------------------------------------------------------------------
@@ -273,6 +274,8 @@ public class ModuleFinder {
      *            whether to scan unnamed and non-system modules
      * @param scanSystemModules
      *            whether to scan system modules
+     * @param reflectionUtils
+     *            the reflection utils instance.
      * @param log
      *            The log.
      */

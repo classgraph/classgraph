@@ -35,11 +35,11 @@ import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
 
 /**
- * This handler uses
- * {@link nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler.DelegationOrder#PARENT_LAST} to support
- * the <code>RestartClassLoader</code> of Spring Boot's devtools. <code>RestartClassLoader</code> provides parent
- * last loading for specified URLs (those are all that are supposed to be changed during development). Therefor the
- * handler for that class loader also has to delegate in <code>PARENT_LAST</code> order.
+ * This handler uses parent-last delegation order (i.e. it adds the classloader itself to the classloader order
+ * before delegating to the parent) to support the <code>RestartClassLoader</code> of Spring Boot's devtools.
+ * <code>RestartClassLoader</code> provides parent-last loading for specified URLs (those are all that are supposed
+ * to be changed during development). Therefore the handler for that class loader also has to delegate in
+ * parent-last order.
  */
 class SpringBootRestartClassLoaderHandler implements ClassLoaderHandler {
     @Override
@@ -64,7 +64,7 @@ class SpringBootRestartClassLoaderHandler implements ClassLoaderHandler {
      * 
      * Spring Boot's RestartClassLoader sits in front of the parent class loader and watches a given set of
      * directories for changes. While those classes are reachable from the parent class loader directly, they should
-     * always be loaded through direct access from the RestartClassLoader until it's completely turned of by means
+     * always be loaded through direct access from the RestartClassLoader until it's completely turned off by means
      * of Spring Boot Developer tools.
      * 
      * The RestartClassLoader shades only the project classes and additional directories that are configurable, so

@@ -257,9 +257,10 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
         // Don't get in a cycle
                 && visited.add(annotationClassInfo)) {
             for (final AnnotationInfo metaAnnotationInfo : annotationClassInfo.annotationInfo) {
-                final ClassInfo metaAnnotationClassInfo = metaAnnotationInfo.getClassInfo();
-                final String metaAnnotationClassName = metaAnnotationClassInfo.getName();
-                // Don't treat java.lang.annotation annotations as meta-annotations 
+                // N.B. read the class name from the AnnotationInfo rather than from its ClassInfo, since
+                // ClassInfo is null if the meta-annotation's class was not encountered during the scan
+                final String metaAnnotationClassName = metaAnnotationInfo.getName();
+                // Don't treat java.lang.annotation annotations as meta-annotations
                 if (!metaAnnotationClassName.startsWith("java.lang.annotation.")) {
                     // Add the meta-annotation to the transitive closure
                     allAnnotationsOut.add(metaAnnotationInfo);
@@ -298,7 +299,7 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
             for (final ClassInfo superclass : annotatedClass.getSuperclasses()) {
                 if (superclass.annotationInfo != null) {
                     for (final AnnotationInfo sai : superclass.annotationInfo) {
-                        // Don't add inherited superclass annotation if it is overridden in a subclass 
+                        // Don't add inherited superclass annotation if it is overridden in a subclass
                         if (sai.isInherited() && directOrInheritedAnnotationClasses.add(sai.getClassInfo())) {
                             reachableAnnotationInfo.add(sai);
                             final AnnotationInfoList reachableMetaAnnotationInfo = new AnnotationInfoList(2);

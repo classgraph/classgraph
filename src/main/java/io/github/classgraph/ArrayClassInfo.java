@@ -68,14 +68,6 @@ public class ArrayClassInfo extends ClassInfo {
         getElementClassInfo();
     }
 
-    /* (non-Javadoc)
-     * @see io.github.classgraph.ClassInfo#setScanResult(io.github.classgraph.ScanResult)
-     */
-    @Override
-    void setScanResult(final ScanResult scanResult) {
-        super.setScanResult(scanResult);
-    }
-
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -213,22 +205,6 @@ public class ArrayClassInfo extends ClassInfo {
             classRef = arrayTypeSignature.loadClass();
         }
         return classRef;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Get {@link ClassInfo} objects for any classes referenced in the type descriptor or type signature.
-     *
-     * @param classNameToClassInfo
-     *            the map from class name to {@link ClassInfo}.
-     * @param refdClassInfo
-     *            the referenced class info
-     */
-    @Override
-    protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
-            final Set<ClassInfo> refdClassInfo, final LogNode log) {
-        super.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
     }
 
     // -------------------------------------------------------------------------------------------------------------

@@ -52,9 +52,17 @@ public class ClassLoaderFinder {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Return true if the class is, extends, or implements a given named class or interface. */
+    /**
+     * Return true if the class is, extends, or implements a given named class or interface.
+     *
+     * @param cls
+     *            the class to test, or null.
+     * @param className
+     *            the name of the class or interface to look for.
+     * @return true if cls is, extends, or implements the named class or interface.
+     */
     // TODO: make this a default method of the ClassLoaderHandler interface in ClassGraph 5.x
-    public static boolean classIsOrExtendsOrImplements(Class<?> cls, String className) {
+    public static boolean classIsOrExtendsOrImplements(final Class<?> cls, final String className) {
         if (cls == null) {
             return false;
         }
@@ -64,14 +72,14 @@ public class ClassLoaderFinder {
         if (classIsOrExtendsOrImplements(cls.getSuperclass(), className)) {
             return true;
         }
-        for (Class<?> iface : cls.getInterfaces()) {
+        for (final Class<?> iface : cls.getInterfaces()) {
             if (classIsOrExtendsOrImplements(iface, className)) {
                 return true;
             }
         }
         return false;
     }
-    
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -79,6 +87,8 @@ public class ClassLoaderFinder {
      * 
      * @param scanSpec
      *            The scan spec, or null if none available.
+     * @param reflectionUtils
+     *            The reflection utils instance.
      * @param log
      *            The log.
      */

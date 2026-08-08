@@ -86,7 +86,7 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
      * Get the type parameters for the method, if this is a
      * <a href="https://docs.oracle.com/javase/tutorial/extra/generics/methods.html">generic method</a>.
      * 
-     * @return The type parameters for the method, if any, otherwise null.
+     * @return The type parameters for the method, or the empty list if the method is not generic.
      */
     public List<TypeParameter> getTypeParameters() {
         return typeParameters;
@@ -134,7 +134,7 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
      * @param annotationInfo
      *            the receiver type annotation
      */
-    void addRecieverTypeAnnotation(final AnnotationInfo annotationInfo) {
+    void addReceiverTypeAnnotation(final AnnotationInfo annotationInfo) {
         if (receiverTypeAnnotationInfo == null) {
             receiverTypeAnnotationInfo = new AnnotationInfoList(1);
         }
@@ -227,6 +227,8 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
      *            the map from class name to {@link ClassInfo}.
      * @param refdClassInfo
      *            the referenced class info
+     * @param log
+     *            the log
      */
     @Override
     protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
@@ -286,7 +288,7 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
         if (buf.length() > 0) {
             buf.append(' ');
         }
-        buf.append(resultType.toString());
+        resultType.toString(useSimpleNames, buf);
 
         buf.append(" (");
         for (int i = 0; i < parameterTypeSignatures.size(); i++) {

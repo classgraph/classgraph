@@ -52,8 +52,6 @@ public class RecycleOnClose<T, E extends Exception> implements AutoCloseable {
      *            The {@link Recycler}.
      * @param instance
      *            An object instance that was obtained by calling {@link Recycler#acquire()} on the recycler.
-     * @throws IllegalArgumentException
-     *             If {@link Recycler#newInstance()} returned null.
      */
     RecycleOnClose(final Recycler<T, E> recycler, final T instance) {
         this.recycler = recycler;

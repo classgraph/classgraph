@@ -40,9 +40,10 @@ import nonapi.io.github.classgraph.utils.LogNode;
 class ObjectTypedValueWrapper extends ScanResultObject {
     // Parameter value is split into different fields by type, so that serialization and deserialization
     // works properly (can't properly serialize a field of Object type, since the concrete type is not
-    // TODO: remove this class once JSON serialization is removed
-    /** Enum value. */
     // stored in JSON).
+    // TODO: remove this class once JSON serialization is removed
+
+    /** Enum value. */
     private AnnotationEnumValue annotationEnumValue;
 
     /** Class ref. */
@@ -247,7 +248,7 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                     ? (Class<?>) getArrayValueClassOrName(annotationClassInfo, paramName, /* getClass = */ true)
                     : null;
             // Allocate array as either a generic Object[] array, if the element type could not be determined,
-            // or as an array of specific element type, if the element type was determined. 
+            // or as an array of specific element type, if the element type was determined.
             final Object annotationValueObjectArray = eltClass == null ? new Object[objectArrayValue.length]
                     : Array.newInstance(eltClass, objectArrayValue.length);
             // Fill the array instance.
@@ -299,10 +300,10 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                 throw new IllegalArgumentException("Duplicated annotation parameter method " + paramName + "()"
                         + " in annotation class " + annotationClassInfo.getName());
             }
-            // Get the result type of the method with the same name as the annotation parameter 
+            // Get the result type of the method with the same name as the annotation parameter
             final TypeSignature annotationMethodResultTypeSig = annotationMethodList.get(0)
                     .getTypeSignatureOrTypeDescriptor().getResultType();
-            // The result type has to be an array type 
+            // The result type has to be an array type
             if (!(annotationMethodResultTypeSig instanceof ArrayTypeSignature)) {
                 throw new IllegalArgumentException("Annotation parameter " + paramName + " in annotation class "
                         + annotationClassInfo.getName()
@@ -314,7 +315,7 @@ class ObjectTypedValueWrapper extends ScanResultObject {
             }
             final TypeSignature elementTypeSig = arrayTypeSig.getElementTypeSignature();
             if (elementTypeSig instanceof ClassRefTypeSignature) {
-                // Look up the name of the element type, for non-primitive arrays 
+                // Look up the name of the element type, for non-primitive arrays
                 final ClassRefTypeSignature classRefTypeSignature = (ClassRefTypeSignature) elementTypeSig;
                 return getClass ? classRefTypeSignature.loadClass() : classRefTypeSignature.getClassName();
             } else if (elementTypeSig instanceof BaseTypeSignature) {
@@ -328,21 +329,31 @@ class ObjectTypedValueWrapper extends ScanResultObject {
             for (final ObjectTypedValueWrapper elt : objectArrayValue) {
                 if (elt != null) {
                     // Primitive typed arrays will be turned into arrays of boxed types
-                    return elt.integerValue != null ? (getClass ? Integer.class : "int")
-                            : elt.longValue != null ? (getClass ? Long.class : "long")
-                                    : elt.shortValue != null ? (getClass ? Short.class : "short")
-                                            : elt.characterValue != null ? (getClass ? Character.class : "char")
-                                                    : elt.byteValue != null ? (getClass ? Byte.class : "byte")
-                                                            : elt.booleanValue != null
-                                                                    ? (getClass ? Boolean.class : "boolean")
-                                                                    : elt.doubleValue != null
-                                                                            ? (getClass ? Double.class : "double")
-                                                                            : elt.floatValue != null
-                                                                                    ? (getClass ? Float.class
-                                                                                            : "float")
-                                                                                    : (getClass ? elt.getClass()
-                                                                                            : elt.getClass()
-                                                                                                    .getName());
+                    if (elt.stringValue != null) {
+                        return getClass ? String.class : "java.lang.String";
+                    } else if (elt.integerValue != null) {
+                        return getClass ? Integer.class : "int";
+                    } else if (elt.longValue != null) {
+                        return getClass ? Long.class : "long";
+                    } else if (elt.shortValue != null) {
+                        return getClass ? Short.class : "short";
+                    } else if (elt.characterValue != null) {
+                        return getClass ? Character.class : "char";
+                    } else if (elt.byteValue != null) {
+                        return getClass ? Byte.class : "byte";
+                    } else if (elt.booleanValue != null) {
+                        return getClass ? Boolean.class : "boolean";
+                    } else if (elt.doubleValue != null) {
+                        return getClass ? Double.class : "double";
+                    } else if (elt.floatValue != null) {
+                        return getClass ? Float.class : "float";
+                    } else {
+                        // The element type could not be determined (the element is an enum value, a class
+                        // reference or a nested annotation) -- fall through and use Object as the element type.
+                        // N.B. don't use the type of the wrapper object itself here, since the array is filled
+                        // with the values that the wrappers wrap, not with the wrappers.
+                        break;
+                    }
                 }
             }
         }
@@ -612,7 +623,10 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                 && Arrays.equals(stringArrayValue, o.stringArrayValue)
                 && Arrays.equals(intArrayValue, o.intArrayValue) && Arrays.equals(longArrayValue, o.longArrayValue)
                 && Arrays.equals(shortArrayValue, o.shortArrayValue)
+                && Arrays.equals(booleanArrayValue, o.booleanArrayValue)
+                && Arrays.equals(charArrayValue, o.charArrayValue)
                 && Arrays.equals(floatArrayValue, o.floatArrayValue)
+                && Arrays.equals(doubleArrayValue, o.doubleArrayValue)
                 && Arrays.equals(byteArrayValue, o.byteArrayValue)
                 && Arrays.deepEquals(objectArrayValue, o.objectArrayValue);
     }

@@ -137,7 +137,11 @@ public final class VersionFinder {
     }
 
     static {
-        final String osName = getProperty("os.name", "unknown").toLowerCase(Locale.ENGLISH);
+        // N.B. getProperty() returns null, not the default value, if a SecurityException is thrown, so the
+        // result has to be null-checked before it is lowercased -- otherwise this static initializer can throw
+        // ExceptionInInitializerError, rather than falling through to OperatingSystem.Unknown as intended.
+        final String osNameRaw = getProperty("os.name", "unknown");
+        final String osName = osNameRaw == null ? null : osNameRaw.toLowerCase(Locale.ENGLISH);
         if (File.separatorChar == '\\') {
             OS = OperatingSystem.Windows;
         } else if (osName == null) {
@@ -151,7 +155,7 @@ public final class VersionFinder {
         } else if (osName.contains("sunos") || osName.contains("solaris")) {
             OS = OperatingSystem.Solaris;
         } else if (osName.contains("bsd")) {
-            OS = OperatingSystem.Unix;
+            OS = OperatingSystem.BSD;
         } else if (osName.contains("nix") || osName.contains("aix")) {
             OS = OperatingSystem.Unix;
         } else {

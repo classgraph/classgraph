@@ -39,7 +39,7 @@ import nonapi.io.github.classgraph.utils.LogNode;
  */
 abstract class ScanResultObject {
     /** The scan result. */
-    transient protected ScanResult scanResult;
+    protected transient ScanResult scanResult;
 
     /** The associated {@link ClassInfo} object. */
     private transient ClassInfo classInfo;

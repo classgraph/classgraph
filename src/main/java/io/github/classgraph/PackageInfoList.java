@@ -62,61 +62,11 @@ public class PackageInfoList extends MappableInfoList<PackageInfo> {
         super(packageInfoCollection);
     }
 
-    /** An unmodifiable {@link PackageInfoList}. */
-    static final PackageInfoList EMPTY_LIST = new PackageInfoList() {
-        /** serialVersionUID */
-        private static final long serialVersionUID = 1L;
-
-        @Override
-        public boolean add(final PackageInfo e) {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        @Override
-        public void add(final int index, final PackageInfo element) {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        @Override
-        public boolean remove(final Object o) {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        @Override
-        public PackageInfo remove(final int index) {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        @Override
-        public boolean addAll(final Collection<? extends PackageInfo> c) {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        @Override
-        public boolean addAll(final int index, final Collection<? extends PackageInfo> c) {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        @Override
-        public boolean removeAll(final Collection<?> c) {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        @Override
-        public boolean retainAll(final Collection<?> c) {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        @Override
-        public void clear() {
-            throw new IllegalArgumentException("List is immutable");
-        }
-
-        @Override
-        public PackageInfo set(final int index, final PackageInfo element) {
-            throw new IllegalArgumentException("List is immutable");
-        }
-    };
+    /** An unmodifiable empty {@link PackageInfoList}. */
+    static final PackageInfoList EMPTY_LIST = new PackageInfoList();
+    static {
+        EMPTY_LIST.makeUnmodifiable();
+    }
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -147,9 +97,9 @@ public class PackageInfoList extends MappableInfoList<PackageInfo> {
      */
     public PackageInfoList filter(final PackageInfoFilter filter) {
         final PackageInfoList packageInfoFiltered = new PackageInfoList();
-        for (final PackageInfo resource : this) {
-            if (filter.accept(resource)) {
-                packageInfoFiltered.add(resource);
+        for (final PackageInfo packageInfo : this) {
+            if (filter.accept(packageInfo)) {
+                packageInfoFiltered.add(packageInfo);
             }
         }
         return packageInfoFiltered;

@@ -127,7 +127,8 @@ public final class ScanResult implements Closeable {
     /** If true, this ScanResult has already been closed. */
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
-    protected ReflectionUtils reflectionUtils;
+    /** The {@link ReflectionUtils} instance, or null if this {@link ScanResult} has been closed. */
+    ReflectionUtils reflectionUtils;
 
     /**
      * Get the {@link ReflectionUtils} instance of a {@link ScanResult}, falling back to a fresh instance if the
@@ -381,13 +382,13 @@ public final class ScanResult implements Closeable {
         }
 
         if (scanSpec.enableClassInfo) {
-          for (final PackageInfo pkgInfo : packageNameToPackageInfo.values()) {
-              pkgInfo.setScanResult(this);
-          }
+            for (final PackageInfo pkgInfo : packageNameToPackageInfo.values()) {
+                pkgInfo.setScanResult(this);
+            }
 
-          for (final ModuleInfo moduleInfo : moduleNameToModuleInfo.values()) {
-              moduleInfo.setScanResult(this);
-          }
+            for (final ModuleInfo moduleInfo : moduleNameToModuleInfo.values()) {
+                moduleInfo.setScanResult(this);
+            }
         }
     }
 
@@ -496,15 +497,18 @@ public final class ScanResult implements Closeable {
      * Get the module path info provided on the commandline with {@code --module-path}, {@code --add-modules},
      * {@code --patch-module}, {@code --add-exports}, {@code --add-opens}, and {@code --add-reads}, and also the
      * {@code Add-Exports} and {@code Add-Opens} entries from jarfile manifest files encountered during scanning.
-     * 
+     *
      * <p>
      * Note that the returned {@link ModulePathInfo} object does not include classpath entries from the traditional
      * classpath or system modules. Use {@link #getModules()} to get all visible modules, including anonymous,
      * automatic and system modules.
-     * 
+     *
      * @return The {@link ModulePathInfo}.
      */
     public ModulePathInfo getModulePathInfo() {
+        if (closed.get()) {
+            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
+        }
         scanSpec.modulePathInfo.getRuntimeInfo(reflectionUtils);
         return scanSpec.modulePathInfo;
     }
@@ -518,6 +522,9 @@ public final class ScanResult implements Closeable {
      * @return A list of all resources (including classfiles and non-classfiles) found in accepted packages.
      */
     public ResourceList getAllResources() {
+        if (closed.get()) {
+            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
+        }
         synchronized (this) {
             if (allAcceptedResourcesCached == null) {
                 // Index Resource objects by path
@@ -540,6 +547,9 @@ public final class ScanResult implements Closeable {
      *         non-classfiles) found in accepted packages.
      */
     public Map<String, ResourceList> getAllResourcesAsMap() {
+        if (closed.get()) {
+            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
+        }
         synchronized (this) {
             if (pathToAcceptedResourcesCached == null) {
                 final Map<String, ResourceList> pathToAcceptedResourceListMap = new HashMap<>();
@@ -701,7 +711,7 @@ public final class ScanResult implements Closeable {
 
     /**
      * Get the list of all resources found in accepted packages that have a path matching the requested regex
-     * pattern. See also {{@link #getResourcesMatchingWildcard(String)}.
+     * pattern. See also {@link #getResourcesMatchingWildcard(String)}.
      *
      * @param pattern
      *            A pattern to match {@link Resource} paths with.
@@ -729,7 +739,7 @@ public final class ScanResult implements Closeable {
     /**
      * Get the list of all resources found in accepted packages that have a path matching the requested wildcard
      * string.
-     * 
+     *
      * <p>
      * The wildcard string may contain:
      * <ul>
@@ -739,7 +749,7 @@ public final class ScanResult implements Closeable {
      * <li>Any other regexp-style syntax, such as character sets (denoted by square brackets) -- the remainder of
      * the expression is passed through to the Java regex parser, after escaping dot characters.</li>
      * </ul>
-     * 
+     *
      * <p>
      * The wildcard string is translated in a simplistic way into a regex. If you need more complex pattern
      * matching, use a regex directly, via {@link #getResourcesMatchingPattern(Pattern)}.
@@ -762,7 +772,7 @@ public final class ScanResult implements Closeable {
     /**
      * Get the {@link ModuleInfo} object for the named module, or null if no module of the requested name was found
      * during the scan.
-     * 
+     *
      * @param moduleName
      *            The module name.
      * @return The {@link ModuleInfo} object for the named module, or null if the module was not found.
@@ -798,7 +808,7 @@ public final class ScanResult implements Closeable {
     /**
      * Get the {@link PackageInfo} object for the named package, or null if no package of the requested name was
      * found during the scan.
-     * 
+     *
      * @param packageName
      *            The package name.
      * @return The {@link PackageInfo} object for the named package, or null if the package was not found.
@@ -887,7 +897,7 @@ public final class ScanResult implements Closeable {
     /**
      * Get the {@link ClassInfo} object for the named class, or null if no class of the requested name was found in
      * an accepted/non-rejected package during the scan.
-     * 
+     *
      * @param className
      *            The class name.
      * @return The {@link ClassInfo} object for the named class, or null if the class was not found.
@@ -1397,8 +1407,11 @@ public final class ScanResult implements Closeable {
                 foundClassInfo = foundClassInfo.intersect(classInfoList);
             }
         }
+        if (foundClassInfo == null) {
+            return ClassInfoList.EMPTY_LIST;
+        }
         CollectionUtils.sortIfNotEmpty(foundClassInfo);
-        return foundClassInfo == null ? ClassInfoList.EMPTY_LIST : foundClassInfo;
+        return foundClassInfo;
     }
 
     /**
@@ -1419,8 +1432,11 @@ public final class ScanResult implements Closeable {
                 foundClassInfo = foundClassInfo.union(classInfoList);
             }
         }
+        if (foundClassInfo == null) {
+            return ClassInfoList.EMPTY_LIST;
+        }
         CollectionUtils.sortIfNotEmpty(foundClassInfo);
-        return foundClassInfo == null ? ClassInfoList.EMPTY_LIST : foundClassInfo;
+        return foundClassInfo;
     }
 
     /**
@@ -1478,7 +1494,7 @@ public final class ScanResult implements Closeable {
      * Checks the current timestamps, so this should increase between calls if something changes in accepted paths.
      * Assumes both file and system timestamps were generated from clocks whose time was accurate. Ignores
      * timestamps greater than the system time.
-     * 
+     *
      * <p>
      * This method cannot in general tell if classpath has changed (or modules have been added or removed) if it is
      * run twice during the same runtime session.
@@ -1517,7 +1533,7 @@ public final class ScanResult implements Closeable {
      * Load a class given a class name. If ignoreExceptions is false, and the class cannot be loaded (due to
      * classloading error, or due to an exception being thrown in the class initialization block), an
      * IllegalArgumentException is thrown; otherwise, the class will simply be skipped if an exception is thrown.
-     * 
+     *
      * <p>
      * Enable verbose scanning to see details of any exceptions thrown during classloading, even if ignoreExceptions
      * is false.
@@ -1558,7 +1574,7 @@ public final class ScanResult implements Closeable {
      * Load a class given a class name. If ignoreExceptions is false, and the class cannot be loaded (due to
      * classloading error, or due to an exception being thrown in the class initialization block), an
      * IllegalArgumentException is thrown; otherwise, the class will simply be skipped if an exception is thrown.
-     * 
+     *
      * <p>
      * Enable verbose scanning to see details of any exceptions thrown during classloading, even if ignoreExceptions
      * is false.
@@ -1621,7 +1637,7 @@ public final class ScanResult implements Closeable {
 
     /**
      * Deserialize a ScanResult from previously-serialized JSON.
-     * 
+     *
      * @param json
      *            The JSON string for the serialized {@link ScanResult}.
      * @return The deserialized {@link ScanResult}.
@@ -1693,7 +1709,7 @@ public final class ScanResult implements Closeable {
 
     /**
      * Serialize a ScanResult to JSON.
-     * 
+     *
      * @param indentWidth
      *            If greater than 0, JSON will be formatted (indented), otherwise it will be minified (un-indented).
      * @return This {@link ScanResult}, serialized as a JSON string.
@@ -1717,7 +1733,7 @@ public final class ScanResult implements Closeable {
 
     /**
      * Serialize a ScanResult to minified (un-indented) JSON.
-     * 
+     *
      * @return This {@link ScanResult}, serialized as a JSON string.
      */
     public String toJSON() {
@@ -1761,15 +1777,8 @@ public final class ScanResult implements Closeable {
                 pathToAcceptedResourcesCached.clear();
                 pathToAcceptedResourcesCached = null;
             }
-            classGraphClassLoader = null;
-            if (classNameToClassInfo != null) {
-                // Don't clear classNameToClassInfo, since it may be used by
-                // ClassGraphClassLoader (#399).
-                // Just rely on the garbage collector to collect these once the ScanResult goes
-                // out of scope.
-                // classNameToClassInfo.clear();
-                // classNameToClassInfo = null;
-            }
+            // Don't clear classNameToClassInfo, since it may be used by ClassGraphClassLoader (#399).
+            // Just rely on the garbage collector to collect these once the ScanResult goes out of scope.
             if (packageNameToPackageInfo != null) {
                 packageNameToPackageInfo.clear();
                 packageNameToPackageInfo = null;
@@ -1803,6 +1812,7 @@ public final class ScanResult implements Closeable {
 
     /**
      * Returns whether this ScanResult has been closed yet or not.
+     *
      * @return {@code true} if this ScanResult has been closed
      */
     public boolean isClosed() {

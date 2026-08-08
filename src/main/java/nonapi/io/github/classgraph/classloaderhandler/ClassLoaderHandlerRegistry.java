@@ -132,7 +132,7 @@ public class ClassLoaderHandlerRegistry {
      * Note that unlike {@link #ARCHIVE_PACKAGE_ROOT_PREFIXES}, {@code "classes"} and {@code "test-classes"} are
      * both legal Java package names, so treating them as automatic package roots is a heuristic, not a certainty:
      * a real package named {@code classes} is misread as a package root, and its classes are silently dropped
-     * (#929). The heuristic is nevertheless load-bearing for general-purpose classloaders -- see
+     * (#929). The heuristic is nevertheless relied upon for general-purpose classloaders -- see
      * {@code Issue420Test} and {@code Issue766Test} -- so it can only be removed once package roots are verified
      * against the declared name of a classfile found beneath them, rather than assumed from the directory name.
      */
@@ -195,7 +195,7 @@ public class ClassLoaderHandlerRegistry {
         }
 
         /**
-         * Call the static method canHandle(ClassLoader) for the associated {@link ClassLoaderHandler}.
+         * Call {@code canHandle(Class, LogNode)} on the associated {@link ClassLoaderHandler}.
          *
          * @param classLoader
          *            the {@link ClassLoader}.
@@ -208,7 +208,7 @@ public class ClassLoaderHandlerRegistry {
         }
 
         /**
-         * Call the static method findClassLoaderOrder(ClassLoader, ClassLoaderOrder) for the associated
+         * Call {@code findClassLoaderOrder(ClassLoader, ClassLoaderOrder, LogNode)} on the associated
          * {@link ClassLoaderHandler}.
          *
          * @param classLoader
@@ -224,7 +224,7 @@ public class ClassLoaderHandlerRegistry {
         }
 
         /**
-         * Call the static method findClasspathOrder(ClassLoader, ClasspathOrder) for the associated
+         * Call {@code findClasspathOrder(ClassLoader, ClasspathOrder, ScanSpec, LogNode)} on the associated
          * {@link ClassLoaderHandler}.
          *
          * @param classLoader

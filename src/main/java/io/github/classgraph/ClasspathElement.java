@@ -304,33 +304,13 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get a key that identifies the file that a resource's {@link URI} refers to, for comparing two resources to
-     * see if they are the same file.
-     *
-     * <p>
-     * The same file can be reachable through more than one path, e.g. through a symlinked parent directory (on
-     * macOS, the temp directory {@code /var/folders/...} is reached through the symlink {@code /var ->
-     * /private/var}, so the same file has both a {@code /var/...} URI and a {@code /private/var/...} URI).
-     * Therefore the parent directory of the file is canonicalized. (The file itself is not canonicalized, both to
-     * halve the number of filesystem calls -- the canonical path of a directory is cached, whereas each file is
-     * seen only once -- and because a symlink to a file elsewhere is a file in its own right.)
+     * Get the canonical path of a directory, resolving symlinks (and, on Windows, junctions and 8.3 short names).
      *
      * <p>
      * {@link Path#toRealPath(java.nio.file.LinkOption...)} is used rather than {@link File#getCanonicalPath()},
      * since on Windows the latter resolves neither directory symlinks and junctions nor 8.3 short names (e.g.
      * {@code C:\Users\RUNNER~1} for {@code C:\Users\runneradmin}). {@link File#getCanonicalPath()} is used as a
      * fallback, since {@link Path#toRealPath(java.nio.file.LinkOption...)} requires the directory to exist.
-     *
-     * @param uri
-     *            the URI of a resource.
-     * @param canonicalDirPathCache
-     *            a cache of canonical directory paths.
-     * @return a key that is equal for two URIs that refer to the same file. This is not a valid URI -- it is only
-     *         useful for equality comparison. If the URI does not refer to a file (e.g. a {@code jrt:/} URI), or
-     *         the file could not be canonicalized, the string representation of the URI is returned unchanged.
-     */
-    /**
-     * Get the canonical path of a directory, resolving symlinks (and, on Windows, junctions and 8.3 short names).
      *
      * @param dir
      *            the directory.
@@ -347,6 +327,26 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
         }
     }
 
+    /**
+     * Get a key that identifies the file that a resource's {@link URI} refers to, for comparing two resources to
+     * see if they are the same file.
+     *
+     * <p>
+     * The same file can be reachable through more than one path, e.g. through a symlinked parent directory (on
+     * macOS, the temp directory {@code /var/folders/...} is reached through the symlink {@code /var ->
+     * /private/var}, so the same file has both a {@code /var/...} URI and a {@code /private/var/...} URI).
+     * Therefore the parent directory of the file is canonicalized. (The file itself is not canonicalized, both to
+     * halve the number of filesystem calls -- the canonical path of a directory is cached, whereas each file is
+     * seen only once -- and because a symlink to a file elsewhere is a file in its own right.)
+     *
+     * @param uri
+     *            the URI of a resource.
+     * @param canonicalDirPathCache
+     *            a cache of canonical directory paths.
+     * @return a key that is equal for two URIs that refer to the same file. This is not a valid URI -- it is only
+     *         useful for equality comparison. If the URI does not refer to a file (e.g. a {@code jrt:/} URI), or
+     *         the file could not be canonicalized, the string representation of the URI is returned unchanged.
+     */
     private static String getFileIdentityKey(final URI uri, final Map<String, String> canonicalDirPathCache) {
         final String uriStr = uri.toString();
         // Find the file part of the URI: "file:<path>", or "jar:file:<path>!/<entry>" (for a jar within a jar,

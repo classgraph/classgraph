@@ -106,6 +106,8 @@ class ClassFields {
      *            whether to only serialize public fields
      * @param classFieldCache
      *            the class field cache
+     * @param reflectionUtils
+     *            the {@link ReflectionUtils} instance
      */
     public ClassFields(final Class<?> cls, final boolean resolveTypes, final boolean onlySerializePublicFields,
             final ClassFieldCache classFieldCache, final ReflectionUtils reflectionUtils) {
@@ -145,8 +147,9 @@ class ClassFields {
                     if (isIdField) {
                         if (idField != null) {
                             throw new IllegalArgumentException(
-                                    "More than one @Id annotation: " + idField.getDeclaringClass() + "." + idField
-                                            + " ; " + currRawType.getName() + "." + field.getName());
+                                    "More than one @Id annotation: " + idField.getDeclaringClass().getName() + "."
+                                            + idField.getName() + " ; " + currRawType.getName() + "."
+                                            + field.getName());
                         }
                         idField = field;
                     }
@@ -169,7 +172,9 @@ class ClassFields {
 
                     } else if (isIdField) {
                         throw new IllegalArgumentException(
-                                "@Id annotation field must be accessible, final, and non-transient: "
+                                // (fieldIsSerializable() requires non-final, non-transient, non-synthetic and
+                                // accessible -- the message used to say "final" rather than "non-final")
+                                "@Id annotation field must be accessible, non-final, and non-transient: "
                                         + currRawType.getName() + "." + field.getName());
                     }
                 }

@@ -43,7 +43,10 @@ import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 
-/** A physical zipfile, which is mmap'd using a {@link FileChannel}. */
+/**
+ * A physical zipfile, backed by a {@link File} (which may be mmap'd using a {@link FileChannel}), a {@link Path}, or
+ * a byte array in RAM.
+ */
 class PhysicalZipFile {
     /** The {@link Path} backing this {@link PhysicalZipFile}, if any. */
     private Path path;
@@ -59,9 +62,6 @@ class PhysicalZipFile {
 
     /** The nested jar handler. */
     NestedJarHandler nestedJarHandler;
-
-    /** The cached hashCode. */
-    private int hashCode;
 
     /**
      * Construct a {@link PhysicalZipFile} from a file on disk.
@@ -201,13 +201,9 @@ class PhysicalZipFile {
      */
     @Override
     public int hashCode() {
-        if (hashCode == 0) {
-            hashCode = (file == null ? 0 : file.hashCode());
-            if (hashCode == 0) {
-                hashCode = 1;
-            }
-        }
-        return hashCode;
+        // (Use pathStr for identity, not file -- file is null for Path-backed zipfiles, and is the outermost
+        // file, shared between all nested jars extracted to RAM from the same outer zipfile)
+        return Objects.hashCode(pathStr);
     }
 
     /* (non-Javadoc)
@@ -221,7 +217,7 @@ class PhysicalZipFile {
             return false;
         }
         final PhysicalZipFile other = (PhysicalZipFile) o;
-        return Objects.equals(file, other.file);
+        return Objects.equals(pathStr, other.pathStr);
     }
 
     /* (non-Javadoc)

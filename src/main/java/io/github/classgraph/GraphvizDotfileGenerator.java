@@ -70,12 +70,12 @@ final class GraphvizDotfileGenerator {
                 + "\u000B" // LINE TABULATION
                 + "\u000C" // FORM FEED (FF)
                 + "\r" // CARRIAGE RETURN (CR)
-                + "\u0085" // NEXT LINE (NEL) 
+                + "\u0085" // NEXT LINE (NEL)
                 + "\u00A0" // NO-BREAK SPACE
                 + "\u1680" // OGHAM SPACE MARK
                 + "\u180E" // MONGOLIAN VOWEL SEPARATOR
-                + "\u2000" // EN QUAD 
-                + "\u2001" // EM QUAD 
+                + "\u2000" // EN QUAD
+                + "\u2001" // EM QUAD
                 + "\u2002" // EN SPACE
                 + "\u2003" // EM SPACE
                 + "\u2004" // THREE-PER-EM SPACE
@@ -648,13 +648,13 @@ final class GraphvizDotfileGenerator {
      * @param sizeX
      *            The GraphViz layout width in inches.
      * @param sizeY
-     *            The GraphViz layout width in inches.
+     *            The GraphViz layout height in inches.
      * @param includeExternalClasses
      *            If true, include any dependency nodes in the graph that are not themselves in classInfoList.
      * @return the GraphViz file contents.
      * @throws IllegalArgumentException
-     *             if this {@link ClassInfoList} is empty or {@link ClassGraph#enableInterClassDependencies()} was
-     *             not called before scanning (since there would be nothing to graph).
+     *             if {@link ClassGraph#enableInterClassDependencies()} was not called before scanning (since there
+     *             would be nothing to graph).
      */
     static String generateGraphVizDotFileFromInterClassDependencies(final ClassInfoList classInfoList,
             final float sizeX, final float sizeY, final boolean includeExternalClasses) {

@@ -140,13 +140,14 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
 
     @Override
     public int readUnsignedShort(final long offset) throws IOException {
-        final int idx = (int) (sliceStartPos + offset);
-        return byteBuffer.getShort(idx) & 0xff;
+        // (Mask with 0xffff, not 0xff -- masking with 0xff would discard the high byte of the short)
+        return readShort(offset) & 0xffff;
     }
 
     @Override
     public short readShort(final long offset) throws IOException {
-        return (short) readUnsignedShort(offset);
+        final int idx = (int) (sliceStartPos + offset);
+        return byteBuffer.getShort(idx);
     }
 
     @Override
@@ -169,12 +170,13 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
     @Override
     public String readString(final long offset, final int numBytes, final boolean replaceSlashWithDot,
             final boolean stripLSemicolon) throws IOException {
-        final int idx = (int) (sliceStartPos + offset);
         final byte[] arr = new byte[numBytes];
         if (read(offset, arr, 0, numBytes) < numBytes) {
             throw new IOException("Premature EOF while reading string");
         }
-        return StringUtils.readString(arr, idx, numBytes, replaceSlashWithDot, stripLSemicolon);
+        // (Read from index 0 of arr, not from the slice offset -- read() already applied the slice offset
+        // when copying into arr, and arr is only numBytes long)
+        return StringUtils.readString(arr, 0, numBytes, replaceSlashWithDot, stripLSemicolon);
     }
 
     @Override

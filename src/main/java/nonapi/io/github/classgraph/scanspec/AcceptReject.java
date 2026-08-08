@@ -441,17 +441,14 @@ public abstract class AcceptReject {
                 // /path/to/wildcard*.jar -> /path/to
                 // /path/to/*.jar -> /path/to
                 final int sepIdx = prefix.lastIndexOf(separatorChar);
-                if (sepIdx < 0) {
-                    prefix = "";
-                } else {
-                    prefix = prefix.substring(0, prefix.lastIndexOf(separatorChar));
-                }
+                prefix = sepIdx < 0 ? "" : prefix.substring(0, sepIdx);
             }
             // Strip off any final separator
             while (prefix.endsWith(separator)) {
                 prefix = prefix.substring(0, prefix.length() - 1);
             }
-            // Add str itself as a prefix (this will only match a parent dir for 
+            // Record the accepted path itself and each of its parent directories as a prefix, so that
+            // acceptHasPrefix() can tell whether a directory may still lead to an accepted path
             for (; !prefix.isEmpty(); prefix = FileUtils.getParentDirPath(prefix, separatorChar)) {
                 acceptPrefixesSet.add(prefix + separatorChar);
             }
@@ -811,7 +808,9 @@ public abstract class AcceptReject {
      * @return true if there were no accept criteria added.
      */
     public boolean acceptIsEmpty() {
-        return accept == null && acceptPrefixes == null && acceptGlobs == null;
+        // (Also test acceptPrefixesSet, since acceptPrefixes is only populated from it by sortPrefixes(),
+        // so an AcceptRejectPrefix would otherwise look empty until sortPrefixes() had been called)
+        return accept == null && acceptPrefixes == null && acceptPrefixesSet == null && acceptGlobs == null;
     }
 
     /**

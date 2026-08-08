@@ -105,7 +105,7 @@ public class RandomAccessArrayReader implements RandomAccessReader {
             }
             final int srcStart = (int) (sliceStartPos + srcOffset);
             final Buffer db = FileSlice.toBuffer(dstBuf);
-			db.position(dstBufStart);
+            db.position(dstBufStart);
             db.limit(dstBufStart + numBytesToRead);
             dstBuf.put(arr, srcStart, numBytesToRead);
             return numBytesToRead;

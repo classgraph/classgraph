@@ -35,7 +35,7 @@ import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
 
 /**
- * Handle the WebSphere traditonal ClassLoaders.
+ * Handle the WebSphere traditional ClassLoaders.
  * 
  * @author lukehutch
  */

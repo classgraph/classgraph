@@ -125,13 +125,13 @@ public class ModulePathInfo {
             '\0', // --add-opens (only one param per switch)
             '\0' // --add-reads (only one param per switch)
     );
-    
-    /* Module path info. */
-    public ModulePathInfo() {
-    }    
 
     /** Set to true once {@link #getRuntimeInfo(ReflectionUtils)} has been called. */
     private boolean gotRuntimeInfo;
+
+    /** Constructor. */
+    public ModulePathInfo() {
+    }
 
     /**
      * Fill in module info from VM commandline parameters.

@@ -256,8 +256,11 @@ public final class TypeParameter extends HierarchicalTypeSignature {
             classBoundStr = null;
         } else {
             classBoundStr = classBound.toString(useSimpleNames);
-            if (classBoundStr.equals("java.lang.Object") || (classBoundStr.equals("Object")
-                    && ((ClassRefTypeSignature) classBound).className.equals("java.lang.Object"))) {
+            // A type parameter may itself be named "Object", in which case a bound referring to it also renders
+            // as "Object" but is a TypeVariableSignature, not java.lang.Object -- so check the type too
+            if (classBoundStr.equals("java.lang.Object")
+                    || (classBoundStr.equals("Object") && classBound instanceof ClassRefTypeSignature
+                            && ((ClassRefTypeSignature) classBound).className.equals("java.lang.Object"))) {
                 // Don't add "extends java.lang.Object"
                 classBoundStr = null;
             }

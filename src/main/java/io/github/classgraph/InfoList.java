@@ -41,7 +41,7 @@ import java.util.List;
  */
 public class InfoList<T extends HasName> extends PotentiallyUnmodifiableList<T> {
     /** serialVersionUID. */
-    static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
     /**
      * Constructor.

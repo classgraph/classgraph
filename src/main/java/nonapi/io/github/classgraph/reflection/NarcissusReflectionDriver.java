@@ -39,7 +39,6 @@ import java.lang.reflect.Method;
  * visibility controls via JNI).
  */
 class NarcissusReflectionDriver extends ReflectionDriver {
-    private final Class<?> narcissusClass;
     private final Method getDeclaredMethods;
     private final Method findClass;
     private final Method getDeclaredConstructors;
@@ -54,7 +53,7 @@ class NarcissusReflectionDriver extends ReflectionDriver {
     NarcissusReflectionDriver() throws Exception {
         // Load Narcissus class via reflection, so that there is no runtime dependency
         final StandardReflectionDriver drv = new StandardReflectionDriver();
-        narcissusClass = drv.findClass("io.github.toolfactory.narcissus.Narcissus");
+        final Class<?> narcissusClass = drv.findClass("io.github.toolfactory.narcissus.Narcissus");
         if (!(Boolean) drv.getStaticField(drv.findStaticField(narcissusClass, "libraryLoaded"))) {
             throw new IllegalArgumentException("Could not load Narcissus native library");
         }

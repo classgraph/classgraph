@@ -90,7 +90,8 @@ class ClassFieldCache {
     /** Placeholder constructor to signify no constructor was found previously. */
     private static final Constructor<?> NO_CONSTRUCTOR;
 
-    ReflectionUtils reflectionUtils;
+    /** The {@link ReflectionUtils} instance. */
+    final ReflectionUtils reflectionUtils;
 
     static {
         try {
@@ -119,6 +120,8 @@ class ClassFieldCache {
      *            deserialization), or false if just used for serialization (for speed).
      * @param onlySerializePublicFields
      *            Set this to true if you only want to serialize public fields (ignored for deserialization).
+     * @param reflectionUtils
+     *            the {@link ReflectionUtils} instance
      */
     ClassFieldCache(final boolean forDeserialization, final boolean onlySerializePublicFields,
             final ReflectionUtils reflectionUtils) {

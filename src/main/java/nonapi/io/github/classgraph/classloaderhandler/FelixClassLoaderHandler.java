@@ -44,7 +44,7 @@ import nonapi.io.github.classgraph.utils.LogNode;
  * Custom Class Loader Handler for OSGi Felix ClassLoader.
  *
  * <p>
- * The handler adds the bundle jar and all assocaited Bundle-Claspath jars into the classpath to be scanned.
+ * The handler adds the bundle jar and all associated Bundle-ClassPath jars into the classpath to be scanned.
  *
  * @author elrufaie
  */
@@ -69,6 +69,8 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
      *
      * @param content
      *            the content object
+     * @param reflectionUtils
+     *            the reflection utils instance
      * @return the content location
      */
     private static File getContentLocation(final Object content, final ReflectionUtils reflectionUtils) {

@@ -620,8 +620,7 @@ class ClasspathElementZip extends ClasspathElement {
                 relativePath = relativePath.substring(packageRootPrefix.length());
             } else {
                 // Strip any package root prefix from the relative path
-                for (int i = 0; i < verifiedPackageRootPrefixes.length; i++) {
-                    final String packageRoot = verifiedPackageRootPrefixes[i];
+                for (final String packageRoot : verifiedPackageRootPrefixes) {
                     if (relativePath.startsWith(packageRoot)) {
                         // Strip package root
                         relativePath = relativePath.substring(packageRoot.length());
@@ -631,12 +630,14 @@ class ClasspathElementZip extends ClasspathElement {
                                 : packageRoot;
                         // Store package root for use by getAllURIs()
                         strippedAutomaticPackageRootPrefixes.add(packageRootWithoutFinalSlash);
+                        // Only one package root prefix can be stripped from a given path
+                        break;
                     }
                 }
             }
 
             // Accept/reject classpath elements based on file resource paths
-            if (!checkResourcePathAcceptReject(relativePath, log)) {
+            if (!checkResourcePathAcceptReject(relativePath, subLog)) {
                 continue;
             }
 

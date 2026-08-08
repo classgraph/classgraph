@@ -433,7 +433,10 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
     @Override
     public String readString(final int numBytes, final boolean replaceSlashWithDot, final boolean stripLSemicolon)
             throws IOException {
-        final String val = StringUtils.readString(arr, currIdx, numBytes, replaceSlashWithDot, stripLSemicolon);
+        // Delegate to the random access overload, as the other sequential read methods do, so that the buffer is
+        // grown to cover the requested bytes first. Reading straight out of arr would silently return whatever
+        // happened to be in the buffer past arrUsed.
+        final String val = readString(currIdx, numBytes, replaceSlashWithDot, stripLSemicolon);
         currIdx += numBytes;
         return val;
     }

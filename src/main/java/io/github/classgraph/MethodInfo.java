@@ -88,8 +88,10 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
     /** The type annotation decorators for the {@link MethodTypeSignature} instance. */
     private transient List<MethodTypeAnnotationDecorator> typeAnnotationDecorators;
 
+    /** The names of the exceptions thrown by this method, or null if none. */
     private String[] thrownExceptionNames;
 
+    /** The exceptions thrown by this method, as a {@link ClassInfoList}. */
     private transient ClassInfoList thrownExceptions;
 
     // -------------------------------------------------------------------------------------------------------------
@@ -530,7 +532,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
                     }
                 } catch (final Exception e) {
                     // Ignore any IllegalArgumentExceptions triggered when type annotations are not able to be
-                    /// aligned with parameters, when there is a `synthetic`, `bridge` or `mandated` parameter
+                    // aligned with parameters, when there is a `synthetic`, `bridge` or `mandated` parameter
                     // added to the first parameter position.
                 }
 
@@ -746,8 +748,8 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
     /**
      * Load the class this constructor is associated with, and get the {@link Constructor} reference for this
      * constructor. Only call this if {@link #isConstructor()} returns true, otherwise an
-     * {@link IllegalArgumentException} will be thrown. Instead call {@link #loadClassAndGetMethod()} for non-method
-     * constructors.
+     * {@link IllegalArgumentException} will be thrown. Instead call {@link #loadClassAndGetMethod()} for
+     * non-constructor methods.
      * 
      * @return The {@link Constructor} reference for this constructor.
      * @throws IllegalArgumentException
@@ -864,6 +866,8 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
      *            the map from class name to {@link ClassInfo}.
      * @param refdClassInfo
      *            the referenced class info
+     * @param log
+     *            the log
      */
     @Override
     protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
@@ -904,12 +908,11 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
             }
         }
         if (thrownExceptionNames != null) {
-            final ClassInfoList thrownExceptions = getThrownExceptions();
-            if (thrownExceptions != null) {
-                for (int i = 0; i < thrownExceptions.size(); i++) {
-                    classNameToClassInfo.put(thrownExceptionNames[i], thrownExceptions.get(i));
-                }
-            }
+            // The exceptions in the throws clause are dependencies of the declaring class. (Resolving them also
+            // gives their ClassInfo objects a backref to the ScanResult.) N.B. any exception types in the
+            // generic method type signature were already added above, but the throws clause of a non-generic
+            // method is only recorded in the "Exceptions" attribute of the method.
+            refdClassInfo.addAll(getThrownExceptions());
         }
     }
 

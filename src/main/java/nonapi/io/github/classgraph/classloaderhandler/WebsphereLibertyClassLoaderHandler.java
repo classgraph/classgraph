@@ -86,6 +86,8 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
      * 
      * @param containerClassLoader
      *            the containerClassLoader object
+     * @param reflectionUtils
+     *            the reflection utils instance
      * @return Collection of path objects as a {@link URL} or {@link String}.
      */
     private static Collection<Object> getPaths(final Object containerClassLoader,
@@ -150,6 +152,14 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
      * /com.ibm.websphere.appserver.spi.artifact_1.2-javadoc
      * /com/ibm/wsspi/adaptable/module/Container.html?view=embed#getURLs() "A collection of URLs that represent all
      * of the locations on disk that contribute to this container"
+     *
+     * @param container
+     *            the container object to call the method on
+     * @param methodName
+     *            the name of the "getURLs"-style method to call
+     * @param reflectionUtils
+     *            the reflection utils instance
+     * @return the flattened URLs, or an empty collection if the method could not be called or returned nothing.
      */
     @SuppressWarnings("unchecked")
     private static Collection<Object> callGetUrls(final Object container, final String methodName,

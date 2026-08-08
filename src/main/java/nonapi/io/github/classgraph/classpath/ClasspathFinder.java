@@ -42,6 +42,7 @@ import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
+import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /** A class to find the unique ordered classpath elements. */
 public class ClasspathFinder {
@@ -112,6 +113,8 @@ public class ClasspathFinder {
      * 
      * @param scanSpec
      *            The {@link ScanSpec}.
+     * @param reflectionUtils
+     *            The reflection utils instance.
      * @param log
      *            The log.
      */
@@ -208,14 +211,9 @@ public class ClasspathFinder {
             final LogNode systemJarsLog = classpathFinderLog == null ? null
                     : classpathFinderLog.log("System jars:");
             if (jreRtJar != null) {
-                if (scanSpec.enableSystemJarsAndModules) {
-                    classpathOrder.addSystemClasspathEntry(jreRtJar, defaultClassLoader);
-                    if (systemJarsLog != null) {
-                        systemJarsLog.log("Found rt.jar: " + jreRtJar);
-                    }
-                } else if (systemJarsLog != null) {
-                    systemJarsLog.log((scanSpec.enableSystemJarsAndModules ? "" : "Scanning disabled for rt.jar: ")
-                            + jreRtJar);
+                classpathOrder.addSystemClasspathEntry(jreRtJar, defaultClassLoader);
+                if (systemJarsLog != null) {
+                    systemJarsLog.log("Found rt.jar: " + jreRtJar);
                 }
             }
             for (final String libOrExtJarPath : SystemJarFinder.getJreLibOrExtJars()) {
@@ -312,7 +310,8 @@ public class ClasspathFinder {
                 || (!scanSpec.ignoreParentClassLoaders && scanSpec.overrideClassLoaders == null
                         && scanSpec.overrideClasspath == null)
                 || (moduleFinder != null && moduleFinder.forceScanJavaClassPath())) {
-            final String[] pathElements = JarUtils.smartPathSplit(System.getProperty("java.class.path"), scanSpec);
+            final String[] pathElements = JarUtils.smartPathSplit(VersionFinder.getProperty("java.class.path"),
+                    scanSpec);
             if (pathElements.length > 0) {
                 final LogNode sysPropLog = classpathFinderLog == null ? null
                         : classpathFinderLog.log("Getting classpath entries from java.class.path");

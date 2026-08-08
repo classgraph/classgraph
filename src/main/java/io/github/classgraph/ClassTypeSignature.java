@@ -94,7 +94,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
 
     /**
      * Constructor used to create synthetic class type descriptor (#662).
-     * 
+     *
      * @param classInfo
      *            The class.
      * @param superclass
@@ -146,7 +146,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
     /**
      * Get the type signature for the superclass (possibly null in the case of {@link java.lang.Object}, since it
      * doesn't have a superclass).
-     * 
+     *
      * @return The type signature for the superclass, or null if no superclass (i.e. for {@link java.lang.Object}).
      */
     public ClassRefTypeSignature getSuperclassSignature() {
@@ -155,7 +155,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
 
     /**
      * Get the type signatures of any superinterfaces.
-     * 
+     *
      * @return The type signatures of any superinterfaces.
      */
     public List<ClassRefTypeSignature> getSuperinterfaceSignatures() {
@@ -305,14 +305,11 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
      *            True if the class is an annotation.
      * @param isInterface
      *            True if the class is an interface.
-     * @param annotationsToExclude
-     *            the annotations to exclude
      * @param buf
      *            the buf
      */
     void toStringInternal(final String className, final boolean useSimpleNames, final int modifiers,
-            final boolean isAnnotation, final boolean isInterface, final AnnotationInfoList annotationsToExclude,
-            final StringBuilder buf) {
+            final boolean isAnnotation, final boolean isInterface, final StringBuilder buf) {
         if (throwsSignatures != null) {
             for (final ClassRefOrTypeVariableSignature throwsSignature : throwsSignatures) {
                 if (buf.length() > 0) {
@@ -380,7 +377,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
     protected void toStringInternal(final boolean useSimpleNames, final AnnotationInfoList annotationsToExclude,
             final StringBuilder buf) {
         toStringInternal(classInfo.getName(), useSimpleNames, classInfo.getModifiers(), classInfo.isAnnotation(),
-                classInfo.isInterface(), annotationsToExclude, buf);
+                classInfo.isInterface(), buf);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -434,7 +431,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
             // fine at runtime if you live in a Scala-only world.
             // Since this issue is probably widespread in the Scala world, it's probably better to accept
             // these invalid type signatures, and actually parse out any "throws" suffixes, rather than
-            // throwing an exception and refusing to parse the type signature. 
+            // throwing an exception and refusing to parse the type signature.
             throwsSignatures = new ArrayList<>();
             while (parser.peek() == '^') {
                 parser.expect('^');

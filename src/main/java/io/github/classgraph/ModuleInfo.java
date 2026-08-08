@@ -37,7 +37,7 @@ import java.util.Set;
 import nonapi.io.github.classgraph.utils.Assert;
 import nonapi.io.github.classgraph.utils.CollectionUtils;
 
-/** Holds metadata about a package encountered during a scan. */
+/** Holds metadata about a module encountered during a scan. */
 public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     /** The name of the module. */
     private String name;
@@ -68,7 +68,7 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Deerialization constructor. */
+    /** Deserialization constructor. */
     ModuleInfo() {
         // Empty
     }
@@ -148,6 +148,11 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
      *         in this module.
      */
     public ClassInfo getClassInfo(final String className) {
+        // classInfoSet is null if no classes in this module were accepted, e.g. if the module-info.class file
+        // was the only classfile read from the module
+        if (classInfoSet == null) {
+            return null;
+        }
         for (final ClassInfo ci : classInfoSet) {
             if (ci.getName().equals(className)) {
                 return ci;
@@ -157,12 +162,13 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     }
 
     /**
-     * Get the list of {@link ClassInfo} objects for all classes that are members of this package.
+     * Get the list of {@link ClassInfo} objects for all classes that are members of this module.
      *
-     * @return the list of {@link ClassInfo} objects for all classes that are members of this package.
+     * @return the list of {@link ClassInfo} objects for all classes that are members of this module.
      */
     public ClassInfoList getClassInfo() {
-        return new ClassInfoList(classInfoSet, /* sortByName = */ true);
+        return classInfoSet == null ? ClassInfoList.EMPTY_LIST
+                : new ClassInfoList(classInfoSet, /* sortByName = */ true);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -217,12 +223,18 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /**
+     * Set ScanResult backreferences in info objects after scan has completed.
+     *
+     * @param scanResult
+     *            the scan result
+     */
     void setScanResult(final ScanResult scanResult) {
-      if (annotationInfoSet != null) {
-        for (final AnnotationInfo ai : annotationInfoSet) {
-          ai.setScanResult(scanResult);
+        if (annotationInfoSet != null) {
+            for (final AnnotationInfo ai : annotationInfoSet) {
+                ai.setScanResult(scanResult);
+            }
         }
-      }
     }
 
     /**
@@ -242,7 +254,7 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     }
 
     /**
-     * Get a the annotation on this module, or null if the module does not have the annotation.
+     * Get the annotation on this module, or null if the module does not have the annotation.
      *
      * @param annotation
      *            The annotation.
@@ -255,7 +267,7 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     }
 
     /**
-     * Get a the named annotation on this module, or null if the module does not have the named annotation.
+     * Get the named annotation on this module, or null if the module does not have the named annotation.
      *
      * @param annotationName
      *            The annotation name.
@@ -267,9 +279,9 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     }
 
     /**
-     * Get any annotations on the {@code package-info.class} file.
+     * Get any annotations on the {@code module-info.class} file.
      *
-     * @return the list of {@link AnnotationInfo} objects for annotations on the {@code package-info.class} file.
+     * @return the list of {@link AnnotationInfo} objects for annotations on the {@code module-info.class} file.
      */
     public AnnotationInfoList getAnnotationInfo() {
         if (annotationInfo == null) {

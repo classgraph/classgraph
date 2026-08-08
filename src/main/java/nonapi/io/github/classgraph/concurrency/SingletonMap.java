@@ -165,16 +165,22 @@ public abstract class SingletonMap<K, V, E extends Exception> {
 
     /**
      * Create a new instance.
-     * 
+     *
      * @param <V>
      *            The instance type.
+     * @param <E>
+     *            The exception type that may be thrown while creating the instance.
      */
     @FunctionalInterface
     public interface NewInstanceFactory<V, E extends Exception> {
         /**
          * Create a new instance.
-         * 
+         *
          * @return The new instance.
+         * @throws E
+         *             if the instance could not be created.
+         * @throws InterruptedException
+         *             if the thread was interrupted while creating the instance.
          */
         public V newInstance() throws E, InterruptedException;
     }
@@ -243,6 +249,13 @@ public abstract class SingletonMap<K, V, E extends Exception> {
                     // or newInstance() returns null, since .set() calls initialized.countDown().
                     // Otherwise threads that call .get() may end up waiting forever.
                     newSingletonHolder.set(instance);
+                    if (t instanceof InterruptedException) {
+                        // Don't swallow interruption by wrapping it in a NewInstanceException -- restore the
+                        // interrupt status (throwing InterruptedException cleared it) and propagate it, so that
+                        // a cancelled scan is still seen as cancelled rather than as a failed instantiation
+                        Thread.currentThread().interrupt();
+                        throw (InterruptedException) t;
+                    }
                     throw new NewInstanceException(key, t);
                 }
                 newSingletonHolder.set(instance);

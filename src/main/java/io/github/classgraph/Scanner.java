@@ -120,7 +120,7 @@ class Scanner implements Callable<ScanResult> {
 
     /**
      * The classpath scanner. Scanning is started by calling {@link #call()} on this object.
-     * 
+     *
      * @param performScan
      *            If true, performing a scan. If false, only fetching the classpath.
      * @param scanSpec
@@ -133,6 +133,8 @@ class Scanner implements Callable<ScanResult> {
      *            the scan result processor
      * @param failureHandler
      *            the failure handler
+     * @param reflectionUtils
+     *            the {@link ReflectionUtils} instance
      * @param topLevelLog
      *            the log
      *
@@ -386,11 +388,12 @@ class Scanner implements Callable<ScanResult> {
      * falling back to a {@link URL} or {@link URI} if not possible. This is needed to avoid treating
      * "file:///path/to/x.jar" and "/path/to/x.jar" as different classpath elements. Maps URL("jar:file:x.jar!/") to
      * Path("x.jar"), etc.
-     * 
+     *
      * @param classpathEntryObj
      *            The classpath entry object.
      * @return The normalized classpath entry object.
      * @throws IOException
+     *             if the classpath entry object is null, or could not be normalized.
      */
     private static Object normalizeClasspathEntry(final Object classpathEntryObj) throws IOException {
         if (classpathEntryObj == null) {
@@ -530,8 +533,8 @@ class Scanner implements Callable<ScanResult> {
 
     /**
      * Create a WorkUnitProcessor for opening traditional classpath entries (which are mapped to
-     * {@link ClasspathElementDir} or {@link ClasspathElementZip} -- {@link ClasspathElementModule is handled
-     * separately}).
+     * {@link ClasspathElementDir} or {@link ClasspathElementZip} -- {@link ClasspathElementModule} is handled
+     * separately).
      *
      * @param allClasspathEltsOut
      *            on exit, the set of all classpath elements
@@ -877,8 +880,8 @@ class Scanner implements Callable<ScanResult> {
                 if (classpathEltZip.logicalZipFile != null) {
                     // From JEP 261:
                     // "A <module>/<package> pair in the value of an Add-Exports attribute has the same
-                    // meaning as the command-line option --add-exports <module>/<package>=ALL-UNNAMED. 
-                    // A <module>/<package> pair in the value of an Add-Opens attribute has the same 
+                    // meaning as the command-line option --add-exports <module>/<package>=ALL-UNNAMED.
+                    // A <module>/<package> pair in the value of an Add-Opens attribute has the same
                     // meaning as the command-line option --add-opens <module>/<package>=ALL-UNNAMED."
                     if (classpathEltZip.logicalZipFile.addExportsManifestEntryValue != null) {
                         for (final String addExports : JarUtils.smartPathSplit(
@@ -911,7 +914,7 @@ class Scanner implements Callable<ScanResult> {
     /**
      * Perform classpath masking of classfiles. If the same relative classfile path occurs multiple times in the
      * classpath, causes the second and subsequent occurrences to be ignored (removed).
-     * 
+     *
      * @param classpathElementOrder
      *            the classpath element order
      * @param maskLog
@@ -1100,8 +1103,8 @@ class Scanner implements Callable<ScanResult> {
 
     /**
      * Open each of the classpath elements, looking for additional child classpath elements that need scanning (e.g.
-     * {@code Class-Path} entries in jar manifest files), then perform the scan if {@link ScanSpec#performScan} is
-     * true, or just get the classpath if {@link ScanSpec#performScan} is false.
+     * {@code Class-Path} entries in jar manifest files), then perform the scan if {@link #performScan} is true, or
+     * just get the classpath if {@link #performScan} is false.
      *
      * @return the scan result
      * @throws InterruptedException
@@ -1142,7 +1145,7 @@ class Scanner implements Callable<ScanResult> {
         preprocessClasspathElementsByType(classpathEltOrder,
                 topLevelLog == null ? null : topLevelLog.log("Finding nested classpath elements"));
 
-        // Order modules before classpath elements from traditional classpath 
+        // Order modules before classpath elements from traditional classpath
         final LogNode classpathOrderLog = topLevelLog == null ? null
                 : topLevelLog.log("Final classpath element order:");
         final int numElts = moduleOrder.size() + classpathEltOrder.size();
@@ -1296,7 +1299,7 @@ class Scanner implements Callable<ScanResult> {
                     }
                     // Throw a new ExecutionException (although this will probably be ignored,
                     // since any job with a FailureHandler was started with ExecutorService::execute
-                    // rather than ExecutorService::submit)  
+                    // rather than ExecutorService::submit)
                     throw failureHandlerException;
                 }
             }

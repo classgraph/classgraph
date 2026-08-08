@@ -302,7 +302,7 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
     }
 
     /**
-     * Get a the non-{@link Repeatable} annotation on this class member, or null if the class member does not have
+     * Get the non-{@link Repeatable} annotation on this class member, or null if the class member does not have
      * the annotation. (Use {@link #getAnnotationInfoRepeatable(Class)} for {@link Repeatable} annotations.)
      *
      * @param annotation
@@ -316,7 +316,7 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
     }
 
     /**
-     * Get a the named non-{@link Repeatable} annotation on this class member, or null if the class member does not
+     * Get the named non-{@link Repeatable} annotation on this class member, or null if the class member does not
      * have the named annotation. (Use {@link #getAnnotationInfoRepeatable(String)} for {@link Repeatable}
      * annotations.)
      *
@@ -330,7 +330,7 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
     }
 
     /**
-     * Get a the {@link Repeatable} annotation on this class member, or the empty list if the class member does not
+     * Get the {@link Repeatable} annotation on this class member, or the empty list if the class member does not
      * have the annotation.
      *
      * @param annotation
@@ -344,7 +344,7 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
     }
 
     /**
-     * Get a the named {@link Repeatable} annotation on this class member, or the empty list if the class member
+     * Get the named {@link Repeatable} annotation on this class member, or the empty list if the class member
      * does not have the named annotation.
      *
      * @param annotationName

@@ -58,7 +58,7 @@ import nonapi.io.github.classgraph.utils.CollectionUtils;
  */
 public class ClassInfoList extends MappableInfoList<ClassInfo> {
     /** Directly related classes. */
-    // N.B. this is marked transient to keep Scrutinizer happy, since thi class extends ArrayList, which is
+    // N.B. this is marked transient to keep Scrutinizer happy, since this class extends ArrayList, which is
     // Serializable, so all fields must be serializable (and Set is an interface, so is not Serializable).
     // Marking this transient will mean direct relationships will be lost on serialization, but the
     // Serializable interface is not widely used today anyway.
@@ -521,11 +521,11 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      *         {@code Class<?>} references for assignableToClass and the list items. Returns the empty list if no
      *         classes were assignable to the requested class.
      * @throws IllegalArgumentException
-     *             if classInfo is null.
+     *             if superclassOrInterface is null.
      */
     public ClassInfoList getAssignableTo(final ClassInfo superclassOrInterface) {
         if (superclassOrInterface == null) {
-            throw new IllegalArgumentException("assignableToClass parameter cannot be null");
+            throw new IllegalArgumentException("superclassOrInterface parameter cannot be null");
         }
         // Get subclasses and implementing classes for assignableFromClass
         final Set<ClassInfo> allAssignableFromClasses = new HashSet<>();
@@ -556,7 +556,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      * @param sizeX
      *            The GraphViz layout width in inches.
      * @param sizeY
-     *            The GraphViz layout width in inches.
+     *            The GraphViz layout height in inches.
      * @param includeExternalClasses
      *            If true, and if {@link ClassGraph#enableExternalClasses()} was called before scanning, show
      *            "external classes" (non-accepted classes) within the dependency graph.
@@ -593,7 +593,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      * @param sizeX
      *            The GraphViz layout width in inches.
      * @param sizeY
-     *            The GraphViz layout width in inches.
+     *            The GraphViz layout height in inches.
      * @return the GraphViz file contents.
      * @throws IllegalArgumentException
      *             if this {@link ClassInfoList} is empty or {@link ClassGraph#enableInterClassDependencies()} was
@@ -681,7 +681,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      * @param sizeX
      *            The GraphViz layout width in inches.
      * @param sizeY
-     *            The GraphViz layout width in inches.
+     *            The GraphViz layout height in inches.
      * @param showFields
      *            If true, show fields within class nodes in the graph.
      * @param showFieldTypeDependencyEdges
@@ -744,7 +744,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      * @param sizeX
      *            The GraphViz layout width in inches.
      * @param sizeY
-     *            The GraphViz layout width in inches.
+     *            The GraphViz layout height in inches.
      * @param showFields
      *            If true, show fields within class nodes in the graph.
      * @param showFieldTypeDependencyEdges
@@ -782,7 +782,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      * @param sizeX
      *            The GraphViz layout width in inches.
      * @param sizeY
-     *            The GraphViz layout width in inches.
+     *            The GraphViz layout height in inches.
      * @return the GraphViz file contents.
      * @throws IllegalArgumentException
      *             if this {@link ClassInfoList} is empty or {@link ClassGraph#enableClassInfo()} was not called

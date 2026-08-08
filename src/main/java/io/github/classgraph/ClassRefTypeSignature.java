@@ -84,7 +84,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
 
     /**
      * Get the name of the class, without any suffixes.
-     * 
+     *
      * @see #getFullyQualifiedClassName()
      * @return The name of the class.
      */
@@ -98,11 +98,11 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
      * {@code "xyz.Cls<String>.InnerCls<Integer>"} is returned as {@code "xyz.Cls$InnerCls"}. The intent of this
      * method is that if you replace '.' with '/', and then add the suffix ".class", you end up with the path of the
      * classfile relative to the package root.
-     * 
+     *
      * <p>
      * For comparison, {@link #toString()} uses '.' to separate suffixes, and includes type parameters, whereas this
      * method uses '$' to separate suffixes, and does not include type parameters.
-     * 
+     *
      * @return The fully-qualified name of the class, including suffixes but without type arguments.
      */
     public String getFullyQualifiedClassName() {
@@ -121,7 +121,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
 
     /**
      * Get any type arguments of the base class.
-     * 
+     *
      * @return The type arguments for the base class.
      */
     public List<TypeArgument> getTypeArguments() {
@@ -130,7 +130,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
 
     /**
      * Get all nested suffixes of the class (typically nested inner class names).
-     * 
+     *
      * @return The class suffixes (for inner classes), or the empty list if none.
      */
     public List<String> getSuffixes() {
@@ -139,7 +139,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
 
     /**
      * Get a list of type arguments for all nested suffixes of the class, one list per suffix.
-     * 
+     *
      * @return The list of type arguments for the suffixes (nested inner classes), one list per suffix, or the empty
      *         list if none.
      */
@@ -172,7 +172,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
 
     /**
      * Get a list of lists of type annotations for all nested suffixes of the class, one list per suffix.
-     * 
+     *
      * @return The list of lists of type annotations for the suffixes (nested inner classes), one list per suffix,
      *         or null if none.
      */
@@ -266,7 +266,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
                 // part of the type path
                 final List<TypePathNode> remainingTypePath = typePath.subList(numDeeperNestedLevels + 1,
                         typePath.size());
-                // Add type annotation to type argument  
+                // Add type annotation to type argument
                 typeArgumentList.get(nextTypeArgIdx).addTypeAnnotation(remainingTypePath, annotationInfo);
             }
         }
@@ -277,7 +277,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
     /**
      * Load the referenced class, if not already loaded, returning a {@code Class<?>} reference for the referenced
      * class. (Called by {@link AnnotationClassRef#loadClass()}.)
-     * 
+     *
      * @param ignoreExceptions
      *            if true, ignore exceptions and instead return null if the class could not be loaded.
      * @return The {@code Class<?>} reference for the referenced class.
@@ -292,7 +292,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
     /**
      * Load the referenced class, if not already loaded, returning a {@code Class<?>} reference for the referenced
      * class. (Called by {@link AnnotationClassRef#loadClass()}.)
-     * 
+     *
      * @return The {@code Class<?>} reference for the referenced class.
      * @throws IllegalArgumentException
      *             if the class could not be loaded.
@@ -478,7 +478,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
 
     /**
      * Parse a class type signature.
-     * 
+     *
      * @param parser
      *            The parser.
      * @param definingClassName

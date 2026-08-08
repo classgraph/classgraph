@@ -33,6 +33,7 @@ import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
+import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /** Extract classpath entries from the Uno-Jar's JarClassLoader and One-Jar's JarClassLoader. */
 class UnoOneJarClassLoaderHandler implements ClassLoaderHandler {
@@ -64,7 +65,7 @@ class UnoOneJarClassLoaderHandler implements ClassLoaderHandler {
         // If this property is defined, Uno-Jar jar path was specified on commandline. Otherwise, jar path
         // should be contained in java.class.path (which will be separately picked up by ClassGraph, as
         // long as classloaders/classpath are not overloaded and parent classloaders are not ignored).
-        final String unoJarJarPath = System.getProperty("uno-jar.jar.path");
+        final String unoJarJarPath = VersionFinder.getProperty("uno-jar.jar.path");
         classpathOrder.addClasspathEntry(unoJarJarPath, classLoader, scanSpec, log);
 
         // For One-Jar:
@@ -72,12 +73,12 @@ class UnoOneJarClassLoaderHandler implements ClassLoaderHandler {
         // If this property is defined, One-Jar jar path was specified on commandline. Otherwise, jar path
         // should be contained in java.class.path (which will be separately picked up by ClassGraph, as
         // long as classloaders/classpath are not overloaded and parent classloaders are not ignored).
-        final String oneJarJarPath = System.getProperty("one-jar.jar.path");
+        final String oneJarJarPath = VersionFinder.getProperty("one-jar.jar.path");
         classpathOrder.addClasspathEntry(oneJarJarPath, classLoader, scanSpec, log);
 
         // If this property is defined, additional classpath entries were specified in OneJar format
         // on the commandline, with '|' as a separator
-        final String oneJarClassPath = System.getProperty("one-jar.class.path");
+        final String oneJarClassPath = VersionFinder.getProperty("one-jar.class.path");
         if (oneJarClassPath != null) {
             classpathOrder.addClasspathEntryObject(oneJarClassPath.split("\\|"), classLoader, scanSpec, log);
         }

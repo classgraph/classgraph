@@ -70,7 +70,8 @@ public class ModuleRef implements Comparable<ModuleRef> {
     /** The ClassLoader that loads classes in the module. May be null, to represent the bootstrap classloader. */
     private final ClassLoader classLoader;
 
-    ReflectionUtils reflectionUtils;
+    /** The {@link ReflectionUtils} instance to reflectively call the JPMS module methods with. */
+    final ReflectionUtils reflectionUtils;
 
     /**
      * Constructor.
@@ -300,7 +301,9 @@ public class ModuleRef implements Comparable<ModuleRef> {
     @Override
     public int compareTo(final ModuleRef o) {
         final int diff = this.name.compareTo(o.name);
-        return diff != 0 ? diff : this.hashCode() - o.hashCode();
+        // Compare hashcodes rather than subtracting them, since the subtraction can overflow, which would
+        // break the transitivity that the Comparable contract requires
+        return diff != 0 ? diff : Integer.compare(this.hashCode(), o.hashCode());
     }
 
     // -------------------------------------------------------------------------------------------------------------

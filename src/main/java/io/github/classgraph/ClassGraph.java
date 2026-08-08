@@ -104,18 +104,19 @@ public class ClassGraph {
      * If you are running on JDK 16+, the JDK enforces strong encapsulation, and ClassGraph may be unable to read
      * the classpath from your classloader if the classloader does not make the classpath available via a public
      * method or field.
-     * 
+     *
      * <p>
      * To enable a workaround to this, set this static field to {@link CircumventEncapsulationMethod#NARCISSUS}
      * before interacting with ClassGraph in any other way, and also include the
      * <a href="https://github.com/toolfactory/narcissus">Narcissus</a> library on the classpath or module path.
-     * 
+     *
      * <p>
      * Narcissus uses JNI to circumvent encapsulation and field/method access controls. Narcissus employs a native
      * code library, and is currently only compiled for Linux x86/x64, Windows x86/x64, and Mac OS X x64 bit.
      */
     public static CircumventEncapsulationMethod CIRCUMVENT_ENCAPSULATION = CircumventEncapsulationMethod.NONE;
 
+    /** The {@link ReflectionUtils} instance to use for reflective calls during scanning. */
     private final ReflectionUtils reflectionUtils;
 
     /**
@@ -157,7 +158,7 @@ public class ClassGraph {
 
     /**
      * Switches on verbose logging to System.err if verbose is true.
-     * 
+     *
      * @param verbose
      *            if true, enable verbose logging.
      * @return this (for method chaining).
@@ -175,7 +176,7 @@ public class ClassGraph {
      * Enables the scanning of all classes, fields, methods, annotations, and static final field constant
      * initializer values, and ignores all visibility modifiers, so that both public and non-public classes, fields
      * and methods are all scanned.
-     * 
+     *
      * <p>
      * Calls {@link #enableClassInfo()}, {@link #enableFieldInfo()}, {@link #enableMethodInfo()},
      * {@link #enableAnnotationInfo()}, {@link #enableStaticFinalFieldConstantInitializerValues()},
@@ -277,16 +278,16 @@ public class ClassGraph {
      * Enables the saving of static final field constant initializer values. By default, constant initializer values
      * are not scanned. If this is enabled, you can obtain the constant field initializer values from
      * {@link FieldInfo#getConstantInitializerValue()}.
-     * 
+     *
      * <p>
      * Note that constant initializer values are usually only of primitive type, or String constants (or values that
      * can be computed and reduced to one of those types at compiletime).
-     * 
+     *
      * <p>
      * Also note that it is up to the compiler as to whether or not a constant-valued field is assigned as a
      * constant in the field definition itself, or whether it is assigned manually in static class initializer
      * blocks -- so your mileage may vary in being able to extract constant initializer values.
-     * 
+     *
      * <p>
      * In fact in Kotlin, even constant initializers for non-static / non-final fields are stored in a field
      * attribute in the classfile (and so these values may be picked up by ClassGraph by calling this method),
@@ -296,7 +297,7 @@ public class ClassGraph {
      * fields, javac simply does not add constant initializer values to the field attributes list for non-final
      * fields, even if they are static, but the spec doesn't say whether or not the JVM should ignore constant
      * initializers for non-final fields.)
-     * 
+     *
      * <p>
      * Automatically calls {@link #enableClassInfo()} and {@link #enableFieldInfo()}.
      *
@@ -416,7 +417,7 @@ public class ClassGraph {
     }
 
     /**
-     * Causes classes loaded using {@link ClassInfo#loadClass()} to be are initialized after class loading (the
+     * Causes classes loaded using {@link ClassInfo#loadClass()} to be initialized after class loading (the
      * default is to not initialize classes).
      *
      * @return this (for method chaining).
@@ -472,7 +473,7 @@ public class ClassGraph {
     /**
      * Override the automatically-detected classpath with a custom path. Causes system ClassLoaders and the
      * java.class.path system property to be ignored. Also causes modules not to be scanned.
-     * 
+     *
      * <p>
      * Works for Iterables of any type whose toString() method resolves to a classpath element string, e.g. String,
      * File or Path.
@@ -494,7 +495,7 @@ public class ClassGraph {
     /**
      * Override the automatically-detected classpath with a custom path. Causes system ClassLoaders and the
      * java.class.path system property to be ignored. Also causes modules not to be scanned.
-     * 
+     *
      * <p>
      * Works for arrays of any member type whose toString() method resolves to a classpath element string, e.g.
      * String, File or Path.
@@ -553,7 +554,7 @@ public class ClassGraph {
     /**
      * Add a classpath element filter. The provided ClasspathElementFilter should return true if the path string
      * passed to it is a path you want to scan.
-     * 
+     *
      * @param classpathElementFilter
      *            The filter function to use. This function should return true if the classpath element path should
      *            be scanned, and false if not.
@@ -567,7 +568,7 @@ public class ClassGraph {
     /**
      * Add a classpath element filter. The provided ClasspathElementFilter should return true if the {@link URL}
      * passed to it is a URL you want to scan.
-     * 
+     *
      * @param classpathElementURLFilter
      *            The filter function to use. This function should return true if the classpath element {@link URL}
      *            should be scanned, and false if not.
@@ -675,7 +676,7 @@ public class ClassGraph {
 
     /**
      * Scan one or more specific packages and their sub-packages.
-     * 
+     *
      * <p>
      * N.B. Automatically calls {@link #enableClassInfo()} -- call {@link #acceptPaths(String...)} instead if you
      * only need to scan resources.
@@ -794,11 +795,11 @@ public class ClassGraph {
     /**
      * Scan one or more specific packages, without recursively scanning sub-packages unless they are themselves
      * accepted.
-     * 
+     *
      * <p>
      * N.B. Automatically calls {@link #enableClassInfo()} -- call {@link #acceptPathsNonRecursive(String...)}
      * instead if you only need to scan resources.
-     * 
+     *
      * <p>
      * This may be particularly useful for scanning the package root ("") without recursively scanning everything in
      * the jar, dir or module.
@@ -806,7 +807,7 @@ public class ClassGraph {
      * @param packageNames
      *            The fully-qualified names of packages to scan (with '.' as a separator). May not include a glob
      *            wildcard ({@code '*'}).
-     * 
+     *
      * @return this (for method chaining).
      */
     public ClassGraph acceptPackagesNonRecursive(final String... packageNames) {
@@ -843,7 +844,7 @@ public class ClassGraph {
     /**
      * Scan one or more specific paths, without recursively scanning sub-directories or nested paths unless they are
      * themselves accepted.
-     * 
+     *
      * <p>
      * This may be particularly useful for scanning the package root ("") without recursively scanning everything in
      * the jar, dir or module.
@@ -885,7 +886,7 @@ public class ClassGraph {
 
     /**
      * Prevent the scanning of one or more specific packages and their sub-packages.
-     * 
+     *
      * <p>
      * N.B. Automatically calls {@link #enableClassInfo()} -- call {@link #rejectPaths(String...)} instead if you
      * only need to scan resources.
@@ -991,11 +992,11 @@ public class ClassGraph {
     /**
      * Scan one or more specific classes, without scanning other classes in the same package unless the package is
      * itself accepted.
-     * 
+     *
      * <p>
      * N.B. Automatically calls {@link #enableClassInfo()}.
      *
-     * 
+     *
      * @param classNames
      *            The fully-qualified names of classes to scan (using '.' as a separator). To match a class name by
      *            glob in any package, you must include a package glob too, e.g. {@code "*.*Suffix"}.
@@ -1034,7 +1035,7 @@ public class ClassGraph {
     /**
      * Specifically reject one or more specific classes, preventing them from being scanned even if they are in a
      * accepted package.
-     * 
+     *
      * <p>
      * N.B. Automatically calls {@link #enableClassInfo()}.
      *
@@ -1155,7 +1156,7 @@ public class ClassGraph {
                             "Can only " + (accept ? "accept" : "reject") + " jars by leafname: " + jarLeafName);
                 }
                 if (jarLeafName.contains("*")) {
-                    // Compare wildcarded pattern against all jars in lib and ext dirs 
+                    // Compare wildcarded pattern against all jars in lib and ext dirs
                     final Pattern pattern = AcceptReject.globToPattern(jarLeafName, /* simpleGlob = */ true);
                     boolean found = false;
                     for (final String libOrExtJarPath : SystemJarFinder.getJreLibOrExtJars()) {
@@ -1376,14 +1377,14 @@ public class ClassGraph {
     /**
      * Enable classpath elements to be fetched from remote ("http:"/"https:") URLs (or URLs with custom schemes).
      * Equivalent to:
-     * 
+     *
      * <p>
      * {@code new ClassGraph().enableURLScheme("http").enableURLScheme("https");}
-     * 
+     *
      * <p>
      * Scanning from http(s) URLs is disabled by default, as this may present a security vulnerability, since
      * classes from downloaded jars can be subsequently loaded using {@link ClassInfo#loadClass}.
-     * 
+     *
      * @return this (for method chaining).
      */
     public ClassGraph enableRemoteJarScanning() {
@@ -1409,7 +1410,7 @@ public class ClassGraph {
     /**
      * Enables the scanning of system packages ({@code "java.*"}, {@code "javax.*"}, {@code "javafx.*"},
      * {@code "jdk.*"}, {@code "oracle.*"}, {@code "sun.*"}) -- these are not scanned by default for speed.
-     * 
+     *
      * <p>
      * N.B. Automatically calls {@link #enableClassInfo()}.
      *
@@ -1432,18 +1433,18 @@ public class ClassGraph {
      * further compression gains. If an inner jar is stored, not deflated, then its zip entries can be read directly
      * using ClassGraph's own zipfile central directory parser, which can use file slicing to extract entries
      * directly from stored nested jars.)
-     * 
+     *
      * <p>
      * This is also the maximum size of a jar downloaded from an {@code http://} or {@code https://} classpath
      * {@link URL} to RAM. Once this many bytes have been read from the {@link URL}'s {@link InputStream}, then the
      * RAM contents are spilled over to a temporary file on disk, and the rest of the content is downloaded to the
      * temporary file. (This is also rare, because normally there are no {@code http://} or {@code https://}
      * classpath entries.)
-     * 
+     *
      * <p>
      * Default: 64MB (i.e. writing to disk is avoided wherever possible). Setting a lower max RAM size value will
      * decrease ClassGraph's memory usage if either of the above rare situations occurs.
-     * 
+     *
      * @param maxBufferedJarRAMSize
      *            The max RAM size to use for deflated inner jars or downloaded jars. This is the limit per jar, not
      *            for the whole classpath.
@@ -1471,7 +1472,7 @@ public class ClassGraph {
      * If true, provide all versions of a multi-release resource using their multi-release path prefix, instead of
      * just the one the running JVM would select. Implicitly disables {@link #enableClassInfo()} and all features
      * depending on it.
-     * 
+     *
      * @return this (for method chaining).
      */
     public ClassGraph enableMultiReleaseVersions() {
@@ -1486,7 +1487,9 @@ public class ClassGraph {
         scanSpec.enableStaticFinalFieldConstantInitializerValues = false;
         scanSpec.enableAnnotationInfo = false;
         scanSpec.enableInterClassDependencies = false;
-        scanSpec.disableRuntimeInvisibleAnnotations = false;
+        // N.B. this field has the opposite polarity to the others in this block -- annotation info is not read,
+        // so runtime-invisible annotations should be disabled, not enabled
+        scanSpec.disableRuntimeInvisibleAnnotations = true;
         scanSpec.enableExternalClasses = false;
         scanSpec.enableSystemJarsAndModules = false;
         return this;
@@ -1515,7 +1518,7 @@ public class ClassGraph {
     public interface ScanResultProcessor {
         /**
          * Process the result of an asynchronous scan after scanning has completed.
-         * 
+         *
          * @param scanResult
          *            the {@link ScanResult} to process.
          */
@@ -1527,7 +1530,7 @@ public class ClassGraph {
     public interface FailureHandler {
         /**
          * Called on scanning failure during an asynchronous scan.
-         * 
+         *
          * @param throwable
          *            the {@link Throwable} that was thrown during scanning.
          */
@@ -1581,7 +1584,7 @@ public class ClassGraph {
      * Asynchronously scans the classpath for matching files, returning a {@code Future<ScanResult>}. You should
      * assign the wrapped {@link ScanResult} in a try-with-resources statement, or manually close it when you are
      * finished with it.
-     * 
+     *
      * @param performScan
      *            If true, performing a scan. If false, only fetching the classpath.
      * @param executorService
@@ -1645,21 +1648,8 @@ public class ClassGraph {
      */
     public ScanResult scan(final ExecutorService executorService, final int numParallelTasks) {
         try {
-            // Start the scan and wait for completion
-
-            // Return the scanResult, then block waiting for the result
+            // Start the scan, then block waiting for the result
             final ScanResult scanResult = scanAsync(executorService, numParallelTasks).get();
-
-            //    // Test serialization/deserialization by serializing and then deserializing the ScanResult 
-            //    if (scanSpec.enableClassInfo && scanSpec.performScan) {
-            //        final String scanResultJson = scanResult.toJSON(2);
-            //        final ScanResult scanResultFromJson = ScanResult.fromJSON(scanResultJson);
-            //        final String scanResultJson2 = scanResult.toJSON(2);
-            //        if (!scanResultJson2.equals(scanResultJson)) {
-            //            throw new RuntimeException("Serialization mismatch");
-            //        }
-            //        scanResult = scanResultFromJson;
-            //    }
 
             // The resulting scanResult cannot be null, but check for null to keep SpotBugs happy
             if (scanResult == null) {
@@ -1816,18 +1806,18 @@ public class ClassGraph {
     /**
      * Get the module path info provided on the commandline with {@code --module-path}, {@code --add-modules},
      * {@code --patch-module}, {@code --add-exports}, {@code --add-opens}, and {@code --add-reads}.
-     * 
+     *
      * <p>
      * Note that the returned {@link ModulePathInfo} object does not include classpath entries from the traditional
      * classpath or system modules. Use {@link #getModules()} to get all visible modules, including anonymous,
      * automatic and system modules.
-     * 
+     *
      * <p>
      * Also, {@link ModulePathInfo#addExports} and {@link ModulePathInfo#addOpens} will not contain
      * {@code Add-Exports} or {@code Add-Opens} entries from jarfile manifest files encountered during scanning,
      * unless you obtain the {@link ModulePathInfo} by calling {@link ScanResult#getModulePathInfo()} rather than by
      * calling {@link ClassGraph#getModulePathInfo()} before {@link ClassGraph#scan()}.
-     * 
+     *
      * @return The {@link ModulePathInfo}.
      */
     public ModulePathInfo getModulePathInfo() {

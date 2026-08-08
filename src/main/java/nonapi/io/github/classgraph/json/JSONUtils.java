@@ -41,8 +41,13 @@ import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 
 /** Utils for Java serialization and deserialization. */
 public final class JSONUtils {
+    /** {@code AccessibleObject#isAccessible()} (deprecated in JDK 9+), or null if not available. */
     private static Method isAccessibleMethod;
+
+    /** {@code AccessibleObject#setAccessible(boolean)}, or null if not available. */
     private static Method setAccessibleMethod;
+
+    /** {@code AccessibleObject#trySetAccessible()} (added in JDK 9), or null if not available. */
     private static Method trySetAccessibleMethod;
 
     static {
@@ -66,6 +71,13 @@ public final class JSONUtils {
         }
     }
 
+    /**
+     * Check whether a field or method is already accessible.
+     *
+     * @param obj
+     *            the field or method to check
+     * @return true if the field or method is already accessible
+     */
     private static boolean isAccessible(final AccessibleObject obj) {
         if (isAccessibleMethod != null) {
             // JDK 7/8: use isAccessible (deprecated in JDK 9+)
@@ -80,6 +92,14 @@ public final class JSONUtils {
         return false;
     }
 
+    /**
+     * Try to make a field or method accessible, using {@code setAccessible(true)} if possible, and falling back to
+     * {@code trySetAccessible()} (JDK 9+) if {@code setAccessible(true)} threw.
+     *
+     * @param obj
+     *            the field or method to make accessible
+     * @return true if the field or method was made accessible
+     */
     private static boolean tryMakeAccessible(final AccessibleObject obj) {
         if (setAccessibleMethod != null) {
             try {
@@ -101,6 +121,15 @@ public final class JSONUtils {
         return false;
     }
 
+    /**
+     * Make a field or method accessible, retrying within a {@code doPrivileged} block if the direct attempt failed.
+     *
+     * @param obj
+     *            the field or method to make accessible
+     * @param reflectionUtils
+     *            the {@link ReflectionUtils} instance
+     * @return true if the field or method was made accessible
+     */
     public static boolean makeAccessible(final AccessibleObject obj, final ReflectionUtils reflectionUtils) {
         // This reflection code is duplicated from StandardReflectionDriver, because calling
         // ReflectionUtils.reflectionDriver.makeAccessible(obj) does not work when called from here
@@ -320,7 +349,10 @@ public final class JSONUtils {
                 || cls == Byte.class || cls == Byte.TYPE //
                 || cls == Character.class || cls == Character.TYPE //
                 || cls == Boolean.class || cls == Boolean.TYPE //
-                || cls.isEnum() //
+                // (Test Enum.class.isAssignableFrom() rather than cls.isEnum() -- an enum constant with a
+                // constant-specific class body is an instance of an anonymous subclass of the enum type, and
+                // Class#isEnum() is false for that subclass)
+                || Enum.class.isAssignableFrom(cls) //
                 || cls == Class.class;
     }
 
@@ -351,7 +383,7 @@ public final class JSONUtils {
     static boolean isBasicValueType(final Object obj) {
         return obj == null || obj instanceof String || obj instanceof Integer || obj instanceof Boolean
                 || obj instanceof Long || obj instanceof Float || obj instanceof Double || obj instanceof Short
-                || obj instanceof Byte || obj instanceof Character || obj.getClass().isEnum()
+                || obj instanceof Byte || obj instanceof Character || obj instanceof Enum
                 || obj instanceof Class;
     }
 
@@ -400,6 +432,8 @@ public final class JSONUtils {
      *            the field
      * @param onlySerializePublicFields
      *            if true, only serialize public fields
+     * @param reflectionUtils
+     *            the {@link ReflectionUtils} instance
      * @return true if the field is serializable
      */
     static boolean fieldIsSerializable(final Field field, final boolean onlySerializePublicFields,

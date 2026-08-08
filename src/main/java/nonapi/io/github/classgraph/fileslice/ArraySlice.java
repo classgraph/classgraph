@@ -39,7 +39,7 @@ import nonapi.io.github.classgraph.fileslice.reader.RandomAccessReader;
 /** A byte array slice. */
 public class ArraySlice extends Slice {
     /** The wrapped byte array. */
-    public byte[] arr;
+    public final byte[] arr;
 
     /**
      * Constructor for treating a range of an array as a slice.

@@ -62,7 +62,7 @@ public interface SequentialReader {
     /**
      * Read a unsigned short at the current cursor position.
      *
-     * @return The unsigned shortat the current cursor position.
+     * @return The unsigned short at the current cursor position.
      * @throws IOException
      *             If there was an exception while reading.
      */
@@ -114,7 +114,7 @@ public interface SequentialReader {
      * @param replaceSlashWithDot
      *            If true, replace '/' with '.'.
      * @param stripLSemicolon
-     *            If true, string final ';' character.
+     *            If true, strip the leading 'L' and the final ';' character.
      * @return The string.
      * @throws IOException
      *             If an I/O exception occurs.

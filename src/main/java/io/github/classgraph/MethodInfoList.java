@@ -235,9 +235,9 @@ public class MethodInfoList extends InfoList<MethodInfo> {
      */
     public MethodInfoList filter(final MethodInfoFilter filter) {
         final MethodInfoList methodInfoFiltered = new MethodInfoList();
-        for (final MethodInfo resource : this) {
-            if (filter.accept(resource)) {
-                methodInfoFiltered.add(resource);
+        for (final MethodInfo methodInfo : this) {
+            if (filter.accept(methodInfo)) {
+                methodInfoFiltered.add(methodInfo);
             }
         }
         return methodInfoFiltered;

@@ -48,7 +48,8 @@ public class ClassLoaderOrder {
     /** The {@link ClassLoader} order. */
     private final Map<ClassLoader, List<ClassLoaderHandlerRegistryEntry>> classLoaderOrder = new LinkedHashMap<>();
 
-    public ReflectionUtils reflectionUtils;
+    /** The reflection utils instance. */
+    public final ReflectionUtils reflectionUtils;
 
     /**
      * The set of all {@link ClassLoader} instances that have been added to the order so far, so that classloaders
@@ -75,6 +76,12 @@ public class ClassLoaderOrder {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /**
+     * Constructor.
+     *
+     * @param reflectionUtils
+     *            the reflection utils instance.
+     */
     public ClassLoaderOrder(final ReflectionUtils reflectionUtils) {
         this.reflectionUtils = reflectionUtils;
     }
@@ -98,10 +105,19 @@ public class ClassLoaderOrder {
         return allParentClassLoaders;
     }
 
-    /** Get the ClassLoaderHandler(s) that can handle a given ClassLoader. */
+    /**
+     * Get the ClassLoaderHandler(s) that can handle a given ClassLoader.
+     *
+     * @param classLoader
+     *            the class loader
+     * @param log
+     *            the log
+     * @return the registry entries that can handle the classloader, or a singleton list containing the fallback
+     *         handler if none can.
+     */
     private static List<ClassLoaderHandlerRegistryEntry> getClassLoaderHandlerRegistryEntries(
             final ClassLoader classLoader, final LogNode log) {
-        List<ClassLoaderHandlerRegistryEntry> ents = new ArrayList<>();
+        final List<ClassLoaderHandlerRegistryEntry> ents = new ArrayList<>();
         boolean matched = false;
         for (final ClassLoaderHandlerRegistryEntry ent : ClassLoaderHandlerRegistry.CLASS_LOADER_HANDLERS) {
             if (ent.canHandle(classLoader.getClass(), log)) {

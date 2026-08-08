@@ -44,6 +44,9 @@ public class BaseTypeSignature extends TypeSignature {
 
     /**
      * Constructor.
+     *
+     * @param typeSignatureChar
+     *            the type signature character used to represent the base type, e.g. 'I' for int.
      */
     BaseTypeSignature(final char typeSignatureChar) {
         super();
@@ -168,7 +171,7 @@ public class BaseTypeSignature extends TypeSignature {
     /**
      * Get the type signature char used to represent the type, e.g. 'I' for int.
      * 
-     * @return the type signature char, as a one-char String.
+     * @return the type signature char.
      */
     public char getTypeSignatureChar() {
         return typeSignatureChar;
@@ -293,7 +296,7 @@ public class BaseTypeSignature extends TypeSignature {
      */
     @Override
     protected void findReferencedClassNames(final Set<String> refdClassNames) {
-        // Don't add byte.class, int.class, etc. 
+        // Don't add byte.class, int.class, etc.
     }
 
     /* (non-Javadoc)
@@ -302,12 +305,8 @@ public class BaseTypeSignature extends TypeSignature {
     @Override
     void setScanResult(final ScanResult scanResult) {
         // Don't set ScanResult for BaseTypeSignature objects (#419).
-        // The ScanResult is not needed, since this class does not classload through the ScanResult.
-        // Also, specific instances of BaseTypeSignature for each primitive type are assigned to static fields
-        // in this class, which are shared across all usages of this class, so they should not contain any
-        // values that are specific to a given ScanResult. Setting the ScanResult from different scan processes
-        // would cause the scanResult field to only reflect the result of the most recent scan, and the reference
-        // to that scan would prevent garbage collection.
+        // The ScanResult is not needed, since this class does not classload through the ScanResult, and holding
+        // a reference to the ScanResult would prevent it from being garbage collected.
     }
 
     // -------------------------------------------------------------------------------------------------------------

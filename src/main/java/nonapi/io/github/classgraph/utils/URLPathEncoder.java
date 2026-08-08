@@ -196,7 +196,18 @@ public final class URLPathEncoder {
                 urlPathNormalized = urlPathNormalized.substring(4);
             }
             if (urlPathNormalized.startsWith("file:")) {
-                urlPathNormalized = urlPathNormalized.substring(4);
+                urlPathNormalized = urlPathNormalized.substring(5);
+                // "file:" may be followed by an empty authority, i.e. "file://" or "file:///". Collapse the run
+                // of leading slashes down to one, so that the "file://" prefix added below cannot produce a path
+                // with a run of slashes in it, e.g. "file://///tmp/x.jar".
+                int numLeadingSlashes = 0;
+                while (numLeadingSlashes < urlPathNormalized.length()
+                        && urlPathNormalized.charAt(numLeadingSlashes) == '/') {
+                    numLeadingSlashes++;
+                }
+                if (numLeadingSlashes > 1) {
+                    urlPathNormalized = urlPathNormalized.substring(numLeadingSlashes - 1);
+                }
             }
 
             // On Windows, remove drive prefix from path, if present (otherwise the ':' after the drive

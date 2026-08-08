@@ -91,9 +91,9 @@ public class ModuleInfoList extends MappableInfoList<ModuleInfo> {
      */
     public ModuleInfoList filter(final ModuleInfoFilter filter) {
         final ModuleInfoList moduleInfoFiltered = new ModuleInfoList();
-        for (final ModuleInfo resource : this) {
-            if (filter.accept(resource)) {
-                moduleInfoFiltered.add(resource);
+        for (final ModuleInfo moduleInfo : this) {
+            if (filter.accept(moduleInfo)) {
+                moduleInfoFiltered.add(moduleInfo);
             }
         }
         return moduleInfoFiltered;

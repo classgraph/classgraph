@@ -84,8 +84,8 @@ public class AnnotationEnumValue extends ScanResultObject implements Comparable<
     /**
      * Get the name.
      *
-     * @return The fully-qualified name of the enum constant value, i.e. ({@link #getClassName()} +
-     *         {#getValueName()}).
+     * @return The fully-qualified name of the enum constant value, i.e. {@link #getClassName()} + {@code "."} +
+     *         {@link #getValueName()}.
      */
     public String getName() {
         return className + "." + valueName;

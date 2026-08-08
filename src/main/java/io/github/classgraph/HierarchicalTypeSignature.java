@@ -36,8 +36,9 @@ import io.github.classgraph.Classfile.TypePathNode;
  * A Java type signature. Subclasses are ClassTypeSignature, MethodTypeSignature, and TypeSignature.
  */
 public abstract class HierarchicalTypeSignature extends ScanResultObject {
+    /** The type annotations on this type, or null if none. */
     protected AnnotationInfoList typeAnnotationInfo;
-    
+
     /** A hierarchical type signature. */
     public HierarchicalTypeSignature() {
         super();

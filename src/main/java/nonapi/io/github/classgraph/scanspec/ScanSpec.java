@@ -74,10 +74,10 @@ public class ScanSpec {
     /** Classfile accept/reject criteria (path to classfiles, with separator '/', ending in ".class"). */
     public AcceptRejectWholeString classfilePathAcceptReject = new AcceptRejectWholeString('/');
 
-    /** Package containing accept/reject criteriaed classes (with separator '.'). */
+    /** Package containing accepted/rejected classes (with separator '.'). */
     public AcceptRejectWholeString classPackageAcceptReject = new AcceptRejectWholeString('.');
 
-    /** Path to accept/reject criteriaed classes (with separator '/'). */
+    /** Path to accepted/rejected classes (with separator '/'). */
     public AcceptRejectWholeString classPackagePathAcceptReject = new AcceptRejectWholeString('/');
 
     /** Module accept/reject criteria (with separator '.'). */
@@ -481,7 +481,7 @@ public class ScanSpec {
     public ScanSpecPathMatch dirAcceptMatchStatus(final String relativePath) {
         // In rejected path
         if (pathAcceptReject.isRejected(relativePath) || pathPrefixAcceptReject.isRejected(relativePath)) {
-            // An prefix of this path is rejected.
+            // A prefix of this path is rejected.
             return ScanSpecPathMatch.HAS_REJECTED_PATH_PREFIX;
         }
 

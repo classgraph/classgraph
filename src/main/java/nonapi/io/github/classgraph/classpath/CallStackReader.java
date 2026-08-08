@@ -40,12 +40,16 @@ import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.VersionFinder;
 
-/** A class to find the unique ordered classpath elements. */
+/** A class to read the classes in the current call stack. */
 class CallStackReader {
-    ReflectionUtils reflectionUtils;
+    /** The reflection utils instance. */
+    private final ReflectionUtils reflectionUtils;
 
     /**
      * Constructor.
+     *
+     * @param reflectionUtils
+     *            the reflection utils instance.
      */
     public CallStackReader(final ReflectionUtils reflectionUtils) {
         this.reflectionUtils = reflectionUtils;
@@ -200,7 +204,7 @@ class CallStackReader {
             }
             if (stackTrace == null || stackTrace.length == 0) {
                 try {
-                    // Try getting stacktrace by throwing an exception 
+                    // Try getting stacktrace by throwing an exception
                     throw new Exception();
                 } catch (final Exception e) {
                     stackTrace = e.getStackTrace();

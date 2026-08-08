@@ -43,7 +43,6 @@ import java.util.concurrent.Callable;
 class StandardReflectionDriver extends ReflectionDriver {
     private static Method setAccessibleMethod;
     private static Method trySetAccessibleMethod;
-    private static Class<?> accessControllerClass;
     private static Class<?> privilegedActionClass;
     private static Method accessControllerDoPrivileged;
 
@@ -62,7 +61,7 @@ class StandardReflectionDriver extends ReflectionDriver {
             // Ignore
         }
         try {
-            accessControllerClass = Class.forName("java.security.AccessController");
+            final Class<?> accessControllerClass = Class.forName("java.security.AccessController");
             privilegedActionClass = Class.forName("java.security.PrivilegedAction");
             accessControllerDoPrivileged = accessControllerClass.getMethod("doPrivileged", privilegedActionClass);
         } catch (final Throwable t) {
@@ -72,7 +71,7 @@ class StandardReflectionDriver extends ReflectionDriver {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    private class PrivilegedActionInvocationHandler<T> implements InvocationHandler {
+    private static class PrivilegedActionInvocationHandler<T> implements InvocationHandler {
         private final Callable<T> callable;
 
         public PrivilegedActionInvocationHandler(final Callable<T> callable) {

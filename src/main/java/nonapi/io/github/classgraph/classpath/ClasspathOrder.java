@@ -61,7 +61,8 @@ public class ClasspathOrder {
     /** The scan spec. */
     private final ScanSpec scanSpec;
 
-    public ReflectionUtils reflectionUtils;
+    /** The reflection utils instance. */
+    public final ReflectionUtils reflectionUtils;
 
     /** Unique classpath entries. */
     private final Set<String> classpathEntryUniqueResolvedPaths = new HashSet<>();
@@ -73,8 +74,7 @@ public class ClasspathOrder {
     private static final Pattern schemeMatcher = Pattern.compile("^[a-zA-Z][a-zA-Z+\\-.]+:");
 
     /**
-     * The package root prefixes of the {@link nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler}
-     * whose {@code findClasspathOrder} method is
+     * The package root prefixes of the {@code ClassLoaderHandler} whose {@code findClasspathOrder} method is
      * currently being called, or the default prefixes if classpath entries are not currently being obtained from a
      * {@code ClassLoaderHandler} (e.g. for {@code java.class.path} entries, or an overridden classpath).
      */
@@ -90,9 +90,9 @@ public class ClasspathOrder {
      * <p>
      * All Equinox bundles yield the same system bundles, so they only need to be read from the first Equinox
      * classloader encountered. This flag is held here, on a per-scan object, rather than in a static field of the
-     * {@link nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler}: a single handler instance is
-     * shared between all scans, so a static flag would stay set after the first scan, and every subsequent scan in
-     * the same JVM would silently omit the system bundles from the classpath.
+     * {@code ClassLoaderHandler}: a single handler instance is shared between all scans, so a static flag would
+     * stay set after the first scan, and every subsequent scan in the same JVM would silently omit the system
+     * bundles from the classpath.
      *
      * @return true the first time this method is called for a given scan, false every time thereafter.
      */
@@ -116,7 +116,7 @@ public class ClasspathOrder {
 
         /**
          * The automatic package root prefixes to look for within this classpath element, as declared by the
-         * {@link nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler} that found it.
+         * {@code ClassLoaderHandler} that found it.
          */
         public final String[] packageRootPrefixes;
 
@@ -164,6 +164,8 @@ public class ClasspathOrder {
      *
      * @param scanSpec
      *            the scan spec
+     * @param reflectionUtils
+     *            the reflection utils instance
      */
     ClasspathOrder(final ScanSpec scanSpec, final ReflectionUtils reflectionUtils) {
         this.scanSpec = scanSpec;
@@ -190,9 +192,8 @@ public class ClasspathOrder {
 
     /**
      * Set the automatic package root prefixes to record for subsequently-added classpath entries. Called before
-     * and after invoking the {@code findClasspathOrder} method of a
-     * {@link nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler}, so that each classpath entry
-     * records the package roots of the classloader it was obtained from.
+     * and after invoking the {@code findClasspathOrder} method of a {@code ClassLoaderHandler}, so that each
+     * classpath entry records the package roots of the classloader it was obtained from.
      *
      * @param packageRootPrefixes
      *            the package root prefixes, or null to reset to the default prefixes.
@@ -633,7 +634,7 @@ public class ClasspathOrder {
      *            the scan spec
      * @param log
      *            the LogNode instance to use if logging in verbose mode.
-     * @return true (and add the classpath element) if pathEl)ement is not null or empty, otherwise return false.
+     * @return true (and add the classpath element) if pathElement is not null or empty, otherwise return false.
      */
     public boolean addClasspathEntryObject(final Object pathObject, final ClassLoader classLoader,
             final ScanSpec scanSpec, final LogNode log) {

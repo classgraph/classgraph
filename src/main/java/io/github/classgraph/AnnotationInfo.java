@@ -265,7 +265,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      * parameter values obtained from this {@link AnnotationInfo} object, possibly overriding default annotation
      * parameter values obtained from calling {@link AnnotationInfo#getClassInfo()} then
      * {@link ClassInfo#getAnnotationDefaultParameterValues()}.
-     * 
+     *
      * <p>
      * Note that the returned {@link Annotation} will have some sort of {@link InvocationHandler} proxy type, such
      * as {@code io.github.classgraph.features.$Proxy4} or {@code com.sun.proxy.$Proxy6}. This is an unavoidable
@@ -276,12 +276,12 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      * <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/reflect/Proxy.html">handled
      * specially</a> when it comes to casting and {@code instanceof}: you are able to cast the returned proxy
      * instance to the annotation type, and {@code instanceof} checks against the annotation class will succeed.
-     * 
+     *
      * <p>
      * Of course another option you have for getting the concrete annotations, rather than instantiating the
      * annotations on a {@link ClassInfo} object via this method, is to call {@link ClassInfo#loadClass()}, and read
      * the annotations directly from the returned {@link Class} object.
-     * 
+     *
      * @return The new {@link Annotation} instance, as a dynamic proxy object that can be cast to the expected
      *         annotation type.
      */
@@ -344,9 +344,11 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
             }
             if (args != null && paramTypes.length == 1) {
                 if ("equals".equals(methodName) && paramTypes[0] == Object.class) {
-                    // equals() needs to function the same as the JDK implementation 
+                    // equals() needs to function the same as the JDK implementation
                     // (see src/share/classes/sun/reflect/annotation/AnnotationInvocationHandler.java in the JDK)
-                    if (this == args[0]) {
+                    // N.B. compare against the proxy, not against this InvocationHandler, which is never
+                    // the object that equals() was called with
+                    if (proxy == args[0]) {
                         return true;
                     } else if (!annotationClass.isInstance(args[0])) {
                         return false;
@@ -358,12 +360,12 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
                         final Object paramVal = ent.getValue();
                         final Object otherParamVal = reflectionUtils.invokeMethod(/* throwException = */ false,
                                 args[0], paramName);
-                        if ((paramVal == null) != (otherParamVal == null)) {
-                            // Annotation values should never be null, but just to be safe
-                            return false;
-                        } else if (paramVal == null && otherParamVal == null) {
-                            return true;
-                        } else if (paramVal == null || !paramVal.equals(otherParamVal)) {
+                        // Annotation values should never be null, but just to be safe
+                        if (paramVal == null || otherParamVal == null) {
+                            if (paramVal != otherParamVal) {
+                                return false;
+                            }
+                        } else if (!paramVal.equals(otherParamVal)) {
                             return false;
                         }
                     }

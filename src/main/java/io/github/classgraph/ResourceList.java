@@ -95,7 +95,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      * Returns a list of all resources with the requested path. (There may be more than one resource with a given
      * path, from different classpath elements or modules, so this returns a {@link ResourceList} rather than a
      * single {@link Resource}.)
-     * 
+     *
      * @param resourcePath
      *            The path of a resource
      * @return A {@link ResourceList} of {@link Resource} objects in this list that have the given path (there may
@@ -149,7 +149,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
     public List<String> getPathsRelativeToClasspathElement() {
         final List<String> resourcePaths = new ArrayList<>(this.size());
         for (final Resource resource : this) {
-            resourcePaths.add(resource.getPath());
+            resourcePaths.add(resource.getPathRelativeToClasspathElement());
         }
         return resourcePaths;
     }
@@ -315,7 +315,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
     public interface ByteArrayConsumer {
         /**
          * Consume the complete content of a {@link Resource} as a byte array.
-         * 
+         *
          * @param resource
          *            The {@link Resource} used to load the byte array.
          * @param byteArray
@@ -333,7 +333,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
         /**
          * Consume the complete content of a {@link Resource} as a byte array, possibly throwing
          * {@link IOException}.
-         * 
+         *
          * @param resource
          *            The {@link Resource} used to load the byte array.
          * @param byteArray
@@ -348,7 +348,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      * Fetch the content of each {@link Resource} in this {@link ResourceList} as a byte array, pass the byte array
      * to the given {@link ByteArrayConsumer}, then close the underlying InputStream or release the underlying
      * ByteBuffer by calling {@link Resource#close()}.
-     * 
+     *
      * @param byteArrayConsumer
      *            The {@link ByteArrayConsumer}.
      * @param ignoreIOExceptions
@@ -377,7 +377,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      * Fetch the content of each {@link Resource} in this {@link ResourceList} as a byte array, pass the byte array
      * to the given {@link ByteArrayConsumer}, then close the underlying InputStream or release the underlying
      * ByteBuffer by calling {@link Resource#close()}.
-     * 
+     *
      * @param byteArrayConsumer
      *            The {@link ByteArrayConsumer}.
      * @throws IllegalArgumentException
@@ -394,7 +394,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      * to the given {@link ByteArrayConsumer}, then close the underlying InputStream or release the underlying
      * ByteBuffer by calling {@link Resource#close()} for each {@link Resource}. If an {@link IOException} occurs
      * while opening or reading from any resource, the resource is silently skipped.
-     * 
+     *
      * @param byteArrayConsumer
      *            The {@link ByteArrayConsumer}.
      */
@@ -412,7 +412,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      * Fetch the content of each {@link Resource} in this {@link ResourceList} as a byte array, pass the byte array
      * to the given {@link ByteArrayConsumer}, then close the underlying InputStream or release the underlying
      * ByteBuffer by calling {@link Resource#close()}.
-     * 
+     *
      * @param byteArrayConsumerThrowsIOException
      *            The {@link ByteArrayConsumerThrowsIOException}.
      * @throws IOException
@@ -434,7 +434,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
     public interface InputStreamConsumer {
         /**
          * Consume a {@link Resource} as an {@link InputStream}.
-         * 
+         *
          * @param resource
          *            The {@link Resource} used to open the {@link InputStream}.
          * @param inputStream
@@ -452,7 +452,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
         /**
          * Consume the complete content of a {@link Resource} as a byte array, possibly throwing
          * {@link IOException}.
-         * 
+         *
          * @param resource
          *            The {@link Resource} used to load the byte array.
          * @param inputStream
@@ -467,7 +467,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      * Fetch an {@link InputStream} for each {@link Resource} in this {@link ResourceList}, pass the
      * {@link InputStream} to the given {@link InputStreamConsumer}, then close the {@link InputStream} after the
      * {@link InputStreamConsumer} returns, by calling {@link Resource#close()} for each {@link Resource}.
-     * 
+     *
      * @param inputStreamConsumer
      *            The {@link InputStreamConsumer}.
      * @param ignoreIOExceptions
@@ -497,7 +497,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      * Fetch an {@link InputStream} for each {@link Resource} in this {@link ResourceList}, pass the
      * {@link InputStream} to the given {@link InputStreamConsumer}, then close the {@link InputStream} after the
      * {@link InputStreamConsumer} returns, by calling {@link Resource#close()} for each {@link Resource}.
-     * 
+     *
      * @param inputStreamConsumer
      *            The {@link InputStreamConsumer}.
      * @throws IllegalArgumentException
@@ -514,7 +514,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      * {@link InputStream} to the given {@link InputStreamConsumer}, then close the {@link InputStream} after the
      * {@link InputStreamConsumer} returns, by calling {@link Resource#close()} for each {@link Resource}. If an
      * {@link IOException} occurs while opening or reading from any resource, the resource is silently skipped.
-     * 
+     *
      * @param inputStreamConsumer
      *            The {@link InputStreamConsumer}.
      */
@@ -532,7 +532,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      * Fetch an {@link InputStream} for each {@link Resource} in this {@link ResourceList}, pass the
      * {@link InputStream} to the given {@link InputStreamConsumer}, then close the {@link InputStream} after the
      * {@link InputStreamConsumer} returns, by calling {@link Resource#close()}.
-     * 
+     *
      * @param inputStreamConsumerThrowsIOException
      *            The {@link InputStreamConsumerThrowsIOException}.
      * @throws IOException
@@ -555,7 +555,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
     public interface ByteBufferConsumer {
         /**
          * Consume a {@link Resource} as a {@link ByteBuffer}, possibly throwing {@link IOException}.
-         * 
+         *
          * @param resource
          *            The {@link Resource} whose content is reflected in the {@link ByteBuffer}.
          * @param byteBuffer
@@ -572,7 +572,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
     public interface ByteBufferConsumerThrowsIOException {
         /**
          * Consume the complete content of a {@link Resource} as a byte array.
-         * 
+         *
          * @param resource
          *            The {@link Resource} used to load the byte array, possibly throwing {@link IOException}.
          * @param byteBuffer
@@ -587,7 +587,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      * Read each {@link Resource} in this {@link ResourceList} as a {@link ByteBuffer}, pass the {@link ByteBuffer}
      * to the given {@link InputStreamConsumer}, then release the {@link ByteBuffer} after the
      * {@link ByteBufferConsumer} returns, by calling {@link Resource#close()} for each {@link Resource}.
-     * 
+     *
      * @param byteBufferConsumer
      *            The {@link ByteBufferConsumer}.
      * @param ignoreIOExceptions
@@ -616,7 +616,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      * Read each {@link Resource} in this {@link ResourceList} as a {@link ByteBuffer}, pass the {@link ByteBuffer}
      * to the given {@link InputStreamConsumer}, then release the {@link ByteBuffer} after the
      * {@link ByteBufferConsumer} returns, by calling {@link Resource#close()} for each {@link Resource}.
-     * 
+     *
      * @param byteBufferConsumer
      *            The {@link ByteBufferConsumer}.
      * @throws IllegalArgumentException
@@ -633,7 +633,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      * to the given {@link InputStreamConsumer}, then release the {@link ByteBuffer} after the
      * {@link ByteBufferConsumer} returns, by calling {@link Resource#close()} for each {@link Resource}. If an
      * {@link IOException} occurs while opening or reading from any resource, the resource is silently skipped.
-     * 
+     *
      * @param byteBufferConsumer
      *            The {@link ByteBufferConsumer}.
      */
@@ -651,7 +651,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      * Read each {@link Resource} in this {@link ResourceList} as a {@link ByteBuffer}, pass the {@link ByteBuffer}
      * to the given {@link InputStreamConsumer}, then release the {@link ByteBuffer} after the
      * {@link ByteBufferConsumer} returns, by calling {@link Resource#close()}.
-     * 
+     *
      * @param byteBufferConsumerThrowsIOException
      *            The {@link ByteBufferConsumerThrowsIOException}.
      * @throws IOException

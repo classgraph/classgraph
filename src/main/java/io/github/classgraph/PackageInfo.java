@@ -65,7 +65,7 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Deerialization constructor. */
+    /** Deserialization constructor. */
     PackageInfo() {
         // Empty
     }
@@ -133,7 +133,7 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
     }
 
     /**
-     * Get a the annotation on this package, or null if the package does not have the annotation.
+     * Get the annotation on this package, or null if the package does not have the annotation.
      * 
      * @param annotation
      *            The annotation.
@@ -146,7 +146,7 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
     }
 
     /**
-     * Get a the named annotation on this package, or null if the package does not have the named annotation.
+     * Get the named annotation on this package, or null if the package does not have the named annotation.
      *
      * @param annotationName
      *            The annotation name.
@@ -271,7 +271,7 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
     /**
      * Get the {@link ClassInfo} objects for all classes that are members of this package or a sub-package.
      *
-     * @return the the {@link ClassInfo} objects for all classes that are members of this package or a sub-package.
+     * @return the {@link ClassInfo} objects for all classes that are members of this package or a sub-package.
      */
     public ClassInfoList getClassInfoRecursive() {
         final Set<ClassInfo> reachableClassInfo = new HashSet<>();

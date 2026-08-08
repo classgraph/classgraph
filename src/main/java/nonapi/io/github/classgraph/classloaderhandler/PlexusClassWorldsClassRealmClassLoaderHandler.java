@@ -54,6 +54,8 @@ class PlexusClassWorldsClassRealmClassLoaderHandler extends URLClassLoaderHandle
      *
      * @param classRealmInstance
      *            the ClassRealm instance
+     * @param reflectionUtils
+     *            the reflection utils instance
      * @return true if classloader uses a parent-first strategy
      */
     private static boolean isParentFirstStrategy(final ClassLoader classRealmInstance,

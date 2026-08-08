@@ -81,6 +81,8 @@ public final class CollectionUtils {
     /**
      * Copy and sort a collection.
      *
+     * @param <T>
+     *            the element type
      * @param elts
      *            the collection to copy and sort
      * @return a sorted copy of the collection

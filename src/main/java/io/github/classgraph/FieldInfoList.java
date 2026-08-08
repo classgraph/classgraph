@@ -129,9 +129,9 @@ public class FieldInfoList extends MappableInfoList<FieldInfo> {
      */
     public FieldInfoList filter(final FieldInfoFilter filter) {
         final FieldInfoList fieldInfoFiltered = new FieldInfoList();
-        for (final FieldInfo resource : this) {
-            if (filter.accept(resource)) {
-                fieldInfoFiltered.add(resource);
+        for (final FieldInfo fieldInfo : this) {
+            if (filter.accept(fieldInfo)) {
+                fieldInfoFiltered.add(fieldInfo);
             }
         }
         return fieldInfoFiltered;

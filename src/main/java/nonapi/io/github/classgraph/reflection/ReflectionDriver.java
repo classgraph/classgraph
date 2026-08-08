@@ -298,8 +298,7 @@ abstract class ReflectionDriver {
      *            the object instance, or null for a static field.
      * @param fieldName
      *            The name of the field.
-     * @return The {@link Field} object for the requested field name, or null if no such field was found in the
-     *         class.
+     * @return The {@link Field} object for the requested field name (never null).
      * @throws Exception
      *             if the field could not be found
      */
@@ -323,8 +322,7 @@ abstract class ReflectionDriver {
      *            the class.
      * @param fieldName
      *            The name of the field.
-     * @return The {@link Field} object for the requested field name, or null if no such field was found in the
-     *         class.
+     * @return The {@link Field} object for the requested field name (never null).
      * @throws Exception
      *             if the field could not be found
      */
@@ -339,8 +337,7 @@ abstract class ReflectionDriver {
      *            the object instance, or null for a static field.
      * @param fieldName
      *            The name of the field.
-     * @return The {@link Field} object for the requested field name, or null if no such field was found in the
-     *         class.
+     * @return The {@link Field} object for the requested field name (never null).
      * @throws Exception
      *             if the field could not be found
      */
@@ -362,9 +359,9 @@ abstract class ReflectionDriver {
      *            The name of the method.
      * @param paramTypes
      *            The types of the parameters of the method. For primitive-typed parameters, use e.g. Integer.TYPE.
-     * @return The {@link Method} object for the matching method, or null if no such method was found in the class.
+     * @return The {@link Method} object for the matching method (never null).
      * @throws Exception
-     *             if the method could not be found.
+     *             if the method could not be found, or could not be made accessible.
      */
     protected Method findMethod(final Class<?> cls, final Object obj, final String methodName,
             final Class<?>... paramTypes) throws Exception {
@@ -405,9 +402,9 @@ abstract class ReflectionDriver {
      *            The name of the method.
      * @param paramTypes
      *            The types of the parameters of the method. For primitive-typed parameters, use e.g. Integer.TYPE.
-     * @return The {@link Method} object for the matching method, or null if no such method was found in the class.
+     * @return The {@link Method} object for the matching method (never null).
      * @throws Exception
-     *             if the method could not be found.
+     *             if the method could not be found, or could not be made accessible.
      */
     protected Method findStaticMethod(final Class<?> cls, final String methodName, final Class<?>... paramTypes)
             throws Exception {
@@ -423,9 +420,9 @@ abstract class ReflectionDriver {
      *            The name of the method.
      * @param paramTypes
      *            The types of the parameters of the method. For primitive-typed parameters, use e.g. Integer.TYPE.
-     * @return The {@link Method} object for the matching method, or null if no such method was found in the class.
+     * @return The {@link Method} object for the matching method (never null).
      * @throws Exception
-     *             if the method could not be found.
+     *             if the method could not be found, or could not be made accessible.
      */
     protected Method findInstanceMethod(final Object obj, final String methodName, final Class<?>... paramTypes)
             throws Exception {

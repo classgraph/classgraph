@@ -99,9 +99,6 @@ class FallbackClassLoaderHandler implements ClassLoaderHandler {
                 classpathOrder.reflectionUtils.getFieldVal(false, classLoader, "paths"), classLoader, scanSpec,
                 log);
         valid |= classpathOrder.addClasspathEntryObject(
-                classpathOrder.reflectionUtils.getFieldVal(false, classLoader, "paths"), classLoader, scanSpec,
-                log);
-        valid |= classpathOrder.addClasspathEntryObject(
                 classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getDir"), classLoader, scanSpec,
                 log);
         valid |= classpathOrder.addClasspathEntryObject(
@@ -285,8 +282,9 @@ class FallbackClassLoaderHandler implements ClassLoaderHandler {
      * Get the automatic package root prefixes for classpath elements obtained from this classloader.
      *
      * <p>
-     * Nothing is known about an unrecognized classloader, so look for the package roots that cannot
-     * collide with a real package name.
+     * Nothing is known about an unrecognized classloader, so look for all the common package roots. Note that this
+     * includes {@code "classes/"} and {@code "test-classes/"}, which are legal package names, so this is a
+     * heuristic -- see {@link ClassLoaderHandlerRegistry#DEFAULT_PACKAGE_ROOT_PREFIXES}.
      *
      * @return the package root prefixes.
      */

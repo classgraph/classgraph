@@ -229,6 +229,18 @@ public final class JSONSerializer {
     };
 
     /**
+     * Comparator for map entries whose keys could not be sorted before conversion to string form (i.e. keys that
+     * are not {@link Comparable}), so that JSON ordering is deterministic.
+     */
+    private static final Comparator<Entry<String, Object>> ENTRY_KEY_COMPARATOR = //
+            new Comparator<Entry<String, Object>>() {
+                @Override
+                public int compare(final Entry<String, Object> e1, final Entry<String, Object> e2) {
+                    return e1.getKey().compareTo(e2.getKey());
+                }
+            };
+
+    /**
      * Turn an object graph into a graph of JSON objects, arrays, and values.
      *
      * @param obj
@@ -311,11 +323,6 @@ public final class JSONSerializer {
                 convertedKeys[i] = JSONUtils.escapeJSONString(key == null ? "null" : key.toString());
             }
 
-            // Sort value strings lexicographically if values are not Comparable
-            if (!keysComparable) {
-                Arrays.sort(convertedKeys);
-            }
-
             // Convert map values to JSON values
             final Object[] convertedVals = new Object[n];
             for (int i = 0; i < n; i++) {
@@ -328,6 +335,13 @@ public final class JSONSerializer {
             final List<Entry<String, Object>> convertedKeyValPairs = new ArrayList<>(n);
             for (int i = 0; i < n; i++) {
                 convertedKeyValPairs.add(new SimpleEntry<>(convertedKeys[i], convertedVals[i]));
+            }
+
+            // If the keys were not Comparable, they could not be sorted above, so sort the key/value pairs
+            // by key string here instead, to give a deterministic order. (Sort the pairs, not the key array on
+            // its own -- sorting the keys separately from the values pairs each key with another key's value.)
+            if (!keysComparable) {
+                CollectionUtils.sortIfNotEmpty(convertedKeyValPairs, ENTRY_KEY_COMPARATOR);
             }
             jsonVal = new JSONObject(convertedKeyValPairs);
 
@@ -448,7 +462,10 @@ public final class JSONSerializer {
             jsonValToJSONString(referencedObjectId, jsonReferenceToId, includeNullValuedFields, depth, indentWidth,
                     buf);
 
-        } else if (jsonVal instanceof CharSequence || jsonVal instanceof Character || jsonVal.getClass().isEnum()) {
+            // (Test "instanceof Enum" rather than "getClass().isEnum()" -- an enum constant with a
+            // constant-specific class body is an instance of an anonymous subclass of the enum type, and
+            // Class#isEnum() is false for that subclass)
+        } else if (jsonVal instanceof CharSequence || jsonVal instanceof Character || jsonVal instanceof Enum) {
             // Serialize String, Character or enum val to quoted/escaped string
             buf.append('"');
             JSONUtils.escapeJSONString(jsonVal.toString(), buf);
@@ -511,6 +528,8 @@ public final class JSONSerializer {
      *            number of spaces to indent each level of JSON.
      * @param onlySerializePublicFields
      *            If true, only serialize public fields.
+     * @param reflectionUtils
+     *            the {@link ReflectionUtils} instance.
      * @return The object graph in JSON form.
      * @throws IllegalArgumentException
      *             If anything goes wrong during serialization.

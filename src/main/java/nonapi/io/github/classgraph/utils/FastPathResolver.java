@@ -222,7 +222,7 @@ public final class FastPathResolver {
      *
      * @param resolveBasePath
      *            The base path.
-     * @param relativePath
+     * @param relativePathRaw
      *            The path to resolve relative to the base path.
      * @return The resolved path.
      */
@@ -364,8 +364,8 @@ public final class FastPathResolver {
 
     /**
      * Strip away any "jar:" prefix from a filename URI, and convert it to a file path, handling possibly-broken
-     * mixes of filesystem and URI conventions. Returns null if relativePathStr is an "http(s):" path.
-     * 
+     * mixes of filesystem and URI conventions. An "http(s):" path is returned with its scheme prefix intact.
+     *
      * @param pathStr
      *            The path to resolve.
      * @return The resolved path.

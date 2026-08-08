@@ -204,10 +204,15 @@ public abstract class Slice implements Closeable {
                 if (closed.get()) {
                     throw new IOException("Already closed");
                 }
-                final long newOff = Math.min(currOff + n, sliceLength);
-                final long skipped = newOff - currOff;
-                currOff = newOff;
-                return skipped;
+                if (n <= 0L) {
+                    // InputStream#skip returns 0 for a non-positive argument, rather than seeking backwards
+                    return 0L;
+                }
+                // (Compute the number of remaining bytes first, rather than testing currOff + n, so that a
+                // huge n cannot overflow to a negative value)
+                final long numBytesToSkip = Math.min(n, sliceLength - currOff);
+                currOff += numBytesToSkip;
+                return numBytesToSkip;
             }
 
             @Override

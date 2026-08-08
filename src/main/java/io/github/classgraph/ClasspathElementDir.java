@@ -120,7 +120,7 @@ class ClasspathElementDir extends ClasspathElement {
                     try (DirectoryStream<Path> stream = Files.newDirectoryStream(libDirPath,
                             new DirectoryStream.Filter<Path>() {
                                 @Override
-                                public boolean accept(Path filePath) {
+                                public boolean accept(final Path filePath) {
                                     return filePath.toString().toLowerCase().endsWith(".jar")
                                             && Files.isRegularFile(filePath);
                                 }
@@ -248,6 +248,8 @@ class ClasspathElementDir extends ClasspathElement {
      *
      * @param resourcePath
      *            the {@link Path} for the resource
+     * @param attributes
+     *            the file attributes of the resource, or null if not yet known
      * @return the resource
      */
     private Resource newResource(final Path resourcePath, final BasicFileAttributes attributes) {

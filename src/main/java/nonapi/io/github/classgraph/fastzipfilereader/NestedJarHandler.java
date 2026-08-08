@@ -84,6 +84,7 @@ public class NestedJarHandler {
     /** The {@link ScanSpec}. */
     public final ScanSpec scanSpec;
 
+    /** The reflection utils instance. */
     public ReflectionUtils reflectionUtils;
 
     /**
@@ -428,6 +429,8 @@ public class NestedJarHandler {
      *            The {@link ScanSpec}.
      * @param interruptionChecker
      *            the interruption checker
+     * @param reflectionUtils
+     *            the {@link ReflectionUtils} instance
      */
     public NestedJarHandler(final ScanSpec scanSpec, final InterruptionChecker interruptionChecker,
             final ReflectionUtils reflectionUtils) {
@@ -456,7 +459,7 @@ public class NestedJarHandler {
      *            the filename
      * @return the sanitized filename
      */
-    private String sanitizeFilename(final String filename) {
+    private static String sanitizeFilename(final String filename) {
         return filename.replace('/', '_').replace('\\', '_').replace(':', '_').replace('?', '_').replace('&', '_')
                 .replace('=', '_').replace(' ', '_');
     }
@@ -480,16 +483,6 @@ public class NestedJarHandler {
         return tempFile;
     }
 
-    /**
-     * Attempt to remove a temporary file.
-     *
-     * @param tempFile
-     *            the temp file
-     * @throws IOException
-     *             If the temporary file could not be removed.
-     * @throws SecurityException
-     *             If the temporary file is inaccessible.
-     */
     /**
      * Remove any temporary files created during the scan, as requested by
      * {@link io.github.classgraph.ClassGraph#removeTemporaryFilesAfterScan()}.
@@ -520,6 +513,16 @@ public class NestedJarHandler {
         return true;
     }
 
+    /**
+     * Attempt to remove a temporary file.
+     *
+     * @param tempFile
+     *            the temp file
+     * @throws IOException
+     *             If the temporary file could not be removed.
+     * @throws SecurityException
+     *             If the temporary file is inaccessible.
+     */
     void removeTempFile(final File tempFile) throws IOException, SecurityException {
         if (tempFiles.remove(tempFile)) {
             Files.delete(tempFile.toPath());
@@ -733,7 +736,15 @@ public class NestedJarHandler {
         return new InputStream() {
             // Gen Inflater instance with nowrap set to true (needed by zip entries)
             private final AtomicBoolean closed = new AtomicBoolean();
+            /**
+             * The staging buffer that deflated bytes are read into from rawInputStream, and then handed to the
+             * inflater as its input. This must never be used as the destination of an inflate() call: the
+             * inflater keeps a reference to its input array, so inflating into this array would overwrite
+             * deflated bytes that the inflater has not consumed yet.
+             */
             private final byte[] buf = new byte[INFLATE_BUF_SIZE];
+            /** A separate destination buffer for the single-byte read() method. */
+            private final byte[] singleByteBuf = new byte[1];
             private static final int INFLATE_BUF_SIZE = 8192;
 
             @Override
@@ -743,11 +754,11 @@ public class NestedJarHandler {
                 } else if (inflater.finished()) {
                     return -1;
                 }
-                final int numDeflatedBytesRead = read(buf, 0, 1);
-                if (numDeflatedBytesRead < 0) {
+                final int numInflatedBytesRead = read(singleByteBuf, 0, 1);
+                if (numInflatedBytesRead < 0) {
                     return -1;
                 } else {
-                    return buf[0] & 0xff;
+                    return singleByteBuf[0] & 0xff;
                 }
             }
 
@@ -807,17 +818,18 @@ public class NestedJarHandler {
                     throw new IOException("InputStream is already closed");
                 } else if (numToSkip < 0) {
                     throw new IllegalArgumentException("numToSkip cannot be negative");
-                } else if (numToSkip == 0) {
+                } else if (numToSkip == 0 || inflater.finished()) {
+                    // (InputStream#skip returns 0 at the end of the stream, it does not return -1)
                     return 0;
-                } else if (inflater.finished()) {
-                    return -1;
                 }
+                // (Use a separate destination buffer -- buf is the inflater's input buffer, see above)
+                final byte[] skipBuf = new byte[(int) Math.min(numToSkip, INFLATE_BUF_SIZE)];
                 long totBytesSkipped = 0L;
-                for (;;) {
-                    final int readLen = (int) Math.min(numToSkip - totBytesSkipped, buf.length);
-                    final int numBytesRead = read(buf, 0, readLen);
+                while (totBytesSkipped < numToSkip) {
+                    final int readLen = (int) Math.min(numToSkip - totBytesSkipped, skipBuf.length);
+                    final int numBytesRead = read(skipBuf, 0, readLen);
                     if (numBytesRead > 0) {
-                        totBytesSkipped -= numBytesRead;
+                        totBytesSkipped += numBytesRead;
                     } else {
                         break;
                     }
@@ -1151,6 +1163,7 @@ public class NestedJarHandler {
      */
     private static volatile Method runFinalizationMethod;
 
+    /** Call {@code System.runFinalization()}, if it is available in this JDK. */
     public void runFinalizationMethod() {
         // Read the volatile field once, so that the method invoked cannot differ from the method tested. Two
         // threads racing here resolve the same method, so whichever write lands last is equivalent.
@@ -1169,6 +1182,12 @@ public class NestedJarHandler {
         }
     }
 
+    /**
+     * Close a direct {@link ByteBuffer}, so that its memory is unmapped without waiting for garbage collection.
+     *
+     * @param backingByteBuffer
+     *            the direct {@link ByteBuffer} to close.
+     */
     public void closeDirectByteBuffer(final ByteBuffer backingByteBuffer) {
         FileUtils.closeDirectByteBuffer(backingByteBuffer, reflectionUtils, /* log = */ null);
     }

@@ -33,11 +33,14 @@ import java.io.InputStream;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.security.ProtectionDomain;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
@@ -84,7 +87,7 @@ public class ClassGraphClassLoader extends ClassLoader {
                 && !scanSpec.overrideClasspath.isEmpty();
         final boolean classloadersOverridden = scanSpec.overrideClassLoaders != null
                 && !scanSpec.overrideClassLoaders.isEmpty();
-        final boolean clasloadersAdded = scanSpec.addedClassLoaders != null
+        final boolean classLoadersAdded = scanSpec.addedClassLoaders != null
                 && !scanSpec.addedClassLoaders.isEmpty();
 
         // Only try environment classloaders if classpath and/or classloaders are not overridden
@@ -120,7 +123,7 @@ public class ClassGraphClassLoader extends ClassLoader {
         }
 
         // If classloaders were added, try loading through those classloaders
-        if (clasloadersAdded) {
+        if (classLoadersAdded) {
             addedClassLoaderDelegationOrder = new LinkedHashSet<>();
             addedClassLoaderDelegationOrder.addAll(scanSpec.addedClassLoaders);
             // Remove duplicates
@@ -313,6 +316,99 @@ public class ClassGraphClassLoader extends ClassLoader {
         return scanResult.getClasspathURLs().toArray(new URL[0]);
     }
 
+    /**
+     * Get the classloaders to delegate resource lookups to, in the same order that {@link #findClass(String)}
+     * delegates classloading to them. The null {@link ClassLoader} that stands for the bootstrap classloader is
+     * not included, since the bootstrap classloader is searched by calling the {@code super} method (the parent
+     * of this classloader is null).
+     *
+     * @return the classloaders to delegate to, in delegation order.
+     */
+    private List<ClassLoader> getResourceDelegationOrder() {
+        final List<ClassLoader> delegationOrder = new ArrayList<>();
+        if (overrideClassLoaders != null) {
+            // If the classloaders or the classpath were overridden, only the override classloaders are used
+            delegationOrder.addAll(overrideClassLoaders);
+        } else {
+            // N.B. environmentClassLoaderDelegationOrder is null if the classpath or the classloaders were
+            // overridden, and its first entry is a null ClassLoader, standing for the bootstrap classloader
+            if (environmentClassLoaderDelegationOrder != null) {
+                for (final ClassLoader envClassLoader : environmentClassLoaderDelegationOrder) {
+                    if (envClassLoader != null) {
+                        delegationOrder.add(envClassLoader);
+                    }
+                }
+            }
+            if (classpathClassLoader != null) {
+                delegationOrder.add(classpathClassLoader);
+            }
+        }
+        // N.B. addedClassLoaderDelegationOrder is null if no classloaders were added
+        if (addedClassLoaderDelegationOrder != null) {
+            delegationOrder.addAll(addedClassLoaderDelegationOrder);
+        }
+        return delegationOrder;
+    }
+
+    /**
+     * Whether the bootstrap classloader should be searched before the classloaders returned by
+     * {@link #getResourceDelegationOrder()}. This is the case when the classpath and the classloaders were not
+     * overridden, since then the first entry of the environment classloader delegation order is a null
+     * {@link ClassLoader}, standing for the bootstrap classloader. If the classpath or the classloaders were
+     * overridden, the bootstrap classloader is only searched as a last resort.
+     *
+     * @return true if the bootstrap classloader should be searched first.
+     */
+    private boolean bootstrapClassLoaderFirst() {
+        return environmentClassLoaderDelegationOrder != null;
+    }
+
+    /**
+     * Add resource URLs to a map from URL string to URL, so that the URLs are deduplicated but stay in the order
+     * they were added in.
+     *
+     * @param resources
+     *            the resource URLs to add (may be null).
+     * @param resourceURLs
+     *            the map to add the resource URLs to.
+     */
+    private static void addResourceURLs(final Enumeration<URL> resources, final Map<String, URL> resourceURLs) {
+        if (resources != null) {
+            while (resources.hasMoreElements()) {
+                final URL resource = resources.nextElement();
+                if (resource != null) {
+                    // Key on the URL string rather than the URL, since URL#equals(Object) and URL#hashCode()
+                    // can perform a DNS lookup
+                    resourceURLs.put(resource.toString(), resource);
+                }
+            }
+        }
+    }
+
+    /**
+     * Open the bootstrap classloader's copy of a resource.
+     *
+     * <p>
+     * N.B. {@code super.getResourceAsStream(path)} is not called, since {@link ClassLoader#getResourceAsStream}
+     * calls the overridden {@link #getResource(String)} method, which would repeat the whole search.
+     *
+     * @param path
+     *            the resource path.
+     * @return an {@link InputStream} for the resource, or null if the bootstrap classloader does not have the
+     *         resource, or if it could not be opened.
+     */
+    private InputStream openBootstrapResource(final String path) {
+        final URL resource = super.getResource(path);
+        if (resource != null) {
+            try {
+                return resource.openStream();
+            } catch (final IOException e) {
+                // Fall through
+            }
+        }
+        return null;
+    }
+
     /* (non-Javadoc)
      * @see java.lang.ClassLoader#getResource(java.lang.String)
      */
@@ -320,34 +416,31 @@ public class ClassGraphClassLoader extends ClassLoader {
     public URL getResource(final String path) {
         // This order should match the order in findClass(String)
 
-        // Try loading resource from environment classloader(s)
-        if (!environmentClassLoaderDelegationOrder.isEmpty()) {
-            for (final ClassLoader envClassLoader : environmentClassLoaderDelegationOrder) {
-                final URL resource = envClassLoader.getResource(path);
-                if (resource != null) {
-                    return resource;
-                }
+        // Try loading resource from the bootstrap classloader
+        if (bootstrapClassLoaderFirst()) {
+            final URL resource = super.getResource(path);
+            if (resource != null) {
+                return resource;
             }
         }
 
-        // Try loading resource from overridden or added classloader(s)
-        if (!addedClassLoaderDelegationOrder.isEmpty()) {
-            for (final ClassLoader additionalClassLoader : addedClassLoaderDelegationOrder) {
-                final URL resource = additionalClassLoader.getResource(path);
-                if (resource != null) {
-                    return resource;
-                }
+        // Try loading resource from the override, environment, classpath and added classloader(s)
+        for (final ClassLoader classLoader : getResourceDelegationOrder()) {
+            final URL resource = classLoader.getResource(path);
+            if (resource != null) {
+                return resource;
             }
         }
 
         // If the above attempts fail, try retrieving resource from ScanResult.
         // This will throw an exception if ScanResult has already been closed (#399).
         final ResourceList resourceList = scanResult.getResourcesWithPath(path);
-        if (resourceList == null || resourceList.isEmpty()) {
-            return super.getResource(path);
-        } else {
+        if (resourceList != null && !resourceList.isEmpty()) {
             return resourceList.get(0).getURL();
         }
+
+        // As a last resort, try the bootstrap classloader, if it was not already tried
+        return bootstrapClassLoaderFirst() ? null : super.getResource(path);
     }
 
     /* (non-Javadoc)
@@ -355,49 +448,37 @@ public class ClassGraphClassLoader extends ClassLoader {
      */
     @Override
     public Enumeration<URL> getResources(final String path) throws IOException {
-        // This order should match the order in findClass(String)
+        // This order should match the order in findClass(String). Unlike getResource(String), which returns
+        // only the first resource found, the resources found by every classloader are returned, in delegation
+        // order, deduplicated by URL.
+        final Map<String, URL> resourceURLs = new LinkedHashMap<>();
 
-        // Try loading resources from environment classloader(s)
-        if (!environmentClassLoaderDelegationOrder.isEmpty()) {
-            for (final ClassLoader envClassLoader : environmentClassLoaderDelegationOrder) {
-                final Enumeration<URL> resources = envClassLoader.getResources(path);
-                if (resources != null && resources.hasMoreElements()) {
-                    return resources;
-                }
-            }
+        // Try loading resources from the bootstrap classloader
+        if (bootstrapClassLoaderFirst()) {
+            addResourceURLs(super.getResources(path), resourceURLs);
         }
 
-        // Try loading resources from overridden or added classloader(s)
-        if (!addedClassLoaderDelegationOrder.isEmpty()) {
-            for (final ClassLoader additionalClassLoader : addedClassLoaderDelegationOrder) {
-                final Enumeration<URL> resources = additionalClassLoader.getResources(path);
-                if (resources != null && resources.hasMoreElements()) {
-                    return resources;
-                }
-            }
+        // Try loading resources from the override, environment, classpath and added classloader(s)
+        for (final ClassLoader classLoader : getResourceDelegationOrder()) {
+            addResourceURLs(classLoader.getResources(path), resourceURLs);
         }
 
-        // If the above attempts fail, try retrieving resource from ScanResult.
+        // Also add any resources found by the scan.
         // This will throw an exception if ScanResult has already been closed (#399).
         final ResourceList resourceList = scanResult.getResourcesWithPath(path);
-        if (resourceList == null || resourceList.isEmpty()) {
-            return Collections.emptyEnumeration();
-        } else {
-            return new Enumeration<URL>() {
-                /** The idx. */
-                int idx;
-
-                @Override
-                public boolean hasMoreElements() {
-                    return idx < resourceList.size();
-                }
-
-                @Override
-                public URL nextElement() {
-                    return resourceList.get(idx++).getURL();
-                }
-            };
+        if (resourceList != null) {
+            for (final Resource resource : resourceList) {
+                final URL resourceURL = resource.getURL();
+                resourceURLs.put(resourceURL.toString(), resourceURL);
+            }
         }
+
+        // As a last resort, try the bootstrap classloader, if it was not already tried
+        if (!bootstrapClassLoaderFirst()) {
+            addResourceURLs(super.getResources(path), resourceURLs);
+        }
+
+        return Collections.enumeration(resourceURLs.values());
     }
 
     /* (non-Javadoc)
@@ -407,37 +488,34 @@ public class ClassGraphClassLoader extends ClassLoader {
     public InputStream getResourceAsStream(final String path) {
         // This order should match the order in findClass(String)
 
-        // Try opening resource from environment classloader(s)
-        if (!environmentClassLoaderDelegationOrder.isEmpty()) {
-            for (final ClassLoader envClassLoader : environmentClassLoaderDelegationOrder) {
-                final InputStream inputStream = envClassLoader.getResourceAsStream(path);
-                if (inputStream != null) {
-                    return inputStream;
-                }
+        // Try opening resource from the bootstrap classloader
+        if (bootstrapClassLoaderFirst()) {
+            final InputStream inputStream = openBootstrapResource(path);
+            if (inputStream != null) {
+                return inputStream;
             }
         }
 
-        // Try opening resource from overridden or added classloader(s)
-        if (!addedClassLoaderDelegationOrder.isEmpty()) {
-            for (final ClassLoader additionalClassLoader : addedClassLoaderDelegationOrder) {
-                final InputStream inputStream = additionalClassLoader.getResourceAsStream(path);
-                if (inputStream != null) {
-                    return inputStream;
-                }
+        // Try opening resource from the override, environment, classpath and added classloader(s)
+        for (final ClassLoader classLoader : getResourceDelegationOrder()) {
+            final InputStream inputStream = classLoader.getResourceAsStream(path);
+            if (inputStream != null) {
+                return inputStream;
             }
         }
 
         // If the above attempts fail, try opening resource from ScanResult.
         // This will throw an exception if ScanResult has already been closed (#399).
         final ResourceList resourceList = scanResult.getResourcesWithPath(path);
-        if (resourceList == null || resourceList.isEmpty()) {
-            return super.getResourceAsStream(path);
-        } else {
+        if (resourceList != null && !resourceList.isEmpty()) {
             try {
                 return resourceList.get(0).open();
             } catch (final IOException e) {
                 return null;
             }
         }
+
+        // As a last resort, try the bootstrap classloader, if it was not already tried
+        return bootstrapClassLoaderFirst() ? null : openBootstrapResource(path);
     }
 }

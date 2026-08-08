@@ -51,6 +51,8 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
      * 
      * @param classLoader
      *            the {@link ClassLoader}.
+     * @param reflectionUtils
+     *            the reflection utils instance.
      * @return true if this classloader delegates to its parent.
      */
     private static boolean isParentFirst(final ClassLoader classLoader, final ReflectionUtils reflectionUtils) {

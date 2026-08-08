@@ -38,7 +38,7 @@ import nonapi.io.github.classgraph.utils.LogNode;
 /** A wrapper used to pair annotation parameter names with annotation parameter values. */
 public class AnnotationParameterValue extends ScanResultObject
         implements HasName, Comparable<AnnotationParameterValue> {
-    /** The the parameter name. */
+    /** The parameter name. */
     private String name;
 
     /** The parameter value. */
@@ -53,7 +53,7 @@ public class AnnotationParameterValue extends ScanResultObject
      * Constructor.
      *
      * @param name
-     *            The annotation paramater name.
+     *            The annotation parameter name.
      * @param value
      *            The annotation parameter value.
      */
@@ -193,11 +193,12 @@ public class AnnotationParameterValue extends ScanResultObject
         if (diff != 0) {
             return diff;
         }
-        if (value.equals(other.value)) {
+        // N.B. value is null for an AnnotationParameterValue that has been deserialized but not yet populated
+        if (value == null ? other.value == null : value.equals(other.value)) {
             return 0;
         }
         // Use toString() order (which can be slow) as a last-ditch effort -- only happens
-        // if the annotation has multiple parameters of the same name but different value. 
+        // if the annotation has multiple parameters of the same name but different value.
         final Object p0 = getValue();
         final Object p1 = other.getValue();
         return p0 == null || p1 == null ? (p0 == null ? 0 : 1) - (p1 == null ? 0 : 1)
@@ -259,6 +260,8 @@ public class AnnotationParameterValue extends ScanResultObject
     /**
      * To string, param value only.
      *
+     * @param useSimpleNames
+     *            whether to use simple names for classes
      * @param buf
      *            the buf
      */

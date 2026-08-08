@@ -52,7 +52,12 @@ public final class LogNode {
     // Mitigate log4j2 vulnerability (CVE-2021-44228), in case log4j is added to the classpath as the logger
     // https://blog.cloudflare.com/inside-the-log4j2-vulnerability-cve-2021-44228/
     static {
-        System.getProperties().setProperty("log4j2.formatMsgNoLookups", "true");
+        try {
+            System.getProperties().setProperty("log4j2.formatMsgNoLookups", "true");
+        } catch (final SecurityException e) {
+            // Ignore -- if the system properties cannot be read or written, the mitigation cannot be applied,
+            // but this must not throw ExceptionInInitializerError, which would make LogNode unusable
+        }
     }
 
     /** The logger. */
@@ -446,7 +451,7 @@ public final class LogNode {
      */
     public void flush() {
         if (parent != null) {
-            throw new IllegalArgumentException("Only flush the toplevel LogNode");
+            throw new IllegalStateException("Only flush the toplevel LogNode");
         }
         if (!children.isEmpty()) {
             final String logOutput = this.toString();

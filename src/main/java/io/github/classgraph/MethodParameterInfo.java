@@ -39,7 +39,7 @@ import nonapi.io.github.classgraph.utils.Assert;
 
 /**
  * Information on the parameters of a method.
- * 
+ *
  * @author lukehutch
  */
 public class MethodParameterInfo {
@@ -106,7 +106,7 @@ public class MethodParameterInfo {
     /**
      * Method parameter name. May be null, for unnamed parameters (e.g. synthetic parameters), or if compiled for
      * JDK version lower than 8, or if compiled for JDK version 8+ but without the commandline switch `-parameters`.
-     * 
+     *
      * @return The method parameter name.
      */
     public String getName() {
@@ -116,7 +116,7 @@ public class MethodParameterInfo {
     /**
      * Method parameter modifiers. May be zero, if no modifier bits set, or if compiled for JDK version lower than
      * 8, or if compiled for JDK version 8+ but without the commandline switch `-parameters`.
-     * 
+     *
      * @return The method parameter modifiers.
      */
     public int getModifiers() {
@@ -126,7 +126,7 @@ public class MethodParameterInfo {
     /**
      * Get the method parameter modifiers as a String, e.g. "final". For the modifier bits, call
      * {@link #getModifiers()}.
-     * 
+     *
      * @return The modifiers for the method parameter, as a String.
      */
     public String getModifiersStr() {
@@ -138,7 +138,7 @@ public class MethodParameterInfo {
     /**
      * Method parameter type signature, possibly including generic type information (or null if no type signature
      * information available for this parameter).
-     * 
+     *
      * @return The method type signature, if available, else null.
      */
     public TypeSignature getTypeSignature() {
@@ -147,7 +147,7 @@ public class MethodParameterInfo {
 
     /**
      * Method parameter type descriptor.
-     * 
+     *
      * @return The method type descriptor.
      */
     public TypeSignature getTypeDescriptor() {
@@ -156,7 +156,7 @@ public class MethodParameterInfo {
 
     /**
      * Method parameter type signature, or if not available, method type descriptor.
-     * 
+     *
      * @return The method type signature, if present, otherwise the method type descriptor.
      */
     public TypeSignature getTypeSignatureOrTypeDescriptor() {
@@ -164,9 +164,9 @@ public class MethodParameterInfo {
     }
 
     /**
-     * Method parameter annotation info (or null if no annotations).
-     * 
-     * @return {@link AnnotationInfo} for any annotations on this method parameter.
+     * Method parameter annotation info.
+     *
+     * @return {@link AnnotationInfo} for any annotations on this method parameter, or the empty list if none.
      */
     public AnnotationInfoList getAnnotationInfo() {
         if (!scanResult.scanSpec.enableAnnotationInfo) {
@@ -182,9 +182,9 @@ public class MethodParameterInfo {
     }
 
     /**
-     * Get a the non-{@link Repeatable} annotation on this method, or null if the method parameter does not have the
+     * Get the non-{@link Repeatable} annotation on this method, or null if the method parameter does not have the
      * annotation. (Use {@link #getAnnotationInfoRepeatable(Class)} for {@link Repeatable} annotations.)
-     * 
+     *
      * @param annotation
      *            The annotation.
      * @return An {@link AnnotationInfo} object representing the annotation on this method parameter, or null if the
@@ -196,7 +196,7 @@ public class MethodParameterInfo {
     }
 
     /**
-     * Get a the named non-{@link Repeatable} annotation on this method, or null if the method parameter does not
+     * Get the named non-{@link Repeatable} annotation on this method, or null if the method parameter does not
      * have the named annotation. (Use {@link #getAnnotationInfoRepeatable(String)} for {@link Repeatable}
      * annotations.)
      *
@@ -210,9 +210,9 @@ public class MethodParameterInfo {
     }
 
     /**
-     * Get a the {@link Repeatable} annotation on this method, or the empty list if the method parameter does not
+     * Get the {@link Repeatable} annotation on this method, or the empty list if the method parameter does not
      * have the annotation.
-     * 
+     *
      * @param annotation
      *            The annotation.
      * @return An {@link AnnotationInfoList} containing all instances of the annotation on this method parameter, or
@@ -224,7 +224,7 @@ public class MethodParameterInfo {
     }
 
     /**
-     * Get a the named {@link Repeatable} annotation on this method, or the empty list if the method parameter does
+     * Get the named {@link Repeatable} annotation on this method, or the empty list if the method parameter does
      * not have the named annotation.
      *
      * @param annotationName
@@ -284,7 +284,7 @@ public class MethodParameterInfo {
 
     /**
      * Returns true if this method parameter is final.
-     * 
+     *
      * @return True if this method parameter is final.
      */
     public boolean isFinal() {
@@ -293,7 +293,7 @@ public class MethodParameterInfo {
 
     /**
      * Returns true if this method parameter is synthetic.
-     * 
+     *
      * @return True if this method parameter is synthetic.
      */
     public boolean isSynthetic() {
@@ -302,7 +302,7 @@ public class MethodParameterInfo {
 
     /**
      * Returns true if this method parameter is mandated.
-     * 
+     *
      * @return True if this method parameter is mandated.
      */
     public boolean isMandated() {
@@ -339,7 +339,7 @@ public class MethodParameterInfo {
 
     /**
      * Convert modifiers into a string representation, e.g. "public static final".
-     * 
+     *
      * @param modifiers
      *            The field or method modifiers.
      * @param buf

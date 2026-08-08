@@ -74,7 +74,10 @@ public class SimpleThreadFactory implements java.util.concurrent.ThreadFactory {
             final Method getSecurityManager = System.class.getDeclaredMethod("getSecurityManager");
             final Object securityManager = getSecurityManager.invoke(null);
             if (securityManager != null) {
-                final Method getThreadGroup = securityManager.getClass().getDeclaredMethod("getThreadGroup");
+                // (Use getMethod() rather than getDeclaredMethod(), since getThreadGroup() is a public method
+                // inherited from SecurityManager -- an installed security manager is almost always a subclass
+                // that does not redeclare it, and getDeclaredMethod() would not find it in that case)
+                final Method getThreadGroup = securityManager.getClass().getMethod("getThreadGroup");
                 securityManagerThreadGroup = (ThreadGroup) getThreadGroup.invoke(securityManager);
             }
         } catch (final Throwable t) {

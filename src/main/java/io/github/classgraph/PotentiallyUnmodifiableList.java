@@ -41,7 +41,7 @@ import java.util.ListIterator;
  */
 class PotentiallyUnmodifiableList<T> extends ArrayList<T> {
     /** serialVersionUID. */
-    static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
     /** Whether or not the list is modifiable. */
     boolean modifiable = true;

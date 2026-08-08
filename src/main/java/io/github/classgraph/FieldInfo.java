@@ -84,6 +84,8 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
      *            The static constant value the field is initialized to, if any.
      * @param annotationInfo
      *            {@link AnnotationInfo} for any annotations on the field.
+     * @param typeAnnotationDecorators
+     *            the type annotation decorators to apply to the parsed field type, or null if none.
      */
     FieldInfo(final String definingClassName, final String fieldName, final int modifiers,
             final String typeDescriptorStr, final String typeSignatureStr, final Object constantInitializerValue,
@@ -101,7 +103,7 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
 
     /**
      * Deprecated -- use {@link #getModifiersStr()} instead.
-     * 
+     *
      * @deprecated Use {@link #getModifiersStr()} instead.
      * @return The field modifiers, as a string.
      */
@@ -112,7 +114,7 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
 
     /**
      * Get the field modifiers as a string, e.g. "public static final". For the modifier bits, call getModifiers().
-     * 
+     *
      * @return The field modifiers, as a string.
      */
     @Override
@@ -124,7 +126,7 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
 
     /**
      * Returns true if this field is a transient field.
-     * 
+     *
      * @return True if the field is transient.
      */
     public boolean isTransient() {
@@ -133,7 +135,7 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
 
     /**
      * Returns true if this field is an enum constant.
-     * 
+     *
      * @return True if the field is an enum constant.
      */
     public boolean isEnum() {
@@ -143,7 +145,7 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
     /**
      * Returns the parsed type descriptor for the field, which will not include type parameters. If you need generic
      * type parameters, call {@link #getTypeSignature()} instead.
-     * 
+     *
      * @return The parsed type descriptor string for the field.
      */
     @Override
@@ -190,7 +192,7 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
      * Returns the parsed type signature for the field, possibly including type parameters. If this returns null,
      * indicating that no type signature information is available for this field, call {@link #getTypeDescriptor()}
      * instead.
-     * 
+     *
      * @return The parsed type signature for the field, or null if not available.
      * @throws IllegalArgumentException
      *             if the field type signature cannot be parsed (this should only be thrown in the case of classfile
@@ -226,7 +228,7 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
      * Returns the type signature for the field, possibly including type parameters. If the type signature is null,
      * indicating that no type signature information is available for this field, returns the type descriptor
      * instead.
-     * 
+     *
      * @return The parsed type signature for the field, or if not available, the parsed type descriptor for the
      *         field.
      */
@@ -252,7 +254,7 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
      * assigned as a constant in the field definition itself, or whether it is assigned manually in static or
      * non-static class initializer blocks or the constructor -- so your mileage may vary in being able to extract
      * constant initializer values.
-     * 
+     *
      * @return The initializer value, if this field has a constant initializer value, or null if none.
      */
     public Object getConstantInitializerValue() {
@@ -267,7 +269,7 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
 
     /**
      * Load the class this field is associated with, and get the {@link Field} reference for this field.
-     * 
+     *
      * @return The {@link Field} reference for this field.
      * @throws IllegalArgumentException
      *             if the class can't be loaded or the field does not exist.
@@ -328,6 +330,8 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
      *            the map from class name to {@link ClassInfo}.
      * @param refdClassInfo
      *            the referenced class info
+     * @param log
+     *            the log
      */
     @Override
     protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
@@ -443,7 +447,9 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
             if (val instanceof String) {
                 buf.append('"').append(((String) val).replace("\\", "\\\\").replace("\"", "\\\"")).append('"');
             } else if (val instanceof Character) {
-                buf.append('\'').append(((Character) val).toString().replace("\\", "\\\\").replaceAll("'", "\\'"))
+                // N.B. use replace() rather than replaceAll() -- in a replaceAll() replacement string, a
+                // backslash escapes the character that follows it, so the backslash would be dropped
+                buf.append('\'').append(((Character) val).toString().replace("\\", "\\\\").replace("'", "\\'"))
                         .append('\'');
             } else {
                 buf.append(val == null ? "null" : val.toString());

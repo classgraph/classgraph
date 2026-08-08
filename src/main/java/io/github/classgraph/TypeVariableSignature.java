@@ -86,10 +86,10 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
      * the type parameter with the same name (e.g. "T extends com.xyz.Cls").
      * 
      * @return the type parameter (e.g. "T extends com.xyz.Cls", or simply "T" if the type parameter does not have
-     *         any bounds).
+     *         any bounds). If no type parameter of the same name is declared by the defining method or the
+     *         enclosing class, an unbounded type parameter with just the type variable's name is returned (#706).
      * @throws IllegalArgumentException
-     *             if a type parameter with the same name as the type variable could not be found in the defining
-     *             method or the enclosing class.
+     *             if the enclosing class was not found during the scan.
      */
     public TypeParameter resolve() {
         if (typeParameterCached != null) {
@@ -349,7 +349,7 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
     /**
      * Returns the type variable along with its type bound, if available (e.g. "X extends xyz.Cls"). You can get
      * this in structured form by calling {@link #resolve()}. Returns just the type variable if there is no type
-     * bound, or if no type bound is known (i.e. if {@link #resolve()} returns null).
+     * bound, or if no type bound is known (i.e. if {@link #resolve()} throws).
      * 
      * @return The string representation.
      */

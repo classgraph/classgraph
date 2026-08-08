@@ -697,6 +697,8 @@ public class JSONDeserializer {
      *            The class reference for the type that the JSON should conform to.
      * @param json
      *            the JSON string to deserialize.
+     * @param reflectionUtils
+     *            the {@link ReflectionUtils} instance.
      * @return The object graph after deserialization.
      * @throws IllegalArgumentException
      *             If anything goes wrong during deserialization.
@@ -783,6 +785,8 @@ public class JSONDeserializer {
      *            The name of the field to set with the result.
      * @param json
      *            the JSON string to deserialize.
+     * @param reflectionUtils
+     *            the {@link ReflectionUtils} instance.
      * @throws IllegalArgumentException
      *             If anything goes wrong during deserialization.
      */

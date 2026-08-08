@@ -54,7 +54,7 @@ import nonapi.io.github.classgraph.utils.StringUtils;
  * A classfile binary format parser. Implements its own buffering to avoid the overhead of using DataInputStream.
  * This class should only be used by a single thread at a time, but can be re-used to scan multiple classfiles in
  * sequence, to avoid re-allocating buffer memory.
- * 
+ *
  * <p>
  * See <a href="https://docs.oracle.com/javase/specs/jvms/se16/html/jvms-4.html">the class file format spec</a>.
  */
@@ -318,7 +318,7 @@ class Classfile {
                     }
                 }
                 if (classResource != null) {
-                    // Found class resource 
+                    // Found class resource
                     if (log != null) {
                         // Log the extended scan as a child LogNode of the current class' scan log, since the
                         // external class is not scanned at the regular place in the classpath element hierarchy
@@ -921,7 +921,7 @@ class Classfile {
             return Double.longBitsToDouble(cpReadLong(cpIdx));
         default:
             // ClassGraph doesn't expect other types
-            // (N.B. in particular, enum values are not stored in the constant pool, so don't need to be handled)  
+            // (N.B. in particular, enum values are not stored in the constant pool, so don't need to be handled)
             throw new ClassfileFormatException("Unknown field constant pool tag " + tag + ", "
                     + "cannot continue reading class. Please report this at "
                     + "https://github.com/classgraph/classgraph/issues");
@@ -961,7 +961,7 @@ class Classfile {
      *             If an IO exception occurs.
      */
     private Object readAnnotationElementValue() throws IOException {
-        final int tag = (char) reader.readUnsignedByte();
+        final int tag = reader.readUnsignedByte();
         // This list of element_value tags is complete and up to date as of JDK 26 (JVMS 26 table 4.7.16.1-A).
         // No tag has been added since annotations were introduced in Java SE 5.
         switch (tag) {
@@ -1334,7 +1334,7 @@ class Classfile {
 
     /**
      * Read basic class information.
-     * 
+     *
      * @throws IOException
      *             if an I/O exception occurs.
      * @throws ClassfileFormatException
@@ -1556,7 +1556,7 @@ class Classfile {
             String methodTypeSignatureStr = null;
             // Always enable MethodInfo for annotations (this is how annotation constants are defined)
             final boolean enableMethodInfo = scanSpec.enableMethodInfo || isAnnotation;
-            if (enableMethodInfo || isAnnotation) { // Annotations store defaults in method_info
+            if (enableMethodInfo) {
                 final int methodNameCpIdx = reader.readUnsignedShort();
                 methodName = getConstantPoolString(methodNameCpIdx);
                 final int methodTypeDescriptorCpIdx = reader.readUnsignedShort();
@@ -1573,7 +1573,7 @@ class Classfile {
             boolean methodHasBody = false;
             int minLineNum = 0;
             int maxLineNum = 0;
-            if (!methodIsVisible || (!enableMethodInfo && !isAnnotation)) {
+            if (!methodIsVisible || !enableMethodInfo) {
                 // Skip method attributes
                 for (int j = 0; j < attributesCount; j++) {
                     reader.skip(2); // attribute_name_index
@@ -1669,7 +1669,7 @@ class Classfile {
                                     throwsTypeIndex = -1;
                                 } else if (targetType == 0x12) {
                                     // Type in bound of type parameter declaration of generic method
-                                    // or constructor    
+                                    // or constructor
                                     typeParameterIndex = reader.readUnsignedByte();
                                     boundIndex = reader.readUnsignedByte();
                                     formalParameterIndex = -1;
@@ -1693,7 +1693,7 @@ class Classfile {
                                     formalParameterIndex = -1;
                                     throwsTypeIndex = -1;
                                 } else if (targetType == 0x15) {
-                                    // Receiver type of method or constructor   
+                                    // Receiver type of method or constructor
                                     // (empty target)
                                     typeParameterIndex = -1;
                                     boundIndex = -1;
@@ -1701,13 +1701,13 @@ class Classfile {
                                     throwsTypeIndex = -1;
                                 } else if (targetType == 0x16) {
                                     // Type in formal parameter declaration of method, constructor,
-                                    // or lambda expression    
+                                    // or lambda expression
                                     typeParameterIndex = -1;
                                     boundIndex = -1;
                                     formalParameterIndex = reader.readUnsignedByte();
                                     throwsTypeIndex = -1;
                                 } else if (targetType == 0x17) {
-                                    // Type in throws clause of method or constructor   
+                                    // Type in throws clause of method or constructor
                                     typeParameterIndex = -1;
                                     boundIndex = -1;
                                     formalParameterIndex = -1;
@@ -1745,7 +1745,7 @@ class Classfile {
                                                     && typeParameterIndex < typeParameters.size()) {
                                                 final TypeParameter typeParameter = typeParameters
                                                         .get(typeParameterIndex);
-                                                // boundIndex == 0 => class bound; boundIndex > 0 => interface bound 
+                                                // boundIndex == 0 => class bound; boundIndex > 0 => interface bound
                                                 if (boundIndex == 0) {
                                                     final ReferenceTypeSignature classBound = typeParameter
                                                             .getClassBound();
@@ -1765,12 +1765,12 @@ class Classfile {
                                             // else this is a method type descriptor, not a method type signature,
                                             // so there are no type parameters
                                         } else if (targetType == 0x14) {
-                                            // Return type of method, or type of newly constructed object 
+                                            // Return type of method, or type of newly constructed object
                                             methodTypeSignature.getResultType().addTypeAnnotation(typePath,
                                                     annotationInfo);
                                         } else if (targetType == 0x15) {
                                             // Receiver type of method or constructor (explicit receiver parameter)
-                                            methodTypeSignature.addRecieverTypeAnnotation(annotationInfo);
+                                            methodTypeSignature.addReceiverTypeAnnotation(annotationInfo);
                                         } else if (targetType == 0x16) {
                                             // Type in formal parameter declaration of method, constructor,
                                             // or lambda expression.
@@ -1926,7 +1926,7 @@ class Classfile {
                         } else if (targetType == 0x10) {
                             // Type in extends or implements clause of class declaration (including
                             // the direct superclass or direct superinterface of an anonymous class
-                            // declaration), or in extends clause of interface declaration    
+                            // declaration), or in extends clause of interface declaration
                             supertypeIndex = reader.readUnsignedShort();
                             typeParameterIndex = -1;
                             boundIndex = -1;
@@ -1957,8 +1957,8 @@ class Classfile {
                                     }
                                 } else if (targetType == 0x10) {
                                     // Type in extends or implements clause of class declaration (including
-                                    // the direct superclass or direct superinterface of an anonymous class 
-                                    // declaration), or in extends clause of interface declaration    
+                                    // the direct superclass or direct superinterface of an anonymous class
+                                    // declaration), or in extends clause of interface declaration
                                     if (supertypeIndex == 65535) {
                                         // Type in extends clause of class declaration
                                         classTypeSignature.getSuperclassSignature().addTypeAnnotation(typePath,
@@ -1974,7 +1974,7 @@ class Classfile {
                                             .getTypeParameters();
                                     if (typeParameters != null && typeParameterIndex < typeParameters.size()) {
                                         final TypeParameter typeParameter = typeParameters.get(typeParameterIndex);
-                                        // boundIndex == 0 => class bound; boundIndex > 0 => interface bound 
+                                        // boundIndex == 0 => class bound; boundIndex > 0 => interface bound
                                         if (boundIndex == 0) {
                                             final ReferenceTypeSignature classBound = typeParameter.getClassBound();
                                             if (classBound != null) {
@@ -2140,7 +2140,7 @@ class Classfile {
             // Read the constant pool
             readConstantPoolEntries(log);
 
-            // Read basic class info (
+            // Read basic class info
             readBasicClassInfo();
 
             // Read interfaces
@@ -2158,7 +2158,7 @@ class Classfile {
             reader = null;
         }
 
-        // Write class info to log 
+        // Write class info to log
         final LogNode subLog = log == null ? null
                 : log.log("Found " //
                         + (isAnnotation ? "annotation class" : isInterface ? "interface class" : "class") //

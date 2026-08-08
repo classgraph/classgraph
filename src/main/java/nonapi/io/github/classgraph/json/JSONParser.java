@@ -105,10 +105,12 @@ final class JSONParser extends Parser {
 
         // Fast path
         boolean hasEscape = false;
+        boolean foundClosingQuote = false;
         while (hasMore()) {
             final char c = getc();
             if (c == '\\') {
-                switch (getc()) {
+                final char escaped = getc();
+                switch (escaped) {
                 case 'b':
                 case 'f':
                 case 'n':
@@ -125,19 +127,28 @@ final class JSONParser extends Parser {
                     advance(4);
                     break;
                 default:
-                    throw new ParseException(this, "Invalid escape sequence: \\" + c);
+                    throw new ParseException(this, "Invalid escape sequence: \\" + escaped);
                 }
             } else if (c == '"') {
+                foundClosingQuote = true;
                 break;
             }
         }
+        if (!foundClosingQuote) {
+            // The input ran out before the closing quote -- don't silently return a truncated string
+            throw new ParseException(this, "Unterminated string");
+        }
         final int endIdx = getPosition() - 1;
         if (!hasEscape) {
+            // Skip trailing whitespace, as the slow path below does -- otherwise whitespace between an object
+            // key and the ':' that follows it is left unconsumed, and the object fails to parse
+            skipWhitespace();
             return getSubsequence(startIdx, endIdx);
         }
 
         // Slow path (for strings with escape characters)
         setPosition(startIdx);
+        foundClosingQuote = false;
         final StringBuilder buf = new StringBuilder();
         while (hasMore()) {
             final char c = getc();
@@ -174,13 +185,17 @@ final class JSONParser extends Parser {
                     buf.append((char) charVal);
                     break;
                 default:
-                    throw new ParseException(this, "Invalid escape sequence: \\" + c);
+                    throw new ParseException(this, "Invalid escape sequence: \\" + c2);
                 }
             } else if (c == '"') {
+                foundClosingQuote = true;
                 break;
             } else {
                 buf.append(c);
             }
+        }
+        if (!foundClosingQuote) {
+            throw new ParseException(this, "Unterminated string");
         }
         skipWhitespace();
         return buf.toString();
@@ -362,9 +377,8 @@ final class JSONParser extends Parser {
             if (key == null) {
                 throw new ParseException(this, "Object keys must be strings");
             }
-            if (peek() != ':') {
-                return null;
-            }
+            // (Don't test for ':' and return null here -- silently returning a null object for malformed input
+            // hides the error from the caller; expect() reports it as a ParseException instead)
             expect(':');
             final Object value = parseJSON();
 

@@ -112,7 +112,7 @@ public final class FileUtils {
             // user.dir should be the current directory at the time the JVM is started, which is
             // where classpath elements should be resolved relative to
             Path path = null;
-            final String currDirPathStr = System.getProperty("user.dir");
+            final String currDirPathStr = VersionFinder.getProperty("user.dir");
             if (currDirPathStr != null) {
                 try {
                     path = Paths.get(currDirPathStr);
@@ -363,6 +363,13 @@ public final class FileUtils {
         return Files.isRegularFile(path);
     }
 
+    /**
+     * Check if a {@link Path} is a regular file.
+     *
+     * @param path
+     *            A {@link Path}.
+     * @return true if the path is a regular file.
+     */
     public static boolean isFile(final Path path) {
         try {
             return path.toFile().isFile();
@@ -460,6 +467,13 @@ public final class FileUtils {
         return Files.isDirectory(path);
     }
 
+    /**
+     * Check if a {@link Path} is a directory.
+     *
+     * @param path
+     *            A {@link Path}.
+     * @return true if the path is a directory.
+     */
     public static boolean isDir(final Path path) {
         try {
             return path.toFile().isDirectory();
@@ -684,6 +698,8 @@ public final class FileUtils {
      * 
      * @param byteBuffer
      *            The {@link ByteBuffer} to close/unmap.
+     * @param reflectionUtils
+     *            The reflection utils (the cleaner method has to be looked up and invoked reflectively).
      * @param log
      *            The log.
      * @return True if the byteBuffer was closed/unmapped.
@@ -867,6 +883,13 @@ public final class FileUtils {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /**
+     * Create a {@link FileAttributesGetter} that reads the attributes of each {@link Path} at most once, caching
+     * the result. The returned getter is not thread safe, so it should only be used within the scope of the code
+     * that created it.
+     *
+     * @return the caching {@link FileAttributesGetter}.
+     */
     public static FileAttributesGetter createCachedAttributesGetter() {
         final Map<Path, BasicFileAttributes> cache = new HashMap<>();
         return new FileAttributesGetter() {
@@ -882,6 +905,15 @@ public final class FileUtils {
         };
     }
 
+    /**
+     * Read the {@link BasicFileAttributes} of a {@link Path}. If the attributes cannot be read, returns a
+     * best-effort implementation backed by the {@link File} API, which throws
+     * {@link UnsupportedOperationException} from the accessors it cannot support.
+     *
+     * @param path
+     *            A {@link Path}.
+     * @return the attributes of the path.
+     */
     public static BasicFileAttributes readAttributes(final Path path) {
         try {
             return Files.readAttributes(path, BasicFileAttributes.class);
@@ -935,7 +967,15 @@ public final class FileUtils {
         }
     }
 
+    /** Gets the {@link BasicFileAttributes} of a {@link Path}. */
     public interface FileAttributesGetter {
+        /**
+         * Get the attributes of a {@link Path}.
+         *
+         * @param path
+         *            A {@link Path}.
+         * @return the attributes of the path.
+         */
         BasicFileAttributes get(Path path);
     }
 }

@@ -47,7 +47,7 @@ public final class JarUtils {
      * Check if a path has a URL scheme at the beginning. Require at least 2 chars in a URL scheme, so that Windows
      * drive designations don't get treated as URL schemes.
      */
-    public static final Pattern URL_SCHEME_PATTERN = Pattern.compile("[a-zA-Z][a-zA-Z0-9+-.]+[:].*");
+    public static final Pattern URL_SCHEME_PATTERN = Pattern.compile("[a-zA-Z][a-zA-Z0-9+\\-.]+[:].*");
 
     /** The Constant DASH_VERSION. */
     private static final Pattern DASH_VERSION = Pattern.compile("-(\\d+(\\.|$))");
@@ -149,8 +149,10 @@ public final class JarUtils {
             // (The JRE may not even support them, but we may as well do so.)
             final Set<Integer> splitPoints = new HashSet<>();
             for (int i = -1;;) {
-                boolean foundNonPathSeparator = false;
-                for (int j = 0; j < UNIX_NON_PATH_SEPARATORS.length; j++) {
+                // A ':' escaped as "\:" is part of a path element, not a separator (this is the escaping
+                // applied by appendPathElt, and undone by the DOUBLE_BACKSHLASH_WITH_COLON unescape below)
+                boolean foundNonPathSeparator = i > 0 && pathStr.charAt(i - 1) == '\\';
+                for (int j = 0; !foundNonPathSeparator && j < UNIX_NON_PATH_SEPARATORS.length; j++) {
                     // Skip ':' characters in the middle of non-path-separators such as "http://"
                     final int startIdx = i - UNIX_NON_PATH_SEPARATOR_COLON_POSITIONS[j];
                     if (pathStr.regionMatches(true, startIdx, UNIX_NON_PATH_SEPARATORS[j], 0,
@@ -198,7 +200,7 @@ public final class JarUtils {
                 final int idx1 = splitPointsSorted.get(i);
                 // Trim, and unescape "\\:"
                 String part = pathStr.substring(idx0 + 1, idx1).trim();
-                part = DOUBLE_BACKSHLASH_WITH_COLON.matcher(part).replaceAll( ":");
+                part = DOUBLE_BACKSHLASH_WITH_COLON.matcher(part).replaceAll(":");
                 // Remove empty path components
                 if (!part.isEmpty()) {
                     parts.add(part);
@@ -225,8 +227,11 @@ public final class JarUtils {
         // Escape any rogue path separators, as long as file separator is not '\\' (on Windows, if there are any
         // extra ';' characters in a path element, there's really nothing we can do to escape them, since they can't
         // be escaped as "\\;")
+        // (Use String.replace() rather than String.replaceAll(), so that both arguments are literal -- in a
+        // replaceAll() replacement string, a single backslash escapes the char after it, so the intended
+        // escape sequence would be emitted as a bare path separator.)
         final String path = File.separatorChar == '\\' ? pathElt.toString()
-                : pathElt.toString().replaceAll(File.pathSeparator, "\\" + File.pathSeparator);
+                : pathElt.toString().replace(File.pathSeparator, "\\" + File.pathSeparator);
         buf.append(path);
     }
 

@@ -36,7 +36,7 @@ import java.util.Objects;
 import nonapi.io.github.classgraph.fileslice.Slice;
 import nonapi.io.github.classgraph.scanspec.AcceptReject.AcceptRejectLeafname;
 
-/** A zipfile slice (a sub-range of bytes within a PhysicalZipFile. */
+/** A zipfile slice (a sub-range of bytes within a {@link PhysicalZipFile}). */
 public class ZipFileSlice {
     /** The parent slice, or null if this is the toplevel slice (the whole zipfile). */
     private final ZipFileSlice parentZipFileSlice;
@@ -188,7 +188,7 @@ public class ZipFileSlice {
     }
 
     /* (non-Javadoc)
-     * @see nonapi.io.github.classgraph.fastzipfilereader.ZipFileSlice#equals(java.lang.Object)
+     * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
     public boolean equals(final Object o) {
@@ -204,7 +204,7 @@ public class ZipFileSlice {
     }
 
     /* (non-Javadoc)
-     * @see nonapi.io.github.classgraph.fastzipfilereader.ZipFileSlice#hashCode()
+     * @see java.lang.Object#hashCode()
      */
     @Override
     public int hashCode() {

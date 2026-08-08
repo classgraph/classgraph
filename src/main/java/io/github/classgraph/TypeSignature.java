@@ -347,7 +347,7 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
     protected void findReferencedClassNames(final Set<String> refdClassNames) {
         final String className = getClassName();
         if (className != null && !className.isEmpty()) {
-            refdClassNames.add(getClassName());
+            refdClassNames.add(className);
         }
     }
 
@@ -358,9 +358,11 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
      *            the map from class name to {@link ClassInfo}.
      * @param refdClassInfo
      *            the referenced class info.
+     * @param log
+     *            the log.
      */
     @Override
-    final protected void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
+    protected final void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
             final Set<ClassInfo> refdClassInfo, final LogNode log) {
         final Set<String> refdClassNames = new HashSet<>();
         findReferencedClassNames(refdClassNames);
@@ -373,7 +375,7 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
 
     /**
      * Get a list of {@link AnnotationInfo} objects for any type annotations on this type, or null if none.
-     * 
+     *
      * @return a list of {@link AnnotationInfo} objects for any type annotations on this type, or null if none.
      */
     public AnnotationInfoList getTypeAnnotationInfo() {
@@ -382,7 +384,7 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
 
     /**
      * Compare base types, ignoring generic type parameters.
-     * 
+     *
      * @param other
      *            the other {@link TypeSignature} to compare to.
      * @return True if the two {@link TypeSignature} objects are equal, ignoring type parameters.
@@ -391,7 +393,7 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
 
     /**
      * Parse a type signature.
-     * 
+     *
      * @param parser
      *            The parser
      * @param definingClass
@@ -415,7 +417,7 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
 
     /**
      * Parse a type signature.
-     * 
+     *
      * @param typeDescriptor
      *            The type descriptor or type signature to parse.
      * @param definingClass
@@ -439,7 +441,7 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
 
     /**
      * Add a type annotation to this type.
-     * 
+     *
      * @param typePath
      *            The type path.
      * @param annotationInfo

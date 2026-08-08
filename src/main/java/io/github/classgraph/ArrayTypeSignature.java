@@ -79,13 +79,13 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
         this.nestedType = typeSigHasTwoOrMoreDims
                 // Strip one array dimension for nested type
                 ? new ArrayTypeSignature(elementTypeSignature, numDims - 1, typeSignatureStr.substring(1))
-                // Nested type for innermost dimension is element type 
+                // Nested type for innermost dimension is element type
                 : elementTypeSignature;
     }
 
     /**
      * Get the raw array type signature string, e.g. "[[I".
-     * 
+     *
      * @return the raw array type signature string.
      */
     public String getTypeSignatureStr() {
@@ -163,7 +163,7 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
 
     /**
      * Get a list of {@link AnnotationInfo} objects for the type annotations on this array type, or null if none.
-     * 
+     *
      * @see #getNestedType() if you want to read for type annotations on inner (nested) dimensions of the array
      *      type.
      * @return a list of {@link AnnotationInfo} objects for the type annotations of on this array type, or null if
@@ -182,7 +182,14 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
     @Override
     protected String getClassName() {
         if (className == null) {
-            className = toString();
+            // N.B. build the class name from the element type's class name rather than from toString(), since
+            // toString() also renders type annotations and type arguments, which are not part of the class name
+            // (and the class name is used both as the ArrayClassInfo cache key and as the name to classload by)
+            final StringBuilder buf = new StringBuilder(getElementTypeSignature().getClassName());
+            for (int i = 0, numDims = getNumDimensions(); i < numDims; i++) {
+                buf.append("[]");
+            }
+            className = buf.toString();
         }
         return className;
     }
@@ -329,7 +336,7 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
     /**
      * Obtain a {@code Class<?>} reference for the array class named by this {@link ArrayClassInfo} object. Causes
      * the ClassLoader to load the element class, if it is not already loaded.
-     * 
+     *
      * @return The class reference.
      * @throws IllegalArgumentException
      *             if there were problems loading the class.

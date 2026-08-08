@@ -93,6 +93,18 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
         }
     }
 
+    /**
+     * Find the classpath order for {@code io.quarkus.bootstrap.classloading.QuarkusClassLoader} (Quarkus 1.3+).
+     *
+     * @param classLoader
+     *            the classloader
+     * @param classpathOrder
+     *            the classpath order to add to
+     * @param scanSpec
+     *            the scan spec
+     * @param log
+     *            the log
+     */
     private static void findClasspathOrderForQuarkusClassloader(final ClassLoader classLoader,
             final ClasspathOrder classpathOrder, final ScanSpec scanSpec, final LogNode log) {
 
@@ -114,6 +126,16 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
         }
     }
 
+    /**
+     * Get the classpath elements of a {@code QuarkusClassLoader}, from either the single {@code elements} field, or
+     * (since Quarkus 3.16) the {@code normalPriorityElements} and {@code lesserPriorityElements} fields.
+     *
+     * @param classLoader
+     *            the classloader
+     * @param classpathOrder
+     *            the classpath order (used only for its reflection utils instance)
+     * @return the classpath elements (empty if none of the fields were found).
+     */
     @SuppressWarnings("unchecked")
     private static Collection<Object> findQuarkusClassLoaderElements(final ClassLoader classLoader,
             final ClasspathOrder classpathOrder) {
@@ -134,6 +156,18 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
         return elements;
     }
 
+    /**
+     * Find the classpath order for {@code io.quarkus.runner.RuntimeClassLoader} (Quarkus 1.2 and earlier).
+     *
+     * @param classLoader
+     *            the classloader
+     * @param classpathOrder
+     *            the classpath order to add to
+     * @param scanSpec
+     *            the scan spec
+     * @param log
+     *            the log
+     */
     @SuppressWarnings("unchecked")
     private static void findClasspathOrderForRuntimeClassloader(final ClassLoader classLoader,
             final ClasspathOrder classpathOrder, final ScanSpec scanSpec, final LogNode log) {
@@ -153,11 +187,29 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
         }
     }
 
+    /**
+     * Find the classpath order for {@code io.quarkus.bootstrap.runner.RunnerClassLoader} (Quarkus 1.13+).
+     *
+     * @param classLoader
+     *            the classloader
+     * @param classpathOrder
+     *            the classpath order to add to
+     * @param scanSpec
+     *            the scan spec
+     * @param log
+     *            the log
+     */
     @SuppressWarnings("unchecked")
     private static void findClasspathOrderForRunnerClassloader(final ClassLoader classLoader,
             final ClasspathOrder classpathOrder, final ScanSpec scanSpec, final LogNode log) {
-        for (final Object[] elementArray : ((Map<String, Object[]>) classpathOrder.reflectionUtils
-                .getFieldVal(false, classLoader, "resourceDirectoryMap")).values()) {
+        // (getFieldVal returns null if the field is not present -- Quarkus renames these fields between
+        // releases, so don't assume the field was found)
+        final Map<String, Object[]> resourceDirectoryMap = (Map<String, Object[]>) classpathOrder.reflectionUtils
+                .getFieldVal(false, classLoader, "resourceDirectoryMap");
+        if (resourceDirectoryMap == null) {
+            return;
+        }
+        for (final Object[] elementArray : resourceDirectoryMap.values()) {
             for (final Object element : elementArray) {
                 final String elementClassName = element.getClass().getName();
                 if ("io.quarkus.bootstrap.runner.JarResource".equals(elementClassName)) {

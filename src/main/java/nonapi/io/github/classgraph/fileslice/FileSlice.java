@@ -85,11 +85,15 @@ public class FileSlice extends Slice {
      * detected (see #284). This is implemented as a method rather than as an in-place cast so that IDEs
      * are unlikely to remove the cast operations as (as they assume) statically superfluous, which
      * re-introduces the same runtime crash every time it happens.
+     *
+     * @param buf
+     *            the {@link ByteBuffer} to widen to {@link Buffer}
+     * @return the same buffer, typed as {@link Buffer}
      */
-	public static Buffer toBuffer(ByteBuffer buf) {
-		return buf;
-	}
-    
+    public static Buffer toBuffer(final ByteBuffer buf) {
+        return buf;
+    }
+
     /**
      * Constructor for treating a range of a file as a slice.
      *
@@ -164,11 +168,6 @@ public class FileSlice extends Slice {
             // ByteBuffer can be unmapped by closing the arena when this slice is closed, rather than by
             // calling the terminally-deprecated method Unsafe::invokeCleaner (#939).
             // (openArena returns null on JDK older than 22.)
-            if (arena != null) {
-                // Should not happen -- an arena may only be opened once per FileSlice, and it is only
-                // opened from the toplevel FileSlice constructor
-                throw new IllegalStateException("Arena is already open for this FileSlice");
-            }
             arena = FileUtils.openArena(nestedJarHandler.reflectionUtils);
             try {
                 // Try mapping file (some operating systems throw OutOfMemoryError if file
@@ -264,7 +263,7 @@ public class FileSlice extends Slice {
     }
 
     /**
-     * Read directly from FileChannel (slow path, but handles >2GB).
+     * Read directly from FileChannel (slow path, but handles &gt;2GB).
      *
      * @return the random access reader
      */

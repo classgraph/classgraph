@@ -155,7 +155,7 @@ public interface RandomAccessReader {
      * @param replaceSlashWithDot
      *            If true, replace '/' with '.'.
      * @param stripLSemicolon
-     *            If true, string final ';' character.
+     *            If true, strip the leading 'L' and the final ';' character.
      * @return The string.
      * @throws IOException
      *             If an I/O exception occurs.

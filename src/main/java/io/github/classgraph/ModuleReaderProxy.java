@@ -82,11 +82,13 @@ public class ModuleReaderProxy implements Closeable {
      */
     private static volatile Collectors collectors;
 
-    /** The shared {@link Collectors} handles, read once at construction so that {@link #list()} sees a stable
-     * value. */
+    /**
+     * The shared {@link Collectors} handles, read once at construction so that {@link #list()} sees a stable value.
+     */
     private final Collectors collectorsRef;
 
-    private ReflectionUtils reflectionUtils;
+    /** The {@link ReflectionUtils} instance to reflectively call the {@code ModuleReader} methods with. */
+    private final ReflectionUtils reflectionUtils;
 
     /**
      * Constructor.
@@ -98,8 +100,8 @@ public class ModuleReaderProxy implements Closeable {
      */
     ModuleReaderProxy(final ModuleRef moduleRef) throws IOException {
         moduleName = moduleRef.getName();
+        reflectionUtils = moduleRef.reflectionUtils;
         try {
-            reflectionUtils = moduleRef.reflectionUtils;
             // Double-checked locking on the volatile field, so that the lazy initialization is not a data race
             // (it was previously flagged by Java TSAN). (#913)
             Collectors collectorsRef = collectors;

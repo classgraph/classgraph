@@ -102,7 +102,8 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
         try {
             return uri.toURL();
         } catch (final IllegalArgumentException | MalformedURLException e) {
-            if (uri.getScheme().equals("jrt")) {
+            // N.B. uri.getScheme() is null for a relative URI, which is one of the cases where toURL() throws
+            if ("jrt".equals(uri.getScheme())) {
                 // Currently URL cannot handle the "jrt:" scheme, used by system modules.
                 throw new IllegalArgumentException("Could not create URL from URI with \"jrt:\" scheme "
                         + "(\"jrt:\" is not supported by the URL class without a custom URL protocol handler): "
@@ -192,7 +193,7 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     }
 
     /**
-     * Get the The {@link ModuleRef} for the module that this {@link Resource} was found within.
+     * Get the {@link ModuleRef} for the module that this {@link Resource} was found within.
      *
      * @return The {@link ModuleRef} for the module that this {@link Resource} was found within, as a
      *         {@link ModuleRef}, or null if this {@link Resource} was found in a directory or jar in the classpath.
@@ -269,7 +270,7 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
      * Open a {@link ByteBuffer} for a classpath resource, and wrap it in a {@link CloseableByteBuffer} instance,
      * which implements the {@link Closeable#close()} method to free the underlying {@link ByteBuffer} when
      * {@link CloseableByteBuffer#close()} is called, by automatically calling {@link Resource#close()}.
-     * 
+     *
      * <p>
      * Call {@link CloseableByteBuffer#getByteBuffer()} on the returned instance to access the underlying
      * {@link ByteBuffer}.
@@ -324,7 +325,7 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
      * directory entry, if this resource is a file on disk, or from the zipfile central directory, if this resource
      * is a zipfile entry. Timestamps are not available for resources obtained from system modules or jlink'd
      * modules.
-     * 
+     *
      * <p>
      * Note: The ZIP format has no notion of timezone, so timestamps are only meaningful if it is known what
      * timezone they were created in. We arbitrarily assume that zipfile timestamps are in the UTC timezone. This

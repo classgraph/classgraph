@@ -31,13 +31,11 @@ package nonapi.io.github.classgraph.fileslice;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
-import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import io.github.classgraph.ClassGraph;
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.fileslice.reader.RandomAccessFileChannelReader;
 import nonapi.io.github.classgraph.fileslice.reader.RandomAccessReader;
@@ -87,10 +85,8 @@ public class PathSlice extends Slice {
         this.fileLength = parentSlice.fileLength;
         this.isTopLevelFileSlice = false;
 
-        // Only mark toplevel file slices as open (sub slices don't need to be marked as
-        // open since
-        // they don't need to be closed, they just copy the resource references of the
-        // toplevel slice)
+        // Only mark toplevel file slices as open (sub slices don't need to be marked as open since
+        // they don't need to be closed, they just copy the resource references of the toplevel slice)
     }
 
     /**
@@ -144,8 +140,8 @@ public class PathSlice extends Slice {
         this.fileLength = fileChannel.size();
         this.isTopLevelFileSlice = true;
 
-        // Had to use 0L for sliceLength in call to super, since FileChannel wasn't open
-        // yet => update sliceLength
+        // Had to use 0L for sliceLength in call to super, since FileChannel wasn't open yet
+        // => update sliceLength
         this.sliceLength = fileLength;
 
         // Mark toplevel slice as open
@@ -190,7 +186,7 @@ public class PathSlice extends Slice {
     }
 
     /**
-     * Read directly from FileChannel (slow path, but handles >2GB).
+     * Read directly from FileChannel (slow path, but handles &gt;2GB).
      *
      * @return the random access reader
      */
@@ -233,8 +229,8 @@ public class PathSlice extends Slice {
     }
 
     /**
-     * Read the slice into a {@link ByteBuffer} (or memory-map the slice to a {@link MappedByteBuffer}, if
-     * {@link ClassGraph#enableMemoryMapping()} was called.)
+     * Read the slice into a {@link ByteBuffer}. (A {@link PathSlice} is never memory-mapped, unlike a
+     * {@link FileSlice} -- the content is always copied into a heap {@link ByteBuffer}.)
      *
      * @return the byte buffer
      * @throws IOException
@@ -243,10 +239,8 @@ public class PathSlice extends Slice {
     @Override
     public ByteBuffer read() throws IOException {
         if (isDeflatedZipEntry) {
-            // Inflate to RAM if deflated (unfortunately there is no lazy-loading ByteBuffer
-            // that will
-            // decompress partial streams on demand, so we have to decompress the whole zip
-            // entry)
+            // Inflate to RAM if deflated (unfortunately there is no lazy-loading ByteBuffer that will
+            // decompress partial streams on demand, so we have to decompress the whole zip entry)
             if (inflatedLengthHint > FileUtils.MAX_BUFFER_SIZE) {
                 throw new IOException("Uncompressed size is larger than 2GB");
             }
@@ -269,20 +263,18 @@ public class PathSlice extends Slice {
         return super.hashCode();
     }
 
-    /** Close the slice. Unmaps any backing {@link MappedByteBuffer}. */
+    /** Close the slice, closing the {@link FileChannel} if this is the toplevel slice. */
     @Override
     public void close() {
         if (!isClosed.getAndSet(true)) {
             if (isTopLevelFileSlice && fileChannel != null) {
-                // Only close the FileChannel in the toplevel file slice, so that it is only
-                // closed once
+                // Only close the FileChannel in the toplevel file slice, so that it is only closed once
+                // (sub slices just copy the reference to the toplevel slice's FileChannel)
                 try {
-                    // Closing raf will also close the associated FileChannel
                     fileChannel.close();
                 } catch (final IOException e) {
                     // Ignore
                 }
-                fileChannel = null;
             }
             fileChannel = null;
             nestedJarHandler.markSliceAsClosed(this);

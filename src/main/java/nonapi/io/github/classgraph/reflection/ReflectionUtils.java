@@ -41,7 +41,6 @@ import io.github.classgraph.ClassGraph.CircumventEncapsulationMethod;
 public final class ReflectionUtils {
     /** The reflection driver to use. */
     public ReflectionDriver reflectionDriver;
-    private Class<?> accessControllerClass;
     private Class<?> privilegedActionClass;
     private Method accessControllerDoPrivileged;
 
@@ -59,7 +58,7 @@ public final class ReflectionUtils {
             reflectionDriver = new StandardReflectionDriver();
         }
         try {
-            accessControllerClass = reflectionDriver.findClass("java.security.AccessController");
+            final Class<?> accessControllerClass = reflectionDriver.findClass("java.security.AccessController");
             privilegedActionClass = reflectionDriver.findClass("java.security.PrivilegedAction");
             accessControllerDoPrivileged = reflectionDriver.findMethod(accessControllerClass, null, "doPrivileged",
                     privilegedActionClass);
@@ -390,7 +389,7 @@ public final class ReflectionUtils {
                     param);
         } catch (final Throwable e) {
             if (throwException) {
-                throw new IllegalArgumentException("Fethod \"" + methodName + "\" could not be invoked", e);
+                throw new IllegalArgumentException("Method \"" + methodName + "\" could not be invoked", e);
             }
             return null;
         }
@@ -415,11 +414,14 @@ public final class ReflectionUtils {
     }
 
     /**
-     * Get a method by name, but return null if any exception is thrown.
-     * 
+     * Get a static method by name, but return null if any exception is thrown.
+     *
      * @param className
-     *            The class name to load.
-     * @return The class of the requested name, or null if an exception was thrown while trying to load the class.
+     *            The name of the class declaring the method.
+     * @param staticMethodName
+     *            The name of the static method.
+     * @return The requested static method, or null if an exception was thrown while trying to find the class or the
+     *         method.
      */
     public Method staticMethodForNameOrNull(final String className, final String staticMethodName) {
         if (reflectionDriver == null) {
@@ -434,7 +436,7 @@ public final class ReflectionUtils {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    private class PrivilegedActionInvocationHandler<T> implements InvocationHandler {
+    private static class PrivilegedActionInvocationHandler<T> implements InvocationHandler {
         private final Callable<T> callable;
 
         public PrivilegedActionInvocationHandler(final Callable<T> callable) {
@@ -450,6 +452,14 @@ public final class ReflectionUtils {
     /**
      * Call a method in the AccessController.doPrivileged(PrivilegedAction) context, using reflection, if possible
      * (AccessController is deprecated in JDK 17).
+     *
+     * @param <T>
+     *            the return type of the callable
+     * @param callable
+     *            the callable to invoke
+     * @return the value returned by the callable
+     * @throws Throwable
+     *             if the callable throws.
      */
     @SuppressWarnings("unchecked")
     public <T> T doPrivileged(final Callable<T> callable) throws Throwable {

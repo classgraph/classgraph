@@ -107,6 +107,9 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
      *            The last modified date, in MSDOS format, if lastModifiedMillis is 0L.
      * @param fileAttributes
      *            The POSIX file attribute bits from the zip entry.
+     * @param enableMultiReleaseVersions
+     *            If true, strip any "META-INF/versions/{versionInt}/" prefix from the entry name, and record the
+     *            version number; if false, leave multi-release entry names unchanged.
      */
     FastZipEntry(final LogicalZipFile parentLogicalZipFile, final long locHeaderPos, final String entryName,
             final boolean isDeflated, final long compressedSize, final long uncompressedSize,
@@ -194,8 +197,11 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
             if (randomAccessReader.readInt(locHeaderPos) != 0x04034b50) {
                 throw new IOException("Zip entry has bad LOC header: " + entryName);
             }
-            final long dataStartPos = locHeaderPos + 30 + randomAccessReader.readShort(locHeaderPos + 26)
-                    + randomAccessReader.readShort(locHeaderPos + 28);
+            // (The filename length and extra field length in the LOC header are unsigned 16-bit values, so they
+            // must be read with readUnsignedShort -- reading them as signed shorts makes any length of 32768 or
+            // more negative, which moves dataStartPos back before the LOC header)
+            final long dataStartPos = locHeaderPos + 30 + randomAccessReader.readUnsignedShort(locHeaderPos + 26)
+                    + randomAccessReader.readUnsignedShort(locHeaderPos + 28);
             if (dataStartPos > parentLogicalZipFile.slice.sliceLength) {
                 throw new IOException("Unexpected EOF when trying to read zip entry data: " + entryName);
             }

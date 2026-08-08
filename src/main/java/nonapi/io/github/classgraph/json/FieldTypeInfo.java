@@ -256,7 +256,9 @@ class FieldTypeInfo {
     void setFieldValue(final Object containingObj, final Object value) {
         try {
             if (value == null) {
-                if (primitiveType != PrimitiveType.NON_PRIMITIVE) {
+                // CLASS_REF is a reference type, not a primitive type -- it is only listed in PrimitiveType so
+                // that setFieldValue can type-check it, so null is a legal value for it
+                if (primitiveType != PrimitiveType.NON_PRIMITIVE && primitiveType != PrimitiveType.CLASS_REF) {
                     throw new IllegalArgumentException("Tried to set primitive-typed field "
                             + field.getDeclaringClass().getName() + "." + field.getName() + " to null value");
                 }
@@ -344,7 +346,6 @@ class FieldTypeInfo {
      */
     @Override
     public String toString() {
-        return fieldTypePartiallyResolved + " " + field.getDeclaringClass().getName() + "."
-                + field.getDeclaringClass().getName();
+        return fieldTypePartiallyResolved + " " + field.getDeclaringClass().getName() + "." + field.getName();
     }
 }

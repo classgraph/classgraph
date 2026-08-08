@@ -128,7 +128,7 @@ public class LogicalZipFile extends ZipFileSlice {
     private static final byte[] AUTOMATIC_MODULE_NAME_KEY = manifestKeyToBytes("Automatic-Module-Name");
 
     /** For quickly converting ASCII characters to lower case. */
-    private static byte[] toLowerCase = new byte[256];
+    private static final byte[] toLowerCase = new byte[256];
     static {
         for (int i = 32; i < 127; i++) {
             toLowerCase[i] = (byte) Character.toLowerCase((char) i);
@@ -146,6 +146,8 @@ public class LogicalZipFile extends ZipFileSlice {
      *            the nested jar handler
      * @param log
      *            the log
+     * @param enableMultiReleaseVersions
+     *            if true, multi-release versions should not be stripped from resource names
      * @throws IOException
      *             If an I/O exception occurs.
      * @throws InterruptedException
@@ -381,7 +383,7 @@ public class LogicalZipFile extends ZipFileSlice {
             } else if (keyMatchesAtPosition(manifest, ADD_OPENS_KEY, i)) {
                 final Entry<String, Integer> manifestValueAndEndIdx = getManifestValue(manifest,
                         i + ADD_OPENS_KEY.length + 1);
-                addExportsManifestEntryValue = manifestValueAndEndIdx.getKey();
+                addOpensManifestEntryValue = manifestValueAndEndIdx.getKey();
                 if (log != null) {
                     log.log("Found Add-Opens entry in manifest file: " + addOpensManifestEntryValue);
                 }
@@ -724,10 +726,12 @@ public class LogicalZipFile extends ZipFileSlice {
                             if (version != 1) {
                                 throw new IOException("Unknown Unicode entry name format " + version
                                         + " in extra field: " + entryNameSanitized);
-                            } else if (size > 9) {
-                                // Replace non-Unicode entry name with Unicode version
+                            } else if (size > 5) {
+                                // Replace non-Unicode entry name with Unicode version. The data area of this
+                                // extra field is version(1) + nameCRC32(4) + name, so the name starts 5 bytes
+                                // into the data area (i.e. 9 bytes after the tag), and is (size - 5) bytes long.
                                 try {
-                                    entryNameSanitized = cenReader.readString(tagOff + 9, size - 9);
+                                    entryNameSanitized = cenReader.readString(tagOff + 9, size - 5);
                                 } catch (final IllegalArgumentException e) {
                                     throw new IOException("Malformed extended Unicode entry name for entry: "
                                             + entryNameSanitized);
@@ -855,16 +859,6 @@ public class LogicalZipFile extends ZipFileSlice {
     }
 
     // -------------------------------------------------------------------------------------------------------------
-
-    @Override
-    public boolean equals(final Object o) {
-        return super.equals(o);
-    }
-
-    @Override
-    public int hashCode() {
-        return super.hashCode();
-    }
 
     /* (non-Javadoc)
      * @see nonapi.io.github.classgraph.fastzipfilereader.ZipFileSlice#toString()

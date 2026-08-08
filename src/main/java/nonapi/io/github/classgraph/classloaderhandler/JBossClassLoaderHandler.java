@@ -175,6 +175,15 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
         return jbossVFS;
     }
 
+    /**
+     * Load the JBoss VFS class from a given classloader.
+     *
+     * @param classLoader
+     *            the classloader to load {@code org.jboss.vfs.VFS} from.
+     * @return the {@code org.jboss.vfs.VFS} class.
+     * @throws ClassNotFoundException
+     *             if the class is not visible to the given classloader.
+     */
     private static Class<?> loadJBossVFS(final ClassLoader classLoader) throws ClassNotFoundException {
         return Class.forName("org.jboss.vfs.VFS", true, classLoader);
     }
@@ -291,7 +300,10 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
         @SuppressWarnings("unchecked")
         final Map<String, List<?>> pathsMap = (Map<String, List<?>>) classpathOrder.reflectionUtils
                 .invokeMethod(false, module, "getPaths");
-        for (final Entry<String, List<?>> ent : pathsMap.entrySet()) {
+        // (invokeMethod returns null if the method is not present, so don't assume it was found)
+        final Set<Entry<String, List<?>>> pathsMapEntries = pathsMap != null ? pathsMap.entrySet()
+                : Collections.<Entry<String, List<?>>> emptySet();
+        for (final Entry<String, List<?>> ent : pathsMapEntries) {
             for (final Object /* ModuleClassLoader$1 */ localLoader : ent.getValue()) {
                 // type ModuleClassLoader (outer class)
                 final Object moduleClassLoader = classpathOrder.reflectionUtils.getFieldVal(false, localLoader,

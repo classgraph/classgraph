@@ -38,7 +38,7 @@ package io.github.classgraph;
  */
 public class ClassGraphException extends IllegalArgumentException {
     /** serialVersionUID. */
-    static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
     /**
      * Constructor.

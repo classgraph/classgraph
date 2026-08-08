@@ -37,7 +37,10 @@ import java.nio.ByteBuffer;
  * {@link ByteBuffer} when it is no longer needed.
  */
 public class CloseableByteBuffer implements Closeable {
+    /** The wrapped {@link ByteBuffer}, or null once this wrapper has been closed. */
     private ByteBuffer byteBuffer;
+
+    /** The method to run on close, or null if this wrapper has already been closed. */
     private Runnable onClose;
 
     /**
