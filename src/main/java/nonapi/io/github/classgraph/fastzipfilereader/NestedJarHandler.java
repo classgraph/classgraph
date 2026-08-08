@@ -48,7 +48,6 @@ import java.nio.file.FileSystem;
 import java.nio.file.FileSystemNotFoundException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -92,7 +91,7 @@ public class NestedJarHandler {
      * that the {@link RandomAccessFile} and {@link FileChannel} for any given zipfile is opened only once.
      */
     private SingletonMap<File, PhysicalZipFile, IOException> //
-    canonicalFileToPhysicalZipFileMap = new SingletonMap<File, PhysicalZipFile, IOException>() {
+    canonicalFileToPhysicalZipFileMap = new SingletonMap<>() {
         @Override
         public PhysicalZipFile newInstance(final File canonicalFile, final LogNode log) throws IOException {
             return new PhysicalZipFile(canonicalFile, NestedJarHandler.this, log);
@@ -105,7 +104,7 @@ public class NestedJarHandler {
      * if the zip entry was inflated to a temporary file.
      */
     private SingletonMap<FastZipEntry, ZipFileSlice, IOException> //
-    fastZipEntryToZipFileSliceMap = new SingletonMap<FastZipEntry, ZipFileSlice, IOException>() {
+    fastZipEntryToZipFileSliceMap = new SingletonMap<>() {
         @Override
         public ZipFileSlice newInstance(final FastZipEntry childZipEntry, final LogNode log)
                 throws IOException, InterruptedException {
@@ -145,7 +144,7 @@ public class NestedJarHandler {
      * A singleton map from a {@link ZipFileSlice} to the {@link LogicalZipFile} for that slice.
      */
     private SingletonMap<ZipFileSlice, LogicalZipFile, IOException> //
-    zipFileSliceToLogicalZipFileMap = new SingletonMap<ZipFileSlice, LogicalZipFile, IOException>() {
+    zipFileSliceToLogicalZipFileMap = new SingletonMap<>() {
         @Override
         public LogicalZipFile newInstance(final ZipFileSlice zipFileSlice, final LogNode log)
                 throws IOException, InterruptedException {
@@ -161,7 +160,7 @@ public class NestedJarHandler {
      */
     public SingletonMap<String, Entry<LogicalZipFile, String>, IOException> //
     nestedPathToLogicalZipFileAndPackageRootMap = //
-            new SingletonMap<String, Entry<LogicalZipFile, String>, IOException>() {
+            new SingletonMap<>() {
                 @Override
                 public Entry<LogicalZipFile, String> newInstance(final String nestedJarPathRaw, final LogNode log)
                         throws IOException, InterruptedException {
@@ -374,11 +373,11 @@ public class NestedJarHandler {
      */
     public SingletonMap<ModuleRef, Recycler<ModuleReaderProxy, IOException>, IOException> //
     moduleRefToModuleReaderProxyRecyclerMap = //
-            new SingletonMap<ModuleRef, Recycler<ModuleReaderProxy, IOException>, IOException>() {
+            new SingletonMap<>() {
                 @Override
                 public Recycler<ModuleReaderProxy, IOException> newInstance(final ModuleRef moduleRef,
                         final LogNode ignored) {
-                    return new Recycler<ModuleReaderProxy, IOException>() {
+                    return new Recycler<>() {
                         @Override
                         public ModuleReaderProxy newInstance() throws IOException {
                             return moduleRef.open();
@@ -389,7 +388,7 @@ public class NestedJarHandler {
 
     /** A recycler for {@link Inflater} instances. */
     private Recycler<RecyclableInflater, RuntimeException> //
-    inflaterRecycler = new Recycler<RecyclableInflater, RuntimeException>() {
+    inflaterRecycler = new Recycler<>() {
         @Override
         public RecyclableInflater newInstance() throws RuntimeException {
             return new RecyclableInflater();
@@ -397,10 +396,10 @@ public class NestedJarHandler {
     };
 
     /** {@link FileSlice} instances that are currently open. */
-    private Set<Slice> openSlices = Collections.newSetFromMap(new ConcurrentHashMap<Slice, Boolean>());
+    private Set<Slice> openSlices = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /** Any temporary files created while scanning. */
-    private Set<File> tempFiles = Collections.newSetFromMap(new ConcurrentHashMap<File, Boolean>());
+    private Set<File> tempFiles = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /** The separator between random temp filename part and leafname. */
     public static final String TEMP_FILENAME_LEAF_SEPARATOR = "---";
@@ -591,7 +590,7 @@ public class NestedJarHandler {
             // copy of the file
             // over the URL; instead, access the filesystem directly
             try {
-                final Path path = Paths.get(url.toURI());
+                final Path path = Path.of(url.toURI());
                 // Fails with FileSystemNotFoundException if filesystem not registered for URL
                 final FileSystem fs = path.getFileSystem();
                 if (log != null) {
@@ -624,7 +623,7 @@ public class NestedJarHandler {
                     // PhysicalZipFile
                     // (this avoids going through an InputStream). Throws IOException if the file
                     // cannot be read.
-                    final File file = Paths.get(url.toURI()).toFile();
+                    final File file = Path.of(url.toURI()).toFile();
                     return new PhysicalZipFile(file, this, log);
 
                 } catch (final Exception e) {
@@ -663,7 +662,7 @@ public class NestedJarHandler {
 
         public CloseableUrlConnection(final URL url) throws IOException {
             conn = url.openConnection();
-            httpConn = conn instanceof HttpURLConnection ? (HttpURLConnection) conn : null;
+            httpConn = conn instanceof final HttpURLConnection httpUrlConn ? httpUrlConn : null;
         }
 
         @Override
@@ -904,7 +903,7 @@ public class NestedJarHandler {
     public Slice readAllBytesWithSpilloverToDisk(final InputStream inputStream, final String tempFileBaseName,
             final long inputStreamLengthHint, final LogNode log) throws IOException {
         // Open an InflaterInputStream on the slice
-        try (InputStream inptStream = inputStream) {
+        try (inputStream) {
             if (inputStreamLengthHint <= scanSpec.maxBufferedJarRAMSize) {
                 // inputStreamLengthHint is unknown (-1) or shorter than
                 // scanSpec.maxBufferedJarRAMSize,
@@ -923,7 +922,7 @@ public class NestedJarHandler {
 
                 int bufBytesUsed = 0;
                 int bytesRead = 0;
-                while ((bytesRead = inptStream.read(buf, bufBytesUsed, bufLength - bufBytesUsed)) > 0) {
+                while ((bytesRead = inputStream.read(buf, bufBytesUsed, bufLength - bufBytesUsed)) > 0) {
                     // Fill buffer until nothing more can be read
                     bufBytesUsed += bytesRead;
                 }
@@ -933,12 +932,12 @@ public class NestedJarHandler {
                     // one more byte) to see if inputStreamHint underestimated the actual length of
                     // the stream
                     final byte[] overflowBuf = new byte[1];
-                    final int overflowBufBytesUsed = inptStream.read(overflowBuf, 0, 1);
+                    final int overflowBufBytesUsed = inputStream.read(overflowBuf, 0, 1);
                     if (overflowBufBytesUsed == 1) {
                         // We were able to read one more byte, so we're still not at the end of the
                         // stream,
                         // and we need to spill to disk, because buf is full
-                        return spillToDisk(inptStream, tempFileBaseName, buf, overflowBuf, log);
+                        return spillToDisk(inputStream, tempFileBaseName, buf, overflowBuf, log);
                     }
                     // else (overflowBufBytesUsed == -1), so reached the end of the stream => don't
                     // spill to disk
@@ -957,7 +956,7 @@ public class NestedJarHandler {
             }
             // inputStreamLengthHint is longer than scanSpec.maxJarRamSize, so immediately
             // spill to disk
-            return spillToDisk(inptStream, tempFileBaseName, /* buf = */ null, /* overflowBuf = */ null, log);
+            return spillToDisk(inputStream, tempFileBaseName, /* buf = */ null, /* overflowBuf = */ null, log);
         }
     }
 
@@ -1028,7 +1027,7 @@ public class NestedJarHandler {
         if (uncompressedLengthHint > FileUtils.MAX_BUFFER_SIZE) {
             throw new IOException("InputStream is too large to read");
         }
-        try (InputStream inptStream = inputStream) {
+        try (inputStream) {
             final int bufferSize = uncompressedLengthHint < 1L
                     // If fileSizeHint is zero or unknown, use default buffer size
                     ? DEFAULT_BUFFER_SIZE
@@ -1039,7 +1038,7 @@ public class NestedJarHandler {
             byte[] buf = new byte[bufferSize];
             int totBytesRead = 0;
             for (int bytesRead;;) {
-                while ((bytesRead = inptStream.read(buf, totBytesRead, buf.length - totBytesRead)) > 0) {
+                while ((bytesRead = inputStream.read(buf, totBytesRead, buf.length - totBytesRead)) > 0) {
                     // Fill buffer until nothing more can be read
                     totBytesRead += bytesRead;
                 }
@@ -1053,7 +1052,7 @@ public class NestedJarHandler {
                 // reached, or the buffer was too small. Need to try reading one more byte to
                 // see which is
                 // the case.
-                final int extraByte = inptStream.read();
+                final int extraByte = inputStream.read();
                 if (extraByte == -1) {
                     // Reached end of stream
                     break;

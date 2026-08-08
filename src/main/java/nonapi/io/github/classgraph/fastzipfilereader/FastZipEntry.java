@@ -277,8 +277,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
         }
         // In case of multiple entries with the same entry name, return them in consecutive order of location,
         // so that the earliest entry overrides later entries (this is an arbitrary decision for consistency)
-        final long diff3 = locHeaderPos - o.locHeaderPos;
-        return diff3 < 0L ? -1 : diff3 > 0L ? 1 : 0;
+        return Long.compare(locHeaderPos, o.locHeaderPos);
     }
 
     /* (non-Javadoc)
@@ -296,10 +295,10 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     public boolean equals(final Object obj) {
         if (this == obj) {
             return true;
-        } else if (!(obj instanceof FastZipEntry)) {
+        }
+        if (!(obj instanceof final FastZipEntry other)) {
             return false;
         }
-        final FastZipEntry other = (FastZipEntry) obj;
         return this.parentLogicalZipFile.equals(other.parentLogicalZipFile) && this.compareTo(other) == 0;
     }
 

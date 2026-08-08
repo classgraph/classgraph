@@ -149,7 +149,7 @@ public class ZipFileSlice {
     private void appendPath(final StringBuilder buf) {
         if (parentZipFileSlice != null) {
             parentZipFileSlice.appendPath(buf);
-            if (buf.length() > 0) {
+            if (!buf.isEmpty()) {
                 buf.append("!/");
             }
         }
@@ -194,13 +194,12 @@ public class ZipFileSlice {
     public boolean equals(final Object o) {
         if (o == this) {
             return true;
-        } else if (!(o instanceof ZipFileSlice)) {
-            return false;
-        } else {
-            final ZipFileSlice other = (ZipFileSlice) o;
-            return Objects.equals(physicalZipFile, other.physicalZipFile) && Objects.equals(slice, other.slice)
-                    && Objects.equals(pathWithinParentZipFileSlice, other.pathWithinParentZipFileSlice);
         }
+        if (!(o instanceof final ZipFileSlice other)) {
+            return false;
+        }
+        return Objects.equals(physicalZipFile, other.physicalZipFile) && Objects.equals(slice, other.slice)
+                && Objects.equals(pathWithinParentZipFileSlice, other.pathWithinParentZipFileSlice);
     }
 
     /* (non-Javadoc)

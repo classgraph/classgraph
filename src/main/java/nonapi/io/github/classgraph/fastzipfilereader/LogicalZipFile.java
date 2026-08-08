@@ -31,7 +31,6 @@ package nonapi.io.github.classgraph.fastzipfilereader;
 import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
@@ -62,7 +61,7 @@ public class LogicalZipFile extends ZipFileSlice {
     private boolean isMultiReleaseJar;
 
     /** A set of classpath roots found in the classpath for this zipfile. */
-    Set<String> classpathRoots = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
+    Set<String> classpathRoots = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /** The value of the "Class-Path" manifest entry, if present in the manifest, else null. */
     public String classPathManifestEntryValue;
@@ -225,12 +224,7 @@ public class LogicalZipFile extends ZipFileSlice {
                 }
                 // If line break was followed by a space, then the curr++ in the for loop header will skip it
             }
-            try {
-                val = buf.toString("UTF-8");
-            } catch (final UnsupportedEncodingException e) {
-                // Should not happen
-                throw new RuntimeException("UTF-8 encoding is not supported in your JRE", e);
-            }
+            val = buf.toString(StandardCharsets.UTF_8);
         }
         return new SimpleEntry<>(val.endsWith(" ") ? val.trim() : val, curr);
     }
@@ -834,14 +828,13 @@ public class LogicalZipFile extends ZipFileSlice {
             final List<FastZipEntry> unversionedZipEntriesMasked = new ArrayList<>(entries.size());
             final Map<String, String> unversionedPathToVersionedPath = new HashMap<>();
             for (final FastZipEntry versionedZipEntry : entries) {
-                if (!unversionedPathToVersionedPath.containsKey(versionedZipEntry.entryNameUnversioned)) {
+                final String maskingEntryName = unversionedPathToVersionedPath
+                        .putIfAbsent(versionedZipEntry.entryNameUnversioned, versionedZipEntry.entryName);
+                if (maskingEntryName == null) {
                     // This is the first FastZipEntry for this entry's unversioned path
-                    unversionedPathToVersionedPath.put(versionedZipEntry.entryNameUnversioned,
-                            versionedZipEntry.entryName);
                     unversionedZipEntriesMasked.add(versionedZipEntry);
                 } else if (log != null) {
-                    log.log(unversionedPathToVersionedPath.get(versionedZipEntry.entryNameUnversioned) + " masks "
-                            + versionedZipEntry.entryName);
+                    log.log(maskingEntryName + " masks " + versionedZipEntry.entryName);
                 }
             }
 

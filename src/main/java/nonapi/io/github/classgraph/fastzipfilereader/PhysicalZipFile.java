@@ -152,7 +152,7 @@ class PhysicalZipFile {
         // If it fails, the InputStream will be spilled to disk, resulting in a FileSlice.
         this.slice = nestedJarHandler.readAllBytesWithSpilloverToDisk(inputStream, /* tempFileBaseName = */ pathStr,
                 inputStreamLengthHint, log);
-        this.file = this.slice instanceof FileSlice ? ((FileSlice) this.slice).file : null;
+        this.file = this.slice instanceof final FileSlice fileSlice ? fileSlice.file : null;
     }
 
     /**
@@ -213,10 +213,10 @@ class PhysicalZipFile {
     public boolean equals(final Object o) {
         if (o == this) {
             return true;
-        } else if (!(o instanceof PhysicalZipFile)) {
+        }
+        if (!(o instanceof final PhysicalZipFile other)) {
             return false;
         }
-        final PhysicalZipFile other = (PhysicalZipFile) o;
         return Objects.equals(pathStr, other.pathStr);
     }
 
