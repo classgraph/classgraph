@@ -9,7 +9,7 @@ ClassGraph is an uber-fast parallelized classpath scanner and module scanner for
 
 [![Platforms: Windows, Mac OS X, Linux, Android (build-time)](https://img.shields.io/badge/platforms-Windows,_Mac_OS_X,_Linux,_Android_(build--time)-blue.svg)](#)
 [![Languages: Java, Scala, Kotlin, etc.](https://img.shields.io/badge/languages-Java,_Scala,_Kotlin,_etc.-blue.svg)](#)
-[![JDK compatibility: 7, 8, 9+ (JPMS)](https://img.shields.io/badge/JDK_compatibility-7,_8,_9+_(JPMS)-blue.svg)](#)
+[![JDK compatibility: 17+ (JPMS)](https://img.shields.io/badge/JDK_compatibility-17+_(JPMS)-blue.svg)](#)
 <br>
 [![Java CI](https://github.com/classgraph/classgraph/actions/workflows/ci.yml/badge.svg)](https://github.com/classgraph/classgraph/actions/workflows/ci.yml)
 [![GitHub issues](https://img.shields.io/github/issues/classgraph/classgraph.svg)](https://github.com/classgraph/classgraph/issues/)
@@ -100,15 +100,14 @@ Replace `X.Y.Z` below with the latest [release number](https://github.com/classg
 
 See instructions for [use as a module](https://github.com/classgraph/classgraph/wiki#use-as-a-module).
 
-### Running on JDK 16+
+### Strong encapsulation
 
-The JDK team decided to start enforcing strong encapsulation in JDK 16+. That will means that by default, ClassGraph will not be able to find the classpath of your project, if all of the following are true:
+The JDK has enforced strong encapsulation since JDK 16, so it is always in force for ClassGraph 5.x, which requires JDK 17. By default, ClassGraph will not be able to find the classpath of your project if both of the following are true:
 
-* You are running on JDK 16+
 * You are using a legacy classloader (rather than the module system)
 * Your classloader does not expose its classpath via a public field or method (i.e. the full classpath can only be determined by reflection of private fields or methods).
 
-If your ClassGraph code works in JDK versions less than 16 but breaks in JDK 16+ (meaning that ClassGraph can no longer find your classes), you have probably run into this problem.
+If ClassGraph cannot find your classes, and the same code worked under ClassGraph 4.x on JDK 15 or earlier, you have probably run into this problem.
 
 ClassGraph can use either of the following libraries to silently circumvent all of Java's security mechanisms (visibility/access checks, security manager restrictions, and strong encapsulation), in order to read the classpath from private fields and methods of classloaders.
 
@@ -127,7 +126,7 @@ To use one of these libraries:
   1. Add the [JVM-Driver](https://github.com/toolfactory/jvm-driver) library to your project as an extra dependency (this uses only Java code and works to bypass encapsulation without native code for all JDK versions between 8 and 18).
   2. Set `ClassGraph.CIRCUMVENT_ENCAPSULATION = CircumventEncapsulationMethod.JVM_DRIVER;` before interacting with ClassGraph in any other way (this will load the JVM-Driver library as ClassGraph's reflection driver).
 
-JDK 16's strong encapsulation is just the first step of trying to lock down Java's internals, so further restrictions are possible (e.g. it is likely that `setAccessible(true)` will fail in future JDK releases, even within a module, and probably the JNI API will be locked down soon, making Narcissus require a commandline flag to work). Therefore, **please convince your upstream runtime environment maintainers to expose the full classpath from their classloader using a public method or field, otherwise ClassGraph may stop working for your runtime environment in the future.**
+Strong encapsulation is just the first step of trying to lock down Java's internals, so further restrictions are possible (e.g. it is likely that `setAccessible(true)` will fail in future JDK releases, even within a module, and probably the JNI API will be locked down soon, making Narcissus require a commandline flag to work). Therefore, **please convince your upstream runtime environment maintainers to expose the full classpath from their classloader using a public method or field, otherwise ClassGraph may stop working for your runtime environment in the future.**
 
 ### Pre-built JARs
 
