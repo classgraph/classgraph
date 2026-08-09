@@ -965,9 +965,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 || relType == RelType.CLASSES_WITH_FIELD_ANNOTATION
                 || relType == RelType.CLASSES_WITH_NONPRIVATE_FIELD_ANNOTATION) {
             // If looking for meta-annotated methods or fields, need to find all meta-annotated annotations, then
-            // look for the methods or fields that they annotate
-            for (final ClassInfo subAnnotation : this.filterClassInfo(RelType.CLASSES_WITH_ANNOTATION, strictAccept,
-                    ClassType.ANNOTATION).reachableClasses) {
+            // look for the methods or fields that they annotate. Don't filter this intermediate traversal -- an
+            // accepted class can be annotated by an external annotation that is itself meta-annotated by this one.
+            // The result is filtered below.
+            for (final ClassInfo subAnnotation : this.filterClassInfo(RelType.CLASSES_WITH_ANNOTATION,
+                    /* strictAccept = */ false, ClassType.ANNOTATION).reachableClasses) {
                 final Set<ClassInfo> annotatedClasses = subAnnotation.relatedClasses.get(relType);
                 if (annotatedClasses != null) {
                     reachableClasses.addAll(annotatedClasses);
@@ -1982,16 +1984,21 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         subinterfaces of this interface, if this is an interface, otherwise returns the empty list.
      */
     public ClassInfoList getClassesImplementing() {
-        // Subclasses of implementing classes also implement the interface
+        // Subclasses of implementing classes also implement the interface. Don't filter the two traversals, since
+        // an accepted class can be reachable only through an external class (e.g. an accepted subclass of an
+        // external class that implements this interface) -- filter the union at the end instead.
         final ReachableAndDirectlyRelatedClasses implementingClasses = this
-                .filterClassInfo(RelType.CLASSES_IMPLEMENTING, /* strictAccept = */ !isExternalClass);
+                .filterClassInfo(RelType.CLASSES_IMPLEMENTING, /* strictAccept = */ false);
         final Set<ClassInfo> allImplementingClasses = new LinkedHashSet<>(implementingClasses.reachableClasses);
         for (final ClassInfo implementingClass : implementingClasses.reachableClasses) {
             final Set<ClassInfo> implementingSubclasses = implementingClass.filterClassInfo(RelType.SUBCLASSES,
-                    /* strictAccept = */ !implementingClass.isExternalClass).reachableClasses;
+                    /* strictAccept = */ false).reachableClasses;
             allImplementingClasses.addAll(implementingSubclasses);
         }
-        return new ClassInfoList(allImplementingClasses, implementingClasses.directlyRelatedClasses,
+        return new ClassInfoList(
+                filterClassInfo(allImplementingClasses, scanResult.scanSpec, /* strictAccept = */ !isExternalClass),
+                filterClassInfo(implementingClasses.directlyRelatedClasses, scanResult.scanSpec,
+                        /* strictAccept = */ !isExternalClass),
                 /* sortByName = */ true);
     }
 
@@ -2126,8 +2133,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         }
         final ReachableAndDirectlyRelatedClasses classesWithDirectlyAnnotatedFieldsOrMethods = this
                 .filterClassInfo(relType, /* strictAccept = */ !isExternalClass);
+        // Don't filter the meta-annotated annotations -- they are only traversed through, and an accepted class can
+        // have a field or method annotated by an external annotation that is meta-annotated by this one
         final ReachableAndDirectlyRelatedClasses annotationsWithThisMetaAnnotation = this.filterClassInfo(
-                RelType.CLASSES_WITH_ANNOTATION, /* strictAccept = */ !isExternalClass, ClassType.ANNOTATION);
+                RelType.CLASSES_WITH_ANNOTATION, /* strictAccept = */ false, ClassType.ANNOTATION);
         if (annotationsWithThisMetaAnnotation.reachableClasses.isEmpty()) {
             // This annotation does not meta-annotate another annotation that annotates a method
             return new ClassInfoList(classesWithDirectlyAnnotatedFieldsOrMethods, /* sortByName = */ true);
@@ -2137,11 +2146,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             final Set<ClassInfo> allClassesWithAnnotatedOrMetaAnnotatedFieldsOrMethods = new LinkedHashSet<>(
                     classesWithDirectlyAnnotatedFieldsOrMethods.reachableClasses);
             for (final ClassInfo metaAnnotatedAnnotation : annotationsWithThisMetaAnnotation.reachableClasses) {
-                allClassesWithAnnotatedOrMetaAnnotatedFieldsOrMethods
-                        .addAll(metaAnnotatedAnnotation.filterClassInfo(relType,
-                                /* strictAccept = */ !metaAnnotatedAnnotation.isExternalClass).reachableClasses);
+                allClassesWithAnnotatedOrMetaAnnotatedFieldsOrMethods.addAll(metaAnnotatedAnnotation
+                        .filterClassInfo(relType, /* strictAccept = */ false).reachableClasses);
             }
-            return new ClassInfoList(allClassesWithAnnotatedOrMetaAnnotatedFieldsOrMethods,
+            return new ClassInfoList(
+                    filterClassInfo(allClassesWithAnnotatedOrMetaAnnotatedFieldsOrMethods, scanResult.scanSpec,
+                            /* strictAccept = */ !isExternalClass),
                     classesWithDirectlyAnnotatedFieldsOrMethods.directlyRelatedClasses, /* sortByName = */ true);
         }
     }
@@ -2298,22 +2308,29 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             throw new IllegalArgumentException("Please call ClassGraph#enableAnnotationInfo() before #scan()");
         }
 
-        // Get classes that have this annotation
-        final ReachableAndDirectlyRelatedClasses classesWithAnnotation = this
-                .filterClassInfo(RelType.CLASSES_WITH_ANNOTATION, /* strictAccept = */ !isExternalClass);
-
         if (isInherited) {
             // If this is an inherited annotation, add into the result all subclasses of the annotated classes.
+            // Don't filter the two traversals, since an accepted class can inherit the annotation from an external
+            // superclass -- filter the union at the end instead.
+            final ReachableAndDirectlyRelatedClasses classesWithAnnotation = this
+                    .filterClassInfo(RelType.CLASSES_WITH_ANNOTATION, /* strictAccept = */ false);
             final Set<ClassInfo> classesWithAnnotationAndTheirSubclasses = new LinkedHashSet<>(
                     classesWithAnnotation.reachableClasses);
             for (final ClassInfo classWithAnnotation : classesWithAnnotation.reachableClasses) {
-                classesWithAnnotationAndTheirSubclasses.addAll(classWithAnnotation.getSubclasses());
+                classesWithAnnotationAndTheirSubclasses.addAll(classWithAnnotation
+                        .filterClassInfo(RelType.SUBCLASSES, /* strictAccept = */ false).reachableClasses);
             }
-            return new ClassInfoList(classesWithAnnotationAndTheirSubclasses,
-                    classesWithAnnotation.directlyRelatedClasses, /* sortByName = */ true);
+            return new ClassInfoList(
+                    filterClassInfo(classesWithAnnotationAndTheirSubclasses, scanResult.scanSpec,
+                            /* strictAccept = */ !isExternalClass),
+                    filterClassInfo(classesWithAnnotation.directlyRelatedClasses, scanResult.scanSpec,
+                            /* strictAccept = */ !isExternalClass),
+                    /* sortByName = */ true);
         } else {
             // If not inherited, only return the annotated classes
-            return new ClassInfoList(classesWithAnnotation, /* sortByName = */ true);
+            return new ClassInfoList(
+                    this.filterClassInfo(RelType.CLASSES_WITH_ANNOTATION, /* strictAccept = */ !isExternalClass),
+                    /* sortByName = */ true);
         }
     }
 
