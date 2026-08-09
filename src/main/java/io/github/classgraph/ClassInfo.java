@@ -3406,7 +3406,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     public ClassTypeSignature getTypeDescriptor() {
         synchronized (this) {
             if (typeDescriptor == null) {
-                typeDescriptor = new ClassTypeSignature(this, getSuperclass(), getInterfaces());
+                // The descriptor must list only the directly implemented interfaces, in classfile order, since it
+                // stands in for the classfile's own super_class and interfaces[] entries, which is what the class
+                // type annotation targets index into
+                typeDescriptor = new ClassTypeSignature(this, getSuperclass(), getInterfaces().directOnly());
                 typeDescriptor.setScanResult(scanResult);
                 if (typeAnnotationDecorators != null) {
                     for (final ClassTypeAnnotationDecorator decorator : typeAnnotationDecorators) {

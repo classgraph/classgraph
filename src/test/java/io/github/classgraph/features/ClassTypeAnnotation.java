@@ -47,6 +47,14 @@ class ClassTypeAnnotation {
     }
 
     /***/
+    private static interface C {
+    }
+
+    /***/
+    private static interface BSubC extends C {
+    }
+
+    /***/
     private static class E<T> extends @P Z implements @Q A, @R B {
     }
 
@@ -64,6 +72,10 @@ class ClassTypeAnnotation {
 
     /***/
     private static class I implements @Q B, @R A {
+    }
+
+    /***/
+    private static class J implements @Q BSubC, @R A {
     }
 
     @Test
@@ -110,6 +122,14 @@ class ClassTypeAnnotation {
                     .isEqualTo("private static class " + I.class.getName() + " implements "
                             + ClassTypeAnnotation.class.getName() + "$@" + Q.class.getName() + " "
                             + B.class.getSimpleName() + ", " + ClassTypeAnnotation.class.getName() + "$@"
+                            + R.class.getName() + " " + A.class.getSimpleName());
+
+            // The synthesized type descriptor must list the directly implemented interfaces, in classfile order,
+            // since the class type annotation targets index into the classfile's own interfaces[] array
+            assertThat(scanResult.getClassInfo(J.class.getName()).getTypeSignatureOrTypeDescriptor().toString())
+                    .isEqualTo("private static class " + J.class.getName() + " implements "
+                            + ClassTypeAnnotation.class.getName() + "$@" + Q.class.getName() + " "
+                            + BSubC.class.getSimpleName() + ", " + ClassTypeAnnotation.class.getName() + "$@"
                             + R.class.getName() + " " + A.class.getSimpleName());
         }
     }
