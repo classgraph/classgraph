@@ -22,21 +22,21 @@ public class Issue694Test {
 
     @Test
     void methodWithParam() {
-        final List<String> foundMethods = new ArrayList<>();
+        final List<String> foundMethodDescriptors = new ArrayList<>();
         final List<String> foundMethodInfo = new ArrayList<>();
         try (var scan = new ClassGraph().acceptClasses(Issue694Test.class.getName()).enableAnnotationInfo()
                 .enableMethodInfo().scan()) {
             for (final ClassInfo info : scan.getAllStandardClasses()) {
                 for (final MethodInfo methodInfo : info.getDeclaredMethodInfo()) {
                     foundMethodInfo.add(methodInfo.toString());
-                    final var method = methodInfo.loadClassAndGetMethod();
-                    foundMethods.add(method.toString());
+                    // The type descriptor gives the erased types, whereas the type
+                    // signature gives the generic types
+                    foundMethodDescriptors.add(methodInfo.getTypeDescriptor().toString());
                 }
             }
         }
         assertThat(foundMethodInfo).containsOnly(
                 "public static <C extends java.util.Collection<io.github.classgraph.issues.issue694.Issue694Test$TestClass>> C test(final C collection)");
-        assertThat(foundMethods).containsOnly(
-                "public static java.util.Collection io.github.classgraph.issues.issue694.Issue694Test.test(java.util.Collection)");
+        assertThat(foundMethodDescriptors).containsOnly("java.util.Collection (java.util.Collection)");
     }
 }

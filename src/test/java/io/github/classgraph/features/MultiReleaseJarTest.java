@@ -24,22 +24,20 @@ public class MultiReleaseJarTest {
      */
     @Test
     public void multiReleaseJar() throws Exception {
-        try (var scanResult = new ClassGraph().overrideClassLoaders(new URLClassLoader(new URL[] { jarURL }))
-                .enableAllInfo().scan()) {
+        try (var classLoader = new URLClassLoader(new URL[] { jarURL });
+                var scanResult = new ClassGraph().overrideClassLoaders(classLoader).enableAllInfo().scan()) {
             final var classInfo = scanResult.getClassInfo("mrj.Cls");
             assertThat(classInfo).isNotNull();
-            final var cls = classInfo.loadClass();
-            final var getVersionStatic = cls.getMethod("getVersionStatic");
-            getVersionStatic.setAccessible(true);
-            assertThat(getVersionStatic.invoke(null)).isEqualTo(9);
-            final var constructor = cls.getConstructor();
-            constructor.setAccessible(true);
-            assertThat(constructor).isNotNull();
-            final var clsInstance = constructor.newInstance();
-            assertThat(clsInstance).isNotNull();
-            final var getVersion = cls.getMethod("getVersion");
-            getVersion.setAccessible(true);
-            assertThat(getVersion.invoke(clsInstance)).isEqualTo(9);
+            final var classfileResource = classInfo.getResource();
+            assertThat(classfileResource).isNotNull();
+            // The class is reported under its unversioned path, but the classfile that
+            // was read is the JDK 9 version of the class, not the base version
+            assertThat(classfileResource.getPath()).isEqualTo("mrj/Cls.class");
+            assertThat(classfileResource.getPathRelativeToClasspathElement())
+                    .isEqualTo("META-INF/versions/9/mrj/Cls.class");
+            assertThat(classInfo.getMethodInfo("getVersionStatic").get(0).isStatic()).isTrue();
+            assertThat(classInfo.getMethodInfo("getVersion").get(0).isStatic()).isFalse();
+            assertThat(classInfo.getConstructorInfo()).isNotEmpty();
 
             final var resources = scanResult.getResourcesWithPath("resource.txt");
             assertThat(resources.size()).isEqualTo(1);
@@ -55,8 +53,9 @@ public class MultiReleaseJarTest {
      */
     @Test
     public void multiReleaseVersioningOfResources() throws Exception {
-        try (var scanResult = new ClassGraph().overrideClassLoaders(new URLClassLoader(new URL[] { jarURL }))
-                .acceptPaths("nonexistent_path").scan()) {
+        try (var classLoader = new URLClassLoader(new URL[] { jarURL });
+                var scanResult = new ClassGraph().overrideClassLoaders(classLoader).acceptPaths("nonexistent_path")
+                        .scan()) {
             assertThat(scanResult.getResourcesWithPath("mrj/Cls.class")).isEmpty();
             assertThat(scanResult.getResourcesWithPathIgnoringAccept("mrj/Cls.class")).isNotEmpty();
         }
@@ -70,8 +69,9 @@ public class MultiReleaseJarTest {
      */
     @Test
     public void enableMultiReleaseVersions() throws Exception {
-        try (var scanResult = new ClassGraph().overrideClassLoaders(new URLClassLoader(new URL[] { jarURL }))
-                .enableMultiReleaseVersions().scan()) {
+        try (var classLoader = new URLClassLoader(new URL[] { jarURL });
+                var scanResult = new ClassGraph().overrideClassLoaders(classLoader).enableMultiReleaseVersions()
+                        .scan()) {
             final var java8ClassResource = scanResult.getResourcesWithPath("mrj/Cls.class");
             assertThat(java8ClassResource).hasSize(1);
             final var java9ClassResource = scanResult.getResourcesWithPath("META-INF/versions/9/mrj/Cls.class");
@@ -97,8 +97,9 @@ public class MultiReleaseJarTest {
      */
     @Test
     public void enableMultiReleaseVersionsWithClassInfo() throws Exception {
-        try (var scanResult = new ClassGraph().overrideClassLoaders(new URLClassLoader(new URL[] { jarURL }))
-                .enableAllInfo().enableMultiReleaseVersions().scan()) {
+        try (var classLoader = new URLClassLoader(new URL[] { jarURL });
+                var scanResult = new ClassGraph().overrideClassLoaders(classLoader).enableAllInfo()
+                        .enableMultiReleaseVersions().scan()) {
             final var java8ClassResource = scanResult.getResourcesWithPath("mrj/Cls.class");
             assertThat(java8ClassResource).hasSize(1);
             assertThatThrownBy(() -> scanResult.getClassInfo("mrj.Cls"))

@@ -16,8 +16,7 @@ import org.junit.jupiter.api.Test;
  * annotations and type arguments rendered by {@code toString()}, e.g.
  * {@code "java.lang.String @Ann []"} or
  * {@code "java.util.List<java.lang.String>[]"}. Neither is a class name, and
- * the name is used both as the cache key for {@link ArrayClassInfo} and as the
- * name to classload by.
+ * the name is used as the cache key for {@link ArrayClassInfo}.
  */
 public class ArrayClassNameTest {
     /** A {@code TYPE_USE} annotation, to annotate an array type with. */
@@ -50,15 +49,13 @@ public class ArrayClassNameTest {
                     .getTypeSignatureOrTypeDescriptor();
             // toString() still renders the type annotation
             assertThat(annotated.toString()).contains("@" + Ann.class.getName());
-            assertThat(annotated.getArrayClassInfo().getName()).isEqualTo("java.lang.String[]");
-            assertThat(annotated.getArrayClassInfo().loadClass()).isEqualTo(String[].class);
+            assertThat(annotated.getArrayClassInfo().getName()).isEqualTo(String[].class.getCanonicalName());
 
             final var generic = (ArrayTypeSignature) holder.getFieldInfo("genericArray")
                     .getTypeSignatureOrTypeDescriptor();
             // toString() still renders the type argument
             assertThat(generic.toString()).isEqualTo("java.util.List<java.lang.String>[]");
-            assertThat(generic.getArrayClassInfo().getName()).isEqualTo("java.util.List[]");
-            assertThat(generic.getArrayClassInfo().loadClass()).isEqualTo(List[].class);
+            assertThat(generic.getArrayClassInfo().getName()).isEqualTo(List[].class.getCanonicalName());
         }
     }
 }

@@ -48,9 +48,12 @@ public class EnumTest {
             assertThat(scanResult.getAllEnums()).hasSize(1);
             final var myEnum = scanResult.getAllEnums().get(0);
             assertThat(myEnum.getName()).isEqualTo(EnumWithMethod.class.getName());
-            assertThat(myEnum.getEnumConstants().getNames()).containsExactly("P", "Q");
-            assertThat(((EnumWithMethod) myEnum.getEnumConstantObjects().get(0)).getVal()).isEqualTo(1);
-            assertThat(((EnumWithMethod) myEnum.getEnumConstantObjects().get(1)).getVal()).isEqualTo(2);
+            final var constantNames = myEnum.getEnumConstants().getNames();
+            assertThat(constantNames).containsExactly("P", "Q");
+            // The reported names are the real constant names, in declaration order --
+            // Enum#valueOf throws if a name is not a constant of the enum
+            assertThat(constantNames.stream().map(EnumWithMethod::valueOf).map(EnumWithMethod::getVal).toList())
+                    .containsExactly(1, 2);
         }
     }
 }

@@ -189,26 +189,14 @@ public class DeclaredVsNonDeclaredTest {
             final var annotationsOnA = A.getAllAnnotations();
             final var annotationsOnB = B.getAllAnnotations();
 
-            assertThat(annotationsOnA.loadClasses()).containsOnly(NormalAnnotation.class, InheritedAnnotation.class,
-                    InheritedMetaAnnotation.class, NonInheritedMetaAnnotation.class);
-            assertThat(annotationsOnB.loadClasses()).containsOnly(InheritedAnnotation.class,
-                    InheritedMetaAnnotation.class);
-            assertThat(annotationsOnA.directOnly().loadClasses()).containsOnly(NormalAnnotation.class,
-                    InheritedAnnotation.class);
+            assertThat(annotationsOnA.getNames()).containsOnly(NormalAnnotation.class.getName(),
+                    InheritedAnnotation.class.getName(), InheritedMetaAnnotation.class.getName(),
+                    NonInheritedMetaAnnotation.class.getName());
+            assertThat(annotationsOnB.getNames()).containsOnly(InheritedAnnotation.class.getName(),
+                    InheritedMetaAnnotation.class.getName());
+            assertThat(annotationsOnA.directOnly().getNames()).containsOnly(NormalAnnotation.class.getName(),
+                    InheritedAnnotation.class.getName());
             assertThat(annotationsOnB.directOnly()).isEmpty();
-        }
-    }
-
-    /**
-     * Load field and method.
-     */
-    @Test
-    public void loadFieldAndMethod() {
-        try (var scanResult = new ClassGraph().enableAllInfo()
-                .acceptPackages(DeclaredVsNonDeclaredTest.class.getPackage().getName()).scan()) {
-            final var B = scanResult.getClassInfo(B.class.getName());
-            assertThat(B.getFieldInfo("x").loadClassAndGetField().getName()).isEqualTo("x");
-            assertThat(B.getMethodInfo("y").get(0).loadClassAndGetMethod().getName()).isEqualTo("y");
         }
     }
 }

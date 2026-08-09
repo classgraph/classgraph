@@ -30,8 +30,10 @@ package io.github.classgraph.issues.issue209;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
@@ -42,25 +44,29 @@ public class Issue209Test {
      * Test spring boot jar with lib jars.
      */
     @Test
-    public void testSpringBootJarWithLibJars() {
-        try (var result = new ClassGraph().acceptPackages( //
-                "org.springframework.boot.loader.util", "com.foo", "issue209lib") //
-                .overrideClassLoaders(new URLClassLoader(
-                        new URL[] { Issue209Test.class.getClassLoader().getResource("issue209.jar") })) //
-                .scan()) {
-            assertThat(result.getAllClasses().getNames()).containsOnly(
-                    // Test reading from /
-                    "org.springframework.boot.loader.util.SystemPropertyUtils",
-                    // Test reading from /BOOT-INF/classes
-                    "com.foo.externalApp.ExternalAppApplication", "com.foo.externalApp.SomeClass",
-                    // Test reading from /BOOT-INF/lib/*.jar
-                    "issue209lib.Issue209Lib");
-            // Test classloading
-            assertThat(result.getClassInfo("org.springframework.boot.loader.util.SystemPropertyUtils").loadClass())
-                    .isNotNull();
-            assertThat(result.getClassInfo("com.foo.externalApp.ExternalAppApplication").loadClass()).isNotNull();
-            assertThat(result.getClassInfo("com.foo.externalApp.SomeClass").loadClass()).isNotNull();
-            assertThat(result.getClassInfo("issue209lib.Issue209Lib").loadClass()).isNotNull();
+    public void testSpringBootJarWithLibJars() throws IOException {
+        final var classNames = List.of(
+                // Test reading from /
+                "org.springframework.boot.loader.util.SystemPropertyUtils",
+                // Test reading from /BOOT-INF/classes
+                "com.foo.externalApp.ExternalAppApplication", "com.foo.externalApp.SomeClass",
+                // Test reading from /BOOT-INF/lib/*.jar
+                "issue209lib.Issue209Lib");
+        try (var classLoader = new URLClassLoader(
+                new URL[] { Issue209Test.class.getClassLoader().getResource("issue209.jar") });
+                var result = new ClassGraph()
+                        .acceptPackages("org.springframework.boot.loader.util", "com.foo", "issue209lib") //
+                        .overrideClassLoaders(classLoader).scan()) {
+            assertThat(result.getAllClasses().getNames()).containsOnlyElementsOf(classNames);
+            // The classfile of each class must be readable, including the classfile
+            // of the class that is in a jar nested within the Spring Boot jar
+            for (final var className : classNames) {
+                final var classInfo = result.getClassInfo(className);
+                assertThat(classInfo).isNotNull();
+                final var classfileResource = classInfo.getResource();
+                assertThat(classfileResource).isNotNull();
+                assertThat(classfileResource.load()).isNotEmpty();
+            }
         }
     }
 }

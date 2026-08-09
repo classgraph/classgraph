@@ -28,7 +28,6 @@
  */
 package io.github.classgraph;
 
-import java.lang.reflect.Array;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -49,9 +48,6 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
 
     /** Array class info. */
     private @Nullable ArrayClassInfo arrayClassInfo;
-
-    /** The element class. */
-    private @Nullable Class<?> elementClassRef;
 
     /**
      * The nested type (another {@link ArrayTypeSignature}, or the base element
@@ -267,103 +263,6 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
     @Override
     protected void findReferencedClassNames(final Set<String> refdClassNames) {
         nestedType.findReferencedClassNames(refdClassNames);
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Get a {@code Class<?>} reference for the innermost array element type. Causes
-     * the ClassLoader to load the class, if it is not already loaded.
-     *
-     * @param ignoreExceptions Whether or not to ignore exceptions.
-     * @return a {@code Class<?>} reference for the innermost array element type.
-     *         Also works for arrays of primitive element type.
-     */
-    public @Nullable Class<?> loadElementClass(final boolean ignoreExceptions) {
-        if (elementClassRef == null) {
-            // Try resolving element type against base types (int, etc.)
-            final var elementTypeSignature = getElementTypeSignature();
-            if (elementTypeSignature instanceof final BaseTypeSignature baseTypeSignature) {
-                elementClassRef = baseTypeSignature.getType();
-            } else {
-                if (scanResult != null) {
-                    elementClassRef = elementTypeSignature.loadClass(ignoreExceptions);
-                } else {
-                    // Fallback, if scanResult is not set
-                    final var elementTypeName = elementTypeSignature.getClassName();
-                    try {
-                        elementClassRef = Class.forName(elementTypeName);
-                    } catch (final Throwable t) {
-                        if (!ignoreExceptions) {
-                            throw new IllegalArgumentException("Could not load array element class " + elementTypeName,
-                                    t);
-                        }
-                    }
-                }
-            }
-        }
-        return elementClassRef;
-    }
-
-    /**
-     * Get a {@code Class<?>} reference for the array element type. Causes the
-     * ClassLoader to load the element class, if it is not already loaded.
-     *
-     * @return a {@code Class<?>} reference for the array element type. Also works
-     *         for arrays of primitive element type.
-     */
-    public @Nullable Class<?> loadElementClass() {
-        return loadElementClass(/* ignoreExceptions = */ false);
-    }
-
-    /**
-     * Obtain a {@code Class<?>} reference for the array class named by this
-     * {@link ArrayClassInfo} object. Causes the ClassLoader to load the element
-     * class, if it is not already loaded.
-     *
-     * @param ignoreExceptions Whether or not to ignore exceptions.
-     * @return The class reference, or null, if ignoreExceptions is true and there
-     *         was an exception or error loading the class.
-     * @throws IllegalArgumentException if ignoreExceptions is false and there were
-     *                                  problems loading the class.
-     */
-    @Override
-    public @Nullable Class<?> loadClass(final boolean ignoreExceptions) {
-        if (classRef == null) {
-            // Get the element type
-            Class<?> eltClassRef = null;
-            if (ignoreExceptions) {
-                try {
-                    eltClassRef = loadElementClass();
-                } catch (final IllegalArgumentException e) {
-                    return null;
-                }
-            } else {
-                eltClassRef = loadElementClass();
-            }
-            if (eltClassRef == null) {
-                throw new IllegalArgumentException("Could not load array element class " + getElementTypeSignature());
-            }
-            // Create an array of the target number of dimensions, with size zero in each
-            // dimension
-            final var eltArrayInstance = Array.newInstance(eltClassRef, new int[getNumDimensions()]);
-            // Get the class reference from the array instance
-            classRef = eltArrayInstance.getClass();
-        }
-        return classRef;
-    }
-
-    /**
-     * Obtain a {@code Class<?>} reference for the array class named by this
-     * {@link ArrayClassInfo} object. Causes the ClassLoader to load the element
-     * class, if it is not already loaded.
-     *
-     * @return The class reference.
-     * @throws IllegalArgumentException if there were problems loading the class.
-     */
-    @Override
-    public @Nullable Class<?> loadClass() {
-        return loadClass(/* ignoreExceptions = */ false);
     }
 
     // -------------------------------------------------------------------------------------------------------------

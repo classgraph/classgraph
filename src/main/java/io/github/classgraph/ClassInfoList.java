@@ -33,7 +33,6 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.Serial;
 import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -181,130 +180,6 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
                 ? classInfoSet
                 : new HashSet<>(classInfoCollection), //
                 /* directlyRelatedClasses = */ null, /* sortByName = */ true);
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Convert this list of {@link ClassInfo} objects to a list of {@code Class<?>}
-     * objects, casting each item in the list to the requested superclass or
-     * interface type. Causes the classloader to load the class named by each
-     * {@link ClassInfo} object, if it is not already loaded.
-     * 
-     * <p>
-     * <b>Important note:</b> since {@code superclassOrInterfaceType} is a class
-     * reference for an already-loaded class, it is critical that
-     * {@code superclassOrInterfaceType} is loaded by the same classloader as the
-     * class referred to by this {@code ClassInfo} object, otherwise the class cast
-     * will fail.
-     *
-     * @param <T>                       The superclass or interface.
-     * @param superclassOrInterfaceType The superclass or interface class reference
-     *                                  to cast each loaded class to.
-     * @param ignoreExceptions          If true, ignore any exceptions or errors
-     *                                  thrown during classloading, or when
-     *                                  attempting to cast the resulting
-     *                                  {@code Class<?>} reference to the requested
-     *                                  type -- instead, skip the element (i.e. the
-     *                                  returned list may contain fewer items than
-     *                                  this input list). If false,
-     *                                  {@link IllegalArgumentException} is thrown
-     *                                  if the class could not be loaded or could
-     *                                  not be cast to the requested type.
-     * @return The loaded {@code Class<?>} objects corresponding to each
-     *         {@link ClassInfo} object in this list.
-     * @throws IllegalArgumentException if ignoreExceptions is false and an
-     *                                  exception or error was thrown while trying
-     *                                  to load or cast any of the classes.
-     */
-    public <T> List<Class<T>> loadClasses(final Class<T> superclassOrInterfaceType, final boolean ignoreExceptions) {
-        Assert.notNull(superclassOrInterfaceType, "superclassOrInterfaceType");
-        if (this.isEmpty()) {
-            return List.of();
-        } else {
-            final List<Class<T>> classRefs = new ArrayList<>();
-            for (final ClassInfo classInfo : this) {
-                final var classRef = classInfo.loadClass(superclassOrInterfaceType, ignoreExceptions);
-                if (classRef != null) {
-                    classRefs.add(classRef);
-                }
-            }
-            return classRefs.isEmpty() ? List.of() : classRefs;
-        }
-    }
-
-    /**
-     * Convert this list of {@link ClassInfo} objects to a list of {@code Class<?>}
-     * objects, casting each item in the list to the requested superclass or
-     * interface type. Causes the classloader to load the class named by each
-     * {@link ClassInfo} object, if it is not already loaded.
-     * 
-     * <p>
-     * <b>Important note:</b> since {@code superclassOrInterfaceType} is a class
-     * reference for an already-loaded class, it is critical that
-     * {@code superclassOrInterfaceType} is loaded by the same classloader as the
-     * class referred to by this {@code ClassInfo} object, otherwise the class cast
-     * will fail.
-     *
-     * @param <T>                       The superclass or interface.
-     * @param superclassOrInterfaceType The superclass or interface class reference
-     *                                  to cast each loaded class to.
-     * @return The loaded {@code Class<?>} objects corresponding to each
-     *         {@link ClassInfo} object in this list.
-     * @throws IllegalArgumentException if an exception or error was thrown while
-     *                                  trying to load or cast any of the classes.
-     */
-    public <T> List<Class<T>> loadClasses(final Class<T> superclassOrInterfaceType) {
-        return loadClasses(superclassOrInterfaceType, /* ignoreExceptions = */ false);
-    }
-
-    /**
-     * Convert this list of {@link ClassInfo} objects to a list of {@code Class<?>}
-     * objects. Causes the classloader to load the class named by each
-     * {@link ClassInfo} object, if it is not already loaded.
-     *
-     * @param ignoreExceptions If true, ignore any exceptions or errors thrown
-     *                         during classloading. If an exception or error is
-     *                         thrown during classloading, no {@code Class<?>}
-     *                         reference is added to the output class for the
-     *                         corresponding {@link ClassInfo} object, so the
-     *                         returned list may contain fewer items than this input
-     *                         list. If false, {@link IllegalArgumentException} is
-     *                         thrown if the class could not be loaded.
-     * @return The loaded {@code Class<?>} objects corresponding to each
-     *         {@link ClassInfo} object in this list.
-     * @throws IllegalArgumentException if ignoreExceptions is false and an
-     *                                  exception or error was thrown while trying
-     *                                  to load any of the classes.
-     */
-    public List<Class<?>> loadClasses(final boolean ignoreExceptions) {
-        if (this.isEmpty()) {
-            return List.of();
-        } else {
-            final List<Class<?>> classRefs = new ArrayList<>();
-            // Try loading each class
-            for (final ClassInfo classInfo : this) {
-                final var classRef = classInfo.loadClass(ignoreExceptions);
-                if (classRef != null) {
-                    classRefs.add(classRef);
-                }
-            }
-            return classRefs.isEmpty() ? List.of() : classRefs;
-        }
-    }
-
-    /**
-     * Convert this list of {@link ClassInfo} objects to a list of {@code Class<?>}
-     * objects. Causes the classloader to load the class named by each
-     * {@link ClassInfo} object, if it is not already loaded.
-     *
-     * @return The loaded {@code Class<?>} objects corresponding to each
-     *         {@link ClassInfo} object in this list.
-     * @throws IllegalArgumentException if an exception or error was thrown while
-     *                                  trying to load any of the classes.
-     */
-    public List<Class<?>> loadClasses() {
-        return loadClasses(/* ignoreExceptions = */ false);
     }
 
     // -------------------------------------------------------------------------------------------------------------

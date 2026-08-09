@@ -29,7 +29,6 @@
 package io.github.classgraph.test.methodinfo;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -132,7 +131,7 @@ public class MethodInfoTest {
                             "@" + Test.class.getName() + " public void testGetConstructorInfo()",
                             "@" + Test.class.getName() + " public void testGetMethodInfoIgnoringVisibility()",
                             "@" + Test.class.getName() + " public void testGetThrownExceptions()",
-                            "@" + Test.class.getName() + " public void testMethodInfoLoadMethodForArrayArg()");
+                            "@" + Test.class.getName() + " public void testArrayTypedMethodParams()");
         }
     }
 
@@ -173,21 +172,19 @@ public class MethodInfoTest {
                             "@" + Test.class.getName() + " public void testGetConstructorInfo()",
                             "@" + Test.class.getName() + " public void testGetMethodInfoIgnoringVisibility()",
                             "@" + Test.class.getName() + " public void testGetThrownExceptions()",
-                            "@" + Test.class.getName() + " public void testMethodInfoLoadMethodForArrayArg()");
+                            "@" + Test.class.getName() + " public void testArrayTypedMethodParams()");
         }
     }
 
-    /** MethodInfo.loadClassAndGetMethod for arrays argument. */
+    /** Array-typed method parameters. */
     // #344
     @Test
-    public void testMethodInfoLoadMethodForArrayArg() {
+    public void testArrayTypedMethodParams() {
         try (var scanResult = new ClassGraph().acceptPackages(MethodInfoTest.class.getPackage().getName())
                 .enableClassInfo().enableMethodInfo().enableAnnotationInfo().scan()) {
             final var mi = scanResult.getClassInfo(MethodInfoTest.class.getName()).getMethodInfo()
                     .getSingleMethod("publicMethodWithArgs");
             assertThat(mi).isNotNull();
-            assertThatCode(mi::loadClassAndGetMethod).doesNotThrowAnyException();
-            assertThat(mi.loadClassAndGetMethod()).isNotNull();
 
             // Extract array-typed params from method params
             final List<ArrayClassInfo> arrayClassInfoList = new ArrayList<>();
@@ -200,19 +197,22 @@ public class MethodInfoTest {
             assertThat(arrayClassInfoList.toString()).isEqualTo("[class float[], class byte[][], " + "class "
                     + X.class.getName() + "[][][], " + "class java.lang.String[][]]");
             final var p1 = arrayClassInfoList.get(1);
-            assertThat(p1.loadElementClass()).isEqualTo(byte.class);
-            assertThat(p1.loadClass()).isEqualTo(byte[][].class);
+            assertThat(p1.getName()).isEqualTo(byte[][].class.getCanonicalName());
+            assertThat(p1.getElementTypeSignature().toString()).isEqualTo("byte");
+            // There is no ClassInfo for a primitive element type
             assertThat(p1.getElementClassInfo()).isNull();
             assertThat(p1.getNumDimensions()).isEqualTo(2);
             final var p2 = arrayClassInfoList.get(2);
-            assertThat(p2.loadElementClass()).isEqualTo(X.class);
+            // The element type of the array is named using the binary name form
+            assertThat(p2.getName()).isEqualTo(X.class.getName() + "[][][]");
+            assertThat(p2.getElementTypeSignature().toString()).isEqualTo(X.class.getName());
             assertThat(p2.getElementClassInfo().getName()).isEqualTo(X.class.getName());
-            assertThat(p2.loadClass()).isEqualTo(X[][][].class);
             assertThat(p2.getElementClassInfo().getMethodInfo().get(0).getName()).isEqualTo("xMethod");
             assertThat(p2.getNumDimensions()).isEqualTo(3);
             final var p3 = arrayClassInfoList.get(3);
-            assertThat(p3.loadElementClass()).isEqualTo(String.class);
-            assertThat(p3.loadClass()).isEqualTo(String[][].class);
+            assertThat(p3.getName()).isEqualTo(String[][].class.getCanonicalName());
+            assertThat(p3.getElementTypeSignature().toString()).isEqualTo(String.class.getName());
+            // java.lang.String was not accepted by the scan, so it has no ClassInfo
             assertThat(p3.getElementClassInfo()).isNull();
             assertThat(p3.getNumDimensions()).isEqualTo(2);
         }

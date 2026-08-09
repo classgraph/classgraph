@@ -28,8 +28,6 @@
  */
 package io.github.classgraph;
 
-import java.lang.reflect.Field;
-
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -84,61 +82,6 @@ public class AnnotationEnumValue extends ScanResultObject implements Comparable<
      */
     public String getName() {
         return className + "." + valueName;
-    }
-
-    /**
-     * Loads the enum class, instantiates the enum constants for the class, and
-     * returns the enum constant value represented by this
-     * {@link AnnotationEnumValue}.
-     * 
-     * @param ignoreExceptions If true, ignore classloading exceptions and return
-     *                         null on failure.
-     * @return The enum constant value represented by this
-     *         {@link AnnotationEnumValue}
-     * @throws IllegalArgumentException if the class could not be loaded and
-     *                                  ignoreExceptions was false, or if the enum
-     *                                  constant is invalid.
-     */
-    public @Nullable Object loadClassAndReturnEnumValue(final boolean ignoreExceptions) throws IllegalArgumentException {
-        final Class<?> classRef = super.loadClass(ignoreExceptions);
-        if (classRef == null) {
-            if (ignoreExceptions) {
-                return null;
-            } else {
-                throw new IllegalArgumentException("Enum class " + className + " could not be loaded");
-            }
-        }
-        if (!classRef.isEnum()) {
-            throw new IllegalArgumentException("Class " + className + " is not an enum");
-        }
-        Field field;
-        try {
-            field = classRef.getDeclaredField(valueName);
-        } catch (final ReflectiveOperationException | SecurityException e) {
-            throw new IllegalArgumentException("Could not find enum constant " + this, e);
-        }
-        if (!field.isEnumConstant()) {
-            throw new IllegalArgumentException("Field " + this + " is not an enum constant");
-        }
-        try {
-            return field.get(null);
-        } catch (final ReflectiveOperationException | SecurityException e) {
-            throw new IllegalArgumentException("Field " + this + " is not accessible", e);
-        }
-    }
-
-    /**
-     * Loads the enum class, instantiates the enum constants for the class, and
-     * returns the enum constant value represented by this
-     * {@link AnnotationEnumValue}.
-     * 
-     * @return The enum constant value represented by this
-     *         {@link AnnotationEnumValue}
-     * @throws IllegalArgumentException if the class could not be loaded, or the
-     *                                  enum constant is invalid.
-     */
-    public @Nullable Object loadClassAndReturnEnumValue() throws IllegalArgumentException {
-        return loadClassAndReturnEnumValue(/* ignoreExceptions = */ false);
     }
 
     // -------------------------------------------------------------------------------------------------------------

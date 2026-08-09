@@ -63,7 +63,6 @@ public class Issue140Test {
             assertThat(elementTypeSignature).isInstanceOf(ClassRefTypeSignature.class);
             final var classRefTypeSignature = (ClassRefTypeSignature) elementTypeSignature;
             assertThat(classRefTypeSignature.getBaseClassName()).isEqualTo(String.class.getName());
-            assertThat(classRefTypeSignature.loadClass()).isEqualTo(String.class);
         }
     }
 }

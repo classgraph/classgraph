@@ -227,8 +227,7 @@ public class AnnotationParameterValue extends ScanResultObject
                     eltAnnotationInfo.convertWrapperArraysToPrimitiveArrays();
                 }
             }
-            final var eltTypeName = (String) getArrayValueClassOrName(arrayValue, annotationClassInfo,
-                    /* getClass = */ false);
+            final var eltTypeName = getArrayValueTypeName(arrayValue, annotationClassInfo);
             final var eltType = ARRAY_ELEMENT_TYPES.get(eltTypeName);
             if (eltType != null) {
                 // The array holds boxed values of a primitive type, or strings -- convert it to
@@ -250,64 +249,16 @@ public class AnnotationParameterValue extends ScanResultObject
     }
 
     /**
-     * Instantiate an annotation parameter value.
-     *
-     * @param annotationClassInfo the annotation class info
-     * @return the instance
-     */
-    @Nullable
-    Object instantiate(final @Nullable ClassInfo annotationClassInfo) {
-        return instantiate(value, annotationClassInfo);
-    }
-
-    /**
-     * Instantiate an annotation parameter value, or an element of an array-typed
-     * annotation parameter value.
-     *
-     * @param value               the annotation parameter value
-     * @param annotationClassInfo the annotation class info
-     * @return the instance
-     */
-    private @Nullable Object instantiate(final @Nullable Object value,
-            final @Nullable ClassInfo annotationClassInfo) {
-        if (value instanceof final AnnotationEnumValue annotationEnumValue) {
-            return annotationEnumValue.loadClassAndReturnEnumValue();
-        } else if (value instanceof final AnnotationClassRef annotationClassRef) {
-            return annotationClassRef.loadClass();
-        } else if (value instanceof final AnnotationInfo annotationInfo) {
-            return annotationInfo.loadClassAndInstantiate();
-        } else if (value != null && value.getClass() == Object[].class) {
-            final var arrayValue = (Object[]) value;
-            // Allocate the array with the element type of the annotation parameter, if the
-            // element type can be determined, otherwise as an Object[] array
-            final var eltType = (Class<?>) getArrayValueClassOrName(arrayValue, annotationClassInfo,
-                    /* getClass = */ true);
-            final var instantiatedArray = Array.newInstance(eltType, arrayValue.length);
-            for (var i = 0; i < arrayValue.length; i++) {
-                if (arrayValue[i] != null) {
-                    // Get the element value (may also cause the element to be instantiated)
-                    Array.set(instantiatedArray, i, instantiate(arrayValue[i], annotationClassInfo));
-                }
-            }
-            return instantiatedArray;
-        } else {
-            return value;
-        }
-    }
-
-    /**
-     * Get the element type of an array-typed annotation parameter value.
+     * Get the name of the element type of an array-typed annotation parameter
+     * value.
      *
      * @param arrayValue          the array-typed annotation parameter value
      * @param annotationClassInfo the annotation class, or null if the annotation
      *                            class was not scanned
-     * @param getClass            If true, return a {@code Class<?>} reference,
-     *                            otherwise return the class name.
-     * @return the array element type as a {@code Class<?>} reference if getClass is
-     *         true, otherwise the element type name as a String.
+     * @return the name of the array element type.
      */
-    private Object getArrayValueClassOrName(final Object[] arrayValue,
-            final @Nullable ClassInfo annotationClassInfo, final boolean getClass) {
+    private String getArrayValueTypeName(final Object[] arrayValue,
+            final @Nullable ClassInfo annotationClassInfo) {
         // Find the method in the annotation class with the same name as the annotation
         // parameter.
         final var annotationMethodList = annotationClassInfo == null || annotationClassInfo.methodInfo == null ? null
@@ -333,11 +284,10 @@ public class AnnotationParameterValue extends ScanResultObject
             final var elementTypeSig = arrayTypeSig.getElementTypeSignature();
             if (elementTypeSig instanceof final ClassRefTypeSignature classRefTypeSignature) {
                 // Look up the name of the element type, for non-primitive arrays
-                return getClass ? Objects.requireNonNull(classRefTypeSignature.loadClass())
-                        : classRefTypeSignature.getClassName();
+                return classRefTypeSignature.getClassName();
             } else if (elementTypeSig instanceof final BaseTypeSignature baseTypeSignature) {
                 // Look up the name of the primitive class, for primitive arrays
-                return getClass ? baseTypeSignature.getType() : baseTypeSignature.getTypeStr();
+                return baseTypeSignature.getTypeStr();
             }
         } else {
             // Could not find a method with this name -- this is an external class.
@@ -347,23 +297,23 @@ public class AnnotationParameterValue extends ScanResultObject
                 if (elt != null) {
                     // Primitive typed arrays will be turned into arrays of boxed types
                     if (elt instanceof String) {
-                        return getClass ? String.class : "java.lang.String";
+                        return "java.lang.String";
                     } else if (elt instanceof Integer) {
-                        return getClass ? Integer.class : "int";
+                        return "int";
                     } else if (elt instanceof Long) {
-                        return getClass ? Long.class : "long";
+                        return "long";
                     } else if (elt instanceof Short) {
-                        return getClass ? Short.class : "short";
+                        return "short";
                     } else if (elt instanceof Character) {
-                        return getClass ? Character.class : "char";
+                        return "char";
                     } else if (elt instanceof Byte) {
-                        return getClass ? Byte.class : "byte";
+                        return "byte";
                     } else if (elt instanceof Boolean) {
-                        return getClass ? Boolean.class : "boolean";
+                        return "boolean";
                     } else if (elt instanceof Double) {
-                        return getClass ? Double.class : "double";
+                        return "double";
                     } else if (elt instanceof Float) {
-                        return getClass ? Float.class : "float";
+                        return "float";
                     } else {
                         // The element type could not be determined (the element is an enum value, a
                         // class reference or a nested annotation) -- fall through and use Object as
@@ -374,7 +324,7 @@ public class AnnotationParameterValue extends ScanResultObject
             }
         }
         // Could not determine the element type -- just use Object
-        return getClass ? Object.class : "java.lang.Object";
+        return "java.lang.Object";
     }
 
     // -------------------------------------------------------------------------------------------------------------

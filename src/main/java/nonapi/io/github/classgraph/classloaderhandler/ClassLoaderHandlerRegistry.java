@@ -67,13 +67,9 @@ public final class ClassLoaderHandlerRegistry {
             // separately)
             new ClassLoaderHandlerRegistryEntry(new JPMSClassLoaderHandler()),
 
-            // URLClassLoader support (should be second-to-last, so that subclasses of
+            // URLClassLoader support (should be last, so that subclasses of
             // URLClassLoader are handled by more specific handlers above)
-            new ClassLoaderHandlerRegistryEntry(new URLClassLoaderHandler()),
-
-            // Placeholder for delegation to a ClassGraphClassLoader instance from an outer
-            // nested scan
-            new ClassLoaderHandlerRegistryEntry(new ClassGraphClassLoaderHandler())
+            new ClassLoaderHandlerRegistryEntry(new URLClassLoaderHandler())
 
             // FallbackClassLoaderHandler.class is registered separately below
             );

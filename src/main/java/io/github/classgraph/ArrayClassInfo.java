@@ -34,8 +34,8 @@ import org.jspecify.annotations.Nullable;
  * Holds metadata about an array class. This class extends {@link ClassInfo}
  * with additional methods relevant to array classes, in particular
  * {@link #getArrayTypeSignature()}, {@link #getTypeSignatureStr()},
- * {@link #getElementTypeSignature()}, {@link #getElementClassInfo()},
- * {@link #loadElementClass()}, and {@link #getNumDimensions()}.
+ * {@link #getElementTypeSignature()}, {@link #getElementClassInfo()}, and
+ * {@link #getNumDimensions()}.
  *
  * <p>
  * An {@link ArrayClassInfo} object will not have any methods, fields or
@@ -141,65 +141,5 @@ public class ArrayClassInfo extends ClassInfo {
             }
         }
         return elementInfo;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Get a {@code Class<?>} reference for the array element type. Causes the
-     * ClassLoader to load the element class, if it is not already loaded.
-     *
-     * @param ignoreExceptions Whether or not to ignore exceptions.
-     * @return a {@code Class<?>} reference for the array element type. Also works
-     *         for arrays of primitive element type.
-     */
-    public @Nullable Class<?> loadElementClass(final boolean ignoreExceptions) {
-        return arrayTypeSignature.loadElementClass(ignoreExceptions);
-    }
-
-    /**
-     * Get a {@code Class<?>} reference for the array element type. Causes the
-     * ClassLoader to load the element class, if it is not already loaded.
-     *
-     * @return a {@code Class<?>} reference for the array element type. Also works
-     *         for arrays of primitive element type.
-     */
-    public @Nullable Class<?> loadElementClass() {
-        return arrayTypeSignature.loadElementClass();
-    }
-
-    /**
-     * Obtain a {@code Class<?>} reference for the array class named by this
-     * {@link ArrayClassInfo} object. Causes the ClassLoader to load the element
-     * class, if it is not already loaded.
-     *
-     * @param ignoreExceptions Whether or not to ignore exceptions
-     * @return The class reference, or null, if ignoreExceptions is true and there
-     *         was an exception or error loading the class.
-     * @throws IllegalArgumentException if ignoreExceptions is false and there were
-     *                                  problems loading the class.
-     */
-    @Override
-    public @Nullable Class<?> loadClass(final boolean ignoreExceptions) {
-        if (classRef == null) {
-            classRef = arrayTypeSignature.loadClass(ignoreExceptions);
-        }
-        return classRef;
-    }
-
-    /**
-     * Obtain a {@code Class<?>} reference for the array class named by this
-     * {@link ArrayClassInfo} object. Causes the ClassLoader to load the element
-     * class, if it is not already loaded.
-     * 
-     * @return The class reference.
-     * @throws IllegalArgumentException if there were problems loading the class.
-     */
-    @Override
-    public @Nullable Class<?> loadClass() {
-        if (classRef == null) {
-            classRef = arrayTypeSignature.loadClass();
-        }
-        return classRef;
     }
 }

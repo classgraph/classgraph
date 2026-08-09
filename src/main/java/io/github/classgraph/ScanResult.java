@@ -50,7 +50,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 
-import nonapi.io.github.classgraph.classpath.ClasspathFinder;
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.AcceptReject;
@@ -111,12 +110,6 @@ public final class ScanResult implements Closeable {
      */
     private @Nullable Map<File, Long> fileToLastModified;
 
-    /** A custom ClassLoader that can load classes found during the scan. */
-    private @Nullable ClassGraphClassLoader classGraphClassLoader;
-
-    /** The {@link ClasspathFinder}. */
-    private @Nullable ClasspathFinder classpathFinder;
-
     /** The nested jar handler instance. */
     private @Nullable NestedJarHandler nestedJarHandler;
 
@@ -131,25 +124,6 @@ public final class ScanResult implements Closeable {
      * been closed.
      */
     @Nullable ReflectionUtils reflectionUtils;
-
-    /**
-     * Get the {@link ReflectionUtils} instance of a {@link ScanResult}, falling
-     * back to a fresh instance if the {@link ScanResult} is null or has been
-     * closed. {@link #close()} sets {@link #reflectionUtils} to null, so testing
-     * only for a null {@link ScanResult} is not enough -- objects such as
-     * {@link AnnotationInfo} keep working after the {@link ScanResult} they came
-     * from is closed, and must not throw {@link NullPointerException}. The field is
-     * read only once, so that a concurrent {@link #close()} cannot cause null to be
-     * returned.
-     *
-     * @param scanResult the {@link ScanResult}, or null.
-     * @return a non-null {@link ReflectionUtils}.
-     */
-    // #930
-    static ReflectionUtils getReflectionUtils(final @Nullable ScanResult scanResult) {
-        final var reflectionUtils = scanResult == null ? null : scanResult.reflectionUtils;
-        return reflectionUtils == null ? new ReflectionUtils() : reflectionUtils;
-    }
 
     /**
      * Get the classpath order, for use in code paths that are only reachable before
@@ -182,28 +156,6 @@ public final class ScanResult implements Closeable {
      */
     private Map<String, ModuleInfo> moduleNameToModuleInfo() {
         return Objects.requireNonNull(moduleNameToModuleInfo);
-    }
-
-    /**
-     * Get the {@link ClasspathFinder}, for use in code paths that are only reachable
-     * before this {@link ScanResult} is closed.
-     *
-     * @return the {@link ClasspathFinder}
-     * @throws NullPointerException if this {@link ScanResult} has been closed.
-     */
-    ClasspathFinder classpathFinder() {
-        return Objects.requireNonNull(classpathFinder);
-    }
-
-    /**
-     * Get the {@link ClassGraphClassLoader}, for use in code paths that are only
-     * reachable before this {@link ScanResult} is closed.
-     *
-     * @return the {@link ClassGraphClassLoader}
-     * @throws NullPointerException if this {@link ScanResult} has been closed.
-     */
-    private ClassGraphClassLoader classGraphClassLoader() {
-        return Objects.requireNonNull(classGraphClassLoader);
     }
 
     /** The toplevel log. */
@@ -269,7 +221,6 @@ public final class ScanResult implements Closeable {
      * @param scanSpec                 the scan spec
      * @param classpathOrder           the classpath order
      * @param rawClasspathEltOrderStrs the raw classpath element order
-     * @param classpathFinder          the {@link ClasspathFinder}
      * @param classNameToClassInfo     a map from class name to class info
      * @param packageNameToPackageInfo a map from package name to package info
      * @param moduleNameToModuleInfo   a map from module name to module info
@@ -278,14 +229,13 @@ public final class ScanResult implements Closeable {
      * @param topLevelLog              the toplevel log
      */
     ScanResult(final ScanSpec scanSpec, final List<ClasspathElement> classpathOrder,
-            final List<String> rawClasspathEltOrderStrs, final ClasspathFinder classpathFinder,
-            final Map<String, ClassInfo> classNameToClassInfo, final Map<String, PackageInfo> packageNameToPackageInfo,
+            final List<String> rawClasspathEltOrderStrs, final Map<String, ClassInfo> classNameToClassInfo,
+            final Map<String, PackageInfo> packageNameToPackageInfo,
             final Map<String, ModuleInfo> moduleNameToModuleInfo, final @Nullable Map<File, Long> fileToLastModified,
             final NestedJarHandler nestedJarHandler, final @Nullable LogNode topLevelLog) {
         this.scanSpec = scanSpec;
         this.rawClasspathEltOrderStrs = rawClasspathEltOrderStrs;
         this.classpathOrder = classpathOrder;
-        this.classpathFinder = classpathFinder;
         this.fileToLastModified = fileToLastModified;
         this.classNameToClassInfo = classNameToClassInfo;
         this.packageNameToPackageInfo = packageNameToPackageInfo;
@@ -320,9 +270,6 @@ public final class ScanResult implements Closeable {
                 classInfo.handleRepeatableAnnotations(allRepeatableAnnotationNames);
             }
         }
-
-        // Define a new ClassLoader that can load the classes found during the scan
-        this.classGraphClassLoader = new ClassGraphClassLoader(this);
 
         // Provide the shutdown hook with a weak reference to this ScanResult
         this.weakReference = new WeakReference<>(this);
@@ -1655,129 +1602,6 @@ public final class ScanResult implements Closeable {
     }
 
     // -------------------------------------------------------------------------------------------------------------
-    // Classloading
-
-    /**
-     * Get the ClassLoader order, respecting parent-first/parent-last delegation
-     * order.
-     *
-     * @return the class loader order.
-     */
-    ClassLoader @Nullable [] getClassLoaderOrderRespectingParentDelegation() {
-        return classpathFinder().getClassLoaderOrderRespectingParentDelegation();
-    }
-
-    /**
-     * Load a class given a class name. If ignoreExceptions is false, and the class
-     * cannot be loaded (due to classloading error, or due to an exception being
-     * thrown in the class initialization block), an IllegalArgumentException is
-     * thrown; otherwise, the class will simply be skipped if an exception is
-     * thrown.
-     *
-     * <p>
-     * Enable verbose scanning to see details of any exceptions thrown during
-     * classloading, even if ignoreExceptions is false.
-     *
-     * @param className                 the class to load.
-     * @param returnNullIfClassNotFound If true, null is returned if there was an
-     *                                  exception during classloading, otherwise
-     *                                  IllegalArgumentException is thrown if a
-     *                                  class could not be loaded.
-     * @return a reference to the loaded class, or null if the class could not be
-     *         loaded and ignoreExceptions is true.
-     * @throws IllegalArgumentException if ignoreExceptions is false,
-     *                                  IllegalArgumentException is thrown if there
-     *                                  were problems loading or initializing the
-     *                                  class. (Note that class initialization on
-     *                                  load is disabled by default, you can enable
-     *                                  it with
-     *                                  {@code ClassGraph#initializeLoadedClasses(true)}
-     *                                  .) Otherwise exceptions are suppressed, and
-     *                                  null is returned if any of these problems
-     *                                  occurs.
-     */
-    public @Nullable Class<?> loadClass(final String className, final boolean returnNullIfClassNotFound)
-            throws IllegalArgumentException {
-        checkNotClosed();
-        Assert.notNull(className, "className");
-        if (className.isEmpty()) {
-            throw new IllegalArgumentException("className must not be empty");
-        }
-        try {
-            return Class.forName(className, scanSpec.initializeLoadedClasses, classGraphClassLoader());
-        } catch (final ClassNotFoundException | LinkageError e) {
-            if (returnNullIfClassNotFound) {
-                return null;
-            } else {
-                throw new IllegalArgumentException("Could not load class " + className + " : " + e, e);
-            }
-        }
-    }
-
-    /**
-     * Load a class given a class name. If ignoreExceptions is false, and the class
-     * cannot be loaded (due to classloading error, or due to an exception being
-     * thrown in the class initialization block), an IllegalArgumentException is
-     * thrown; otherwise, the class will simply be skipped if an exception is
-     * thrown.
-     *
-     * <p>
-     * Enable verbose scanning to see details of any exceptions thrown during
-     * classloading, even if ignoreExceptions is false.
-     *
-     * @param <T>                       the superclass or interface type.
-     * @param className                 the class to load.
-     * @param superclassOrInterfaceType The class type to cast the result to.
-     * @param returnNullIfClassNotFound If true, null is returned if there was an
-     *                                  exception during classloading, otherwise
-     *                                  IllegalArgumentException is thrown if a
-     *                                  class could not be loaded.
-     * @return a reference to the loaded class, or null if the class could not be
-     *         loaded and ignoreExceptions is true.
-     * @throws IllegalArgumentException if ignoreExceptions is false,
-     *                                  IllegalArgumentException is thrown if there
-     *                                  were problems loading the class,
-     *                                  initializing the class, or casting it to the
-     *                                  requested type. (Note that class
-     *                                  initialization on load is disabled by
-     *                                  default, you can enable it with
-     *                                  {@code ClassGraph#initializeLoadedClasses(true)}
-     *                                  .) Otherwise exceptions are suppressed, and
-     *                                  null is returned if any of these problems
-     *                                  occurs.
-     */
-    public <T> @Nullable Class<T> loadClass(final String className, final Class<T> superclassOrInterfaceType,
-            final boolean returnNullIfClassNotFound) throws IllegalArgumentException {
-        checkNotClosed();
-        Assert.notNull(className, "className");
-        if (className.isEmpty()) {
-            throw new IllegalArgumentException("className must not be empty");
-        }
-        Assert.notNull(superclassOrInterfaceType, "superclassOrInterfaceType");
-        final Class<?> loadedClass;
-        try {
-            loadedClass = Class.forName(className, scanSpec.initializeLoadedClasses, classGraphClassLoader());
-        } catch (final ClassNotFoundException | LinkageError e) {
-            if (returnNullIfClassNotFound) {
-                return null;
-            } else {
-                throw new IllegalArgumentException("Could not load class " + className + " : " + e);
-            }
-        }
-        if (loadedClass != null && !superclassOrInterfaceType.isAssignableFrom(loadedClass)) {
-            if (returnNullIfClassNotFound) {
-                return null;
-            } else {
-                throw new IllegalArgumentException("Loaded class " + loadedClass.getName() + " cannot be cast to "
-                        + superclassOrInterfaceType.getName());
-            }
-        }
-        @SuppressWarnings("unchecked")
-        final Class<T> castClass = (Class<T>) loadedClass;
-        return castClass;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Free any temporary files created by extracting jars or files from within
@@ -1807,10 +1631,10 @@ public final class ScanResult implements Closeable {
                 pathToAcceptedResourcesCached.clear();
                 pathToAcceptedResourcesCached = null;
             }
-            // Don't clear classNameToClassInfo, since it may be used by
-            // ClassGraphClassLoader (#399).
-            // Just rely on the garbage collector to collect these once the ScanResult goes
-            // out of scope.
+            // Don't clear classNameToClassInfo, since ClassInfo objects and the objects
+            // reachable from them keep working after the ScanResult they came from is
+            // closed. Just rely on the garbage collector to collect these once the
+            // ScanResult goes out of scope.
             if (packageNameToPackageInfo != null) {
                 packageNameToPackageInfo.clear();
                 packageNameToPackageInfo = null;
@@ -1831,8 +1655,6 @@ public final class ScanResult implements Closeable {
                 nestedJarHandler.close(topLevelLog);
                 nestedJarHandler = null;
             }
-            classGraphClassLoader = null;
-            classpathFinder = null;
             reflectionUtils = null;
             // Flush log on exit, in case additional log entries were generated after scan()
             // completed

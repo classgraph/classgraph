@@ -8,6 +8,7 @@ import java.util.Arrays;
 
 import org.junit.jupiter.api.Test;
 
+import io.github.classgraph.AnnotationInfo;
 import io.github.classgraph.ClassGraph;
 
 /**
@@ -105,7 +106,7 @@ public class AnnotationParamWithPrimitiveTypedArrayTest {
             assertThat(v1.getClass()).isEqualTo(char[].class);
             assertThat(v2.getClass()).isEqualTo(String[].class);
             assertThat(v3.getClass()).isEqualTo(int[].class);
-            // v4 has type Object[] until instantiated, then it becomes NestedAnnotation[]
+            // Arrays of nested annotations are returned as Object[] of AnnotationInfo
             assertThat(v4.getClass()).isEqualTo(Object[].class);
 
             assertThat(v0).isEqualTo(new int[] { 1, 2 });
@@ -115,14 +116,11 @@ public class AnnotationParamWithPrimitiveTypedArrayTest {
             assertThat(Arrays.toString((Object[]) v4))
                     .isEqualTo("[@" + NestedAnnotation.class.getName() + "(str=\"Test\", intArray={9})]");
 
-            final var annotation = (AnnotationWithPrimitiveArrayParams) annotationInfo.loadClassAndInstantiate();
-            assertThat(annotation.v0()).isEqualTo(new int[] { 1, 2 });
-            assertThat(annotation.v1()).isEqualTo(new char[] { 'a' });
-            assertThat(annotation.v2()).isEqualTo(new String[] { "x" });
-            assertThat(annotation.v3()).isEqualTo(new int[] {});
-            assertThat(annotation.v4().getClass()).isEqualTo(NestedAnnotation[].class);
-            assertThat(annotation.v4()[0].str()).isEqualTo("Test");
-            assertThat(annotation.v4()[0].intArray()).isEqualTo(new int[] { 9 });
+            final var nestedAnnotationInfo = (AnnotationInfo) ((Object[]) v4)[0];
+            assertThat(nestedAnnotationInfo.getName()).isEqualTo(NestedAnnotation.class.getName());
+            final var nestedParams = nestedAnnotationInfo.getParameterValues();
+            assertThat(nestedParams.getValue("str")).isEqualTo("Test");
+            assertThat(nestedParams.getValue("intArray")).isEqualTo(new int[] { 9 });
         }
     }
 }

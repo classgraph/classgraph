@@ -165,35 +165,6 @@ public class BaseTypeSignature extends TypeSignature {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see io.github.classgraph.ScanResultObject#loadClass()
-     */
-    @Override
-    Class<?> loadClass() {
-        return getType();
-    }
-
-    /*
-     * (non-Javadoc)
-     *
-     * @see io.github.classgraph.ScanResultObject#loadClass(java.lang.Class)
-     */
-    @Override
-    <T> Class<T> loadClass(final Class<T> superclassOrInterfaceType) {
-        final Class<?> type = getType();
-        if (!superclassOrInterfaceType.isAssignableFrom(type)) {
-            throw new IllegalArgumentException(
-                    "Primitive class " + getTypeStr() + " cannot be cast to " + superclassOrInterfaceType.getName());
-        }
-        @SuppressWarnings("unchecked")
-        final Class<T> classT = (Class<T>) type;
-        return classT;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
     /**
      * Parse a base type.
      *

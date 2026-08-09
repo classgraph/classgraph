@@ -151,6 +151,69 @@ half-initialized until the deserializer filled in their fields. Those classes ar
 ever constructed by a scan, so the constructors were not usable from outside ClassGraph
 anyway.
 
+### ClassGraph no longer loads classes
+
+ClassGraph reads classfiles; it does not load them any more. Everything that turned a
+scan result into a live `Class`, `Method`, `Field`, `Constructor`, enum constant or
+annotation instance has been removed, along with the classloader that did the loading:
+
+| Removed in 5.x |
+| --- |
+| `ScanResult#loadClass(String, boolean)` |
+| `ScanResult#loadClass(String, Class<T>, boolean)` |
+| `ClassInfo#loadClass()` and `#loadClass(boolean)` |
+| `ClassInfo#loadClass(Class<T>)` and `#loadClass(Class<T>, boolean)` |
+| `ClassInfo#getEnumConstantObjects()` |
+| `ClassInfoList#loadClasses()` and `#loadClasses(boolean)` |
+| `ClassInfoList#loadClasses(Class<T>)` and `#loadClasses(Class<T>, boolean)` |
+| `ArrayClassInfo#loadClass()`, `#loadClass(boolean)`, `#loadElementClass()`, `#loadElementClass(boolean)` |
+| `ArrayTypeSignature#loadClass()`, `#loadClass(boolean)`, `#loadElementClass()`, `#loadElementClass(boolean)` |
+| `ClassRefTypeSignature#loadClass()` and `#loadClass(boolean)` |
+| `AnnotationClassRef#loadClass()` and `#loadClass(boolean)` |
+| `AnnotationEnumValue#loadClassAndReturnEnumValue()` and `#loadClassAndReturnEnumValue(boolean)` |
+| `AnnotationInfo#loadClassAndInstantiate()` |
+| `FieldInfo#loadClassAndGetField()` |
+| `MethodInfo#loadClassAndGetMethod()` and `#loadClassAndGetConstructor()` |
+| `ClassGraph#initializeLoadedClasses()` |
+| The public class `ClassGraphClassLoader` |
+
+Load classes yourself instead, with the classloader that the class was found under, which
+`ClassInfo` now reports:
+
+```java
+ClassInfo classInfo = scanResult.getClassInfo("com.xyz.Widget");
+Class<?> cls = Class.forName(classInfo.getName(), /* initialize = */ false, classInfo.getClassLoader());
+```
+
+`ClassInfo#getClassLoader()` is new in 5.x. It returns the classloader that the classfile
+was found under during the scan, or null if the class was never scanned (e.g. a superclass
+outside the accepted packages). Reflection then gives you methods, fields, constructors,
+enum constants and annotation instances directly, from the JDK, with the JDK's semantics.
+
+Why this went away, given that it was one of the older parts of the API:
+
+* **A scan and a classload can disagree.** ClassGraph found a classfile at a particular
+  position in the classpath order; the classloader that then loads it applies its own
+  delegation rules, so on a parent-last or otherwise non-standard classloader the class
+  you got back could be a different class with the same name from a different classpath
+  element. The 4.x `ClassGraphClassLoader` existed to narrow that gap, and could not close
+  it.
+* **Loading has side effects that scanning does not.** It runs static initializers (unless
+  suppressed), pins classes and their classloaders in memory for the lifetime of the loader,
+  and can throw `NoClassDefFoundError` or `ExceptionInInitializerError` from deep inside
+  unrelated code. Half the API surface here — every `ignoreExceptions` parameter, every
+  nullable return — was there to paper over that.
+* **The annotation proxies were not the JDK's annotations.** `loadClassAndInstantiate()`
+  built a dynamic proxy that reimplemented `equals()`, `hashCode()` and `toString()` for
+  annotations; it had to keep working after the `ScanResult` was closed, and did not always
+  agree with the annotation instance the JDK hands you for the same annotation.
+
+Where a scan result was previously used only to reach reflection, use the scanned
+information directly: `AnnotationInfo#getParameterValues()` for annotation parameters
+(including defaults), `AnnotationEnumValue#getClassName()`/`#getValueName()` for enum
+constants, `AnnotationClassRef#getName()` for class references, `ClassInfo#getEnumConstants()`
+for enum constant names, and `MethodInfo`/`FieldInfo` for signatures and modifiers.
+
 ### Module APIs are now strongly typed
 
 In 4.x, every method that took or returned a module-system object used `Object` as the

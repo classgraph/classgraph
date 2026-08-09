@@ -67,17 +67,19 @@ public class ClassLoadingWorksWithParentLastLoaders {
             final var classInfo = scanResult.getAllClasses()
                     .filter(classInfo1 -> "A".equals(classInfo1.getSimpleName())).get(0);
 
-            // ClassGraph finds "A" through the RestartClass Loader
-            final var classLoadersField = classInfo.getClass().getDeclaredField("classLoader");
-            classLoadersField.setAccessible(true);
-            assertThat(classLoadersField.get(classInfo).getClass().getSimpleName()).isEqualTo(expectedClassLoader);
+            // ClassGraph finds "A" through the RestartClass Loader, and reports that
+            // classloader, so that the class can be loaded through the same classloader
+            // that it was found with
+            final var classInfoClassLoader = classInfo.getClassLoader();
+            assertThat(classInfoClassLoader).isNotNull();
+            assertThat(classInfoClassLoader.getClass().getSimpleName()).isEqualTo(expectedClassLoader);
 
-            // And it should load it through the same class loader it found it with
-            final var aClassLoadedThroughClassGraph = classInfo.loadClass();
-            assertThat(aClassLoadedThroughClassGraph.getClassLoader().getClass().getSimpleName())
+            final var aClassLoadedThroughReportedClassLoader = Class.forName(classInfo.getName(),
+                    /* initialize = */ false, classInfoClassLoader);
+            assertThat(aClassLoadedThroughReportedClassLoader.getClassLoader().getClass().getSimpleName())
                     .isEqualTo(expectedClassLoader);
             // and thus assignable
-            assertThat(a.getClass().isAssignableFrom(aClassLoadedThroughClassGraph)).isTrue();
+            assertThat(a.getClass().isAssignableFrom(aClassLoadedThroughReportedClassLoader)).isTrue();
         }
     }
 }

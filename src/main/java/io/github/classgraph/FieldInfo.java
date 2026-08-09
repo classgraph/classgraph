@@ -29,7 +29,6 @@
 package io.github.classgraph;
 
 import java.lang.annotation.Repeatable;
-import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.List;
 import java.util.Objects;
@@ -255,28 +254,6 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
                     "Please call ClassGraph#enableStaticFinalFieldConstantInitializerValues() " + "before #scan()");
         }
         return constantInitializerValue;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Load the class this field is associated with, and get the {@link Field}
-     * reference for this field.
-     *
-     * @return The {@link Field} reference for this field.
-     * @throws IllegalArgumentException if the class can't be loaded or the field
-     *                                  does not exist.
-     */
-    public Field loadClassAndGetField() throws IllegalArgumentException {
-        try {
-            return Objects.requireNonNull(loadClass()).getField(getName());
-        } catch (final NoSuchFieldException e1) {
-            try {
-                return loadClass().getDeclaredField(getName());
-            } catch (final NoSuchFieldException e2) {
-                throw new IllegalArgumentException("No such field: " + getClassName() + "." + getName());
-            }
-        }
     }
 
     // -------------------------------------------------------------------------------------------------------------

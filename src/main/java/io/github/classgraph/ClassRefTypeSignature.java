@@ -281,38 +281,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /**
-     * Load the referenced class, if not already loaded, returning a
-     * {@code Class<?>} reference for the referenced class. (Called by
-     * {@link AnnotationClassRef#loadClass()}.)
-     *
-     * @param ignoreExceptions if true, ignore exceptions and instead return null if
-     *                         the class could not be loaded.
-     * @return The {@code Class<?>} reference for the referenced class.
-     * @throws IllegalArgumentException if the class could not be loaded and
-     *                                  ignoreExceptions was false.
-     */
-    @Override
-    public @Nullable Class<?> loadClass(final boolean ignoreExceptions) {
-        return super.loadClass(ignoreExceptions);
-    }
-
-    /**
-     * Load the referenced class, if not already loaded, returning a
-     * {@code Class<?>} reference for the referenced class. (Called by
-     * {@link AnnotationClassRef#loadClass()}.)
-     *
-     * @return The {@code Class<?>} reference for the referenced class.
-     * @throws IllegalArgumentException if the class could not be loaded.
-     */
-    @Override
-    public @Nullable Class<?> loadClass() {
-        return super.loadClass();
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /** @return the fully-qualified class name, for classloading. */
+    /** @return the fully-qualified class name. */
     @Override
     protected String getClassName() {
         return getFullyQualifiedClassName();
@@ -323,9 +292,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
      *
      * @return The {@link ClassInfo} object for the referenced class, or null if the
      *         referenced class was not encountered during scanning (i.e. if no
-     *         ClassInfo object was created for the class during scanning). N.B.
-     *         even if this method returns null, {@link #loadClass()} may be able to
-     *         load the referenced class by name.
+     *         ClassInfo object was created for the class during scanning).
      */
     @Override
     public @Nullable ClassInfo getClassInfo() {

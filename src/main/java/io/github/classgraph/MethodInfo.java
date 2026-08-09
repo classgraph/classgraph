@@ -30,8 +30,6 @@ package io.github.classgraph;
 
 import java.lang.annotation.Annotation;
 import java.lang.annotation.Repeatable;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -723,116 +721,6 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
             }
         }
         return false;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Load and return the classes of each of the method parameters.
-     * 
-     * @return An array of the {@link Class} references for each method parameter.
-     */
-    private Class<?>[] loadParameterClasses() {
-        final var allParameterInfo = getParameterInfo();
-        final List<Class<?>> parameterClasses = new ArrayList<>(allParameterInfo.length);
-        for (final MethodParameterInfo mpi : allParameterInfo) {
-            final var parameterType = mpi.getTypeSignatureOrTypeDescriptor();
-            final TypeSignature actualParameterType;
-            if (parameterType instanceof final TypeVariableSignature tvs) {
-                final var t = tvs.resolve();
-                if (t.classBound != null) {
-                    // Use class bound of type variable as concrete type, if available,
-                    // in preference to using first interface bound (ignores interface
-                    // bound(s), if present)
-                    actualParameterType = t.classBound;
-                } else if (t.interfaceBounds != null && !t.interfaceBounds.isEmpty()) {
-                    // Use first interface bound of type variable as concrete type
-                    // (ignores 2nd and subsequent interface bound(s), if present)
-                    actualParameterType = t.interfaceBounds.get(0);
-                } else {
-                    // Sanity check, should not happen
-                    throw new IllegalArgumentException("TypeVariableSignature has no bounds");
-                }
-            } else {
-                actualParameterType = Objects.requireNonNull(parameterType);
-            }
-            parameterClasses.add(actualParameterType.loadClass());
-        }
-        return parameterClasses.toArray(new Class<?>[0]);
-    }
-
-    /**
-     * Load the class this method is associated with, and get the {@link Method}
-     * reference for this method. Only call this if {@link #isConstructor()} returns
-     * false, otherwise an {@link IllegalArgumentException} will be thrown. Instead
-     * call {@link #loadClassAndGetConstructor()} for constructors.
-     * 
-     * @return The {@link Method} reference for this method.
-     * @throws IllegalArgumentException
-     *                                  <ul>
-     *                                  <li>If the method's class can't be
-     *                                  loaded</li>
-     *                                  <li>If the method does not exist</li>
-     *                                  <li>If the method is a constructor</li>
-     *                                  <li>If one of the method's parameters
-     *                                  references an unknown class</li>
-     *                                  <li>If the method's return type references
-     *                                  an unknown class</li>
-     *                                  </ul>
-     */
-    public Method loadClassAndGetMethod() throws IllegalArgumentException {
-        if (isConstructor()) {
-            throw new IllegalArgumentException(
-                    "Need to call loadClassAndGetConstructor() for constructors, not loadClassAndGetMethod()");
-        }
-        final var parameterClassesArr = loadParameterClasses();
-        try {
-            return Objects.requireNonNull(loadClass()).getMethod(getName(), parameterClassesArr);
-        } catch (final NoSuchMethodException e1) {
-            try {
-                return Objects.requireNonNull(loadClass()).getDeclaredMethod(getName(), parameterClassesArr);
-            } catch (final NoSuchMethodException e2) {
-                throw new IllegalArgumentException("Method not found: " + getClassName() + "." + getName());
-            }
-        } catch (final NoClassDefFoundError e3) {
-            // The method returns an unknown class
-            throw new IllegalArgumentException("Could not load method: " + getClassName() + "." + getName(), e3);
-        }
-    }
-
-    /**
-     * Load the class this constructor is associated with, and get the
-     * {@link Constructor} reference for this constructor. Only call this if
-     * {@link #isConstructor()} returns true, otherwise an
-     * {@link IllegalArgumentException} will be thrown. Instead call
-     * {@link #loadClassAndGetMethod()} for non-constructor methods.
-     * 
-     * @return The {@link Constructor} reference for this constructor.
-     * @throws IllegalArgumentException
-     *                                  <ul>
-     *                                  <li>If the method's class can't be
-     *                                  loaded</li>
-     *                                  <li>If the constructor does not exist</li>
-     *                                  <li>If the method is not a constructor</li>
-     *                                  <li>If one of the constructor's parameters
-     *                                  references an unknown class</li>
-     *                                  </ul>
-     */
-    public Constructor<?> loadClassAndGetConstructor() throws IllegalArgumentException {
-        if (!isConstructor()) {
-            throw new IllegalArgumentException("Need to call loadClassAndGetMethod() for non-constructor methods, not "
-                    + "loadClassAndGetConstructor()");
-        }
-        final var parameterClassesArr = loadParameterClasses();
-        try {
-            return Objects.requireNonNull(loadClass()).getConstructor(parameterClassesArr);
-        } catch (final NoSuchMethodException e1) {
-            try {
-                return Objects.requireNonNull(loadClass()).getDeclaredConstructor(parameterClassesArr);
-            } catch (final NoSuchMethodException e2) {
-                throw new IllegalArgumentException("Constructor not found for class " + getClassName());
-            }
-        }
     }
 
     // -------------------------------------------------------------------------------------------------------------

@@ -90,7 +90,7 @@ public class AnnotationClassRefTest {
             final var val = paramVal.getValue();
             assertThat(val instanceof AnnotationClassRef).isTrue();
             final var classRefVal = (AnnotationClassRef) val;
-            assertThat(classRefVal.loadClass()).isEqualTo(Void.class);
+            assertThat(classRefVal.getName()).isEqualTo(Void.class.getName());
         }
     }
 }

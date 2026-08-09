@@ -231,12 +231,12 @@ public class Issue153Test {
             assertThat(classInfo.getFieldInfo("testFieldWithOnlyDefault").getAllAnnotationInfo().getAsStrings()) //
                     .containsExactly("@" + AnnotationWithOnlyDefaultValue.class.getName() + "(6)");
 
-            // Make sure enum constants can be instantiated
+            // Make sure enum constants are read as the enum class name plus the constant name
             final var annotation2 = classInfo.getAllAnnotationInfo().get(EnumAnnotation.class.getName());
             final var annotationParam0 = annotation2.getParameterValues().get(0);
-            final var bananaRef = ((AnnotationEnumValue) annotationParam0.getValue()).loadClassAndReturnEnumValue();
-            assertThat(bananaRef.getClass()).isEqualTo(FruitEnum.class);
-            assertThat(bananaRef.toString()).isEqualTo(FruitEnum.BANANA.toString());
+            final var bananaRef = (AnnotationEnumValue) annotationParam0.getValue();
+            assertThat(bananaRef.getClassName()).isEqualTo(FruitEnum.class.getName());
+            assertThat(bananaRef.getValueName()).isEqualTo(FruitEnum.BANANA.name());
         }
     }
 }

@@ -244,9 +244,6 @@ public class ScanSpec {
     /** If non-null, a list of filter operations to apply to classpath elements. */
     public @Nullable List<Object> classpathElementFilters;
 
-    /** Whether to initialize classes when loading them. */
-    public boolean initializeLoadedClasses;
-
     /**
      * If true, nested jarfiles (jarfiles within jarfiles) that are extracted during
      * scanning are removed from their temporary directory (e.g.

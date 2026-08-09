@@ -33,7 +33,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-import nonapi.io.github.classgraph.utils.Assert;
 import nonapi.io.github.classgraph.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
@@ -47,9 +46,6 @@ abstract class ScanResultObject {
 
     /** The associated {@link ClassInfo} object. */
     private @Nullable ClassInfo classInfo;
-
-    /** The class ref, once the class is loaded. */
-    protected @Nullable Class<?> classRef;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -116,10 +112,8 @@ abstract class ScanResultObject {
     /**
      * Get the {@link ClassInfo} object for the referenced class, or null if the
      * referenced class was not encountered during scanning (i.e. no ClassInfo
-     * object was created for the class during scanning). N.B. even if this method
-     * returns null, {@link #loadClass()} may be able to load the referenced class
-     * by name.
-     * 
+     * object was created for the class during scanning).
+     *
      * @return The {@link ClassInfo} object for the referenced class.
      */
     @Nullable
@@ -135,143 +129,6 @@ abstract class ScanResultObject {
             classInfo = scanResult.getClassInfo(className);
         }
         return classInfo;
-    }
-
-    /**
-     * Get the class name by calling getClassInfo().getName(), or as a fallback, by
-     * calling getClassName().
-     *
-     * @return the class name
-     */
-    private String getClassInfoNameOrClassName() {
-        String className;
-        ClassInfo ci = null;
-        try {
-            ci = getClassInfo();
-        } catch (final IllegalArgumentException e) {
-            // Just ignore wrong access to array classInfo
-        }
-        if (ci == null) {
-            ci = classInfo;
-        }
-        if (ci != null) {
-            // Get class name from getClassInfo().getName()
-            className = ci.getName();
-        } else {
-            // Get class name from getClassName()
-            className = getClassName();
-        }
-        if (className == null) {
-            throw new IllegalArgumentException("Class name is not set");
-        }
-        return className;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Load the class named returned by {@link #getClassInfo()}, or if that returns
-     * null, the class named by {@link #getClassName()}. Returns a {@code Class<?>}
-     * reference for the class, cast to the requested superclass or interface type.
-     *
-     * @param <T>                       the superclass or interface type
-     * @param superclassOrInterfaceType The type to cast the resulting class
-     *                                  reference to.
-     * @param ignoreExceptions          If true, ignore classloading exceptions and
-     *                                  return null on failure.
-     * @return The {@code Class<?>} reference for the referenced class, or null if
-     *         the class could not be loaded (or casting failed) and
-     *         ignoreExceptions is true.
-     * @throws IllegalArgumentException if the class could not be loaded or cast,
-     *                                  and ignoreExceptions was false.
-     */
-    <T> @Nullable Class<T> loadClass(final Class<T> superclassOrInterfaceType, final boolean ignoreExceptions) {
-        Assert.notNull(superclassOrInterfaceType, "superclassOrInterfaceType");
-        synchronized (this) {
-            // If class is not already loaded, try loading class
-            if (classRef == null) {
-                final var className = getClassInfoNameOrClassName();
-                try {
-                    classRef = scanResult != null
-                            ? scanResult.loadClass(className, superclassOrInterfaceType, ignoreExceptions)
-                            // Fallback, if scanResult is not set
-                            : Class.forName(className);
-                    if (classRef == null && !ignoreExceptions) {
-                        throw new IllegalArgumentException("Could not load class " + className);
-                    }
-                } catch (final Throwable t) {
-                    if (!ignoreExceptions) {
-                        throw new IllegalArgumentException("Could not load class " + className, t);
-                    }
-                }
-            }
-            @SuppressWarnings("unchecked")
-            final Class<T> classT = (Class<T>) classRef;
-            return classT;
-        }
-    }
-
-    /**
-     * Load the class named returned by {@link #getClassInfo()}, or if that returns
-     * null, the class named by {@link #getClassName()}. Returns a {@code Class<?>}
-     * reference for the class, cast to the requested superclass or interface type.
-     *
-     * @param <T>                       the superclass or interface type
-     * @param superclassOrInterfaceType The type to cast the resulting class
-     *                                  reference to.
-     * @return The {@code Class<?>} reference for the referenced class, or null if
-     *         the class could not be loaded (or casting failed) and
-     *         ignoreExceptions is true.
-     * @throws IllegalArgumentException if the class could not be loaded or cast,
-     *                                  and ignoreExceptions was false.
-     */
-    <T> @Nullable Class<T> loadClass(final Class<T> superclassOrInterfaceType) {
-        return loadClass(superclassOrInterfaceType, /* ignoreExceptions = */ false);
-    }
-
-    /**
-     * Load the class named returned by {@link #getClassInfo()}, or if that returns
-     * null, the class named by {@link #getClassName()}. Returns a {@code Class<?>}
-     * reference for the class.
-     * 
-     * @param ignoreExceptions If true, ignore classloading exceptions and return
-     *                         null on failure.
-     * @return The {@code Class<?>} reference for the referenced class, or null if
-     *         the class could not be loaded and ignoreExceptions is true.
-     * @throws IllegalArgumentException if the class could not be loaded and
-     *                                  ignoreExceptions was false.
-     */
-    @Nullable
-    Class<?> loadClass(final boolean ignoreExceptions) {
-        if (classRef == null) {
-            final var className = getClassInfoNameOrClassName();
-            if (scanResult != null) {
-                classRef = scanResult.loadClass(className, ignoreExceptions);
-            } else {
-                // Fallback, if scanResult is not set
-                try {
-                    classRef = Class.forName(className);
-                } catch (final Throwable t) {
-                    if (!ignoreExceptions) {
-                        throw new IllegalArgumentException("Could not load class " + className, t);
-                    }
-                }
-            }
-        }
-        return classRef;
-    }
-
-    /**
-     * Load the class named returned by {@link #getClassInfo()}, or if that returns
-     * null, the class named by {@link #getClassName()}. Returns a {@code Class<?>}
-     * reference for the class.
-     * 
-     * @return The {@code Class<?>} reference for the referenced class.
-     * @throws IllegalArgumentException if the class could not be loaded.
-     */
-    @Nullable
-    Class<?> loadClass() {
-        return loadClass(/* ignoreExceptions = */ false);
     }
 
     // -------------------------------------------------------------------------------------------------------------

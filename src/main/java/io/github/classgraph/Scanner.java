@@ -948,14 +948,12 @@ class Scanner implements Callable<ScanResult> {
      *
      * @param finalClasspathEltOrder     the final classpath elt order
      * @param finalClasspathEltOrderStrs the final classpath elt order strs
-     * @param classpathFinder            the {@link ClasspathFinder}
      * @return the scan result
      * @throws InterruptedException if the scan was interrupted
      * @throws ExecutionException   if the scan threw an uncaught exception
      */
     private ScanResult performScan(final List<ClasspathElement> finalClasspathEltOrder,
-            final List<String> finalClasspathEltOrderStrs, final ClasspathFinder classpathFinder)
-            throws InterruptedException, ExecutionException {
+            final List<String> finalClasspathEltOrderStrs) throws InterruptedException, ExecutionException {
         // Mask duplicate resources (remove any resource that is the same file as a
         // resource that was already
         // found in an earlier classpath element)
@@ -1066,8 +1064,8 @@ class Scanner implements Callable<ScanResult> {
 
         // Return a new ScanResult
         final var scanResult = new ScanResult(scanSpec, finalClasspathEltOrder, finalClasspathEltOrderStrs,
-                classpathFinder, classNameToClassInfo, packageNameToPackageInfo, moduleNameToModuleInfo,
-                fileToLastModified, nestedJarHandler, topLevelLog);
+                classNameToClassInfo, packageNameToPackageInfo, moduleNameToModuleInfo, fileToLastModified,
+                nestedJarHandler, topLevelLog);
 
         // Set the ScanResult in each classpath element, so that the classpath elements
         // can determine when the
@@ -1172,14 +1170,14 @@ class Scanner implements Callable<ScanResult> {
 
         if (performScan) {
             // Scan classpath / modules, producing a ScanResult.
-            return performScan(finalClasspathEltOrderFiltered, finalClasspathEltOrderStrs, classpathFinder);
+            return performScan(finalClasspathEltOrderFiltered, finalClasspathEltOrderStrs);
         } else {
             // Only getting classpath -- return a placeholder ScanResult to hold classpath
             // elements
             if (topLevelLog != null) {
                 topLevelLog.log("Only returning classpath elements (not performing a scan)");
             }
-            return new ScanResult(scanSpec, finalClasspathEltOrderFiltered, finalClasspathEltOrderStrs, classpathFinder,
+            return new ScanResult(scanSpec, finalClasspathEltOrderFiltered, finalClasspathEltOrderStrs,
                     /* classNameToClassInfo = */ new HashMap<>(), /* packageNameToPackageInfo = */ new HashMap<>(),
                     /* moduleNameToModuleInfo = */ new HashMap<>(), /* fileToLastModified = */ null, nestedJarHandler,
                     topLevelLog);

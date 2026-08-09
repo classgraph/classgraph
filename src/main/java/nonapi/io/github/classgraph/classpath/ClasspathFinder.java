@@ -32,7 +32,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map.Entry;
 
-import io.github.classgraph.ClassGraphClassLoader;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
@@ -57,15 +56,6 @@ public class ClasspathFinder {
      * respecting parent-first/parent-last delegation order.
      */
     private ClassLoader @Nullable [] classLoaderOrderRespectingParentDelegation;
-
-    /**
-     * If one of the classloaders that was found was an existing instance of
-     * {@link ClassGraphClassLoader}, then delegate to that classloader first rather
-     * than trying to load from the {@link ClassGraphClassLoader} of the current
-     * scan, so that classes are compatible between nested scans.
-     */
-    // #485
-    private @Nullable ClassGraphClassLoader delegateClassGraphClassLoader;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -95,21 +85,6 @@ public class ClasspathFinder {
      */
     public ClassLoader @Nullable [] getClassLoaderOrderRespectingParentDelegation() {
         return classLoaderOrderRespectingParentDelegation;
-    }
-
-    /**
-     * If one of the classloaders that was found was an existing instance of
-     * {@link ClassGraphClassLoader}, then delegate to that classloader first rather
-     * than trying to load from the {@link ClassGraphClassLoader} of the current
-     * scan, so that classes are compatible between nested scans.
-     * 
-     * @return the {@link ClassGraphClassLoader} to delegate to before loading
-     *         classes with this scan's own {@link ClassGraphClassLoader} (or null
-     *         if none).
-     */
-    // #485
-    public @Nullable ClassGraphClassLoader getDelegateClassGraphClassLoader() {
-        return delegateClassGraphClassLoader;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -259,13 +234,9 @@ public class ClasspathFinder {
             }
             final var overrideLog = classpathFinderLog == null ? null
                     : classpathFinderLog.log("Overriding classpath with: " + scanSpec.overrideClasspath);
-            classpathOrder.addClasspathEntries(scanSpec.overrideClasspath,
-                    // If the classpath is overridden, the classloader used to load classes is
-                    // overridden in
-                    // ClassGraphClassLoader by a custom URLClassLoader that loads from the override
-                    // classpath.
-                    // Just use defaultClassLoader as a placeholder here.
-                    defaultClassLoader, scanSpec, overrideLog);
+            // The classloader is only recorded for each classpath entry, it is not used to
+            // find the entries, so just use defaultClassLoader as a placeholder here
+            classpathOrder.addClasspathEntries(scanSpec.overrideClasspath, defaultClassLoader, scanSpec, overrideLog);
             if (overrideLog != null) {
                 overrideLog.log("WARNING: when the classpath is overridden, there is no guarantee that the classes "
                         + "found by classpath scanning will be the same as the classes loaded by the "
@@ -353,10 +324,6 @@ public class ClasspathFinder {
                     } else if (classloaderURLLog != null) {
                         classloaderURLLog.log("Ignoring parent classloader " + classLoader + ", normally handled by "
                                 + classLoaderHandlerRegistryEntry.getHandlerName());
-                    }
-                    // See if a previous scan's ClassGraphClassLoader should be delegated to first
-                    if (classLoader instanceof final ClassGraphClassLoader classGraphClassLoader) {
-                        delegateClassGraphClassLoader = classGraphClassLoader;
                     }
                 }
             }

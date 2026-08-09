@@ -82,9 +82,10 @@ public class Issue355Test {
             final var yParam = y.getMethodInfo().get(0).getParameterInfo()[0];
             final var paramTypeSignature = (ArrayTypeSignature) yParam.getTypeSignatureOrTypeDescriptor();
             final var arrayClassInfo = paramTypeSignature.getArrayClassInfo();
-            assertThat(arrayClassInfo.getElementClassInfo().equals(x));
-            assertThat(arrayClassInfo.loadClass()).isEqualTo(X[].class);
-            assertThat(arrayClassInfo.loadElementClass()).isEqualTo(X.class);
+            assertThat(arrayClassInfo.getElementClassInfo()).isEqualTo(x);
+            // The element type of the array is named using the binary name form
+            assertThat(arrayClassInfo.getName()).isEqualTo(X.class.getName() + "[]");
+            assertThat(arrayClassInfo.getNumDimensions()).isEqualTo(1);
         }
     }
 }

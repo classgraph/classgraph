@@ -3290,30 +3290,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get the enum constants of an enum class.
-     *
-     * @return All enum constants of an enum class as a list of objects of the same
-     *         type as the enum.
-     */
-    public List<Object> getEnumConstantObjects() {
-        if (!isEnum()) {
-            throw new IllegalArgumentException("Class " + getName() + " is not an enum");
-        }
-        final Class<?> enumClass = loadClass();
-        final var consts = getEnumConstants();
-        final List<Object> constObjs = new ArrayList<>(consts.size());
-        final var reflectionUtils = ScanResult.getReflectionUtils(scanResult);
-        for (final FieldInfo constFieldInfo : consts) {
-            final var constObj = reflectionUtils.getStaticFieldVal(true, enumClass, constFieldInfo.getName());
-            if (constObj == null) {
-                throw new IllegalArgumentException("Could not read enum constant objects");
-            }
-            constObjs.add(constObj);
-        }
-        return constObjs;
-    }
-
-    /**
      * Returns information on the named field declared by the class, but not by its
      * superclasses. See also:
      *
@@ -3782,93 +3758,18 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         return classfileResource;
     }
 
-    // -------------------------------------------------------------------------------------------------------------
-
     /**
-     * Obtain a {@code Class<?>} reference for the class named by this
-     * {@link ClassInfo} object, casting it to the requested interface or superclass
-     * type. Causes the ClassLoader to load the class, if it is not already loaded.
+     * The classloader that this class was found under. ClassGraph does not load
+     * classes itself, so if you need a {@link Class} reference for this class, load
+     * it yourself with this classloader, e.g.
+     * {@code Class.forName(classInfo.getName(), false, classInfo.getClassLoader())}.
      *
-     * <p>
-     * <b>Important note:</b> since {@code superclassOrInterfaceType} is a class
-     * reference for an already-loaded class, it is critical that
-     * {@code superclassOrInterfaceType} is loaded by the same classloader as the
-     * class referred to by this {@code ClassInfo} object, otherwise the class cast
-     * will fail.
-     *
-     * @param <T>                       the superclass or interface type
-     * @param superclassOrInterfaceType The {@link Class} reference for the type to
-     *                                  cast the loaded class to.
-     * @param ignoreExceptions          If true, return null if any exceptions or
-     *                                  errors thrown during classloading, or if
-     *                                  attempting to cast the resulting
-     *                                  {@code Class<?>} reference to the requested
-     *                                  superclass or interface type fails. If
-     *                                  false, {@link IllegalArgumentException} is
-     *                                  thrown if the class could not be loaded or
-     *                                  could not be cast to the requested type.
-     * @return The class reference, or null, if ignoreExceptions is true and there
-     *         was an exception or error loading the class.
-     * @throws IllegalArgumentException if ignoreExceptions is false and there were
-     *                                  problems loading the class, or casting it to
-     *                                  the requested type.
+     * @return The classloader that this class was found under. Returns null if the
+     *         classloader is not known, e.g. because this class was not itself
+     *         accepted, but was referenced by an accepted class.
      */
-    @Override
-    public <T> @Nullable Class<T> loadClass(final Class<T> superclassOrInterfaceType,
-            final boolean ignoreExceptions) {
-        return super.loadClass(superclassOrInterfaceType, ignoreExceptions);
-    }
-
-    /**
-     * Obtain a {@code Class<?>} reference for the class named by this
-     * {@link ClassInfo} object, casting it to the requested interface or superclass
-     * type. Causes the ClassLoader to load the class, if it is not already loaded.
-     *
-     * <p>
-     * <b>Important note:</b> since {@code superclassOrInterfaceType} is a class
-     * reference for an already-loaded class, it is critical that
-     * {@code superclassOrInterfaceType} is loaded by the same classloader as the
-     * class referred to by this {@code ClassInfo} object, otherwise the class cast
-     * will fail.
-     *
-     * @param <T>                       The superclass or interface type
-     * @param superclassOrInterfaceType The type to cast the loaded class to.
-     * @return The class reference.
-     * @throws IllegalArgumentException if there were problems loading the class or
-     *                                  casting it to the requested type.
-     */
-    @Override
-    public <T> @Nullable Class<T> loadClass(final Class<T> superclassOrInterfaceType) {
-        return super.loadClass(superclassOrInterfaceType, /* ignoreExceptions = */ false);
-    }
-
-    /**
-     * Obtain a {@code Class<?>} reference for the class named by this
-     * {@link ClassInfo} object. Causes the ClassLoader to load the class, if it is
-     * not already loaded.
-     *
-     * @param ignoreExceptions Whether or not to ignore exceptions
-     * @return The class reference, or null, if ignoreExceptions is true and there
-     *         was an exception or error loading the class.
-     * @throws IllegalArgumentException if ignoreExceptions is false and there were
-     *                                  problems loading the class.
-     */
-    @Override
-    public @Nullable Class<?> loadClass(final boolean ignoreExceptions) {
-        return super.loadClass(ignoreExceptions);
-    }
-
-    /**
-     * Obtain a {@code Class<?>} reference for the class named by this
-     * {@link ClassInfo} object. Causes the ClassLoader to load the class, if it is
-     * not already loaded.
-     *
-     * @return The class reference.
-     * @throws IllegalArgumentException if there were problems loading the class.
-     */
-    @Override
-    public @Nullable Class<?> loadClass() {
-        return super.loadClass(/* ignoreExceptions = */ false);
+    public @Nullable ClassLoader getClassLoader() {
+        return classLoader;
     }
 
     // -------------------------------------------------------------------------------------------------------------

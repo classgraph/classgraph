@@ -196,10 +196,10 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      * The classloader follows the winning reference, since the same directory or
      * jar can be reached through more than one classloader (e.g. through a
      * parent-last classloader and through its parent), and the classloader that
-     * gives the classpath element its position in the classpath order is also the
-     * one that should be used to load the classes found within it -- otherwise
-     * which classloader is recorded depends on which work unit won the race, and
-     * {@link ClassInfo#loadClass()} intermittently loads a class through the wrong
+     * gives the classpath element its position in the classpath order is the one
+     * that should be reported for the classes found within it -- otherwise which
+     * classloader is recorded depends on which work unit won the race, and
+     * {@link ClassInfo#getClassLoader()} intermittently reports the wrong
      * classloader.
      *
      * <p>

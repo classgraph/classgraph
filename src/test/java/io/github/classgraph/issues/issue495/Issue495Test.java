@@ -53,18 +53,16 @@ public class Issue495Test {
         final var resourceURL = Issue495Test.class.getClassLoader().getResource("scalapackage.zip");
         assertThat(resourceURL).isNotNull();
         assertThat(new File(resourceURL.toURI())).canRead();
-        final var classLoader = new URLClassLoader(new URL[] { resourceURL }, null);
-        try (var scanResult = new ClassGraph() //
-                .enableClassInfo().enableInterClassDependencies() //
-                .acceptPackages("scalapackage") //
-                .overrideClassLoaders(classLoader) //
-                .scan()) {
+        try (var classLoader = new URLClassLoader(new URL[] { resourceURL }, null);
+                var scanResult = new ClassGraph() //
+                        .enableClassInfo().enableInterClassDependencies() //
+                        .acceptPackages("scalapackage") //
+                        .overrideClassLoaders(classLoader) //
+                        .scan()) {
             final var allClasses = scanResult.getAllClasses();
             assertThat(allClasses.getNames()).containsOnly("scalapackage.ScalaClass");
             final var scalaClassInfo = allClasses.get(0);
             assertThat(scalaClassInfo.getTypeSignature()).isNotNull();
-            final var scalaClassClass = scalaClassInfo.loadClass();
-            assertThat(scalaClassClass).isNotNull();
         }
     }
 }

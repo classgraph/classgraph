@@ -17,17 +17,16 @@ import io.github.classgraph.ClassGraph;
  * methods, and instead infers it from the first non-null array element. That
  * fallback did not handle {@code String} elements, and for anything it did not
  * recognize it returned the type of the value wrapper object itself rather than
- * {@code Object}, so instantiating the annotation allocated an array of the
- * wrong element type.
+ * {@code Object}, so the parameter value was an array of the wrong element type.
  */
 @ExternalAnnotation({ "one", "two" })
 public class ExternalAnnotationArrayValueTest {
     /**
-     * An annotation whose classfile was not scanned can still be instantiated if it
-     * has an array parameter.
+     * The array-typed parameter of an annotation whose classfile was not scanned
+     * still gets the right element type.
      */
     @Test
-    public void instantiateAnnotationWithArrayValueFromUnscannedAnnotationClass() throws IOException {
+    public void arrayValueElementTypeFromUnscannedAnnotationClass() throws IOException {
         // Copy just this class' own classfile into an otherwise empty directory, so
         // that the annotation class'
         // classfile is not reachable from the scanned classpath
@@ -59,8 +58,9 @@ public class ExternalAnnotationArrayValueTest {
 
                 final var annotationInfo = classInfo.getAllAnnotationInfo(ExternalAnnotation.class.getName());
                 assertThat(annotationInfo).isNotNull();
-                final var annotation = (ExternalAnnotation) annotationInfo.loadClassAndInstantiate();
-                assertThat(annotation.value()).containsExactly("one", "two");
+                final var paramValue = annotationInfo.getParameterValues().getValue("value");
+                assertThat(paramValue).isInstanceOf(String[].class);
+                assertThat((String[]) paramValue).containsExactly("one", "two");
             }
         } finally {
             deleteRecursively(tempDir.toFile());

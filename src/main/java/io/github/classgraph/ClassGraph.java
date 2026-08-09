@@ -453,17 +453,6 @@ public class ClassGraph {
     }
 
     /**
-     * Causes classes loaded using {@link ClassInfo#loadClass()} to be initialized
-     * after class loading (the default is to not initialize classes).
-     *
-     * @return this (for method chaining).
-     */
-    public ClassGraph initializeLoadedClasses() {
-        scanSpec.initializeLoadedClasses = true;
-        return this;
-    }
-
-    /**
      * Remove temporary files, including nested jarfiles (jarfiles within jarfiles,
      * which have to be extracted during scanning in order to be read) from their
      * temporary directory as soon as the scan has completed. The default is for
@@ -1301,9 +1290,8 @@ public class ClassGraph {
      * {@code new ClassGraph().enableURLScheme("http").enableURLScheme("https");}
      *
      * <p>
-     * Scanning from http(s) URLs is disabled by default, as this may present a
-     * security vulnerability, since classes from downloaded jars can be
-     * subsequently loaded using {@link ClassInfo#loadClass}.
+     * Scanning from http(s) URLs is disabled by default, as downloading and reading
+     * jars from a remote server may present a security vulnerability.
      *
      * @return this (for method chaining).
      */

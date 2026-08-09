@@ -136,8 +136,6 @@ class NullArgumentTest {
         rejectsNull(() -> scanResult.getClassesWithAnnotation((String) null));
         rejectsNull(() -> scanResult.getResourcesWithLeafName(null));
         rejectsNull(() -> scanResult.getResourcesWithPath(null));
-        rejectsNull(() -> scanResult.loadClass(null, false));
-        rejectsNull(() -> scanResult.loadClass("java.lang.String", null, false));
     }
 
     /**
@@ -156,8 +154,6 @@ class NullArgumentTest {
         rejectsNull(() -> classInfo.getMethodInfo(null));
         rejectsNull(() -> classInfo.getFieldInfo(null));
         rejectsNull(() -> classInfo.getAllAnnotationInfo((String) null));
-        // Previously wrapped as "IllegalArgumentException: Could not load class ..."
-        rejectsNull(() -> classInfo.loadClass((Class<?>) null));
     }
 
     /** The list classes reject null, in their constructors and their methods. */
@@ -172,7 +168,6 @@ class NullArgumentTest {
         rejectsNull(() -> classInfoList.union((ClassInfoList) null));
         rejectsNull(() -> classInfoList.intersect((ClassInfoList) null));
         rejectsNull(() -> classInfoList.getAssignableTo(null));
-        rejectsNull(() -> classInfoList.loadClasses(null, false));
         rejectsNull(() -> classInfoList.generateGraphVizDotFile(null));
         rejectsNull(() -> classInfoList.generateGraphVizDotFileFromInterClassDependencies(null));
         rejectsNull(() -> classInfoList.writeGraphVizDotFile(null));

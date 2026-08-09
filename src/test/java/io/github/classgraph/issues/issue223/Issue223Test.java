@@ -47,10 +47,10 @@ public class Issue223Test {
     }
 
     /**
-     * Test classload inner classes.
+     * Test that inner classes are found, and are named using the binary name form.
      */
     @Test
-    public void testClassloadInnerClasses() {
+    public void testInnerClasses() {
         try (var scanResult = new ClassGraph().acceptPackages(Issue223Test.class.getPackage().getName()).enableAllInfo()
                 .scan()) {
             // N.B. this anonymous inner class is deliberately not a lambda -- it is itself counted as one of
@@ -70,10 +70,10 @@ public class Issue223Test {
             }
             assertThat(innerInterface).isNotNull();
             if (innerInterface != null) {
+                // The name is the binary name ("Outer$Inner"), not the canonical name
                 assertThat(innerInterface.getName()).isEqualTo(InnerInterface.class.getName());
+                assertThat(innerInterface.getName()).isEqualTo(Issue223Test.class.getName() + "$InnerInterface");
                 assertThat(innerInterface.isInterface()).isTrue();
-                final Class<?> innerClassRef = innerInterface.loadClass();
-                assertThat(innerClassRef).isNotNull();
             }
         }
     }
