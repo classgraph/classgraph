@@ -252,8 +252,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
          * Superclasses of this class, if this is a regular class.
          *
          * <p>
-         * (Should consist of only one entry, or null if superclass is java.lang.Object
-         * or unknown).
+         * (Should consist of only one entry, or be empty if this is an interface, or is
+         * {@code java.lang.Object} itself.)
          */
         SUPERCLASSES,
 
@@ -552,11 +552,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @param classNameToClassInfo the map from class name to class info
      */
     void addSuperclass(final String superclassName, final Map<String, ClassInfo> classNameToClassInfo) {
-        if (superclassName != null && !"java.lang.Object".equals(superclassName)) {
-            final var superclassClassInfo = getOrCreateClassInfo(superclassName, classNameToClassInfo);
-            this.addRelatedClass(RelType.SUPERCLASSES, superclassClassInfo);
-            superclassClassInfo.addRelatedClass(RelType.SUBCLASSES, this);
-        }
+        final var superclassClassInfo = getOrCreateClassInfo(superclassName, classNameToClassInfo);
+        this.addRelatedClass(RelType.SUPERCLASSES, superclassClassInfo);
+        superclassClassInfo.addRelatedClass(RelType.SUBCLASSES, this);
     }
 
     /**
@@ -1848,15 +1846,18 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * Get all subclasses of this class, i.e. the classes that extend this class,
      * and the classes that extend those, transitively, sorted in order of name.
      *
-     * If this class represents {@link Object}, then returns only standard classes,
-     * not interfaces, since interfaces don't extend {@link Object}.
+     * If this class represents {@link Object}, then returns every standard class in
+     * the scan result, but no interfaces, since interfaces don't extend
+     * {@link Object}.
      *
      * @return the list of all subclasses of this class, or the empty list if none.
      */
     public ClassInfoList getAllSubclasses() {
         if ("java.lang.Object".equals(getName())) {
-            // Make an exception for querying all subclasses of java.lang.Object
-            return scanResult().getAllStandardClasses();
+            // Every standard class is a subclass of Object by the rules of the language,
+            // whether or not its whole superclass chain was scanned, so answer from the
+            // list of standard classes rather than from the recorded superclass links
+            return scanResult().getAllStandardClasses().filter(classInfo -> classInfo != this);
         } else {
             return new ClassInfoList(this.filterClassInfo(RelType.SUBCLASSES, /* strictAccept = */ !isExternalClass),
                     /* sortByName = */ true);
@@ -1867,28 +1868,18 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * Get the direct subclasses of this class, i.e. only the classes that name this
      * class as their superclass, sorted in order of name.
      *
-     * If this class represents {@link Object}, then returns only standard classes,
-     * not interfaces, since interfaces don't extend {@link Object}.
-     *
      * @return the list of direct subclasses of this class, or the empty list if
      *         none.
      */
     public ClassInfoList getDirectSubclasses() {
-        if ("java.lang.Object".equals(getName())) {
-            // Superclass links to Object are not recorded, so the subclasses of Object have
-            // to be found by looking for standard classes with no recorded superclass
-            return scanResult().getAllStandardClasses()
-                    .filter(classInfo -> classInfo != this && classInfo.getSuperclass() == null);
-        } else {
-            return getAllSubclasses().directOnly();
-        }
+        return new ClassInfoList(this.filterClassInfo(RelType.SUBCLASSES, /* strictAccept = */ !isExternalClass),
+                /* sortByName = */ true).directOnly();
     }
 
     /**
      * Get all superclasses of this class, in ascending order in the class
-     * hierarchy, not including {@link Object} for simplicity, since that is the
-     * superclass of all classes. Call {@link #getSuperclass()} to get only the
-     * direct superclass.
+     * hierarchy, ending with {@link Object} if the whole superclass chain was
+     * scanned. Call {@link #getSuperclass()} to get only the direct superclass.
      *
      * Also does not include superinterfaces, if this is an interface (use
      * {@link #getAllInterfaces()} to get superinterfaces of an interface).
@@ -1907,6 +1898,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * {@link #getDirectInterfaces()} to get the direct superinterfaces of an
      * interface).
      *
+     * <p>
+     * As with {@link Class#getSuperclass()}, the superclass of a class that extends
+     * no other class is {@link Object}, and null is returned only for
+     * {@link Object} itself and for interfaces.
+     *
      * @return the superclass of this class, or null if none.
      */
     public @Nullable ClassInfo getSuperclass() {
@@ -1916,12 +1912,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         } else if (superClasses.size() > 1) {
             throw new IllegalArgumentException("More than one superclass: " + superClasses);
         } else {
-            final var superclass = superClasses.iterator().next();
-            if ("java.lang.Object".equals(superclass.getName())) {
-                return null;
-            } else {
-                return superclass;
-            }
+            return superClasses.iterator().next();
         }
     }
 

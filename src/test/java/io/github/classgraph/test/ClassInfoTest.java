@@ -128,7 +128,7 @@ public class ClassInfoTest {
     @Test
     public void directVsAllSuperclasses() {
         assertThat(scanResult.getAllSuperclasses(ClsSubSub.class).getNames()).containsOnly(ClsSub.class.getName(),
-                Cls.class.getName());
+                Cls.class.getName(), "java.lang.Object");
         assertThat(scanResult.getClassInfo(ClsSubSub.class.getName()).getSuperclass().getName())
                 .isEqualTo(ClsSub.class.getName());
     }

@@ -199,7 +199,7 @@ public class ClassGraphTest {
     public void testExternalSuperclassReturned() {
         try (var scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE).scan()) {
             assertThat(scanResult.getAllSuperclasses(Accepted.class.getName()).getNames())
-                    .containsExactly(RejectedSuperclass.class.getName());
+                    .containsExactly(RejectedSuperclass.class.getName(), "java.lang.Object");
             assertThat(scanResult.getAllSubclasses(Accepted.class).getNames()).isEmpty();
             assertThat(scanResult.getAllClassesImplementing(AcceptedInterface.class).getNames()).isEmpty();
             assertThat(scanResult.getAllClassesImplementing(AcceptedInterface.class).getNames()).isEmpty();
@@ -213,7 +213,7 @@ public class ClassGraphTest {
     public void testAcceptedWithoutExceptionWithoutStrictAccept() {
         try (var scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE).enableExternalClasses().scan()) {
             assertThat(scanResult.getAllSuperclasses(Accepted.class.getName()).getNames())
-                    .containsExactly(RejectedSuperclass.class.getName());
+                    .containsExactly(RejectedSuperclass.class.getName(), "java.lang.Object");
         }
     }
 
@@ -235,7 +235,10 @@ public class ClassGraphTest {
     public void testRejectedPlaceholderNotReturned() {
         try (var scanResult = new ClassGraph().acceptPackages(ROOT_PACKAGE)
                 .rejectPackages(RejectedAnnotation.class.getPackage().getName()).enableAnnotationInfo().scan()) {
-            assertThat(scanResult.getAllSuperclasses(Accepted.class.getName()).getNames()).isEmpty();
+            // The rejected superclass is filtered out, but Object, which is above it in the
+            // hierarchy, is not rejected
+            assertThat(scanResult.getAllSuperclasses(Accepted.class.getName()).getNames())
+                    .containsExactly("java.lang.Object");
             assertThat(scanResult.getAllSubclasses(Accepted.class).getNames()).isEmpty();
             assertThat(scanResult.getAllClassesImplementing(AcceptedInterface.class).getNames()).isEmpty();
             assertThat(scanResult.getAllClassesImplementing(AcceptedInterface.class).getNames()).isEmpty();
@@ -322,7 +325,7 @@ public class ClassGraphTest {
     public void testVisibleIfNotRejected() {
         try (var scanResult = new ClassGraph().acceptPackages(ROOT_PACKAGE).enableAnnotationInfo().scan()) {
             assertThat(scanResult.getAllSuperclasses(Accepted.class.getName()).getNames())
-                    .containsExactly(RejectedSuperclass.class.getName());
+                    .containsExactly(RejectedSuperclass.class.getName(), "java.lang.Object");
             assertThat(scanResult.getAllSubclasses(Accepted.class).getNames())
                     .containsExactly(RejectedSubclass.class.getName());
             assertThat(scanResult.getAllClassesImplementing(AcceptedInterface.class).getNames())

@@ -27,7 +27,7 @@ public class IssuesTest {
                 .enableExternalClasses().scan()) {
             assertThat(scanResult.getAllSubclasses(Object.class).getNames()).contains(Impl1.class.getName());
             assertThat(scanResult.getAllSuperclasses(Impl1Sub.class.getName()).getNames())
-                    .containsOnly(Impl1.class.getName());
+                    .containsOnly(Impl1.class.getName(), "java.lang.Object");
         }
     }
 
@@ -39,7 +39,7 @@ public class IssuesTest {
         try (var scanResult = new ClassGraph().acceptPackages(InternalExtendsExternal.class.getPackage().getName())
                 .scan()) {
             assertThat(scanResult.getAllSuperclasses(InternalExtendsExternal.class.getName()).getNames())
-                    .containsOnly(ExternalSuperclass.class.getName());
+                    .containsOnly(ExternalSuperclass.class.getName(), "java.lang.Object");
         }
     }
 
@@ -51,7 +51,7 @@ public class IssuesTest {
         try (var scanResult = new ClassGraph().acceptPackages(InternalExtendsExternal.class.getPackage().getName())
                 .enableExternalClasses().scan()) {
             assertThat(scanResult.getAllSuperclasses(InternalExtendsExternal.class.getName()).getNames())
-                    .containsOnly(ExternalSuperclass.class.getName());
+                    .containsOnly(ExternalSuperclass.class.getName(), "java.lang.Object");
         }
     }
 

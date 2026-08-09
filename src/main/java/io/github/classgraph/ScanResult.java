@@ -1012,8 +1012,10 @@ public final class ScanResult implements Closeable {
         checkClassInfoEnabled();
         Assert.notNull(superclassName, "superclassName");
         if ("java.lang.Object".equals(superclassName)) {
-            // Return all standard classes (interfaces don't extend Object)
-            return getAllStandardClasses();
+            // Every standard class is a subclass of Object by the rules of the language,
+            // whether or not its whole superclass chain was scanned, and whether or not
+            // Object itself was scanned (interfaces don't extend Object)
+            return getAllStandardClasses().filter(classInfo -> !"java.lang.Object".equals(classInfo.getName()));
         } else {
             final var superclass = classNameToClassInfo.get(superclassName);
             return superclass == null ? ClassInfoList.EMPTY_LIST : superclass.getAllSubclasses();
@@ -1044,20 +1046,14 @@ public final class ScanResult implements Closeable {
     public ClassInfoList getDirectSubclasses(final String superclassName) {
         checkClassInfoEnabled();
         Assert.notNull(superclassName, "superclassName");
-        if ("java.lang.Object".equals(superclassName)) {
-            // Superclass links to Object are not recorded, so the subclasses of Object have
-            // to be found by looking for standard classes with no recorded superclass
-            return getAllStandardClasses().filter(classInfo -> classInfo.getSuperclass() == null
-                    && !"java.lang.Object".equals(classInfo.getName()));
-        } else {
-            final var superclass = classNameToClassInfo.get(superclassName);
-            return superclass == null ? ClassInfoList.EMPTY_LIST : superclass.getDirectSubclasses();
-        }
+        final var superclass = classNameToClassInfo.get(superclassName);
+        return superclass == null ? ClassInfoList.EMPTY_LIST : superclass.getDirectSubclasses();
     }
 
     /**
      * Get all superclasses of the named subclass, in ascending order in the class
-     * hierarchy, not including {@link Object}.
+     * hierarchy, ending with {@link Object} if the whole superclass chain was
+     * scanned.
      *
      * @param subclassName The name of the subclass.
      * @return A list of all superclasses of the named subclass, or the empty list if
@@ -1072,7 +1068,8 @@ public final class ScanResult implements Closeable {
 
     /**
      * Get all superclasses of the subclass, in ascending order in the class
-     * hierarchy, not including {@link Object}.
+     * hierarchy, ending with {@link Object} if the whole superclass chain was
+     * scanned.
      *
      * @param subclass The subclass.
      * @return A list of all superclasses of the subclass, or the empty list if none.

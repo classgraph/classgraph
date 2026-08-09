@@ -401,6 +401,38 @@ queries, and no longer collide in name with anything on `ClassInfo`.
   wrapped stream on close, so a subsequent read hit a null. It now keeps the reference
   and delegates, so the read fails the way the wrapped stream fails — for the streams
   ClassGraph returns, `IOException: Stream closed`.
+* **`java.lang.Object` is now visible as the universal superclass.** 4.x hid `Object`
+  from the class graph in two ways: its classfile was never scanned, even when it was
+  explicitly accepted, and the superclass link from a class to `Object` was never
+  recorded. Both are gone in 5.x, which changes four things:
+
+  * `ClassInfo#getSuperclass()` and `ScanResult#getSuperclass(...)` now return `Object`
+    for a standard class that extends no other class, instead of null. As with
+    `Class#getSuperclass()`, null is now returned only for `Object` itself and for
+    interfaces. (An interface's classfile names `Object` as its superclass, but
+    interfaces do not extend `Object`, so that link is still not recorded.) **This is
+    the change most likely to affect existing code**: a loop that walks up the
+    superclass chain until `getSuperclass()` returns null now takes one more step, and
+    a null check that was reading as "this class extends nothing" now needs to compare
+    the name against `java.lang.Object`.
+  * `ClassInfo#getAllSuperclasses()` and `ScanResult#getAllSuperclasses(...)` now end
+    with `Object`, if the whole superclass chain was scanned. In 4.x `Object` was
+    always excluded.
+  * If `java.lang.Object` is accepted, it is now scanned like any other class, so it
+    appears in `getAllClasses()` and its fields, methods and annotations can be read.
+    It also now appears in `getAllClasses()` and `getAllStandardClasses()` whenever
+    `enableExternalClasses()` is called, since it is a referenced external class like
+    any other.
+  * `getDirectSubclasses("java.lang.Object")` is now answered from the recorded
+    superclass links, rather than by looking for standard classes with no recorded
+    superclass. The result is the same.
+
+  `getAllSubclasses("java.lang.Object")` still returns every standard class in the scan
+  result (excluding `Object` itself, and excluding interfaces, which don't extend
+  `Object`), whether or not each class' superclass chain was scanned. Rendered output is
+  unchanged: `ClassInfo#toString()` and the type signature classes still leave out an
+  `extends java.lang.Object` clause, and neither the class graph .dot file nor
+  `getClassDependencies()` includes `Object`.
 
 ## Bug fixes
 

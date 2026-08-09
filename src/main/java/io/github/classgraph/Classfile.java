@@ -284,7 +284,10 @@ class Classfile {
      */
     private void scheduleScanningIfExternalClass(final @Nullable String className, final String relationship,
             final @Nullable LogNode log) {
-        // Don't scan Object
+        // Don't extend scanning upwards to Object -- it has no superclass, interfaces
+        // or annotations, so scanning it adds nothing to the class graph (the
+        // superclass link to Object is recorded from the class name alone, without
+        // needing to scan Object itself)
         if (className != null && !"java.lang.Object".equals(className)
         // Don't schedule a class for scanning that was already found to be accepted
                 && !acceptedClassNamesFound.contains(className)
@@ -491,7 +494,10 @@ class Classfile {
             classInfo.setIsAnnotation(isAnnotation);
             classInfo.setIsRecord(isRecord);
             classInfo.setSourceFile(sourceFile);
-            if (superclassName != null) {
+            // An interface's classfile names java.lang.Object as its superclass, but
+            // interfaces do not extend Object, so don't record that link (this matches
+            // Class#getSuperclass(), which returns null for an interface)
+            if (superclassName != null && !(isInterface && "java.lang.Object".equals(superclassName))) {
                 classInfo.addSuperclass(superclassName, classNameToClassInfo);
             }
             if (implementedInterfaces != null) {
@@ -1327,12 +1333,6 @@ class Classfile {
             throw new ClassfileFormatException("Class name is null");
         }
         className = classNamePath.replace('/', '.');
-        if ("java.lang.Object".equals(className)) {
-            // Don't process java.lang.Object (it has a null superclass), though you can
-            // still search for classes
-            // that are subclasses of java.lang.Object (as an external class).
-            throw new SkipClassException("No need to scan java.lang.Object");
-        }
 
         // Check class visibility modifiers
         final var isModule = (classModifiers & 0x8000) != 0; // Equivalently filename is "module-info.class"
