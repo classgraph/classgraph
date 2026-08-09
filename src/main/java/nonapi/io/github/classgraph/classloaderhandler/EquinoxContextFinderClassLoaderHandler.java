@@ -28,7 +28,6 @@
  */
 package nonapi.io.github.classgraph.classloaderhandler;
 
-import nonapi.io.github.classgraph.classpath.ClassLoaderFinder;
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
@@ -41,7 +40,7 @@ import org.jspecify.annotations.Nullable;
 class EquinoxContextFinderClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
-        return ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass,
+        return classIsOrExtendsOrImplements(classLoaderClass,
                 "org.eclipse.osgi.internal.framework.ContextFinder");
     }
 

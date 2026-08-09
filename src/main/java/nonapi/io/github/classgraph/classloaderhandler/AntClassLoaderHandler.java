@@ -28,7 +28,6 @@
  */
 package nonapi.io.github.classgraph.classloaderhandler;
 
-import nonapi.io.github.classgraph.classpath.ClassLoaderFinder;
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
@@ -40,7 +39,7 @@ class AntClassLoaderHandler implements ClassLoaderHandler {
 
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
-        return ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass, "org.apache.tools.ant.AntClassLoader");
+        return classIsOrExtendsOrImplements(classLoaderClass, "org.apache.tools.ant.AntClassLoader");
     }
 
     @Override

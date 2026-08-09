@@ -31,7 +31,6 @@ package nonapi.io.github.classgraph.classloaderhandler;
 import java.io.File;
 import java.util.List;
 
-import nonapi.io.github.classgraph.classpath.ClassLoaderFinder;
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
@@ -43,7 +42,7 @@ import org.jspecify.annotations.Nullable;
 class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
-        return ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass,
+        return classIsOrExtendsOrImplements(classLoaderClass,
                 "org.apache.catalina.loader.WebappClassLoaderBase");
     }
 

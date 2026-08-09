@@ -28,7 +28,6 @@
  */
 package nonapi.io.github.classgraph.classloaderhandler;
 
-import nonapi.io.github.classgraph.classpath.ClassLoaderFinder;
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
@@ -39,7 +38,7 @@ import org.jspecify.annotations.Nullable;
 class ParentLastDelegationOrderTestClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
-        return ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass,
+        return classIsOrExtendsOrImplements(classLoaderClass,
                 "io.github.classgraph.issues.issue267.FakeRestartClassLoader");
     }
 

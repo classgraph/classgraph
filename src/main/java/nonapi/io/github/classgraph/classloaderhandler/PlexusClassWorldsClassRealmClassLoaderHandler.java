@@ -30,7 +30,6 @@ package nonapi.io.github.classgraph.classloaderhandler;
 
 import java.util.SortedSet;
 
-import nonapi.io.github.classgraph.classpath.ClassLoaderFinder;
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
@@ -44,7 +43,7 @@ import org.jspecify.annotations.Nullable;
 class PlexusClassWorldsClassRealmClassLoaderHandler extends URLClassLoaderHandler {
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
-        return ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass,
+        return classIsOrExtendsOrImplements(classLoaderClass,
                 "org.codehaus.plexus.classworlds.realm.ClassRealm");
     }
 

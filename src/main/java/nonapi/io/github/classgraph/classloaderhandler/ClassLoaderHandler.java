@@ -62,6 +62,30 @@ interface ClassLoaderHandler {
     boolean canHandle(Class<?> classLoaderClass, @Nullable LogNode log);
 
     /**
+     * Return true if the class is, extends, or implements a given named class or
+     * interface. Used by {@link #canHandle(Class, LogNode)} implementations to
+     * recognize a {@link ClassLoader} by name without loading its class.
+     *
+     * @param cls       the class to test, or null.
+     * @param className the name of the class or interface to look for.
+     * @return true if cls is, extends, or implements the named class or interface.
+     */
+    default boolean classIsOrExtendsOrImplements(final @Nullable Class<?> cls, final String className) {
+        if (cls == null) {
+            return false;
+        }
+        if (cls.getName().equals(className) || classIsOrExtendsOrImplements(cls.getSuperclass(), className)) {
+            return true;
+        }
+        for (final Class<?> iface : cls.getInterfaces()) {
+            if (classIsOrExtendsOrImplements(iface, className)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Find the {@link ClassLoader} delegation order for a {@link ClassLoader}.
      *
      * @param classLoader      the {@link ClassLoader} to find the order for.

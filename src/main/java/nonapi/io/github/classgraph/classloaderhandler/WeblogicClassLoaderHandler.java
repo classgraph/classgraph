@@ -28,7 +28,6 @@
  */
 package nonapi.io.github.classgraph.classloaderhandler;
 
-import nonapi.io.github.classgraph.classpath.ClassLoaderFinder;
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
@@ -39,18 +38,18 @@ import org.jspecify.annotations.Nullable;
 class WeblogicClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
-        return ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass,
+        return classIsOrExtendsOrImplements(classLoaderClass,
                 "weblogic.utils.classloaders.ChangeAwareClassLoader")
-                || ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass,
+                || classIsOrExtendsOrImplements(classLoaderClass,
                         "weblogic.utils.classloaders.GenericClassLoader")
-                || ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass,
+                || classIsOrExtendsOrImplements(classLoaderClass,
                         "weblogic.utils.classloaders.FilteringClassLoader")
                 // TODO: The following two known classloader names have not been tested, and the
                 // fields/methods
                 // may not match those of the above classloaders.
-                || ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass,
+                || classIsOrExtendsOrImplements(classLoaderClass,
                         "weblogic.servlet.jsp.JspClassLoader")
-                || ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass,
+                || classIsOrExtendsOrImplements(classLoaderClass,
                         "weblogic.servlet.jsp.TagFileClassLoader");
     }
 
