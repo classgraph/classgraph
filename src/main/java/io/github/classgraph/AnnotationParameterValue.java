@@ -266,10 +266,10 @@ public class AnnotationParameterValue extends ScanResultObject
      *            the buf
      */
     void toStringParamValueOnly(final boolean useSimpleNames, final StringBuilder buf) {
-        if (value == null) {
+        final Object paramVal = value == null ? null : value.get();
+        if (paramVal == null) {
             buf.append("null");
         } else {
-            final Object paramVal = value.get();
             final Class<?> valClass = paramVal.getClass();
             if (valClass.isArray()) {
                 buf.append('{');
