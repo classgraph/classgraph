@@ -409,6 +409,8 @@ that is not updated will not compile, rather than silently changing meaning.
 | `ClassInfo#getAnnotationInfoRepeatable(Class \| String)` | `ClassInfo#getAllAnnotationInfoRepeatable(Class \| String)` | `ClassInfo#getDirectAnnotationInfoRepeatable(Class \| String)` |
 | `MethodInfo` / `FieldInfo` `#getAnnotationInfo(...)` | `#getAllAnnotationInfo(...)` | `#getDirectAnnotationInfo(...)` |
 | `MethodInfo` / `FieldInfo` `#getAnnotationInfoRepeatable(...)` | `#getAllAnnotationInfoRepeatable(...)` | `#getDirectAnnotationInfoRepeatable(...)` |
+| `MethodParameterInfo#getAnnotationInfo(...)` | `#getAllAnnotationInfo(...)` | `#getDirectAnnotationInfo(...)` |
+| `MethodParameterInfo#getAnnotationInfoRepeatable(...)` | `#getAllAnnotationInfoRepeatable(...)` | `#getDirectAnnotationInfoRepeatable(...)` |
 | `ScanResult#getSubclasses(Class \| String)` | `ScanResult#getAllSubclasses(...)` | `ScanResult#getDirectSubclasses(...)` |
 | `ScanResult#getSuperclasses(Class \| String)` | `ScanResult#getAllSuperclasses(...)` | `ScanResult#getSuperclass()` on the `ClassInfo` |
 | `ScanResult#getInterfaces(Class \| String)` | `ScanResult#getAllInterfaces(...)` | `ScanResult#getDirectInterfaces(...)` |
@@ -416,11 +418,13 @@ that is not updated will not compile, rather than silently changing meaning.
 | `ScanResult#getSubinterfaces(Class \| String)` | `ScanResult#getAllSubinterfaces(...)` | `ScanResult#getDirectSubinterfaces(...)` |
 | `ScanResult#getAnnotationsOnClass(String)` | `ScanResult#getAllAnnotationsOnClass(...)` | `ScanResult#getDirectAnnotationsOnClass(...)` |
 
-For the annotation queries, "all" means the annotations directly present on the class or
-member plus the meta-annotations reachable from them (and, for a class, any `@Inherited`
-annotation on a superclass) — exactly what 4.x returned. `MethodParameterInfo`,
-`PackageInfo` and `ModuleInfo` never expanded meta-annotations, so their
-`getAnnotationInfo()` keeps its name.
+For the annotation queries, "all" means the annotations directly present on the class,
+member or method parameter plus the meta-annotations reachable from them (and, for a
+class, any `@Inherited` annotation on a superclass) — exactly what 4.x returned.
+`MethodParameterInfo` had only the "all" half of this pair, under the name
+`getAnnotationInfo(...)`; it now has both halves, named like the rest.
+`PackageInfo#getAnnotationInfo(...)` and `ModuleInfo#getAnnotationInfo(...)` keep their
+names, since neither has ever expanded meta-annotations.
 
 `.directOnly()` still exists on `ClassInfoList` and `AnnotationInfoList`, so the 4.x
 idiom keeps working; the `getDirect...` methods are just the direct way to ask.
@@ -657,6 +661,30 @@ as described above.
     `disableModuleScanning()`, and after `overrideClasspath()` or `overrideClassLoaders()`
     without the application classloader, unless a module is also asked for by name or
     `enableSystemJarsAndModules()` is called.
+
+* **An annotation that can be reached in more than one way is now reported from the most
+  direct of those ways (#559).** `getAllAnnotationInfo(annotationName)` looks up the name
+  in the list returned by `getAllAnnotationInfo()`, which holds the annotations directly
+  present on a class or member, the annotations inherited from a superclass, and the
+  meta-annotations of both. In 4.x that list was sorted by annotation name and then by
+  parameter value, so when the same annotation appeared more than once in it, which one
+  the lookup returned came down to alphabetical order of the parameter values. An
+  annotation that annotates itself is the case where this is most obvious: given
+  `@Foo("bar")` declared on `@Foo` itself, a class annotated `@Foo("baz")` reported
+  `@Foo("bar")` — the annotation's annotation, not the class'.
+
+  The list is now sorted by name, then by how directly each annotation is related to the
+  class or member: directly present first, then inherited from a superclass, then reached
+  as a meta-annotation. So `getAllAnnotationInfo(name)`, and the first entry of
+  `getAllAnnotationInfoRepeatable(name)`, return the annotation on the class or member
+  itself whenever there is one. This applies to `ClassInfo`, `MethodInfo`, `FieldInfo`
+  and `MethodParameterInfo` alike. `getDirectAnnotationInfo(...)` is still the way to ask
+  for only the annotations present on the element itself.
+
+  An annotation reached twice by the *same* route is now listed once rather than twice,
+  which is again visible for a self-annotating annotation: `@Foo`'s own
+  `getAllAnnotationInfo()` listed `@Foo` twice, once as a direct annotation and once as
+  its own meta-annotation.
 
 ## Bug fixes
 

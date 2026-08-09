@@ -30,9 +30,12 @@ package io.github.classgraph;
 
 import java.io.Serial;
 import java.lang.annotation.Annotation;
+import java.lang.annotation.Inherited;
 import java.lang.annotation.Repeatable;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -240,14 +243,59 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * How directly an annotation is related to the annotated class, method, method
+     * parameter or field: it is directly present on it, or it is inherited from a
+     * superclass, or it is a meta-annotation on one of the other two. The same
+     * annotation can be reached in more than one of these ways, and the most direct
+     * of them is the one that should be reported.
+     */
+    // #559
+    private enum Directness {
+        /** The annotation is directly present on the annotated element. */
+        DIRECTLY_PRESENT,
+
+        /** The annotation is {@link Inherited} from a superclass. */
+        INHERITED,
+
+        /** The annotation is a meta-annotation of another annotation. */
+        META_ANNOTATION
+    }
+
+    /**
+     * Add a reachable annotation to a list, unless the same annotation was already
+     * reached by a route at least as direct.
+     *
+     * @param ai                     the annotation
+     * @param directness             how directly the annotation is related to the
+     *                               annotated element
+     * @param reachableAnnotationOut the list of reachable annotations
+     * @param directnessOut          the map from annotation to how directly it is
+     *                               related to the annotated element
+     */
+    // #559
+    private static void addReachableAnnotation(final AnnotationInfo ai, final Directness directness,
+            final AnnotationInfoList reachableAnnotationOut,
+            final Map<AnnotationInfo, Directness> directnessOut) {
+        final var prevDirectness = directnessOut.get(ai);
+        if (prevDirectness == null) {
+            directnessOut.put(ai, directness);
+            reachableAnnotationOut.add(ai);
+        } else if (directness.compareTo(prevDirectness) < 0) {
+            directnessOut.put(ai, directness);
+        }
+    }
+
+    /**
      * Find the transitive closure of meta-annotations.
      *
      * @param ai                the annotationInfo object
      * @param allAnnotationsOut annotations out
      * @param visited           visited
+     * @param directnessOut     the map from annotation to how directly it is related
+     *                          to the annotated element
      */
     private static void findMetaAnnotations(final AnnotationInfo ai, final AnnotationInfoList allAnnotationsOut,
-            final Set<ClassInfo> visited) {
+            final Set<ClassInfo> visited, final Map<AnnotationInfo, Directness> directnessOut) {
         final var annotationClassInfo = ai.getClassInfo();
         if (annotationClassInfo != null && annotationClassInfo.annotationInfo != null
         // Don't get in a cycle
@@ -261,9 +309,10 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
                 // Don't treat java.lang.annotation annotations as meta-annotations
                 if (!metaAnnotationClassName.startsWith("java.lang.annotation.")) {
                     // Add the meta-annotation to the transitive closure
-                    allAnnotationsOut.add(metaAnnotationInfo);
+                    addReachableAnnotation(metaAnnotationInfo, Directness.META_ANNOTATION, allAnnotationsOut,
+                            directnessOut);
                     // Recurse to meta-meta-annotation
-                    findMetaAnnotations(metaAnnotationInfo, allAnnotationsOut, visited);
+                    findMetaAnnotations(metaAnnotationInfo, allAnnotationsOut, visited, directnessOut);
                 }
             }
         }
@@ -286,11 +335,15 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
         final Set<ClassInfo> reachedAnnotationClasses = new HashSet<>();
         final AnnotationInfoList reachableAnnotationInfo = new AnnotationInfoList(
                 directAnnotationInfo == null ? 2 : directAnnotationInfo.size());
+        // Record how directly each annotation is related to the annotated element, so
+        // that an annotation that is reached in more than one way is listed only once,
+        // and is sorted according to the most direct of those ways #559
+        final Map<AnnotationInfo, Directness> directness = new IdentityHashMap<>();
         if (directAnnotationInfo != null) {
             for (final AnnotationInfo dai : directAnnotationInfo) {
                 directOrInheritedAnnotationClasses.add(dai.getClassInfo());
-                reachableAnnotationInfo.add(dai);
-                findMetaAnnotations(dai, reachableAnnotationInfo, reachedAnnotationClasses);
+                addReachableAnnotation(dai, Directness.DIRECTLY_PRESENT, reachableAnnotationInfo, directness);
+                findMetaAnnotations(dai, reachableAnnotationInfo, reachedAnnotationClasses, directness);
             }
         }
         if (annotatedClass != null) {
@@ -300,13 +353,15 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
                     for (final AnnotationInfo sai : superclass.annotationInfo) {
                         // Don't add inherited superclass annotation if it is overridden in a subclass
                         if (sai.isInherited() && directOrInheritedAnnotationClasses.add(sai.getClassInfo())) {
-                            reachableAnnotationInfo.add(sai);
+                            addReachableAnnotation(sai, Directness.INHERITED, reachableAnnotationInfo, directness);
                             final AnnotationInfoList reachableMetaAnnotationInfo = new AnnotationInfoList(2);
-                            findMetaAnnotations(sai, reachableMetaAnnotationInfo, reachedAnnotationClasses);
+                            findMetaAnnotations(sai, reachableMetaAnnotationInfo, reachedAnnotationClasses,
+                                    new IdentityHashMap<>());
                             // Meta-annotations also have to have @Inherited to be inherited
                             for (final AnnotationInfo rmai : reachableMetaAnnotationInfo) {
                                 if (rmai.isInherited()) {
-                                    reachableAnnotationInfo.add(rmai);
+                                    addReachableAnnotation(rmai, Directness.META_ANNOTATION,
+                                            reachableAnnotationInfo, directness);
                                 }
                             }
                         }
@@ -320,7 +375,14 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
         CollectionUtils.sortIfNotEmpty(directAnnotationInfoSorted);
         final AnnotationInfoList annotationInfoList = new AnnotationInfoList(reachableAnnotationInfo,
                 directAnnotationInfoSorted);
-        CollectionUtils.sortIfNotEmpty(annotationInfoList);
+        // Sort by name, then put the most directly related of any annotations that share
+        // a name first, so that AnnotationInfoList#get(String) returns the annotation
+        // that is directly present on the annotated element, if there is one #559
+        CollectionUtils.sortIfNotEmpty(annotationInfoList,
+                Comparator.comparing(AnnotationInfo::getName)
+                        .thenComparing((final AnnotationInfo ai) -> directness.getOrDefault(ai,
+                                Directness.META_ANNOTATION))
+                        .thenComparing(Comparator.naturalOrder()));
         return annotationInfoList;
     }
 
@@ -329,7 +391,7 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     /**
      * returns the list of direct annotations, excluding meta-annotations. If this
      * {@link AnnotationInfoList} consists of class annotations, i.e. if it was
-     * produced using `ClassInfo#getAnnotationInfo()`, then the returned list also
+     * produced using `ClassInfo#getAllAnnotationInfo()`, then the returned list also
      * excludes annotations inherited from a superclass or implemented interface
      * that was meta-annotated with
      * {@link java.lang.annotation.Inherited @Inherited}.

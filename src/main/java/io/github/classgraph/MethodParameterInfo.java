@@ -164,12 +164,12 @@ public class MethodParameterInfo {
     }
 
     /**
-     * Method parameter annotation info.
+     * Get the annotations and meta-annotations on this method parameter.
      *
-     * @return {@link AnnotationInfo} for any annotations on this method parameter,
-     *         or the empty list if none.
+     * @return {@link AnnotationInfo} for the annotations and meta-annotations on
+     *         this method parameter, or the empty list if none.
      */
-    public AnnotationInfoList getAnnotationInfo() {
+    public AnnotationInfoList getAllAnnotationInfo() {
         if (!Objects.requireNonNull(scanResult).scanSpec.enableAnnotationInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableAnnotationInfo() before #scan()");
         }
@@ -183,65 +183,153 @@ public class MethodParameterInfo {
     }
 
     /**
-     * Get the non-{@link Repeatable} annotation on this method, or null if the
-     * method parameter does not have the annotation. (Use
-     * {@link #getAnnotationInfoRepeatable(Class)} for {@link Repeatable}
-     * annotations.)
+     * Get only the annotations directly present on this method parameter, not the
+     * meta-annotations on those annotations.
+     *
+     * @return {@link AnnotationInfo} for the annotations directly present on this
+     *         method parameter, or the empty list if none.
+     */
+    public AnnotationInfoList getDirectAnnotationInfo() {
+        return getAllAnnotationInfo().directOnly();
+    }
+
+    /**
+     * Get the non-{@link Repeatable} annotation or meta-annotation on this method
+     * parameter, or null if the method parameter does not have the annotation. (Use
+     * {@link #getAllAnnotationInfoRepeatable(Class)} for {@link Repeatable}
+     * annotations, or {@link #getDirectAnnotationInfo(Class)} to ignore
+     * meta-annotations.)
      *
      * @param annotation The annotation.
      * @return An {@link AnnotationInfo} object representing the annotation on this
      *         method parameter, or null if the method parameter does not have the
      *         annotation.
      */
-    public @Nullable AnnotationInfo getAnnotationInfo(final Class<? extends Annotation> annotation) {
+    public @Nullable AnnotationInfo getAllAnnotationInfo(final Class<? extends Annotation> annotation) {
         Assert.notNull(annotation, "annotation");
         Assert.isAnnotation(annotation);
-        return getAnnotationInfo(annotation.getName());
+        return getAllAnnotationInfo(annotation.getName());
     }
 
     /**
-     * Get the named non-{@link Repeatable} annotation on this method, or null if
-     * the method parameter does not have the named annotation. (Use
-     * {@link #getAnnotationInfoRepeatable(String)} for {@link Repeatable}
-     * annotations.)
+     * Get the named non-{@link Repeatable} annotation or meta-annotation on this
+     * method parameter, or null if the method parameter does not have the named
+     * annotation. (Use {@link #getAllAnnotationInfoRepeatable(String)} for
+     * {@link Repeatable} annotations, or {@link #getDirectAnnotationInfo(String)} to
+     * ignore meta-annotations.)
+     *
+     * <p>
+     * If the named annotation can be reached in more than one way -- if it is
+     * directly present on the method parameter and is also a meta-annotation of one
+     * of the parameter's other annotations, for example -- then the one reached most
+     * directly is returned. Call {@link #getDirectAnnotationInfo(String)} if you want
+     * only the annotation present on the method parameter itself.
      *
      * @param annotationName The annotation name.
      * @return An {@link AnnotationInfo} object representing the named annotation on
      *         this method parameter, or null if the method parameter does not have
      *         the named annotation.
      */
-    public @Nullable AnnotationInfo getAnnotationInfo(final String annotationName) {
+    public @Nullable AnnotationInfo getAllAnnotationInfo(final String annotationName) {
         Assert.notNull(annotationName, "annotationName");
-        return getAnnotationInfo().get(annotationName);
+        return getAllAnnotationInfo().get(annotationName);
     }
 
     /**
-     * Get the {@link Repeatable} annotation on this method, or the empty list if
-     * the method parameter does not have the annotation.
+     * Get the non-{@link Repeatable} annotation directly present on this method
+     * parameter, or null if the annotation is not directly present.
+     * Meta-annotations are ignored. (Use
+     * {@link #getDirectAnnotationInfoRepeatable(Class)} for {@link Repeatable}
+     * annotations.)
+     *
+     * @param annotation The annotation.
+     * @return An {@link AnnotationInfo} object representing the annotation directly
+     *         present on this method parameter, or null if it is not directly
+     *         present.
+     */
+    public @Nullable AnnotationInfo getDirectAnnotationInfo(final Class<? extends Annotation> annotation) {
+        Assert.notNull(annotation, "annotation");
+        Assert.isAnnotation(annotation);
+        return getDirectAnnotationInfo(annotation.getName());
+    }
+
+    /**
+     * Get the named non-{@link Repeatable} annotation directly present on this
+     * method parameter, or null if the named annotation is not directly present.
+     * Meta-annotations are ignored. (Use
+     * {@link #getDirectAnnotationInfoRepeatable(String)} for {@link Repeatable}
+     * annotations.)
+     *
+     * @param annotationName The annotation name.
+     * @return An {@link AnnotationInfo} object representing the named annotation
+     *         directly present on this method parameter, or null if it is not
+     *         directly present.
+     */
+    public @Nullable AnnotationInfo getDirectAnnotationInfo(final String annotationName) {
+        Assert.notNull(annotationName, "annotationName");
+        return getDirectAnnotationInfo().get(annotationName);
+    }
+
+    /**
+     * Get the {@link Repeatable} annotation or meta-annotation on this method
+     * parameter, or the empty list if the method parameter does not have the
+     * annotation.
      *
      * @param annotation The annotation.
      * @return An {@link AnnotationInfoList} containing all instances of the
      *         annotation on this method parameter, or the empty list if the method
      *         parameter does not have the annotation.
      */
-    public AnnotationInfoList getAnnotationInfoRepeatable(final Class<? extends Annotation> annotation) {
+    public AnnotationInfoList getAllAnnotationInfoRepeatable(final Class<? extends Annotation> annotation) {
         Assert.notNull(annotation, "annotation");
         Assert.isAnnotation(annotation);
-        return getAnnotationInfoRepeatable(annotation.getName());
+        return getAllAnnotationInfoRepeatable(annotation.getName());
     }
 
     /**
-     * Get the named {@link Repeatable} annotation on this method, or the empty list
-     * if the method parameter does not have the named annotation.
+     * Get the named {@link Repeatable} annotation or meta-annotation on this method
+     * parameter, or the empty list if the method parameter does not have the named
+     * annotation.
      *
      * @param annotationName The annotation name.
      * @return An {@link AnnotationInfoList} containing all instances of the named
      *         annotation on this method parameter, or the empty list if the method
      *         parameter does not have the named annotation.
      */
-    public AnnotationInfoList getAnnotationInfoRepeatable(final String annotationName) {
+    public AnnotationInfoList getAllAnnotationInfoRepeatable(final String annotationName) {
         Assert.notNull(annotationName, "annotationName");
-        return getAnnotationInfo().getRepeatable(annotationName);
+        return getAllAnnotationInfo().getRepeatable(annotationName);
+    }
+
+    /**
+     * Get the {@link Repeatable} annotation directly present on this method
+     * parameter, or the empty list if it is not directly present. Meta-annotations
+     * are ignored.
+     *
+     * @param annotation The annotation.
+     * @return An {@link AnnotationInfoList} containing all instances of the
+     *         annotation directly present on this method parameter, or the empty
+     *         list if it is not directly present.
+     */
+    public AnnotationInfoList getDirectAnnotationInfoRepeatable(final Class<? extends Annotation> annotation) {
+        Assert.notNull(annotation, "annotation");
+        Assert.isAnnotation(annotation);
+        return getDirectAnnotationInfoRepeatable(annotation.getName());
+    }
+
+    /**
+     * Get the named {@link Repeatable} annotation directly present on this method
+     * parameter, or the empty list if it is not directly present. Meta-annotations
+     * are ignored.
+     *
+     * @param annotationName The annotation name.
+     * @return An {@link AnnotationInfoList} containing all instances of the named
+     *         annotation directly present on this method parameter, or the empty
+     *         list if it is not directly present.
+     */
+    public AnnotationInfoList getDirectAnnotationInfoRepeatable(final String annotationName) {
+        Assert.notNull(annotationName, "annotationName");
+        return getDirectAnnotationInfo().getRepeatable(annotationName);
     }
 
     /**
@@ -264,7 +352,7 @@ public class MethodParameterInfo {
      */
     public boolean hasAnnotation(final String annotationName) {
         Assert.notNull(annotationName, "annotationName");
-        return getAnnotationInfo().containsName(annotationName);
+        return getAllAnnotationInfo().containsName(annotationName);
     }
 
     // -------------------------------------------------------------------------------------------------------------

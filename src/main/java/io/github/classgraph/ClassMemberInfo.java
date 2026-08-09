@@ -342,6 +342,13 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
      * annotations, or {@link #getDirectAnnotationInfo(String)} to ignore
      * meta-annotations.)
      *
+     * <p>
+     * If the named annotation can be reached in more than one way -- if it is
+     * directly present on the class member and is also a meta-annotation of one of
+     * the member's other annotations, for example -- then the one reached most
+     * directly is returned. Call {@link #getDirectAnnotationInfo(String)} if you want
+     * only the annotation present on the class member itself.
+     *
      * @param annotationName The annotation name.
      * @return An {@link AnnotationInfo} object representing the named annotation on
      *         this class member, or null if the class member does not have the

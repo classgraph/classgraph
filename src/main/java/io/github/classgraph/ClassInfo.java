@@ -2317,11 +2317,13 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * annotation to annotate a class and all of its subclasses.
      *
      * <p>
-     * If both the class and one of its annotations are annotated with the named
-     * annotation, then the first of the two, in the order of
-     * {@link #getAllAnnotationInfo()}, is returned. Call
-     * {@link #getDirectAnnotationInfo(String)} if you want only the annotation
-     * present on the class itself.
+     * If the named annotation can be reached in more than one way -- if it is
+     * directly present on the class and is also a meta-annotation of one of the
+     * class' other annotations, for example -- then the one reached most directly is
+     * returned: an annotation directly present on the class, if there is one,
+     * otherwise an annotation inherited from a superclass, otherwise a
+     * meta-annotation. Call {@link #getDirectAnnotationInfo(String)} if you want only
+     * the annotation present on the class itself.
      *
      * <p>
      * Note that if you need to get multiple named annotations, it is faster to call

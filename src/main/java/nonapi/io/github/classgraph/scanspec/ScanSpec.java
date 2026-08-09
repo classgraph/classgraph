@@ -141,7 +141,7 @@ public class ScanSpec {
     /**
      * If true, enables the saving of annotation info (for class, field, method or
      * method parameter annotations) during the scan. This information can be
-     * obtained using {@link ClassInfo#getAnnotationInfo()} etc. By default,
+     * obtained using {@link ClassInfo#getAllAnnotationInfo()} etc. By default,
      * annotation info is not scanned, for efficiency.
      */
     public boolean enableAnnotationInfo;

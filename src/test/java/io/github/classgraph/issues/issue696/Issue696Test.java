@@ -38,9 +38,9 @@ public class Issue696Test {
             final var paramInfo = dynamic.getConstructorInfo().get(0).getParameterInfo();
             // Inner classes have an initial "mandated" param
             assertThat(paramInfo.length).isEqualTo(3);
-            assertThat(paramInfo[0].getAnnotationInfo()).isEmpty();
-            assertThat(paramInfo[1].getAnnotationInfo().get(0).getName()).isEqualTo(Foo.class.getName());
-            assertThat(paramInfo[2].getAnnotationInfo().get(0).getName()).isEqualTo(Bar.class.getName());
+            assertThat(paramInfo[0].getAllAnnotationInfo()).isEmpty();
+            assertThat(paramInfo[1].getAllAnnotationInfo().get(0).getName()).isEqualTo(Foo.class.getName());
+            assertThat(paramInfo[2].getAllAnnotationInfo().get(0).getName()).isEqualTo(Bar.class.getName());
         }
     }
 }

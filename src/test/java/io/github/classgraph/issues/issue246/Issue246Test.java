@@ -49,7 +49,7 @@ public class Issue246Test {
                             .getMethodInfo() //
                             .getSingleMethod("dummyMethodWithParameter") //
                             .getParameterInfo()[0] //
-                            .getAnnotationInfo().size());
+                            .getAllAnnotationInfo().size());
         }
     }
 

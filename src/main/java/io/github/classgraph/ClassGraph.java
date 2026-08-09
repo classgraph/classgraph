@@ -344,7 +344,7 @@ public class ClassGraph {
      * parameter annotations) during the scan. This information can be obtained
      * using {@link ClassInfo#getAllAnnotationInfo()},
      * {@link FieldInfo#getAllAnnotationInfo()}, and
-     * {@link MethodParameterInfo#getAnnotationInfo()}. By default, annotation info
+     * {@link MethodParameterInfo#getAllAnnotationInfo()}. By default, annotation info
      * is not scanned. (Automatically calls {@link #enableClassInfo()}.)
      *
      * @return this (for method chaining).
