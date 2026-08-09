@@ -482,6 +482,15 @@ queries, and no longer collide in name with anything on `ClassInfo`.
   Calling `enableExternalClasses()` makes external classes members of their package and
   module again, as it makes them part of the scan result everywhere else.
 
+* **A system module accepted by name is now scanned without calling
+  `enableSystemJarsAndModules()`.** In 4.x, `acceptModules("jdk.compiler")` found nothing
+  unless `enableSystemJarsAndModules()` was also called, because system modules were not
+  even enumerated without it, while accepting a non-system module by name worked on its
+  own. `enableSystemJarsAndModules()` is now only needed in order to scan *all* system
+  modules and the JRE/JDK `lib/` and `ext/` jars; naming a system module is taken as
+  asking for that one module, and only the named system modules are scanned, so the cost
+  of scanning the rest of the JDK is still not incurred.
+
 ## Bug fixes
 
 Bugs found during the port. Each of these is a pre-existing bug in ClassGraph 4.x, and
@@ -503,6 +512,14 @@ is fixed on the 4.x branch as well.
   interfaces of its superclasses. It now uses the directly implemented interfaces, in
   classfile order. This affects `ClassInfo#getTypeDescriptor()` and
   `ClassInfo#getTypeSignatureOrTypeDescriptor()` for non-generic classes.
+
+* Rejecting a single system module switched off system module scanning entirely, so
+  `enableSystemJarsAndModules().rejectModules("jdk.compiler")` scanned no system modules
+  at all, not even `java.base`. System modules were only scanned if the module accept and
+  reject criteria were both empty, or if a module was specifically accepted; a reject on
+  its own matched neither case. System modules now follow the same accept/reject rule as
+  every other module once system module scanning is enabled: with no accept criteria, all
+  but the rejected modules are scanned.
 
 Two further bugs found during the port were only reachable through the JSON
 serialization API, which 5.x removes (`AnnotationParameterValue#toString()` threw

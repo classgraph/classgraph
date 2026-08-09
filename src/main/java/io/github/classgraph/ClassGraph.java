@@ -1168,12 +1168,21 @@ public class ClassGraph {
     }
 
     /**
-     * Accept one or more modules for scanning.
+     * Accept one or more modules for scanning. If any module is accepted, only the
+     * accepted modules are scanned (any jars and directories on the classpath are
+     * still scanned, unless they are excluded by other criteria).
+     *
+     * <p>
+     * A system module (e.g. {@code "java.base"} or {@code "jdk.compiler"}) that is
+     * accepted by name is scanned even if {@link #enableSystemJarsAndModules()} was
+     * not called -- that method is only needed in order to scan <i>all</i> system
+     * modules.
      *
      * @param moduleNames The names of the modules that should be scanned. May
      *                    contain a wildcard glob ({@code '*'}).
      * @return this (for method chaining).
      */
+    // #658
     public ClassGraph acceptModules(final String... moduleNames) {
         Assert.notNullElements(moduleNames, "moduleNames");
         for (final String moduleName : moduleNames) {
@@ -1186,9 +1195,12 @@ public class ClassGraph {
      * Reject one or more modules, preventing them from being scanned.
      *
      * @param moduleNames The names of the modules that should not be scanned. May
-     *                    contain a wildcard glob ({@code '*'}).
+     *                    contain a wildcard glob ({@code '*'}). Rejecting a system
+     *                    module leaves the other system modules scannable, if
+     *                    {@link #enableSystemJarsAndModules()} was called.
      * @return this (for method chaining).
      */
+    // #658
     public ClassGraph rejectModules(final String... moduleNames) {
         Assert.notNullElements(moduleNames, "moduleNames");
         for (final String moduleName : moduleNames) {
@@ -1274,6 +1286,11 @@ public class ClassGraph {
      * Enables the scanning of system packages ({@code "java.*"}, {@code "javax.*"},
      * {@code "javafx.*"}, {@code "jdk.*"}, {@code "oracle.*"}, {@code "sun.*"}) --
      * these are not scanned by default for speed.
+     *
+     * <p>
+     * This is only needed in order to scan <i>all</i> system modules and the JRE/JDK
+     * {@code "lib/"} and {@code "ext/"} jars: an individual system module can be
+     * scanned by accepting it by name with {@link #acceptModules(String...)}.
      *
      * <p>
      * N.B. Automatically calls {@link #enableClassInfo()}.

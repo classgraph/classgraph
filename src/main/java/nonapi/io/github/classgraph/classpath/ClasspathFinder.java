@@ -170,11 +170,18 @@ public class ClasspathFinder {
             scanNonSystemModules = scanSpec.scanModules;
         }
 
+        // Also look for system modules if any module was specifically accepted by name --
+        // a module that was asked for by name is scanned whether or not it is a system
+        // module, and only the specifically-accepted system modules are scanned, so the
+        // cost of scanning the (large) system modules is not incurred for the others
+        // #658
+        final var scanSystemModules = scanSpec.enableSystemJarsAndModules
+                || !scanSpec.moduleAcceptReject.acceptIsEmpty();
+
         // Only instantiate a module finder if requested
-        moduleFinder = scanNonSystemModules || scanSpec.enableSystemJarsAndModules
+        moduleFinder = scanNonSystemModules || scanSystemModules
                 ? new ModuleFinder(new CallStackReader(reflectionUtils).getClassContext(), scanSpec,
-                        scanNonSystemModules, /* scanSystemModules = */ scanSpec.enableSystemJarsAndModules,
-                        classpathFinderLog)
+                        scanNonSystemModules, scanSystemModules, classpathFinderLog)
                 : null;
 
         classpathOrder = new ClasspathOrder(scanSpec, reflectionUtils);
