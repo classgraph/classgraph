@@ -36,6 +36,9 @@ import org.jspecify.annotations.Nullable;
 
 /** Extract classpath entries from the Ant ClassLoader. */
 class AntClassLoaderHandler implements ClassLoaderHandler {
+    /** Constructor. */
+    AntClassLoaderHandler() {
+    }
 
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {

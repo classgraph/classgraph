@@ -4035,7 +4035,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                     } else {
                         isFirstParam = false;
                     }
-                    fieldInfo.toString(/* useModifiers = */ false, /* useSimpleNames = */ false, buf);
+                    fieldInfo.toString(/* includeModifiers = */ false, /* useSimpleNames = */ false, buf);
                 }
                 buf.append(')');
             }

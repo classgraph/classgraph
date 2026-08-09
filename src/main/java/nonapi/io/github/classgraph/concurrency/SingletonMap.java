@@ -49,11 +49,16 @@ import org.jspecify.annotations.Nullable;
  *
  * @param <K> The key type.
  * @param <V> The value type.
- * @param <E> the element type
+ * @param <E> An exception that {@link #newInstance(Object, LogNode)} can throw,
+ *            or {@link RuntimeException} if none.
  */
 public abstract class SingletonMap<K, V, E extends Exception> {
     /** The map. */
     private final ConcurrentMap<K, SingletonHolder<V>> map = new ConcurrentHashMap<>();
+
+    /** Constructor. */
+    public SingletonMap() {
+    }
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -107,6 +112,10 @@ public abstract class SingletonMap<K, V, E extends Exception> {
      * @param <V> the singleton type
      */
     private static class SingletonHolder<V> {
+        /** Constructor. */
+        SingletonHolder() {
+        }
+
         /** The singleton. */
         private volatile @Nullable V singleton;
 

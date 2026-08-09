@@ -90,7 +90,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      * The index of the classpath element within the classpath (for toplevel
      * classpath elements), or within the parent classpath element (e.g. for
      * classpath elements added via a Class-Path entry in the manifest). Set by
-     * {@link #addReference(boolean, int)}.
+     * {@link #addReference(boolean, int, ClassLoader)}.
      */
     private int classpathElementIdxWithinParent = Integer.MAX_VALUE;
 
@@ -134,9 +134,8 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
     /**
      * The automatic package root prefixes (e.g. {@code "BOOT-INF/classes/"}) to
      * look for within this classpath element, as declared by the
-     * {@link nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler}
-     * that found it. Child classpath elements inherit these, since they come from
-     * the same classloader.
+     * {@code ClassLoaderHandler} that found it. Child classpath elements inherit
+     * these, since they come from the same classloader.
      */
     protected final String[] packageRootPrefixes;
 
@@ -172,7 +171,11 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Used to set the ScanResult after the scan is complete. */
+    /**
+     * Used to set the {@link ScanResult} after the scan is complete.
+     *
+     * @param scanResult the {@link ScanResult}
+     */
     void setScanResult(final ScanResult scanResult) {
         this.scanResult = scanResult;
     }
@@ -697,7 +700,8 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      *
      * @param relativePath The relative path of the {@link Resource} to return. Path
      *                     should have already be sanitized by calling
-     *                     {@link FileUtils#sanitizeEntryPath(String, boolean)}, or
+     *                     {@link FileUtils#sanitizeEntryPath(String, boolean, boolean)},
+     *                     or
      *                     by providing a path that is already sanitized (i.e.
      *                     doesn't start or end with "/", doesn't contain "/../" or
      *                     "/./", etc.).

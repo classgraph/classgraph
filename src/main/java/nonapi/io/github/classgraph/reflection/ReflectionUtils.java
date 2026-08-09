@@ -41,12 +41,19 @@ import org.jspecify.annotations.Nullable;
 public final class ReflectionUtils {
     /** The reflection driver to use. */
     public ReflectionDriver reflectionDriver;
+    /** {@code java.security.PrivilegedAction}, or null if it is not available. */
     private @Nullable Class<?> privilegedActionClass;
+
+    /**
+     * {@code AccessController#doPrivileged(PrivilegedAction)}, or null if it is not
+     * available.
+     */
     private @Nullable Method accessControllerDoPrivileged;
 
     /**
-     * Call this if you change the value of
-     * {@link ClassGraph#CIRCUMVENT_ENCAPSULATION}.
+     * Constructor. Chooses the reflection driver according to the current value of
+     * {@link ClassGraph#CIRCUMVENT_ENCAPSULATION}, so a new instance must be
+     * created after changing that value.
      */
     public ReflectionUtils() {
         if (ClassGraph.CIRCUMVENT_ENCAPSULATION == CircumventEncapsulationMethod.NARCISSUS) {

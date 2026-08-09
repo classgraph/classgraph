@@ -38,6 +38,10 @@ import org.jspecify.annotations.Nullable;
  * Extract classpath entries from the Eclipse Equinox ContextFinder ClassLoader.
  */
 class EquinoxContextFinderClassLoaderHandler implements ClassLoaderHandler {
+    /** Constructor. */
+    EquinoxContextFinderClassLoaderHandler() {
+    }
+
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
         return classIsOrExtendsOrImplements(classLoaderClass,

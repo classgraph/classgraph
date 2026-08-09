@@ -41,6 +41,10 @@ import org.jspecify.annotations.Nullable;
  * @author lukehutch
  */
 class PlexusClassWorldsClassRealmClassLoaderHandler extends URLClassLoaderHandler {
+    /** Constructor. */
+    PlexusClassWorldsClassRealmClassLoaderHandler() {
+    }
+
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
         return classIsOrExtendsOrImplements(classLoaderClass,

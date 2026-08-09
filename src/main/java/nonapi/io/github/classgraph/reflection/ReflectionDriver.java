@@ -45,8 +45,13 @@ import nonapi.io.github.classgraph.concurrency.SingletonMap;
 import nonapi.io.github.classgraph.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
-/** Reflection driver */
+/**
+ * A driver that performs the reflective operations ClassGraph needs, using
+ * whichever reflection mechanism is available and least restricted in the
+ * current runtime.
+ */
 abstract class ReflectionDriver {
+    /** Caches the methods and fields of each class that has been reflected on. */
     private final SingletonMap<Class<?>, ClassMemberCache, Exception> classToClassMemberCache //
             = new SingletonMap<>() {
                 @Override
@@ -56,11 +61,24 @@ abstract class ReflectionDriver {
                 }
             };
 
+    /** Constructor. */
+    ReflectionDriver() {
+    }
+
     /** Caches class members. */
     public final class ClassMemberCache {
+        /** The methods of the class and its superclasses, indexed by method name. */
         private final Map<String, List<Method>> methodNameToMethods = new HashMap<>();
+
+        /** The fields of the class and its superclasses, indexed by field name. */
         private final Map<String, Field> fieldNameToField = new HashMap<>();
 
+        /**
+         * Constructor.
+         *
+         * @param cls the class to cache the members of
+         * @throws Exception if the class' members could not be enumerated
+         */
         private ClassMemberCache(final Class<?> cls) throws Exception {
             // Iterate from class to its superclasses, and find initial interfaces to start
             // traversing from
@@ -107,10 +125,21 @@ abstract class ReflectionDriver {
             }
         }
 
+        /**
+         * Add a method to the cache. Methods are not masked by name, since methods can
+         * be overloaded.
+         *
+         * @param method the method to cache
+         */
         private void cacheMethod(final Method method) {
             methodNameToMethods.computeIfAbsent(method.getName(), name -> new ArrayList<>()).add(method);
         }
 
+        /**
+         * Add a field to the cache.
+         *
+         * @param field the field to cache
+         */
         private void cacheField(final Field field) {
             // Only put a field name to field mapping if it is absent, so that subclasses
             // mask fields
@@ -124,6 +153,7 @@ abstract class ReflectionDriver {
      *
      * @param className the class name
      * @return the class reference
+     * @throws Exception if the class could not be found or loaded
      */
     abstract Class<?> findClass(final String className) throws Exception;
 
@@ -132,6 +162,7 @@ abstract class ReflectionDriver {
      *
      * @param cls the class
      * @return the declared methods
+     * @throws Exception if the methods could not be read
      */
     abstract Method[] getDeclaredMethods(Class<?> cls) throws Exception;
 
@@ -141,6 +172,7 @@ abstract class ReflectionDriver {
      * @param <T> the generic type
      * @param cls the class
      * @return the declared constructors
+     * @throws Exception if the constructors could not be read
      */
     abstract <T> Constructor<T>[] getDeclaredConstructors(Class<T> cls) throws Exception;
 
@@ -149,6 +181,7 @@ abstract class ReflectionDriver {
      *
      * @param cls the class
      * @return the declared fields
+     * @throws Exception if the fields could not be read
      */
     abstract Field[] getDeclaredFields(Class<?> cls) throws Exception;
 
@@ -158,6 +191,7 @@ abstract class ReflectionDriver {
      * @param object the object instance to get the field value from
      * @param field  the non-static field
      * @return the value of the field
+     * @throws Exception if the field could not be read
      */
     abstract @Nullable Object getField(final Object object, final Field field) throws Exception;
 
@@ -167,6 +201,7 @@ abstract class ReflectionDriver {
      * @param object the object instance to get the field value from
      * @param field  the non-static field
      * @param value  the value to set
+     * @throws Exception if the field could not be written
      */
     abstract void setField(final Object object, final Field field, @Nullable Object value) throws Exception;
 
@@ -175,6 +210,7 @@ abstract class ReflectionDriver {
      *
      * @param field the static field
      * @return the static field
+     * @throws Exception if the field could not be read
      */
     abstract @Nullable Object getStaticField(final Field field) throws Exception;
 
@@ -183,6 +219,7 @@ abstract class ReflectionDriver {
      *
      * @param field the static field
      * @param value the value to set
+     * @throws Exception if the field could not be written
      */
     abstract void setStaticField(final Field field, @Nullable Object value) throws Exception;
 
@@ -194,6 +231,7 @@ abstract class ReflectionDriver {
      * @param args   the method arguments (or {@code new Object[0]} if there are no
      *               args)
      * @return the return value (possibly a boxed value)
+     * @throws Exception if the method could not be invoked, or if it threw
      */
     abstract @Nullable Object invokeMethod(final Object object, final Method method, final @Nullable Object... args)
             throws Exception;
@@ -205,6 +243,7 @@ abstract class ReflectionDriver {
      * @param args   the method arguments (or {@code new Object[0]} if there are no
      *               args)
      * @return the return value (possibly a boxed value)
+     * @throws Exception if the method could not be invoked, or if it threw
      */
     abstract @Nullable Object invokeStaticMethod(final Method method, final @Nullable Object... args)
             throws Exception;

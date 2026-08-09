@@ -124,6 +124,12 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /**
+     * Used to set the {@link ScanResult} of this package's annotations after the
+     * scan is complete.
+     *
+     * @param scanResult the {@link ScanResult}
+     */
     void setScanResult(final ScanResult scanResult) {
         final var annotations = annotationInfoSet;
         if (annotations != null) {

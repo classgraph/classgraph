@@ -43,6 +43,10 @@ import org.jspecify.annotations.Nullable;
  * method and field names.
  */
 class FallbackClassLoaderHandler implements ClassLoaderHandler {
+    /** Constructor. */
+    FallbackClassLoaderHandler() {
+    }
+
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
         // This is the fallback handler, it handles anything

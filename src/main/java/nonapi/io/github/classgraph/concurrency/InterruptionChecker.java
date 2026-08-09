@@ -39,6 +39,10 @@ import org.jspecify.annotations.Nullable;
  * instance has been interrupted or has thrown an exception.
  */
 public class InterruptionChecker {
+    /** Constructor. */
+    public InterruptionChecker() {
+    }
+
     /** Set to true when a thread is interrupted. */
     private final AtomicBoolean interrupted = new AtomicBoolean(false);
 

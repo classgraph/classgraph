@@ -36,6 +36,10 @@ import org.jspecify.annotations.Nullable;
 
 /** Extract classpath entries from the Weblogic ClassLoaders. */
 class WeblogicClassLoaderHandler implements ClassLoaderHandler {
+    /** Constructor. */
+    WeblogicClassLoaderHandler() {
+    }
+
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
         return classIsOrExtendsOrImplements(classLoaderClass,

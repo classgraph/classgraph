@@ -39,6 +39,10 @@ import org.jspecify.annotations.Nullable;
  * CxfContainerClassLoader.
  */
 class CxfContainerClassLoaderHandler implements ClassLoaderHandler {
+    /** Constructor. */
+    CxfContainerClassLoaderHandler() {
+    }
+
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
         return classIsOrExtendsOrImplements(classLoaderClass,

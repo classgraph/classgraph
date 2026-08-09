@@ -49,6 +49,12 @@ abstract class ScanResultObject {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /** Constructor. */
+    ScanResultObject() {
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
      * Set ScanResult backreferences in info objects after scan has completed.
      *

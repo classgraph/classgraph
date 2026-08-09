@@ -50,6 +50,10 @@ import org.jspecify.annotations.Nullable;
  * @author elrufaie
  */
 class FelixClassLoaderHandler implements ClassLoaderHandler {
+    /** Constructor. */
+    FelixClassLoaderHandler() {
+    }
+
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
         return classIsOrExtendsOrImplements(classLoaderClass,

@@ -40,6 +40,10 @@ import org.jspecify.annotations.Nullable;
  * JarClassLoader.
  */
 class UnoOneJarClassLoaderHandler implements ClassLoaderHandler {
+    /** Constructor. */
+    UnoOneJarClassLoaderHandler() {
+    }
+
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
         return classIsOrExtendsOrImplements(classLoaderClass,

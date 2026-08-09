@@ -37,6 +37,7 @@ import java.io.OutputStream;
  * {@link InputStream}.
  */
 public class ProxyingInputStream extends InputStream {
+    /** The wrapped {@link InputStream}. */
     private final InputStream inputStream;
 
     /**

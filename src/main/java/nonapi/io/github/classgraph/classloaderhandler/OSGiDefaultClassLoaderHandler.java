@@ -42,6 +42,10 @@ import org.jspecify.annotations.Nullable;
  * @author lukehutch
  */
 class OSGiDefaultClassLoaderHandler implements ClassLoaderHandler {
+    /** Constructor. */
+    OSGiDefaultClassLoaderHandler() {
+    }
+
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
         return classIsOrExtendsOrImplements(classLoaderClass,

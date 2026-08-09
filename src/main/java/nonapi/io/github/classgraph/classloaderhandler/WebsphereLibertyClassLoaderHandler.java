@@ -61,6 +61,10 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
     /** {@code "com.ibm.ws.classloading.internal.ThreadContextClassLoader"} */
     private static final String IBM_THREAD_CONTEXT_CLASS_LOADER = PKG_PREFIX + "ThreadContextClassLoader";
 
+    /** Constructor. */
+    WebsphereLibertyClassLoaderHandler() {
+    }
+
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
         return classIsOrExtendsOrImplements(classLoaderClass, IBM_APP_CLASS_LOADER)

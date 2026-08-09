@@ -40,6 +40,10 @@ import org.jspecify.annotations.Nullable;
 
 /** Extract classpath entries from the Tomcat/Catalina WebappClassLoaderBase. */
 class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
+    /** Constructor. */
+    TomcatWebappClassLoaderBaseHandler() {
+    }
+
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
         return classIsOrExtendsOrImplements(classLoaderClass,

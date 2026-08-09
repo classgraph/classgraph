@@ -40,6 +40,10 @@ import org.jspecify.annotations.Nullable;
  * @author lukehutch
  */
 class WebsphereTraditionalClassLoaderHandler implements ClassLoaderHandler {
+    /** Constructor. */
+    WebsphereTraditionalClassLoaderHandler() {
+    }
+
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
         return classIsOrExtendsOrImplements(classLoaderClass,

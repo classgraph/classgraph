@@ -713,10 +713,24 @@ public class NestedJarHandler {
         }
     }
 
+    /**
+     * A {@link URLConnection} that can be used in a try-with-resources block, so
+     * that the underlying HTTP connection is disconnected when it goes out of
+     * scope.
+     */
     private static class CloseableUrlConnection implements AutoCloseable {
+        /** The connection. */
         public final URLConnection conn;
+
+        /** The connection, if it is an HTTP connection, otherwise null. */
         public final @Nullable HttpURLConnection httpConn;
 
+        /**
+         * Constructor.
+         *
+         * @param url the URL to open a connection to
+         * @throws IOException if the connection could not be opened
+         */
         public CloseableUrlConnection(final URL url) throws IOException {
             conn = url.openConnection();
             httpConn = conn instanceof final HttpURLConnection httpUrlConn ? httpUrlConn : null;
@@ -738,10 +752,14 @@ public class NestedJarHandler {
      */
     private static class RecyclableInflater implements Resettable, AutoCloseable {
         /**
-         * Create a new {@link Inflater} instance with the "nowrap" option (which is
-         * needed for zipfile entries).
+         * The {@link Inflater} instance, created with the "nowrap" option, which is
+         * needed for zipfile entries.
          */
         private final Inflater inflater = new Inflater(/* nowrap = */ true);
+
+        /** Constructor. */
+        RecyclableInflater() {
+        }
 
         /**
          * Get the {@link Inflater} instance.

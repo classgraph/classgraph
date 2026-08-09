@@ -50,6 +50,10 @@ public abstract class Recycler<T, E extends Exception> implements AutoCloseable 
     /** Instances that have been allocated but are unused. */
     private final Queue<T> unusedInstances = new ConcurrentLinkedQueue<>();
 
+    /** Constructor. */
+    public Recycler() {
+    }
+
     /**
      * Create a new instance. This should either return a non-null instance of type
      * T, or throw an exception of type E.

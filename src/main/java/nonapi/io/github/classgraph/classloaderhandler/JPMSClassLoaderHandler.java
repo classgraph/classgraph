@@ -42,6 +42,10 @@ import org.jspecify.annotations.Nullable;
  * mechanism from classpath scanning).
  */
 class JPMSClassLoaderHandler implements ClassLoaderHandler {
+    /** Constructor. */
+    JPMSClassLoaderHandler() {
+    }
+
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
         return classIsOrExtendsOrImplements(classLoaderClass,

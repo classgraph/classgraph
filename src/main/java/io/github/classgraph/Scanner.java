@@ -361,9 +361,7 @@ class Scanner implements Callable<ScanResult> {
 
         /**
          * The automatic package root prefixes to look for within this classpath
-         * element, as declared by the
-         * {@link nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler}
-         * that found it.
+         * element, as declared by the {@code ClassLoaderHandler} that found it.
          */
         final String[] packageRootPrefixes;
 

@@ -78,6 +78,11 @@ public final class URLPathEncoder {
     /**
      * Unescape chars in a URL. URLDecoder.decode is broken:
      * https://bugs.openjdk.java.net/browse/JDK-8179507
+     *
+     * @param str     the string to unescape
+     * @param isQuery true if the string is a query string, in which case {@code '+'}
+     *                is decoded as a space
+     * @param buf     the buffer to write the decoded bytes to
      */
     private static void unescapeChars(final String str, final boolean isQuery, final ByteArrayOutputStream buf) {
         if (str.isEmpty()) {

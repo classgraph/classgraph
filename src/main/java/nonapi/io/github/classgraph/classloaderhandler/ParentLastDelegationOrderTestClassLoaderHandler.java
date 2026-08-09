@@ -36,6 +36,10 @@ import org.jspecify.annotations.Nullable;
 
 /** ClassLoaderHandler that is used to test PARENT_LAST delegation order. */
 class ParentLastDelegationOrderTestClassLoaderHandler implements ClassLoaderHandler {
+    /** Constructor. */
+    ParentLastDelegationOrderTestClassLoaderHandler() {
+    }
+
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
         return classIsOrExtendsOrImplements(classLoaderClass,

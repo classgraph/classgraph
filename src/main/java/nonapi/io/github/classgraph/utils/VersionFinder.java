@@ -264,7 +264,8 @@ public final class VersionFinder {
      * reference - https://rules.sonarsource.com/java/tag/owasp/RSPEC-2755
      * 
      * @return DocumentBuilderFactory
-     * @throws ParserConfigurationException
+     * @throws ParserConfigurationException if a requested feature is not supported
+     *                                      by the XML parser
      */
     private static DocumentBuilderFactory getSecureDocumentBuilderFactory() throws ParserConfigurationException {
         final var dbf = DocumentBuilderFactory.newInstance();
@@ -287,7 +288,8 @@ public final class VersionFinder {
      * reference - https://rules.sonarsource.com/java/tag/owasp/RSPEC-2755
      * 
      * @return XPathFactory
-     * @throws XPathFactoryConfigurationException
+     * @throws XPathFactoryConfigurationException if secure processing could not be
+     *                                            enabled
      */
     private static XPathFactory getSecureXPathFactory() throws XPathFactoryConfigurationException {
         final var xPathFactory = XPathFactory.newInstance();

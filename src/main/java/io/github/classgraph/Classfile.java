@@ -1039,21 +1039,60 @@ class Classfile {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /**
+     * Adds a type annotation to the part of a class type signature that a type
+     * annotation's target info points at.
+     */
     @FunctionalInterface
     interface ClassTypeAnnotationDecorator {
+        /**
+         * Add the type annotation to the class type signature.
+         *
+         * @param classTypeSignature the class type signature to decorate
+         */
         void decorate(ClassTypeSignature classTypeSignature);
     }
 
+    /**
+     * Adds a type annotation to the part of a method type signature that a type
+     * annotation's target info points at.
+     */
     @FunctionalInterface
     interface MethodTypeAnnotationDecorator {
+        /**
+         * Add the type annotation to the method type signature.
+         *
+         * @param methodTypeSignature the method type signature to decorate
+         */
         void decorate(MethodTypeSignature methodTypeSignature);
     }
 
+    /**
+     * Adds a type annotation to the part of a type signature that a type
+     * annotation's type path points at.
+     */
     @FunctionalInterface
     interface TypeAnnotationDecorator {
+        /**
+         * Add the type annotation to the type signature.
+         *
+         * @param typeSignature the type signature to decorate
+         */
         void decorate(TypeSignature typeSignature);
     }
 
+    /**
+     * One step of a type annotation's {@code type_path}, which navigates from the
+     * type named by the target info to the nested type that the annotation actually
+     * applies to.
+     *
+     * @param typePathKind    the kind of step to take: 0 to descend into an array
+     *                        type, 1 to descend into the enclosing type of a nested
+     *                        type, 2 to move to the bound of a wildcard type
+     *                        argument, or 3 to move to a type argument
+     * @param typeArgumentIdx the index of the type argument to move to, if
+     *                        {@code typePathKind} is 3, otherwise 0
+     */
     record TypePathNode(short typePathKind, short typeArgumentIdx) {
         @Override
         public String toString() {
@@ -1061,6 +1100,13 @@ class Classfile {
         }
     }
 
+    /**
+     * Read a type annotation's {@code type_path} structure.
+     *
+     * @return the steps of the type path, or the empty list if the annotation
+     *         applies directly to the type named by the target info
+     * @throws IOException if the classfile could not be read
+     */
     private List<TypePathNode> readTypePath() throws IOException {
         final var typePathLength = reader().readUnsignedByte();
         if (typePathLength == 0) {

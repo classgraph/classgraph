@@ -41,6 +41,10 @@ import org.jspecify.annotations.Nullable;
  * ClassLoaderHandler that is able to extract the URLs from a URLClassLoader.
  */
 class URLClassLoaderHandler implements ClassLoaderHandler {
+    /** Constructor. */
+    URLClassLoaderHandler() {
+    }
+
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
         return classIsOrExtendsOrImplements(classLoaderClass, "java.net.URLClassLoader");
