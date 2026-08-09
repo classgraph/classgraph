@@ -841,8 +841,7 @@ public class ClassGraph {
      * recursively scanning everything in the jar, dir or module.
      *
      * @param packageNames The fully-qualified names of packages to scan (with '.'
-     *                     as a separator). May not include a glob wildcard
-     *                     ({@code '*'}).
+     *                     as a separator). May not include a glob wildcard.
      *
      * @return this (for method chaining).
      */
@@ -851,7 +850,7 @@ public class ClassGraph {
         enableClassInfo();
         for (final String packageName : packageNames) {
             final var packageNameNormalized = AcceptReject.normalizePackageOrClassName(packageName);
-            if (packageNameNormalized.contains("*")) {
+            if (AcceptReject.containsWildcard(packageNameNormalized)) {
                 throw new IllegalArgumentException("Cannot use a glob wildcard here: " + packageNameNormalized);
             }
             // Accept package, but not sub-packages
@@ -874,13 +873,13 @@ public class ClassGraph {
      *
      * @param paths The paths to scan, relative to the package root of the classpath
      *              element (with '/' as a separator). May not include a glob
-     *              wildcard ({@code '*'}).
+     *              wildcard.
      * @return this (for method chaining).
      */
     public ClassGraph acceptPathsNonRecursive(final String... paths) {
         Assert.notNullElements(paths, "paths");
         for (final String path : paths) {
-            if (path.contains("*")) {
+            if (AcceptReject.containsWildcard(path)) {
                 throw new IllegalArgumentException("Cannot use a glob wildcard here: " + path);
             }
             final var pathNormalized = AcceptReject.normalizePath(path);
@@ -981,9 +980,12 @@ public class ClassGraph {
      *
      *
      * @param classNames The fully-qualified names of classes to scan (using '.' as
-     *                   a separator). To match a class name by glob in any package,
-     *                   you must include a package glob too, e.g.
-     *                   {@code "*.*Suffix"}.
+     *                   a separator). May contain glob wildcards, where
+     *                   {@code '*'} matches within a single package or class name
+     *                   segment, {@code "**"} matches zero or more whole packages,
+     *                   and {@code '?'} matches one character. To match a class
+     *                   name by glob in any package, you must include a package
+     *                   glob too, e.g. {@code "**.*Suffix"}.
      * @return this (for method chaining).
      */
     public ClassGraph acceptClasses(final String... classNames) {
@@ -1013,9 +1015,12 @@ public class ClassGraph {
      * N.B. Automatically calls {@link #enableClassInfo()}.
      *
      * @param classNames The fully-qualified names of classes to reject (using '.'
-     *                   as a separator). To match a class name by glob in any
-     *                   package, you must include a package glob too, e.g.
-     *                   {@code "*.*Suffix"}.
+     *                   as a separator). May contain glob wildcards, where
+     *                   {@code '*'} matches within a single package or class name
+     *                   segment, {@code "**"} matches zero or more whole packages,
+     *                   and {@code '?'} matches one character. To match a class
+     *                   name by glob in any package, you must include a package
+     *                   glob too, e.g. {@code "**.*Suffix"}.
      * @return this (for method chaining).
      */
     public ClassGraph rejectClasses(final String... classNames) {
@@ -1034,8 +1039,10 @@ public class ClassGraph {
      * scanned.
      *
      * @param jarLeafNames The leafnames of the jars that should be scanned (e.g.
-     *                     {@code "mylib.jar"}). May contain a wildcard glob
-     *                     ({@code "mylib-*.jar"}).
+     *                     {@code "mylib.jar"}). May contain glob wildcards, where
+     *                     {@code '*'} matches zero or more characters
+     *                     ({@code "mylib-*.jar"}) and {@code '?'} matches one
+     *                     character.
      * @return this (for method chaining).
      */
     public ClassGraph acceptJars(final String... jarLeafNames) {
@@ -1054,8 +1061,10 @@ public class ClassGraph {
      * Reject one or more jars, preventing them from being scanned.
      *
      * @param jarLeafNames The leafnames of the jars that should be scanned (e.g.
-     *                     {@code "badlib.jar"}). May contain a wildcard glob
-     *                     ({@code "badlib-*.jar"}).
+     *                     {@code "badlib.jar"}). May contain glob wildcards, where
+     *                     {@code '*'} matches zero or more characters
+     *                     ({@code "badlib-*.jar"}) and {@code '?'} matches one
+     *                     character.
      * @return this (for method chaining).
      */
     public ClassGraph rejectJars(final String... jarLeafNames) {
@@ -1090,15 +1099,16 @@ public class ClassGraph {
                     throw new IllegalArgumentException(
                             "Can only " + (accept ? "accept" : "reject") + " jars by leafname: " + jarLeafName);
                 }
-                if (jarLeafName.contains("*")) {
+                if (AcceptReject.containsWildcard(jarLeafName)) {
                     // Compare wildcarded pattern against all jars in lib and ext dirs
-                    final var pattern = AcceptReject.globToPattern(jarLeafName, /* simpleGlob = */ true);
+                    final var pattern = AcceptReject.globToPattern(jarLeafName, '/', /* prefixMatch = */ false);
                     var found = false;
                     for (final String libOrExtJarPath : SystemJarFinder.getJreLibOrExtJars()) {
                         final var libOrExtJarLeafName = JarUtils.leafName(libOrExtJarPath);
                         if (pattern.matcher(libOrExtJarLeafName).matches()) {
-                            // Check for "*" in filename to prevent infinite recursion (shouldn't happen)
-                            if (!libOrExtJarLeafName.contains("*")) {
+                            // Check for a wildcard in the filename to prevent infinite recursion
+                            // (shouldn't happen)
+                            if (!AcceptReject.containsWildcard(libOrExtJarLeafName)) {
                                 acceptOrRejectLibOrExtJars(accept, libOrExtJarLeafName);
                             }
                             found = true;
@@ -1179,7 +1189,11 @@ public class ClassGraph {
      * modules.
      *
      * @param moduleNames The names of the modules that should be scanned. May
-     *                    contain a wildcard glob ({@code '*'}).
+     *                    contain glob wildcards, where {@code '*'} matches within a
+     *                    single module name segment, {@code "**"} matches zero or
+     *                    more whole segments (e.g. {@code "jdk.**"} matches every
+     *                    module whose name starts with {@code "jdk."}), and
+     *                    {@code '?'} matches one character.
      * @return this (for method chaining).
      */
     // #658
@@ -1195,8 +1209,11 @@ public class ClassGraph {
      * Reject one or more modules, preventing them from being scanned.
      *
      * @param moduleNames The names of the modules that should not be scanned. May
-     *                    contain a wildcard glob ({@code '*'}). Rejecting a system
-     *                    module leaves the other system modules scannable, if
+     *                    contain glob wildcards, where {@code '*'} matches within a
+     *                    single module name segment, {@code "**"} matches zero or
+     *                    more whole segments, and {@code '?'} matches one
+     *                    character. Rejecting a system module leaves the other
+     *                    system modules scannable, if
      *                    {@link #enableSystemJarsAndModules()} was called.
      * @return this (for method chaining).
      */
@@ -1215,7 +1232,11 @@ public class ClassGraph {
      *
      * @param resourcePaths The resource paths, any of which must be present in a
      *                      classpath element for the classpath element to be
-     *                      scanned. May contain a wildcard glob ({@code '*'}).
+     *                      scanned. May contain glob wildcards, where {@code '*'}
+     *                      matches within a single path segment, {@code "**"}
+     *                      matches zero or more whole path segments (e.g.
+     *                      {@code "META-INF/**"}), and {@code '?'} matches one
+     *                      character.
      * @return this (for method chaining).
      */
     public ClassGraph acceptClasspathElementsContainingResourcePath(final String... resourcePaths) {
@@ -1233,8 +1254,10 @@ public class ClassGraph {
      *
      * @param resourcePaths The resource paths which cause a classpath not to be
      *                      scanned if any are present in a classpath element for
-     *                      the classpath element. May contain a wildcard glob
-     *                      ({@code '*'}).
+     *                      the classpath element. May contain glob wildcards, where
+     *                      {@code '*'} matches within a single path segment,
+     *                      {@code "**"} matches zero or more whole path segments,
+     *                      and {@code '?'} matches one character.
      * @return this (for method chaining).
      */
     public ClassGraph rejectClasspathElementsContainingResourcePath(final String... resourcePaths) {

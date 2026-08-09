@@ -776,29 +776,32 @@ public final class ScanResult implements Closeable {
      * <p>
      * The wildcard string may contain:
      * <ul>
-     * <li>Single asterisks, to match zero or more of any character other than
-     * '/'</li>
-     * <li>Double asterisks, to match zero or more of any character</li>
-     * <li>Question marks, to match one character</li>
-     * <li>Any other regexp-style syntax, such as character sets (denoted by square
-     * brackets) -- the remainder of the expression is passed through to the Java
-     * regex parser, after escaping dot characters.</li>
+     * <li>{@code '*'}, to match zero or more of any character other than
+     * {@code '/'}</li>
+     * <li>{@code "**"}, forming a complete path segment, to match zero or more
+     * whole path segments, e.g. {@code "META-INF/**&#47;*.properties"} matches
+     * {@code META-INF/a.properties} and {@code META-INF/services/a.properties}</li>
+     * <li>{@code '?'}, to match exactly one character other than {@code '/'}</li>
      * </ul>
      *
      * <p>
-     * The wildcard string is translated in a simplistic way into a regex. If you
-     * need more complex pattern matching, use a regex directly, via
+     * Any other character is matched literally. This is the same glob syntax used
+     * by the accept/reject criteria of {@link ClassGraph}. If you need more complex
+     * pattern matching, use a regex directly, via
      * {@link #getResourcesMatchingPattern(Pattern)}.
      *
      * @param wildcardString A wildcard (glob) pattern to match {@link Resource}
      *                       paths with.
      * @return A list of all resources found in accepted packages that have a path
      *         matching the requested wildcard string.
+     * @throws IllegalArgumentException if {@code "**"} is used without forming a
+     *                                  complete path segment.
      */
     public ResourceList getResourcesMatchingWildcard(final String wildcardString) {
         checkNotClosed();
         Assert.notNull(wildcardString, "wildcardString");
-        return getResourcesMatchingPattern(AcceptReject.globToPattern(wildcardString, /* simpleGlob = */ false));
+        return getResourcesMatchingPattern(
+                AcceptReject.globToPattern(wildcardString, '/', /* prefixMatch = */ false));
     }
 
     // -------------------------------------------------------------------------------------------------------------

@@ -376,6 +376,57 @@ in 4.x; call `.directOnly()` on the result for the direct one.
 are list filters ("keep the entries of this list that are interfaces"), not hierarchy
 queries, and no longer collide in name with anything on `ClassInfo`.
 
+### There is now one glob syntax, used everywhere (#643, #870, #940)
+
+4.x had three different glob dialects, and which one you got depended on which method you
+were calling. `acceptPackages("com.*")` treated `*` as "within one package segment";
+`acceptClasses("com.*")` treated the same `*` as "any characters, including dots";
+`getResourcesMatchingWildcard()` had a third dialect in which `**` meant "any characters"
+and unrecognized syntax was passed through to the regex engine.
+
+5.x has one syntax, shared by every accept/reject criterion and by
+`ScanResult#getResourcesMatchingWildcard()`:
+
+| Wildcard | Matches |
+| --- | --- |
+| `*` | zero or more characters within one package or path segment |
+| `**` | zero or more whole segments — must form a complete segment on its own |
+| `?` | exactly one character, other than the separator |
+
+Every other character is matched literally, including regex metacharacters.
+
+What this changes in existing code:
+
+* **Class name globs.** `*` no longer spans `.`, so the 4.x idiom for "a class with this
+  name in any package" changes from `acceptClasses("*.*Suffix")` to
+  `acceptClasses("**.*Suffix")`. The same applies to `rejectClasses()`.
+* **Classpath element resource path globs.** `acceptClasspathElementsContainingResourcePath("META-INF/*")`
+  now matches only resources directly in `META-INF`; use `"META-INF/**"` to match at any
+  depth. The same applies to the `reject` form.
+* **Module name globs.** `acceptModules("java.*")` now matches `java.base` but not
+  `java.xml.crypto`; use `"java.**"` for the 4.x meaning. Two-segment module names are
+  unaffected.
+* **Resource wildcards.** `getResourcesMatchingWildcard()` no longer passes unrecognized
+  syntax through to the regex engine, so character sets like `[abc]` are now matched
+  literally — use `getResourcesMatchingPattern(Pattern)` for anything a glob can't
+  express. `**` must now form a complete path segment, so `"**.txt"` throws
+  `IllegalArgumentException` (the message names the problem); write `"**/*.txt"`.
+  `"**/*.txt"` also now matches a resource at the classpath root, since `**` can match
+  zero segments — in 4.x it required at least one directory level.
+* **`?` is now a wildcard everywhere**, so a literal `?` can no longer be matched by a
+  glob. `?` cannot occur in a package, class or module name, so this only affects paths
+  and jar leafnames.
+* **Jar leafname globs** (`acceptJars()`, `rejectJars()`) are unchanged for `*`, since a
+  leafname contains no separator, but they now support `?`, and `**` in a leafname throws
+  rather than behaving like `*`.
+
+Two 4.x bugs disappear with the old dialects. A glob containing a regex metacharacter
+other than `.` used to have that character copied into the pattern unescaped, so
+`acceptClasses("com.Outer$Inner*")` compiled to a pattern with an end-of-input anchor in
+the middle and matched nothing; metacharacters are now escaped. And
+`getResourcesMatchingWildcard("**/*.txt")` used to require at least one directory level,
+as described above.
+
 ## Behavior changes
 
 * **Malformed classfiles are now reported rather than silently producing null names.**

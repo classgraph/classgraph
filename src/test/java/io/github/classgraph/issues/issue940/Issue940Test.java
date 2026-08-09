@@ -100,7 +100,7 @@ public class Issue940Test {
      */
     @Test
     public void segmentGlobToPatternHandlesDoubleGlob() {
-        final var packagePattern = AcceptReject.segmentGlobToPattern("org.creekservice.**.schema", '.',
+        final var packagePattern = AcceptReject.globToPattern("org.creekservice.**.schema", '.',
                 /* prefixMatch = */ false);
         assertThat(packagePattern.matcher("org.creekservice.api.base.schema").matches()).isTrue();
         assertThat(packagePattern.matcher("org.creekservice.other.schema").matches()).isTrue();
@@ -109,12 +109,12 @@ public class Issue940Test {
         assertThat(packagePattern.matcher("org.creekservice.api.base.schema.sub").matches()).isFalse();
         assertThat(packagePattern.matcher("org.creekserviceschema").matches()).isFalse();
 
-        final var leadingPattern = AcceptReject.segmentGlobToPattern("**.api.*", '.', /* prefixMatch = */ false);
+        final var leadingPattern = AcceptReject.globToPattern("**.api.*", '.', /* prefixMatch = */ false);
         assertThat(leadingPattern.matcher("org.creekservice.api.base").matches()).isTrue();
         assertThat(leadingPattern.matcher("api.base").matches()).isTrue();
         assertThat(leadingPattern.matcher("xapi.base").matches()).isFalse();
 
-        final var pathPattern = AcceptReject.segmentGlobToPattern("org/creekservice/**/schema/", '/',
+        final var pathPattern = AcceptReject.globToPattern("org/creekservice/**/schema/", '/',
                 /* prefixMatch = */ false);
         assertThat(pathPattern.matcher("org/creekservice/api/base/schema/").matches()).isTrue();
         assertThat(pathPattern.matcher("org/creekservice/schema/").matches()).isTrue();
@@ -140,9 +140,9 @@ public class Issue940Test {
     /** {@code "**"} that does not form a complete segment is still rejected. */
     @Test
     public void gluedDoubleGlobIsRejected() {
-        assertThatThrownBy(() -> AcceptReject.segmentGlobToPattern("com.a**b.impl", '.', /* prefixMatch = */ false))
+        assertThatThrownBy(() -> AcceptReject.globToPattern("com.a**b.impl", '.', /* prefixMatch = */ false))
                 .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("**");
-        assertThatThrownBy(() -> AcceptReject.segmentGlobToPattern("com.***.impl", '.', /* prefixMatch = */ false))
+        assertThatThrownBy(() -> AcceptReject.globToPattern("com.***.impl", '.', /* prefixMatch = */ false))
                 .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("**");
     }
 }

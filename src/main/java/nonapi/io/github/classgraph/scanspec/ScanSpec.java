@@ -59,7 +59,7 @@ import org.jspecify.annotations.Nullable;
  */
 public class ScanSpec {
     /** Package accept/reject criteria (with separator '.'). */
-    public AcceptRejectWholeString packageAcceptReject = new AcceptRejectWholeString('.', true);
+    public AcceptRejectWholeString packageAcceptReject = new AcceptRejectWholeString('.');
 
     /**
      * Package prefix accept/reject criteria, for recursive scanning (with separator
@@ -68,7 +68,7 @@ public class ScanSpec {
     public AcceptRejectPrefix packagePrefixAcceptReject = new AcceptRejectPrefix('.');
 
     /** Path accept/reject criteria (with separator '/'). */
-    public AcceptRejectWholeString pathAcceptReject = new AcceptRejectWholeString('/', true);
+    public AcceptRejectWholeString pathAcceptReject = new AcceptRejectWholeString('/');
 
     /**
      * Path prefix accept/reject criteria, for recursive scanning (with separator
