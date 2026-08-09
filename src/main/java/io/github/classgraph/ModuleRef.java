@@ -37,6 +37,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 
+import nonapi.io.github.classgraph.utils.Assert;
 import nonapi.io.github.classgraph.utils.CollectionUtils;
 import org.jspecify.annotations.Nullable;
 
@@ -88,12 +89,8 @@ public class ModuleRef implements Comparable<ModuleRef> {
      * @param moduleLayer     The module layer.
      */
     public ModuleRef(final ModuleReference moduleReference, final ModuleLayer moduleLayer) {
-        if (moduleReference == null) {
-            throw new IllegalArgumentException("moduleReference cannot be null");
-        }
-        if (moduleLayer == null) {
-            throw new IllegalArgumentException("moduleLayer cannot be null");
-        }
+        Assert.notNull(moduleReference, "moduleReference");
+        Assert.notNull(moduleLayer, "moduleLayer");
         this.reference = moduleReference;
         this.layer = moduleLayer;
 

@@ -707,6 +707,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
      * @return true if this method has a parameter with the annotation.
      */
     public boolean hasParameterAnnotation(final Class<? extends Annotation> annotation) {
+        Assert.notNull(annotation, "annotation");
         Assert.isAnnotation(annotation);
         return hasParameterAnnotation(annotation.getName());
     }
@@ -718,6 +719,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
      * @return true if this method has a parameter with the named annotation.
      */
     public boolean hasParameterAnnotation(final String annotationName) {
+        Assert.notNull(annotationName, "annotationName");
         for (final MethodParameterInfo methodParameterInfo : getParameterInfo()) {
             if (methodParameterInfo.hasAnnotation(annotationName)) {
                 return true;

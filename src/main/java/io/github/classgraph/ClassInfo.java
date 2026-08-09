@@ -1388,6 +1388,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return true if this class extends the superclass.
      */
     public boolean extendsSuperclass(final Class<?> superclass) {
+        Assert.notNull(superclass, "superclass");
         return extendsSuperclass(superclass.getName());
     }
 
@@ -1398,6 +1399,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return true if this class extends the named superclass.
      */
     public boolean extendsSuperclass(final String superclassName) {
+        Assert.notNull(superclassName, "superclassName");
         return ("java.lang.Object".equals(superclassName) && isStandardClass())
                 || getSuperclasses().containsName(superclassName);
     }
@@ -1458,6 +1460,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return true if this class implements the interface.
      */
     public boolean implementsInterface(final Class<?> interfaceClazz) {
+        Assert.notNull(interfaceClazz, "interfaceClazz");
         Assert.isInterface(interfaceClazz);
         return implementsInterface(interfaceClazz.getName());
     }
@@ -1469,6 +1472,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return true if this class implements the named interface.
      */
     public boolean implementsInterface(final String interfaceName) {
+        Assert.notNull(interfaceName, "interfaceName");
         return getInterfaces().containsName(interfaceName);
     }
 
@@ -1479,6 +1483,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return true if this class has the annotation.
      */
     public boolean hasAnnotation(final Class<? extends Annotation> annotation) {
+        Assert.notNull(annotation, "annotation");
         Assert.isAnnotation(annotation);
         return hasAnnotation(annotation.getName());
     }
@@ -1490,6 +1495,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return true if this class has the named annotation.
      */
     public boolean hasAnnotation(final String annotationName) {
+        Assert.notNull(annotationName, "annotationName");
         return getAnnotations().containsName(annotationName);
     }
 
@@ -1500,6 +1506,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return true if this class declares a field of the given name.
      */
     public boolean hasDeclaredField(final String fieldName) {
+        Assert.notNull(fieldName, "fieldName");
         return getDeclaredFieldInfo().containsName(fieldName);
     }
 
@@ -1511,6 +1518,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         given name.
      */
     public boolean hasField(final String fieldName) {
+        Assert.notNull(fieldName, "fieldName");
         for (final ClassInfo ci : getFieldOverrideOrder()) {
             if (ci.hasDeclaredField(fieldName)) {
                 return true;
@@ -1526,6 +1534,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return true if this class declares a field with the annotation.
      */
     public boolean hasDeclaredFieldAnnotation(final Class<? extends Annotation> annotation) {
+        Assert.notNull(annotation, "annotation");
         Assert.isAnnotation(annotation);
         return hasDeclaredFieldAnnotation(annotation.getName());
     }
@@ -1537,6 +1546,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return true if this class declares a field with the named annotation.
      */
     public boolean hasDeclaredFieldAnnotation(final String fieldAnnotationName) {
+        Assert.notNull(fieldAnnotationName, "fieldAnnotationName");
         for (final FieldInfo fi : getDeclaredFieldInfo()) {
             if (fi.hasAnnotation(fieldAnnotationName)) {
                 return true;
@@ -1554,6 +1564,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         the annotation.
      */
     public boolean hasFieldAnnotation(final Class<? extends Annotation> fieldAnnotation) {
+        Assert.notNull(fieldAnnotation, "fieldAnnotation");
         Assert.isAnnotation(fieldAnnotation);
         return hasFieldAnnotation(fieldAnnotation.getName());
     }
@@ -1567,6 +1578,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         the named annotation.
      */
     public boolean hasFieldAnnotation(final String fieldAnnotationName) {
+        Assert.notNull(fieldAnnotationName, "fieldAnnotationName");
         for (final ClassInfo ci : getFieldOverrideOrder()) {
             if (ci.hasDeclaredFieldAnnotation(fieldAnnotationName)) {
                 return true;
@@ -1582,6 +1594,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return true if this class declares a method of the given name.
      */
     public boolean hasDeclaredMethod(final String methodName) {
+        Assert.notNull(methodName, "methodName");
         return getDeclaredMethodInfo().containsName(methodName);
     }
 
@@ -1594,6 +1607,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         a method of the given name.
      */
     public boolean hasMethod(final String methodName) {
+        Assert.notNull(methodName, "methodName");
         for (final ClassInfo ci : getMethodOverrideOrder()) {
             if (ci.hasDeclaredMethod(methodName)) {
                 return true;
@@ -1609,6 +1623,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return true if this class declares a method with the annotation.
      */
     public boolean hasDeclaredMethodAnnotation(final Class<? extends Annotation> methodAnnotation) {
+        Assert.notNull(methodAnnotation, "methodAnnotation");
         Assert.isAnnotation(methodAnnotation);
         return hasDeclaredMethodAnnotation(methodAnnotation.getName());
     }
@@ -1620,6 +1635,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return true if this class declares a method with the named annotation.
      */
     public boolean hasDeclaredMethodAnnotation(final String methodAnnotationName) {
+        Assert.notNull(methodAnnotationName, "methodAnnotationName");
         for (final MethodInfo mi : getDeclaredMethodInfo()) {
             if (mi.hasAnnotation(methodAnnotationName)) {
                 return true;
@@ -1637,6 +1653,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         a method with the annotation.
      */
     public boolean hasMethodAnnotation(final Class<? extends Annotation> methodAnnotation) {
+        Assert.notNull(methodAnnotation, "methodAnnotation");
         Assert.isAnnotation(methodAnnotation);
         return hasMethodAnnotation(methodAnnotation.getName());
     }
@@ -1650,6 +1667,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         a method with the named annotation.
      */
     public boolean hasMethodAnnotation(final String methodAnnotationName) {
+        Assert.notNull(methodAnnotationName, "methodAnnotationName");
         for (final ClassInfo ci : getMethodOverrideOrder()) {
             if (ci.hasDeclaredMethodAnnotation(methodAnnotationName)) {
                 return true;
@@ -1665,6 +1683,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return true if this class declares a method with the annotation.
      */
     public boolean hasDeclaredMethodParameterAnnotation(final Class<? extends Annotation> methodParameterAnnotation) {
+        Assert.notNull(methodParameterAnnotation, "methodParameterAnnotation");
         Assert.isAnnotation(methodParameterAnnotation);
         return hasDeclaredMethodParameterAnnotation(methodParameterAnnotation.getName());
     }
@@ -1676,6 +1695,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return true if this class declares a method with the named annotation.
      */
     public boolean hasDeclaredMethodParameterAnnotation(final String methodParameterAnnotationName) {
+        Assert.notNull(methodParameterAnnotationName, "methodParameterAnnotationName");
         for (final MethodInfo mi : getDeclaredMethodInfo()) {
             if (mi.hasParameterAnnotation(methodParameterAnnotationName)) {
                 return true;
@@ -1693,6 +1713,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         method with the annotation.
      */
     public boolean hasMethodParameterAnnotation(final Class<? extends Annotation> methodParameterAnnotation) {
+        Assert.notNull(methodParameterAnnotation, "methodParameterAnnotation");
         Assert.isAnnotation(methodParameterAnnotation);
         return hasMethodParameterAnnotation(methodParameterAnnotation.getName());
     }
@@ -1706,6 +1727,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         method with the named annotation.
      */
     public boolean hasMethodParameterAnnotation(final String methodParameterAnnotationName) {
+        Assert.notNull(methodParameterAnnotationName, "methodParameterAnnotationName");
         for (final ClassInfo ci : getMethodOverrideOrder()) {
             if (ci.hasDeclaredMethodParameterAnnotation(methodParameterAnnotationName)) {
                 return true;
@@ -2185,6 +2207,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         class, or null if the class does not have the annotation.
      */
     public @Nullable AnnotationInfo getAnnotationInfo(final Class<? extends Annotation> annotation) {
+        Assert.notNull(annotation, "annotation");
         Assert.isAnnotation(annotation);
         return getAnnotationInfo(annotation.getName());
     }
@@ -2210,6 +2233,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         this class, or null if the class does not have the named annotation.
      */
     public @Nullable AnnotationInfo getAnnotationInfo(final String annotationName) {
+        Assert.notNull(annotationName, "annotationName");
         return getAnnotationInfo().get(annotationName);
     }
 
@@ -2233,6 +2257,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         annotation.
      */
     public AnnotationInfoList getAnnotationInfoRepeatable(final Class<? extends Annotation> annotation) {
+        Assert.notNull(annotation, "annotation");
         Assert.isAnnotation(annotation);
         return getAnnotationInfoRepeatable(annotation.getName());
     }
@@ -2257,6 +2282,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         have the named annotation.
      */
     public AnnotationInfoList getAnnotationInfoRepeatable(final String annotationName) {
+        Assert.notNull(annotationName, "annotationName");
         return getAnnotationInfo().getRepeatable(annotationName);
     }
 
@@ -2692,6 +2718,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *                                  not called prior to initiating the scan.
      */
     public MethodInfoList getDeclaredMethodInfo(final String methodName) {
+        Assert.notNull(methodName, "methodName");
         return getDeclaredMethodInfo(methodName, /* ignored */ false, /* ignored */ false, /* ignored */ false);
     }
 
@@ -2730,6 +2757,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *                                  not called prior to initiating the scan.
      */
     public MethodInfoList getMethodInfo(final String methodName) {
+        Assert.notNull(methodName, "methodName");
         return getMethodInfo(methodName, /* ignored */ false, /* ignored */ false, /* ignored */ false);
     }
 
@@ -2766,6 +2794,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *                                  was not called prior to initiating the scan.
      */
     public MethodInfoList getDeclaredMethodInfoWithAnnotation(final String methodAnnotationName) {
+        Assert.notNull(methodAnnotationName, "methodAnnotationName");
         return filterByAnnotation(getDeclaredMethodInfo(), methodAnnotationName);
     }
 
@@ -2802,6 +2831,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *                                  was not called prior to initiating the scan.
      */
     public MethodInfoList getDeclaredMethodInfoWithAnnotation(final Class<? extends Annotation> methodAnnotation) {
+        Assert.notNull(methodAnnotation, "methodAnnotation");
         Assert.isAnnotation(methodAnnotation);
         return getDeclaredMethodInfoWithAnnotation(methodAnnotation.getName());
     }
@@ -2839,6 +2869,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *                                  was not called prior to initiating the scan.
      */
     public MethodInfoList getMethodInfoWithAnnotation(final String methodAnnotationName) {
+        Assert.notNull(methodAnnotationName, "methodAnnotationName");
         return filterByAnnotation(getMethodInfo(), methodAnnotationName);
     }
 
@@ -2875,6 +2906,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *                                  was not called prior to initiating the scan.
      */
     public MethodInfoList getMethodInfoWithAnnotation(final Class<? extends Annotation> methodAnnotation) {
+        Assert.notNull(methodAnnotation, "methodAnnotation");
         Assert.isAnnotation(methodAnnotation);
         return getMethodInfoWithAnnotation(methodAnnotation.getName());
     }
@@ -3133,6 +3165,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *                                  not called prior to initiating the scan.
      */
     public @Nullable FieldInfo getDeclaredFieldInfo(final String fieldName) {
+        Assert.notNull(fieldName, "fieldName");
         if (!scanResult().scanSpec.enableFieldInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableFieldInfo() before #scan()");
         }
@@ -3172,6 +3205,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *                                  not called prior to initiating the scan.
      */
     public @Nullable FieldInfo getFieldInfo(final String fieldName) {
+        Assert.notNull(fieldName, "fieldName");
         if (!scanResult().scanSpec.enableFieldInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableFieldInfo() before #scan()");
         }
@@ -3212,6 +3246,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *                                  was not called prior to initiating the scan.
      */
     public FieldInfoList getDeclaredFieldInfoWithAnnotation(final String fieldAnnotationName) {
+        Assert.notNull(fieldAnnotationName, "fieldAnnotationName");
         return filterByAnnotation(getDeclaredFieldInfo(), fieldAnnotationName);
     }
 
@@ -3242,6 +3277,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *                                  was not called prior to initiating the scan.
      */
     public FieldInfoList getDeclaredFieldInfoWithAnnotation(final Class<? extends Annotation> fieldAnnotation) {
+        Assert.notNull(fieldAnnotation, "fieldAnnotation");
         Assert.isAnnotation(fieldAnnotation);
         return getDeclaredFieldInfoWithAnnotation(fieldAnnotation.getName());
     }
@@ -3274,6 +3310,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *                                  was not called prior to initiating the scan.
      */
     public FieldInfoList getFieldInfoWithAnnotation(final String fieldAnnotationName) {
+        Assert.notNull(fieldAnnotationName, "fieldAnnotationName");
         return filterByAnnotation(getFieldInfo(), fieldAnnotationName);
     }
 
@@ -3305,6 +3342,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *                                  was not called prior to initiating the scan.
      */
     public FieldInfoList getFieldInfoWithAnnotation(final Class<? extends Annotation> fieldAnnotation) {
+        Assert.notNull(fieldAnnotation, "fieldAnnotation");
         Assert.isAnnotation(fieldAnnotation);
         return getFieldInfoWithAnnotation(fieldAnnotation.getName());
     }

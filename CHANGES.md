@@ -86,6 +86,10 @@ compiler's `-Xlint:exports` check is enabled to keep it that way.
 * The constructors of the abstract classes `ClassMemberInfo` and
   `HierarchicalTypeSignature` were `public`, which is meaningless on an abstract class:
   they are now `protected`. Subclasses are unaffected.
+* `TypeArgument#findReferencedClassNames(Set)` was `public`, while the same method on
+  all nine of its sibling type signature classes is `protected`. It is now `protected`
+  too. It takes an output set that only the scanner populates, so there was nothing a
+  caller could do with it.
 
 ### Nullability is now declared, using JSpecify
 
@@ -117,6 +121,56 @@ declares `requires static transitive org.jspecify` (`static` because it is optio
 runtime, `transitive` because the annotations appear in exported signatures), and the
 OSGi manifest imports `org.jspecify.annotations` with `resolution:="optional"`. Add the
 JSpecify jar to your own build only if you want your tools to read the annotations.
+
+### Null arguments are now rejected, consistently, with `NullPointerException`
+
+`@NullMarked` is a compile-time contract, and it only protects callers that run a null
+checker of their own. So 5.x also checks arguments at runtime: **every public API method
+that does not accept null now throws `NullPointerException` if it is passed one**, with a
+message naming the parameter, e.g. `packageNames[1] must not be null`.
+
+This matters most where 4.x accepted the null and carried on. About 25 public methods
+silently ignored a null argument or returned a "not found" answer for it, which is
+indistinguishable from a legitimate miss:
+
+* `ClassGraph#acceptPackages`, `#rejectPackages`, `#acceptClasses`, `#acceptPaths`,
+  `#acceptJars`, `#acceptModules` and the rest of the accept/reject family dropped a null
+  varargs element and scanned with the remaining criteria, so a null in a list of package
+  names quietly widened the scan.
+* `ClassGraph#addClassLoader(null)` and `#addModuleLayer(null)` were ignored.
+* `ScanResult#getClassInfo`, `#getPackageInfo`, `#getModuleInfo`,
+  `#getResourcesWithLeafName`, `ClassInfo#getFieldInfo(String)`,
+  `#getMethodInfo(String)`, `ClassInfoList#get(String)`, `MethodInfoList#get(String)`,
+  `ResourceList#get(String)`, `PackageInfo#getClassInfo(String)` and
+  `ModuleInfo#getClassInfo(String)` returned null for a null name.
+* `ClassInfo#hasAnnotation(String)`, `#hasDeclaredMethod(String)`,
+  `ClassInfoList#containsName(String)` and the other `has*`/`contains*` queries returned
+  false for a null name.
+
+Several methods that already rejected null did so as `IllegalArgumentException`, or with
+a misleading or empty message. These now throw `NullPointerException`, following the
+convention used by the JDK itself (`NullPointerException` for a null argument,
+`IllegalArgumentException` for an argument that is present but invalid):
+
+| Method | ClassGraph 4.x | ClassGraph 5.x |
+| --- | --- | --- |
+| `ClassGraph#scanAsync(ExecutorService, int, ScanResultProcessor, FailureHandler)`, for a null processor or handler | `IllegalArgumentException` | `NullPointerException` |
+| `ClassGraph#addModuleLayer`, `#overrideModuleLayers` | `IllegalArgumentException` | `NullPointerException` |
+| `ClassGraph#enableURLScheme(null)` | `IllegalArgumentException: URL schemes must contain at least two characters` | `NullPointerException: scheme must not be null` |
+| `ClassGraph#filterClasspathElements(null)` | `IllegalArgumentException` with a null message | `NullPointerException: classpathElementFilter must not be null` |
+| `ModuleRef(ModuleReference, ModuleLayer)` | `IllegalArgumentException` | `NullPointerException` |
+| `ClassInfoList#getAssignableTo(null)` | `IllegalArgumentException` | `NullPointerException` |
+| `ClassInfoList#exclude(null)` | `NullPointerException` with a null message | `NullPointerException: other must not be null` |
+| `ClassInfo#loadClass((Class<?>) null)` | `IllegalArgumentException: Could not load class <name>` | `NullPointerException: superclassOrInterfaceType must not be null` |
+| `TypeSignature#resolveTypeVariables(null)` | `IllegalArgumentException` | `NullPointerException` |
+| `TypeSignature#equalsIgnoringTypeParams(null)` | returned `false` | `NullPointerException` |
+| `ScanResult#loadClass(String, boolean)` and `#loadClass(String, Class, boolean)`, for an empty class name | `NullPointerException: className cannot be null or empty` | `IllegalArgumentException: className must not be empty` (an empty string is not a null) |
+
+The messages themselves are not part of the API contract and may change; the exception
+types are.
+
+Code that relied on passing null to mean "no filter" has to stop passing it. Code that
+was already passing non-null arguments is unaffected.
 
 ## Behavior changes
 

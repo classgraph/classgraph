@@ -31,6 +31,8 @@ package io.github.classgraph;
 import java.io.Serial;
 import java.util.Collection;
 
+import nonapi.io.github.classgraph.utils.Assert;
+
 /** A list of {@link PackageInfo} objects. */
 public class PackageInfoList extends MappableInfoList<PackageInfo> {
     /** serialVersionUID */
@@ -97,6 +99,7 @@ public class PackageInfoList extends MappableInfoList<PackageInfo> {
      *         the given filter predicate is true.
      */
     public PackageInfoList filter(final PackageInfoFilter filter) {
+        Assert.notNull(filter, "filter");
         final PackageInfoList packageInfoFiltered = new PackageInfoList();
         for (final PackageInfo packageInfo : this) {
             if (filter.accept(packageInfo)) {

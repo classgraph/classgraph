@@ -454,6 +454,7 @@ public class Issue735Test {
     void nullContextClassIsRejected() {
         final var resultType = scanResult.getClassInfo(Generic.class.getName()).getMethodInfo("getT").get(0)
                 .getTypeSignatureOrTypeDescriptor().getResultType();
-        assertThatThrownBy(() -> resultType.resolveTypeVariables(null)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> resultType.resolveTypeVariables(null)).isInstanceOf(NullPointerException.class)
+                .hasMessage("contextClass must not be null");
     }
 }

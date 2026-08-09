@@ -41,7 +41,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 
+import nonapi.io.github.classgraph.utils.Assert;
 import nonapi.io.github.classgraph.utils.CollectionUtils;
 
 /** An AutoCloseable list of AutoCloseable {@link Resource} objects. */
@@ -88,7 +90,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      * @param resourceCollection the collection of {@link Resource} objects.
      */
     public ResourceList(final Collection<Resource> resourceCollection) {
-        super(resourceCollection);
+        super(Objects.requireNonNull(resourceCollection, "resourceCollection must not be null"));
     }
 
     /**
@@ -105,6 +107,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      *         the empty list if no resource with is found with a matching path.
      */
     public ResourceList get(final String resourcePath) {
+        Assert.notNull(resourcePath, "resourcePath");
         var hasResourceWithPath = false;
         for (final Resource res : this) {
             if (res.getPath().equals(resourcePath)) {
@@ -294,6 +297,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      *         given filter predicate is true.
      */
     public ResourceList filter(final ResourceFilter filter) {
+        Assert.notNull(filter, "filter");
         final var resourcesFiltered = new ResourceList();
         for (final Resource resource : this) {
             if (filter.accept(resource)) {
@@ -359,6 +363,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      */
     @Deprecated
     public void forEachByteArray(final ByteArrayConsumer byteArrayConsumer, final boolean ignoreIOExceptions) {
+        Assert.notNull(byteArrayConsumer, "byteArrayConsumer");
         for (final Resource resource : this) {
             try (resource) {
                 byteArrayConsumer.accept(resource, resource.load());
@@ -399,6 +404,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      * @param byteArrayConsumer The {@link ByteArrayConsumer}.
      */
     public void forEachByteArrayIgnoringIOException(final ByteArrayConsumer byteArrayConsumer) {
+        Assert.notNull(byteArrayConsumer, "byteArrayConsumer");
         for (final Resource resource : this) {
             try (resource) {
                 byteArrayConsumer.accept(resource, resource.load());
@@ -421,6 +427,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      */
     public void forEachByteArrayThrowingIOException(
             final ByteArrayConsumerThrowsIOException byteArrayConsumerThrowsIOException) throws IOException {
+        Assert.notNull(byteArrayConsumerThrowsIOException, "byteArrayConsumerThrowsIOException");
         for (final Resource resource : this) {
             try (resource) {
                 byteArrayConsumerThrowsIOException.accept(resource, resource.load());
@@ -485,6 +492,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      */
     @Deprecated
     public void forEachInputStream(final InputStreamConsumer inputStreamConsumer, final boolean ignoreIOExceptions) {
+        Assert.notNull(inputStreamConsumer, "inputStreamConsumer");
         for (final Resource resource : this) {
             try (resource) {
                 inputStreamConsumer.accept(resource, resource.open());
@@ -526,6 +534,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      * @param inputStreamConsumer The {@link InputStreamConsumer}.
      */
     public void forEachInputStreamIgnoringIOException(final InputStreamConsumer inputStreamConsumer) {
+        Assert.notNull(inputStreamConsumer, "inputStreamConsumer");
         for (final Resource resource : this) {
             try (resource) {
                 inputStreamConsumer.accept(resource, resource.open());
@@ -548,6 +557,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      */
     public void forEachInputStreamThrowingIOException(
             final InputStreamConsumerThrowsIOException inputStreamConsumerThrowsIOException) throws IOException {
+        Assert.notNull(inputStreamConsumerThrowsIOException, "inputStreamConsumerThrowsIOException");
         for (final Resource resource : this) {
             try (resource) {
                 inputStreamConsumerThrowsIOException.accept(resource, resource.open());
@@ -614,6 +624,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      */
     @Deprecated
     public void forEachByteBuffer(final ByteBufferConsumer byteBufferConsumer, final boolean ignoreIOExceptions) {
+        Assert.notNull(byteBufferConsumer, "byteBufferConsumer");
         for (final Resource resource : this) {
             try (resource) {
                 byteBufferConsumer.accept(resource, resource.read());
@@ -655,6 +666,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      * @param byteBufferConsumer The {@link ByteBufferConsumer}.
      */
     public void forEachByteBufferIgnoringIOException(final ByteBufferConsumer byteBufferConsumer) {
+        Assert.notNull(byteBufferConsumer, "byteBufferConsumer");
         for (final Resource resource : this) {
             try (resource) {
                 byteBufferConsumer.accept(resource, resource.read());
@@ -677,6 +689,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      */
     public void forEachByteBufferThrowingIOException(
             final ByteBufferConsumerThrowsIOException byteBufferConsumerThrowsIOException) throws IOException {
+        Assert.notNull(byteBufferConsumerThrowsIOException, "byteBufferConsumerThrowsIOException");
         for (final Resource resource : this) {
             try (resource) {
                 byteBufferConsumerThrowsIOException.accept(resource, resource.read());

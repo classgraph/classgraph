@@ -39,6 +39,7 @@ import io.github.classgraph.Classfile.TypePathNode;
 import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.Parser;
 import nonapi.io.github.classgraph.types.TypeUtils;
+import nonapi.io.github.classgraph.utils.Assert;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -416,6 +417,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
      */
     @Override
     public boolean equalsIgnoringTypeParams(final TypeSignature other) {
+        Assert.notNull(other, "other");
         if (other instanceof TypeVariableSignature) {
             // Compare class type signature to type variable -- the logic for this
             // is implemented in TypeVariableSignature, and is not duplicated here

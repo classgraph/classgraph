@@ -31,6 +31,8 @@ package io.github.classgraph;
 import java.io.Serial;
 import java.util.Collection;
 
+import nonapi.io.github.classgraph.utils.Assert;
+
 /** A list of {@link ModuleInfo} objects. */
 public class ModuleInfoList extends MappableInfoList<ModuleInfo> {
     /** serialVersionUID */
@@ -91,6 +93,7 @@ public class ModuleInfoList extends MappableInfoList<ModuleInfo> {
      *         the given filter predicate is true.
      */
     public ModuleInfoList filter(final ModuleInfoFilter filter) {
+        Assert.notNull(filter, "filter");
         final ModuleInfoList moduleInfoFiltered = new ModuleInfoList();
         for (final ModuleInfo moduleInfo : this) {
             if (filter.accept(moduleInfo)) {

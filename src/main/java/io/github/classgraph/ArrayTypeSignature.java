@@ -37,6 +37,7 @@ import java.util.Set;
 import io.github.classgraph.Classfile.TypePathNode;
 import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.Parser;
+import nonapi.io.github.classgraph.utils.Assert;
 import org.jspecify.annotations.Nullable;
 
 /** An array type signature. */
@@ -403,6 +404,7 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
      */
     @Override
     public boolean equalsIgnoringTypeParams(final TypeSignature other) {
+        Assert.notNull(other, "other");
         if (this == other) {
             return true;
         }

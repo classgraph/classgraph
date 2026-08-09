@@ -52,6 +52,7 @@ import nonapi.io.github.classgraph.concurrency.InterruptionChecker;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.AcceptReject;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
+import nonapi.io.github.classgraph.utils.Assert;
 import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.VersionFinder;
@@ -502,6 +503,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph overrideClasspath(final String overrideClasspath) {
+        Assert.notNull(overrideClasspath, "overrideClasspath");
         if (overrideClasspath.isEmpty()) {
             throw new IllegalArgumentException("Can't override classpath with an empty path");
         }
@@ -526,10 +528,12 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph overrideClasspath(final Iterable<?> overrideClasspathElements) {
+        Assert.notNull(overrideClasspathElements, "overrideClasspathElements");
         if (!overrideClasspathElements.iterator().hasNext()) {
             throw new IllegalArgumentException("Can't override classpath with an empty path");
         }
         for (final Object classpathElement : overrideClasspathElements) {
+            Assert.notNull(classpathElement, "overrideClasspathElements element");
             scanSpec.addClasspathOverride(classpathElement);
         }
         return this;
@@ -550,6 +554,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph overrideClasspath(final Object... overrideClasspathElements) {
+        Assert.notNullElements(overrideClasspathElements, "overrideClasspathElements");
         if (overrideClasspathElements.length == 0) {
             throw new IllegalArgumentException("Can't override classpath with an empty path");
         }
@@ -609,6 +614,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph filterClasspathElements(final ClasspathElementFilter classpathElementFilter) {
+        Assert.notNull(classpathElementFilter, "classpathElementFilter");
         scanSpec.filterClasspathElements(classpathElementFilter);
         return this;
     }
@@ -624,6 +630,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph filterClasspathElementsByURL(final ClasspathElementURLFilter classpathElementURLFilter) {
+        Assert.notNull(classpathElementURLFilter, "classpathElementURLFilter");
         scanSpec.filterClasspathElements(classpathElementURLFilter);
         return this;
     }
@@ -642,6 +649,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph addClassLoader(final ClassLoader classLoader) {
+        Assert.notNull(classLoader, "classLoader");
         scanSpec.addClassLoader(classLoader);
         return this;
     }
@@ -661,6 +669,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph overrideClassLoaders(final ClassLoader... overrideClassLoaders) {
+        Assert.notNullElements(overrideClassLoaders, "overrideClassLoaders");
         scanSpec.overrideClassLoaders(overrideClassLoaders);
         return this;
     }
@@ -691,6 +700,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph addModuleLayer(final ModuleLayer moduleLayer) {
+        Assert.notNull(moduleLayer, "moduleLayer");
         scanSpec.addModuleLayer(moduleLayer);
         return this;
     }
@@ -707,6 +717,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph overrideModuleLayers(final ModuleLayer... overrideModuleLayers) {
+        Assert.notNullElements(overrideModuleLayers, "overrideModuleLayers");
         scanSpec.overrideModuleLayers(overrideModuleLayers);
         return this;
     }
@@ -749,6 +760,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph acceptPackages(final String... packageNames) {
+        Assert.notNullElements(packageNames, "packageNames");
         enableClassInfo();
         for (final String packageName : packageNames) {
             // A trailing "**" means "and everything below", which acceptPackages() already
@@ -815,6 +827,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph acceptPaths(final String... paths) {
+        Assert.notNullElements(paths, "paths");
         for (final String path : paths) {
             // A trailing "**" means "and everything below", which acceptPaths() already
             // does -- strip it
@@ -877,6 +890,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph acceptPackagesNonRecursive(final String... packageNames) {
+        Assert.notNullElements(packageNames, "packageNames");
         enableClassInfo();
         for (final String packageName : packageNames) {
             final var packageNameNormalized = AcceptReject.normalizePackageOrClassName(packageName);
@@ -921,6 +935,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph acceptPathsNonRecursive(final String... paths) {
+        Assert.notNullElements(paths, "paths");
         for (final String path : paths) {
             if (path.contains("*")) {
                 throw new IllegalArgumentException("Cannot use a glob wildcard here: " + path);
@@ -976,6 +991,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph rejectPackages(final String... packageNames) {
+        Assert.notNullElements(packageNames, "packageNames");
         enableClassInfo();
         for (final String packageName : packageNames) {
             final var packageNameNormalized = AcceptReject
@@ -1035,6 +1051,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph rejectPaths(final String... paths) {
+        Assert.notNullElements(paths, "paths");
         for (final String path : paths) {
             final var pathNormalized = AcceptReject.stripTrailingDoubleGlob(AcceptReject.normalizePath(path), '/');
             if (pathNormalized.isEmpty()) {
@@ -1085,6 +1102,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph acceptClasses(final String... classNames) {
+        Assert.notNullElements(classNames, "classNames");
         enableClassInfo();
         for (final String className : classNames) {
             final var classNameNormalized = AcceptReject.normalizePackageOrClassName(className);
@@ -1129,6 +1147,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph rejectClasses(final String... classNames) {
+        Assert.notNullElements(classNames, "classNames");
         enableClassInfo();
         for (final String className : classNames) {
             final var classNameNormalized = AcceptReject.normalizePackageOrClassName(className);
@@ -1161,6 +1180,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph acceptJars(final String... jarLeafNames) {
+        Assert.notNullElements(jarLeafNames, "jarLeafNames");
         for (final String jarLeafName : jarLeafNames) {
             final var leafName = JarUtils.leafName(jarLeafName);
             if (!leafName.equals(jarLeafName)) {
@@ -1194,6 +1214,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph rejectJars(final String... jarLeafNames) {
+        Assert.notNullElements(jarLeafNames, "jarLeafNames");
         for (final String jarLeafName : jarLeafNames) {
             final var leafName = JarUtils.leafName(jarLeafName);
             if (!leafName.equals(jarLeafName)) {
@@ -1225,6 +1246,7 @@ public class ClassGraph {
      * @param jarLeafNames the jar leaf names to accept
      */
     private void acceptOrRejectLibOrExtJars(final boolean accept, final String... jarLeafNames) {
+        Assert.notNullElements(jarLeafNames, "jarLeafNames");
         if (jarLeafNames.length == 0) {
             // If no jar leafnames are given, accept or reject all lib or ext jars
             for (final String libOrExtJar : SystemJarFinder.getJreLibOrExtJars()) {
@@ -1354,6 +1376,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph acceptModules(final String... moduleNames) {
+        Assert.notNullElements(moduleNames, "moduleNames");
         for (final String moduleName : moduleNames) {
             scanSpec.moduleAcceptReject.addToAccept(AcceptReject.normalizePackageOrClassName(moduleName));
         }
@@ -1381,6 +1404,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph rejectModules(final String... moduleNames) {
+        Assert.notNullElements(moduleNames, "moduleNames");
         for (final String moduleName : moduleNames) {
             scanSpec.moduleAcceptReject.addToReject(AcceptReject.normalizePackageOrClassName(moduleName));
         }
@@ -1410,6 +1434,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph acceptClasspathElementsContainingResourcePath(final String... resourcePaths) {
+        Assert.notNullElements(resourcePaths, "resourcePaths");
         for (final String resourcePath : resourcePaths) {
             final var resourcePathNormalized = AcceptReject.normalizePath(resourcePath);
             scanSpec.classpathElementResourcePathAcceptReject.addToAccept(resourcePathNormalized);
@@ -1445,6 +1470,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph rejectClasspathElementsContainingResourcePath(final String... resourcePaths) {
+        Assert.notNullElements(resourcePaths, "resourcePaths");
         for (final String resourcePath : resourcePaths) {
             final var resourcePathNormalized = AcceptReject.normalizePath(resourcePath);
             scanSpec.classpathElementResourcePathAcceptReject.addToReject(resourcePathNormalized);
@@ -1501,6 +1527,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph enableURLScheme(final String scheme) {
+        Assert.notNull(scheme, "scheme");
         scanSpec.enableURLScheme(scheme);
         return this;
     }
@@ -1662,19 +1689,14 @@ public class ClassGraph {
      */
     public void scanAsync(final ExecutorService executorService, final int numParallelTasks,
             final ScanResultProcessor scanResultProcessor, final FailureHandler failureHandler) {
-        if (scanResultProcessor == null) {
-            // If scanResultProcessor is null, the scan won't do anything after completion,
-            // and the ScanResult will
-            // simply be lost.
-            throw new IllegalArgumentException("scanResultProcessor cannot be null");
-        }
-        if (failureHandler == null) {
-            // The result of the Future<ScanObject> object returned by launchAsyncScan is
-            // discarded below, so we
-            // force the addition of a FailureHandler so that exceptions are not silently
-            // swallowed.
-            throw new IllegalArgumentException("failureHandler cannot be null");
-        }
+        Assert.notNull(executorService, "executorService");
+        // If scanResultProcessor is null, the scan won't do anything after completion,
+        // and the ScanResult will simply be lost.
+        Assert.notNull(scanResultProcessor, "scanResultProcessor");
+        // The result of the Future<ScanObject> object returned by launchAsyncScan is
+        // discarded below, so a FailureHandler is required, so that exceptions are not
+        // silently swallowed.
+        Assert.notNull(failureHandler, "failureHandler");
         // Use execute() rather than submit(), since a ScanResultProcessor and
         // FailureHandler are used
         executorService.execute(() -> {
@@ -1740,6 +1762,7 @@ public class ClassGraph {
      *         new {@link ScanResult} object representing the result of the scan.
      */
     public Future<ScanResult> scanAsync(final ExecutorService executorService, final int numParallelTasks) {
+        Assert.notNull(executorService, "executorService");
         return scanAsync(/* performScan = */ true, executorService, numParallelTasks);
     }
 

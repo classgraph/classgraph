@@ -35,6 +35,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import nonapi.io.github.classgraph.utils.Assert;
 import nonapi.io.github.classgraph.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
@@ -81,7 +82,7 @@ public class MethodInfoList extends InfoList<MethodInfo> {
      * @param methodInfoCollection the collection of {@link MethodInfo} objects.
      */
     public MethodInfoList(final Collection<MethodInfo> methodInfoCollection) {
-        super(methodInfoCollection);
+        super(Objects.requireNonNull(methodInfoCollection, "methodInfoCollection must not be null"));
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -133,6 +134,7 @@ public class MethodInfoList extends InfoList<MethodInfo> {
      * @return true if the list contains a method with the given name.
      */
     public boolean containsName(final String methodName) {
+        Assert.notNull(methodName, "methodName");
         for (final MethodInfo mi : this) {
             if (mi.getName().equals(methodName)) {
                 return true;
@@ -154,6 +156,7 @@ public class MethodInfoList extends InfoList<MethodInfo> {
      *         Returns the empty list if no method had a matching name.
      */
     public MethodInfoList get(final String methodName) {
+        Assert.notNull(methodName, "methodName");
         var hasMethodWithName = false;
         for (final MethodInfo mi : this) {
             if (mi.getName().equals(methodName)) {
@@ -187,6 +190,7 @@ public class MethodInfoList extends InfoList<MethodInfo> {
      *                                  given name.
      */
     public @Nullable MethodInfo getSingleMethod(final String methodName) {
+        Assert.notNull(methodName, "methodName");
         var numMethodsWithName = 0;
         MethodInfo lastFoundMethod = null;
         for (final MethodInfo mi : this) {
@@ -234,6 +238,7 @@ public class MethodInfoList extends InfoList<MethodInfo> {
      *         the given filter predicate is true.
      */
     public MethodInfoList filter(final MethodInfoFilter filter) {
+        Assert.notNull(filter, "filter");
         final MethodInfoList methodInfoFiltered = new MethodInfoList();
         for (final MethodInfo methodInfo : this) {
             if (filter.accept(methodInfo)) {

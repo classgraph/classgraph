@@ -39,9 +39,11 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 import io.github.classgraph.ClassInfo.ReachableAndDirectlyRelatedClasses;
+import nonapi.io.github.classgraph.utils.Assert;
 import nonapi.io.github.classgraph.utils.CollectionUtils;
 import org.jspecify.annotations.Nullable;
 
@@ -175,7 +177,8 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      *                            objects to add to the {@link ClassInfoList}.
      */
     public ClassInfoList(final Collection<ClassInfo> classInfoCollection) {
-        this(classInfoCollection instanceof final Set<ClassInfo> classInfoSet //
+        this(Objects.requireNonNull(classInfoCollection,
+                "classInfoCollection must not be null") instanceof final Set<ClassInfo> classInfoSet //
                 ? classInfoSet
                 : new HashSet<>(classInfoCollection), //
                 /* directlyRelatedClasses = */ null, /* sortByName = */ true);
@@ -216,6 +219,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      *                                  to load or cast any of the classes.
      */
     public <T> List<Class<T>> loadClasses(final Class<T> superclassOrInterfaceType, final boolean ignoreExceptions) {
+        Assert.notNull(superclassOrInterfaceType, "superclassOrInterfaceType");
         if (this.isEmpty()) {
             return Collections.emptyList();
         } else {
@@ -327,6 +331,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      * @return The union of this {@link ClassInfoList} with the others.
      */
     public ClassInfoList union(final ClassInfoList... others) {
+        Assert.notNullElements(others, "others");
         final Set<ClassInfo> reachableClassesUnion = new LinkedHashSet<>(this);
         final Set<ClassInfo> directlyRelatedClassesUnion = new LinkedHashSet<>(directlyRelatedClasses);
         for (final ClassInfoList other : others) {
@@ -343,6 +348,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      * @return The intersection of this {@link ClassInfoList} with the others.
      */
     public ClassInfoList intersect(final ClassInfoList... others) {
+        Assert.notNullElements(others, "others");
         // Put the first ClassInfoList that is not being sorted by name at the head of
         // the list,
         // so that its order is preserved in the intersection (#238)
@@ -380,6 +386,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      *         (this \ other).
      */
     public ClassInfoList exclude(final ClassInfoList other) {
+        Assert.notNull(other, "other");
         final Set<ClassInfo> reachableClassesDifference = new LinkedHashSet<>(this);
         final Set<ClassInfo> directlyRelatedClassesDifference = new LinkedHashSet<>(directlyRelatedClasses);
         reachableClassesDifference.removeAll(other);
@@ -415,6 +422,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      *         predicate is true.
      */
     public ClassInfoList filter(final ClassInfoFilter filter) {
+        Assert.notNull(filter, "filter");
         final Set<ClassInfo> reachableClassesFiltered = new LinkedHashSet<>(size());
         final Set<ClassInfo> directlyRelatedClassesFiltered = new LinkedHashSet<>(directlyRelatedClasses.size());
         for (final ClassInfo ci : this) {
@@ -510,12 +518,10 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      *         true for the corresponding {@code Class<?>} references for
      *         assignableToClass and the list items. Returns the empty list if no
      *         classes were assignable to the requested class.
-     * @throws IllegalArgumentException if superclassOrInterface is null.
+     * @throws NullPointerException if superclassOrInterface is null.
      */
     public ClassInfoList getAssignableTo(final ClassInfo superclassOrInterface) {
-        if (superclassOrInterface == null) {
-            throw new IllegalArgumentException("superclassOrInterface parameter cannot be null");
-        }
+        Assert.notNull(superclassOrInterface, "superclassOrInterface");
         // Get subclasses and implementing classes for assignableFromClass
         final Set<ClassInfo> allAssignableFromClasses = new HashSet<>();
         if (superclassOrInterface.isStandardClass()) {
@@ -848,6 +854,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      *                                  nothing to graph).
      */
     public void generateGraphVizDotFile(final File file) throws IOException {
+        Assert.notNull(file, "file");
         try (var writer = new PrintWriter(file)) {
             writer.print(generateGraphVizDotFile());
         }

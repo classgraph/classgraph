@@ -38,6 +38,7 @@ import java.util.Set;
 import io.github.classgraph.Classfile.TypePathNode;
 import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.Parser;
+import nonapi.io.github.classgraph.utils.Assert;
 import nonapi.io.github.classgraph.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
@@ -91,12 +92,10 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
      * @return this type signature with any resolvable type variables substituted,
      *         or this type signature itself if no type variable in it could be
      *         resolved.
-     * @throws IllegalArgumentException if {@code contextClass} is null.
+     * @throws NullPointerException if {@code contextClass} is null.
      */
     public TypeSignature resolveTypeVariables(final ClassInfo contextClass) {
-        if (contextClass == null) {
-            throw new IllegalArgumentException("contextClass cannot be null");
-        }
+        Assert.notNull(contextClass, "contextClass");
         final Map<String, TypeArgument> substitutions = new HashMap<>();
         addSubstitutions(contextClass, substitutions, new HashSet<>());
         if (substitutions.isEmpty()) {
@@ -393,6 +392,7 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
      * @param other the other {@link TypeSignature} to compare to.
      * @return True if the two {@link TypeSignature} objects are equal, ignoring
      *         type parameters.
+     * @throws NullPointerException if {@code other} is null.
      */
     public abstract boolean equalsIgnoringTypeParams(final TypeSignature other);
 

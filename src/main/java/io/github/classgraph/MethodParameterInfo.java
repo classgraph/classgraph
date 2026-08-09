@@ -194,6 +194,7 @@ public class MethodParameterInfo {
      *         annotation.
      */
     public @Nullable AnnotationInfo getAnnotationInfo(final Class<? extends Annotation> annotation) {
+        Assert.notNull(annotation, "annotation");
         Assert.isAnnotation(annotation);
         return getAnnotationInfo(annotation.getName());
     }
@@ -210,6 +211,7 @@ public class MethodParameterInfo {
      *         the named annotation.
      */
     public @Nullable AnnotationInfo getAnnotationInfo(final String annotationName) {
+        Assert.notNull(annotationName, "annotationName");
         return getAnnotationInfo().get(annotationName);
     }
 
@@ -223,6 +225,7 @@ public class MethodParameterInfo {
      *         parameter does not have the annotation.
      */
     public AnnotationInfoList getAnnotationInfoRepeatable(final Class<? extends Annotation> annotation) {
+        Assert.notNull(annotation, "annotation");
         Assert.isAnnotation(annotation);
         return getAnnotationInfoRepeatable(annotation.getName());
     }
@@ -237,6 +240,7 @@ public class MethodParameterInfo {
      *         parameter does not have the named annotation.
      */
     public AnnotationInfoList getAnnotationInfoRepeatable(final String annotationName) {
+        Assert.notNull(annotationName, "annotationName");
         return getAnnotationInfo().getRepeatable(annotationName);
     }
 
@@ -247,6 +251,7 @@ public class MethodParameterInfo {
      * @return true if this method parameter has the annotation.
      */
     public boolean hasAnnotation(final Class<? extends Annotation> annotation) {
+        Assert.notNull(annotation, "annotation");
         Assert.isAnnotation(annotation);
         return hasAnnotation(annotation.getName());
     }
@@ -258,6 +263,7 @@ public class MethodParameterInfo {
      * @return true if this method parameter has the named annotation.
      */
     public boolean hasAnnotation(final String annotationName) {
+        Assert.notNull(annotationName, "annotationName");
         return getAnnotationInfo().containsName(annotationName);
     }
 

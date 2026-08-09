@@ -689,6 +689,7 @@ public final class ScanResult implements Closeable {
      */
     public ResourceList getResourcesWithPath(final String resourcePath) {
         checkNotClosed();
+        Assert.notNull(resourcePath, "resourcePath");
         final var path = FileUtils.sanitizeEntryPath(resourcePath, /* removeInitialSlash = */ true,
                 /* removeFinalSlash = */ true);
         ResourceList matchingResources = null;
@@ -733,6 +734,7 @@ public final class ScanResult implements Closeable {
      */
     public ResourceList getResourcesWithPathIgnoringAccept(final String resourcePath) {
         checkNotClosed();
+        Assert.notNull(resourcePath, "resourcePath");
         final var path = FileUtils.sanitizeEntryPath(resourcePath, /* removeInitialSlash = */ true,
                 /* removeFinalSlash = */ true);
         final var matchingResources = new ResourceList();
@@ -772,6 +774,7 @@ public final class ScanResult implements Closeable {
      */
     public ResourceList getResourcesWithLeafName(final String leafName) {
         checkNotClosed();
+        Assert.notNull(leafName, "leafName");
         final var allAcceptedResources = getAllResources();
         if (allAcceptedResources.isEmpty()) {
             return ResourceList.EMPTY_LIST;
@@ -799,6 +802,7 @@ public final class ScanResult implements Closeable {
      */
     public ResourceList getResourcesWithExtension(final String extension) {
         checkNotClosed();
+        Assert.notNull(extension, "extension");
         final var allAcceptedResources = getAllResources();
         if (allAcceptedResources.isEmpty()) {
             return ResourceList.EMPTY_LIST;
@@ -832,6 +836,7 @@ public final class ScanResult implements Closeable {
      */
     public ResourceList getResourcesMatchingPattern(final Pattern pattern) {
         checkNotClosed();
+        Assert.notNull(pattern, "pattern");
         final var allAcceptedResources = getAllResources();
         if (allAcceptedResources.isEmpty()) {
             return ResourceList.EMPTY_LIST;
@@ -875,6 +880,7 @@ public final class ScanResult implements Closeable {
      */
     public ResourceList getResourcesMatchingWildcard(final String wildcardString) {
         checkNotClosed();
+        Assert.notNull(wildcardString, "wildcardString");
         return getResourcesMatchingPattern(AcceptReject.globToPattern(wildcardString, /* simpleGlob = */ false));
     }
 
@@ -891,6 +897,7 @@ public final class ScanResult implements Closeable {
      */
     public @Nullable ModuleInfo getModuleInfo(final String moduleName) {
         checkClassInfoEnabled();
+        Assert.notNull(moduleName, "moduleName");
         return moduleNameToModuleInfo().get(moduleName);
     }
 
@@ -918,6 +925,7 @@ public final class ScanResult implements Closeable {
      */
     public @Nullable PackageInfo getPackageInfo(final String packageName) {
         checkClassInfoEnabled();
+        Assert.notNull(packageName, "packageName");
         return packageNameToPackageInfo().get(packageName);
     }
 
@@ -1002,6 +1010,7 @@ public final class ScanResult implements Closeable {
      */
     public @Nullable ClassInfo getClassInfo(final String className) {
         checkClassInfoEnabled();
+        Assert.notNull(className, "className");
         return classNameToClassInfo.get(className);
     }
 
@@ -1069,6 +1078,7 @@ public final class ScanResult implements Closeable {
      * @return A list of subclasses of the superclass, or the empty list if none.
      */
     public ClassInfoList getSubclasses(final Class<?> superclass) {
+        Assert.notNull(superclass, "superclass");
         return getSubclasses(superclass.getName());
     }
 
@@ -1081,6 +1091,7 @@ public final class ScanResult implements Closeable {
      */
     public ClassInfoList getSubclasses(final String superclassName) {
         checkClassInfoEnabled();
+        Assert.notNull(superclassName, "superclassName");
         if ("java.lang.Object".equals(superclassName)) {
             // Return all standard classes (interfaces don't extend Object)
             return getAllStandardClasses();
@@ -1099,6 +1110,7 @@ public final class ScanResult implements Closeable {
      */
     public ClassInfoList getSuperclasses(final String subclassName) {
         checkClassInfoEnabled();
+        Assert.notNull(subclassName, "subclassName");
         final var subclass = classNameToClassInfo.get(subclassName);
         return subclass == null ? ClassInfoList.EMPTY_LIST : subclass.getSuperclasses();
     }
@@ -1111,6 +1123,7 @@ public final class ScanResult implements Closeable {
      *         none.
      */
     public ClassInfoList getSuperclasses(final Class<?> subclass) {
+        Assert.notNull(subclass, "subclass");
         return getSuperclasses(subclass.getName());
     }
 
@@ -1122,6 +1135,7 @@ public final class ScanResult implements Closeable {
      *         type, or the empty list if none.
      */
     public ClassInfoList getClassesWithMethodAnnotation(final Class<? extends Annotation> methodAnnotation) {
+        Assert.notNull(methodAnnotation, "methodAnnotation");
         Assert.isAnnotation(methodAnnotation);
         return getClassesWithMethodAnnotation(methodAnnotation.getName());
     }
@@ -1135,6 +1149,7 @@ public final class ScanResult implements Closeable {
      */
     public ClassInfoList getClassesWithMethodAnnotation(final String methodAnnotationName) {
         checkMethodAnnotationInfoEnabled();
+        Assert.notNull(methodAnnotationName, "methodAnnotationName");
         final var classInfo = classNameToClassInfo.get(methodAnnotationName);
         return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getClassesWithMethodAnnotation();
     }
@@ -1149,6 +1164,7 @@ public final class ScanResult implements Closeable {
      */
     public ClassInfoList getClassesWithMethodParameterAnnotation(
             final Class<? extends Annotation> methodParameterAnnotation) {
+        Assert.notNull(methodParameterAnnotation, "methodParameterAnnotation");
         Assert.isAnnotation(methodParameterAnnotation);
         return getClassesWithMethodParameterAnnotation(methodParameterAnnotation.getName());
     }
@@ -1164,6 +1180,7 @@ public final class ScanResult implements Closeable {
      */
     public ClassInfoList getClassesWithMethodParameterAnnotation(final String methodParameterAnnotationName) {
         checkMethodAnnotationInfoEnabled();
+        Assert.notNull(methodParameterAnnotationName, "methodParameterAnnotationName");
         final var classInfo = classNameToClassInfo.get(methodParameterAnnotationName);
         return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getClassesWithMethodParameterAnnotation();
     }
@@ -1176,6 +1193,7 @@ public final class ScanResult implements Closeable {
      *         type, or the empty list if none.
      */
     public ClassInfoList getClassesWithFieldAnnotation(final Class<? extends Annotation> fieldAnnotation) {
+        Assert.notNull(fieldAnnotation, "fieldAnnotation");
         Assert.isAnnotation(fieldAnnotation);
         return getClassesWithFieldAnnotation(fieldAnnotation.getName());
     }
@@ -1189,6 +1207,7 @@ public final class ScanResult implements Closeable {
      */
     public ClassInfoList getClassesWithFieldAnnotation(final String fieldAnnotationName) {
         checkFieldAnnotationInfoEnabled();
+        Assert.notNull(fieldAnnotationName, "fieldAnnotationName");
         final var classInfo = classNameToClassInfo.get(fieldAnnotationName);
         return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getClassesWithFieldAnnotation();
     }
@@ -1221,6 +1240,7 @@ public final class ScanResult implements Closeable {
      */
     public ClassInfoList getInterfaces(final String className) {
         checkClassInfoEnabled();
+        Assert.notNull(className, "className");
         final var classInfo = classNameToClassInfo.get(className);
         return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getInterfaces();
     }
@@ -1236,6 +1256,7 @@ public final class ScanResult implements Closeable {
      *         if none.
      */
     public ClassInfoList getInterfaces(final Class<?> classRef) {
+        Assert.notNull(classRef, "classRef");
         return getInterfaces(classRef.getName());
     }
 
@@ -1254,6 +1275,7 @@ public final class ScanResult implements Closeable {
      *         transitive subinterfaces of the interface, or the empty list if none.
      */
     public ClassInfoList getClassesImplementing(final Class<?> interfaceClass) {
+        Assert.notNull(interfaceClass, "interfaceClass");
         Assert.isInterface(interfaceClass);
         return getClassesImplementing(interfaceClass.getName());
     }
@@ -1274,6 +1296,7 @@ public final class ScanResult implements Closeable {
      */
     public ClassInfoList getClassesImplementing(final String interfaceName) {
         checkClassInfoEnabled();
+        Assert.notNull(interfaceName, "interfaceName");
         final var classInfo = classNameToClassInfo.get(interfaceName);
         return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getClassesImplementing();
     }
@@ -1291,6 +1314,7 @@ public final class ScanResult implements Closeable {
      *         list if none.
      */
     public ClassInfoList getSubinterfaces(final Class<?> interfaceClass) {
+        Assert.notNull(interfaceClass, "interfaceClass");
         Assert.isInterface(interfaceClass);
         return getSubinterfaces(interfaceClass.getName());
     }
@@ -1309,6 +1333,7 @@ public final class ScanResult implements Closeable {
      */
     public ClassInfoList getSubinterfaces(final String interfaceName) {
         checkClassInfoEnabled();
+        Assert.notNull(interfaceName, "interfaceName");
         final var classInfo = classNameToClassInfo.get(interfaceName);
         return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getSubinterfaces();
     }
@@ -1348,6 +1373,7 @@ public final class ScanResult implements Closeable {
      *         annotation during the scan, or the empty list if none.
      */
     public ClassInfoList getClassesWithAnnotation(final Class<? extends Annotation> annotation) {
+        Assert.notNull(annotation, "annotation");
         Assert.isAnnotation(annotation);
         return getClassesWithAnnotation(annotation.getName());
     }
@@ -1361,6 +1387,7 @@ public final class ScanResult implements Closeable {
      */
     @SuppressWarnings("unchecked")
     public ClassInfoList getClassesWithAllAnnotations(final Class<? extends Annotation>... annotations) {
+        Assert.notNullElements(annotations, "annotations");
         final List<String> annotationNames = new ArrayList<>();
         for (final Class<?> cls : annotations) {
             Assert.isAnnotation(cls);
@@ -1378,6 +1405,7 @@ public final class ScanResult implements Closeable {
      */
     @SuppressWarnings("unchecked")
     public ClassInfoList getClassesWithAnyAnnotation(final Class<? extends Annotation>... annotations) {
+        Assert.notNullElements(annotations, "annotations");
         final List<String> annotationNames = new ArrayList<>();
         for (final Class<?> cls : annotations) {
             Assert.isAnnotation(cls);
@@ -1395,6 +1423,7 @@ public final class ScanResult implements Closeable {
      */
     public ClassInfoList getClassesWithAnnotation(final String annotationName) {
         checkAnnotationInfoEnabled();
+        Assert.notNull(annotationName, "annotationName");
         final var classInfo = classNameToClassInfo.get(annotationName);
         return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getClassesWithAnnotation();
     }
@@ -1407,6 +1436,7 @@ public final class ScanResult implements Closeable {
      *         named class annotations during the scan, or the empty list if none.
      */
     public ClassInfoList getClassesWithAllAnnotations(final String... annotationNames) {
+        Assert.notNullElements(annotationNames, "annotationNames");
         ClassInfoList foundClassInfo = null;
         for (final String annotationName : annotationNames) {
             final var classInfoList = getClassesWithAnnotation(annotationName);
@@ -1431,6 +1461,7 @@ public final class ScanResult implements Closeable {
      *         named class annotations during the scan, or the empty list if none.
      */
     public ClassInfoList getClassesWithAnyAnnotation(final String... annotationNames) {
+        Assert.notNullElements(annotationNames, "annotationNames");
         ClassInfoList foundClassInfo = null;
         for (final String annotationName : annotationNames) {
             final var classInfoList = getClassesWithAnnotation(annotationName);
@@ -1460,6 +1491,7 @@ public final class ScanResult implements Closeable {
      */
     public ClassInfoList getAnnotationsOnClass(final String className) {
         checkAnnotationInfoEnabled();
+        Assert.notNull(className, "className");
         final var classInfo = classNameToClassInfo.get(className);
         return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getAnnotations();
     }
@@ -1565,8 +1597,9 @@ public final class ScanResult implements Closeable {
     public @Nullable Class<?> loadClass(final String className, final boolean returnNullIfClassNotFound)
             throws IllegalArgumentException {
         checkNotClosed();
-        if (className == null || className.isEmpty()) {
-            throw new NullPointerException("className cannot be null or empty");
+        Assert.notNull(className, "className");
+        if (className.isEmpty()) {
+            throw new IllegalArgumentException("className must not be empty");
         }
         try {
             return Class.forName(className, scanSpec.initializeLoadedClasses, classGraphClassLoader());
@@ -1614,12 +1647,11 @@ public final class ScanResult implements Closeable {
     public <T> @Nullable Class<T> loadClass(final String className, final Class<T> superclassOrInterfaceType,
             final boolean returnNullIfClassNotFound) throws IllegalArgumentException {
         checkNotClosed();
-        if (className == null || className.isEmpty()) {
-            throw new NullPointerException("className cannot be null or empty");
+        Assert.notNull(className, "className");
+        if (className.isEmpty()) {
+            throw new IllegalArgumentException("className must not be empty");
         }
-        if (superclassOrInterfaceType == null) {
-            throw new NullPointerException("superclassOrInterfaceType parameter cannot be null");
-        }
+        Assert.notNull(superclassOrInterfaceType, "superclassOrInterfaceType");
         final Class<?> loadedClass;
         try {
             loadedClass = Class.forName(className, scanSpec.initializeLoadedClasses, classGraphClassLoader());
@@ -1654,6 +1686,7 @@ public final class ScanResult implements Closeable {
      */
     @SuppressWarnings("null")
     public static ScanResult fromJSON(final String json) {
+        Assert.notNull(json, "json");
         final var matcher = Pattern.compile("\\{[\\n\\r ]*\"format\"[ ]?:[ ]?\"([^\"]+)\"").matcher(json);
         if (!matcher.find()) {
             throw new IllegalArgumentException("JSON is not in correct format");

@@ -50,6 +50,7 @@ import io.github.classgraph.ScanResult;
 import nonapi.io.github.classgraph.scanspec.AcceptReject.AcceptRejectLeafname;
 import nonapi.io.github.classgraph.scanspec.AcceptReject.AcceptRejectPrefix;
 import nonapi.io.github.classgraph.scanspec.AcceptReject.AcceptRejectWholeString;
+import nonapi.io.github.classgraph.utils.Assert;
 import nonapi.io.github.classgraph.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
@@ -362,8 +363,10 @@ public class ScanSpec {
      *                     classpath elements, to decide which should be scanned.
      */
     public void filterClasspathElements(final Object filterLambda) {
+        Assert.notNull(filterLambda, "filterLambda");
         if (!(filterLambda instanceof ClasspathElementFilter || filterLambda instanceof ClasspathElementURLFilter)) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("Not a ClasspathElementFilter or ClasspathElementURLFilter: "
+                    + filterLambda.getClass().getName());
         }
         if (this.classpathElementFilters == null) {
             this.classpathElementFilters = new ArrayList<>(2);
@@ -378,12 +381,11 @@ public class ScanSpec {
      * @param classLoader The classloader to add.
      */
     public void addClassLoader(final ClassLoader classLoader) {
+        Assert.notNull(classLoader, "classLoader");
         if (this.addedClassLoaders == null) {
             this.addedClassLoaders = new ArrayList<>();
         }
-        if (classLoader != null) {
-            this.addedClassLoaders.add(classLoader);
-        }
+        this.addedClassLoaders.add(classLoader);
     }
 
     /**
@@ -392,7 +394,8 @@ public class ScanSpec {
      * @param scheme the scheme, e.g. "http".
      */
     public void enableURLScheme(final String scheme) {
-        if (scheme == null || scheme.length() < 2) {
+        Assert.notNull(scheme, "scheme");
+        if (scheme.length() < 2) {
             throw new IllegalArgumentException("URL schemes must contain at least two characters");
         }
         if (allowedURLSchemes == null) {
@@ -410,16 +413,13 @@ public class ScanSpec {
      *                             classloaders with.
      */
     public void overrideClassLoaders(final ClassLoader... overrideClassLoaders) {
+        Assert.notNullElements(overrideClassLoaders, "overrideClassLoaders");
         if (overrideClassLoaders.length == 0) {
             throw new IllegalArgumentException("At least one override ClassLoader must be provided");
         }
         this.addedClassLoaders = null;
         this.overrideClassLoaders = new ArrayList<>();
-        for (final ClassLoader classLoader : overrideClassLoaders) {
-            if (classLoader != null) {
-                this.overrideClassLoaders.add(classLoader);
-            }
-        }
+        Collections.addAll(this.overrideClassLoaders, overrideClassLoaders);
     }
 
     /**
@@ -434,9 +434,7 @@ public class ScanSpec {
      * @param moduleLayer The additional ModuleLayer to scan.
      */
     public void addModuleLayer(final ModuleLayer moduleLayer) {
-        if (moduleLayer == null) {
-            throw new IllegalArgumentException("ModuleLayer references must not be null");
-        }
+        Assert.notNull(moduleLayer, "moduleLayer");
         if (this.addedModuleLayers == null) {
             this.addedModuleLayers = new ArrayList<>();
         }
@@ -454,16 +452,9 @@ public class ScanSpec {
      *                             automatically-detected ModuleLayers.
      */
     public void overrideModuleLayers(final ModuleLayer... overrideModuleLayers) {
-        if (overrideModuleLayers == null) {
-            throw new IllegalArgumentException("overrideModuleLayers cannot be null");
-        }
+        Assert.notNullElements(overrideModuleLayers, "overrideModuleLayers");
         if (overrideModuleLayers.length == 0) {
             throw new IllegalArgumentException("At least one override ModuleLayer must be provided");
-        }
-        for (final ModuleLayer moduleLayer : overrideModuleLayers) {
-            if (moduleLayer == null) {
-                throw new IllegalArgumentException("ModuleLayer references must not be null");
-            }
         }
         this.addedModuleLayers = null;
         this.overrideModuleLayers = new ArrayList<>();

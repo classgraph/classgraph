@@ -31,8 +31,10 @@ package io.github.classgraph;
 import java.io.Serial;
 import java.util.Collection;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
+import nonapi.io.github.classgraph.utils.Assert;
 import nonapi.io.github.classgraph.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
@@ -84,7 +86,8 @@ public class AnnotationParameterValueList extends MappableInfoList<AnnotationPar
      *                                           objects.
      */
     public AnnotationParameterValueList(final Collection<AnnotationParameterValue> annotationParameterValueCollection) {
-        super(annotationParameterValueCollection);
+        super(Objects.requireNonNull(annotationParameterValueCollection,
+                "annotationParameterValueCollection must not be null"));
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -152,6 +155,7 @@ public class AnnotationParameterValueList extends MappableInfoList<AnnotationPar
      *         </ul>
      */
     public @Nullable Object getValue(final String parameterName) {
+        Assert.notNull(parameterName, "parameterName");
         final var apv = get(parameterName);
         return apv == null ? null : apv.getValue();
     }

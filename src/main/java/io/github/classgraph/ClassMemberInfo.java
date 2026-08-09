@@ -325,6 +325,7 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
      *         annotation.
      */
     public @Nullable AnnotationInfo getAnnotationInfo(final Class<? extends Annotation> annotation) {
+        Assert.notNull(annotation, "annotation");
         Assert.isAnnotation(annotation);
         return getAnnotationInfo(annotation.getName());
     }
@@ -341,6 +342,7 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
      *         named annotation.
      */
     public @Nullable AnnotationInfo getAnnotationInfo(final String annotationName) {
+        Assert.notNull(annotationName, "annotationName");
         return getAnnotationInfo().get(annotationName);
     }
 
@@ -354,6 +356,7 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
      *         have the annotation.
      */
     public AnnotationInfoList getAnnotationInfoRepeatable(final Class<? extends Annotation> annotation) {
+        Assert.notNull(annotation, "annotation");
         Assert.isAnnotation(annotation);
         return getAnnotationInfoRepeatable(annotation.getName());
     }
@@ -368,6 +371,7 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
      *         member does not have the named annotation.
      */
     public AnnotationInfoList getAnnotationInfoRepeatable(final String annotationName) {
+        Assert.notNull(annotationName, "annotationName");
         return getAnnotationInfo().getRepeatable(annotationName);
     }
 
@@ -378,6 +382,7 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
      * @return true if this class member has the annotation.
      */
     public boolean hasAnnotation(final Class<? extends Annotation> annotation) {
+        Assert.notNull(annotation, "annotation");
         Assert.isAnnotation(annotation);
         return hasAnnotation(annotation.getName());
     }
@@ -389,6 +394,7 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
      * @return true if this class member has the named annotation.
      */
     public boolean hasAnnotation(final String annotationName) {
+        Assert.notNull(annotationName, "annotationName");
         return getAnnotationInfo().containsName(annotationName);
     }
 }

@@ -166,6 +166,7 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
      *         null if the class was not found in this module.
      */
     public @Nullable ClassInfo getClassInfo(final String className) {
+        Assert.notNull(className, "className");
         // classInfoSet is null if no classes in this module were accepted, e.g. if the
         // module-info.class file
         // was the only classfile read from the module
@@ -217,6 +218,7 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
      *         or null if the package was not found in this module.
      */
     public @Nullable PackageInfo getPackageInfo(final String packageName) {
+        Assert.notNull(packageName, "packageName");
         final var packages = packageInfoSet;
         if (packages == null) {
             return null;
@@ -287,6 +289,7 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
      *         module, or null if the module does not have the annotation.
      */
     public @Nullable AnnotationInfo getAnnotationInfo(final Class<? extends Annotation> annotation) {
+        Assert.notNull(annotation, "annotation");
         Assert.isAnnotation(annotation);
         return getAnnotationInfo(annotation.getName());
     }
@@ -301,6 +304,7 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
      *         annotation.
      */
     public @Nullable AnnotationInfo getAnnotationInfo(final String annotationName) {
+        Assert.notNull(annotationName, "annotationName");
         return getAnnotationInfo().get(annotationName);
     }
 
@@ -332,6 +336,7 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
      * @return true if this module has the annotation.
      */
     public boolean hasAnnotation(final Class<? extends Annotation> annotation) {
+        Assert.notNull(annotation, "annotation");
         Assert.isAnnotation(annotation);
         return hasAnnotation(annotation.getName());
     }
@@ -343,6 +348,7 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
      * @return true if this module has the named annotation.
      */
     public boolean hasAnnotation(final String annotationName) {
+        Assert.notNull(annotationName, "annotationName");
         return getAnnotationInfo().containsName(annotationName);
     }
 

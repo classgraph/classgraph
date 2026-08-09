@@ -97,7 +97,8 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
      */
     public AnnotationInfoList(final AnnotationInfoList reachableAnnotations) {
         // If only reachable annotations are given, treat all of them as direct
-        this(reachableAnnotations, reachableAnnotations);
+        this(Objects.requireNonNull(reachableAnnotations, "reachableAnnotations must not be null"),
+                reachableAnnotations);
     }
 
     /**
@@ -142,6 +143,7 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
      *         which the given filter predicate is true.
      */
     public AnnotationInfoList filter(final AnnotationInfoFilter filter) {
+        Assert.notNull(filter, "filter");
         final AnnotationInfoList annotationInfoFiltered = new AnnotationInfoList();
         for (final AnnotationInfo resource : this) {
             if (filter.accept(resource)) {
@@ -356,6 +358,7 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
      *         none found.
      */
     public AnnotationInfoList getRepeatable(final Class<? extends Annotation> annotationClass) {
+        Assert.notNull(annotationClass, "annotationClass");
         Assert.isAnnotation(annotationClass);
         return getRepeatable(annotationClass.getName());
     }
@@ -369,6 +372,7 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
      *         none found.
      */
     public AnnotationInfoList getRepeatable(final String name) {
+        Assert.notNull(name, "name");
         var hasNamedAnnotation = false;
         for (final AnnotationInfo ai : this) {
             if (ai.getName().equals(name)) {

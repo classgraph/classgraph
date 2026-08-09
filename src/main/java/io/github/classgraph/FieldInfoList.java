@@ -31,8 +31,10 @@ package io.github.classgraph;
 import java.io.Serial;
 import java.util.Collection;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
+import nonapi.io.github.classgraph.utils.Assert;
 import nonapi.io.github.classgraph.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
@@ -81,7 +83,7 @@ public class FieldInfoList extends MappableInfoList<FieldInfo> {
      * @param fieldInfoCollection the collection of {@link FieldInfo} objects.
      */
     public FieldInfoList(final Collection<FieldInfo> fieldInfoCollection) {
-        super(fieldInfoCollection);
+        super(Objects.requireNonNull(fieldInfoCollection, "fieldInfoCollection must not be null"));
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -129,6 +131,7 @@ public class FieldInfoList extends MappableInfoList<FieldInfo> {
      *         the given filter predicate is true.
      */
     public FieldInfoList filter(final FieldInfoFilter filter) {
+        Assert.notNull(filter, "filter");
         final FieldInfoList fieldInfoFiltered = new FieldInfoList();
         for (final FieldInfo fieldInfo : this) {
             if (filter.accept(fieldInfo)) {

@@ -151,6 +151,7 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
      *         package, or null if the package does not have the annotation.
      */
     public @Nullable AnnotationInfo getAnnotationInfo(final Class<? extends Annotation> annotation) {
+        Assert.notNull(annotation, "annotation");
         Assert.isAnnotation(annotation);
         return getAnnotationInfo(annotation.getName());
     }
@@ -165,6 +166,7 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
      *         annotation.
      */
     public @Nullable AnnotationInfo getAnnotationInfo(final String annotationName) {
+        Assert.notNull(annotationName, "annotationName");
         return getAnnotationInfo().get(annotationName);
     }
 
@@ -195,6 +197,7 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
      * @return true if this package has the annotation.
      */
     public boolean hasAnnotation(final Class<? extends Annotation> annotation) {
+        Assert.notNull(annotation, "annotation");
         Assert.isAnnotation(annotation);
         return hasAnnotation(annotation.getName());
     }
@@ -206,6 +209,7 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
      * @return true if this package has the named annotation.
      */
     public boolean hasAnnotation(final String annotationName) {
+        Assert.notNull(annotationName, "annotationName");
         return getAnnotationInfo().containsName(annotationName);
     }
 
@@ -247,6 +251,7 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
      *         null if the class was not found in this package.
      */
     public @Nullable ClassInfo getClassInfo(final String className) {
+        Assert.notNull(className, "className");
         final var memberClasses = memberClassNameToClassInfo;
         return memberClasses == null ? null : memberClasses.get(className);
     }

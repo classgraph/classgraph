@@ -33,6 +33,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
+import nonapi.io.github.classgraph.utils.Assert;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -95,6 +96,7 @@ public class MappableInfoList<T extends HasName> extends InfoList<T> {
      * @return true if this list contains an item with the given name.
      */
     public boolean containsName(final String name) {
+        Assert.notNull(name, "name");
         for (final T i : this) {
             if (i != null && i.getName().equals(name)) {
                 return true;
@@ -111,6 +113,7 @@ public class MappableInfoList<T extends HasName> extends InfoList<T> {
      */
     @SuppressWarnings("null")
     public @Nullable T get(final String name) {
+        Assert.notNull(name, "name");
         for (final T i : this) {
             if (i != null && i.getName().equals(name)) {
                 return i;

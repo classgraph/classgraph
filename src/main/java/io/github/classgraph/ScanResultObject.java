@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import nonapi.io.github.classgraph.utils.Assert;
 import nonapi.io.github.classgraph.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
@@ -185,6 +186,7 @@ abstract class ScanResultObject {
      *                                  and ignoreExceptions was false.
      */
     <T> @Nullable Class<T> loadClass(final Class<T> superclassOrInterfaceType, final boolean ignoreExceptions) {
+        Assert.notNull(superclassOrInterfaceType, "superclassOrInterfaceType");
         synchronized (this) {
             // If class is not already loaded, try loading class
             if (classRef == null) {
