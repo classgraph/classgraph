@@ -43,18 +43,38 @@ replacement has the same behavior, so porting is a rename.
 | `ScanResult#getResourcesWithPathIgnoringWhitelist` | `ScanResult#getResourcesWithPathIgnoringAccept` |
 | `FieldInfo#getModifierStr` | `FieldInfo#getModifiersStr` |
 | `ClassInfoList#generateGraphVizDotFileFromClassDependencies` | `ClassInfoList#generateGraphVizDotFileFromInterClassDependencies` |
-| `ResourceList#forEachByteArray(ByteArrayConsumer)` | `ResourceList#forEachByteArrayThrowingIOException` |
-| `ResourceList#forEachByteArray(ByteArrayConsumer, boolean)` | `ResourceList#forEachByteArrayIgnoringIOException` or `#forEachByteArrayThrowingIOException` |
-| `ResourceList#forEachInputStream(InputStreamConsumer)` | `ResourceList#forEachInputStreamThrowingIOException` |
-| `ResourceList#forEachInputStream(InputStreamConsumer, boolean)` | `ResourceList#forEachInputStreamIgnoringIOException` or `#forEachInputStreamThrowingIOException` |
-| `ResourceList#forEachByteBuffer(ByteBufferConsumer)` | `ResourceList#forEachByteBufferThrowingIOException` |
-| `ResourceList#forEachByteBuffer(ByteBufferConsumer, boolean)` | `ResourceList#forEachByteBufferIgnoringIOException` or `#forEachByteBufferThrowingIOException` |
+| `ResourceList#forEachByteArray(ByteArrayConsumer, boolean)` | `ResourceList#forEachByteArray` or `#forEachByteArrayIgnoringIOException` |
+| `ResourceList#forEachInputStream(InputStreamConsumer, boolean)` | `ResourceList#forEachInputStream` or `#forEachInputStreamIgnoringIOException` |
+| `ResourceList#forEachByteBuffer(ByteBufferConsumer, boolean)` | `ResourceList#forEachByteBuffer` or `#forEachByteBufferIgnoringIOException` |
 
-The `ResourceList#forEach*` replacements are not quite a rename: the removed overloads
-wrapped an `IOException` in an `IllegalArgumentException`, whereas
-`forEach*ThrowingIOException` throws the `IOException` itself, so the consumer is a
-`*ThrowsIOException` functional interface and the caller has to handle or declare
-`IOException`.
+See below for the rest of the `ResourceList#forEach*` change — those three names are still
+there, but they no longer mean the same thing.
+
+### `ResourceList#forEach*` methods now throw `IOException`
+
+Reading a resource can fail, and in 4.x each of the three `forEach*` families had grown
+three names and two consumer interfaces to express that:
+
+| ClassGraph 4.x | ClassGraph 5.x |
+| --- | --- |
+| `forEachByteArray(ByteArrayConsumer)` (deprecated) | `forEachByteArray(ByteArrayConsumer)` |
+| `forEachByteArrayThrowingIOException(ByteArrayConsumerThrowsIOException)` | `forEachByteArray(ByteArrayConsumer)` |
+| `forEachByteArrayIgnoringIOException(ByteArrayConsumer)` | `forEachByteArrayIgnoringIOException(ByteArrayConsumer)` |
+
+and likewise for `forEachInputStream` and `forEachByteBuffer`. The
+`ByteArrayConsumerThrowsIOException`, `InputStreamConsumerThrowsIOException` and
+`ByteBufferConsumerThrowsIOException` interfaces have been deleted; `ByteArrayConsumer`,
+`InputStreamConsumer` and `ByteBufferConsumer` now declare `throws IOException` on
+`accept`, so a single interface serves both methods in each pair. Each family is now just
+two methods: `forEachX`, which propagates any `IOException`, and
+`forEachXIgnoringIOException`, which skips the resource that failed and carries on.
+
+**This is a silent behavioral change for one case.** 4.x code that calls
+`forEachByteArray(consumer)` from a method that already declares `throws IOException` still
+compiles, but where it used to see an `IllegalArgumentException` wrapping the cause, it now
+sees the `IOException` itself. Code that catches `IllegalArgumentException` around a
+`forEach*` call needs to catch `IOException` instead. Everywhere else the compiler will
+point at the call, because `IOException` is checked.
 
 ### The JSON serializer and deserializer have been removed
 

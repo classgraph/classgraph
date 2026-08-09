@@ -52,7 +52,7 @@ public class Issue255Test {
         try (var scanResult = new ClassGraph().overrideClasspath(dirPath).scan()) {
             final var resources = scanResult.getAllResources();
             assertThat(resources.size()).isEqualTo(1);
-            resources.forEachByteArrayThrowingIOException(
+            resources.forEachByteArray(
                     (resource, byteArray) -> assertThat(new String(byteArray)).isEqualTo("Issue 255"));
         }
     }
