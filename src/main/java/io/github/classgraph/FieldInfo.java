@@ -104,17 +104,6 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Deprecated -- use {@link #getModifiersStr()} instead.
-     *
-     * @deprecated Use {@link #getModifiersStr()} instead.
-     * @return The field modifiers, as a string.
-     */
-    @Deprecated
-    public String getModifierStr() {
-        return getModifiersStr();
-    }
-
-    /**
      * Get the field modifiers as a string, e.g. "public static final". For the
      * modifier bits, call getModifiers().
      *

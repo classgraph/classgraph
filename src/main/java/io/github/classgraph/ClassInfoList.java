@@ -638,23 +638,6 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
                 scanSpec.enableExternalClasses);
     }
 
-    /**
-     * Deprecated: use {@link #generateGraphVizDotFileFromInterClassDependencies()}
-     * instead.
-     * 
-     * @deprecated Use {@link #generateGraphVizDotFileFromInterClassDependencies()}
-     *             instead.
-     * @return the GraphViz file contents.
-     * @throws IllegalArgumentException if this {@link ClassInfoList} is empty or
-     *                                  {@link ClassGraph#enableInterClassDependencies()}
-     *                                  was not called before scanning (since there
-     *                                  would be nothing to graph).
-     */
-    @Deprecated
-    public String generateGraphVizDotFileFromClassDependencies() {
-        return generateGraphVizDotFileFromInterClassDependencies();
-    }
-
     // -------------------------------------------------------------------------------------------------------------
 
     /**

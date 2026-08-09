@@ -17,6 +17,45 @@ ClassGraph 5.x does not maintain binary or source compatibility with ClassGraph 
 
 ## API changes
 
+### All deprecated methods have been removed
+
+Every method that was deprecated in 4.x is gone. Each had a direct replacement, and the
+replacement has the same behavior, so porting is a rename.
+
+| Removed in 5.x | Use instead |
+| --- | --- |
+| `ClassGraph#whitelistPackages` | `ClassGraph#acceptPackages` |
+| `ClassGraph#whitelistPackagesNonRecursive` | `ClassGraph#acceptPackagesNonRecursive` |
+| `ClassGraph#whitelistPaths` | `ClassGraph#acceptPaths` |
+| `ClassGraph#whitelistPathsNonRecursive` | `ClassGraph#acceptPathsNonRecursive` |
+| `ClassGraph#whitelistClasses` | `ClassGraph#acceptClasses` |
+| `ClassGraph#whitelistJars` | `ClassGraph#acceptJars` |
+| `ClassGraph#whitelistLibOrExtJars` | `ClassGraph#acceptLibOrExtJars` |
+| `ClassGraph#whitelistModules` | `ClassGraph#acceptModules` |
+| `ClassGraph#whitelistClasspathElementsContainingResourcePath` | `ClassGraph#acceptClasspathElementsContainingResourcePath` |
+| `ClassGraph#blacklistPackages` | `ClassGraph#rejectPackages` |
+| `ClassGraph#blacklistPaths` | `ClassGraph#rejectPaths` |
+| `ClassGraph#blacklistClasses` | `ClassGraph#rejectClasses` |
+| `ClassGraph#blacklistJars` | `ClassGraph#rejectJars` |
+| `ClassGraph#blacklistLibOrExtJars` | `ClassGraph#rejectLibOrExtJars` |
+| `ClassGraph#blacklistModules` | `ClassGraph#rejectModules` |
+| `ClassGraph#blacklistClasspathElementsContainingResourcePath` | `ClassGraph#rejectClasspathElementsContainingResourcePath` |
+| `ScanResult#getResourcesWithPathIgnoringWhitelist` | `ScanResult#getResourcesWithPathIgnoringAccept` |
+| `FieldInfo#getModifierStr` | `FieldInfo#getModifiersStr` |
+| `ClassInfoList#generateGraphVizDotFileFromClassDependencies` | `ClassInfoList#generateGraphVizDotFileFromInterClassDependencies` |
+| `ResourceList#forEachByteArray(ByteArrayConsumer)` | `ResourceList#forEachByteArrayThrowingIOException` |
+| `ResourceList#forEachByteArray(ByteArrayConsumer, boolean)` | `ResourceList#forEachByteArrayIgnoringIOException` or `#forEachByteArrayThrowingIOException` |
+| `ResourceList#forEachInputStream(InputStreamConsumer)` | `ResourceList#forEachInputStreamThrowingIOException` |
+| `ResourceList#forEachInputStream(InputStreamConsumer, boolean)` | `ResourceList#forEachInputStreamIgnoringIOException` or `#forEachInputStreamThrowingIOException` |
+| `ResourceList#forEachByteBuffer(ByteBufferConsumer)` | `ResourceList#forEachByteBufferThrowingIOException` |
+| `ResourceList#forEachByteBuffer(ByteBufferConsumer, boolean)` | `ResourceList#forEachByteBufferIgnoringIOException` or `#forEachByteBufferThrowingIOException` |
+
+The `ResourceList#forEach*` replacements are not quite a rename: the removed overloads
+wrapped an `IOException` in an `IllegalArgumentException`, whereas
+`forEach*ThrowingIOException` throws the `IOException` itself, so the consumer is a
+`*ThrowsIOException` functional interface and the caller has to handle or declare
+`IOException`.
+
 ### Module APIs are now strongly typed
 
 In 4.x, every method that took or returned a module-system object used `Object` as the

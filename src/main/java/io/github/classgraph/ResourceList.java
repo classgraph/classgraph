@@ -346,57 +346,6 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      * Fetch the content of each {@link Resource} in this {@link ResourceList} as a
      * byte array, pass the byte array to the given {@link ByteArrayConsumer}, then
      * close the underlying InputStream or release the underlying ByteBuffer by
-     * calling {@link Resource#close()}.
-     *
-     * @param byteArrayConsumer  The {@link ByteArrayConsumer}.
-     * @param ignoreIOExceptions if true, any {@link IOException} thrown while
-     *                           trying to load any of the resources will be
-     *                           silently ignored.
-     * @throws IllegalArgumentException if ignoreExceptions is false, and an
-     *                                  {@link IOException} is thrown while trying
-     *                                  to load any of the resources.
-     * @deprecated Use
-     *             {@link #forEachByteArrayIgnoringIOException(ByteArrayConsumer)}
-     *             or
-     *             {@link #forEachByteArrayThrowingIOException(ByteArrayConsumerThrowsIOException)}
-     *             instead.
-     */
-    @Deprecated
-    public void forEachByteArray(final ByteArrayConsumer byteArrayConsumer, final boolean ignoreIOExceptions) {
-        Assert.notNull(byteArrayConsumer, "byteArrayConsumer");
-        for (final Resource resource : this) {
-            try (resource) {
-                byteArrayConsumer.accept(resource, resource.load());
-            } catch (final IOException e) {
-                if (!ignoreIOExceptions) {
-                    throw new IllegalArgumentException("Could not load resource " + resource, e);
-                }
-            }
-        }
-    }
-
-    /**
-     * Fetch the content of each {@link Resource} in this {@link ResourceList} as a
-     * byte array, pass the byte array to the given {@link ByteArrayConsumer}, then
-     * close the underlying InputStream or release the underlying ByteBuffer by
-     * calling {@link Resource#close()}.
-     *
-     * @param byteArrayConsumer The {@link ByteArrayConsumer}.
-     * @throws IllegalArgumentException if an {@link IOException} is thrown while
-     *                                  trying to load any of the resources.
-     * @deprecated Use
-     *             {@link #forEachByteArrayThrowingIOException(ByteArrayConsumerThrowsIOException)}
-     *             instead.
-     */
-    @Deprecated
-    public void forEachByteArray(final ByteArrayConsumer byteArrayConsumer) {
-        forEachByteArray(byteArrayConsumer, false);
-    }
-
-    /**
-     * Fetch the content of each {@link Resource} in this {@link ResourceList} as a
-     * byte array, pass the byte array to the given {@link ByteArrayConsumer}, then
-     * close the underlying InputStream or release the underlying ByteBuffer by
      * calling {@link Resource#close()} for each {@link Resource}. If an
      * {@link IOException} occurs while opening or reading from any resource, the
      * resource is silently skipped.
@@ -468,59 +417,6 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
          * @throws IOException if an IO exception occurs.
          */
         void accept(final Resource resource, final InputStream inputStream) throws IOException;
-    }
-
-    /**
-     * Fetch an {@link InputStream} for each {@link Resource} in this
-     * {@link ResourceList}, pass the {@link InputStream} to the given
-     * {@link InputStreamConsumer}, then close the {@link InputStream} after the
-     * {@link InputStreamConsumer} returns, by calling {@link Resource#close()} for
-     * each {@link Resource}.
-     *
-     * @param inputStreamConsumer The {@link InputStreamConsumer}.
-     * @param ignoreIOExceptions  if true, any {@link IOException} thrown while
-     *                            trying to load any of the resources will be
-     *                            silently ignored.
-     * @throws IllegalArgumentException if ignoreExceptions is false, and an
-     *                                  {@link IOException} is thrown while trying
-     *                                  to open any of the resources.
-     * @deprecated Use
-     *             {@link #forEachInputStreamIgnoringIOException(InputStreamConsumer)}
-     *             or
-     *             {@link #forEachInputStreamThrowingIOException(InputStreamConsumerThrowsIOException)}
-     *             instead.
-     */
-    @Deprecated
-    public void forEachInputStream(final InputStreamConsumer inputStreamConsumer, final boolean ignoreIOExceptions) {
-        Assert.notNull(inputStreamConsumer, "inputStreamConsumer");
-        for (final Resource resource : this) {
-            try (resource) {
-                inputStreamConsumer.accept(resource, resource.open());
-            } catch (final IOException e) {
-                if (!ignoreIOExceptions) {
-                    throw new IllegalArgumentException("Could not load resource " + resource, e);
-                }
-            }
-        }
-    }
-
-    /**
-     * Fetch an {@link InputStream} for each {@link Resource} in this
-     * {@link ResourceList}, pass the {@link InputStream} to the given
-     * {@link InputStreamConsumer}, then close the {@link InputStream} after the
-     * {@link InputStreamConsumer} returns, by calling {@link Resource#close()} for
-     * each {@link Resource}.
-     *
-     * @param inputStreamConsumer The {@link InputStreamConsumer}.
-     * @throws IllegalArgumentException an {@link IOException} is thrown while
-     *                                  trying to open any of the resources.
-     * @deprecated Use
-     *             {@link #forEachInputStreamThrowingIOException(InputStreamConsumerThrowsIOException)}
-     *             instead.
-     */
-    @Deprecated
-    public void forEachInputStream(final InputStreamConsumer inputStreamConsumer) {
-        forEachInputStream(inputStreamConsumer, false);
     }
 
     /**
@@ -600,59 +496,6 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
          * @throws IOException if an IO exception occurs.
          */
         void accept(final Resource resource, final ByteBuffer byteBuffer) throws IOException;
-    }
-
-    /**
-     * Read each {@link Resource} in this {@link ResourceList} as a
-     * {@link ByteBuffer}, pass the {@link ByteBuffer} to the given
-     * {@link InputStreamConsumer}, then release the {@link ByteBuffer} after the
-     * {@link ByteBufferConsumer} returns, by calling {@link Resource#close()} for
-     * each {@link Resource}.
-     *
-     * @param byteBufferConsumer The {@link ByteBufferConsumer}.
-     * @param ignoreIOExceptions if true, any {@link IOException} thrown while
-     *                           trying to load any of the resources will be
-     *                           silently ignored.
-     * @throws IllegalArgumentException if ignoreExceptions is false, and an
-     *                                  {@link IOException} is thrown while trying
-     *                                  to load any of the resources.
-     * @deprecated Use
-     *             {@link #forEachByteBufferIgnoringIOException(ByteBufferConsumer)}
-     *             or
-     *             {@link #forEachByteBufferThrowingIOException(ByteBufferConsumerThrowsIOException)}
-     *             instead.
-     */
-    @Deprecated
-    public void forEachByteBuffer(final ByteBufferConsumer byteBufferConsumer, final boolean ignoreIOExceptions) {
-        Assert.notNull(byteBufferConsumer, "byteBufferConsumer");
-        for (final Resource resource : this) {
-            try (resource) {
-                byteBufferConsumer.accept(resource, resource.read());
-            } catch (final IOException e) {
-                if (!ignoreIOExceptions) {
-                    throw new IllegalArgumentException("Could not load resource " + resource, e);
-                }
-            }
-        }
-    }
-
-    /**
-     * Read each {@link Resource} in this {@link ResourceList} as a
-     * {@link ByteBuffer}, pass the {@link ByteBuffer} to the given
-     * {@link InputStreamConsumer}, then release the {@link ByteBuffer} after the
-     * {@link ByteBufferConsumer} returns, by calling {@link Resource#close()} for
-     * each {@link Resource}.
-     *
-     * @param byteBufferConsumer The {@link ByteBufferConsumer}.
-     * @throws IllegalArgumentException if an {@link IOException} is thrown while
-     *                                  trying to load any of the resources.
-     * @deprecated Use
-     *             {@link #forEachByteBufferThrowingIOException(ByteBufferConsumerThrowsIOException)}
-     *             instead.
-     */
-    @Deprecated
-    public void forEachByteBuffer(final ByteBufferConsumer byteBufferConsumer) {
-        forEachByteBuffer(byteBufferConsumer, false);
     }
 
     /**
