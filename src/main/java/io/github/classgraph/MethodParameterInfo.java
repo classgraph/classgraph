@@ -47,6 +47,9 @@ public class MethodParameterInfo {
     /** The containing method. */
     private final MethodInfo methodInfo;
 
+    /** The index of this parameter in the containing method's parameter list. */
+    private final int index;
+
     /** The annotation info, or null if the parameter has no annotations. */
     final AnnotationInfo @Nullable [] annotationInfo;
 
@@ -72,6 +75,8 @@ public class MethodParameterInfo {
      *
      * @param methodInfo
      *            The {@link MethodInfo} for the defining method.
+     * @param index
+     *            The index of this parameter in the defining method's parameter list.
      * @param annotationInfo
      *            {@link AnnotationInfo} for any annotations on this method parameter.
      * @param modifiers
@@ -83,10 +88,12 @@ public class MethodParameterInfo {
      * @param name
      *            The method parameter name.
      */
-    MethodParameterInfo(final MethodInfo methodInfo, final AnnotationInfo @Nullable [] annotationInfo,
-            final int modifiers, final @Nullable TypeSignature typeDescriptor,
-            final @Nullable TypeSignature typeSignature, final @Nullable String name) {
+    MethodParameterInfo(final MethodInfo methodInfo, final int index,
+            final AnnotationInfo @Nullable [] annotationInfo, final int modifiers,
+            final @Nullable TypeSignature typeDescriptor, final @Nullable TypeSignature typeSignature,
+            final @Nullable String name) {
         this.methodInfo = methodInfo;
+        this.index = index;
         this.name = name;
         this.modifiers = modifiers;
         this.typeDescriptor = typeDescriptor;
@@ -103,6 +110,26 @@ public class MethodParameterInfo {
      */
     public MethodInfo getMethodInfo() {
         return methodInfo;
+    }
+
+    /**
+     * Get the index of this parameter in the defining method's parameter list.
+     *
+     * @return The index of this parameter within {@link MethodInfo#getParameterInfo()}.
+     */
+    public int getIndex() {
+        return index;
+    }
+
+    /**
+     * Returns true if this is the variadic parameter of a variadic method, i.e. the parameter declared as
+     * {@code T...}. The type of a variadic parameter is the array type {@code T[]}, so this is the only way to tell
+     * a variadic parameter apart from a parameter that was declared as an array.
+     *
+     * @return True if this is the variadic parameter of a variadic method.
+     */
+    public boolean isVarArgs() {
+        return methodInfo.getVarArgsParamIndex() == index;
     }
 
     /**
@@ -459,7 +486,14 @@ public class MethodParameterInfo {
      *            the buffer to append to
      */
     protected void toString(final boolean useSimpleNames, final StringBuilder buf) {
-        if (annotationInfo != null) {
+        // Exclude the parameter annotations from the type annotations at the toplevel of the type signature, so
+        // that a TYPE_USE annotation on the parameter is not listed twice
+        final AnnotationInfoList annotationsToExclude;
+        if (annotationInfo == null || annotationInfo.length == 0) {
+            annotationsToExclude = null;
+        } else {
+            annotationsToExclude = new AnnotationInfoList(annotationInfo.length);
+            annotationsToExclude.addAll(Arrays.asList(annotationInfo));
             for (final AnnotationInfo anAnnotationInfo : annotationInfo) {
                 anAnnotationInfo.toString(useSimpleNames, buf);
                 buf.append(' ');
@@ -468,7 +502,13 @@ public class MethodParameterInfo {
 
         modifiersToString(modifiers, buf);
 
-        Objects.requireNonNull(getTypeSignatureOrTypeDescriptor()).toString(useSimpleNames, buf);
+        final var paramType = Objects.requireNonNull(getTypeSignatureOrTypeDescriptor());
+        // The variadic parameter of a variadic method has an array type, but is shown as "T..." not "T[]"
+        if (paramType instanceof final ArrayTypeSignature arrayType && isVarArgs()) {
+            arrayType.toStringVarArgs(useSimpleNames, annotationsToExclude, buf);
+        } else {
+            paramType.toStringInternal(useSimpleNames, annotationsToExclude, buf);
+        }
 
         buf.append(' ');
         buf.append(name == null ? "_unnamed_param" : name);

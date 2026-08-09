@@ -634,7 +634,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
                 // Generate MethodParameterInfo entries
                 parameterInfo = new MethodParameterInfo[numParams];
                 for (var i = 0; i < numParams; i++) {
-                    parameterInfo[i] = new MethodParameterInfo(this,
+                    parameterInfo[i] = new MethodParameterInfo(this, i,
                             paramAnnotationInfoAligned == null ? null : paramAnnotationInfoAligned[i],
                             paramModifiersAligned == null ? 0 : paramModifiersAligned[i],
                             paramTypeDescriptorsAligned == null ? null : paramTypeDescriptorsAligned.get(i),
@@ -645,6 +645,30 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
             }
             return parameterInfo;
         }
+    }
+
+    /**
+     * Get the index of the variadic parameter of this method, i.e. the parameter declared as {@code T...}.
+     *
+     * @return The index of the variadic parameter within {@link #getParameterInfo()}, or -1 if this method is not
+     *         variadic.
+     */
+    int getVarArgsParamIndex() {
+        if (!isVarArgs()) {
+            return -1;
+        }
+        // The variadic parameter is the last parameter that is not synthetic or mandated -- the Java compiler can
+        // tack on parameters *after* the variadic parameter, for variable capture with anonymous inner classes
+        // (see #260)
+        final var allParamInfo = getParameterInfo();
+        for (var i = allParamInfo.length - 1; i >= 0; --i) {
+            final var mods = allParamInfo[i].getModifiers();
+            if ((mods & /* synthetic */ 0x1000) == 0 && (mods & /* mandated */ 0x8000) == 0
+                    && allParamInfo[i].getTypeSignatureOrTypeDescriptor() instanceof ArrayTypeSignature) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -918,7 +942,8 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
             buf.append('>');
         }
 
-        if (!isConstructor()) {
+        final var isConstructor = isConstructor();
+        if (!isConstructor) {
             if (!buf.isEmpty()) {
                 buf.append(' ');
             }
@@ -929,7 +954,10 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
         if (!buf.isEmpty()) {
             buf.append(' ');
         }
-        buf.append(useSimpleNames ? ClassInfo.getSimpleName(name) : name);
+        // Constructors are named "<init>" in the classfile, but Constructor::toString names a constructor after the
+        // class it constructs, which is also the Java source syntax
+        final var displayedName = isConstructor ? declaringClassName : name;
+        buf.append(useSimpleNames ? ClassInfo.getSimpleName(displayedName) : displayedName);
 
         // If at least one param is named, then use placeholder names for unnamed params, otherwise don't show names
         // for any params
@@ -942,22 +970,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
             }
         }
 
-        // Find varargs param index, if present -- this is, for varargs methods, the last argument that is not a
-        // synthetic or mandated parameter (turns out the Java compiler can tack on parameters *after* the varargs
-        // parameter, for variable capture with anonymous inner classes -- see #260).
-        var varArgsParamIndex = -1;
-        if (isVarArgs()) {
-            for (var i = allParamInfo.length - 1; i >= 0; --i) {
-                final var mods = allParamInfo[i].getModifiers();
-                if ((mods & /* synthetic */ 0x1000) == 0 && (mods & /* mandated */ 0x8000) == 0) {
-                    final var paramType = allParamInfo[i].getTypeSignatureOrTypeDescriptor();
-                    if (paramType instanceof ArrayTypeSignature) {
-                        varArgsParamIndex = i;
-                        break;
-                    }
-                }
-            }
-        }
+        final var varArgsParamIndex = getVarArgsParamIndex();
 
         buf.append('(');
         for (int i = 0, numParams = allParamInfo.length; i < numParams; i++) {
@@ -979,31 +992,19 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
             // Param type signature may be null in the case of a `synthetic`, `bridge`, or `mandated` parameter
             // implicitly added to a non-generic method
             if (paramTypeSignature != null) {
-                if (i == varArgsParamIndex) {
-                    // Show varargs params correctly -- replace last "[]" with "..."
-                    if (!(paramTypeSignature instanceof final ArrayTypeSignature arrayType)) {
-                        throw new IllegalArgumentException(
-                                "Got non-array type for last parameter of varargs method " + name);
-                    }
-                    if (arrayType.getNumDimensions() == 0) {
-                        throw new IllegalArgumentException(
-                                "Got a zero-dimension array type for last parameter of varargs method " + name);
-                    }
-                    arrayType.getElementTypeSignature().toString(useSimpleNames, buf);
-                    for (var j = 0; j < arrayType.getNumDimensions() - 1; j++) {
-                        buf.append("[]");
-                    }
-                    buf.append("...");
+                // Exclude parameter annotations from type annotations at toplevel of type signature, so that
+                // annotation is not listed twice
+                final AnnotationInfoList annotationsToExclude;
+                if (paramInfo.annotationInfo == null || paramInfo.annotationInfo.length == 0) {
+                    annotationsToExclude = null;
                 } else {
-                    // Exclude parameter annotations from type annotations at toplevel of type signature, so that
-                    // annotation is not listed twice
-                    final AnnotationInfoList annotationsToExclude;
-                    if (paramInfo.annotationInfo == null || paramInfo.annotationInfo.length == 0) {
-                        annotationsToExclude = null;
-                    } else {
-                        annotationsToExclude = new AnnotationInfoList(paramInfo.annotationInfo.length);
-                        annotationsToExclude.addAll(Arrays.asList(paramInfo.annotationInfo));
-                    }
+                    annotationsToExclude = new AnnotationInfoList(paramInfo.annotationInfo.length);
+                    annotationsToExclude.addAll(Arrays.asList(paramInfo.annotationInfo));
+                }
+                // The variadic parameter of a variadic method has an array type, but is shown as "T..." not "T[]"
+                if (i == varArgsParamIndex && paramTypeSignature instanceof final ArrayTypeSignature arrayType) {
+                    arrayType.toStringVarArgs(useSimpleNames, annotationsToExclude, buf);
+                } else {
                     paramTypeSignature.toStringInternal(useSimpleNames, annotationsToExclude, buf);
                 }
             }

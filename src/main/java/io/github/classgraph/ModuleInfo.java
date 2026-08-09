@@ -381,13 +381,14 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
         return this.compareTo(other) == 0;
     }
 
-    /*
-     * (non-Javadoc)
+    /**
+     * Render this module as a string, in the same form as {@link Module#toString()}, e.g.
+     * {@code "module java.base"}. Call {@link #getName()} for the module name alone.
      *
-     * @see java.lang.Object#toString()
+     * @return the string representation.
      */
     @Override
     public String toString() {
-        return name;
+        return "module " + name;
     }
 }

@@ -399,13 +399,14 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
         return this.name.equals(other.name);
     }
 
-    /*
-     * (non-Javadoc)
+    /**
+     * Render this package as a string, in the same form as {@link Package#toString()}, e.g.
+     * {@code "package com.xyz"}. Call {@link #getName()} for the package name alone.
      *
-     * @see java.lang.Object#toString()
+     * @return the string representation.
      */
     @Override
     public String toString() {
-        return name;
+        return "package " + name;
     }
 }

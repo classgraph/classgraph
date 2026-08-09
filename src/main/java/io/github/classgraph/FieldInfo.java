@@ -41,6 +41,7 @@ import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.TypeUtils;
 import nonapi.io.github.classgraph.types.TypeUtils.ModifierType;
 import nonapi.io.github.classgraph.utils.LogNode;
+import nonapi.io.github.classgraph.utils.StringUtils;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -426,12 +427,12 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
             final var val = constantInitializerValue;
             buf.append(" = ");
             if (val instanceof final String str) {
-                buf.append('"').append(str.replace("\\", "\\\\").replace("\"", "\\\"")).append('"');
+                buf.append('"').append(StringUtils.escapeString(str)).append('"');
             } else if (val instanceof final Character chr) {
-                // N.B. use replace() rather than replaceAll() -- in a replaceAll() replacement string, a backslash
-                // escapes the character that follows it, so the backslash would be dropped
-                buf.append('\'').append(chr.toString().replace("\\", "\\\\").replace("'", "\\'")).append('\'');
+                buf.append('\'').append(StringUtils.escapeChar(chr)).append('\'');
             } else {
+                // A numeric constant is rendered without a type suffix, since the field's type is printed
+                // immediately before it
                 buf.append(val);
             }
         }

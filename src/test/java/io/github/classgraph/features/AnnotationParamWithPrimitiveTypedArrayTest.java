@@ -81,8 +81,8 @@ public class AnnotationParamWithPrimitiveTypedArrayTest {
     /**
      * The Class AnnotatedClass.
      */
-    @AnnotationWithPrimitiveArrayParams(v1 = { 'a' }, v2 = { "x" }, v3 = {}, v4 = {
-            @NestedAnnotation(str = "Test", intArray = { 9 }) })
+    @AnnotationWithPrimitiveArrayParams(v1 = { 'a' }, v2 = { "x" }, v3 = {},
+            v4 = { @NestedAnnotation(str = "Test", intArray = { 9 }) })
     public abstract static class AnnotatedClass {
     }
 

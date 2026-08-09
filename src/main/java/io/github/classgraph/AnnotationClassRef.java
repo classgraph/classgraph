@@ -170,21 +170,10 @@ public class AnnotationClassRef extends ScanResultObject {
 
     @Override
     protected void toString(final boolean useSimpleNames, final StringBuilder buf) {
-        // More recent versions of Annotation::toString() have dropped the "class"/"interface" prefix, and added
-        // ".class" to the end of the class reference (which does not actually match the annotation source
-        // syntax...)
-
-        // String prefix = "class ";
-        // if (scanResult != null) {
-        // final ClassInfo ci = getClassInfo();
-        // // The JDK uses "interface" for both interfaces and annotations in
-        // Annotation::toString
-        // if (ci != null && ci.isInterfaceOrAnnotation()) {
-        // prefix = "interface ";
-        // }
-        // }
-
-        /* prefix + */
+        // This matches Annotation::toString() on JDK 9 and above, which renders a Class-valued annotation
+        // parameter in Java source syntax, e.g. "java.lang.String.class", "int.class" or
+        // "java.lang.String[].class". (JDK 8 instead rendered the same values as "class java.lang.String",
+        // "int" and "class [Ljava.lang.String;", using the "interface" prefix for interfaces and annotations.)
         buf.append(getTypeSignature().toString(useSimpleNames)).append(".class");
     }
 }

@@ -35,6 +35,7 @@ import java.util.Objects;
 import java.util.Set;
 
 import nonapi.io.github.classgraph.utils.LogNode;
+import nonapi.io.github.classgraph.utils.StringUtils;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -409,6 +410,35 @@ public class AnnotationParameterValue extends ScanResultObject
             buf.append("null");
         } else if (val instanceof final ScanResultObject scanResultObject) {
             scanResultObject.toString(useSimpleNames, buf);
+        } else if (val instanceof final String str) {
+            buf.append('"').append(StringUtils.escapeString(str)).append('"');
+        } else if (val instanceof final Character chr) {
+            buf.append('\'').append(StringUtils.escapeChar(chr)).append('\'');
+        } else if (val instanceof final Byte byteVal) {
+            // Annotation::toString renders each value in the Java source syntax for its type, so that the type of
+            // the value can be told from the rendering. (There is no source syntax for a short literal, so short
+            // values are rendered the same way as int values, matching the JDK.)
+            final var unsignedByteVal = byteVal & 0xff;
+            buf.append("(byte)0x").append(Character.forDigit(unsignedByteVal >> 4, 16))
+                    .append(Character.forDigit(unsignedByteVal & 0xf, 16));
+        } else if (val instanceof final Long longVal) {
+            buf.append(longVal.longValue()).append('L');
+        } else if (val instanceof final Float floatVal) {
+            if (Float.isNaN(floatVal)) {
+                buf.append("0.0f/0.0f");
+            } else if (floatVal.isInfinite()) {
+                buf.append(floatVal > 0 ? "1.0f/0.0f" : "-1.0f/0.0f");
+            } else {
+                buf.append(floatVal.floatValue()).append('f');
+            }
+        } else if (val instanceof final Double doubleVal) {
+            if (Double.isNaN(doubleVal)) {
+                buf.append("0.0/0.0");
+            } else if (doubleVal.isInfinite()) {
+                buf.append(doubleVal > 0 ? "1.0/0.0" : "-1.0/0.0");
+            } else {
+                buf.append(doubleVal.doubleValue());
+            }
         } else {
             buf.append(val);
         }
@@ -424,31 +454,17 @@ public class AnnotationParameterValue extends ScanResultObject
      */
     void toStringParamValueOnly(final boolean useSimpleNames, final StringBuilder buf) {
         final var paramVal = value;
-        if (paramVal == null) {
-            buf.append("null");
-        } else {
-            final Class<?> valClass = paramVal.getClass();
-            if (valClass.isArray()) {
-                buf.append('{');
-                for (int j = 0, n = Array.getLength(paramVal); j < n; j++) {
-                    if (j > 0) {
-                        buf.append(", ");
-                    }
-                    final var elt = Array.get(paramVal, j);
-                    toString(elt, useSimpleNames, buf);
+        if (paramVal != null && paramVal.getClass().isArray()) {
+            buf.append('{');
+            for (int j = 0, n = Array.getLength(paramVal); j < n; j++) {
+                if (j > 0) {
+                    buf.append(", ");
                 }
-                buf.append('}');
-            } else if (paramVal instanceof final String str) {
-                buf.append('"');
-                buf.append(str.replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r"));
-                buf.append('"');
-            } else if (paramVal instanceof final Character chr) {
-                buf.append('\'');
-                buf.append(chr.toString().replace("'", "\\'").replace("\n", "\\n").replace("\r", "\\r"));
-                buf.append('\'');
-            } else {
-                toString(paramVal, useSimpleNames, buf);
+                toString(Array.get(paramVal, j), useSimpleNames, buf);
             }
+            buf.append('}');
+        } else {
+            toString(paramVal, useSimpleNames, buf);
         }
     }
 

@@ -812,6 +812,68 @@ that, returning the empty list if the class was not found — matching the `Clas
   unmodifiable empty list. Adding to the returned list never affected the scan result, so
   the only change is that it now throws `UnsupportedOperationException`.
 
+* **`toString()` now follows the JDK's own rendering of the same thing, wherever the JDK
+  renders it.** ClassGraph's `toString()` methods are meant to read as Java source
+  declarations, and several of them had drifted from the corresponding JDK method. Five
+  changes are visible:
+
+  * **A constructor is named after the class it constructs, not `<init>`.**
+    `MethodInfo#toString()` used to print `public <init>(java.lang.String a)`, using the
+    constructor's classfile name. It now prints `public com.xyz.Widget(java.lang.String
+    a)`, matching `Constructor#toString()` and Java source syntax.
+    `MethodInfo#getName()` still returns `"<init>"`, as before. Static initializer
+    blocks are still shown as `<clinit>`, since the JDK has no rendering for them.
+
+  * **A variadic parameter is shown as `T...` in `MethodParameterInfo#toString()`.** It
+    used to print the parameter's declared array type, `int[] b`, even though
+    `MethodInfo#toString()` printed the same parameter as `int... b`.
+    `MethodParameterInfo#isVarArgs()` is new, and answers the same question as
+    `java.lang.reflect.Parameter#isVarArgs()`; `MethodParameterInfo#getIndex()` is also
+    new.
+
+  * **A `TYPE_USE` annotation on a parameter is listed once by
+    `MethodParameterInfo#toString()`.** It was printed twice, once as a parameter
+    annotation and once as a type annotation on the parameter's type.
+    `MethodInfo#toString()` already listed it once.
+
+  * **Annotation parameter values are rendered in the Java source syntax for their
+    type**, as `Annotation#toString()` renders them. Previously only the type-independent
+    `String#valueOf` form was printed for numeric values, and `String` and `char` values
+    were quoted and escaped only when they were not inside an array:
+
+    | Value | 4.x | 5.x |
+    | --- | --- | --- |
+    | `String[]` | `{a, b}` | `{"a", "b"}` |
+    | `char[]` | `{a, b}` | `{'a', 'b'}` |
+    | `byte` | `1` | `(byte)0x01` |
+    | `long` | `4` | `4L` |
+    | `float` | `1.5` | `1.5f` |
+    | `Float.NaN` | `NaN` | `0.0f/0.0f` |
+    | `Double.POSITIVE_INFINITY` | `Infinity` | `1.0/0.0` |
+
+    String and character escaping also now covers everything the JDK escapes — the
+    backslash itself, `\t`, `\b`, `\f`, control characters and characters outside the
+    Latin-1 range — rather than just the quote characters, `\n` and `\r`.
+
+    Two deliberate differences from `Annotation#toString()` remain. ClassGraph names a
+    nested class the way the rest of its API names classes, with the classfile's `$`
+    separator (`@com.xyz.Outer$Inner`, not `@com.xyz.Outer.Inner`), so that the printed
+    name is the one `ScanResult#getClassInfo(String)` accepts. And ClassGraph qualifies
+    an enum constant with its type (`java.lang.annotation.RetentionPolicy.RUNTIME`,
+    not `RUNTIME`), which is what `AnnotationEnumValue#toString()` has to print to be
+    meaningful on its own.
+
+  * **A field's constant initializer value is escaped the same way**, in
+    `FieldInfo#toString()`. It previously escaped only the backslash and the quote
+    character, so a `String` constant containing a newline broke the rendering across
+    two lines. Numeric constant initializers keep the plain form (`static final long X =
+    4`, not `4L`), since a field declaration prints the type immediately before the
+    value.
+
+  * **`PackageInfo#toString()` and `ModuleInfo#toString()` name what they are**, as
+    `Package#toString()` and `Module#toString()` do: `package com.xyz` and `module
+    java.base`, rather than the bare name. Call `getName()` for the name alone.
+
 ## Bug fixes
 
 Bugs found during the port. Each of these is a pre-existing bug in ClassGraph 4.x, and

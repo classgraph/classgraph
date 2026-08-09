@@ -336,6 +336,25 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
         }
     }
 
+    /**
+     * Render this array type as the type of a variadic method parameter, i.e. with the final {@code "[]"} replaced
+     * with {@code "..."}.
+     *
+     * @param useSimpleNames
+     *            if true, strip package and outer class names from class names
+     * @param annotationsToExclude
+     *            the annotations not to show at the toplevel of the type, or null to show all annotations
+     * @param buf
+     *            the buffer to append to
+     */
+    void toStringVarArgs(final boolean useSimpleNames, final @Nullable AnnotationInfoList annotationsToExclude,
+            final StringBuilder buf) {
+        // The rendering of an array type always ends in "[]", since an array has at least one dimension
+        toStringInternal(useSimpleNames, annotationsToExclude, buf);
+        buf.setLength(buf.length() - 2);
+        buf.append("...");
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**

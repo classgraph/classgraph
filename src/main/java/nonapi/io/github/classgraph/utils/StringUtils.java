@@ -42,11 +42,9 @@ public final class StringUtils {
             if (c == 32) {
                 c = 127;
             }
-            final var nibble1 = c >> 4;
-            final var hexDigit1 = nibble1 <= 9 ? (char) ('0' + nibble1) : (char) ('A' + nibble1 - 10);
-            final var nibble0 = c & 0xf;
-            final var hexDigit0 = nibble0 <= 9 ? (char) ('0' + nibble0) : (char) ('A' + nibble0 - 10);
-            CHAR_REPLACEMENTS[c] = "\\u00" + hexDigit1 + "" + hexDigit0;
+            final var buf = new StringBuilder(6);
+            appendUnicodeEscape((char) c, buf);
+            CHAR_REPLACEMENTS[c] = buf.toString();
         }
         CHAR_REPLACEMENTS['"'] = "\\\"";
         CHAR_REPLACEMENTS['\\'] = "\\\\";
@@ -62,6 +60,22 @@ public final class StringUtils {
      */
     private StringUtils() {
         // Cannot be constructed
+    }
+
+    /**
+     * Append the {@code \}{@code uXXXX} escape sequence for a character to a buffer.
+     *
+     * @param chr
+     *            The character to escape.
+     * @param buf
+     *            The buffer to append to.
+     */
+    private static void appendUnicodeEscape(final char chr, final StringBuilder buf) {
+        buf.append("\\u");
+        for (var shift = 12; shift >= 0; shift -= 4) {
+            final var nibble = (chr >> shift) & 0xf;
+            buf.append(nibble <= 9 ? (char) ('0' + nibble) : (char) ('a' + nibble - 10));
+        }
     }
 
     /**
@@ -90,21 +104,37 @@ public final class StringUtils {
         for (int i = 0, n = unsafeStr.length(); i < n; i++) {
             final var c = unsafeStr.charAt(i);
             if (c > 0xff) {
-                buf.append("\\u");
-                final var nibble3 = (c & 0xf000) >> 12;
-                buf.append(nibble3 <= 9 ? (char) ('0' + nibble3) : (char) ('A' + nibble3 - 10));
-                final var nibble2 = (c & 0xf00) >> 8;
-                buf.append(nibble2 <= 9 ? (char) ('0' + nibble2) : (char) ('A' + nibble2 - 10));
-                final var nibble1 = (c & 0xf0) >> 4;
-                buf.append(nibble1 <= 9 ? (char) ('0' + nibble1) : (char) ('A' + nibble1 - 10));
-                final var nibble0 = c & 0xf;
-                buf.append(nibble0 <= 9 ? (char) ('0' + nibble0) : (char) ('A' + nibble0 - 10));
+                appendUnicodeEscape(c, buf);
             } else {
                 final var replacement = CHAR_REPLACEMENTS[c];
                 buf.append(replacement == null ? String.valueOf(c) : replacement);
             }
         }
         return buf.toString();
+    }
+
+    /**
+     * Escape a character so that it can be shown surrounded by single quotes, using Java escape sequences for
+     * single quotes, backslashes, control characters, and any character outside the Latin-1 range.
+     *
+     * @param unsafeChr
+     *            The character to escape.
+     * @return The escaped character.
+     */
+    public static String escapeChar(final char unsafeChr) {
+        if (unsafeChr == '\'') {
+            return "\\'";
+        } else if (unsafeChr == '"') {
+            // A double quote has to be escaped between double quotes, but not between single quotes
+            return "\"";
+        } else if (unsafeChr > 0xff) {
+            final var buf = new StringBuilder(6);
+            appendUnicodeEscape(unsafeChr, buf);
+            return buf.toString();
+        } else {
+            final var replacement = CHAR_REPLACEMENTS[unsafeChr];
+            return replacement == null ? String.valueOf(unsafeChr) : replacement;
+        }
     }
 
     /**

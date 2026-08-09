@@ -151,7 +151,7 @@ public class MethodInfoTest {
         try (var scanResult = new ClassGraph().acceptPackages(MethodInfoTest.class.getPackage().getName())
                 .enableMethodInfo().scan()) {
             assertThat(scanResult.getClassInfo(MethodInfoTest.class.getName()).getConstructorInfo().getAsStrings())
-                    .containsOnly("public <init>()");
+                    .containsOnly("public " + MethodInfoTest.class.getName() + "()");
         }
     }
 
