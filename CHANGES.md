@@ -414,6 +414,16 @@ is fixed on the 4.x branch as well.
   August was read as December of the previous year. This affects
   `Resource#getLastModified()`.
 
+* `ClassInfo#getTypeDescriptor()` synthesizes a type descriptor for a class that has no
+  generic type signature, standing in for the classfile's own `super_class` and
+  `interfaces[]` entries so that type annotations on the `extends` and `implements`
+  clauses have somewhere to attach. It was building that descriptor from the class'
+  *transitive* interfaces, so the descriptor claimed the class directly implemented every
+  interface reachable from it, including the superinterfaces of its own interfaces and the
+  interfaces of its superclasses. It now uses the directly implemented interfaces, in
+  classfile order. This affects `ClassInfo#getTypeDescriptor()` and
+  `ClassInfo#getTypeSignatureOrTypeDescriptor()` for non-generic classes.
+
 Two further bugs found during the port were only reachable through the JSON
 serialization API, which 5.x removes (`AnnotationParameterValue#toString()` threw
 `NullPointerException` for a null parameter value, and `ScanResult#fromJSON(String)` did
