@@ -131,31 +131,40 @@ public class ClasspathFinder {
             // Don't scan non-system modules if classpath is overridden
             scanNonSystemModules = false;
         } else if (scanSpec.overrideClassLoaders != null) {
-            // If classloaders are overridden, only scan non-system modules if an override classloader is a JPMS
-            // AppClassLoader or PlatformClassLoader
+            // If classloaders are overridden, scan only what the named classloaders can load -- so non-system
+            // modules are scanned only if the JPMS AppClassLoader is one of the override classloaders
             scanNonSystemModules = false;
             for (final ClassLoader classLoader : scanSpec.overrideClassLoaders) {
                 final String classLoaderClassName = classLoader.getClass().getName();
                 // It's not possible to instantiate AppClassLoader or PlatformClassLoader, so if these are
                 // passed in as override classloaders, they must have been obtained using
-                // Thread.currentThread().getContextClassLoader() [.getParent()] or similar
-                if (!scanSpec.enableSystemJarsAndModules
-                        && classLoaderClassName.equals("jdk.internal.loader.ClassLoaders$PlatformClassLoader")) {
+                // Thread.currentThread().getContextClassLoader() [.getParent()] or similar.
+                // Neither of them exposes the locations it loads classes from, so neither of them can be
+                // scanned as a classloader -- instead scan using the mechanism that can reach the classes
+                // that classloader loads (#639, #795)
+                if (classLoaderClassName.equals("jdk.internal.loader.ClassLoaders$AppClassLoader")) {
+                    // The AppClassLoader loads the classes on the java.class.path classpath, and the
+                    // application's own (non-system) modules
                     if (classpathFinderLog != null) {
-                        classpathFinderLog
-                                .log("overrideClassLoaders() was called with an instance of " + classLoaderClassName
-                                        + ", so enableSystemJarsAndModules() was called automatically");
-                    }
-                    scanSpec.enableSystemJarsAndModules = true;
-                }
-                if (classLoaderClassName.equals("jdk.internal.loader.ClassLoaders$AppClassLoader")
-                        || classLoaderClassName.equals("jdk.internal.loader.ClassLoaders$PlatformClassLoader")) {
-                    if (classpathFinderLog != null) {
-                        classpathFinderLog
-                                .log("overrideClassLoaders() was called with an instance of " + classLoaderClassName
-                                        + ", so the `java.class.path` classpath will also be scanned");
+                        classpathFinderLog.log("overrideClassLoaders() was called with an instance of "
+                                + classLoaderClassName + ", which does not expose the locations it loads from, "
+                                + "so the `java.class.path` classpath and the non-system modules will be "
+                                + "scanned instead, since these are what it loads from");
                     }
                     forceScanJavaClassPath = true;
+                    scanNonSystemModules = true;
+                } else if (classLoaderClassName
+                        .equals("jdk.internal.loader.ClassLoaders$PlatformClassLoader")) {
+                    // The PlatformClassLoader loads only system modules
+                    if (!scanSpec.enableSystemJarsAndModules) {
+                        if (classpathFinderLog != null) {
+                            classpathFinderLog.log("overrideClassLoaders() was called with an instance of "
+                                    + classLoaderClassName + ", which does not expose the locations it loads "
+                                    + "from, so enableSystemJarsAndModules() was called automatically, since "
+                                    + "the system jars and modules are what it loads from");
+                        }
+                        scanSpec.enableSystemJarsAndModules = true;
+                    }
                 }
             }
         } else {

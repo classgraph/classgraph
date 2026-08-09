@@ -222,4 +222,79 @@ public class ClasspathFinderTest {
         assertTrue(paths.remove(classesDir), "Classpath should have contained " + classesDir + ": " + paths);
         assertEquals(0, paths.size(), "Classpath should have no other entries: " + paths);
     }
+
+    /**
+     * Get the classpath element that this test class was loaded from.
+     *
+     * @return the classpath element path.
+     */
+    private static Path testClasspathElement() throws Exception {
+        return Paths.get(ClasspathFinderTest.class.getProtectionDomain().getCodeSource().getLocation().toURI())
+                .toRealPath();
+    }
+
+    /**
+     * Get the platform classloader, which only exists in JDK 9+, without referring to
+     * {@code ClassLoader#getPlatformClassLoader()}, which does not exist in the JDK 8 API this library is
+     * compiled against.
+     *
+     * @return the platform classloader.
+     */
+    private static ClassLoader platformClassLoader() throws Exception {
+        return (ClassLoader) ClassLoader.class.getMethod("getPlatformClassLoader").invoke(null);
+    }
+
+    /**
+     * Test that when the JDK's application classloader is passed to {@link ScanSpec#overrideClassLoaders}, both the
+     * {@code java.class.path} classpath and the non-system modules are scanned, since those are what the
+     * application classloader loads from.
+     */
+    @Test
+    @EnabledForJreRange(min = JRE.JAVA_9)
+    public void testApplicationClassLoaderOverrideScansClasspathAndNonSystemModules() throws Exception {
+        // Arrange
+        final ScanSpec scanSpec = new ScanSpec();
+        scanSpec.overrideClassLoaders(ClassLoader.getSystemClassLoader());
+
+        // Act
+        final ClasspathFinder classpathFinder = new ClasspathFinder(scanSpec, new ReflectionUtils(), new LogNode());
+
+        // Assert
+        final Set<Path> paths = new TreeSet<>();
+        for (final String path : classpathFinder.getClasspathOrder().getClasspathEntryUniqueResolvedPaths()) {
+            paths.add(Paths.get(path));
+        }
+        assertTrue(paths.contains(testClasspathElement()),
+                "java.class.path should have been scanned: " + paths);
+        final ModuleFinder moduleFinder = classpathFinder.getModuleFinder();
+        assertNotNull(moduleFinder, "Modules should have been searched for");
+        assertNotNull(moduleFinder.getNonSystemModuleRefs(), "Non-system modules should have been scanned");
+    }
+
+    /**
+     * Test that when the JDK's platform classloader is passed to {@link ScanSpec#overrideClassLoaders}, the system
+     * jars and modules are scanned, but the {@code java.class.path} classpath is not, since the platform
+     * classloader cannot load from it.
+     */
+    @Test
+    @EnabledForJreRange(min = JRE.JAVA_9)
+    public void testPlatformClassLoaderOverrideDoesNotScanClasspath() throws Exception {
+        // Arrange
+        final ScanSpec scanSpec = new ScanSpec();
+        scanSpec.overrideClassLoaders(platformClassLoader());
+
+        // Act
+        final ClasspathFinder classpathFinder = new ClasspathFinder(scanSpec, new ReflectionUtils(), new LogNode());
+
+        // Assert
+        final ModuleFinder moduleFinder = classpathFinder.getModuleFinder();
+        assertNotNull(moduleFinder, "Modules should have been searched for");
+        assertTrue(moduleFinder.getSystemModuleRefs().size() > 0, "System modules should have been scanned");
+        final Set<Path> paths = new TreeSet<>();
+        for (final String path : classpathFinder.getClasspathOrder().getClasspathEntryUniqueResolvedPaths()) {
+            paths.add(Paths.get(path));
+        }
+        assertTrue(!paths.contains(testClasspathElement()),
+                "java.class.path should not have been scanned: " + paths);
+    }
 }
