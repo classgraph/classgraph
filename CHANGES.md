@@ -163,11 +163,15 @@ convention used by the JDK itself (`NullPointerException` for a null argument,
 | `ClassInfoList#exclude(null)` | `NullPointerException` with a null message | `NullPointerException: other must not be null` |
 | `ClassInfo#loadClass((Class<?>) null)` | `IllegalArgumentException: Could not load class <name>` | `NullPointerException: superclassOrInterfaceType must not be null` |
 | `TypeSignature#resolveTypeVariables(null)` | `IllegalArgumentException` | `NullPointerException` |
-| `TypeSignature#equalsIgnoringTypeParams(null)` | returned `false` | `NullPointerException` |
 | `ScanResult#loadClass(String, boolean)` and `#loadClass(String, Class, boolean)`, for an empty class name | `NullPointerException: className cannot be null or empty` | `IllegalArgumentException: className must not be empty` (an empty string is not a null) |
 
 The messages themselves are not part of the API contract and may change; the exception
 types are.
+
+The exception is methods for which accepting null is the sensible, expected behavior:
+comparisons. `equals(Object)` and `TypeSignature#equalsIgnoringTypeParams(TypeSignature)`
+still answer null with `false`, rather than throwing, and the latter's parameter is now
+annotated `@Nullable` to say so.
 
 Code that relied on passing null to mean "no filter" has to stop passing it. Code that
 was already passing non-null arguments is unaffected.

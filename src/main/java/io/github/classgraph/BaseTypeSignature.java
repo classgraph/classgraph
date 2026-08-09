@@ -34,7 +34,6 @@ import java.util.Set;
 
 import io.github.classgraph.Classfile.TypePathNode;
 import nonapi.io.github.classgraph.types.Parser;
-import nonapi.io.github.classgraph.utils.Assert;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -293,8 +292,7 @@ public class BaseTypeSignature extends TypeSignature {
      * classgraph.TypeSignature)
      */
     @Override
-    public boolean equalsIgnoringTypeParams(final TypeSignature other) {
-        Assert.notNull(other, "other");
+    public boolean equalsIgnoringTypeParams(final @Nullable TypeSignature other) {
         if (!(other instanceof final BaseTypeSignature otherBaseTypeSignature)) {
             return false;
         }

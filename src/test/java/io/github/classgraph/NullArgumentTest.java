@@ -1,5 +1,6 @@
 package io.github.classgraph;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.lang.annotation.Annotation;
@@ -169,6 +170,18 @@ class NullArgumentTest {
         final var typeSignature = scanResult.getClassInfo(ClassInfoList.class.getName())
                 .getMethodInfo("getAssignableTo").get(0).getParameterInfo()[0].getTypeSignatureOrTypeDescriptor();
         rejectsNull(() -> typeSignature.resolveTypeVariables(null));
-        rejectsNull(() -> typeSignature.equalsIgnoringTypeParams(null));
+    }
+
+    /**
+     * The exception to the rule: a comparison accepts null and answers it, rather
+     * than throwing, since that is what {@link Object#equals(Object)} does and what
+     * a caller comparing two possibly-absent signatures expects.
+     */
+    @Test
+    void comparisonsAcceptNull() {
+        final var typeSignature = scanResult.getClassInfo(ClassInfoList.class.getName())
+                .getMethodInfo("getAssignableTo").get(0).getParameterInfo()[0].getTypeSignatureOrTypeDescriptor();
+        assertThat(typeSignature.equalsIgnoringTypeParams(null)).isFalse();
+        assertThat(typeSignature.equals(null)).isFalse();
     }
 }

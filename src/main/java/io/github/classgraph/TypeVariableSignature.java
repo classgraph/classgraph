@@ -39,7 +39,6 @@ import io.github.classgraph.Classfile.TypePathNode;
 import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.Parser;
 import nonapi.io.github.classgraph.types.TypeUtils;
-import nonapi.io.github.classgraph.utils.Assert;
 import org.jspecify.annotations.Nullable;
 
 /** A type variable signature. */
@@ -300,8 +299,7 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
      * classgraph.TypeSignature)
      */
     @Override
-    public boolean equalsIgnoringTypeParams(final TypeSignature other) {
-        Assert.notNull(other, "other");
+    public boolean equalsIgnoringTypeParams(final @Nullable TypeSignature other) {
         if (other instanceof final ClassRefTypeSignature otherClassRef) {
             if ("java.lang.Object".equals(otherClassRef.className)) {
                 // java.lang.Object can be reconciled with any type, so it can be reconciled

@@ -389,12 +389,12 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
     /**
      * Compare base types, ignoring generic type parameters.
      *
-     * @param other the other {@link TypeSignature} to compare to.
+     * @param other the other {@link TypeSignature} to compare to, or null.
      * @return True if the two {@link TypeSignature} objects are equal, ignoring
-     *         type parameters.
-     * @throws NullPointerException if {@code other} is null.
+     *         type parameters. As with {@link Object#equals(Object)}, null is not
+     *         equal to anything, so null returns false rather than throwing.
      */
-    public abstract boolean equalsIgnoringTypeParams(final TypeSignature other);
+    public abstract boolean equalsIgnoringTypeParams(final @Nullable TypeSignature other);
 
     /**
      * Parse a type signature.
