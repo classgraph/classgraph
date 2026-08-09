@@ -37,9 +37,6 @@ import io.github.classgraph.BaseTypeSignature;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassRefTypeSignature;
 
-/**
- * Issue140Test.
- */
 public class Issue140Test {
     /** The int field. */
     // Order of fields is significant
@@ -48,9 +45,6 @@ public class Issue140Test {
     /** The string arr field. */
     public String[] stringArrField;
 
-    /**
-     * Issue 140 test.
-     */
     @Test
     public void issue140Test() {
         try (var scanResult = new ClassGraph().acceptPackages(Issue140Test.class.getPackage().getName())

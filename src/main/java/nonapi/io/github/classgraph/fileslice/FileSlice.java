@@ -69,10 +69,11 @@ public class FileSlice extends Slice {
      * The {@code java.lang.foreign.Arena} (JDK 22+) used to memory-map the file, if
      * any. Typed as {@link Object}, since ClassGraph needs to compile and run on
      * JDK 17+. Closing the arena unmaps {@link #backingByteBuffer}, without needing
-     * to call the terminally-deprecated {@code Unsafe::invokeCleaner} method
-     * (#939). Only set for toplevel file slices, which own the mapping (sub slices
-     * just duplicate the backing byte buffer).
+     * to call the terminally-deprecated {@code Unsafe::invokeCleaner} method.
+     * Only set for toplevel file slices, which own the mapping (sub slices just
+     * duplicate the backing byte buffer).
      */
+    // #939
     private @Nullable Object arena;
 
     /** True if this is a top level file slice. */

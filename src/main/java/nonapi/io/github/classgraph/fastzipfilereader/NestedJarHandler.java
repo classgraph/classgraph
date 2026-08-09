@@ -550,8 +550,7 @@ public class NestedJarHandler {
      * which closes every open {@link Slice} and the inflater {@link Recycler}, so
      * calling {@code removeTemporaryFilesAfterScan()} left the returned
      * {@link ScanResult} unable to read any resource or load any class from a jar,
-     * even though {@link ScanResult#isClosed()} still reported {@code false}
-     * (#916).
+     * even though {@link ScanResult#isClosed()} still reported {@code false}.
      *
      * <p>
      * If temporary files <i>were</i> created, they back memory-mapped slices of the
@@ -562,6 +561,7 @@ public class NestedJarHandler {
      * @return true if the handler was closed (i.e. if temporary files existed and
      *         had to be removed)
      */
+    // #916
     public boolean removeTemporaryFiles(final @Nullable LogNode log) {
         final var tempFilesCurr = tempFiles;
         if (tempFilesCurr == null || tempFilesCurr.isEmpty()) {

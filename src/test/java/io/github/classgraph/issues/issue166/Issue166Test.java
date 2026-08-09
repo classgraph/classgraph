@@ -34,13 +34,7 @@ import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 
-/**
- * Issue166Test.
- */
 public class Issue166Test {
-    /**
-     * Issue 166 test.
-     */
     @Test
     public void issue166Test() {
         final var jarURL = Issue166Test.class.getClassLoader().getResource("issue166-jar-without-extension");

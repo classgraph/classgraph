@@ -10,12 +10,13 @@ import org.junit.jupiter.api.Test;
 import io.github.classgraph.ClassGraph;
 
 /**
- * Issue 870 (and issue 643): a glob wildcard in the middle of an accepted
- * package name, e.g. {@code "eu.*.domain"}, matched nothing. Recursive scanning
- * stopped one directory above the wildcard, because the set of accepted-path
- * prefixes -- which is what tells the scanner that a directory may still lead
- * to an accepted path -- was only populated up to the first wildcard.
+ * A glob wildcard in the middle of an accepted package name, e.g.
+ * {@code "eu.*.domain"}, matched nothing. Recursive scanning stopped one
+ * directory above the wildcard, because the set of accepted-path prefixes --
+ * which is what tells the scanner that a directory may still lead to an
+ * accepted path -- was only populated up to the first wildcard.
  */
+// #643
 public class Issue870Test {
     /** The package containing the test fixture packages. */
     private static final String PKG = Issue870Test.class.getPackage().getName();
@@ -64,7 +65,7 @@ public class Issue870Test {
     /**
      * A glob accept is now recursive into sub-packages, just like a literal accept,
      * so {@code *.domain} and the equivalent explicit package list give the same
-     * result (#870's original question). This is implemented by letting
+     * result (this issue's original question). This is implemented by letting
      * {@code AcceptRejectPrefix} hold a glob as a regexp prefix pattern, rather
      * than requiring a literal {@code String#startsWith} prefix.
      */
@@ -121,10 +122,10 @@ public class Issue870Test {
     }
 
     /**
-     * {@code "**"} used as a complete segment matches zero or more whole segments
-     * (#940), but {@code "**"} glued to other characters within a segment is
-     * rejected.
+     * {@code "**"} used as a complete segment matches zero or more whole segments,
+     * but {@code "**"} glued to other characters within a segment is rejected.
      */
+    // #940
     @Test
     public void doubleGlobMustFormACompleteSegment() {
         assertThat(scan(PKG + ".**.domain")).contains(ALPHA_THING, BETA_THING, SUB_THING).doesNotContain(OTHER_THING);

@@ -8,7 +8,7 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfoList;
 
 /**
- * Issue 924: there is no separate "getInterfacesImplementing()" method, because
+ * There is no separate "getInterfacesImplementing()" method, because
  * {@code getClassesImplementing()} already returns the transitive subinterfaces
  * of an interface as well as the classes that implement it. This test locks in
  * that contract, and the ability to partition the result with

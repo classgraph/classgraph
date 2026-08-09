@@ -7,9 +7,6 @@ import org.junit.jupiter.api.Test;
 import io.github.classgraph.ClassGraph;
 
 public class Issue780Test {
-    /**
-     * Issue 780.
-     */
     @Test
     public void getResourcesWithPathShouldNeverReturnNull() {
         try (var result = new ClassGraph().scan()) {

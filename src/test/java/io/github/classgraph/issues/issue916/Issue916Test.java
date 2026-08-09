@@ -9,13 +9,13 @@ import io.github.classgraph.Resource;
 import io.github.classgraph.ScanResult;
 
 /**
- * Issue 916: calling {@link ClassGraph#removeTemporaryFilesAfterScan()} closed
- * the whole {@code NestedJarHandler} -- every open slice and the inflater
- * recycler -- before the {@link ScanResult} was returned. Any subsequent read
- * of a resource, or load of a class whose bytes had to come from a jar, then
- * failed, even though {@link ScanResult#isClosed()} still reported
- * {@code false}, and even for an ordinary jar that never needed a temporary
- * file in the first place.
+ * Calling {@link ClassGraph#removeTemporaryFilesAfterScan()} closed the whole
+ * {@code NestedJarHandler} -- every open slice and the inflater recycler --
+ * before the {@link ScanResult} was returned. Any subsequent read of a
+ * resource, or load of a class whose bytes had to come from a jar, then failed,
+ * even though {@link ScanResult#isClosed()} still reported {@code false}, and
+ * even for an ordinary jar that never needed a temporary file in the first
+ * place.
  */
 public class Issue916Test {
     /**

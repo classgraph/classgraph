@@ -74,9 +74,6 @@ class SpringBootRestartClassLoaderHandler implements ClassLoaderHandler {
      * The RestartClassLoader shades only the project classes and additional
      * directories that are configurable, so itself needs access to parent, but
      * last.
-     * 
-     * See: <a href="https://github.com/classgraph/classgraph/issues/267">#267</a>,
-     * <a href="https://github.com/classgraph/classgraph/issues/268">#268</a>
      *
      * @param classLoader    the {@link ClassLoader} to find the classpath entries
      *                       order for.
@@ -84,6 +81,7 @@ class SpringBootRestartClassLoaderHandler implements ClassLoaderHandler {
      * @param scanSpec       the {@link ScanSpec}.
      * @param log            the log.
      */
+    // #267, #268
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
             final ScanSpec scanSpec, final @Nullable LogNode log) {

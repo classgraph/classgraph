@@ -34,13 +34,7 @@ import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 
-/**
- * Issue260Test.
- */
 public class Issue260Test {
-    /**
-     * Issue 260 test.
-     */
     @Test
     public void issue260Test() {
         try (var scanResult = new ClassGraph().acceptPackages(Issue260Test.class.getPackage().getName()).enableAllInfo()

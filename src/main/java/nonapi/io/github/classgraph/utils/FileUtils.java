@@ -691,7 +691,7 @@ public final class FileUtils {
      * Closing the arena ({@link #closeArena(Object, ReflectionUtils, LogNode)})
      * frees or unmaps all {@link ByteBuffer}s obtained from it, which on JDK 22+
      * replaces the use of the terminally-deprecated {@code Unsafe::invokeCleaner}
-     * method (#939).
+     * method.
      *
      * @param reflectionUtils the reflection utils (the {@code java.lang.foreign}
      *                        API has to be invoked using reflection, since
@@ -699,6 +699,7 @@ public final class FileUtils {
      * @return a new shared {@code Arena} instance, or null if the arena API is not
      *         available (JDK older than 22).
      */
+    // #939
     public static @Nullable Object openArena(final ReflectionUtils reflectionUtils) {
         if (VersionFinder.JAVA_MAJOR_VERSION < 22) {
             // The java.lang.foreign API was only finalized in JDK 22 (the preview versions

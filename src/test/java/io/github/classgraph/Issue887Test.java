@@ -18,7 +18,7 @@ import nonapi.io.github.classgraph.utils.ModuleReaderUtils;
 
 /**
  * Scanning under Minecraft Forge aborted with
- * {@code IllegalArgumentException: Could not call moduleReader.list()} (#887).
+ * {@code IllegalArgumentException: Could not call moduleReader.list()}.
  *
  * <p>
  * The cause is outside ClassGraph: Forge's

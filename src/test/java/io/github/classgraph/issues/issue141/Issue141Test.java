@@ -29,8 +29,6 @@
 package io.github.classgraph.issues.issue141;
 
 /**
- * Issue141Test.
- *
  * @author wuetherich
  */
 public class Issue141Test {

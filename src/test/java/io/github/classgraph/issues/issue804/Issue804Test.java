@@ -12,9 +12,6 @@ import org.junit.jupiter.api.io.TempDir;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
-/**
- * Issue 804.
- */
 public class Issue804Test {
 
     private static final String NESTED_EXAMPLE_CLASS = "org.springframework.util.ResourceUtils";

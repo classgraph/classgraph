@@ -37,9 +37,6 @@ import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 
-/**
- * Issue209Test.
- */
 public class Issue209Test {
     /**
      * Test spring boot jar with lib jars.

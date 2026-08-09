@@ -39,8 +39,9 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Allow for overrideClassLoaders to be called with a ClassGraphClassLoader as a
- * parameter, so that nested scans can share a single classloader (#485).
+ * parameter, so that nested scans can share a single classloader.
  */
+// #485
 class ClassGraphClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {

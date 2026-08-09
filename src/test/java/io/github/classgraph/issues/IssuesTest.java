@@ -14,9 +14,6 @@ import io.github.classgraph.test.internal.InternalExtendsExternal;
  * IssuesTest.
  */
 public class IssuesTest {
-    /**
-     * Issue 70.
-     */
     @Test
     public void issue70() {
         try (var scanResult = new ClassGraph().acceptPackages(Impl1.class.getPackage().getName()).scan()) {
@@ -24,9 +21,6 @@ public class IssuesTest {
         }
     }
 
-    /**
-     * Issue 70 enable external classes.
-     */
     @Test
     public void issue70EnableExternalClasses() {
         try (var scanResult = new ClassGraph().acceptPackages(Impl1.class.getPackage().getName())

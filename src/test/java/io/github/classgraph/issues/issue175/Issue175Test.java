@@ -40,9 +40,6 @@ import org.junit.jupiter.api.Test;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.MethodInfo;
 
-/**
- * Issue175Test.
- */
 public class Issue175Test {
     /**
      * Test synthetic.

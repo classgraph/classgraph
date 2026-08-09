@@ -40,13 +40,7 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
 import io.github.classgraph.FieldInfo;
 
-/**
- * Issue100Test.
- */
 public class Issue100Test {
-    /**
-     * Issue 100 test.
-     */
     @Test
     public void issue100Test() {
         final var classLoader = Issue100Test.class.getClassLoader();

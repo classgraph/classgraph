@@ -25,7 +25,7 @@ import io.github.classgraph.ScanResult;
 
 /**
  * The same file was returned twice when it was reachable both as a module
- * resource and as a classpath resource (#704).
+ * resource and as a classpath resource.
  *
  * <p>
  * In the original report, Maven Surefire spliced the test output directory into

@@ -156,10 +156,11 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
      * Run the type annotation decorators on the given parsed field type. Any
      * individual type annotation that cannot be matched to the type (e.g. an
      * unresolvable nested type, or a compiler bug) is skipped rather than being
-     * allowed to abort parsing of the whole field type. (#897)
+     * allowed to abort parsing of the whole field type.
      *
      * @param fieldType the parsed field type signature or descriptor to decorate.
      */
+    // #897
     private void decorateType(final TypeSignature fieldType) {
         if (typeAnnotationDecorators != null) {
             for (final TypeAnnotationDecorator decorator : typeAnnotationDecorators) {

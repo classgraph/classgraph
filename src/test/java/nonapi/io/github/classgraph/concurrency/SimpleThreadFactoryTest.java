@@ -5,13 +5,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.Test;
 
 /**
- * Issue 931: {@link SimpleThreadFactory#newThread(Runnable)} allocated a new
+ * {@link SimpleThreadFactory#newThread(Runnable)} allocated a new
  * {@link ThreadGroup} for every thread it created. A {@link ThreadGroup}
  * registers itself with its parent on construction, and a non-daemon
  * {@link ThreadGroup} is only unregistered when it is explicitly destroyed, so
  * every scan leaked one {@link ThreadGroup} (plus its {@code Thread[]} array)
  * that was reachable forever from the parent group.
  */
+// #931
 public class SimpleThreadFactoryTest {
     /**
      * Threads created by the factory must not each get their own new

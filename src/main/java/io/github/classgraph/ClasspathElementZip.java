@@ -490,12 +490,13 @@ class ClasspathElementZip extends ClasspathElement {
     /**
      * Filter out any candidate package root prefix that is really a package with
      * the same name as the prefix, e.g. a package named {@code classes} in a jar
-     * that has no {@code classes/} package root (#929).
+     * that has no {@code classes/} package root.
      *
      * @param logicalZipFile the logical zipfile
      * @param log            the log
      * @return the package root prefixes that were not disproved
      */
+    // #929
     private String[] getVerifiedPackageRootPrefixes(final LogicalZipFile logicalZipFile,
             final @Nullable LogNode log) {
         // Find the first classfile beneath each candidate package root prefix

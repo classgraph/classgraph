@@ -197,8 +197,9 @@ public class ScanSpec {
      * If true, when classes have superclasses, implemented interfaces or
      * annotations that are external classes, those classes are also scanned. (Even
      * though this slows down scanning a bit, there is no API for disabling this
-     * currently, since disabling it can lead to problems -- see #261.)
+     * currently, since disabling it can lead to problems.)
      */
+    // #261
     public boolean extendScanningUpwardsToExternalClasses = true;
 
     /**
@@ -314,9 +315,8 @@ public class ScanSpec {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /**
-     * Sort prefixes to ensure correct accept/reject evaluation (see Issue #167).
-     */
+    /** Sort prefixes to ensure correct accept/reject evaluation. */
+    // #167
     public void sortPrefixes() {
         for (final Field field : ScanSpec.class.getDeclaredFields()) {
             if (AcceptReject.class.isAssignableFrom(field.getType())) {

@@ -36,13 +36,11 @@ import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 
-/**
- * Issue255Test.
- */
 public class Issue255Test {
 
     /**
-     * Issue 255 test.
+     * A directory classpath entry whose path contains percent-encoded characters is
+     * scanned.
      *
      * @throws IOException If an I/O exception occurs.
      */

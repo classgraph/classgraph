@@ -36,9 +36,6 @@ import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 
-/**
- * Issue303Test.
- */
 public class Issue303Test {
     /** The Constant PACKAGE_NAME. */
     private static final String PACKAGE_NAME = "io.github.classgraph";

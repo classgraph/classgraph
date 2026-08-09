@@ -38,9 +38,6 @@ import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 
-/**
- * Issue152Test.
- */
 public class Issue152Test {
     /** The test field. */
     public Map<Integer, Map<String, Boolean>> testField;
@@ -71,9 +68,6 @@ public class Issue152Test {
     public static class TestType {
     }
 
-    /**
-     * Issue 152 test.
-     */
     @Test
     public void issue152Test() {
         final var pkg = Issue152Test.class.getPackage().getName();

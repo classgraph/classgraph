@@ -19,7 +19,7 @@ import nonapi.io.github.classgraph.utils.FastPathResolver;
 
 /**
  * Nothing in a webapp deployed to Tomcat as a non-exploded WAR file (i.e. with
- * {@code unpackWARs="false"}) was scanned (#925).
+ * {@code unpackWARs="false"}) was scanned.
  *
  * <p>
  * Tomcat serves a non-exploded WAR through its own {@code "war:"} URL protocol,

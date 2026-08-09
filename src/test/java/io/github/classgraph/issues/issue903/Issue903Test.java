@@ -21,7 +21,7 @@ import io.github.classgraph.ClassGraph;
  * '!' is a legal character in a file or directory name on every platform
  * ClassGraph supports, but it was unconditionally treated as a nested jar
  * separator, so any classpath element with a '!' in its path was mangled into a
- * nested jar path and could not be opened (#903).
+ * nested jar path and could not be opened.
  *
  * <p>
  * The {@link java.net.JarURLConnection} spec defines the separator as

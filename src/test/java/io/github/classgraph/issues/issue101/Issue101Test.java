@@ -34,9 +34,6 @@ import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 
-/**
- * Issue101Test.
- */
 public class Issue101Test {
     /**
      * Non inherited annotation.

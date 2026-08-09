@@ -39,9 +39,6 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
 import io.github.classgraph.MethodInfo;
 
-/**
- * Issue37Test.
- */
 public class Issue37Test {
     /**
      * Constructor.
@@ -50,9 +47,6 @@ public class Issue37Test {
     public Issue37Test() {
     }
 
-    /**
-     * Issue 37 test.
-     */
     @Issue37Annotation
     @Test
     public void issue37Test() {

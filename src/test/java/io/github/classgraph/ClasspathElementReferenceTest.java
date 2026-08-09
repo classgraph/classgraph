@@ -22,7 +22,7 @@ import nonapi.io.github.classgraph.scanspec.ScanSpec;
  * reference, not from whichever work unit happened to create the element.
  *
  * <p>
- * Otherwise the classpath order is nondeterministic (#810), and
+ * Otherwise the classpath order is nondeterministic, and
  * {@link ClassInfo#loadClass()} intermittently loads a class through the wrong
  * classloader (which is what made
  * {@code io.github.classgraph.issues.issue267.ClassLoadingWorksWithParentLastLoadersStubTest}
@@ -30,6 +30,7 @@ import nonapi.io.github.classgraph.scanspec.ScanSpec;
  * timing-dependent and cannot be forced, so the precedence rule that they
  * depend on is tested directly here.
  */
+// #810
 class ClasspathElementReferenceTest {
     /**
      * Build a classpath element as if it had been created by the work unit for the

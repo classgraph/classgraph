@@ -34,13 +34,7 @@ import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 
-/**
- * Issue46Test.
- */
 public class Issue46Test {
-    /**
-     * Issue 46 test.
-     */
     @Test
     public void issue46Test() {
         final var jarPath = "jar:file://"

@@ -205,8 +205,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * selects the JVM's treatment of the {@code invokespecial} instruction, and has
      * no counterpart in {@link Modifier} -- the same bit value is
      * {@link Modifier#SYNCHRONIZED}, which is not a legal class modifier. It is
-     * masked out of the value returned by {@link #getModifiers()} (#791).
+     * masked out of the value returned by {@link #getModifiers()}.
      */
+    // #791
     private static final int ACC_SUPER = 0x0020;
 
     /** The constant empty return value used when no classes are reachable. */
@@ -476,11 +477,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * both {@code ACC_PUBLIC} and {@code ACC_PROTECTED} set, so that both
      * {@link #isPublic()} and {@link #isProtected()} returned true. The remaining
      * bits (e.g. {@code ACC_STATIC}, which only appears in the {@code InnerClasses}
-     * attribute) are OR'd in as before. (#791)
+     * attribute) are OR'd in as before.
      *
      * @param innerClassModifierBits the modifier bits from the {@code InnerClasses}
      *                               attribute entry for this class
      */
+    // #791
     void setNestedClassModifiers(final int innerClassModifierBits) {
         this.modifiers = (this.modifiers & ~ACCESS_LEVEL_MODIFIERS) | innerClassModifierBits;
     }
@@ -1201,8 +1203,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * <p>
      * <b>Note:</b> comparing the returned value against a hardcoded integer is
-     * fragile, and the value of that bit changed in version 4.8.186 (see
-     * <a href="https://github.com/classgraph/classgraph/issues/791">#791</a>): a
+     * fragile, and the value of that bit changed in version 4.8.186: a
      * {@code protected static} nested class previously returned 0x002C, and now
      * returns 0x000C. Prefer the named accessors ({@link #isPublic()},
      * {@link #isProtected()}, {@link #isPrivate()}, {@link #isStatic()},
@@ -1213,6 +1214,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * @return The class modifier bits, e.g. {@link Modifier#PUBLIC}.
      */
+    // #791
     public int getModifiers() {
         return modifiers & ~ACC_SUPER;
     }

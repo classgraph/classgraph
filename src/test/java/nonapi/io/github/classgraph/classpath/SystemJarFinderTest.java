@@ -19,8 +19,9 @@ import nonapi.io.github.classgraph.utils.FileUtils;
 /**
  * Test that an application directory containing a bundled JRE is not mistaken
  * for a JDK root, which would cause the application's own jars to be classified
- * as JRE lib jars and silently dropped from the classpath (#816).
+ * as JRE lib jars and silently dropped from the classpath.
  */
+// #816
 public class SystemJarFinderTest {
 
     /**
@@ -40,8 +41,9 @@ public class SystemJarFinderTest {
     /**
      * An application directory with a bundled JRE in {@code jre/} and the
      * application's own jars in {@code lib/} must not be treated as a JDK root --
-     * this is the #816 layout.
+     * this is the layout from the original report.
      */
+    // #816
     @Test
     public void appDirWithBundledJreIsNotAJDKRoot(@TempDir final Path tmpDir) throws IOException {
         touch(tmpDir, "jre/lib/rt.jar");

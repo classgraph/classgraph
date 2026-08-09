@@ -122,9 +122,7 @@ public final class SystemJarFinder {
      *
      * <pre>
      * myapp/
-     *     jre/     &lt;-- the bundled JRE ({@code
-     * java.home
-     * } points here)
+     *     jre/     &lt;-- the bundled JRE ({@code java.home} points here)
      *     lib/     &lt;-- the application's own jars
      * </pre>
      *
@@ -134,7 +132,7 @@ public final class SystemJarFinder {
      * {@code myapp/lib} would be classified as a JRE lib jar -- which causes those
      * jars to be silently dropped from the classpath (see
      * {@code ClasspathOrder#addClasspathEntry}), so none of the application's own
-     * classes are found (#816).
+     * classes are found.
      *
      * <p>
      * Only JDK 8 and earlier nest the JRE inside the JDK, so only JDK 8 and earlier
@@ -143,7 +141,7 @@ public final class SystemJarFinder {
      * @param dir the candidate JDK root directory.
      * @return true if the directory looks like the root of a JDK installation.
      */
-    // (package-private for testing)
+    // #816 (package-private for testing)
     static boolean isJDKRoot(final File dir) {
         return FileUtils.canReadAndIsFile(new File(dir, "lib/tools.jar"))
                 || FileUtils.canReadAndIsFile(new File(dir, "bin/javac"))

@@ -12,7 +12,7 @@ import nonapi.io.github.classgraph.scanspec.AcceptReject.AcceptRejectPrefix;
 
 /**
  * A reject criterion containing a glob wildcard was not applied to the
- * sub-packages of a matched package (#884).
+ * sub-packages of a matched package.
  *
  * <p>
  * {@code rejectPackages("javax.swing.*")} adds {@code "javax.swing.*."} as a

@@ -54,14 +54,14 @@ public class FieldInfoTest {
     /**
      * Field with initializer but without static or final modifier. In Java, the
      * constant pool is not currently used by the compiler to assign initializer
-     * values for non-static, non-final fields, whereas it supposedly is in Kotlin
-     * (#379).
+     * values for non-static, non-final fields, whereas it supposedly is in
+     * Kotlin.
      */
+    // #379
     public int nonStaticNonFinalFieldWithInitializer = 5;
 
-    /**
-     * Static non-final field with initializer (#379).
-     */
+    /** Static non-final field with initializer. */
+    // #379
     public static int staticNonFinalFieldWithInitializer = 7;
 
     /**

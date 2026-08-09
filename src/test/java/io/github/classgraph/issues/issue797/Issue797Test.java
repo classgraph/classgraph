@@ -7,9 +7,6 @@ import org.junit.jupiter.api.Test;
 import io.github.classgraph.ClassGraph;
 
 public class Issue797Test {
-    /**
-     * Issue 797.
-     */
     @Test
     public void getResourcesWithPathShouldNeverReturnNull() {
         // Jar is precompiled, since it uses a JDK 17 feature (records)

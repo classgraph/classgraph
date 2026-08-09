@@ -21,7 +21,7 @@ import io.github.classgraph.ClassGraph;
  * (as in the Ant layout {@code <root>/classes/com/xyz/Foo.class}), so
  * {@code classes/} was stripped from the relative path of every classfile
  * beneath it, and the resulting relative path then no longer matched the name
- * of the class the classfile declares (#929).
+ * of the class the classfile declares.
  *
  * <p>
  * The classfiles used by these tests are generated rather than compiled, since

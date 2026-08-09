@@ -62,8 +62,9 @@ public class ClasspathFinder {
      * If one of the classloaders that was found was an existing instance of
      * {@link ClassGraphClassLoader}, then delegate to that classloader first rather
      * than trying to load from the {@link ClassGraphClassLoader} of the current
-     * scan, so that classes are compatible between nested scans (#485).
+     * scan, so that classes are compatible between nested scans.
      */
+    // #485
     private @Nullable ClassGraphClassLoader delegateClassGraphClassLoader;
 
     // -------------------------------------------------------------------------------------------------------------
@@ -100,12 +101,13 @@ public class ClasspathFinder {
      * If one of the classloaders that was found was an existing instance of
      * {@link ClassGraphClassLoader}, then delegate to that classloader first rather
      * than trying to load from the {@link ClassGraphClassLoader} of the current
-     * scan, so that classes are compatible between nested scans (#485).
+     * scan, so that classes are compatible between nested scans.
      * 
      * @return the {@link ClassGraphClassLoader} to delegate to before loading
      *         classes with this scan's own {@link ClassGraphClassLoader} (or null
      *         if none).
      */
+    // #485
     public @Nullable ClassGraphClassLoader getDelegateClassGraphClassLoader() {
         return delegateClassGraphClassLoader;
     }

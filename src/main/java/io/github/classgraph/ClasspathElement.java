@@ -190,7 +190,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      * units creates the {@link ClasspathElement} singleton, and which one wins that
      * race is nondeterministic, so the classpath ordering key and the classloader
      * have to be merged in from every work unit that references this classpath
-     * element, not just from the one that happened to create it (#810).
+     * element, not just from the one that happened to create it.
      *
      * <p>
      * The classloader follows the winning reference, since the same directory or
@@ -218,6 +218,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      * @param classLoader   the classloader that the referencing work unit obtained
      *                      the classpath entry from, or null if unknown
      */
+    // #810
     synchronized void addReference(final boolean isToplevelRef, final int idx,
             final @Nullable ClassLoader classLoader) {
         if (isToplevelRef && !isToplevel) {
@@ -312,7 +313,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      * a package root, then the class name matches the path of the classfile
      * relative to the candidate root; if the candidate is really a package, then
      * the class name has the candidate's name as a package prefix, so it does not
-     * match. (#929)
+     * match.
      *
      * @param classfileReader       a reader for a classfile found beneath the
      *                              candidate package root.
@@ -324,6 +325,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      *         by the classfile, which disproves that the candidate is a package
      *         root.
      */
+    // #929
     static @Nullable String getClassNameDisprovingPackageRoot(final ClassfileReader classfileReader,
             final String classfileRelativePath) {
         final var className = Classfile.readClassName(classfileReader);
@@ -434,7 +436,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      * {@code --patch-module}, while also placing that same directory on the
      * classpath, so the module and the classpath element both list the same file.
      * Returning one file twice is never useful, so the second and subsequent
-     * occurrences are removed here. (#704)
+     * occurrences are removed here.
      *
      * @param classpathIdx          the classpath index
      * @param collidingPaths        the relative paths that occur in more than one
@@ -447,6 +449,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      *                              between classpath elements
      * @param log                   the log
      */
+    // #704
     void maskDuplicateResources(final int classpathIdx, final Set<String> collidingPaths,
             final Set<String> fileIdentityKeysFound, final Map<String, String> canonicalDirPathCache,
             final @Nullable LogNode log) {

@@ -34,9 +34,6 @@ import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 
-/**
- * Issue99Test.
- */
 public class Issue99Test {
     /** The Constant jarPath. */
     private static final String jarPath = Issue99Test.class.getClassLoader().getResource("nested-jars-level1.zip")

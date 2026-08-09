@@ -9,13 +9,7 @@ import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 
-/**
- * Issue289.
- */
 public class Issue289Test {
-    /**
-     * Issue 289.
-     */
     @Test
     public void issue289() {
         try (var scanResult = new ClassGraph()

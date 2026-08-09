@@ -35,13 +35,7 @@ import org.junit.jupiter.api.Timeout;
 
 import io.github.classgraph.ClassGraph;
 
-/**
- * Issue286Test.
- */
 public class Issue286Test {
-    /**
-     * Issue 286 test.
-     */
     @Test
     @Timeout(1)
     public void issue286Test() {

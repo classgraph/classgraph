@@ -40,9 +40,6 @@ import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 
-/**
- * Issue128Test.
- */
 public class Issue128Test {
     /** The site. */
     private static final String SITE = "https://raw.githubusercontent.com/classgraph";
@@ -56,7 +53,7 @@ public class Issue128Test {
             JAR_URL + "!level2.jar!level3.jar!classpath1/classpath2";
 
     /**
-     * Issue 128 test.
+     * A jar nested inside a jar that is fetched over HTTP is scanned.
      *
      * @throws Exception the exception
      */

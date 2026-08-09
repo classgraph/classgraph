@@ -10,11 +10,11 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
 
 /**
- * Issue 791: the access level of a nested class was OR'd together from two
- * sources, rather than being taken from the authoritative one. A nested class's
- * own {@code access_flags} cannot express its source-level access level (the
- * JVM requires the class to be reachable from its enclosing class, so javac
- * emits {@code ACC_PUBLIC} there); the real access level lives in the
+ * The access level of a nested class was OR'd together from two sources,
+ * rather than being taken from the authoritative one. A nested class's own
+ * {@code access_flags} cannot express its source-level access level (the JVM
+ * requires the class to be reachable from its enclosing class, so javac emits
+ * {@code ACC_PUBLIC} there); the real access level lives in the
  * {@code InnerClasses} attribute of the enclosing class. OR-ing the two left a
  * {@code protected} nested class marked both public and protected.
  */

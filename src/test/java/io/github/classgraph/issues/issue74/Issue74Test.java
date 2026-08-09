@@ -6,9 +6,6 @@ import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 
-/**
- * Issue74Test.
- */
 public class Issue74Test {
     /**
      * The Interface Function.
@@ -34,9 +31,6 @@ public class Issue74Test {
     public class ImplementsFunction implements Function {
     }
 
-    /**
-     * Issue 74.
-     */
     @Test
     public void issue74() {
         try (var scanResult = new ClassGraph().acceptPackages(Issue74Test.class.getPackage().getName()).scan()) {

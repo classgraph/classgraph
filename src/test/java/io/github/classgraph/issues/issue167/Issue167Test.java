@@ -40,9 +40,6 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.issues.issue167.a.TestA;
 import io.github.classgraph.issues.issue167.a.b.TestAB;
 
-/**
- * Issue167Test.
- */
 public class Issue167Test {
     /** The classes. */
     public static List<Class<?>> classes = List.of(TestA.class, TestAB.class);

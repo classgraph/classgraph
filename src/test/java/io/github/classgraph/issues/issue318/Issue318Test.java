@@ -69,9 +69,6 @@ public class Issue318Test {
     class With3MyAnn {
     }
 
-    /**
-     * Issue 318.
-     */
     @Test
     public void issue318() {
         try (var scanResult = new ClassGraph().acceptPackages(Issue318Test.class.getPackage().getName())

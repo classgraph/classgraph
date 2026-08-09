@@ -89,10 +89,11 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
      *         the type parameter does not have any bounds). If no type parameter of
      *         the same name is declared by the defining method or the enclosing
      *         class, an unbounded type parameter with just the type variable's name
-     *         is returned (#706).
+     *         is returned.
      * @throws IllegalArgumentException if the enclosing class was not found during
      *                                  the scan.
      */
+    // #706
     public TypeParameter resolve() {
         final var cached = typeParameterCached;
         if (cached != null) {
@@ -142,12 +143,13 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
 
     /**
      * Look this type variable up in a substitution map built by
-     * {@link TypeSignature#resolveTypeVariables(ClassInfo)} (#735).
+     * {@link TypeSignature#resolveTypeVariables(ClassInfo)}.
      *
      * @param substitutions the substitution map.
      * @return the type argument to substitute for this type variable, or null if
      *         this type variable is not substitutable.
      */
+    // #735
     @Nullable
     TypeArgument substitution(final Map<String, TypeArgument> substitutions) {
         // A type variable declared by the method itself shadows any type variable of

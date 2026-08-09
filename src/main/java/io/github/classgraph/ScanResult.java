@@ -140,11 +140,12 @@ public final class ScanResult implements Closeable {
      * {@link AnnotationInfo} keep working after the {@link ScanResult} they came
      * from is closed, and must not throw {@link NullPointerException}. The field is
      * read only once, so that a concurrent {@link #close()} cannot cause null to be
-     * returned. (#930)
+     * returned.
      *
      * @param scanResult the {@link ScanResult}, or null.
      * @return a non-null {@link ReflectionUtils}.
      */
+    // #930
     static ReflectionUtils getReflectionUtils(final @Nullable ScanResult scanResult) {
         final var reflectionUtils = scanResult == null ? null : scanResult.reflectionUtils;
         return reflectionUtils == null ? new ReflectionUtils() : reflectionUtils;
@@ -215,8 +216,9 @@ public final class ScanResult implements Closeable {
 
     /**
      * The set of WeakReferences to non-closed ScanResult objects. Uses
-     * WeakReferences so that garbage collection is not blocked. (Bug #233)
+     * WeakReferences so that garbage collection is not blocked.
      */
+    // #233
     private static final Set<WeakReference<ScanResult>> nonClosedWeakReferences = Collections
             .newSetFromMap(new ConcurrentHashMap<>());
 

@@ -52,8 +52,9 @@ public final class FastPathResolver {
      * the WAR file and the path within the WAR file. Tomcat uses {@code "*&#47;"}
      * by default, or {@code "^&#47;"}, or a custom separator set through this
      * system property, since a WAR file's path may itself contain {@code '*'} or
-     * {@code '^'}. See {@code org.apache.tomcat.util.buf.UriUtil#warToJar}. (#925)
+     * {@code '^'}. See {@code org.apache.tomcat.util.buf.UriUtil#warToJar}.
      */
+    // #925
     private static final @Nullable String customWarSeparator = VersionFinder
             .getProperty("org.apache.tomcat.util.buf.UriUtil.WAR_SEPARATOR");
 
@@ -183,12 +184,13 @@ public final class FastPathResolver {
      * using {@code "*&#47;"} rather than the standard {@code "!&#47;"}, e.g.
      * {@code "war:file:/path/to/app.war*&#47;WEB-INF/classes/"}. Without this
      * conversion, the {@code '*'} was read as a wildcard, and the whole classpath
-     * element was rejected, so nothing in a non-exploded WAR was scanned. (#925)
+     * element was rejected, so nothing in a non-exploded WAR was scanned.
      *
      * @param path The path, which may or may not be a {@code "war:"} URL.
      * @return The equivalent {@code "jar:"} URL if this is a {@code "war:"} URL,
      *         otherwise the path, unchanged.
      */
+    // #925
     private static String warUrlToJarUrl(final String path) {
         if (!path.regionMatches(true, 0, "war:", 0, 4)) {
             return path;

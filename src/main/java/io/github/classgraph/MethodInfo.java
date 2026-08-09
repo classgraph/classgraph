@@ -246,11 +246,12 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
      * {@code (String name, int ordinal)} parameters of an enum constructor. (Local
      * and anonymous classes may add a varying number of synthetic params, and are
      * deliberately not special-cased here -- any resulting mismatch is handled
-     * gracefully by {@link #decorateMethodType}.) (#897)
+     * gracefully by {@link #decorateMethodType}.)
      *
      * @return the number of implicit prefix parameters (0 if none, or if it cannot
      *         be determined).
      */
+    // #897
     private int getNumImplicitPrefixParams() {
         if ("<init>".equals(name)) {
             final var declaringClassInfo = getClassInfo();
@@ -276,7 +277,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
      * parameters. Any individual type annotation that cannot be matched to a
      * parameter type (e.g. due to compiler-specific parameter indexing, as with
      * Kotlin, local or anonymous classes, or a compiler bug) is skipped rather than
-     * being allowed to abort parsing of the whole method type. (#897)
+     * being allowed to abort parsing of the whole method type.
      *
      * @param methodType              the parsed method type signature or descriptor
      *                                to decorate.
@@ -284,6 +285,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
      * @param numImplicitPrefixParams the number of implicit prefix parameters to
      *                                strip while decorating (0 for none).
      */
+    // #897
     private void decorateMethodType(final MethodTypeSignature methodType,
             final List<MethodTypeAnnotationDecorator> decorators, final int numImplicitPrefixParams) {
         final var paramSigs = methodType.getParameterTypeSignatures();

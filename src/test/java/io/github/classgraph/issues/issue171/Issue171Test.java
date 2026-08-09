@@ -6,9 +6,6 @@ import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 
-/**
- * Issue171Test.
- */
 public class Issue171Test {
     /**
      * Spring boot fully executable jar.

@@ -906,11 +906,12 @@ class Scanner implements Callable<ScanResult> {
 
     /**
      * Remove resources that refer to the same file as a resource found earlier in
-     * the classpath / module path, so that one file is not returned twice. (#704)
+     * the classpath / module path, so that one file is not returned twice.
      *
      * @param classpathElementOrder the classpath element order
      * @param maskLog               the mask log
      */
+    // #704
     private static void maskDuplicateResources(final List<ClasspathElement> classpathElementOrder,
             final @Nullable LogNode maskLog) {
         // Only a relative path that occurs more than once can be a duplicate of the

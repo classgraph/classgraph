@@ -39,12 +39,10 @@ import org.ops4j.pax.url.mvn.MavenResolvers;
 
 import io.github.classgraph.ClassGraph;
 
-/**
- * Issue193Test.
- */
 public class Issue193Test {
     /**
-     * Issue 193 test.
+     * Scala companion objects, whose superclass differs from that of the companion
+     * class, are scanned without throwing.
      *
      * @throws IOException Signals that an I/O exception has occurred.
      */

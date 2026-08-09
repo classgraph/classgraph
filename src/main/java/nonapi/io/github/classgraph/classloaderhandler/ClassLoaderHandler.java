@@ -115,9 +115,10 @@ interface ClassLoaderHandler {
      * Package roots must only be declared here if the classloader really can
      * produce classpath elements in that layout, since a package root prefix that
      * is also a legal package name (e.g. {@code "classes/"}) will otherwise cause
-     * real packages of that name to be misread as package roots (#929).
+     * real packages of that name to be misread as package roots.
      *
      * @return the package root prefixes.
      */
+    // #929
     String[] getPackageRootPrefixes();
 }

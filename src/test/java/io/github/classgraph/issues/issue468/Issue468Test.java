@@ -36,9 +36,6 @@ import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 
-/**
- * Issue468Test.
- */
 public class Issue468Test {
     /** Scan */
     private static void scan(final ClassGraph classGraph) {

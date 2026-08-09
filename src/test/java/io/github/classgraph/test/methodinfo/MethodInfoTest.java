@@ -177,9 +177,8 @@ public class MethodInfoTest {
         }
     }
 
-    /**
-     * MethodInfo.loadClassAndGetMethod for arrays argument (#344)
-     */
+    /** MethodInfo.loadClassAndGetMethod for arrays argument. */
+    // #344
     @Test
     public void testMethodInfoLoadMethodForArrayArg() {
         try (var scanResult = new ClassGraph().acceptPackages(MethodInfoTest.class.getPackage().getName())

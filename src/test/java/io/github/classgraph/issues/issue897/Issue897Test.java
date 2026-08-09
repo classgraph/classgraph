@@ -17,7 +17,7 @@ import io.github.classgraph.MethodInfo;
 import io.github.classgraph.TypeSignature;
 
 /**
- * Issue 897: a type annotation on a parameter of a non-static inner class
+ * A type annotation on a parameter of a non-static inner class
  * constructor must be attached to the source-declared parameter, not to the
  * compiler-generated leading enclosing-instance parameter -- and must not throw
  * "Ran out of nested types while trying to add type annotation".
@@ -139,7 +139,7 @@ public class Issue897Test {
      * {@link MethodInfo#getTypeDescriptor()} call previously threw
      * {@link java.util.ConcurrentModificationException} because the implicit-prefix
      * strip/restore used a {@link java.util.List#subList} view that was invalidated
-     * by mutation of the backing list. (#897)
+     * by mutation of the backing list.
      */
     @Test
     public void annotationOnGenericInnerClassConstructor() {

@@ -34,9 +34,6 @@ import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 
-/**
- * Issue261Test.
- */
 public class Issue261Test {
     /**
      * The Class SuperSuperCls.
@@ -56,9 +53,6 @@ public class Issue261Test {
     private static class Cls extends SuperCls {
     }
 
-    /**
-     * Issue 261 test.
-     */
     @Test
     public void issue261Test() {
         // Accept only the class Cls, so that SuperCls and SuperSuperCls are external

@@ -39,13 +39,7 @@ import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 
-/**
- * Issue151Test.
- */
 public class Issue151Test {
-    /**
-     * Issue 151 test.
-     */
     @Test
     public void issue151Test() {
         // Scans io.github.classgraph.issues.issue146.CompiledWithJDK8, which is in

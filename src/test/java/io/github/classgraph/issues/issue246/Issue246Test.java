@@ -34,9 +34,6 @@ import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 
-/**
- * Issue246Test.
- */
 public class Issue246Test {
     /**
      * Test method parameter annotations.

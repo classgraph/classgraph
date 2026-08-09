@@ -23,8 +23,7 @@ import io.github.classgraph.ClassGraph;
  * method names that {@code FallbackClassLoaderHandler} knows about, but they
  * can still enumerate the resources they serve. Ask such a classloader for
  * resources that are present in the root of most classpath elements, and strip
- * the resource path from the returned URLs to recover the classpath elements
- * (#892).
+ * the resource path from the returned URLs to recover the classpath elements.
  */
 class Issue892Test {
     /**

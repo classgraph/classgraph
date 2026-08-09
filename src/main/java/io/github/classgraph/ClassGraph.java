@@ -476,10 +476,11 @@ public class ClassGraph {
      * read from it, so the {@link ScanResult} will not be able to read resources or
      * load classes from any nested jar after the scan returns. If no nested jars
      * were encountered, no temporary files are created, and the {@link ScanResult}
-     * remains fully usable (#916).
+     * remains fully usable.
      *
      * @return this (for method chaining).
      */
+    // #916
     public ClassGraph removeTemporaryFilesAfterScan() {
         scanSpec.removeTemporaryFilesAfterScan = true;
         return this;
@@ -1329,10 +1330,11 @@ public class ClassGraph {
      * many large jarfiles, but uses up virtual memory space. On JDK 22+, files are
      * memory-mapped using the {@code java.lang.foreign.Arena} API, so that they can
      * be unmapped without calling the terminally-deprecated
-     * {@code Unsafe::invokeCleaner} method (#939).
+     * {@code Unsafe::invokeCleaner} method.
      *
      * @return this (for method chaining).
      */
+    // #939
     public ClassGraph enableMemoryMapping() {
         scanSpec.enableMemoryMapping = true;
         return this;

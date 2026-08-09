@@ -138,12 +138,13 @@ public final class ClassLoaderHandlerRegistry {
      * and {@code "test-classes"} are both legal Java package names, so treating
      * them as automatic package roots is a heuristic, not a certainty: a real
      * package named {@code classes} is misread as a package root, and its classes
-     * are silently dropped (#929). The heuristic is nevertheless relied upon for
+     * are silently dropped. The heuristic is nevertheless relied upon for
      * general-purpose classloaders -- see {@code Issue420Test} and
      * {@code Issue766Test} -- so it can only be removed once package roots are
      * verified against the declared name of a classfile found beneath them, rather
      * than assumed from the directory name.
      */
+    // #929
     public static final String[] DEFAULT_PACKAGE_ROOT_PREFIXES = {
             // Ant, Maven, Gradle and other build tool output dirs
             "classes/", "test-classes/",

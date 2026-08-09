@@ -9,9 +9,6 @@ import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 
-/**
- * Issue93.
- */
 public class Issue93Test {
     /** The Constant PKG. */
     private static final String PKG = Issue93Test.class.getPackage().getName();

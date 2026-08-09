@@ -9,8 +9,8 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.MethodInfo;
 
 /**
- * Issue 926 (javac bridge-method bug, JDK-8385663): javac copies a parameter's
- * TYPE_USE annotation onto the synthetic bridge method, but the bridge's erased
+ * A javac bridge-method bug (JDK-8385663): javac copies a parameter's TYPE_USE
+ * annotation onto the synthetic bridge method, but the bridge's erased
  * descriptor makes the copied type path invalid. For
  * {@code class BridgeImpl implements BridgeInterface<@BridgeAnno String[]>},
  * the real method {@code f(String[])} gets {@code location=[ARRAY]} (correct),

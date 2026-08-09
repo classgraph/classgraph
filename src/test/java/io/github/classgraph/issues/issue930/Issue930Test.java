@@ -13,7 +13,7 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
 /**
- * Issue 930: calling {@code equals()} on an annotation instance returned by
+ * Calling {@code equals()} on an annotation instance returned by
  * {@code AnnotationInfo#loadClassAndInstantiate()} threw a
  * {@link NullPointerException} once the {@link ScanResult} it came from had
  * been closed.

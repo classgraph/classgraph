@@ -20,7 +20,7 @@ import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /**
- * Issue 939: {@code Unsafe::invokeCleaner}, which was used to unmap
+ * {@code Unsafe::invokeCleaner}, which was used to unmap
  * {@code MappedByteBuffer}s, is terminally deprecated (JDK 24+ warns when it is
  * called, and it will be removed in a future JDK release). On JDK 22+,
  * ClassGraph now allocates and memory-maps {@code ByteBuffer}s using the

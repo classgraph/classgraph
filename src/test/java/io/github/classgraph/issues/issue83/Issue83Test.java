@@ -9,9 +9,6 @@ import org.junit.jupiter.api.Test;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.Resource;
 
-/**
- * Issue83Test.
- */
 public class Issue83Test {
     /** The Constant jarPathURL. */
     private static final URL jarPathURL = Issue83Test.class.getClassLoader().getResource("nested-jars-level1.zip");

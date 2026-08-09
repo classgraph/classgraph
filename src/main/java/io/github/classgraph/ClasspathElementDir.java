@@ -222,13 +222,14 @@ class ClasspathElementDir extends ClasspathElement {
     /**
      * Check whether a candidate package root directory is really a package root, or
      * is simply a package that has the same name as one of the automatic package
-     * root prefixes (#929).
+     * root prefixes.
      *
      * @param packageRoot the candidate package root directory.
      * @return null if the candidate is a package root, otherwise the name of the
      *         class that disproves it (see
      *         {@link ClasspathElement#getClassNameDisprovingPackageRoot(ClassfileReader, String)}).
      */
+    // #929
     private static @Nullable String getClassNameDisprovingPackageRoot(final Path packageRoot) {
         final var classfilePath = findFirstClassfile(packageRoot);
         if (classfilePath == null) {

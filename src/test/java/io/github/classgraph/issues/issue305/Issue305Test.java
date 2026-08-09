@@ -15,9 +15,6 @@ import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 
-/**
- * Issue305.
- */
 public class Issue305Test {
     private ConsoleHandler errPrintStreamHandler;
     private final Logger rootLogger = Logger.getLogger("");

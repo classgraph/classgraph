@@ -39,9 +39,6 @@ import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 
-/**
- * Issue364Test.
- */
 public class Issue364Test {
 
     /**

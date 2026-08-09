@@ -290,7 +290,7 @@ public final class JarUtils {
      * <p>
      * A '!' is not necessarily a separator -- it is a legal character in a file or
      * directory name on every platform ClassGraph supports, and users do put it in
-     * their directory names (#903). The {@link java.net.JarURLConnection} spec
+     * their directory names. The {@link java.net.JarURLConnection} spec
      * defines the separator as {@code "!/"}, and gives no way of escaping a literal
      * '!' other than percent-encoding it as {@code %21} within the inner URL, so
      * the separator cannot be identified by syntax alone: {@code /dir!/x.jar} is
@@ -315,6 +315,7 @@ public final class JarUtils {
      * @return the index of the outermost nested jar separator, or -1 if there is
      *         none.
      */
+    // #903
     public static int indexOfNestedJarSeparator(final String path) {
         var plingIdx = path.indexOf('!');
         if (plingIdx < 0) {
@@ -345,13 +346,14 @@ public final class JarUtils {
      * Find the index of the innermost nested jar separator ('!') in a path, or -1
      * if the path contains no nested jar separator. See
      * {@link #indexOfNestedJarSeparator(String)} for how separators are
-     * distinguished from literal '!' characters in filenames (#903).
+     * distinguished from literal '!' characters in filenames.
      *
      * @param path the path, with any {@code "jar:"} and {@code "file:"} scheme
      *             prefixes already stripped.
      * @return the index of the innermost nested jar separator, or -1 if there is
      *         none.
      */
+    // #903
     public static int lastIndexOfNestedJarSeparator(final String path) {
         // Every '!' after the outermost separator is also a separator, so if there is
         // an outermost separator,

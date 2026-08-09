@@ -36,13 +36,7 @@ import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 
-/**
- * Issue107Test.
- */
 public class Issue107Test {
-    /**
-     * Issue 107 test.
-     */
     @Test
     public void issue107Test() {
         // Package annotations should have "package-info" as their class name

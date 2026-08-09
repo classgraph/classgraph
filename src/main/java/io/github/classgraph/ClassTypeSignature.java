@@ -64,8 +64,9 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
     /**
      * The throws signatures (usually null). These are only present in Scala
      * classes, if the class is marked up with {@code @throws}, and they violate the
-     * classfile spec (#495), but we parse them anyway.
+     * classfile spec, but we parse them anyway.
      */
+    // #495
     private final @Nullable List<ClassRefOrTypeVariableSignature> throwsSignatures;
 
     // -------------------------------------------------------------------------------------------------------------
@@ -78,9 +79,10 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
      * @param superclassSignature      The superclass signature.
      * @param superinterfaceSignatures The superinterface signature(s).
      * @param throwsSignatures         the throws signatures (these are actually
-     *                                 invalid, but can be added by Scala: #495).
+     *                                 invalid, but can be added by Scala).
      *                                 Usually null.
      */
+    // #495
     private ClassTypeSignature(final ClassInfo classInfo, final List<TypeParameter> typeParameters,
             final @Nullable ClassRefTypeSignature superclassSignature,
             final List<ClassRefTypeSignature> superinterfaceSignatures,
@@ -94,12 +96,13 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
     }
 
     /**
-     * Constructor used to create synthetic class type descriptor (#662).
+     * Constructor used to create synthetic class type descriptor.
      *
      * @param classInfo  The class.
      * @param superclass The superclass.
      * @param interfaces The implemented interfaces.
      */
+    // #662
     ClassTypeSignature(final ClassInfo classInfo, final @Nullable ClassInfo superclass,
             final ClassInfoList interfaces) {
         super();
@@ -164,10 +167,11 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
     /**
      * Gets the throws signatures. These are invalid according to the classfile spec
      * (so this method is currently non-public), but may be added by the Scala
-     * compiler. (See bug #495.)
+     * compiler.
      *
      * @return the throws signatures
      */
+    // #495
     @Nullable
     List<ClassRefOrTypeVariableSignature> getThrowsSignatures() {
         return throwsSignatures;

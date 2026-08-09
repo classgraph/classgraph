@@ -61,8 +61,9 @@ public abstract class AcceptReject {
     protected @Nullable List<Pattern> acceptPatterns;
     /**
      * Regexp patterns matching the wildcard-containing path prefixes of accepted
-     * globs, used by {@link #acceptHasPrefix(String)}. (#870)
+     * globs, used by {@link #acceptHasPrefix(String)}.
      */
+    // #870
     protected @Nullable List<Pattern> acceptPrefixPatterns;
     /** Reject regexp patterns. */
     protected @Nullable List<Pattern> rejectPatterns;
@@ -71,11 +72,12 @@ public abstract class AcceptReject {
     /**
      * If true, a {@code '*'} in a glob matches only within a single package or path
      * segment, rather than spanning separators, and {@code "**"}, used as a
-     * complete segment, matches zero or more whole segments (#940). Used for
-     * package and path accept/reject criteria, where recursion into sub-packages
-     * already provides the "and everything below" behaviour. Class name globs keep
-     * the older separator-spanning behaviour for {@code '*'}. (#643, #870)
+     * complete segment, matches zero or more whole segments. Used for package
+     * and path accept/reject criteria, where recursion into sub-packages
+     * already provides the "and everything below" behaviour. Class name globs
+     * keep the older separator-spanning behaviour for {@code '*'}.
      */
+    // #643, #870, #940
     protected boolean segmentGlobs;
 
     /**
@@ -112,8 +114,7 @@ public abstract class AcceptReject {
      * friends, so it is stripped by the caller before the glob reaches this method.
      * In any other position, {@code "**"} must form a complete segment, and matches
      * zero or more whole segments, e.g. {@code "com.**.impl"} matches
-     * {@code com.impl}, {@code com.a.impl} and {@code com.a.b.impl}. (#643, #870,
-     * #940)
+     * {@code com.impl}, {@code com.a.impl} and {@code com.a.b.impl}.
      *
      * @param glob          the glob
      * @param separatorChar the package or path separator character
@@ -125,6 +126,7 @@ public abstract class AcceptReject {
      *                                  complete package or path segment, e.g.
      *                                  {@code "com.a**b.impl"}
      */
+    // #643, #870, #940
     public static Pattern segmentGlobToPattern(final String glob, final char separatorChar, final boolean prefixMatch) {
         final var segmentRegex = "[^" + separatorChar + "]+";
         final var separatorRegex = ("\\^$.|?*+()[]{}".indexOf(separatorChar) >= 0 ? "\\" : "") + separatorChar;
@@ -824,10 +826,8 @@ public abstract class AcceptReject {
         return !acceptIsEmpty() && isAccepted(str);
     }
 
-    /**
-     * Need to sort prefixes to ensure correct accept/reject evaluation (see Issue
-     * #167).
-     */
+    /** Need to sort prefixes to ensure correct accept/reject evaluation. */
+    // #167
     void sortPrefixes() {
         if (acceptPrefixesSet != null) {
             acceptPrefixes = new ArrayList<>(acceptPrefixesSet);

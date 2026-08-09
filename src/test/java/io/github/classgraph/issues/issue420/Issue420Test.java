@@ -43,9 +43,6 @@ import com.google.common.jimfs.Jimfs;
 
 import io.github.classgraph.ClassGraph;
 
-/**
- * Issue193Test.
- */
 public class Issue420Test {
     /**
      * Test accessing a jar over Jimfs.

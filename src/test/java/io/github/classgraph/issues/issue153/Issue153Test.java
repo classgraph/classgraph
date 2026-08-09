@@ -44,9 +44,6 @@ import io.github.classgraph.issues.issue153.Issue153Test.NestedAnnotation;
 import io.github.classgraph.issues.issue153.Issue153Test.StringAnnotation;
 import io.github.classgraph.issues.issue153.Issue153Test.TwoParamAnnotation;
 
-/**
- * Issue153Test.
- */
 @StringAnnotation("classlabel")
 @TwoParamAnnotation(value1 = 'x', value2 = { 1, 2, 3 })
 @EnumAnnotation(FruitEnum.BANANA)

@@ -8,9 +8,6 @@ import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 
-/**
- * Issue38Test.
- */
 class Issue38Test {
     /**
      * The Class AnnotationLiteral.

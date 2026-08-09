@@ -11,9 +11,9 @@ import io.github.classgraph.ClassGraph;
 import nonapi.io.github.classgraph.scanspec.AcceptReject;
 
 /**
- * Issue 940: since 4.8.186, {@code '*'} in an accepted package name matches
- * within a single package segment only, which left no way to match an unknown
- * number of intermediate package segments (before 4.8.186, e.g.
+ * Since 4.8.186, {@code '*'} in an accepted package name matches within a
+ * single package segment only, which left no way to match an unknown number of
+ * intermediate package segments (before 4.8.186, e.g.
  * {@code "org.creekservice.*.schema"} matched
  * {@code org.creekservice.api.base.schema}). {@code "**"}, used as a complete
  * segment, now matches zero or more package segments.

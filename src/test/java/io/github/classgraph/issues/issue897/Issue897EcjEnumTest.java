@@ -11,9 +11,9 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.MethodParameterInfo;
 
 /**
- * Issue 897 (enum case from the discussion): for an enum constructor, a
- * TYPE_USE annotation's {@code formal_parameter_index} is counted from the
- * first source-declared parameter, but the descriptor begins with the synthetic
+ * The enum case from the discussion: for an enum constructor, a TYPE_USE
+ * annotation's {@code formal_parameter_index} is counted from the first
+ * source-declared parameter, but the descriptor begins with the synthetic
  * {@code (String name, int ordinal)} parameters.
  *
  * <p>

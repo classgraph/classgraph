@@ -11,7 +11,7 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.FieldInfo;
 
 /**
- * Issue 897 (field hardening): {@code FieldInfo.getTypeDescriptor()} /
+ * Field hardening: {@code FieldInfo.getTypeDescriptor()} /
  * {@code getTypeSignature()} must not abort when an individual type annotation
  * cannot be matched to the field type. Compilers do not normally emit an
  * impossible field type-annotation path, so this is exercised with a synthetic

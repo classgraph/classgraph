@@ -9,9 +9,6 @@ import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 
-/**
- * Issue345.
- */
 public class Issue348Test {
     /** Test for wildcarded jars. */
     @Test

@@ -10,9 +10,6 @@ import org.junit.jupiter.api.Test;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.Resource;
 
-/**
- * Issue345.
- */
 public class Issue345Test {
     /**
      * Superclass.

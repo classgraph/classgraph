@@ -38,9 +38,6 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
 import io.github.classgraph.ClassInfoList.ClassInfoFilter;
 
-/**
- * Issue223Test.
- */
 @Entity
 public class Issue223Test {
     /**

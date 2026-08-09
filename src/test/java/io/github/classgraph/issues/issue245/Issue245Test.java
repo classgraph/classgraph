@@ -34,9 +34,6 @@ import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 
-/**
- * Issue245Test.
- */
 public class Issue245Test {
     /**
      * Test custom package root.

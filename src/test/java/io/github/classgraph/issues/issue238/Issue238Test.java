@@ -36,9 +36,6 @@ import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 
-/**
- * Issue238Test.
- */
 @Entity
 public class Issue238Test {
     /**

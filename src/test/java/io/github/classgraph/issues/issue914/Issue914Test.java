@@ -15,10 +15,7 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
 import io.github.classgraph.ScanResult;
 
-/**
- * Test {@link ClassInfo#getMethodInfoWithAnnotation(String)} and friends (issue
- * #914).
- */
+/** Test {@link ClassInfo#getMethodInfoWithAnnotation(String)} and friends. */
 public class Issue914Test {
 
     /**

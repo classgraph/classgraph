@@ -35,9 +35,6 @@ import org.junit.jupiter.api.Test;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
 
-/**
- * Issue148Test.
- */
 public class Issue148Test {
     /** The anonymous inner class 1. */
     // N.B. this must remain an anonymous inner class rather than a lambda -- the test asserts on the
@@ -48,9 +45,6 @@ public class Issue148Test {
         }
     };
 
-    /**
-     * Issue 148 test.
-     */
     @Test
     public void issue148Test() {
         // N.B. as above, this must remain an anonymous inner class (Issue148Test$2), not a lambda.

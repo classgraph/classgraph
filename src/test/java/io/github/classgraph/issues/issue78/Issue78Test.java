@@ -6,13 +6,7 @@ import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 
-/**
- * Issue78Test.
- */
 public class Issue78Test {
-    /**
-     * Issue 78.
-     */
     @Test
     public void issue78() {
         try (var scanResult = new ClassGraph().acceptClasses(Issue78Test.class.getName()).scan()) {
