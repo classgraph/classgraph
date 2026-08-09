@@ -758,11 +758,11 @@ public abstract class AcceptReject {
      * @param glob
      *            The glob string.
      * @param simpleGlob
-     *            if true, handles simple globs: "*" matches zero or more characters (replaces "." with "\\.", "*"
-     *            with ".*", then compiles a regular expression). If false, handles filesystem-style globs: "**"
-     *            matches zero or more characters, "*" matches zero or more characters other than "/", "?" matches
-     *            one character (replaces "." with "\\.", "**" with ".*", "*" with "[^/]*", and "?" with ".", then
-     *            compiles a regular expression).
+     *            if true, handles simple globs: "*" matches zero or more characters, and every other character is
+     *            matched literally. If false, handles filesystem-style globs: "**" matches zero or more
+     *            characters, "*" matches zero or more characters other than "/", "?" matches one character
+     *            (replaces "." with "\\.", "**" with ".*", "*" with "[^/]*", and "?" with ".", then compiles a
+     *            regular expression).
      * @return The Pattern created from the glob string.
      */
     public static Pattern globToPattern(final String glob, final boolean simpleGlob) {
@@ -770,15 +770,28 @@ public abstract class AcceptReject {
         // and resource filtering (i.e. enforce simpleGlob == false, at least for accept/reject criteria for
         // paths, although packages/classes would need different handling because ** should work across
         // packages of any depth, rather than paths of any number of segments)
+        if (simpleGlob) {
+            // Escape every regexp metacharacter other than '*'. Escaping only '.' left the rest to be
+            // interpreted as regexp syntax, so e.g. the '$' in the binary name of an inner class acted as an
+            // end-of-input anchor, and acceptClasses("com.Outer$Inner*") matched nothing
+            final StringBuilder buf = new StringBuilder("^");
+            for (int i = 0; i < glob.length(); i++) {
+                final char c = glob.charAt(i);
+                if (c == '*') {
+                    buf.append(".*");
+                } else if ("\\^$.|?*+()[]{}".indexOf(c) >= 0) {
+                    buf.append('\\').append(c);
+                } else {
+                    buf.append(c);
+                }
+            }
+            return Pattern.compile(buf.append('$').toString());
+        }
         return Pattern.compile("^" //
-                + (simpleGlob //
-                        ? glob.replace(".", "\\.") //
-                                .replace("*", ".*") //
-                        : glob.replace(".", "\\.") //
-                                .replace("*", "[^/]*") //
-                                .replace("[^/]*[^/]*", ".*") //
-                                .replace('?', '.') //
-                ) //
+                + glob.replace(".", "\\.") //
+                        .replace("*", "[^/]*") //
+                        .replace("[^/]*[^/]*", ".*") //
+                        .replace('?', '.') //
                 + "$");
     }
 
