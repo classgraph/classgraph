@@ -144,7 +144,7 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
      *
      * @return The modifiers modifiers, as a string.
      */
-    public abstract String getModifiersStr();
+    public abstract String getModifiersString();
 
     /**
      * Returns true if this class member is public.
@@ -214,11 +214,11 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
     /**
      * Returns the type descriptor string for the class member, which will not
      * include type parameters. If you need generic type parameters, call
-     * {@link #getTypeSignatureStr()} instead.
+     * {@link #getTypeSignatureString()} instead.
      *
      * @return The type descriptor string for the class member.
      */
-    public String getTypeDescriptorStr() {
+    public String getTypeDescriptorString() {
         return typeDescriptorStr;
     }
 
@@ -241,12 +241,12 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
      * Returns the type signature string for the class member, possibly including
      * type parameters. If this returns null, indicating that no type signature
      * information is available for this class member, call
-     * {@link #getTypeDescriptorStr()} instead.
+     * {@link #getTypeDescriptorString()} instead.
      *
      * @return The type signature string for the class member, or null if not
      *         available.
      */
-    public @Nullable String getTypeSignatureStr() {
+    public @Nullable String getTypeSignatureString() {
         return typeSignatureStr;
     }
 
@@ -270,7 +270,7 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
      * @return The type signature string for the class member, or if not available,
      *         the type descriptor string for the class member.
      */
-    public String getTypeSignatureOrTypeDescriptorStr() {
+    public String getTypeSignatureOrTypeDescriptorString() {
         if (typeSignatureStr != null) {
             return typeSignatureStr;
         }
@@ -295,7 +295,7 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
             }
 
             if (!scanResult().scanSpec.enableAnnotationInfo) {
-                throw new IllegalArgumentException("Please call ClassGraph#enableAnnotationInfo() before #scan()");
+                throw new IllegalStateException("Please call ClassGraph#enableAnnotationInfo() before #scan()");
             }
 
             annotationInfoRef = annotationInfo == null ? AnnotationInfoList.EMPTY_LIST

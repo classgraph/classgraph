@@ -95,8 +95,8 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
      *
      * @param uri the uri
      * @return the URL.
-     * @throws IllegalArgumentException if the URI could not be converted to a URL,
-     *                                  or the URI had "jrt:" scheme.
+     * @throws IllegalStateException if the URI could not be converted to a URL, or
+     *                               the URI had "jrt:" scheme.
      */
     private static URL uriToURL(final URI uri) {
         try {
@@ -106,10 +106,10 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
             // where toURL() throws
             if ("jrt".equals(uri.getScheme())) {
                 // Currently URL cannot handle the "jrt:" scheme, used by system modules.
-                throw new IllegalArgumentException("Could not create URL from URI with \"jrt:\" scheme "
+                throw new IllegalStateException("Could not create URL from URI with \"jrt:\" scheme "
                         + "(\"jrt:\" is not supported by the URL class without a custom URL protocol handler): " + uri);
             } else {
-                throw new IllegalArgumentException("Could not create URL from URI: " + uri + " -- " + e);
+                throw new IllegalStateException("Could not create URL from URI: " + uri + " -- " + e);
             }
         }
     }
@@ -118,8 +118,8 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
      * Get the {@link URI} representing the resource's location.
      *
      * @return A {@link URI} representing the resource's location.
-     * @throws IllegalArgumentException the resource was obtained from a module and
-     *                                  the module's location URI is null.
+     * @throws IllegalStateException if the resource was obtained from a module and
+     *                               the module's location URI is null.
      */
     public URI getURI() {
         final var locationURI = getClasspathElementURI();
@@ -133,7 +133,7 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
                             + locationURIStr + (isDir ? "" : locationURIStr.startsWith("jrt:") ? "/" : "!/")
                             + URLPathEncoder.encodePath(resourcePath));
         } catch (final URISyntaxException e) {
-            throw new IllegalArgumentException("Could not form URL for classpath element: " + locationURIStr
+            throw new IllegalStateException("Could not form URL for classpath element: " + locationURIStr
                     + " ; path: " + resourcePath + " : " + e);
         }
     }
@@ -143,10 +143,10 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
      * {@link #getURI()} instead if the resource may have come from a system module,
      * or if this is a jlink'd runtime image, since "jrt:" URI schemes used by
      * system modules and jlink'd runtime images are not supported by {@link URL},
-     * and this will cause {@link IllegalArgumentException} to be thrown.
+     * and this will cause {@link IllegalStateException} to be thrown.
      *
      * @return A {@link URL} representing the resource's location.
-     * @throws IllegalArgumentException if the resource was obtained from a system
+     * @throws IllegalStateException if the resource was obtained from a system
      *                                  module or jlink'd runtime image with a
      *                                  "jrt:" location URI, or the resource was
      *                                  obtained from a module and the module's
@@ -162,7 +162,7 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
      *
      * @return The {@link URL} of the classpath element or module that this resource
      *         was found within.
-     * @throws IllegalArgumentException if the classpath element does not have a
+     * @throws IllegalStateException if the classpath element does not have a
      *                                  valid URI (e.g. for modules whose location
      *                                  URI is null).
      */
@@ -176,11 +176,11 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
      * may have come from a system module, or if this is a jlink'd runtime image,
      * since "jrt:" URI schemes used by system modules and jlink'd runtime images
      * are not supported by {@link URL}, and this will cause
-     * {@link IllegalArgumentException} to be thrown.
+     * {@link IllegalStateException} to be thrown.
      *
      * @return The {@link URL} of the classpath element or module that this resource
      *         was found within.
-     * @throws IllegalArgumentException if the resource was obtained from a system
+     * @throws IllegalStateException if the resource was obtained from a system
      *                                  module or jlink'd runtime image with a
      *                                  "jrt:" location URI, or the resource was
      *                                  obtained from a module and the module's
@@ -357,7 +357,7 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
      *         resource was last modified. Returns 0L if the last modified date is
      *         unknown.
      */
-    public abstract long getLastModified();
+    public abstract long getLastModifiedMillis();
 
     /**
      * Get the POSIX file permissions for the resource. POSIX file permissions are

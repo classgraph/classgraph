@@ -200,7 +200,7 @@ public class Issue914Test {
     }
 
     /**
-     * Without {@code enableAnnotationInfo()}, an {@link IllegalArgumentException}
+     * Without {@code enableAnnotationInfo()}, an {@link IllegalStateException}
      * should be thrown.
      */
     @Test
@@ -209,9 +209,9 @@ public class Issue914Test {
                 .enableMethodInfo().enableFieldInfo().scan()) {
             final var sub = scanResult.getClassInfo(Sub.class.getName());
             assertThatThrownBy(() -> sub.getMethodInfoWithAnnotation(MARKER))
-                    .isInstanceOf(IllegalArgumentException.class);
+                    .isInstanceOf(IllegalStateException.class);
             assertThatThrownBy(() -> sub.getFieldInfoWithAnnotation(MARKER))
-                    .isInstanceOf(IllegalArgumentException.class);
+                    .isInstanceOf(IllegalStateException.class);
         }
     }
 }

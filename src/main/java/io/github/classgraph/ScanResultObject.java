@@ -124,7 +124,7 @@ abstract class ScanResultObject {
             }
             final var className = getClassName();
             if (className == null) {
-                throw new IllegalArgumentException("Class name is not set");
+                throw new IllegalStateException("Class name is not set");
             }
             classInfo = scanResult.getClassInfo(className);
         }

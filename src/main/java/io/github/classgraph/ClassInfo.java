@@ -1237,7 +1237,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return The field modifiers as a string, e.g. "public static final". For the
      *         modifier bits, call {@link #getModifiers()}.
      */
-    public String getModifiersStr() {
+    public String getModifiersString() {
         final StringBuilder buf = new StringBuilder();
         TypeUtils.modifiersToString(modifiers, ModifierType.CLASS, /* ignored */ false, buf);
         return buf.toString();
@@ -1474,7 +1474,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     public boolean implementsInterface(final String interfaceName) {
         Assert.notNull(interfaceName, "interfaceName");
-        return getAllInterfaces().containsName(interfaceName);
+        return getAllSuperinterfaces().containsName(interfaceName);
     }
 
     /**
@@ -1751,7 +1751,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             final List<ClassInfo> overrideOrderOut) {
         if (visited.add(this)) {
             overrideOrderOut.add(this);
-            for (final ClassInfo iface : getAllInterfaces()) {
+            for (final ClassInfo iface : getAllSuperinterfaces()) {
                 iface.getFieldOverrideOrder(visited, overrideOrderOut);
             }
             final var superclass = getSuperclass();
@@ -1804,7 +1804,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             if (superclass != null) {
                 superclass.getMethodOverrideOrder(visited, overrideOrderOut);
             }
-            for (final ClassInfo iface : getAllInterfaces()) {
+            for (final ClassInfo iface : getAllSuperinterfaces()) {
                 iface.getMethodOverrideOrder(visited, overrideOrderOut);
             }
             return overrideOrderOut;
@@ -1820,7 +1820,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         // Can still happen thanks to dynamically linking a different interface during
         // runtime, for which the
         // returned order is undefined.
-        final var interfaces = getAllInterfaces();
+        final var interfaces = getAllSuperinterfaces();
         var minIndex = Integer.MAX_VALUE;
         for (final ClassInfo iface : interfaces) {
             if (!visited.contains(iface)) {
@@ -1896,7 +1896,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * scanned. Call {@link #getSuperclass()} to get only the direct superclass.
      *
      * Also does not include superinterfaces, if this is an interface (use
-     * {@link #getAllInterfaces()} to get superinterfaces of an interface).
+     * {@link #getAllSuperinterfaces()} to get superinterfaces of an interface).
      *
      * @return the list of all superclasses of this class, or the empty list if
      *         none.
@@ -1909,7 +1909,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Get the single direct superclass of this class, or null if none. Does not
      * return the superinterfaces, if this is an interface (use
-     * {@link #getDirectInterfaces()} to get the direct superinterfaces of an
+     * {@link #getDirectSuperinterfaces()} to get the direct superinterfaces of an
      * interface).
      *
      * <p>
@@ -1970,16 +1970,15 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     // Interfaces
 
     /**
-     * Get all interfaces implemented by this class or by one of its superclasses,
-     * if this is a standard class, or all superinterfaces extended by this
-     * interface, if this is an interface.
+     * Get all superinterfaces of this class or interface: all interfaces
+     * implemented by this class or by one of its superclasses, if this is a
+     * standard class, or all interfaces extended by this interface, directly or
+     * indirectly, if this is an interface.
      *
-     * @return The list of all interfaces implemented by this class or by one of its
-     *         superclasses, if this is a standard class, or all the superinterfaces
-     *         extended by this interface, if this is an interface. Returns the
+     * @return The list of all superinterfaces of this class or interface, or the
      *         empty list if none.
      */
-    public ClassInfoList getAllInterfaces() {
+    public ClassInfoList getAllSuperinterfaces() {
         // Classes also implement the interfaces of their superclasses
         final var implementedInterfaces = this.filterClassInfo(RelType.IMPLEMENTED_INTERFACES,
                 /* strictAccept = */ false);
@@ -1996,16 +1995,17 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get the interfaces directly implemented by this class, if this is a standard
-     * class, or the direct superinterfaces of this interface, if this is an
-     * interface. Does not include the interfaces implemented by superclasses, or
-     * the superinterfaces of the returned interfaces.
+     * Get the direct superinterfaces of this class or interface: the interfaces
+     * directly implemented by this class, if this is a standard class, or the
+     * interfaces directly extended by this interface, if this is an interface.
+     * Does not include the interfaces implemented by superclasses, or the
+     * superinterfaces of the returned interfaces.
      *
-     * @return The list of interfaces directly implemented or extended by this
-     *         class, or the empty list if none.
+     * @return The list of direct superinterfaces of this class or interface, or
+     *         the empty list if none.
      */
-    public ClassInfoList getDirectInterfaces() {
-        return getAllInterfaces().directOnly();
+    public ClassInfoList getDirectSuperinterfaces() {
+        return getAllSuperinterfaces().directOnly();
     }
 
     /**
@@ -2116,7 +2116,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             }
 
             if (!scanResult().scanSpec.enableAnnotationInfo) {
-                throw new IllegalArgumentException("Please call ClassGraph#enableAnnotationInfo() before #scan()");
+                throw new IllegalStateException("Please call ClassGraph#enableAnnotationInfo() before #scan()");
             }
 
             // Get all annotations on this class
@@ -2181,7 +2181,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         final var isField = relType == RelType.FIELD_ANNOTATIONS;
         if (!(isField ? scanResult().scanSpec.enableFieldInfo : scanResult().scanSpec.enableMethodInfo)
                 || !scanResult().scanSpec.enableAnnotationInfo) {
-            throw new IllegalArgumentException("Please call ClassGraph#enable" + (isField ? "Field" : "Method")
+            throw new IllegalStateException("Please call ClassGraph#enable" + (isField ? "Field" : "Method")
                     + "Info() and " + "#enableAnnotationInfo() before #scan()");
         }
         final var fieldOrMethodAnnotations = this.filterClassInfo(relType, /* strictAccept = */ false,
@@ -2210,7 +2210,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 || relType == RelType.CLASSES_WITH_NONPRIVATE_FIELD_ANNOTATION;
         if (!(isField ? scanResult().scanSpec.enableFieldInfo : scanResult().scanSpec.enableMethodInfo)
                 || !scanResult().scanSpec.enableAnnotationInfo) {
-            throw new IllegalArgumentException("Please call ClassGraph#enable" + (isField ? "Field" : "Method")
+            throw new IllegalStateException("Please call ClassGraph#enable" + (isField ? "Field" : "Method")
                     + "Info() and " + "#enableAnnotationInfo() before #scan()");
         }
         final var classesWithDirectlyAnnotatedFieldsOrMethods = this.filterClassInfo(relType,
@@ -2258,7 +2258,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             }
 
             if (!scanResult().scanSpec.enableAnnotationInfo) {
-                throw new IllegalArgumentException("Please call ClassGraph#enableAnnotationInfo() before #scan()");
+                throw new IllegalStateException("Please call ClassGraph#enableAnnotationInfo() before #scan()");
             }
 
             annotationInfoRef = AnnotationInfoList.getIndirectAnnotations(annotationInfo, this);
@@ -2465,10 +2465,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     public AnnotationParameterValueList getAnnotationDefaultParameterValues() {
         if (!scanResult().scanSpec.enableAnnotationInfo) {
-            throw new IllegalArgumentException("Please call ClassGraph#enableAnnotationInfo() before #scan()");
+            throw new IllegalStateException("Please call ClassGraph#enableAnnotationInfo() before #scan()");
         }
         if (!isAnnotation()) {
-            throw new IllegalArgumentException("Class is not an annotation: " + getName());
+            throw new IllegalStateException("Class is not an annotation: " + getName());
         }
         synchronized (this) {
             if (annotationDefaultParamValues == null) {
@@ -2493,7 +2493,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     public ClassInfoList getClassesWithAnnotation() {
         if (!scanResult().scanSpec.enableAnnotationInfo) {
-            throw new IllegalArgumentException("Please call ClassGraph#enableAnnotationInfo() before #scan()");
+            throw new IllegalStateException("Please call ClassGraph#enableAnnotationInfo() before #scan()");
         }
 
         if (isInherited) {
@@ -2552,7 +2552,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     private MethodInfoList getDeclaredMethodInfo(final @Nullable String methodName, final boolean getNormalMethods,
             final boolean getConstructorMethods, final boolean getStaticInitializerMethods) {
         if (!scanResult().scanSpec.enableMethodInfo) {
-            throw new IllegalArgumentException("Please call ClassGraph#enableMethodInfo() before #scan()");
+            throw new IllegalStateException("Please call ClassGraph#enableMethodInfo() before #scan()");
         }
         if (methodInfo == null) {
             return MethodInfoList.EMPTY_LIST;
@@ -2609,7 +2609,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     private MethodInfoList getMethodInfo(final @Nullable String methodName, final boolean getNormalMethods,
             final boolean getConstructorMethods, final boolean getStaticInitializerMethods) {
         if (!scanResult().scanSpec.enableMethodInfo) {
-            throw new IllegalArgumentException("Please call ClassGraph#enableMethodInfo() before #scan()");
+            throw new IllegalStateException("Please call ClassGraph#enableMethodInfo() before #scan()");
         }
         // Implement method/constructor overriding
         final MethodInfoList methodInfoList = new MethodInfoList();
@@ -2620,7 +2620,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             for (final MethodInfo mi : ci.getDeclaredMethodInfo(methodName, getNormalMethods,
                     shouldGetConstructorMethods, getStaticInitializerMethods)) {
                 // If method has not been overridden by method of same name and type descriptor
-                if (nameAndTypeDescriptorSet.add(new SimpleEntry<>(mi.getName(), mi.getTypeDescriptorStr()))) {
+                if (nameAndTypeDescriptorSet.add(new SimpleEntry<>(mi.getName(), mi.getTypeDescriptorString()))) {
                     // Add method to output order
                     methodInfoList.add(mi);
                 }
@@ -2649,7 +2649,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * <p>
      * Requires that {@link ClassGraph#enableMethodInfo()} be called before
-     * scanning, otherwise throws {@link IllegalArgumentException}.
+     * scanning, otherwise throws {@link IllegalStateException}.
      *
      * <p>
      * By default only returns information for public methods, unless
@@ -2657,7 +2657,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * @return the list of {@link MethodInfo} objects for visible methods declared
      *         by this class, or the empty list if no methods were found.
-     * @throws IllegalArgumentException if {@link ClassGraph#enableMethodInfo()} was
+     * @throws IllegalStateException if {@link ClassGraph#enableMethodInfo()} was
      *                                  not called prior to initiating the scan.
      */
     public MethodInfoList getDeclaredMethodInfo() {
@@ -2685,7 +2685,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * <p>
      * Requires that {@link ClassGraph#enableMethodInfo()} be called before
-     * scanning, otherwise throws {@link IllegalArgumentException}.
+     * scanning, otherwise throws {@link IllegalStateException}.
      *
      * <p>
      * By default only returns information for public methods, unless
@@ -2694,7 +2694,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return the list of {@link MethodInfo} objects for visible methods of this
      *         class, its interfaces and superclasses, or the empty list if no
      *         methods were found.
-     * @throws IllegalArgumentException if {@link ClassGraph#enableMethodInfo()} was
+     * @throws IllegalStateException if {@link ClassGraph#enableMethodInfo()} was
      *                                  not called prior to initiating the scan.
      */
     public MethodInfoList getMethodInfo() {
@@ -2723,7 +2723,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * <p>
      * Requires that {@link ClassGraph#enableMethodInfo()} be called before
-     * scanning, otherwise throws {@link IllegalArgumentException}.
+     * scanning, otherwise throws {@link IllegalStateException}.
      *
      * <p>
      * By default only returns information for public constructors, unless
@@ -2732,7 +2732,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return the list of {@link MethodInfo} objects for visible constructors
      *         declared by this class, or the empty list if no constructors were
      *         found or visible.
-     * @throws IllegalArgumentException if {@link ClassGraph#enableMethodInfo()} was
+     * @throws IllegalStateException if {@link ClassGraph#enableMethodInfo()} was
      *                                  not called prior to initiating the scan.
      */
     public MethodInfoList getDeclaredConstructorInfo() {
@@ -2761,7 +2761,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * <p>
      * Requires that {@link ClassGraph#enableMethodInfo()} be called before
-     * scanning, otherwise throws {@link IllegalArgumentException}.
+     * scanning, otherwise throws {@link IllegalStateException}.
      *
      * <p>
      * By default only returns information for public methods, unless
@@ -2770,7 +2770,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return the list of {@link MethodInfo} objects for visible constructors of
      *         this class and its superclasses, or the empty list if no methods were
      *         found.
-     * @throws IllegalArgumentException if {@link ClassGraph#enableMethodInfo()} was
+     * @throws IllegalStateException if {@link ClassGraph#enableMethodInfo()} was
      *                                  not called prior to initiating the scan.
      */
     public MethodInfoList getConstructorInfo() {
@@ -2800,7 +2800,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * <p>
      * Requires that {@link ClassGraph#enableMethodInfo()} be called before
-     * scanning, otherwise throws {@link IllegalArgumentException}.
+     * scanning, otherwise throws {@link IllegalStateException}.
      *
      * <p>
      * By default only returns information for public methods and constructors,
@@ -2812,7 +2812,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return the list of {@link MethodInfo} objects for visible methods and
      *         constructors of this class, or the empty list if no methods or
      *         constructors were found or visible.
-     * @throws IllegalArgumentException if {@link ClassGraph#enableMethodInfo()} was
+     * @throws IllegalStateException if {@link ClassGraph#enableMethodInfo()} was
      *                                  not called prior to initiating the scan.
      */
     public MethodInfoList getDeclaredMethodAndConstructorInfo() {
@@ -2842,7 +2842,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * <p>
      * Requires that {@link ClassGraph#enableMethodInfo()} be called before
-     * scanning, otherwise throws {@link IllegalArgumentException}.
+     * scanning, otherwise throws {@link IllegalStateException}.
      *
      * <p>
      * By default only returns information for public methods, unless
@@ -2851,7 +2851,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return the list of {@link MethodInfo} objects for visible methods and
      *         constructors of this class, its interfaces and superclasses, or the
      *         empty list if no methods were found.
-     * @throws IllegalArgumentException if {@link ClassGraph#enableMethodInfo()} was
+     * @throws IllegalStateException if {@link ClassGraph#enableMethodInfo()} was
      *                                  not called prior to initiating the scan.
      */
     public MethodInfoList getMethodAndConstructorInfo() {
@@ -2876,7 +2876,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * <p>
      * Requires that {@link ClassGraph#enableMethodInfo()} be called before
-     * scanning, otherwise throws {@link IllegalArgumentException}.
+     * scanning, otherwise throws {@link IllegalStateException}.
      *
      * <p>
      * By default only returns information for public methods, unless
@@ -2890,7 +2890,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return a list of {@link MethodInfo} objects for the method(s) with the given
      *         name, or the empty list if the method was not found in this class (or
      *         is not visible).
-     * @throws IllegalArgumentException if {@link ClassGraph#enableMethodInfo()} was
+     * @throws IllegalStateException if {@link ClassGraph#enableMethodInfo()} was
      *                                  not called prior to initiating the scan.
      */
     public MethodInfoList getDeclaredMethodInfo(final String methodName) {
@@ -2915,7 +2915,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * <p>
      * Requires that {@link ClassGraph#enableMethodInfo()} be called before
-     * scanning, otherwise throws {@link IllegalArgumentException}.
+     * scanning, otherwise throws {@link IllegalStateException}.
      *
      * <p>
      * By default only returns information for public methods, unless
@@ -2929,7 +2929,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return a list of {@link MethodInfo} objects for the method(s) with the given
      *         name, or the empty list if the method was not found in this class (or
      *         is not visible).
-     * @throws IllegalArgumentException if {@link ClassGraph#enableMethodInfo()} was
+     * @throws IllegalStateException if {@link ClassGraph#enableMethodInfo()} was
      *                                  not called prior to initiating the scan.
      */
     public MethodInfoList getMethodInfo(final String methodName) {
@@ -2955,7 +2955,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * <p>
      * Requires that {@link ClassGraph#enableMethodInfo()} and
      * {@link ClassGraph#enableAnnotationInfo()} be called before scanning,
-     * otherwise throws {@link IllegalArgumentException}.
+     * otherwise throws {@link IllegalStateException}.
      *
      * <p>
      * By default only returns information for public methods, unless
@@ -2965,7 +2965,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return the list of {@link MethodInfo} objects for visible methods declared
      *         by this class that have the named annotation or meta-annotation, or
      *         the empty list if none.
-     * @throws IllegalArgumentException if {@link ClassGraph#enableMethodInfo()} or
+     * @throws IllegalStateException if {@link ClassGraph#enableMethodInfo()} or
      *                                  {@link ClassGraph#enableAnnotationInfo()}
      *                                  was not called prior to initiating the scan.
      */
@@ -2992,7 +2992,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * <p>
      * Requires that {@link ClassGraph#enableMethodInfo()} and
      * {@link ClassGraph#enableAnnotationInfo()} be called before scanning,
-     * otherwise throws {@link IllegalArgumentException}.
+     * otherwise throws {@link IllegalStateException}.
      *
      * <p>
      * By default only returns information for public methods, unless
@@ -3002,7 +3002,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return the list of {@link MethodInfo} objects for visible methods declared
      *         by this class that have the given annotation or meta-annotation, or
      *         the empty list if none.
-     * @throws IllegalArgumentException if {@link ClassGraph#enableMethodInfo()} or
+     * @throws IllegalStateException if {@link ClassGraph#enableMethodInfo()} or
      *                                  {@link ClassGraph#enableAnnotationInfo()}
      *                                  was not called prior to initiating the scan.
      */
@@ -3030,7 +3030,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * <p>
      * Requires that {@link ClassGraph#enableMethodInfo()} and
      * {@link ClassGraph#enableAnnotationInfo()} be called before scanning,
-     * otherwise throws {@link IllegalArgumentException}.
+     * otherwise throws {@link IllegalStateException}.
      *
      * <p>
      * By default only returns information for public methods, unless
@@ -3040,7 +3040,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return the list of {@link MethodInfo} objects for visible methods of this
      *         class, its interfaces and superclasses that have the named annotation
      *         or meta-annotation, or the empty list if none.
-     * @throws IllegalArgumentException if {@link ClassGraph#enableMethodInfo()} or
+     * @throws IllegalStateException if {@link ClassGraph#enableMethodInfo()} or
      *                                  {@link ClassGraph#enableAnnotationInfo()}
      *                                  was not called prior to initiating the scan.
      */
@@ -3067,7 +3067,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * <p>
      * Requires that {@link ClassGraph#enableMethodInfo()} and
      * {@link ClassGraph#enableAnnotationInfo()} be called before scanning,
-     * otherwise throws {@link IllegalArgumentException}.
+     * otherwise throws {@link IllegalStateException}.
      *
      * <p>
      * By default only returns information for public methods, unless
@@ -3077,7 +3077,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return the list of {@link MethodInfo} objects for visible methods of this
      *         class, its interfaces and superclasses that have the given annotation
      *         or meta-annotation, or the empty list if none.
-     * @throws IllegalArgumentException if {@link ClassGraph#enableMethodInfo()} or
+     * @throws IllegalStateException if {@link ClassGraph#enableMethodInfo()} or
      *                                  {@link ClassGraph#enableAnnotationInfo()}
      *                                  was not called prior to initiating the scan.
      */
@@ -3218,7 +3218,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * <p>
      * Requires that {@link ClassGraph#enableFieldInfo()} be called before scanning,
-     * otherwise throws {@link IllegalArgumentException}.
+     * otherwise throws {@link IllegalStateException}.
      *
      * <p>
      * By default only returns information for public fields, unless
@@ -3226,12 +3226,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * @return the list of FieldInfo objects for visible fields declared by this
      *         class, or the empty list if no fields were found or visible.
-     * @throws IllegalArgumentException if {@link ClassGraph#enableFieldInfo()} was
+     * @throws IllegalStateException if {@link ClassGraph#enableFieldInfo()} was
      *                                  not called prior to initiating the scan.
      */
     public FieldInfoList getDeclaredFieldInfo() {
         if (!scanResult().scanSpec.enableFieldInfo) {
-            throw new IllegalArgumentException("Please call ClassGraph#enableFieldInfo() before #scan()");
+            throw new IllegalStateException("Please call ClassGraph#enableFieldInfo() before #scan()");
         }
         return fieldInfo == null ? FieldInfoList.EMPTY_LIST : fieldInfo;
     }
@@ -3248,7 +3248,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * <p>
      * Requires that {@link ClassGraph#enableFieldInfo()} be called before scanning,
-     * otherwise throws {@link IllegalArgumentException}.
+     * otherwise throws {@link IllegalStateException}.
      *
      * <p>
      * By default only returns information for public fields, unless
@@ -3256,12 +3256,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * @return the list of FieldInfo objects for visible fields of this class or its
      *         superclasses, or the empty list if no fields were found or visible.
-     * @throws IllegalArgumentException if {@link ClassGraph#enableFieldInfo()} was
+     * @throws IllegalStateException if {@link ClassGraph#enableFieldInfo()} was
      *                                  not called prior to initiating the scan.
      */
     public FieldInfoList getFieldInfo() {
         if (!scanResult().scanSpec.enableFieldInfo) {
-            throw new IllegalArgumentException("Please call ClassGraph#enableFieldInfo() before #scan()");
+            throw new IllegalStateException("Please call ClassGraph#enableFieldInfo() before #scan()");
         }
         // Implement field overriding
         final FieldInfoList fieldInfoList = new FieldInfoList();
@@ -3286,7 +3286,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     public FieldInfoList getEnumConstants() {
         if (!isEnum()) {
-            throw new IllegalArgumentException("Class " + getName() + " is not an enum");
+            throw new IllegalStateException("Class " + getName() + " is not an enum");
         }
         return getFieldInfo().filter(FieldInfo::isEnum);
     }
@@ -3303,7 +3303,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * <p>
      * Requires that {@link ClassGraph#enableFieldInfo()} be called before scanning,
-     * otherwise throws {@link IllegalArgumentException}.
+     * otherwise throws {@link IllegalStateException}.
      *
      * <p>
      * By default only returns information for public fields, unless
@@ -3313,13 +3313,13 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return the {@link FieldInfo} object for the named field declared by this
      *         class, or null if the field was not found in this class (or is not
      *         visible).
-     * @throws IllegalArgumentException if {@link ClassGraph#enableFieldInfo()} was
+     * @throws IllegalStateException if {@link ClassGraph#enableFieldInfo()} was
      *                                  not called prior to initiating the scan.
      */
     public @Nullable FieldInfo getDeclaredFieldInfo(final String fieldName) {
         Assert.notNull(fieldName, "fieldName");
         if (!scanResult().scanSpec.enableFieldInfo) {
-            throw new IllegalArgumentException("Please call ClassGraph#enableFieldInfo() before #scan()");
+            throw new IllegalStateException("Please call ClassGraph#enableFieldInfo() before #scan()");
         }
         if (fieldInfo == null) {
             return null;
@@ -3344,7 +3344,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * <p>
      * Requires that {@link ClassGraph#enableFieldInfo()} be called before scanning,
-     * otherwise throws {@link IllegalArgumentException}.
+     * otherwise throws {@link IllegalStateException}.
      *
      * <p>
      * By default only returns information for public fields, unless
@@ -3353,13 +3353,13 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @param fieldName The field name.
      * @return the {@link FieldInfo} object for the named field of this class or its
      *         superclasses, or the empty list if no fields were found or visible.
-     * @throws IllegalArgumentException if {@link ClassGraph#enableFieldInfo()} was
+     * @throws IllegalStateException if {@link ClassGraph#enableFieldInfo()} was
      *                                  not called prior to initiating the scan.
      */
     public @Nullable FieldInfo getFieldInfo(final String fieldName) {
         Assert.notNull(fieldName, "fieldName");
         if (!scanResult().scanSpec.enableFieldInfo) {
-            throw new IllegalArgumentException("Please call ClassGraph#enableFieldInfo() before #scan()");
+            throw new IllegalStateException("Please call ClassGraph#enableFieldInfo() before #scan()");
         }
         // Implement field overriding
         for (final ClassInfo ci : getFieldOverrideOrder()) {
@@ -3383,7 +3383,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * <p>
      * Requires that {@link ClassGraph#enableFieldInfo()} and
      * {@link ClassGraph#enableAnnotationInfo()} be called before scanning,
-     * otherwise throws {@link IllegalArgumentException}.
+     * otherwise throws {@link IllegalStateException}.
      *
      * <p>
      * By default only returns information for public fields, unless
@@ -3393,7 +3393,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return the list of {@link FieldInfo} objects for visible fields declared by
      *         this class that have the named annotation or meta-annotation, or the
      *         empty list if none.
-     * @throws IllegalArgumentException if {@link ClassGraph#enableFieldInfo()} or
+     * @throws IllegalStateException if {@link ClassGraph#enableFieldInfo()} or
      *                                  {@link ClassGraph#enableAnnotationInfo()}
      *                                  was not called prior to initiating the scan.
      */
@@ -3414,7 +3414,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * <p>
      * Requires that {@link ClassGraph#enableFieldInfo()} and
      * {@link ClassGraph#enableAnnotationInfo()} be called before scanning,
-     * otherwise throws {@link IllegalArgumentException}.
+     * otherwise throws {@link IllegalStateException}.
      *
      * <p>
      * By default only returns information for public fields, unless
@@ -3424,7 +3424,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return the list of {@link FieldInfo} objects for visible fields declared by
      *         this class that have the given annotation or meta-annotation, or the
      *         empty list if none.
-     * @throws IllegalArgumentException if {@link ClassGraph#enableFieldInfo()} or
+     * @throws IllegalStateException if {@link ClassGraph#enableFieldInfo()} or
      *                                  {@link ClassGraph#enableAnnotationInfo()}
      *                                  was not called prior to initiating the scan.
      */
@@ -3447,7 +3447,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * <p>
      * Requires that {@link ClassGraph#enableFieldInfo()} and
      * {@link ClassGraph#enableAnnotationInfo()} be called before scanning,
-     * otherwise throws {@link IllegalArgumentException}.
+     * otherwise throws {@link IllegalStateException}.
      *
      * <p>
      * By default only returns information for public fields, unless
@@ -3457,7 +3457,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return the list of {@link FieldInfo} objects for visible fields of this
      *         class, its interfaces and superclasses that have the named annotation
      *         or meta-annotation, or the empty list if none.
-     * @throws IllegalArgumentException if {@link ClassGraph#enableFieldInfo()} or
+     * @throws IllegalStateException if {@link ClassGraph#enableFieldInfo()} or
      *                                  {@link ClassGraph#enableAnnotationInfo()}
      *                                  was not called prior to initiating the scan.
      */
@@ -3479,7 +3479,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * <p>
      * Requires that {@link ClassGraph#enableFieldInfo()} and
      * {@link ClassGraph#enableAnnotationInfo()} be called before scanning,
-     * otherwise throws {@link IllegalArgumentException}.
+     * otherwise throws {@link IllegalStateException}.
      *
      * <p>
      * By default only returns information for public fields, unless
@@ -3489,7 +3489,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return the list of {@link FieldInfo} objects for visible fields of this
      *         class, its interfaces and superclasses that have the given annotation
      *         or meta-annotation, or the empty list if none.
-     * @throws IllegalArgumentException if {@link ClassGraph#enableFieldInfo()} or
+     * @throws IllegalStateException if {@link ClassGraph#enableFieldInfo()} or
      *                                  {@link ClassGraph#enableAnnotationInfo()}
      *                                  was not called prior to initiating the scan.
      */
@@ -3604,7 +3604,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         parameters, or null if not available (probably indicating the class
      *         is not generic).
      */
-    public @Nullable String getTypeSignatureStr() {
+    public @Nullable String getTypeSignatureString() {
         return typeSignatureStr;
     }
 
@@ -3646,7 +3646,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 // classfile order, since it stands in for the classfile's own super_class
                 // and interfaces[] entries, which is what the class type annotation
                 // targets index into
-                typeDescriptor = new ClassTypeSignature(this, getSuperclass(), getDirectInterfaces());
+                typeDescriptor = new ClassTypeSignature(this, getSuperclass(), getDirectSuperinterfaces());
                 typeDescriptor.setScanResult(scanResult);
                 if (typeAnnotationDecorators != null) {
                     for (final ClassTypeAnnotationDecorator decorator : typeAnnotationDecorators) {
@@ -3680,9 +3680,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * @return The {@link URI} of the classpath element that this class was found
      *         within.
-     * @throws IllegalArgumentException if the classpath element does not have a
-     *                                  valid URI (e.g. for modules whose location
-     *                                  URI is null).
+     * @throws IllegalStateException if the classpath element does not have a valid
+     *                               URI (e.g. for modules whose location URI is
+     *                               null).
      */
     public URI getClasspathElementURI() {
         // Calling classfileResource.getClasspathElementURI() rather than
@@ -3696,20 +3696,20 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * found within. Use {@link #getClasspathElementURI()} instead if the resource
      * may have come from a system module, or if this is a jlink'd runtime image,
      * since "jrt:" URI schemes used by system modules and jlink'd runtime images
-     * are not suppored by {@link URL}, and this will cause
-     * {@link IllegalArgumentException} to be thrown.
+     * are not supported by {@link URL}, and this will cause
+     * {@link IllegalStateException} to be thrown.
      *
      * @return The {@link URL} of the classpath element that this class was found
      *         within.
-     * @throws IllegalArgumentException if the classpath element URI cannot be
-     *                                  converted to a {@link URL} (in particular,
-     *                                  if the URI has a {@code jrt:/} scheme).
+     * @throws IllegalStateException if the classpath element URI cannot be
+     *                               converted to a {@link URL} (in particular, if
+     *                               the URI has a {@code jrt:/} scheme).
      */
     public URL getClasspathElementURL() {
         try {
             return getClasspathElementURI().toURL();
         } catch (final IllegalArgumentException | MalformedURLException e) {
-            throw new IllegalArgumentException("Could not get classpath element URL", e);
+            throw new IllegalStateException("Could not get classpath element URL", e);
         }
     }
 
@@ -3727,7 +3727,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     public @Nullable File getClasspathElementFile() {
         if (classpathElement == null) {
-            throw new IllegalArgumentException("Classpath element is not known for this classpath element");
+            throw new IllegalStateException("Classpath element is not known for class " + getName());
         }
         return classpathElement.getFile();
     }
@@ -3743,7 +3743,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     public @Nullable ModuleRef getModuleRef() {
         if (classpathElement == null) {
-            throw new IllegalArgumentException("Classpath element is not known for this classpath element");
+            throw new IllegalStateException("Classpath element is not known for class " + getName());
         }
         return classpathElement instanceof ClasspathElementModule c ? c.getModuleRef() : null;
     }
@@ -3903,7 +3903,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             }
         } catch (final IllegalArgumentException e) {
             if (log != null) {
-                log.log("Illegal type signature for class " + getClassName() + ": " + getTypeSignatureStr());
+                log.log("Illegal type signature for class " + getClassName() + ": " + getTypeSignatureString());
             }
         }
     }
@@ -3932,7 +3932,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     public ClassInfoList getClassDependencies() {
         if (!scanResult().scanSpec.enableInterClassDependencies) {
-            throw new IllegalArgumentException("Please call ClassGraph#enableInterClassDependencies() before #scan()");
+            throw new IllegalStateException("Please call ClassGraph#enableInterClassDependencies() before #scan()");
         }
         return referencedClasses == null ? ClassInfoList.EMPTY_LIST : referencedClasses;
     }
@@ -3974,7 +3974,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     @Override
     public int hashCode() {
-        return name == null ? 0 : name.hashCode();
+        return name.hashCode();
     }
 
     // -------------------------------------------------------------------------------------------------------------

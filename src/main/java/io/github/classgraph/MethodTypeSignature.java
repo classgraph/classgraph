@@ -130,7 +130,7 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
     void addTypeAnnotation(final List<TypePathNode> typePath, final AnnotationInfo annotationInfo) {
         // Individual parts of a class' type each have their own addTypeAnnotation
         // methods
-        throw new IllegalArgumentException("Cannot call this method on " + MethodTypeSignature.class.getSimpleName());
+        throw new UnsupportedOperationException("Cannot call this method on " + MethodTypeSignature.class.getSimpleName());
     }
 
     /**
@@ -166,7 +166,7 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
     protected String getClassName() {
         // getClassInfo() is not valid for this type, so getClassName() does not need to
         // be implemented
-        throw new IllegalArgumentException("getClassName() cannot be called here");
+        throw new UnsupportedOperationException("getClassName() cannot be called here");
     }
 
     /*
@@ -176,7 +176,7 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
      */
     @Override
     protected ClassInfo getClassInfo() {
-        throw new IllegalArgumentException("getClassInfo() cannot be called here");
+        throw new UnsupportedOperationException("getClassInfo() cannot be called here");
     }
 
     /*

@@ -122,7 +122,7 @@ public class AnnotationParameterValue extends ScanResultObject
     protected String getClassName() {
         // getClassInfo() is not valid for this type, so getClassName() does not need to
         // be implemented
-        throw new IllegalArgumentException("getClassName() cannot be called here");
+        throw new UnsupportedOperationException("getClassName() cannot be called here");
     }
 
     /*
@@ -132,7 +132,7 @@ public class AnnotationParameterValue extends ScanResultObject
      */
     @Override
     protected ClassInfo getClassInfo() {
-        throw new IllegalArgumentException("getClassInfo() cannot be called here");
+        throw new UnsupportedOperationException("getClassInfo() cannot be called here");
     }
 
     /*
@@ -287,7 +287,7 @@ public class AnnotationParameterValue extends ScanResultObject
                 return classRefTypeSignature.getClassName();
             } else if (elementTypeSig instanceof final BaseTypeSignature baseTypeSignature) {
                 // Look up the name of the primitive class, for primitive arrays
-                return baseTypeSignature.getTypeStr();
+                return baseTypeSignature.getTypeString();
             }
         } else {
             // Could not find a method with this name -- this is an external class.

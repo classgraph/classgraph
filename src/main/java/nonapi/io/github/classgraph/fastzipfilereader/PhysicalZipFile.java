@@ -168,7 +168,7 @@ class PhysicalZipFile {
      * @return the path for this PhysicalZipFile, which is the file path, if it is
      *         file-backed, or a compound nested jar path, if it is memory-backed.
      */
-    public String getPathStr() {
+    public String getPathString() {
         return pathStr;
     }
 

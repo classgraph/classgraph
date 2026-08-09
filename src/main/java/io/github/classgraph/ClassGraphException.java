@@ -35,11 +35,10 @@ import java.io.Serial;
  * unhandled exception is caught during scanning.
  *
  * <p>
- * (Extends {@link IllegalArgumentException}, which extends
- * {@link RuntimeException}, so either of the more generic exceptions may be
+ * (Extends {@link RuntimeException}, so the more generic exception may be
  * caught.)
  */
-public class ClassGraphException extends IllegalArgumentException {
+public class ClassGraphException extends RuntimeException {
     /** serialVersionUID. */
     @Serial
     private static final long serialVersionUID = 1L;

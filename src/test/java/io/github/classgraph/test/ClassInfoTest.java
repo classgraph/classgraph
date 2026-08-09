@@ -64,12 +64,26 @@ public class ClassInfoTest {
     }
 
     /**
+     * The name and class-reference overloads of getAssignableTo agree with the
+     * ClassInfo overload, and an unknown class name yields the empty list.
+     */
+    @Test
+    public void getAssignableToOverloads() {
+        final var allClasses = scanResult.getAllClasses();
+        final var expected = allClasses.getAssignableTo(scanResult.getClassInfo(Iface.class.getName())).getNames();
+        assertThat(expected).contains(Iface.class.getName(), Impl1.class.getName());
+        assertThat(allClasses.getAssignableTo(Iface.class).getNames()).isEqualTo(expected);
+        assertThat(allClasses.getAssignableTo(Iface.class.getName()).getNames()).isEqualTo(expected);
+        assertThat(allClasses.getAssignableTo("com.xyz.NonExistentClass")).isEmpty();
+    }
+
+    /**
      * Stream has super interface direct.
      */
     @Test
     public void streamHasSuperInterfaceDirect() {
         assertThat(scanResult.getAllClasses()
-                .filter(ci -> ci.getDirectInterfaces().getNames().contains(Iface.class.getName())).getNames())
+                .filter(ci -> ci.getDirectSuperinterfaces().getNames().contains(Iface.class.getName())).getNames())
                 .containsOnly(IfaceSub.class.getName(), Impl2.class.getName());
     }
 
@@ -79,7 +93,7 @@ public class ClassInfoTest {
     @Test
     public void streamHasSuperInterface() {
         assertThat(scanResult.getAllClasses()
-                .filter(ci -> ci.getAllInterfaces().getNames().contains(Iface.class.getName())).getNames())
+                .filter(ci -> ci.getAllSuperinterfaces().getNames().contains(Iface.class.getName())).getNames())
                 .containsOnly(IfaceSub.class.getName(), IfaceSubSub.class.getName(), Impl2.class.getName(),
                         Impl2Sub.class.getName(), Impl2SubSub.class.getName(), Impl1.class.getName(),
                         Impl1Sub.class.getName(), Impl1SubSub.class.getName());
@@ -138,9 +152,9 @@ public class ClassInfoTest {
      */
     @Test
     public void directVsAllInterfaces() {
-        assertThat(scanResult.getDirectInterfaces(Impl2SubSub.class).getNames())
+        assertThat(scanResult.getDirectSuperinterfaces(Impl2SubSub.class).getNames())
                 .containsOnly(IfaceSubSub.class.getName());
-        assertThat(scanResult.getAllInterfaces(Impl2SubSub.class).getNames()).containsOnly(IfaceSubSub.class.getName(),
+        assertThat(scanResult.getAllSuperinterfaces(Impl2SubSub.class).getNames()).containsOnly(IfaceSubSub.class.getName(),
                 IfaceSub.class.getName(), Iface.class.getName());
     }
 
@@ -162,7 +176,7 @@ public class ClassInfoTest {
     @Test
     public void multiCriteria() {
         assertThat(scanResult.getAllClasses()
-                .filter(ci -> ci.getAllInterfaces().getNames().contains(Iface.class.getName())
+                .filter(ci -> ci.getAllSuperinterfaces().getNames().contains(Iface.class.getName())
                         && ci.getAllSuperclasses().getNames().contains(Impl1.class.getName()))
                 .getNames()).containsOnly(Impl1Sub.class.getName(), Impl1SubSub.class.getName());
     }

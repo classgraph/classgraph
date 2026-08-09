@@ -70,7 +70,7 @@ public class FieldInfoTest {
     @Test
     public void fieldInfoNotEnabled() {
         try (var scanResult = new ClassGraph().acceptPackages(FieldInfoTest.class.getPackage().getName()).scan()) {
-            Assertions.assertThrows(IllegalArgumentException.class,
+            Assertions.assertThrows(IllegalStateException.class,
                     () -> scanResult.getClassInfo(FieldInfoTest.class.getName()).getFieldInfo());
         }
     }

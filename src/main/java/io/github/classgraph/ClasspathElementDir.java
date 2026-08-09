@@ -313,7 +313,7 @@ class ClasspathElementDir extends ClasspathElement {
             }
 
             @Override
-            public long getLastModified() {
+            public long getLastModifiedMillis() {
                 try {
                     return attributes == null ? resourcePath.toFile().lastModified()
                             : attributes.lastModifiedTime().toMillis();
@@ -634,7 +634,7 @@ class ClasspathElementDir extends ClasspathElement {
         }
         if (scanned.getAndSet(true)) {
             // Should not happen
-            throw new IllegalArgumentException("Already scanned classpath element " + this);
+            throw new IllegalStateException("Already scanned classpath element " + this);
         }
 
         final var subLog = log == null ? null
@@ -681,7 +681,7 @@ class ClasspathElementDir extends ClasspathElement {
         try {
             return classpathEltPath.toUri();
         } catch (IOError | SecurityException e) {
-            throw new IllegalArgumentException("Could not convert to URI: " + classpathEltPath);
+            throw new IllegalStateException("Could not convert to URI: " + classpathEltPath);
         }
     }
 

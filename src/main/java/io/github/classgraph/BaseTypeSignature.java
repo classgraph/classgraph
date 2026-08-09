@@ -69,7 +69,7 @@ public class BaseTypeSignature extends TypeSignature {
      * @param typeChar the type character, e.g. 'I'.
      * @return The name of the type, e.g. "int", or null if there was no match.
      */
-    static @Nullable String getTypeStr(final char typeChar) {
+    static @Nullable String typeCharToString(final char typeChar) {
         return switch (typeChar) {
         case 'B' -> "byte";
         case 'C' -> "char";
@@ -142,8 +142,8 @@ public class BaseTypeSignature extends TypeSignature {
      *
      * @return The name of the type, such as "int", "float", or "void".
      */
-    public String getTypeStr() {
-        return Objects.requireNonNull(getTypeStr(typeSignatureChar));
+    public String getTypeString() {
+        return Objects.requireNonNull(typeCharToString(typeSignatureChar));
     }
 
     /**
@@ -191,7 +191,7 @@ public class BaseTypeSignature extends TypeSignature {
      */
     @Override
     protected String getClassName() {
-        return getTypeStr();
+        return getTypeString();
     }
 
     /*
@@ -284,6 +284,6 @@ public class BaseTypeSignature extends TypeSignature {
                 }
             }
         }
-        buf.append(getTypeStr());
+        buf.append(getTypeString());
     }
 }

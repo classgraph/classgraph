@@ -62,7 +62,7 @@ public class Issue902Test {
             final var timerTask = scanResult.getClassInfo(TimerTask.class.getName());
             assertThat(timerTask).isNotNull();
             assertThat(timerTask.getAllSuperclasses().getNames()).containsExactly("java.lang.Object");
-            assertThat(timerTask.getAllInterfaces().getNames()).containsExactly(Runnable.class.getName());
+            assertThat(timerTask.getAllSuperinterfaces().getNames()).containsExactly(Runnable.class.getName());
         }
     }
 

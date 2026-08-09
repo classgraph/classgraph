@@ -33,7 +33,7 @@ import org.jspecify.annotations.Nullable;
 /**
  * Holds metadata about an array class. This class extends {@link ClassInfo}
  * with additional methods relevant to array classes, in particular
- * {@link #getArrayTypeSignature()}, {@link #getTypeSignatureStr()},
+ * {@link #getArrayTypeSignature()}, {@link #getTypeSignatureString()},
  * {@link #getElementTypeSignature()}, {@link #getElementClassInfo()}, and
  * {@link #getNumDimensions()}.
  *
@@ -70,8 +70,8 @@ public class ArrayClassInfo extends ClassInfo {
      * @return The raw type signature string of the array class.
      */
     @Override
-    public String getTypeSignatureStr() {
-        return arrayTypeSignature.getTypeSignatureStr();
+    public String getTypeSignatureString() {
+        return arrayTypeSignature.getTypeSignatureString();
     }
 
     /**

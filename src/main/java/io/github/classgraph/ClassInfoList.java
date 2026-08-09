@@ -409,6 +409,44 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
         return filter(allAssignableFromClasses::contains);
     }
 
+    /**
+     * Filter this {@link ClassInfoList} to include only classes that are assignable
+     * to the named class or interface (i.e. where the named class or interface is a
+     * superclass or implemented interface of the list element).
+     *
+     * @param superclassOrInterfaceName the name of the superclass or interface to
+     *                                  filter for.
+     * @return The filtered list, or the empty list if no classes were assignable to
+     *         the named class or interface, or if the named class or interface was
+     *         not found during the scan.
+     * @throws NullPointerException if superclassOrInterfaceName is null.
+     */
+    public ClassInfoList getAssignableTo(final String superclassOrInterfaceName) {
+        Assert.notNull(superclassOrInterfaceName, "superclassOrInterfaceName");
+        if (isEmpty()) {
+            return EMPTY_LIST;
+        }
+        // Any element of this list can be used to reach the ScanResult
+        final ClassInfo superclassOrInterface = get(0).scanResult().getClassInfo(superclassOrInterfaceName);
+        return superclassOrInterface == null ? EMPTY_LIST : getAssignableTo(superclassOrInterface);
+    }
+
+    /**
+     * Filter this {@link ClassInfoList} to include only classes that are assignable
+     * to the requested class or interface (i.e. where the requested class or
+     * interface is a superclass or implemented interface of the list element).
+     *
+     * @param superclassOrInterface the superclass or interface to filter for.
+     * @return The filtered list, or the empty list if no classes were assignable to
+     *         the requested class or interface, or if the requested class or
+     *         interface was not found during the scan.
+     * @throws NullPointerException if superclassOrInterface is null.
+     */
+    public ClassInfoList getAssignableTo(final Class<?> superclassOrInterface) {
+        Assert.notNull(superclassOrInterface, "superclassOrInterface");
+        return getAssignableTo(superclassOrInterface.getName());
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -421,7 +459,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      * @param options the graph options. Only the layout size and the external-class
      *                setting have any effect on this graph.
      * @return the GraphViz file contents.
-     * @throws IllegalArgumentException if this {@link ClassInfoList} is empty or
+     * @throws IllegalStateException if this {@link ClassInfoList} is empty or
      *                                  {@link ClassGraph#enableInterClassDependencies()}
      *                                  was not called before scanning (since there
      *                                  would be nothing to graph).
@@ -429,11 +467,11 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
     public String generateGraphVizDotFileFromInterClassDependencies(final GraphVizDotFileOptions options) {
         Assert.notNull(options, "options");
         if (isEmpty()) {
-            throw new IllegalArgumentException("List is empty");
+            throw new IllegalStateException("List is empty");
         }
         final var scanSpec = get(0).scanResult().scanSpec;
         if (!scanSpec.enableInterClassDependencies) {
-            throw new IllegalArgumentException("Please call ClassGraph#enableInterClassDependencies() before #scan()");
+            throw new IllegalStateException("Please call ClassGraph#enableInterClassDependencies() before #scan()");
         }
         return GraphvizDotfileGenerator.generateGraphVizDotFileFromInterClassDependencies(this, options.sizeX,
                 options.sizeY,
@@ -449,7 +487,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      * method.
      *
      * @return the GraphViz file contents.
-     * @throws IllegalArgumentException if this {@link ClassInfoList} is empty or
+     * @throws IllegalStateException if this {@link ClassInfoList} is empty or
      *                                  {@link ClassGraph#enableInterClassDependencies()}
      *                                  was not called before scanning (since there
      *                                  would be nothing to graph).
@@ -469,7 +507,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      * @param options the graph options. Only the layout size and the external-class
      *                setting have any effect on this graph.
      * @throws IOException              if the file could not be saved.
-     * @throws IllegalArgumentException if this {@link ClassInfoList} is empty or
+     * @throws IllegalStateException if this {@link ClassInfoList} is empty or
      *                                  {@link ClassGraph#enableInterClassDependencies()}
      *                                  was not called before scanning (since there
      *                                  would be nothing to graph).
@@ -491,7 +529,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      *
      * @param file the file to save the GraphViz .dot file to.
      * @throws IOException              if the file could not be saved.
-     * @throws IllegalArgumentException if this {@link ClassInfoList} is empty or
+     * @throws IllegalStateException if this {@link ClassInfoList} is empty or
      *                                  {@link ClassGraph#enableInterClassDependencies()}
      *                                  was not called before scanning (since there
      *                                  would be nothing to graph).
@@ -528,7 +566,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      *
      * @param options the graph options.
      * @return the GraphViz file contents.
-     * @throws IllegalArgumentException if this {@link ClassInfoList} is empty or
+     * @throws IllegalStateException if this {@link ClassInfoList} is empty or
      *                                  {@link ClassGraph#enableClassInfo()} was not
      *                                  called before scanning (since there would be
      *                                  nothing to graph).
@@ -536,11 +574,11 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
     public String generateGraphVizDotFile(final GraphVizDotFileOptions options) {
         Assert.notNull(options, "options");
         if (isEmpty()) {
-            throw new IllegalArgumentException("List is empty");
+            throw new IllegalStateException("List is empty");
         }
         final var scanSpec = get(0).scanResult().scanSpec;
         if (!scanSpec.enableClassInfo) {
-            throw new IllegalArgumentException("Please call ClassGraph#enableClassInfo() before #scan()");
+            throw new IllegalStateException("Please call ClassGraph#enableClassInfo() before #scan()");
         }
         return GraphvizDotfileGenerator.generateGraphVizDotFile(this, options.sizeX, options.sizeY, options.showFields,
                 options.showFieldTypeDependencyEdges, options.showMethods, options.showMethodTypeDependencyEdges,
@@ -563,7 +601,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      * {@link ClassGraph#ignoreFieldVisibility()} has/have been called.
      *
      * @return the GraphViz file contents.
-     * @throws IllegalArgumentException if this {@link ClassInfoList} is empty or
+     * @throws IllegalStateException if this {@link ClassInfoList} is empty or
      *                                  {@link ClassGraph#enableClassInfo()} was not
      *                                  called before scanning (since there would be
      *                                  nothing to graph).
@@ -579,7 +617,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      * @param file    the file to save the GraphViz .dot file to.
      * @param options the graph options.
      * @throws IOException              if the file could not be saved.
-     * @throws IllegalArgumentException if this {@link ClassInfoList} is empty or
+     * @throws IllegalStateException if this {@link ClassInfoList} is empty or
      *                                  {@link ClassGraph#enableClassInfo()} was not
      *                                  called before scanning (since there would be
      *                                  nothing to graph).
@@ -609,7 +647,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      *
      * @param file the file to save the GraphViz .dot file to.
      * @throws IOException              if the file could not be saved.
-     * @throws IllegalArgumentException if this {@link ClassInfoList} is empty or
+     * @throws IllegalStateException if this {@link ClassInfoList} is empty or
      *                                  {@link ClassGraph#enableClassInfo()} was not
      *                                  called before scanning (since there would be
      *                                  nothing to graph).

@@ -80,7 +80,7 @@ class PotentiallyUnmodifiableList<T> extends ArrayList<T> {
     @Override
     public boolean add(final T element) {
         if (!modifiable) {
-            throw new IllegalArgumentException("List is immutable");
+            throw new UnsupportedOperationException("List is immutable");
         } else {
             return super.add(element);
         }
@@ -89,7 +89,7 @@ class PotentiallyUnmodifiableList<T> extends ArrayList<T> {
     @Override
     public void add(final int index, final T element) {
         if (!modifiable) {
-            throw new IllegalArgumentException("List is immutable");
+            throw new UnsupportedOperationException("List is immutable");
         } else {
             super.add(index, element);
         }
@@ -98,7 +98,7 @@ class PotentiallyUnmodifiableList<T> extends ArrayList<T> {
     @Override
     public boolean remove(final Object o) {
         if (!modifiable) {
-            throw new IllegalArgumentException("List is immutable");
+            throw new UnsupportedOperationException("List is immutable");
         } else {
             return super.remove(o);
         }
@@ -107,7 +107,7 @@ class PotentiallyUnmodifiableList<T> extends ArrayList<T> {
     @Override
     public T remove(final int index) {
         if (!modifiable) {
-            throw new IllegalArgumentException("List is immutable");
+            throw new UnsupportedOperationException("List is immutable");
         } else {
             return super.remove(index);
         }
@@ -116,7 +116,7 @@ class PotentiallyUnmodifiableList<T> extends ArrayList<T> {
     @Override
     public boolean addAll(final Collection<? extends T> c) {
         if (!modifiable && !c.isEmpty()) {
-            throw new IllegalArgumentException("List is immutable");
+            throw new UnsupportedOperationException("List is immutable");
         } else {
             return super.addAll(c);
         }
@@ -125,7 +125,7 @@ class PotentiallyUnmodifiableList<T> extends ArrayList<T> {
     @Override
     public boolean addAll(final int index, final Collection<? extends T> c) {
         if (!modifiable && !c.isEmpty()) {
-            throw new IllegalArgumentException("List is immutable");
+            throw new UnsupportedOperationException("List is immutable");
         } else {
             return super.addAll(index, c);
         }
@@ -134,7 +134,7 @@ class PotentiallyUnmodifiableList<T> extends ArrayList<T> {
     @Override
     public boolean removeAll(final Collection<?> c) {
         if (!modifiable && !c.isEmpty()) {
-            throw new IllegalArgumentException("List is immutable");
+            throw new UnsupportedOperationException("List is immutable");
         } else {
             return super.removeAll(c);
         }
@@ -143,7 +143,7 @@ class PotentiallyUnmodifiableList<T> extends ArrayList<T> {
     @Override
     public boolean retainAll(final Collection<?> c) {
         if (!modifiable && !isEmpty()) {
-            throw new IllegalArgumentException("List is immutable");
+            throw new UnsupportedOperationException("List is immutable");
         } else {
             return super.retainAll(c);
         }
@@ -152,7 +152,7 @@ class PotentiallyUnmodifiableList<T> extends ArrayList<T> {
     @Override
     public void clear() {
         if (!modifiable && !isEmpty()) {
-            throw new IllegalArgumentException("List is immutable");
+            throw new UnsupportedOperationException("List is immutable");
         } else {
             super.clear();
         }
@@ -161,7 +161,7 @@ class PotentiallyUnmodifiableList<T> extends ArrayList<T> {
     @Override
     public T set(final int index, final T element) {
         if (!modifiable) {
-            throw new IllegalArgumentException("List is immutable");
+            throw new UnsupportedOperationException("List is immutable");
         } else {
             return super.set(index, element);
         }
@@ -192,7 +192,7 @@ class PotentiallyUnmodifiableList<T> extends ArrayList<T> {
             @Override
             public void remove() {
                 if (!modifiable) {
-                    throw new IllegalArgumentException("List is immutable");
+                    throw new UnsupportedOperationException("List is immutable");
                 } else {
                     iterator.remove();
                 }
@@ -253,7 +253,7 @@ class PotentiallyUnmodifiableList<T> extends ArrayList<T> {
             @Override
             public void remove() {
                 if (!modifiable) {
-                    throw new IllegalArgumentException("List is immutable");
+                    throw new UnsupportedOperationException("List is immutable");
                 } else {
                     iterator.remove();
                 }
@@ -262,7 +262,7 @@ class PotentiallyUnmodifiableList<T> extends ArrayList<T> {
             @Override
             public void set(final T e) {
                 if (!modifiable) {
-                    throw new IllegalArgumentException("List is immutable");
+                    throw new UnsupportedOperationException("List is immutable");
                 } else {
                     iterator.set(e);
                 }
@@ -271,7 +271,7 @@ class PotentiallyUnmodifiableList<T> extends ArrayList<T> {
             @Override
             public void add(final T e) {
                 if (!modifiable) {
-                    throw new IllegalArgumentException("List is immutable");
+                    throw new UnsupportedOperationException("List is immutable");
                 } else {
                     iterator.add(e);
                 }

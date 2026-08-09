@@ -171,7 +171,7 @@ class ClasspathElementModule extends ClasspathElement {
             }
 
             @Override
-            public long getLastModified() {
+            public long getLastModifiedMillis() {
                 return 0L; // Unknown
             }
 
@@ -347,7 +347,7 @@ class ClasspathElementModule extends ClasspathElement {
         }
         if (scanned.getAndSet(true)) {
             // Should not happen
-            throw new IllegalArgumentException("Already scanned classpath element " + this);
+            throw new IllegalStateException("Already scanned classpath element " + this);
         }
 
         final var subLog = log == null ? null : log(classpathElementIdx, "Scanning module " + moduleRef.getName(), log);
@@ -534,7 +534,7 @@ class ClasspathElementModule extends ClasspathElement {
         if (uri == null) {
             // Some modules have no known module location (ModuleReference#location() can
             // return null)
-            throw new IllegalArgumentException("Module " + getModuleName() + " has a null location");
+            throw new IllegalStateException("Module " + getModuleName() + " has a null location");
         }
         return uri;
     }

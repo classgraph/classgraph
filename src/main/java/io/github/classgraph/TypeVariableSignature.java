@@ -90,7 +90,7 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
      *         the same name is declared by the defining method or the enclosing
      *         class, an unbounded type parameter with just the type variable's name
      *         is returned.
-     * @throws IllegalArgumentException if the enclosing class was not found during
+     * @throws IllegalStateException if the enclosing class was not found during
      *                                  the scan.
      */
     // #706
@@ -114,7 +114,7 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
         if (getClassName() != null) {
             final var containingClassInfo = getClassInfo();
             if (containingClassInfo == null) {
-                throw new IllegalArgumentException("Could not find ClassInfo object for " + definingClassName);
+                throw new IllegalStateException("Could not find ClassInfo object for " + definingClassName);
             }
             ClassTypeSignature containingClassSignature = null;
             try {
@@ -312,7 +312,7 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
             TypeParameter typeParameter;
             try {
                 typeParameter = resolve();
-            } catch (final IllegalArgumentException e) {
+            } catch (final IllegalStateException e) {
                 // If the corresponding type parameter cannot be resolved:
                 // unknown type variables can always be reconciled with a concrete class
                 return true;
@@ -379,7 +379,7 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
     public String toStringWithTypeBound() {
         try {
             return resolve().toString();
-        } catch (final IllegalArgumentException e) {
+        } catch (final IllegalStateException e) {
             // Type parameter could not be resolved
             return name;
         }

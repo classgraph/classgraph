@@ -128,7 +128,7 @@ public class MethodParameterInfo {
      *
      * @return The modifiers for the method parameter, as a String.
      */
-    public String getModifiersStr() {
+    public String getModifiersString() {
         final StringBuilder buf = new StringBuilder();
         modifiersToString(modifiers, buf);
         return buf.toString();
@@ -171,7 +171,7 @@ public class MethodParameterInfo {
      */
     public AnnotationInfoList getAllAnnotationInfo() {
         if (!Objects.requireNonNull(scanResult).scanSpec.enableAnnotationInfo) {
-            throw new IllegalArgumentException("Please call ClassGraph#enableAnnotationInfo() before #scan()");
+            throw new IllegalStateException("Please call ClassGraph#enableAnnotationInfo() before #scan()");
         }
         if (annotationInfo == null || annotationInfo.length == 0) {
             return AnnotationInfoList.EMPTY_LIST;

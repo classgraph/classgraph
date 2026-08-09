@@ -123,7 +123,7 @@ public class ModuleRef implements Comparable<ModuleRef> {
      * Get the module name, i.e. {@code getReference().descriptor().name()}.
      *
      * @return The module name, i.e. {@code getReference().descriptor().name()}.
-     *         Potentially null or empty.
+     *         May be empty for an unnamed (automatic) module.
      */
     public String getName() {
         return name;
@@ -187,7 +187,7 @@ public class ModuleRef implements Comparable<ModuleRef> {
      *         {@code getReference().location().toString()}. Returns null for
      *         modules that do not have a location.
      */
-    public @Nullable String getLocationStr() {
+    public @Nullable String getLocationString() {
         var str = locationStr;
         if (str == null && location != null) {
             locationStr = str = location.toString();
@@ -232,7 +232,7 @@ public class ModuleRef implements Comparable<ModuleRef> {
      * @return true if this module is a system module.
      */
     public boolean isSystemModule() {
-        if (name == null || name.isEmpty()) {
+        if (name.isEmpty()) {
             return false;
         }
         return name.startsWith("java.") || name.startsWith("jdk.") || name.startsWith("javafx.")

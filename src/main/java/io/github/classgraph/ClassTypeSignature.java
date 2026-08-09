@@ -181,7 +181,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
     void addTypeAnnotation(final List<TypePathNode> typePath, final AnnotationInfo annotationInfo) {
         // Individual parts of a class' type each have their own addTypeAnnotation
         // methods
-        throw new IllegalArgumentException("Cannot call this method on " + ClassTypeSignature.class.getSimpleName());
+        throw new UnsupportedOperationException("Cannot call this method on " + ClassTypeSignature.class.getSimpleName());
     }
 
     // -------------------------------------------------------------------------------------------------------------

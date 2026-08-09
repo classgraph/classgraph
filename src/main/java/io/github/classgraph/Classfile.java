@@ -2193,13 +2193,13 @@ class Classfile {
             }
             if (fieldInfoList != null) {
                 for (final FieldInfo fieldInfo : fieldInfoList) {
-                    final var modifierStr = fieldInfo.getModifiersStr();
+                    final var modifierStr = fieldInfo.getModifiersString();
                     subLog.log("Field: " + modifierStr + (modifierStr.isEmpty() ? "" : " ") + fieldInfo.getName());
                 }
             }
             if (methodInfoList != null) {
                 for (final MethodInfo methodInfo : methodInfoList) {
-                    final var modifierStr = methodInfo.getModifiersStr();
+                    final var modifierStr = methodInfo.getModifiersString();
                     subLog.log("Method: " + modifierStr + (modifierStr.isEmpty() ? "" : " ") + methodInfo.getName());
                 }
             }

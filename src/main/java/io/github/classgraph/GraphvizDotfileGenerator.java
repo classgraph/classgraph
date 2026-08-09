@@ -190,7 +190,7 @@ final class GraphvizDotfileGenerator {
         buf.append("<table border='0' cellborder='0' cellspacing='1'>");
 
         // Class modifiers
-        buf.append("<tr><td><font point-size='12'>").append(ci.getModifiersStr()).append(' ')
+        buf.append("<tr><td><font point-size='12'>").append(ci.getModifiersString()).append(' ')
                 .append(ci.isEnum() ? "enum"
                         : ci.isAnnotation() ? "@interface" : ci.isInterface() ? "interface" : "class")
                 .append("</font></td></tr>");
@@ -269,7 +269,7 @@ final class GraphvizDotfileGenerator {
                         if (buf.charAt(buf.length() - 1) != ' ') {
                             buf.append(' ');
                         }
-                        buf.append(fi.getModifiersStr());
+                        buf.append(fi.getModifiersString());
                     }
 
                     // Field type
@@ -334,7 +334,7 @@ final class GraphvizDotfileGenerator {
                         if (buf.charAt(buf.length() - 1) != ' ') {
                             buf.append(' ');
                         }
-                        buf.append(mi.getModifiersStr());
+                        buf.append(mi.getModifiersString());
                     }
 
                     // Method return type
@@ -503,7 +503,7 @@ final class GraphvizDotfileGenerator {
                 }
             }
 
-            for (final ClassInfo implementedInterfaceNode : classNode.getDirectInterfaces()) {
+            for (final ClassInfo implementedInterfaceNode : classNode.getDirectSuperinterfaces()) {
                 if (allVisibleNodes.contains(implementedInterfaceNode.getName())) {
                     // class --<> implemented interface
                     buf.append("  \"").append(classNode.getName()).append("\" -> \"")
@@ -539,7 +539,7 @@ final class GraphvizDotfileGenerator {
             }
         }
         for (final ClassInfo interfaceNode : interfaceNodes) {
-            for (final ClassInfo superinterfaceNode : interfaceNode.getDirectInterfaces()) {
+            for (final ClassInfo superinterfaceNode : interfaceNode.getDirectSuperinterfaces()) {
                 if (allVisibleNodes.contains(superinterfaceNode.getName())) {
                     // interface --<> superinterface
                     buf.append("  \"").append(interfaceNode.getName()).append("\" -> \"")
@@ -593,10 +593,10 @@ final class GraphvizDotfileGenerator {
      * @param includeExternalClasses If true, include any dependency nodes in the
      *                               graph that are not themselves in classInfoList.
      * @return the GraphViz file contents.
-     * @throws IllegalArgumentException if
-     *                                  {@link ClassGraph#enableInterClassDependencies()}
-     *                                  was not called before scanning (since there
-     *                                  would be nothing to graph).
+     * @throws IllegalStateException if
+     *                               {@link ClassGraph#enableInterClassDependencies()}
+     *                               was not called before scanning (since there
+     *                               would be nothing to graph).
      */
     static String generateGraphVizDotFileFromInterClassDependencies(final ClassInfoList classInfoList,
             final float sizeX, final float sizeY, final boolean includeExternalClasses) {
@@ -630,7 +630,7 @@ final class GraphvizDotfileGenerator {
             buf.append("<table border='0' cellborder='0' cellspacing='1'>");
 
             // Class modifiers
-            buf.append("<tr><td><font point-size='12'>").append(ci.getModifiersStr()).append(' ')
+            buf.append("<tr><td><font point-size='12'>").append(ci.getModifiersString()).append(' ')
                     .append(ci.isEnum() ? "enum"
                             : ci.isAnnotation() ? "@interface" : ci.isInterface() ? "interface" : "class")
                     .append("</font></td></tr>");

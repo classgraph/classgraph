@@ -103,7 +103,7 @@ public class AnnotationClassRef extends ScanResultObject {
         if (name == null) {
             final var typeSig = getTypeSignature();
             if (typeSig instanceof final BaseTypeSignature baseTypeSignature) {
-                name = baseTypeSignature.getTypeStr();
+                name = baseTypeSignature.getTypeString();
             } else if (typeSig instanceof final ClassRefTypeSignature classRefTypeSignature) {
                 name = classRefTypeSignature.getFullyQualifiedClassName();
             } else if (typeSig instanceof final ArrayTypeSignature arrayTypeSignature) {

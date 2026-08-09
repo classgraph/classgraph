@@ -117,10 +117,10 @@ class NullArgumentTest {
         rejectsNull(() -> scanResult.getDirectSubclasses((Class<?>) null));
         rejectsNull(() -> scanResult.getAllSuperclasses((String) null));
         rejectsNull(() -> scanResult.getAllSuperclasses((Class<?>) null));
-        rejectsNull(() -> scanResult.getAllInterfaces((String) null));
-        rejectsNull(() -> scanResult.getAllInterfaces((Class<?>) null));
-        rejectsNull(() -> scanResult.getDirectInterfaces((String) null));
-        rejectsNull(() -> scanResult.getDirectInterfaces((Class<?>) null));
+        rejectsNull(() -> scanResult.getAllSuperinterfaces((String) null));
+        rejectsNull(() -> scanResult.getAllSuperinterfaces((Class<?>) null));
+        rejectsNull(() -> scanResult.getDirectSuperinterfaces((String) null));
+        rejectsNull(() -> scanResult.getDirectSuperinterfaces((Class<?>) null));
         rejectsNull(() -> scanResult.getAllClassesImplementing((String) null));
         rejectsNull(() -> scanResult.getAllClassesImplementing((Class<?>) null));
         rejectsNull(() -> scanResult.getDirectClassesImplementing((String) null));
@@ -167,7 +167,9 @@ class NullArgumentTest {
         rejectsNull(() -> classInfoList.exclude(null));
         rejectsNull(() -> classInfoList.union((ClassInfoList) null));
         rejectsNull(() -> classInfoList.intersect((ClassInfoList) null));
-        rejectsNull(() -> classInfoList.getAssignableTo(null));
+        rejectsNull(() -> classInfoList.getAssignableTo((ClassInfo) null));
+        rejectsNull(() -> classInfoList.getAssignableTo((String) null));
+        rejectsNull(() -> classInfoList.getAssignableTo((Class<?>) null));
         rejectsNull(() -> classInfoList.generateGraphVizDotFile(null));
         rejectsNull(() -> classInfoList.generateGraphVizDotFileFromInterClassDependencies(null));
         rejectsNull(() -> classInfoList.writeGraphVizDotFile(null));
@@ -188,7 +190,7 @@ class NullArgumentTest {
     @Test
     void typeSignatures() {
         final var typeSignature = scanResult.getClassInfo(ClassInfoList.class.getName())
-                .getMethodInfo("getAssignableTo").get(0).getParameterInfo()[0].getTypeSignatureOrTypeDescriptor();
+                .getMethodInfo("exclude").get(0).getParameterInfo()[0].getTypeSignatureOrTypeDescriptor();
         rejectsNull(() -> typeSignature.resolveTypeVariables(null));
     }
 
@@ -200,7 +202,7 @@ class NullArgumentTest {
     @Test
     void comparisonsAcceptNull() {
         final var typeSignature = scanResult.getClassInfo(ClassInfoList.class.getName())
-                .getMethodInfo("getAssignableTo").get(0).getParameterInfo()[0].getTypeSignatureOrTypeDescriptor();
+                .getMethodInfo("exclude").get(0).getParameterInfo()[0].getTypeSignatureOrTypeDescriptor();
         assertThat(typeSignature.equalsIgnoringTypeParams(null)).isFalse();
         assertThat(typeSignature.equals(null)).isFalse();
     }

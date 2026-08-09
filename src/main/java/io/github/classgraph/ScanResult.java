@@ -125,15 +125,22 @@ public final class ScanResult implements Closeable {
      */
     @Nullable ReflectionUtils reflectionUtils;
 
+    /** The message for the {@link IllegalStateException} thrown after closing. */
+    private static final String CLOSED_MESSAGE = "Cannot use a ScanResult after it has been closed";
+
     /**
      * Get the classpath order, for use in code paths that are only reachable before
      * this {@link ScanResult} is closed.
      *
      * @return the classpath order
-     * @throws NullPointerException if this {@link ScanResult} has been closed.
+     * @throws IllegalStateException if this {@link ScanResult} has been closed.
      */
     private List<ClasspathElement> classpathOrder() {
-        return Objects.requireNonNull(classpathOrder);
+        final var order = classpathOrder;
+        if (order == null) {
+            throw new IllegalStateException(CLOSED_MESSAGE);
+        }
+        return order;
     }
 
     /**
@@ -141,10 +148,14 @@ public final class ScanResult implements Closeable {
      * that are only reachable before this {@link ScanResult} is closed.
      *
      * @return the map from package name to {@link PackageInfo}
-     * @throws NullPointerException if this {@link ScanResult} has been closed.
+     * @throws IllegalStateException if this {@link ScanResult} has been closed.
      */
     private Map<String, PackageInfo> packageNameToPackageInfo() {
-        return Objects.requireNonNull(packageNameToPackageInfo);
+        final var map = packageNameToPackageInfo;
+        if (map == null) {
+            throw new IllegalStateException(CLOSED_MESSAGE);
+        }
+        return map;
     }
 
     /**
@@ -152,10 +163,14 @@ public final class ScanResult implements Closeable {
      * are only reachable before this {@link ScanResult} is closed.
      *
      * @return the map from module name to {@link ModuleInfo}
-     * @throws NullPointerException if this {@link ScanResult} has been closed.
+     * @throws IllegalStateException if this {@link ScanResult} has been closed.
      */
     private Map<String, ModuleInfo> moduleNameToModuleInfo() {
-        return Objects.requireNonNull(moduleNameToModuleInfo);
+        final var map = moduleNameToModuleInfo;
+        if (map == null) {
+            throw new IllegalStateException(CLOSED_MESSAGE);
+        }
+        return map;
     }
 
     /** The toplevel log. */
@@ -325,11 +340,11 @@ public final class ScanResult implements Closeable {
     /**
      * Check that this {@link ScanResult} has not been closed.
      *
-     * @throws IllegalArgumentException if this {@link ScanResult} has been closed.
+     * @throws IllegalStateException if this {@link ScanResult} has been closed.
      */
     private void checkNotClosed() {
         if (closed.get()) {
-            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
+            throw new IllegalStateException(CLOSED_MESSAGE);
         }
     }
 
@@ -337,13 +352,13 @@ public final class ScanResult implements Closeable {
      * Check that this {@link ScanResult} has not been closed, and that class info
      * was enabled during the scan.
      *
-     * @throws IllegalArgumentException if this {@link ScanResult} has been closed,
+     * @throws IllegalStateException if this {@link ScanResult} has been closed,
      *                                  or class info was not enabled.
      */
     private void checkClassInfoEnabled() {
         checkNotClosed();
         if (!scanSpec.enableClassInfo) {
-            throw new IllegalArgumentException("Please call ClassGraph#enableClassInfo() before #scan()");
+            throw new IllegalStateException("Please call ClassGraph#enableClassInfo() before #scan()");
         }
     }
 
@@ -351,14 +366,14 @@ public final class ScanResult implements Closeable {
      * Check that this {@link ScanResult} has not been closed, and that class info
      * and annotation info were enabled during the scan.
      *
-     * @throws IllegalArgumentException if this {@link ScanResult} has been closed,
+     * @throws IllegalStateException if this {@link ScanResult} has been closed,
      *                                  or class info or annotation info were not
      *                                  enabled.
      */
     private void checkAnnotationInfoEnabled() {
         checkNotClosed();
         if (!scanSpec.enableClassInfo || !scanSpec.enableAnnotationInfo) {
-            throw new IllegalArgumentException(
+            throw new IllegalStateException(
                     "Please call ClassGraph#enableClassInfo() and #enableAnnotationInfo() before #scan()");
         }
     }
@@ -367,14 +382,14 @@ public final class ScanResult implements Closeable {
      * Check that this {@link ScanResult} has not been closed, and that class info,
      * method info and annotation info were enabled during the scan.
      *
-     * @throws IllegalArgumentException if this {@link ScanResult} has been closed,
+     * @throws IllegalStateException if this {@link ScanResult} has been closed,
      *                                  or class info, method info or annotation
      *                                  info were not enabled.
      */
     private void checkMethodAnnotationInfoEnabled() {
         checkNotClosed();
         if (!scanSpec.enableClassInfo || !scanSpec.enableMethodInfo || !scanSpec.enableAnnotationInfo) {
-            throw new IllegalArgumentException("Please call ClassGraph#enableClassInfo(), #enableMethodInfo(), "
+            throw new IllegalStateException("Please call ClassGraph#enableClassInfo(), #enableMethodInfo(), "
                     + "and #enableAnnotationInfo() before #scan()");
         }
     }
@@ -383,14 +398,14 @@ public final class ScanResult implements Closeable {
      * Check that this {@link ScanResult} has not been closed, and that class info,
      * field info and annotation info were enabled during the scan.
      *
-     * @throws IllegalArgumentException if this {@link ScanResult} has been closed,
+     * @throws IllegalStateException if this {@link ScanResult} has been closed,
      *                                  or class info, field info or annotation info
      *                                  were not enabled.
      */
     private void checkFieldAnnotationInfoEnabled() {
         checkNotClosed();
         if (!scanSpec.enableClassInfo || !scanSpec.enableFieldInfo || !scanSpec.enableAnnotationInfo) {
-            throw new IllegalArgumentException("Please call ClassGraph#enableClassInfo(), #enableFieldInfo(), "
+            throw new IllegalStateException("Please call ClassGraph#enableClassInfo(), #enableFieldInfo(), "
                     + "and #enableAnnotationInfo() before #scan()");
         }
     }
@@ -444,7 +459,7 @@ public final class ScanResult implements Closeable {
                         classpathElementOrderURIs.add(uri);
                     }
                 }
-            } catch (final IllegalArgumentException e) {
+            } catch (final IllegalStateException e) {
                 // Skip null location URIs
             }
         }
@@ -538,8 +553,9 @@ public final class ScanResult implements Closeable {
      * Get a map from resource path to {@link Resource} for all resources (including
      * classfiles and non-classfiles) found in accepted packages.
      *
-     * @return The map from resource path to {@link Resource} for all resources
-     *         (including classfiles and non-classfiles) found in accepted packages.
+     * @return An unmodifiable map from resource path to {@link Resource} for all
+     *         resources (including classfiles and non-classfiles) found in accepted
+     *         packages.
      */
     public Map<String, ResourceList> getAllResourcesAsMap() {
         checkNotClosed();
@@ -553,7 +569,7 @@ public final class ScanResult implements Closeable {
                 // Set atomically for thread safety
                 pathToAcceptedResourcesCached = pathToAcceptedResources = pathToAcceptedResourceListMap;
             }
-            return pathToAcceptedResources;
+            return Collections.unmodifiableMap(pathToAcceptedResources);
         }
     }
 
@@ -918,12 +934,12 @@ public final class ScanResult implements Closeable {
      * Get a map from class name to {@link ClassInfo} object for all classes,
      * interfaces and annotations found during the scan.
      *
-     * @return The map from class name to {@link ClassInfo} object for all classes,
-     *         interfaces and annotations found during the scan.
+     * @return An unmodifiable map from class name to {@link ClassInfo} object for
+     *         all classes, interfaces and annotations found during the scan.
      */
     public Map<String, ClassInfo> getAllClassesAsMap() {
         checkClassInfoEnabled();
-        return classNameToClassInfo;
+        return Collections.unmodifiableMap(classNameToClassInfo);
     }
 
     /**
@@ -1131,67 +1147,67 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Get all interfaces implemented by the named class or by one of its
-     * superclasses, if the named class is a standard class, or all superinterfaces
-     * extended by the named interface, transitively, if it is an interface.
+     * Get all superinterfaces of the named class or interface: all interfaces
+     * implemented by the named class or by one of its superclasses, if the named
+     * class is a standard class, or all interfaces extended by the named
+     * interface, directly or indirectly, if it is an interface.
      *
      * @param className The class name.
-     * @return A list of all interfaces implemented by the named class (or all
-     *         superinterfaces extended by the named interface), or the empty list
-     *         if none.
+     * @return A list of all superinterfaces of the named class or interface, or
+     *         the empty list if none.
      */
-    public ClassInfoList getAllInterfaces(final String className) {
+    public ClassInfoList getAllSuperinterfaces(final String className) {
         checkClassInfoEnabled();
         Assert.notNull(className, "className");
         final var classInfo = classNameToClassInfo.get(className);
-        return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getAllInterfaces();
+        return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getAllSuperinterfaces();
     }
 
     /**
-     * Get all interfaces implemented by the class or by one of its superclasses, if
-     * the given class is a standard class, or all superinterfaces extended by the
-     * given interface, transitively, if it is an interface.
+     * Get all superinterfaces of the given class or interface: all interfaces
+     * implemented by the class or by one of its superclasses, if the given class
+     * is a standard class, or all interfaces extended by the given interface,
+     * directly or indirectly, if it is an interface.
      *
      * @param classRef The class.
-     * @return A list of all interfaces implemented by the given class (or all
-     *         superinterfaces extended by the given interface), or the empty list
-     *         if none.
+     * @return A list of all superinterfaces of the given class or interface, or
+     *         the empty list if none.
      */
-    public ClassInfoList getAllInterfaces(final Class<?> classRef) {
+    public ClassInfoList getAllSuperinterfaces(final Class<?> classRef) {
         Assert.notNull(classRef, "classRef");
-        return getAllInterfaces(classRef.getName());
+        return getAllSuperinterfaces(classRef.getName());
     }
 
     /**
-     * Get the interfaces directly implemented by the named class, if the named
-     * class is a standard class, or the direct superinterfaces of the named
-     * interface, if it is an interface.
+     * Get the direct superinterfaces of the named class or interface: the
+     * interfaces directly implemented by the named class, if the named class is a
+     * standard class, or the interfaces directly extended by the named interface,
+     * if it is an interface.
      *
      * @param className The class name.
-     * @return A list of the interfaces directly implemented by the named class (or
-     *         the direct superinterfaces of the named interface), or the empty list
-     *         if none.
+     * @return A list of the direct superinterfaces of the named class or
+     *         interface, or the empty list if none.
      */
-    public ClassInfoList getDirectInterfaces(final String className) {
+    public ClassInfoList getDirectSuperinterfaces(final String className) {
         checkClassInfoEnabled();
         Assert.notNull(className, "className");
         final var classInfo = classNameToClassInfo.get(className);
-        return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getDirectInterfaces();
+        return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getDirectSuperinterfaces();
     }
 
     /**
-     * Get the interfaces directly implemented by the class, if the given class is a
-     * standard class, or the direct superinterfaces of the interface, if it is an
-     * interface.
+     * Get the direct superinterfaces of the given class or interface: the
+     * interfaces directly implemented by the class, if the given class is a
+     * standard class, or the interfaces directly extended by the interface, if it
+     * is an interface.
      *
      * @param classRef The class.
-     * @return A list of the interfaces directly implemented by the given class (or
-     *         the direct superinterfaces of the given interface), or the empty list
-     *         if none.
+     * @return A list of the direct superinterfaces of the given class or
+     *         interface, or the empty list if none.
      */
-    public ClassInfoList getDirectInterfaces(final Class<?> classRef) {
+    public ClassInfoList getDirectSuperinterfaces(final Class<?> classRef) {
         Assert.notNull(classRef, "classRef");
-        return getDirectInterfaces(classRef.getName());
+        return getDirectSuperinterfaces(classRef.getName());
     }
 
     /**
@@ -1558,7 +1574,7 @@ public final class ScanResult implements Closeable {
      * @return true if the classpath contents have been modified since the last
      *         scan.
      */
-    public boolean classpathContentsModifiedSinceScan() {
+    public boolean isClasspathContentsModifiedSinceScan() {
         checkNotClosed();
         if (fileToLastModified == null) {
             return true;
@@ -1587,7 +1603,7 @@ public final class ScanResult implements Closeable {
      * @return the maximum last-modified time for accepted files/directories/jars
      *         encountered during the scan.
      */
-    public long classpathContentsLastModifiedTime() {
+    public long getClasspathContentsLastModifiedTimeMillis() {
         checkNotClosed();
         var maxLastModifiedTime = 0L;
         if (fileToLastModified != null) {

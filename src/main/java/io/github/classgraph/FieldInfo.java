@@ -85,9 +85,6 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
             final @Nullable Object constantInitializerValue, final @Nullable AnnotationInfoList annotationInfo,
             final @Nullable List<TypeAnnotationDecorator> typeAnnotationDecorators) {
         super(definingClassName, fieldName, modifiers, typeDescriptorStr, typeSignatureStr, annotationInfo);
-        if (fieldName == null) {
-            throw new IllegalArgumentException("fieldName must not be null");
-        }
         this.constantInitializerValue = constantInitializerValue;
         this.typeAnnotationDecorators = typeAnnotationDecorators;
     }
@@ -101,7 +98,7 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
      * @return The field modifiers, as a string.
      */
     @Override
-    public String getModifiersStr() {
+    public String getModifiersString() {
         final StringBuilder buf = new StringBuilder();
         TypeUtils.modifiersToString(modifiers, ModifierType.FIELD, /* ignored */ false, buf);
         return buf.toString();
@@ -247,11 +244,14 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
      *
      * @return The initializer value, if this field has a constant initializer
      *         value, or null if none.
+     * @throws IllegalStateException if
+     *                               {@link ClassGraph#enableStaticFinalFieldConstantInitializerValues()}
+     *                               was not called prior to initiating the scan.
      */
     public @Nullable Object getConstantInitializerValue() {
         if (!scanResult().scanSpec.enableStaticFinalFieldConstantInitializerValues) {
-            throw new IllegalArgumentException(
-                    "Please call ClassGraph#enableStaticFinalFieldConstantInitializerValues() " + "before #scan()");
+            throw new IllegalStateException(
+                    "Please call ClassGraph#enableStaticFinalFieldConstantInitializerValues() before #scan()");
         }
         return constantInitializerValue;
     }
@@ -315,7 +315,7 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
         } catch (final IllegalArgumentException e) {
             if (log != null) {
                 log.log("Illegal type signature for field " + getClassName() + "." + getName() + ": "
-                        + getTypeSignatureStr());
+                        + getTypeSignatureString());
             }
         }
         try {
@@ -326,7 +326,7 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
         } catch (final IllegalArgumentException e) {
             if (log != null) {
                 log.log("Illegal type descriptor for field " + getClassName() + "." + getName() + ": "
-                        + getTypeDescriptorStr());
+                        + getTypeDescriptorString());
             }
         }
         if (annotationInfo != null) {
@@ -423,7 +423,7 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
                 // dropped
                 buf.append('\'').append(chr.toString().replace("\\", "\\\\").replace("'", "\\'")).append('\'');
             } else {
-                buf.append(val == null ? "null" : val.toString());
+                buf.append(val);
             }
         }
     }

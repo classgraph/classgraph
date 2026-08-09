@@ -102,7 +102,7 @@ public class MethodInfoTest {
     public void methodInfoNotEnabled() {
         // .enableSaveMethodInfo() not called
         try (var scanResult = new ClassGraph().acceptPackages(MethodInfoTest.class.getPackage().getName()).scan()) {
-            Assertions.assertThrows(IllegalArgumentException.class,
+            Assertions.assertThrows(IllegalStateException.class,
                     () -> scanResult.getClassInfo(MethodInfoTest.class.getName()).getMethodInfo());
         }
     }

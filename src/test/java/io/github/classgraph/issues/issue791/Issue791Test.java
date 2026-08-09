@@ -119,9 +119,9 @@ public class Issue791Test {
     public void modifiersStrIsUnaffected() {
         try (var scanResult = new ClassGraph().acceptPackages(Issue791Test.class.getPackage().getName())
                 .ignoreClassVisibility().enableAllInfo().scan()) {
-            assertThat(scanResult.getClassInfo(DummyProtectedSubclass.class.getName()).getModifiersStr())
+            assertThat(scanResult.getClassInfo(DummyProtectedSubclass.class.getName()).getModifiersString())
                     .isEqualTo("protected static");
-            assertThat(scanResult.getClassInfo(Issue791Test.class.getName()).getModifiersStr()).isEqualTo("public");
+            assertThat(scanResult.getClassInfo(Issue791Test.class.getName()).getModifiersString()).isEqualTo("public");
         }
     }
 

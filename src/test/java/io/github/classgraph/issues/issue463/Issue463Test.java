@@ -69,7 +69,7 @@ public class Issue463Test {
             // Upwards: what Leaf's own classfile chain declares, external classes included
             assertThat(scanResult.getAllSuperclasses(Leaf.class).getNames()).contains(Mid.class.getName(),
                     Base.class.getName());
-            assertThat(scanResult.getAllInterfaces(Leaf.class).getNames()).containsOnly(Iface.class.getName());
+            assertThat(scanResult.getAllSuperinterfaces(Leaf.class).getNames()).containsOnly(Iface.class.getName());
 
             // Downwards: only what was accepted, even though the class each query starts
             // from is itself external

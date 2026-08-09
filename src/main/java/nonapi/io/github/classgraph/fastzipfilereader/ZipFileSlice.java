@@ -61,7 +61,7 @@ public class ZipFileSlice {
         this.parentZipFileSlice = null;
         this.physicalZipFile = physicalZipFile;
         this.slice = physicalZipFile.slice;
-        this.pathWithinParentZipFileSlice = physicalZipFile.getPathStr();
+        this.pathWithinParentZipFileSlice = physicalZipFile.getPathString();
     }
 
     /**

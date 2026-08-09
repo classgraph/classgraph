@@ -30,8 +30,9 @@ package io.github.classgraph;
 
 import java.lang.annotation.Annotation;
 import java.net.URI;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.Set;
 
 import nonapi.io.github.classgraph.utils.Assert;
@@ -68,13 +69,13 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     private @Nullable AnnotationInfoList annotationInfo;
 
     /**
-     * {@link PackageInfo} objects for packages found within the class, if any, else
-     * null.
+     * {@link PackageInfo} objects for packages found within the class, keyed by
+     * package name, if any, else null.
      */
-    private @Nullable Set<PackageInfo> packageInfoSet;
+    private @Nullable Map<String, PackageInfo> packageNameToPackageInfo;
 
-    /** Set of classes in the module, or null if none. */
-    private @Nullable Set<ClassInfo> classInfoSet;
+    /** Classes in the module, keyed by class name, or null if none. */
+    private @Nullable Map<String, ClassInfo> classNameToClassInfo;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -113,7 +114,12 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
             final var moduleReference = moduleRef;
             location = moduleReference != null ? moduleReference.getLocation() : null;
             if (location == null) {
-                location = classpathElement.getURI();
+                try {
+                    location = classpathElement.getURI();
+                } catch (final IllegalStateException e) {
+                    // The classpath element has no known URI either, so the location is unknown
+                    return null;
+                }
             }
             locationURI = location;
         }
@@ -141,11 +147,11 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
      * @param classInfo the {@link ClassInfo} object to add
      */
     void addClassInfo(final ClassInfo classInfo) {
-        var classes = classInfoSet;
+        var classes = classNameToClassInfo;
         if (classes == null) {
-            classInfoSet = classes = new HashSet<>();
+            classNameToClassInfo = classes = new HashMap<>();
         }
-        classes.add(classInfo);
+        classes.put(classInfo.getName(), classInfo);
     }
 
     /**
@@ -158,19 +164,10 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
      */
     public @Nullable ClassInfo getClassInfo(final String className) {
         Assert.notNull(className, "className");
-        // classInfoSet is null if no classes in this module were accepted, e.g. if the
-        // module-info.class file
-        // was the only classfile read from the module
-        final var classes = classInfoSet;
-        if (classes == null) {
-            return null;
-        }
-        for (final ClassInfo ci : classes) {
-            if (ci.getName().equals(className)) {
-                return ci;
-            }
-        }
-        return null;
+        // classNameToClassInfo is null if no classes in this module were accepted, e.g.
+        // if the module-info.class file was the only classfile read from the module
+        final var classes = classNameToClassInfo;
+        return classes == null ? null : classes.get(className);
     }
 
     /**
@@ -181,8 +178,9 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
      *         members of this module.
      */
     public ClassInfoList getClassInfo() {
-        final var classes = classInfoSet;
-        return classes == null ? ClassInfoList.EMPTY_LIST : new ClassInfoList(classes, /* sortByName = */ true);
+        final var classes = classNameToClassInfo;
+        // The ClassInfoList(Collection) constructor uniquifies and sorts by name
+        return classes == null ? ClassInfoList.EMPTY_LIST : new ClassInfoList(classes.values());
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -193,11 +191,11 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
      * @param packageInfo the {@link PackageInfo} object
      */
     void addPackageInfo(final PackageInfo packageInfo) {
-        var packages = packageInfoSet;
+        var packages = packageNameToPackageInfo;
         if (packages == null) {
-            packageInfoSet = packages = new HashSet<>();
+            packageNameToPackageInfo = packages = new HashMap<>();
         }
-        packages.add(packageInfo);
+        packages.put(packageInfo.getName(), packageInfo);
     }
 
     /**
@@ -210,16 +208,8 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
      */
     public @Nullable PackageInfo getPackageInfo(final String packageName) {
         Assert.notNull(packageName, "packageName");
-        final var packages = packageInfoSet;
-        if (packages == null) {
-            return null;
-        }
-        for (final PackageInfo pi : packages) {
-            if (pi.getName().equals(packageName)) {
-                return pi;
-            }
-        }
-        return null;
+        final var packages = packageNameToPackageInfo;
+        return packages == null ? null : packages.get(packageName);
     }
 
     /**
@@ -230,11 +220,11 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
      *         members of this module.
      */
     public PackageInfoList getPackageInfo() {
-        final var packages = packageInfoSet;
+        final var packages = packageNameToPackageInfo;
         if (packages == null) {
-            return new PackageInfoList(1);
+            return PackageInfoList.EMPTY_LIST;
         }
-        final PackageInfoList packageInfoList = new PackageInfoList(packages);
+        final PackageInfoList packageInfoList = new PackageInfoList(packages.values());
         CollectionUtils.sortIfNotEmpty(packageInfoList);
         return packageInfoList;
     }

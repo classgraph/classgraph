@@ -145,11 +145,11 @@ public class Issue345Test {
         try (var scanResult = new ClassGraph().enableClassInfo()
                 .acceptPackages(Issue345Test.class.getPackage().getName()).ignoreClassVisibility().scan()) {
             final var ciA = scanResult.getClassInfo(A.class.getName());
-            assertThat(ciA.getModifiersStr()).isEqualTo("private static");
+            assertThat(ciA.getModifiersString()).isEqualTo("private static");
             final var ciB = scanResult.getClassInfo(B.class.getName());
-            assertThat(ciB.getModifiersStr()).isEqualTo("abstract static");
+            assertThat(ciB.getModifiersString()).isEqualTo("abstract static");
             final var ciC = scanResult.getClassInfo(C.class.getName());
-            assertThat(ciC.getModifiersStr()).isEqualTo("public static");
+            assertThat(ciC.getModifiersString()).isEqualTo("public static");
         }
     }
 }

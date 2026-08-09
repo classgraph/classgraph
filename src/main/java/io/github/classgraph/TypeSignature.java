@@ -145,7 +145,7 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
             // class further up the
             // hierarchy may still be generic, so keep walking
             addSubstitutions(classInfo.getSuperclass(), substitutions, visited);
-            for (final ClassInfo interfaceInfo : classInfo.getAllInterfaces()) {
+            for (final ClassInfo interfaceInfo : classInfo.getAllSuperinterfaces()) {
                 addSubstitutions(interfaceInfo, substitutions, visited);
             }
             return;
@@ -280,7 +280,7 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
         if (typeSignature instanceof final BaseTypeSignature baseTypeSignature) {
             buf.append(baseTypeSignature.getTypeSignatureChar());
         } else if (typeSignature instanceof final ArrayTypeSignature arrayTypeSignature) {
-            buf.append(arrayTypeSignature.getTypeSignatureStr());
+            buf.append(arrayTypeSignature.getTypeSignatureString());
         } else if (typeSignature instanceof final TypeVariableSignature typeVariableSignature) {
             buf.append('T').append(typeVariableSignature.getName()).append(';');
         } else if (typeSignature instanceof final TypeArgument typeArgument) {

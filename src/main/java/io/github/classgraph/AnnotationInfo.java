@@ -104,7 +104,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     }
 
     /**
-     * Get the parameter values.
+     * Get the parameter values, optionally filling in default values.
      *
      * @param includeDefaultValues if true, include default values for any
      *                             annotation parameter value that is missing.
@@ -112,7 +112,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      *         parameter values inherited from the annotation class definition (if
      *         requested), or the empty list if none.
      */
-    public AnnotationParameterValueList getParameterValues(final boolean includeDefaultValues) {
+    private AnnotationParameterValueList getParameterValues(final boolean includeDefaultValues) {
         final var paramValues = annotationParamValues;
         final var classInfo = getClassInfo();
         if (classInfo == null) {
@@ -162,7 +162,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
                 // Should not happen (when classfile is read, methods are always read, whether
                 // or not
                 // scanSpec.enableMethodInfo is true)
-                throw new IllegalArgumentException("Could not find methods for annotation " + classInfo.getName());
+                throw new IllegalStateException("Could not find methods for annotation " + classInfo.getName());
             }
             final var withDefaults = new AnnotationParameterValueList();
             annotationParamValuesWithDefaults = withDefaults;
@@ -193,14 +193,30 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     }
 
     /**
-     * Get the parameter values.
+     * Get the parameter values of this annotation, including any parameter values
+     * that were not given explicitly at the annotation use site, but that have a
+     * default value declared by the annotation type.
      *
      * @return The parameter values of this annotation, including any default
      *         parameter values inherited from the annotation class definition, or
      *         the empty list if none.
      */
     public AnnotationParameterValueList getParameterValues() {
-        return getParameterValues(true);
+        return getParameterValues(/* includeDefaultValues = */ true);
+    }
+
+    /**
+     * Get only the parameter values that were given explicitly at the annotation
+     * use site, without filling in any default values declared by the annotation
+     * type. Compare with {@link #getParameterValues()}, which does fill in
+     * defaults, and {@link #getDefaultParameterValues()}, which returns only the
+     * defaults.
+     *
+     * @return The parameter values given explicitly at the annotation use site, or
+     *         the empty list if none.
+     */
+    public AnnotationParameterValueList getDeclaredParameterValues() {
+        return getParameterValues(/* includeDefaultValues = */ false);
     }
 
     // -------------------------------------------------------------------------------------------------------------

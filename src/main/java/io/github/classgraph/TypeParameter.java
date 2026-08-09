@@ -164,7 +164,7 @@ public final class TypeParameter extends HierarchicalTypeSignature {
     protected String getClassName() {
         // getClassInfo() is not valid for this type, so getClassName() does not need to
         // be implemented
-        throw new IllegalArgumentException("getClassName() cannot be called here");
+        throw new UnsupportedOperationException("getClassName() cannot be called here");
     }
 
     /*
@@ -174,7 +174,7 @@ public final class TypeParameter extends HierarchicalTypeSignature {
      */
     @Override
     protected ClassInfo getClassInfo() {
-        throw new IllegalArgumentException("getClassInfo() cannot be called here");
+        throw new UnsupportedOperationException("getClassInfo() cannot be called here");
     }
 
     /*

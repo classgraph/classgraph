@@ -358,7 +358,7 @@ class ClasspathElementZip extends ClasspathElement {
             }
 
             @Override
-            public long getLastModified() {
+            public long getLastModifiedMillis() {
                 return zipEntry.getLastModifiedTimeMillis();
             }
 
@@ -561,7 +561,7 @@ class ClasspathElementZip extends ClasspathElement {
         }
         if (scanned.getAndSet(true)) {
             // Should not happen
-            throw new IllegalArgumentException("Already scanned classpath element " + getZipFilePath());
+            throw new IllegalStateException("Already scanned classpath element " + getZipFilePath());
         }
 
         final var logicalZipFile = Objects.requireNonNull(this.logicalZipFile);
@@ -765,7 +765,7 @@ class ClasspathElementZip extends ClasspathElement {
         try {
             return new URI(URLPathEncoder.normalizeURLPath(getZipFilePath()));
         } catch (final URISyntaxException e) {
-            throw new IllegalArgumentException("Could not form URI: " + e);
+            throw new IllegalStateException("Could not form URI: " + e);
         }
     }
 

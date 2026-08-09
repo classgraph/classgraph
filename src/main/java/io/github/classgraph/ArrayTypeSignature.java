@@ -85,7 +85,7 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
      *
      * @return the raw array type signature string.
      */
-    public String getTypeSignatureStr() {
+    public String getTypeSignatureString() {
         return typeSignatureStr;
     }
 

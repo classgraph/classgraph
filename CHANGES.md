@@ -41,7 +41,7 @@ replacement has the same behavior, so porting is a rename.
 | `ClassGraph#blacklistModules` | `ClassGraph#rejectModules` |
 | `ClassGraph#blacklistClasspathElementsContainingResourcePath` | `ClassGraph#rejectClasspathElementsContainingResourcePath` |
 | `ScanResult#getResourcesWithPathIgnoringWhitelist` | `ScanResult#getResourcesWithPathIgnoringAccept` |
-| `FieldInfo#getModifierStr` | `FieldInfo#getModifiersStr` |
+| `FieldInfo#getModifierStr` | `FieldInfo#getModifiersString` |
 | `ClassInfoList#generateGraphVizDotFileFromClassDependencies` | `ClassInfoList#generateGraphVizDotFileFromInterClassDependencies` |
 | `ResourceList#forEachByteArray(ByteArrayConsumer, boolean)` | `ResourceList#forEachByteArray` or `#forEachByteArrayIgnoringIOException` |
 | `ResourceList#forEachInputStream(InputStreamConsumer, boolean)` | `ResourceList#forEachInputStream` or `#forEachInputStreamIgnoringIOException` |
@@ -400,7 +400,7 @@ that is not updated will not compile, rather than silently changing meaning.
 | --- | --- | --- |
 | `ClassInfo#getSubclasses()` | `ClassInfo#getAllSubclasses()` | `ClassInfo#getDirectSubclasses()` |
 | `ClassInfo#getSuperclasses()` | `ClassInfo#getAllSuperclasses()` | `ClassInfo#getSuperclass()` (single) |
-| `ClassInfo#getInterfaces()` | `ClassInfo#getAllInterfaces()` | `ClassInfo#getDirectInterfaces()` |
+| `ClassInfo#getInterfaces()` | `ClassInfo#getAllSuperinterfaces()` | `ClassInfo#getDirectSuperinterfaces()` |
 | `ClassInfo#getClassesImplementing()` | `ClassInfo#getAllClassesImplementing()` | `ClassInfo#getDirectClassesImplementing()` |
 | `ClassInfo#getSubinterfaces()` | `ClassInfo#getAllSubinterfaces()` | `ClassInfo#getDirectSubinterfaces()` |
 | `ClassInfo#getAnnotations()` | `ClassInfo#getAllAnnotations()` | `ClassInfo#getDirectAnnotations()` |
@@ -413,7 +413,7 @@ that is not updated will not compile, rather than silently changing meaning.
 | `MethodParameterInfo#getAnnotationInfoRepeatable(...)` | `#getAllAnnotationInfoRepeatable(...)` | `#getDirectAnnotationInfoRepeatable(...)` |
 | `ScanResult#getSubclasses(Class \| String)` | `ScanResult#getAllSubclasses(...)` | `ScanResult#getDirectSubclasses(...)` |
 | `ScanResult#getSuperclasses(Class \| String)` | `ScanResult#getAllSuperclasses(...)` | `ScanResult#getSuperclass()` on the `ClassInfo` |
-| `ScanResult#getInterfaces(Class \| String)` | `ScanResult#getAllInterfaces(...)` | `ScanResult#getDirectInterfaces(...)` |
+| `ScanResult#getInterfaces(Class \| String)` | `ScanResult#getAllSuperinterfaces(...)` | `ScanResult#getDirectSuperinterfaces(...)` |
 | `ScanResult#getClassesImplementing(Class \| String)` | `ScanResult#getAllClassesImplementing(...)` | `ScanResult#getDirectClassesImplementing(...)` |
 | `ScanResult#getSubinterfaces(Class \| String)` | `ScanResult#getAllSubinterfaces(...)` | `ScanResult#getDirectSubinterfaces(...)` |
 | `ScanResult#getAnnotationsOnClass(String)` | `ScanResult#getAllAnnotationsOnClass(...)` | `ScanResult#getDirectAnnotationsOnClass(...)` |
@@ -442,6 +442,15 @@ in 4.x; call `.directOnly()` on the result for the direct one.
 `ClassInfoList#getInterfaces()` and `ClassInfoList#getAnnotations()` are unchanged. They
 are list filters ("keep the entries of this list that are interfaces"), not hierarchy
 queries, and no longer collide in name with anything on `ClassInfo`.
+
+The interface queries say "superinterface" rather than "interface", which is the term the
+JVM specification uses for the entries of a classfile's `interfaces[]` array, whether the
+classfile is a class or an interface. This also keeps `ScanResult#getAllInterfaces()` —
+the no-argument query for every interface in the scan result — from meaning something
+unrelated to `ScanResult#getAllInterfaces(Class | String)`, which was the one overload
+pair in the API where the same name answered two different questions. The no-argument
+`ScanResult#getAllInterfaces()` therefore keeps its name; only the two per-class overloads
+are renamed.
 
 ### There is now one glob syntax, used everywhere (#643, #870, #940)
 
@@ -493,6 +502,117 @@ other than `.` used to have that character copied into the pattern unescaped, so
 the middle and matched nothing; metacharacters are now escaped. And
 `getResourcesMatchingWildcard("**/*.txt")` used to require at least one directory level,
 as described above.
+
+### `Str` in method names is now spelled `String`
+
+The abbreviation was only ever there to keep the names short:
+
+| ClassGraph 4.x | ClassGraph 5.x |
+| --- | --- |
+| `ClassInfo#getModifiersStr()` | `ClassInfo#getModifiersString()` |
+| `ClassInfo#getTypeSignatureStr()` | `ClassInfo#getTypeSignatureString()` |
+| `ClassMemberInfo#getModifiersStr()` | `ClassMemberInfo#getModifiersString()` |
+| `ClassMemberInfo#getTypeDescriptorStr()` | `ClassMemberInfo#getTypeDescriptorString()` |
+| `ClassMemberInfo#getTypeSignatureStr()` | `ClassMemberInfo#getTypeSignatureString()` |
+| `ClassMemberInfo#getTypeSignatureOrTypeDescriptorStr()` | `ClassMemberInfo#getTypeSignatureOrTypeDescriptorString()` |
+| `FieldInfo#getModifiersStr()` | `FieldInfo#getModifiersString()` |
+| `MethodInfo#getModifiersStr()` | `MethodInfo#getModifiersString()` |
+| `MethodParameterInfo#getModifiersStr()` | `MethodParameterInfo#getModifiersString()` |
+| `ArrayClassInfo#getTypeSignatureStr()` | `ArrayClassInfo#getTypeSignatureString()` |
+| `ArrayTypeSignature#getTypeSignatureStr()` | `ArrayTypeSignature#getTypeSignatureString()` |
+| `BaseTypeSignature#getTypeStr()` | `BaseTypeSignature#getTypeString()` |
+| `ModuleRef#getLocationStr()` | `ModuleRef#getLocationString()` |
+
+### Getters and predicates now say `get...` / `is...`, and milliseconds say `Millis`
+
+| ClassGraph 4.x | ClassGraph 5.x |
+| --- | --- |
+| `Resource#getLastModified()` | `Resource#getLastModifiedMillis()` |
+| `ScanResult#classpathContentsLastModifiedTime()` | `ScanResult#getClasspathContentsLastModifiedTimeMillis()` |
+| `ScanResult#classpathContentsModifiedSinceScan()` | `ScanResult#isClasspathContentsModifiedSinceScan()` |
+
+Both time values were already in milliseconds since the epoch; the names now say so, as
+`FastZipEntry#getLastModifiedTimeMillis()` and `Resource#getLastModifiedMillis()`'s own
+Javadoc already did. The value returned by `Resource#getLastModifiedMillis()` is 0L when
+the last modified time is unknown, as before.
+
+### `AnnotationInfo#getParameterValues(boolean)` is now two methods
+
+The boolean selected whether the annotation type's default parameter values were filled in
+for parameters that the use site did not give explicitly. A boolean at a call site does not
+say which of the two answers you asked for, so there are now two named methods:
+
+| ClassGraph 4.x | ClassGraph 5.x |
+| --- | --- |
+| `getParameterValues()` | `getParameterValues()` |
+| `getParameterValues(true)` | `getParameterValues()` |
+| `getParameterValues(false)` | `getDeclaredParameterValues()` |
+
+`getDeclaredParameterValues()` is named for the same distinction as
+`ClassInfo#getDeclaredMethodInfo()` — what is written at the site itself, with nothing
+inherited or defaulted in. `getDefaultParameterValues()`, which returns the defaults
+declared by the annotation type, is unchanged.
+
+### Misuse now throws `IllegalStateException` or `UnsupportedOperationException`
+
+4.x threw `IllegalArgumentException` for almost every kind of misuse, including many with
+no argument involved. 5.x follows the JDK's convention:
+
+* **`IllegalStateException`** when the failure depends on the state of the receiver, not on
+  an argument. This covers, throughout the API:
+  * every "Please call `ClassGraph#enableXInfo()` before `#scan()`" guard — on `ClassInfo`,
+    `ClassMemberInfo`, `FieldInfo`, `MethodParameterInfo`, `ClassInfoList` and `ScanResult`;
+  * using a `ScanResult` after it has been closed;
+  * asking a class for something it is not — `ClassInfo#getEnumConstants()` on a
+    non-enum, `ClassInfo#getAnnotationDefaultParameterValues()` on a non-annotation;
+  * a classpath element, resource or module whose URI or URL cannot be determined —
+    `ClassInfo#getClasspathElementURI()`/`#getClasspathElementURL()`/`#getClasspathElementFile()`,
+    `Resource#getURI()`/`#getURL()`/`#getClasspathElementURL()`;
+  * `ClassInfoList#generateGraphVizDotFile*` and `#writeGraphVizDotFile*` on an empty list;
+  * `TypeVariableSignature#resolve()` when the class defining the type variable was not
+    found during the scan.
+* **`UnsupportedOperationException`** when the operation is one the receiver does not
+  support at all:
+  * every mutating method of an unmodifiable `InfoList` (`add`, `remove`, `set`, `clear`,
+    `sort`, the iterator's `remove`, and the rest). This is what `java.util.List` documents
+    for an unmodifiable list, and what `Collections.unmodifiableList()` throws;
+  * `getClassName()` and `getClassInfo()` on the scan result objects that do not stand for
+    a class — `AnnotationClassRef`, `AnnotationParameterValue`, `TypeArgument`,
+    `TypeParameter`;
+  * `ClassTypeSignature#getClassName()`/`#getClassInfo()` and
+    `MethodTypeSignature#getClassName()`/`#getClassInfo()`.
+
+`IllegalArgumentException` is now thrown only where an argument is present but invalid —
+for example a malformed glob passed to `getResourcesMatchingWildcard()`, or a type
+signature string that does not parse. A null argument throws `NullPointerException`, as
+described above.
+
+`ClassGraphException` — thrown by `ClassGraph#scan()` when a scan is interrupted or a
+worker thread throws — extended `IllegalArgumentException` for the same reason, and now
+extends `RuntimeException` directly. A failed scan is not a bad argument, and catching
+`IllegalArgumentException` around `scan()` also caught unrelated argument errors.
+
+Code that catches `IllegalArgumentException` around any of these calls needs to catch the
+new type. All of them are unchecked, so nothing fails to compile; if you catch
+`RuntimeException`, or `ClassGraphException` by name, nothing changes.
+
+### `getAllClassesAsMap()` and `getAllResourcesAsMap()` return unmodifiable maps
+
+`ScanResult#getAllClassesAsMap()` and `#getAllResourcesAsMap()` returned ClassGraph's own
+internal maps, so writing to the returned map corrupted the scan result. They now return
+an unmodifiable view of the same map: reads are unchanged, and a write throws
+`UnsupportedOperationException`. Copy the map into a `HashMap` if you need to modify it.
+
+The views are live, as the returned maps always were: they reflect the scan result they
+came from, and stop being usable once it is closed.
+
+### `ClassInfoList#getAssignableTo` accepts a class or a class name
+
+`getAssignableTo(ClassInfo)` was the only way to ask, so callers holding a `Class<?>` or a
+class name had to look the `ClassInfo` up first, and handle the case where the class was
+not found in the scan result. `getAssignableTo(Class<?>)` and `getAssignableTo(String)` do
+that, returning the empty list if the class was not found — matching the `Class<?>` /
+`String` overload pair that the rest of the query API already offers.
 
 ## Behavior changes
 
@@ -686,17 +806,29 @@ as described above.
   `getAllAnnotationInfo()` listed `@Foo` twice, once as a direct annotation and once as
   its own meta-annotation.
 
+* **`ModuleInfo#getPackageInfo()` returns an unmodifiable empty list for a module with no
+  packages.** It used to return a fresh modifiable empty `PackageInfoList` in that one
+  case, and an unmodifiable one otherwise; `ModuleInfo#getClassInfo()` already returned the
+  unmodifiable empty list. Adding to the returned list never affected the scan result, so
+  the only change is that it now throws `UnsupportedOperationException`.
+
 ## Bug fixes
 
 Bugs found during the port. Each of these is a pre-existing bug in ClassGraph 4.x, and
 is fixed on the 4.x branch as well.
+
+* `ModuleInfo#getLocation()` is documented to return null for a module whose location is
+  unknown, and `ModuleReference#location()` can return an empty `Optional`, but the method
+  threw rather than returning null in exactly that case: with no location of its own it
+  fell back to asking its classpath element for a URI, and a module classpath element with
+  no location throws. It now returns null, as documented.
 
 * The month of an MS-DOS zip entry timestamp was read from three bits rather than
   four, so a zip entry that carries only an MS-DOS timestamp (i.e. no extended
   timestamp extra field) reported the wrong last modified time if it was modified
   in August or later: September to December were read as January to April, and
   August was read as December of the previous year. This affects
-  `Resource#getLastModified()`.
+  `Resource#getLastModifiedMillis()`.
 
 * `ClassInfo#getTypeDescriptor()` synthesizes a type descriptor for a class that has no
   generic type signature, standing in for the classfile's own `super_class` and

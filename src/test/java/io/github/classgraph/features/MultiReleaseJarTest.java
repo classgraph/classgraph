@@ -103,7 +103,7 @@ public class MultiReleaseJarTest {
             final var java8ClassResource = scanResult.getResourcesWithPath("mrj/Cls.class");
             assertThat(java8ClassResource).hasSize(1);
             assertThatThrownBy(() -> scanResult.getClassInfo("mrj.Cls"))
-                    .isInstanceOfAny(IllegalArgumentException.class);
+                    .isInstanceOfAny(IllegalStateException.class);
         }
     }
 }

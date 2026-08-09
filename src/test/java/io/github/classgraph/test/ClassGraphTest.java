@@ -144,7 +144,7 @@ public class ClassGraphTest {
             assertThat(subinterfaces).doesNotContain(Iface.class.getName());
             assertThat(subinterfaces).contains(IfaceSub.class.getName());
             assertThat(subinterfaces).contains(IfaceSubSub.class.getName());
-            final var superinterfaces = scanResult.getAllInterfaces(IfaceSubSub.class.getName()).getNames();
+            final var superinterfaces = scanResult.getAllSuperinterfaces(IfaceSubSub.class.getName()).getNames();
             assertThat(superinterfaces).doesNotContain(IfaceSubSub.class.getName());
             assertThat(superinterfaces).contains(IfaceSub.class.getName());
             assertThat(superinterfaces).contains(Iface.class.getName());

@@ -168,7 +168,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
      * @return The modifiers for the method, as a String.
      */
     @Override
-    public String getModifiersStr() {
+    public String getModifiersString() {
         final var buf = new StringBuilder();
         TypeUtils.modifiersToString(modifiers, ModifierType.METHOD, isDefault(), buf);
         return buf.toString();
@@ -825,7 +825,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
         } catch (final IllegalArgumentException e) {
             if (log != null) {
                 log.log("Illegal type signature for method " + getClassName() + "." + getName() + ": "
-                        + getTypeSignatureStr());
+                        + getTypeSignatureString());
             }
         }
         try {
@@ -836,7 +836,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
         } catch (final IllegalArgumentException e) {
             if (log != null) {
                 log.log("Illegal type descriptor for method " + getClassName() + "." + getName() + ": "
-                        + getTypeDescriptorStr());
+                        + getTypeDescriptorString());
             }
         }
         if (annotationInfo != null) {
@@ -969,9 +969,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
         if (!buf.isEmpty()) {
             buf.append(' ');
         }
-        if (name != null) {
-            buf.append(useSimpleNames ? ClassInfo.getSimpleName(name) : name);
-        }
+        buf.append(useSimpleNames ? ClassInfo.getSimpleName(name) : name);
 
         // If at least one param is named, then use placeholder names for unnamed
         // params,

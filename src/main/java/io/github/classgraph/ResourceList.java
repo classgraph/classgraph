@@ -29,6 +29,7 @@
 package io.github.classgraph;
 
 import java.io.IOException;
+import java.io.Serial;
 import java.io.InputStream;
 import java.net.URI;
 import java.net.URL;
@@ -49,7 +50,8 @@ import nonapi.io.github.classgraph.utils.CollectionUtils;
 /** An AutoCloseable list of AutoCloseable {@link Resource} objects. */
 public class ResourceList extends PotentiallyUnmodifiableList<Resource> implements AutoCloseable {
     /** serialVersionUID. */
-    static final long serialVersionUID = 1L;
+    @Serial
+    private static final long serialVersionUID = 1L;
 
     /** An unmodifiable empty {@link ResourceList}. */
     static final ResourceList EMPTY_LIST = new ResourceList();
@@ -90,6 +92,8 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      * @param resourceCollection the collection of {@link Resource} objects.
      */
     public ResourceList(final Collection<Resource> resourceCollection) {
+        // Objects.requireNonNull rather than Assert.notNull, since Assert.notNull
+        // returns void, and so cannot be called before the super() call
         super(Objects.requireNonNull(resourceCollection, "resourceCollection must not be null"));
     }
 
@@ -165,11 +169,13 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      * Get the URLs of all resources in this list, by calling
      * {@link Resource#getURL()} for each item in the list. Note that any resource
      * with a {@code jrt:} URI (e.g. a system resource, or a resource from a jlink'd
-     * image) will cause {@link IllegalArgumentException} to be thrown, since
+     * image) will cause {@link IllegalStateException} to be thrown, since
      * {@link URL} does not support this scheme, so {@link #getURIs()} is strongly
      * preferred over {@link #getURLs()}.
      *
      * @return The URLs of all resources in this list.
+     * @throws IllegalStateException if any resource's URI could not be converted to
+     *                               a {@link URL}.
      */
     public List<URL> getURLs() {
         final List<URL> resourceURLs = new ArrayList<>(this.size());
