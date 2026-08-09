@@ -143,8 +143,8 @@ public class DeclaredVsNonDeclaredTest {
             final var B = scanResult.getClassInfo(B.class.getName());
             final var C = scanResult.getClassInfo(C.class.getName());
 
-            final var annotationInfossOnA = A.getAnnotationInfo();
-            final var annotationsInfosOnB = B.getAnnotationInfo();
+            final var annotationInfossOnA = A.getAllAnnotationInfo();
+            final var annotationsInfosOnB = B.getAllAnnotationInfo();
 
             assertThat(annotationInfossOnA).extracting(AnnotationInfo::getName).containsOnly(
                     InheritedAnnotation.class.getName(), NormalAnnotation.class.getName(),
@@ -154,15 +154,15 @@ public class DeclaredVsNonDeclaredTest {
             assertThat(annotationInfossOnA.directOnly()).extracting(AnnotationInfo::getName)
                     .containsOnly(NormalAnnotation.class.getName(), InheritedAnnotation.class.getName());
             assertThat(annotationsInfosOnB.directOnly()).isEmpty();
-            assertThat(C.getAnnotationInfo().directOnly()).extracting(AnnotationInfo::getName)
+            assertThat(C.getDirectAnnotationInfo()).extracting(AnnotationInfo::getName)
                     .containsOnly(NormalAnnotation.class.getName());
 
-            final var annotationsOnAw = A.getMethodInfo().getSingleMethod("w").getAnnotationInfo();
+            final var annotationsOnAw = A.getMethodInfo().getSingleMethod("w").getAllAnnotationInfo();
             assertThat(annotationsOnAw).extracting(AnnotationInfo::getName).containsOnly(
                     InheritedAnnotation.class.getName(), InheritedMetaAnnotation.class.getName(),
                     NonInheritedMetaAnnotation.class.getName());
 
-            final var annotationsOnBw = B.getMethodInfo().getSingleMethod("w").getAnnotationInfo();
+            final var annotationsOnBw = B.getMethodInfo().getSingleMethod("w").getAllAnnotationInfo();
             assertThat(annotationsOnBw).extracting(AnnotationInfo::getName).isEmpty();
             // See note on inherited annotations on methods
             // https://docs.oracle.com/javase/8/docs/api/java/lang/annotation/Inherited.html
@@ -186,8 +186,8 @@ public class DeclaredVsNonDeclaredTest {
             final var A = scanResult.getClassInfo(A.class.getName());
             final var B = scanResult.getClassInfo(B.class.getName());
 
-            final var annotationsOnA = A.getAnnotations();
-            final var annotationsOnB = B.getAnnotations();
+            final var annotationsOnA = A.getAllAnnotations();
+            final var annotationsOnB = B.getAllAnnotations();
 
             assertThat(annotationsOnA.loadClasses()).containsOnly(NormalAnnotation.class, InheritedAnnotation.class,
                     InheritedMetaAnnotation.class, NonInheritedMetaAnnotation.class);

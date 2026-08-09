@@ -57,7 +57,7 @@ public class ExternalAnnotationArrayValueTest {
                 final var annotationClassInfo = scanResult.getClassInfo(ExternalAnnotation.class.getName());
                 assertThat(annotationClassInfo == null || annotationClassInfo.getMethodInfo().isEmpty()).isTrue();
 
-                final var annotationInfo = classInfo.getAnnotationInfo(ExternalAnnotation.class.getName());
+                final var annotationInfo = classInfo.getAllAnnotationInfo(ExternalAnnotation.class.getName());
                 assertThat(annotationInfo).isNotNull();
                 final var annotation = (ExternalAnnotation) annotationInfo.loadClassAndInstantiate();
                 assertThat(annotation.value()).containsExactly("one", "two");

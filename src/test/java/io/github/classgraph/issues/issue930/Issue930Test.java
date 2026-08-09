@@ -56,7 +56,7 @@ public class Issue930Test {
                 .scan()) {
             final var classInfo = scanResult.getClassInfo(Annotated.class.getName());
             assertThat(classInfo).isNotNull();
-            proxyAnnotation = classInfo.getAnnotationInfo(Issue930Annotation.class).loadClassAndInstantiate();
+            proxyAnnotation = classInfo.getAllAnnotationInfo(Issue930Annotation.class).loadClassAndInstantiate();
             assertThat(proxyAnnotation).isNotNull();
         }
 

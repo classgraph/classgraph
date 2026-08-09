@@ -40,7 +40,7 @@ public class AnnotationDefaultValuesTest {
                 .acceptPackages(AnnotationDefaultValuesTest.class.getPackage().getName()).enableAllInfo().scan()) {
             final var classInfo = scanResult.getClassInfo(MyClass.class.getName());
             assertThat(classInfo).isNotNull();
-            final var annotationInfo = classInfo.getAnnotationInfo(MyAnnotation.class.getName());
+            final var annotationInfo = classInfo.getAllAnnotationInfo(MyAnnotation.class.getName());
             assertThat(annotationInfo).isNotNull();
             // The parameter value is not stored in the classfile of the annotated class,
             // only in the classfile of the annotation

@@ -342,8 +342,8 @@ public class ClassGraph {
     /**
      * Enables the saving of annotation info (for class, field, method and method
      * parameter annotations) during the scan. This information can be obtained
-     * using {@link ClassInfo#getAnnotationInfo()},
-     * {@link FieldInfo#getAnnotationInfo()}, and
+     * using {@link ClassInfo#getAllAnnotationInfo()},
+     * {@link FieldInfo#getAllAnnotationInfo()}, and
      * {@link MethodParameterInfo#getAnnotationInfo()}. By default, annotation info
      * is not scanned. (Automatically calls {@link #enableClassInfo()}.)
      *

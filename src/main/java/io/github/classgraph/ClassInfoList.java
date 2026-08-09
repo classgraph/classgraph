@@ -59,7 +59,7 @@ import org.jspecify.annotations.Nullable;
  * Most {@link ClassInfoList} objects returned by ClassGraph are sorted into
  * lexicographical order by the value of {@link ClassInfo#getName()}. One
  * exception to this is the classes returned by
- * {@link ClassInfo#getSuperclasses()}, which are in ascending order of the
+ * {@link ClassInfo#getAllSuperclasses()}, which are in ascending order of the
  * class hierarchy.
  */
 public class ClassInfoList extends MappableInfoList<ClassInfo> {
@@ -524,9 +524,9 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
         // Get subclasses and implementing classes for assignableFromClass
         final Set<ClassInfo> allAssignableFromClasses = new HashSet<>();
         if (superclassOrInterface.isStandardClass()) {
-            allAssignableFromClasses.addAll(superclassOrInterface.getSubclasses());
+            allAssignableFromClasses.addAll(superclassOrInterface.getAllSubclasses());
         } else if (superclassOrInterface.isInterfaceOrAnnotation()) {
-            allAssignableFromClasses.addAll(superclassOrInterface.getClassesImplementing());
+            allAssignableFromClasses.addAll(superclassOrInterface.getAllClassesImplementing());
         }
         // A class is its own superclass or interface
         allAssignableFromClasses.add(superclassOrInterface);

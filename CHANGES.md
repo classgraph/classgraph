@@ -260,6 +260,59 @@ argument to `contains()`, `indexOf()` and `lastIndexOf()` with `NullPointerExcep
 where `Collections.emptyList()` answered `false` / `-1`. This matches the rest of 5.x,
 which rejects null rather than answering it.
 
+### Hierarchy and annotation queries now say `getDirect...` or `getAll...` (#559)
+
+In 4.x, `getSubclasses()`, `getInterfaces()`, `getClassesImplementing()` and the rest
+returned the *transitive* closure, and you narrowed the result to the directly-related
+classes by calling `.directOnly()` on it. Nothing in the method name said which one you
+were getting, so the common mistake was to use the transitive answer believing it was the
+direct one. The old names are gone; each query is now spelled out as either `getAll...`
+(transitive, what 4.x did) or `getDirect...` (what `.directOnly()` used to give you). Code
+that is not updated will not compile, rather than silently changing meaning.
+
+| Removed in 5.x | Transitive (same as 4.x) | Direct only |
+| --- | --- | --- |
+| `ClassInfo#getSubclasses()` | `ClassInfo#getAllSubclasses()` | `ClassInfo#getDirectSubclasses()` |
+| `ClassInfo#getSuperclasses()` | `ClassInfo#getAllSuperclasses()` | `ClassInfo#getSuperclass()` (single) |
+| `ClassInfo#getInterfaces()` | `ClassInfo#getAllInterfaces()` | `ClassInfo#getDirectInterfaces()` |
+| `ClassInfo#getClassesImplementing()` | `ClassInfo#getAllClassesImplementing()` | `ClassInfo#getDirectClassesImplementing()` |
+| `ClassInfo#getSubinterfaces()` | `ClassInfo#getAllSubinterfaces()` | `ClassInfo#getDirectSubinterfaces()` |
+| `ClassInfo#getAnnotations()` | `ClassInfo#getAllAnnotations()` | `ClassInfo#getDirectAnnotations()` |
+| `ClassInfo#getAnnotationInfo()` | `ClassInfo#getAllAnnotationInfo()` | `ClassInfo#getDirectAnnotationInfo()` |
+| `ClassInfo#getAnnotationInfo(Class \| String)` | `ClassInfo#getAllAnnotationInfo(Class \| String)` | `ClassInfo#getDirectAnnotationInfo(Class \| String)` |
+| `ClassInfo#getAnnotationInfoRepeatable(Class \| String)` | `ClassInfo#getAllAnnotationInfoRepeatable(Class \| String)` | `ClassInfo#getDirectAnnotationInfoRepeatable(Class \| String)` |
+| `MethodInfo` / `FieldInfo` `#getAnnotationInfo(...)` | `#getAllAnnotationInfo(...)` | `#getDirectAnnotationInfo(...)` |
+| `MethodInfo` / `FieldInfo` `#getAnnotationInfoRepeatable(...)` | `#getAllAnnotationInfoRepeatable(...)` | `#getDirectAnnotationInfoRepeatable(...)` |
+| `ScanResult#getSubclasses(Class \| String)` | `ScanResult#getAllSubclasses(...)` | `ScanResult#getDirectSubclasses(...)` |
+| `ScanResult#getSuperclasses(Class \| String)` | `ScanResult#getAllSuperclasses(...)` | `ScanResult#getSuperclass()` on the `ClassInfo` |
+| `ScanResult#getInterfaces(Class \| String)` | `ScanResult#getAllInterfaces(...)` | `ScanResult#getDirectInterfaces(...)` |
+| `ScanResult#getClassesImplementing(Class \| String)` | `ScanResult#getAllClassesImplementing(...)` | `ScanResult#getDirectClassesImplementing(...)` |
+| `ScanResult#getSubinterfaces(Class \| String)` | `ScanResult#getAllSubinterfaces(...)` | `ScanResult#getDirectSubinterfaces(...)` |
+| `ScanResult#getAnnotationsOnClass(String)` | `ScanResult#getAllAnnotationsOnClass(...)` | `ScanResult#getDirectAnnotationsOnClass(...)` |
+
+For the annotation queries, "all" means the annotations directly present on the class or
+member plus the meta-annotations reachable from them (and, for a class, any `@Inherited`
+annotation on a superclass) — exactly what 4.x returned. `MethodParameterInfo`,
+`PackageInfo` and `ModuleInfo` never expanded meta-annotations, so their
+`getAnnotationInfo()` keeps its name.
+
+`.directOnly()` still exists on `ClassInfoList` and `AnnotationInfoList`, so the 4.x
+idiom keeps working; the `getDirect...` methods are just the direct way to ask.
+
+Two overloads were added for symmetry, since every other query on `ScanResult` accepts
+either a `Class<?>` or a class name: `ScanResult#getAllAnnotationsOnClass(Class)` and
+`ScanResult#getDirectAnnotationsOnClass(Class)`.
+
+The reverse queries — `ScanResult#getClassesWithAnnotation(...)`,
+`#getClassesWithAllAnnotations(...)`, `#getClassesWithAnyAnnotation(...)`, and the
+method- and field-annotation equivalents — deliberately keep their names, because
+`getAllClassesWithAllAnnotations` is not readable. They return the transitive answer, as
+in 4.x; call `.directOnly()` on the result for the direct one.
+
+`ClassInfoList#getInterfaces()` and `ClassInfoList#getAnnotations()` are unchanged. They
+are list filters ("keep the entries of this list that are interfaces"), not hierarchy
+queries, and no longer collide in name with anything on `ClassInfo`.
+
 ## Behavior changes
 
 * **Malformed classfiles are now reported rather than silently producing null names.**
@@ -297,6 +350,7 @@ is fixed on the 4.x branch as well.
   in August or later: September to December were read as January to April, and
   August was read as December of the previous year. This affects
   `Resource#getLastModified()`.
+
 Two further bugs found during the port were only reachable through the JSON
 serialization API, which 5.x removes (`AnnotationParameterValue#toString()` threw
 `NullPointerException` for a null parameter value, and `ScanResult#fromJSON(String)` did

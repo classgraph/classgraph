@@ -1390,7 +1390,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     public boolean extendsSuperclass(final String superclassName) {
         Assert.notNull(superclassName, "superclassName");
         return ("java.lang.Object".equals(superclassName) && isStandardClass())
-                || getSuperclasses().containsName(superclassName);
+                || getAllSuperclasses().containsName(superclassName);
     }
 
     /**
@@ -1462,7 +1462,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     public boolean implementsInterface(final String interfaceName) {
         Assert.notNull(interfaceName, "interfaceName");
-        return getInterfaces().containsName(interfaceName);
+        return getAllInterfaces().containsName(interfaceName);
     }
 
     /**
@@ -1485,7 +1485,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     public boolean hasAnnotation(final String annotationName) {
         Assert.notNull(annotationName, "annotationName");
-        return getAnnotations().containsName(annotationName);
+        return getAllAnnotations().containsName(annotationName);
     }
 
     /**
@@ -1739,7 +1739,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             final List<ClassInfo> overrideOrderOut) {
         if (visited.add(this)) {
             overrideOrderOut.add(this);
-            for (final ClassInfo iface : getInterfaces()) {
+            for (final ClassInfo iface : getAllInterfaces()) {
                 iface.getFieldOverrideOrder(visited, overrideOrderOut);
             }
             final var superclass = getSuperclass();
@@ -1792,7 +1792,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             if (superclass != null) {
                 superclass.getMethodOverrideOrder(visited, overrideOrderOut);
             }
-            for (final ClassInfo iface : getInterfaces()) {
+            for (final ClassInfo iface : getAllInterfaces()) {
                 iface.getMethodOverrideOrder(visited, overrideOrderOut);
             }
             return overrideOrderOut;
@@ -1808,7 +1808,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         // Can still happen thanks to dynamically linking a different interface during
         // runtime, for which the
         // returned order is undefined.
-        final var interfaces = getInterfaces();
+        final var interfaces = getAllInterfaces();
         var minIndex = Integer.MAX_VALUE;
         for (final ClassInfo iface : interfaces) {
             if (!visited.contains(iface)) {
@@ -1845,15 +1845,15 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     // Standard classes
 
     /**
-     * Get the subclasses of this class, sorted in order of name. Call
-     * {@link ClassInfoList#directOnly()} to get direct subclasses.
+     * Get all subclasses of this class, i.e. the classes that extend this class,
+     * and the classes that extend those, transitively, sorted in order of name.
      *
      * If this class represents {@link Object}, then returns only standard classes,
      * not interfaces, since interfaces don't extend {@link Object}.
      *
-     * @return the list of subclasses of this class, or the empty list if none.
+     * @return the list of all subclasses of this class, or the empty list if none.
      */
-    public ClassInfoList getSubclasses() {
+    public ClassInfoList getAllSubclasses() {
         if ("java.lang.Object".equals(getName())) {
             // Make an exception for querying all subclasses of java.lang.Object
             return scanResult().getAllStandardClasses();
@@ -1864,17 +1864,39 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
+     * Get the direct subclasses of this class, i.e. only the classes that name this
+     * class as their superclass, sorted in order of name.
+     *
+     * If this class represents {@link Object}, then returns only standard classes,
+     * not interfaces, since interfaces don't extend {@link Object}.
+     *
+     * @return the list of direct subclasses of this class, or the empty list if
+     *         none.
+     */
+    public ClassInfoList getDirectSubclasses() {
+        if ("java.lang.Object".equals(getName())) {
+            // Superclass links to Object are not recorded, so the subclasses of Object have
+            // to be found by looking for standard classes with no recorded superclass
+            return scanResult().getAllStandardClasses()
+                    .filter(classInfo -> classInfo != this && classInfo.getSuperclass() == null);
+        } else {
+            return getAllSubclasses().directOnly();
+        }
+    }
+
+    /**
      * Get all superclasses of this class, in ascending order in the class
      * hierarchy, not including {@link Object} for simplicity, since that is the
-     * superclass of all classes.
+     * superclass of all classes. Call {@link #getSuperclass()} to get only the
+     * direct superclass.
      *
      * Also does not include superinterfaces, if this is an interface (use
-     * {@link #getInterfaces()} to get superinterfaces of an interface).
+     * {@link #getAllInterfaces()} to get superinterfaces of an interface).
      *
      * @return the list of all superclasses of this class, or the empty list if
      *         none.
      */
-    public ClassInfoList getSuperclasses() {
+    public ClassInfoList getAllSuperclasses() {
         return new ClassInfoList(this.filterClassInfo(RelType.SUPERCLASSES, /* strictAccept = */ false),
                 /* sortByName = */ false);
     }
@@ -1882,7 +1904,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Get the single direct superclass of this class, or null if none. Does not
      * return the superinterfaces, if this is an interface (use
-     * {@link #getInterfaces()} to get superinterfaces of an interface).
+     * {@link #getDirectInterfaces()} to get the direct superinterfaces of an
+     * interface).
      *
      * @return the superclass of this class, or null if none.
      */
@@ -1942,16 +1965,16 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     // Interfaces
 
     /**
-     * Get the interfaces implemented by this class or by one of its superclasses,
-     * if this is a standard class, or the superinterfaces extended by this
+     * Get all interfaces implemented by this class or by one of its superclasses,
+     * if this is a standard class, or all superinterfaces extended by this
      * interface, if this is an interface.
      *
-     * @return The list of interfaces implemented by this class or by one of its
-     *         superclasses, if this is a standard class, or the superinterfaces
+     * @return The list of all interfaces implemented by this class or by one of its
+     *         superclasses, if this is a standard class, or all the superinterfaces
      *         extended by this interface, if this is an interface. Returns the
      *         empty list if none.
      */
-    public ClassInfoList getInterfaces() {
+    public ClassInfoList getAllInterfaces() {
         // Classes also implement the interfaces of their superclasses
         final var implementedInterfaces = this.filterClassInfo(RelType.IMPLEMENTED_INTERFACES,
                 /* strictAccept = */ false);
@@ -1968,23 +1991,36 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get the classes (and their subclasses) that implement this interface, if this
-     * is an interface.
+     * Get the interfaces directly implemented by this class, if this is a standard
+     * class, or the direct superinterfaces of this interface, if this is an
+     * interface. Does not include the interfaces implemented by superclasses, or
+     * the superinterfaces of the returned interfaces.
+     *
+     * @return The list of interfaces directly implemented or extended by this
+     *         class, or the empty list if none.
+     */
+    public ClassInfoList getDirectInterfaces() {
+        return getAllInterfaces().directOnly();
+    }
+
+    /**
+     * Get all the classes (and their subclasses) that implement this interface, if
+     * this is an interface.
      *
      * <p>
      * The returned list also contains the transitive subinterfaces of this
      * interface, since an interface that extends this interface is a subtype of it.
      * To separate the two, call {@link ClassInfoList#getInterfaces()} for just the
      * subinterfaces, or {@link ClassInfoList#getStandardClasses()} for just the
-     * implementing classes. (Note that {@link #getSubclasses()} does not traverse
-     * the interface hierarchy -- use this method instead to find the subinterfaces
-     * of an interface.)
+     * implementing classes. (Note that {@link #getAllSubclasses()} does not
+     * traverse the interface hierarchy -- use this method instead to find the
+     * subinterfaces of an interface.)
      *
-     * @return the list of the classes (and their subclasses) that implement this
-     *         interface, and the transitive subinterfaces of this interface, if
-     *         this is an interface, otherwise returns the empty list.
+     * @return the list of all the classes (and their subclasses) that implement
+     *         this interface, and the transitive subinterfaces of this interface,
+     *         if this is an interface, otherwise returns the empty list.
      */
-    public ClassInfoList getClassesImplementing() {
+    public ClassInfoList getAllClassesImplementing() {
         // Subclasses of implementing classes also implement the interface
         final var implementingClasses = this.filterClassInfo(RelType.CLASSES_IMPLEMENTING,
                 /* strictAccept = */ !isExternalClass);
@@ -1999,23 +2035,49 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get the transitive subinterfaces of this interface, i.e. the interfaces that
-     * extend this interface, and the interfaces that extend those, if this is an
-     * interface.
+     * Get the classes that directly implement this interface, i.e. that name this
+     * interface in their {@code implements} clause, and the interfaces that name it
+     * in their {@code extends} clause, if this is an interface.
+     *
+     * @return the list of the classes and interfaces that directly implement or
+     *         extend this interface, if this is an interface, otherwise returns the
+     *         empty list.
+     */
+    public ClassInfoList getDirectClassesImplementing() {
+        return getAllClassesImplementing().directOnly();
+    }
+
+    /**
+     * Get all subinterfaces of this interface, i.e. the interfaces that extend this
+     * interface, and the interfaces that extend those, if this is an interface.
      *
      * <p>
-     * This is the interface-hierarchy equivalent of {@link #getSubclasses()}, which
-     * only traverses the superclass hierarchy. (It is equivalent to filtering
-     * {@link #getClassesImplementing()} down to just the interfaces.)
+     * This is the interface-hierarchy equivalent of {@link #getAllSubclasses()},
+     * which only traverses the superclass hierarchy. (It is equivalent to filtering
+     * {@link #getAllClassesImplementing()} down to just the interfaces.)
      *
-     * @return the list of the transitive subinterfaces of this interface, if this
-     *         is an interface, otherwise returns the empty list.
+     * @return the list of all subinterfaces of this interface, if this is an
+     *         interface, otherwise returns the empty list.
      */
-    public ClassInfoList getSubinterfaces() {
+    public ClassInfoList getAllSubinterfaces() {
         if (!isInterfaceOrAnnotation()) {
             return ClassInfoList.EMPTY_LIST;
         }
-        return getClassesImplementing().filter(ClassInfo::isInterfaceOrAnnotation);
+        return getAllClassesImplementing().filter(ClassInfo::isInterfaceOrAnnotation);
+    }
+
+    /**
+     * Get the direct subinterfaces of this interface, i.e. only the interfaces that
+     * name this interface in their {@code extends} clause, if this is an interface.
+     *
+     * @return the list of the direct subinterfaces of this interface, if this is an
+     *         interface, otherwise returns the empty list.
+     */
+    public ClassInfoList getDirectSubinterfaces() {
+        if (!isInterfaceOrAnnotation()) {
+            return ClassInfoList.EMPTY_LIST;
+        }
+        return getDirectClassesImplementing().filter(ClassInfo::isInterfaceOrAnnotation);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -2023,7 +2085,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
 
     /**
      * Get the annotations and meta-annotations on this class. (Call
-     * {@link #getAnnotationInfo()} instead, if you need the parameter values of
+     * {@link #getAllAnnotationInfo()} instead, if you need the parameter values of
      * annotations, rather than just the annotation classes.)
      *
      * <p>
@@ -2035,7 +2097,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * @return the list of annotations and meta-annotations on this class.
      */
-    public ClassInfoList getAnnotations() {
+    public ClassInfoList getAllAnnotations() {
         synchronized (this) {
             if (annotationsRef != null) {
                 return annotationsRef;
@@ -2049,7 +2111,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             final var annotationClasses = this.filterClassInfo(RelType.CLASS_ANNOTATIONS, /* strictAccept = */ false);
             // Check for any @Inherited annotations on superclasses
             Set<ClassInfo> inheritedSuperclassAnnotations = null;
-            for (final ClassInfo superclass : getSuperclasses()) {
+            for (final ClassInfo superclass : getAllSuperclasses()) {
                 for (final ClassInfo superclassAnnotation : superclass.filterClassInfo(RelType.CLASS_ANNOTATIONS,
                         /* strictAccept = */ false).reachableClasses()) {
                     // Check if any of the meta-annotations on this annotation are @Inherited,
@@ -2075,6 +2137,19 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             }
             return annotationsRef;
         }
+    }
+
+    /**
+     * Get only the annotations directly present on this class, not the
+     * meta-annotations on those annotations, and not the {@link Inherited}
+     * annotations of superclasses. (Call {@link #getDirectAnnotationInfo()}
+     * instead, if you need the parameter values of annotations, rather than just
+     * the annotation classes.)
+     *
+     * @return the list of annotations directly present on this class.
+     */
+    public ClassInfoList getDirectAnnotations() {
+        return getAllAnnotations().directOnly();
     }
 
     /**
@@ -2151,16 +2226,17 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get a list of the annotations on this class, or the empty list if none.
+     * Get a list of the annotations and meta-annotations on this class, or the
+     * empty list if none.
      *
      * <p>
      * Also handles the {@link Inherited} meta-annotation, which causes an
      * annotation to annotate a class and all of its subclasses.
      *
-     * @return A list of {@link AnnotationInfo} objects for the annotations on this
-     *         class, or the empty list if none.
+     * @return A list of {@link AnnotationInfo} objects for the annotations and
+     *         meta-annotations on this class, or the empty list if none.
      */
-    public AnnotationInfoList getAnnotationInfo() {
+    public AnnotationInfoList getAllAnnotationInfo() {
         synchronized (this) {
             if (annotationInfoRef != null) {
                 return annotationInfoRef;
@@ -2176,10 +2252,23 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get the non-{@link Repeatable} annotation on this class, or null if the class
-     * does not have the annotation. (Use
-     * {@link #getAnnotationInfoRepeatable(String)} for {@link Repeatable}
-     * annotations.)
+     * Get a list of only the annotations directly present on this class, not the
+     * meta-annotations on those annotations, and not the {@link Inherited}
+     * annotations of superclasses, or the empty list if none.
+     *
+     * @return A list of {@link AnnotationInfo} objects for the annotations directly
+     *         present on this class, or the empty list if none.
+     */
+    public AnnotationInfoList getDirectAnnotationInfo() {
+        return getAllAnnotationInfo().directOnly();
+    }
+
+    /**
+     * Get the non-{@link Repeatable} annotation or meta-annotation on this class,
+     * or null if the class does not have the annotation. (Use
+     * {@link #getAllAnnotationInfoRepeatable(Class)} for {@link Repeatable}
+     * annotations, or {@link #getDirectAnnotationInfo(Class)} to ignore
+     * meta-annotations.)
      *
      * <p>
      * Also handles the {@link Inherited} meta-annotation, which causes an
@@ -2187,33 +2276,41 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * <p>
      * Note that if you need to get multiple annotations, it is faster to call
-     * {@link #getAnnotationInfo()}, and then get the annotations from the returned
-     * {@link AnnotationInfoList}, so that the returned list doesn't have to be
-     * built multiple times.
+     * {@link #getAllAnnotationInfo()}, and then get the annotations from the
+     * returned {@link AnnotationInfoList}, so that the returned list doesn't have
+     * to be built multiple times.
      *
      * @param annotation The annotation.
      * @return An {@link AnnotationInfo} object representing the annotation on this
      *         class, or null if the class does not have the annotation.
      */
-    public @Nullable AnnotationInfo getAnnotationInfo(final Class<? extends Annotation> annotation) {
+    public @Nullable AnnotationInfo getAllAnnotationInfo(final Class<? extends Annotation> annotation) {
         Assert.notNull(annotation, "annotation");
         Assert.isAnnotation(annotation);
-        return getAnnotationInfo(annotation.getName());
+        return getAllAnnotationInfo(annotation.getName());
     }
 
     /**
-     * Get the named non-{@link Repeatable} annotation on this class, or null if the
-     * class does not have the named annotation. (Use
-     * {@link #getAnnotationInfoRepeatable(String)} for {@link Repeatable}
-     * annotations.)
+     * Get the named non-{@link Repeatable} annotation or meta-annotation on this
+     * class, or null if the class does not have the named annotation. (Use
+     * {@link #getAllAnnotationInfoRepeatable(String)} for {@link Repeatable}
+     * annotations, or {@link #getDirectAnnotationInfo(String)} to ignore
+     * meta-annotations.)
      *
      * <p>
      * Also handles the {@link Inherited} meta-annotation, which causes an
      * annotation to annotate a class and all of its subclasses.
      *
      * <p>
+     * If both the class and one of its annotations are annotated with the named
+     * annotation, then the first of the two, in the order of
+     * {@link #getAllAnnotationInfo()}, is returned. Call
+     * {@link #getDirectAnnotationInfo(String)} if you want only the annotation
+     * present on the class itself.
+     *
+     * <p>
      * Note that if you need to get multiple named annotations, it is faster to call
-     * {@link #getAnnotationInfo()}, and then get the named annotations from the
+     * {@link #getAllAnnotationInfo()}, and then get the named annotations from the
      * returned {@link AnnotationInfoList}, so that the returned list doesn't have
      * to be built multiple times.
      *
@@ -2221,14 +2318,48 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return An {@link AnnotationInfo} object representing the named annotation on
      *         this class, or null if the class does not have the named annotation.
      */
-    public @Nullable AnnotationInfo getAnnotationInfo(final String annotationName) {
+    public @Nullable AnnotationInfo getAllAnnotationInfo(final String annotationName) {
         Assert.notNull(annotationName, "annotationName");
-        return getAnnotationInfo().get(annotationName);
+        return getAllAnnotationInfo().get(annotationName);
     }
 
     /**
-     * Get the {@link Repeatable} annotation on this class, or the empty list if the
-     * class does not have the annotation.
+     * Get the non-{@link Repeatable} annotation directly present on this class, or
+     * null if the annotation is not directly present. Meta-annotations, and the
+     * {@link Inherited} annotations of superclasses, are ignored. (Use
+     * {@link #getDirectAnnotationInfoRepeatable(Class)} for {@link Repeatable}
+     * annotations.)
+     *
+     * @param annotation The annotation.
+     * @return An {@link AnnotationInfo} object representing the annotation directly
+     *         present on this class, or null if it is not directly present.
+     */
+    public @Nullable AnnotationInfo getDirectAnnotationInfo(final Class<? extends Annotation> annotation) {
+        Assert.notNull(annotation, "annotation");
+        Assert.isAnnotation(annotation);
+        return getDirectAnnotationInfo(annotation.getName());
+    }
+
+    /**
+     * Get the named non-{@link Repeatable} annotation directly present on this
+     * class, or null if the named annotation is not directly present.
+     * Meta-annotations, and the {@link Inherited} annotations of superclasses, are
+     * ignored. (Use {@link #getDirectAnnotationInfoRepeatable(String)} for
+     * {@link Repeatable} annotations.)
+     *
+     * @param annotationName The annotation name.
+     * @return An {@link AnnotationInfo} object representing the named annotation
+     *         directly present on this class, or null if it is not directly
+     *         present.
+     */
+    public @Nullable AnnotationInfo getDirectAnnotationInfo(final String annotationName) {
+        Assert.notNull(annotationName, "annotationName");
+        return getDirectAnnotationInfo().get(annotationName);
+    }
+
+    /**
+     * Get the {@link Repeatable} annotation or meta-annotation on this class, or
+     * the empty list if the class does not have the annotation.
      *
      * <p>
      * Also handles the {@link Inherited} meta-annotation, which causes an
@@ -2236,24 +2367,24 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * <p>
      * Note that if you need to get multiple annotations, it is faster to call
-     * {@link #getAnnotationInfo()}, and then get the annotations from the returned
-     * {@link AnnotationInfoList}, so that the returned list doesn't have to be
-     * built multiple times.
+     * {@link #getAllAnnotationInfo()}, and then get the annotations from the
+     * returned {@link AnnotationInfoList}, so that the returned list doesn't have
+     * to be built multiple times.
      *
      * @param annotation The annotation.
      * @return An {@link AnnotationInfoList} of all instances of the annotation on
      *         this class, or the empty list if the class does not have the
      *         annotation.
      */
-    public AnnotationInfoList getAnnotationInfoRepeatable(final Class<? extends Annotation> annotation) {
+    public AnnotationInfoList getAllAnnotationInfoRepeatable(final Class<? extends Annotation> annotation) {
         Assert.notNull(annotation, "annotation");
         Assert.isAnnotation(annotation);
-        return getAnnotationInfoRepeatable(annotation.getName());
+        return getAllAnnotationInfoRepeatable(annotation.getName());
     }
 
     /**
-     * Get the named {@link Repeatable} annotation on this class, or the empty list
-     * if the class does not have the named annotation.
+     * Get the named {@link Repeatable} annotation or meta-annotation on this class,
+     * or the empty list if the class does not have the named annotation.
      *
      * <p>
      * Also handles the {@link Inherited} meta-annotation, which causes an
@@ -2261,7 +2392,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * <p>
      * Note that if you need to get multiple named annotations, it is faster to call
-     * {@link #getAnnotationInfo()}, and then get the named annotations from the
+     * {@link #getAllAnnotationInfo()}, and then get the named annotations from the
      * returned {@link AnnotationInfoList}, so that the returned list doesn't have
      * to be built multiple times.
      *
@@ -2270,9 +2401,40 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         annotation on this class, or the empty list if the class does not
      *         have the named annotation.
      */
-    public AnnotationInfoList getAnnotationInfoRepeatable(final String annotationName) {
+    public AnnotationInfoList getAllAnnotationInfoRepeatable(final String annotationName) {
         Assert.notNull(annotationName, "annotationName");
-        return getAnnotationInfo().getRepeatable(annotationName);
+        return getAllAnnotationInfo().getRepeatable(annotationName);
+    }
+
+    /**
+     * Get the {@link Repeatable} annotation directly present on this class, or the
+     * empty list if it is not directly present. Meta-annotations, and the
+     * {@link Inherited} annotations of superclasses, are ignored.
+     *
+     * @param annotation The annotation.
+     * @return An {@link AnnotationInfoList} of all instances of the annotation
+     *         directly present on this class, or the empty list if it is not
+     *         directly present.
+     */
+    public AnnotationInfoList getDirectAnnotationInfoRepeatable(final Class<? extends Annotation> annotation) {
+        Assert.notNull(annotation, "annotation");
+        Assert.isAnnotation(annotation);
+        return getDirectAnnotationInfoRepeatable(annotation.getName());
+    }
+
+    /**
+     * Get the named {@link Repeatable} annotation directly present on this class,
+     * or the empty list if it is not directly present. Meta-annotations, and the
+     * {@link Inherited} annotations of superclasses, are ignored.
+     *
+     * @param annotationName The annotation name.
+     * @return An {@link AnnotationInfoList} of all instances of the named
+     *         annotation directly present on this class, or the empty list if it is
+     *         not directly present.
+     */
+    public AnnotationInfoList getDirectAnnotationInfoRepeatable(final String annotationName) {
+        Assert.notNull(annotationName, "annotationName");
+        return getDirectAnnotationInfo().getRepeatable(annotationName);
     }
 
     /**
@@ -2327,7 +2489,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             final Set<ClassInfo> classesWithAnnotationAndTheirSubclasses = new LinkedHashSet<>(
                     classesWithAnnotation.reachableClasses());
             for (final ClassInfo classWithAnnotation : classesWithAnnotation.reachableClasses()) {
-                classesWithAnnotationAndTheirSubclasses.addAll(classWithAnnotation.getSubclasses());
+                classesWithAnnotationAndTheirSubclasses.addAll(classWithAnnotation.getAllSubclasses());
             }
             return new ClassInfoList(classesWithAnnotationAndTheirSubclasses,
                     classesWithAnnotation.directlyRelatedClasses(), /* sortByName = */ true);
@@ -2921,7 +3083,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         superclasses of this class), as a list of {@link ClassInfo} objects,
      *         or the empty list if none. N.B. these annotations do not contain
      *         specific annotation parameters -- call
-     *         {@link MethodInfo#getAnnotationInfo()} to get details on specific
+     *         {@link MethodInfo#getAllAnnotationInfo()} to get details on specific
      *         method annotation instances.
      */
     public ClassInfoList getMethodAnnotations() {
@@ -2936,7 +3098,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         superclasses of this class), as a list of {@link ClassInfo} objects,
      *         or the empty list if none. N.B. these annotations do not contain
      *         specific annotation parameters -- call
-     *         {@link MethodInfo#getAnnotationInfo()} to get details on specific
+     *         {@link MethodInfo#getAllAnnotationInfo()} to get details on specific
      *         method annotation instances.
      */
     public ClassInfoList getMethodParameterAnnotations() {
@@ -2960,7 +3122,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         // this annotation (non-private methods are inherited)
         for (final ClassInfo classWithNonprivateMethodAnnotationOrMetaAnnotation : //
         getClassesWithFieldOrMethodAnnotation(RelType.CLASSES_WITH_NONPRIVATE_METHOD_ANNOTATION)) {
-            classesWithMethodAnnotation.addAll(classWithNonprivateMethodAnnotationOrMetaAnnotation.getSubclasses());
+            classesWithMethodAnnotation.addAll(classWithNonprivateMethodAnnotationOrMetaAnnotation.getAllSubclasses());
         }
         return new ClassInfoList(classesWithMethodAnnotation, new HashSet<>(getClassesWithMethodAnnotationDirectOnly()),
                 /* sortByName = */ true);
@@ -2985,7 +3147,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         for (final ClassInfo classWithNonprivateMethodParameterAnnotationOrMetaAnnotation : //
         getClassesWithFieldOrMethodAnnotation(RelType.CLASSES_WITH_NONPRIVATE_METHOD_PARAMETER_ANNOTATION)) {
             classesWithMethodParameterAnnotation
-                    .addAll(classWithNonprivateMethodParameterAnnotationOrMetaAnnotation.getSubclasses());
+                    .addAll(classWithNonprivateMethodParameterAnnotationOrMetaAnnotation.getAllSubclasses());
         }
         return new ClassInfoList(classesWithMethodParameterAnnotation,
                 new HashSet<>(getClassesWithMethodParameterAnnotationDirectOnly()), /* sortByName = */ true);
@@ -3354,7 +3516,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * @return A list of all annotations on fields of this class, or the empty list
      *         if none. N.B. these annotations do not contain specific annotation
-     *         parameters -- call {@link FieldInfo#getAnnotationInfo()} to get
+     *         parameters -- call {@link FieldInfo#getAllAnnotationInfo()} to get
      *         details on specific field annotation instances.
      */
     public ClassInfoList getFieldAnnotations() {
@@ -3378,7 +3540,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         // this annotation (non-private fields are inherited)
         for (final ClassInfo classWithNonprivateFieldAnnotationOrMetaAnnotation : //
         getClassesWithFieldOrMethodAnnotation(RelType.CLASSES_WITH_NONPRIVATE_FIELD_ANNOTATION)) {
-            classesWithFieldAnnotation.addAll(classWithNonprivateFieldAnnotationOrMetaAnnotation.getSubclasses());
+            classesWithFieldAnnotation.addAll(classWithNonprivateFieldAnnotationOrMetaAnnotation.getAllSubclasses());
         }
         return new ClassInfoList(classesWithFieldAnnotation, new HashSet<>(getClassesWithFieldAnnotationDirectOnly()),
                 /* sortByName = */ true);
@@ -3479,7 +3641,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     public ClassTypeSignature getTypeDescriptor() {
         synchronized (this) {
             if (typeDescriptor == null) {
-                typeDescriptor = new ClassTypeSignature(this, getSuperclass(), getInterfaces());
+                typeDescriptor = new ClassTypeSignature(this, getSuperclass(), getAllInterfaces());
                 typeDescriptor.setScanResult(scanResult);
                 if (typeAnnotationDecorators != null) {
                     for (final ClassTypeAnnotationDecorator decorator : typeAnnotationDecorators) {
@@ -3800,7 +3962,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         }
         getMethodInfo().findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
         getFieldInfo().findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
-        getAnnotationInfo().findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
+        getAllAnnotationInfo().findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
         if (annotationDefaultParamValues != null) {
             annotationDefaultParamValues.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
         }

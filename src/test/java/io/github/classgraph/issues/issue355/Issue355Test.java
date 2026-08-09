@@ -67,7 +67,7 @@ public class Issue355Test {
             assertThat(x).isNotNull();
 
             // Test array-typed annotation parameter
-            final var annParamVal = ((Object[]) y.getAnnotationInfo().get(0).getParameterValues().get(0).getValue())[0];
+            final var annParamVal = ((Object[]) y.getAllAnnotationInfo().get(0).getParameterValues().get(0).getValue())[0];
             assertThat(annParamVal).isInstanceOf(AnnotationClassRef.class);
             final var annClassRef = (AnnotationClassRef) annParamVal;
             assertThat(annClassRef.getClassInfo().getName()).isEqualTo(X.class.getName());

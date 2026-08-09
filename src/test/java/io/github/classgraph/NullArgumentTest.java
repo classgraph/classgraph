@@ -111,8 +111,28 @@ class NullArgumentTest {
         rejectsNull(() -> scanResult.getClassInfo(null));
         rejectsNull(() -> scanResult.getPackageInfo(null));
         rejectsNull(() -> scanResult.getModuleInfo(null));
-        rejectsNull(() -> scanResult.getSubclasses((String) null));
-        rejectsNull(() -> scanResult.getSubclasses((Class<?>) null));
+        rejectsNull(() -> scanResult.getAllSubclasses((String) null));
+        rejectsNull(() -> scanResult.getAllSubclasses((Class<?>) null));
+        rejectsNull(() -> scanResult.getDirectSubclasses((String) null));
+        rejectsNull(() -> scanResult.getDirectSubclasses((Class<?>) null));
+        rejectsNull(() -> scanResult.getAllSuperclasses((String) null));
+        rejectsNull(() -> scanResult.getAllSuperclasses((Class<?>) null));
+        rejectsNull(() -> scanResult.getAllInterfaces((String) null));
+        rejectsNull(() -> scanResult.getAllInterfaces((Class<?>) null));
+        rejectsNull(() -> scanResult.getDirectInterfaces((String) null));
+        rejectsNull(() -> scanResult.getDirectInterfaces((Class<?>) null));
+        rejectsNull(() -> scanResult.getAllClassesImplementing((String) null));
+        rejectsNull(() -> scanResult.getAllClassesImplementing((Class<?>) null));
+        rejectsNull(() -> scanResult.getDirectClassesImplementing((String) null));
+        rejectsNull(() -> scanResult.getDirectClassesImplementing((Class<?>) null));
+        rejectsNull(() -> scanResult.getAllSubinterfaces((String) null));
+        rejectsNull(() -> scanResult.getAllSubinterfaces((Class<?>) null));
+        rejectsNull(() -> scanResult.getDirectSubinterfaces((String) null));
+        rejectsNull(() -> scanResult.getDirectSubinterfaces((Class<?>) null));
+        rejectsNull(() -> scanResult.getAllAnnotationsOnClass((String) null));
+        rejectsNull(() -> scanResult.getAllAnnotationsOnClass((Class<?>) null));
+        rejectsNull(() -> scanResult.getDirectAnnotationsOnClass((String) null));
+        rejectsNull(() -> scanResult.getDirectAnnotationsOnClass((Class<?>) null));
         rejectsNull(() -> scanResult.getClassesWithAnnotation((String) null));
         rejectsNull(() -> scanResult.getResourcesWithLeafName(null));
         rejectsNull(() -> scanResult.getResourcesWithPath(null));
@@ -135,7 +155,7 @@ class NullArgumentTest {
         rejectsNull(() -> classInfo.hasField(null));
         rejectsNull(() -> classInfo.getMethodInfo(null));
         rejectsNull(() -> classInfo.getFieldInfo(null));
-        rejectsNull(() -> classInfo.getAnnotationInfo((String) null));
+        rejectsNull(() -> classInfo.getAllAnnotationInfo((String) null));
         // Previously wrapped as "IllegalArgumentException: Could not load class ..."
         rejectsNull(() -> classInfo.loadClass((Class<?>) null));
     }

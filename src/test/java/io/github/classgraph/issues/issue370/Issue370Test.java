@@ -51,7 +51,7 @@ public class Issue370Test {
             final var clazzInfo = scanResult.getClassInfo(ClassWithAnnotation.class.getName());
             assertThat(clazzInfo).isNotNull();
             for (final MethodInfo methodInfo : clazzInfo.getMethodInfo().filter(MethodInfo::isPublic)) {
-                final var annotationInfo = methodInfo.getAnnotationInfo(ApiOperation.class);
+                final var annotationInfo = methodInfo.getAllAnnotationInfo(ApiOperation.class);
                 final var value = annotationInfo.getParameterValues().get("notes").getValue().toString();
                 assertThat(value).isEqualTo("${snippetclassifications.findById}");
             }

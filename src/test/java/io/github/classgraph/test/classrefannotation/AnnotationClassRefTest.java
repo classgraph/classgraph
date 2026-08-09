@@ -81,7 +81,7 @@ public class AnnotationClassRefTest {
             final var testClass = testClasses.get(0);
             final var method = testClass.getMethodInfo().getSingleMethod("methodWithAnnotation");
             assertThat(method).isNotNull();
-            final var annotations = method.getAnnotationInfo();
+            final var annotations = method.getAllAnnotationInfo();
             assertThat(annotations.size()).isEqualTo(1);
             final var annotation = annotations.get(0);
             final var paramVals = annotation.getParameterValues();

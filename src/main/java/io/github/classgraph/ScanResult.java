@@ -989,24 +989,26 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Get all subclasses of the superclass.
+     * Get all subclasses of the superclass, i.e. the classes that extend the
+     * superclass, and the classes that extend those, transitively.
      *
      * @param superclass The superclass.
-     * @return A list of subclasses of the superclass, or the empty list if none.
+     * @return A list of all subclasses of the superclass, or the empty list if none.
      */
-    public ClassInfoList getSubclasses(final Class<?> superclass) {
+    public ClassInfoList getAllSubclasses(final Class<?> superclass) {
         Assert.notNull(superclass, "superclass");
-        return getSubclasses(superclass.getName());
+        return getAllSubclasses(superclass.getName());
     }
 
     /**
-     * Get all subclasses of the named superclass.
+     * Get all subclasses of the named superclass, i.e. the classes that extend the
+     * superclass, and the classes that extend those, transitively.
      *
      * @param superclassName The name of the superclass.
-     * @return A list of subclasses of the named superclass, or the empty list if
+     * @return A list of all subclasses of the named superclass, or the empty list if
      *         none.
      */
-    public ClassInfoList getSubclasses(final String superclassName) {
+    public ClassInfoList getAllSubclasses(final String superclassName) {
         checkClassInfoEnabled();
         Assert.notNull(superclassName, "superclassName");
         if ("java.lang.Object".equals(superclassName)) {
@@ -1014,34 +1016,70 @@ public final class ScanResult implements Closeable {
             return getAllStandardClasses();
         } else {
             final var superclass = classNameToClassInfo.get(superclassName);
-            return superclass == null ? ClassInfoList.EMPTY_LIST : superclass.getSubclasses();
+            return superclass == null ? ClassInfoList.EMPTY_LIST : superclass.getAllSubclasses();
         }
     }
 
     /**
-     * Get superclasses of the named subclass.
+     * Get the direct subclasses of the superclass, i.e. only the classes that name
+     * the superclass as their superclass.
      *
-     * @param subclassName The name of the subclass.
-     * @return A list of superclasses of the named subclass, or the empty list if
+     * @param superclass The superclass.
+     * @return A list of direct subclasses of the superclass, or the empty list if
      *         none.
      */
-    public ClassInfoList getSuperclasses(final String subclassName) {
-        checkClassInfoEnabled();
-        Assert.notNull(subclassName, "subclassName");
-        final var subclass = classNameToClassInfo.get(subclassName);
-        return subclass == null ? ClassInfoList.EMPTY_LIST : subclass.getSuperclasses();
+    public ClassInfoList getDirectSubclasses(final Class<?> superclass) {
+        Assert.notNull(superclass, "superclass");
+        return getDirectSubclasses(superclass.getName());
     }
 
     /**
-     * Get superclasses of the subclass.
+     * Get the direct subclasses of the named superclass, i.e. only the classes that
+     * name the superclass as their superclass.
      *
-     * @param subclass The subclass.
-     * @return A list of superclasses of the named subclass, or the empty list if
+     * @param superclassName The name of the superclass.
+     * @return A list of direct subclasses of the named superclass, or the empty list
+     *         if none.
+     */
+    public ClassInfoList getDirectSubclasses(final String superclassName) {
+        checkClassInfoEnabled();
+        Assert.notNull(superclassName, "superclassName");
+        if ("java.lang.Object".equals(superclassName)) {
+            // Superclass links to Object are not recorded, so the subclasses of Object have
+            // to be found by looking for standard classes with no recorded superclass
+            return getAllStandardClasses().filter(classInfo -> classInfo.getSuperclass() == null
+                    && !"java.lang.Object".equals(classInfo.getName()));
+        } else {
+            final var superclass = classNameToClassInfo.get(superclassName);
+            return superclass == null ? ClassInfoList.EMPTY_LIST : superclass.getDirectSubclasses();
+        }
+    }
+
+    /**
+     * Get all superclasses of the named subclass, in ascending order in the class
+     * hierarchy, not including {@link Object}.
+     *
+     * @param subclassName The name of the subclass.
+     * @return A list of all superclasses of the named subclass, or the empty list if
      *         none.
      */
-    public ClassInfoList getSuperclasses(final Class<?> subclass) {
+    public ClassInfoList getAllSuperclasses(final String subclassName) {
+        checkClassInfoEnabled();
+        Assert.notNull(subclassName, "subclassName");
+        final var subclass = classNameToClassInfo.get(subclassName);
+        return subclass == null ? ClassInfoList.EMPTY_LIST : subclass.getAllSuperclasses();
+    }
+
+    /**
+     * Get all superclasses of the subclass, in ascending order in the class
+     * hierarchy, not including {@link Object}.
+     *
+     * @param subclass The subclass.
+     * @return A list of all superclasses of the subclass, or the empty list if none.
+     */
+    public ClassInfoList getAllSuperclasses(final Class<?> subclass) {
         Assert.notNull(subclass, "subclass");
-        return getSuperclasses(subclass.getName());
+        return getAllSuperclasses(subclass.getName());
     }
 
     /**
@@ -1147,34 +1185,66 @@ public final class ScanResult implements Closeable {
 
     /**
      * Get all interfaces implemented by the named class or by one of its
-     * superclasses, if the named class is a standard class, or the superinterfaces
-     * extended by this interface, if it is an interface.
+     * superclasses, if the named class is a standard class, or all superinterfaces
+     * extended by the named interface, transitively, if it is an interface.
      *
      * @param className The class name.
-     * @return A list of interfaces implemented by the named class (or
+     * @return A list of all interfaces implemented by the named class (or all
      *         superinterfaces extended by the named interface), or the empty list
      *         if none.
      */
-    public ClassInfoList getInterfaces(final String className) {
+    public ClassInfoList getAllInterfaces(final String className) {
         checkClassInfoEnabled();
         Assert.notNull(className, "className");
         final var classInfo = classNameToClassInfo.get(className);
-        return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getInterfaces();
+        return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getAllInterfaces();
     }
 
     /**
      * Get all interfaces implemented by the class or by one of its superclasses, if
-     * the given class is a standard class, or the superinterfaces extended by this
-     * interface, if it is an interface.
+     * the given class is a standard class, or all superinterfaces extended by the
+     * given interface, transitively, if it is an interface.
      *
      * @param classRef The class.
-     * @return A list of interfaces implemented by the given class (or
+     * @return A list of all interfaces implemented by the given class (or all
      *         superinterfaces extended by the given interface), or the empty list
      *         if none.
      */
-    public ClassInfoList getInterfaces(final Class<?> classRef) {
+    public ClassInfoList getAllInterfaces(final Class<?> classRef) {
         Assert.notNull(classRef, "classRef");
-        return getInterfaces(classRef.getName());
+        return getAllInterfaces(classRef.getName());
+    }
+
+    /**
+     * Get the interfaces directly implemented by the named class, if the named
+     * class is a standard class, or the direct superinterfaces of the named
+     * interface, if it is an interface.
+     *
+     * @param className The class name.
+     * @return A list of the interfaces directly implemented by the named class (or
+     *         the direct superinterfaces of the named interface), or the empty list
+     *         if none.
+     */
+    public ClassInfoList getDirectInterfaces(final String className) {
+        checkClassInfoEnabled();
+        Assert.notNull(className, "className");
+        final var classInfo = classNameToClassInfo.get(className);
+        return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getDirectInterfaces();
+    }
+
+    /**
+     * Get the interfaces directly implemented by the class, if the given class is a
+     * standard class, or the direct superinterfaces of the interface, if it is an
+     * interface.
+     *
+     * @param classRef The class.
+     * @return A list of the interfaces directly implemented by the given class (or
+     *         the direct superinterfaces of the given interface), or the empty list
+     *         if none.
+     */
+    public ClassInfoList getDirectInterfaces(final Class<?> classRef) {
+        Assert.notNull(classRef, "classRef");
+        return getDirectInterfaces(classRef.getName());
     }
 
     /**
@@ -1191,10 +1261,10 @@ public final class ScanResult implements Closeable {
      * @return A list of all classes that implement the interface, and all
      *         transitive subinterfaces of the interface, or the empty list if none.
      */
-    public ClassInfoList getClassesImplementing(final Class<?> interfaceClass) {
+    public ClassInfoList getAllClassesImplementing(final Class<?> interfaceClass) {
         Assert.notNull(interfaceClass, "interfaceClass");
         Assert.isInterface(interfaceClass);
-        return getClassesImplementing(interfaceClass.getName());
+        return getAllClassesImplementing(interfaceClass.getName());
     }
 
     /**
@@ -1211,11 +1281,41 @@ public final class ScanResult implements Closeable {
      * @return A list of all classes that implement the named interface, and all
      *         transitive subinterfaces of the interface, or the empty list if none.
      */
-    public ClassInfoList getClassesImplementing(final String interfaceName) {
+    public ClassInfoList getAllClassesImplementing(final String interfaceName) {
         checkClassInfoEnabled();
         Assert.notNull(interfaceName, "interfaceName");
         final var classInfo = classNameToClassInfo.get(interfaceName);
-        return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getClassesImplementing();
+        return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getAllClassesImplementing();
+    }
+
+    /**
+     * Get the classes that directly declare that they implement the interface, and
+     * the interfaces that directly extend the interface.
+     *
+     * @param interfaceClass The interface class.
+     * @return A list of the classes that directly implement the interface, and the
+     *         direct subinterfaces of the interface, or the empty list if none.
+     */
+    public ClassInfoList getDirectClassesImplementing(final Class<?> interfaceClass) {
+        Assert.notNull(interfaceClass, "interfaceClass");
+        Assert.isInterface(interfaceClass);
+        return getDirectClassesImplementing(interfaceClass.getName());
+    }
+
+    /**
+     * Get the classes that directly declare that they implement the named
+     * interface, and the interfaces that directly extend the named interface.
+     *
+     * @param interfaceName The interface name.
+     * @return A list of the classes that directly implement the named interface,
+     *         and the direct subinterfaces of the interface, or the empty list if
+     *         none.
+     */
+    public ClassInfoList getDirectClassesImplementing(final String interfaceName) {
+        checkClassInfoEnabled();
+        Assert.notNull(interfaceName, "interfaceName");
+        final var classInfo = classNameToClassInfo.get(interfaceName);
+        return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getDirectClassesImplementing();
     }
 
     /**
@@ -1223,17 +1323,18 @@ public final class ScanResult implements Closeable {
      * that extend the interface, and the interfaces that extend those.
      *
      * <p>
-     * This is the interface-hierarchy equivalent of {@link #getSubclasses(Class)},
-     * which only traverses the superclass hierarchy.
+     * This is the interface-hierarchy equivalent of
+     * {@link #getAllSubclasses(Class)}, which only traverses the superclass
+     * hierarchy.
      *
      * @param interfaceClass The interface class.
      * @return A list of all transitive subinterfaces of the interface, or the empty
      *         list if none.
      */
-    public ClassInfoList getSubinterfaces(final Class<?> interfaceClass) {
+    public ClassInfoList getAllSubinterfaces(final Class<?> interfaceClass) {
         Assert.notNull(interfaceClass, "interfaceClass");
         Assert.isInterface(interfaceClass);
-        return getSubinterfaces(interfaceClass.getName());
+        return getAllSubinterfaces(interfaceClass.getName());
     }
 
     /**
@@ -1241,18 +1342,58 @@ public final class ScanResult implements Closeable {
      * that extend the interface, and the interfaces that extend those.
      *
      * <p>
-     * This is the interface-hierarchy equivalent of {@link #getSubclasses(String)},
-     * which only traverses the superclass hierarchy.
+     * This is the interface-hierarchy equivalent of
+     * {@link #getAllSubclasses(String)}, which only traverses the superclass
+     * hierarchy.
      *
      * @param interfaceName The interface name.
      * @return A list of all transitive subinterfaces of the named interface, or the
      *         empty list if none.
      */
-    public ClassInfoList getSubinterfaces(final String interfaceName) {
+    public ClassInfoList getAllSubinterfaces(final String interfaceName) {
         checkClassInfoEnabled();
         Assert.notNull(interfaceName, "interfaceName");
         final var classInfo = classNameToClassInfo.get(interfaceName);
-        return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getSubinterfaces();
+        return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getAllSubinterfaces();
+    }
+
+    /**
+     * Get the direct subinterfaces of the given interface, i.e. only the interfaces
+     * that directly extend the interface.
+     *
+     * <p>
+     * This is the interface-hierarchy equivalent of
+     * {@link #getDirectSubclasses(Class)}, which only traverses the superclass
+     * hierarchy.
+     *
+     * @param interfaceClass The interface class.
+     * @return A list of the direct subinterfaces of the interface, or the empty
+     *         list if none.
+     */
+    public ClassInfoList getDirectSubinterfaces(final Class<?> interfaceClass) {
+        Assert.notNull(interfaceClass, "interfaceClass");
+        Assert.isInterface(interfaceClass);
+        return getDirectSubinterfaces(interfaceClass.getName());
+    }
+
+    /**
+     * Get the direct subinterfaces of the named interface, i.e. only the interfaces
+     * that directly extend the interface.
+     *
+     * <p>
+     * This is the interface-hierarchy equivalent of
+     * {@link #getDirectSubclasses(String)}, which only traverses the superclass
+     * hierarchy.
+     *
+     * @param interfaceName The interface name.
+     * @return A list of the direct subinterfaces of the named interface, or the
+     *         empty list if none.
+     */
+    public ClassInfoList getDirectSubinterfaces(final String interfaceName) {
+        checkClassInfoEnabled();
+        Assert.notNull(interfaceName, "interfaceName");
+        final var classInfo = classNameToClassInfo.get(interfaceName);
+        return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getDirectSubinterfaces();
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1396,21 +1537,65 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Get annotations on the named class. This only returns the annotating classes;
-     * to read annotation parameters, call {@link #getClassInfo(String)} to get the
-     * {@link ClassInfo} object for the named class, then if the {@link ClassInfo}
-     * object is non-null, call {@link ClassInfo#getAnnotationInfo()} to get
-     * detailed annotation info.
+     * Get the annotations and meta-annotations on the named class. This only
+     * returns the annotating classes; to read annotation parameters, call
+     * {@link #getClassInfo(String)} to get the {@link ClassInfo} object for the
+     * named class, then if the {@link ClassInfo} object is non-null, call
+     * {@link ClassInfo#getAllAnnotationInfo()} to get detailed annotation info.
      *
      * @param className The name of the class.
-     * @return A list of all annotation classes that were found with the named class
-     *         annotation during the scan, or the empty list if none.
+     * @return A list of all annotations and meta-annotations on the named class, or
+     *         the empty list if none.
      */
-    public ClassInfoList getAnnotationsOnClass(final String className) {
+    public ClassInfoList getAllAnnotationsOnClass(final String className) {
         checkAnnotationInfoEnabled();
         Assert.notNull(className, "className");
         final var classInfo = classNameToClassInfo.get(className);
-        return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getAnnotations();
+        return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getAllAnnotations();
+    }
+
+    /**
+     * Get the annotations and meta-annotations on the class. This only returns the
+     * annotating classes; to read annotation parameters, call
+     * {@link #getClassInfo(String)} to get the {@link ClassInfo} object for the
+     * class, then if the {@link ClassInfo} object is non-null, call
+     * {@link ClassInfo#getAllAnnotationInfo()} to get detailed annotation info.
+     *
+     * @param classRef The class.
+     * @return A list of all annotations and meta-annotations on the class, or the
+     *         empty list if none.
+     */
+    public ClassInfoList getAllAnnotationsOnClass(final Class<?> classRef) {
+        Assert.notNull(classRef, "classRef");
+        return getAllAnnotationsOnClass(classRef.getName());
+    }
+
+    /**
+     * Get the annotations directly present on the named class, without expanding
+     * meta-annotations.
+     *
+     * @param className The name of the class.
+     * @return A list of the annotations directly present on the named class, or the
+     *         empty list if none.
+     */
+    public ClassInfoList getDirectAnnotationsOnClass(final String className) {
+        checkAnnotationInfoEnabled();
+        Assert.notNull(className, "className");
+        final var classInfo = classNameToClassInfo.get(className);
+        return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getDirectAnnotations();
+    }
+
+    /**
+     * Get the annotations directly present on the class, without expanding
+     * meta-annotations.
+     *
+     * @param classRef The class.
+     * @return A list of the annotations directly present on the class, or the empty
+     *         list if none.
+     */
+    public ClassInfoList getDirectAnnotationsOnClass(final Class<?> classRef) {
+        Assert.notNull(classRef, "classRef");
+        return getDirectAnnotationsOnClass(classRef.getName());
     }
 
     // -------------------------------------------------------------------------------------------------------------

@@ -87,7 +87,7 @@ public class Issue238Test {
     public void testSuperclassInheritanceOrder() {
         try (var scanResult = new ClassGraph().acceptPackages(Issue238Test.class.getPackage().getName()).enableAllInfo()
                 .scan()) {
-            final var classNames = scanResult.getAllClasses().get(E.class.getName()).getSuperclasses().getNames();
+            final var classNames = scanResult.getAllClasses().get(E.class.getName()).getAllSuperclasses().getNames();
             assertThat(classNames).containsExactly(F.class.getName(), A.class.getName(), G.class.getName(),
                     B.class.getName(), D.class.getName(), C.class.getName());
         }

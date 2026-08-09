@@ -145,7 +145,7 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
             // class further up the
             // hierarchy may still be generic, so keep walking
             addSubstitutions(classInfo.getSuperclass(), substitutions, visited);
-            for (final ClassInfo interfaceInfo : classInfo.getInterfaces()) {
+            for (final ClassInfo interfaceInfo : classInfo.getAllInterfaces()) {
                 addSubstitutions(interfaceInfo, substitutions, visited);
             }
             return;

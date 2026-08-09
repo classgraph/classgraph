@@ -78,7 +78,7 @@ public class Issue318Test {
             assertThat(scanResult.getClassesWithAnnotation(MyAnn.class).getNames())
                     .containsOnly(With1MyAnn.class.getName(), With2MyAnn.class.getName(), With3MyAnn.class.getName());
             assertThat(
-                    scanResult.getClassInfo(With3MyAnn.class.getName()).getAnnotationInfoRepeatable(MyAnn.class).size())
+                    scanResult.getClassInfo(With3MyAnn.class.getName()).getAllAnnotationInfoRepeatable(MyAnn.class).size())
                     .isEqualTo(3);
         }
     }

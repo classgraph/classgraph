@@ -44,7 +44,7 @@ public class Issue924Test {
     public void getClassesImplementingIncludesSubinterfaces() {
         try (var scanResult = new ClassGraph().acceptPackages(Issue924Test.class.getPackage().getName()).enableAllInfo()
                 .scan()) {
-            final var implementingA = scanResult.getClassesImplementing(A.class);
+            final var implementingA = scanResult.getAllClassesImplementing(A.class);
 
             // Both the subinterfaces and the implementing classes are present
             assertThat(implementingA.getNames()).containsExactlyInAnyOrder(B.class.getName(), C.class.getName(),
@@ -59,7 +59,7 @@ public class Issue924Test {
             // getSubclasses() does not traverse the interface hierarchy --
             // getClassesImplementing() is the
             // method to use for that
-            assertThat(scanResult.getSubclasses(A.class).getNames()).isEmpty();
+            assertThat(scanResult.getAllSubclasses(A.class).getNames()).isEmpty();
         }
     }
 
@@ -72,25 +72,25 @@ public class Issue924Test {
         try (var scanResult = new ClassGraph().acceptPackages(Issue924Test.class.getPackage().getName()).enableAllInfo()
                 .scan()) {
             // Transitive: C extends B extends A
-            assertThat(scanResult.getSubinterfaces(A.class).getNames()).containsExactlyInAnyOrder(B.class.getName(),
+            assertThat(scanResult.getAllSubinterfaces(A.class).getNames()).containsExactlyInAnyOrder(B.class.getName(),
                     C.class.getName());
-            assertThat(scanResult.getSubinterfaces(B.class).getNames()).containsExactlyInAnyOrder(C.class.getName());
-            assertThat(scanResult.getSubinterfaces(C.class).getNames()).isEmpty();
+            assertThat(scanResult.getAllSubinterfaces(B.class).getNames()).containsExactlyInAnyOrder(C.class.getName());
+            assertThat(scanResult.getAllSubinterfaces(C.class).getNames()).isEmpty();
 
             // The by-name overload and ClassInfo#getSubinterfaces() give the same answer
-            assertThat(scanResult.getSubinterfaces(A.class.getName()).getNames())
+            assertThat(scanResult.getAllSubinterfaces(A.class.getName()).getNames())
                     .containsExactlyInAnyOrder(B.class.getName(), C.class.getName());
-            assertThat(scanResult.getClassInfo(A.class.getName()).getSubinterfaces().getNames())
+            assertThat(scanResult.getClassInfo(A.class.getName()).getAllSubinterfaces().getNames())
                     .containsExactlyInAnyOrder(B.class.getName(), C.class.getName());
 
             // Implementing classes are not subinterfaces, and a standard class has no
             // subinterfaces
-            assertThat(scanResult.getSubinterfaces(A.class).getNames()).doesNotContain(DImpl.class.getName(),
+            assertThat(scanResult.getAllSubinterfaces(A.class).getNames()).doesNotContain(DImpl.class.getName(),
                     EImpl.class.getName());
-            assertThat(scanResult.getClassInfo(DImpl.class.getName()).getSubinterfaces()).isEmpty();
+            assertThat(scanResult.getClassInfo(DImpl.class.getName()).getAllSubinterfaces()).isEmpty();
 
             // An interface that was never scanned has no subinterfaces
-            assertThat(scanResult.getSubinterfaces("com.xyz.NonExistent")).isEmpty();
+            assertThat(scanResult.getAllSubinterfaces("com.xyz.NonExistent")).isEmpty();
         }
     }
 }

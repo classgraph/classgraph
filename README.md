@@ -45,7 +45,7 @@ try (ScanResult scanResult =
             .acceptPackages(pkg)     // Scan com.xyz and subpackages (omit to scan all packages)
             .scan()) {               // Start the scan
     for (ClassInfo routeClassInfo : scanResult.getClassesWithAnnotation(routeAnnotation)) {
-        AnnotationInfo routeAnnotationInfo = routeClassInfo.getAnnotationInfo(routeAnnotation);
+        AnnotationInfo routeAnnotationInfo = routeClassInfo.getAllAnnotationInfo(routeAnnotation);
         List<AnnotationParameterValue> routeParamVals = routeAnnotationInfo.getParameterValues();
         // @com.xyz.Route has one required parameter
         String route = (String) routeParamVals.get(0).getValue();

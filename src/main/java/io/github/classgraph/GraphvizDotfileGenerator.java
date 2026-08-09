@@ -494,7 +494,7 @@ final class GraphvizDotfileGenerator {
 
         buf.append('\n');
         for (final ClassInfo classNode : standardClassNodes) {
-            for (final ClassInfo directSuperclassNode : classNode.getSuperclasses().directOnly()) {
+            for (final ClassInfo directSuperclassNode : classNode.getAllSuperclasses().directOnly()) {
                 if (directSuperclassNode != null && allVisibleNodes.contains(directSuperclassNode.getName())
                         && !"java.lang.Object".equals(directSuperclassNode.getName())) {
                     // class --> superclass
@@ -503,7 +503,7 @@ final class GraphvizDotfileGenerator {
                 }
             }
 
-            for (final ClassInfo implementedInterfaceNode : classNode.getInterfaces().directOnly()) {
+            for (final ClassInfo implementedInterfaceNode : classNode.getDirectInterfaces()) {
                 if (allVisibleNodes.contains(implementedInterfaceNode.getName())) {
                     // class --<> implemented interface
                     buf.append("  \"").append(classNode.getName()).append("\" -> \"")
@@ -539,7 +539,7 @@ final class GraphvizDotfileGenerator {
             }
         }
         for (final ClassInfo interfaceNode : interfaceNodes) {
-            for (final ClassInfo superinterfaceNode : interfaceNode.getInterfaces().directOnly()) {
+            for (final ClassInfo superinterfaceNode : interfaceNode.getDirectInterfaces()) {
                 if (allVisibleNodes.contains(superinterfaceNode.getName())) {
                     // interface --<> superinterface
                     buf.append("  \"").append(interfaceNode.getName()).append("\" -> \"")

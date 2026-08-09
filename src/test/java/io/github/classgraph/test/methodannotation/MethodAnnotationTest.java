@@ -66,7 +66,7 @@ public class MethodAnnotationTest {
             var found = false;
             for (final ClassInfo ci : classesWithMethodAnnotation) {
                 for (final MethodInfo mi : ci.getMethodInfo()) {
-                    if (mi.getAnnotationInfo().containsName(ExternalAnnotation.class.getName())) {
+                    if (mi.getAllAnnotationInfo().containsName(ExternalAnnotation.class.getName())) {
                         assertThat(mi.getName()).isEqualTo("privateMethodWithAnnotation");
                         found = true;
                     }

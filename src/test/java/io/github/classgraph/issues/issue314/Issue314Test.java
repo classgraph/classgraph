@@ -32,7 +32,7 @@ public class Issue314Test {
                 .enableAllInfo().scan()) {
             assertThat(scanResult.getClassInfo(A.class.getName())).isNotNull();
             assertThat(scanResult.getClassInfo(B.class.getName())).isNotNull();
-            assertThat(scanResult.getSubclasses(A.class).getNames()).containsOnly(B.class.getName());
+            assertThat(scanResult.getAllSubclasses(A.class).getNames()).containsOnly(B.class.getName());
         }
     }
 }

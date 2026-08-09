@@ -53,7 +53,7 @@ public class Issue339Test {
         try (var scanResult = new ClassGraph().enableAllInfo().enableExternalClasses()
                 .acceptClasses(Cls.class.getName()).scan()) {
             final var classInfo = scanResult.getClassInfo(Cls.class.getName());
-            final var annotationParamVals = classInfo.getMethodInfo("method").get(0).getAnnotationInfo().get(0)
+            final var annotationParamVals = classInfo.getMethodInfo("method").get(0).getAllAnnotationInfo().get(0)
                     .getParameterValues();
             assertThat(Math.abs((Double) annotationParamVals.get("points").getValue() - 0.4)).isLessThan(1.0e-12);
             assertThat(Math.abs((Double) annotationParamVals.get("maxPoints").getValue() - 0.4)).isLessThan(1.0e-12);
