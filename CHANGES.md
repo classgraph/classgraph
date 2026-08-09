@@ -433,6 +433,37 @@ queries, and no longer collide in name with anything on `ClassInfo`.
   unchanged: `ClassInfo#toString()` and the type signature classes still leave out an
   `extends java.lang.Object` clause, and neither the class graph .dot file nor
   `getClassDependencies()` includes `Object`.
+* **External classes are now included or excluded by one consistent rule.** An external
+  class is a class that was reached during the scan without being accepted itself —
+  typically the superclass or an interface of an accepted class, pulled in so that the
+  accepted class' own declarations can be reported. 4.x decided whether to report
+  external classes based on whether the class the query started from was itself external,
+  which meant the same query could include or exclude external classes depending on where
+  in the hierarchy it was asked. The rule in 5.x is:
+
+  * A query that looks **upwards** — for the superclasses, interfaces, annotations,
+    meta-annotations or outer classes of a class — includes external classes. It is
+    reporting what an accepted classfile itself declares, and leaving part of that out
+    would misreport the class.
+  * A query that looks **downwards** — `getAllSubclasses()`, `getDirectSubclasses()`,
+    `getAllClassesImplementing()`, `getDirectClassesImplementing()`,
+    `getAllSubinterfaces()`, `getDirectSubinterfaces()`, `getClassesWithAnnotation()`,
+    `getClassesWithMethodAnnotation()`, `getClassesWithFieldAnnotation()` and the rest
+    of that family — returns only accepted classes. It can only ever report what the
+    scan happened to reach, so reporting external classes there gives an answer that
+    depends on the scan's incidental coverage.
+
+  Only the downward queries change. Where 4.x returned external classes from a downward
+  query, 5.x leaves them out; calling `enableExternalClasses()` returns them, along with
+  all the other external classes the scan reached.
+
+  Classes that are only reachable *through* an external class are still found. For
+  example, if an accepted class extends an external class that implements interface `I`,
+  the accepted class is still returned by `getClassesImplementing(I)`; likewise for a
+  class that inherits an `@Inherited` annotation from an external superclass, and for a
+  class whose field or method is annotated by an external annotation that is
+  meta-annotated by the annotation being queried. (4.x could drop these, because it
+  filtered partway through the traversal rather than at the end.)
 
 ## Bug fixes
 
