@@ -188,13 +188,13 @@ class Scanner implements Callable<ScanResult> {
                 if (systemModuleRefs != null) {
                     for (final ModuleRef systemModuleRef : systemModuleRefs) {
                         final String moduleName = systemModuleRef.getName();
-                        if (
-                        // If scanning system packages and modules is enabled and accept/reject criteria are empty,
-                        // then scan all system modules
-                        (scanSpec.enableSystemJarsAndModules
-                                && scanSpec.moduleAcceptReject.acceptAndRejectAreEmpty())
+                        if (scanSpec.enableSystemJarsAndModules
+                                // If scanning of system modules is enabled, system modules follow the same
+                                // accept/reject rule as any other module, so rejecting one system module leaves
+                                // the rest scannable (#658)
+                                ? scanSpec.moduleAcceptReject.isAcceptedAndNotRejected(moduleName)
                                 // Otherwise only scan specifically accepted system modules
-                                || scanSpec.moduleAcceptReject.isSpecificallyAcceptedAndNotRejected(moduleName)) {
+                                : scanSpec.moduleAcceptReject.isSpecificallyAcceptedAndNotRejected(moduleName)) {
                             // Create a new ClasspathElementModule
                             final ClasspathElementModule classpathElementModule = new ClasspathElementModule(
                                     systemModuleRef, nestedJarHandler.moduleRefToModuleReaderProxyRecyclerMap,
