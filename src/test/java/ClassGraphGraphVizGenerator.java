@@ -2,6 +2,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 
 import io.github.classgraph.ClassGraph;
+import io.github.classgraph.GraphVizDotFileOptions;
 
 /**
  * ClassGraphGraphVizGenerator.
@@ -28,7 +29,8 @@ public class ClassGraphGraphVizGenerator {
             try (var writer = new PrintWriter(fileName)) {
                 writer.print(scanResult.getAllClasses()
                         // .generateGraphVizDotFileFromClassDependencies()
-                        .generateGraphVizDotFile(12, 8, false, true, false, true, true));
+                        .generateGraphVizDotFile(
+                                new GraphVizDotFileOptions().layoutSize(12, 8).hideFields().hideMethods()));
             }
             System.out.println("Wrote " + fileName);
         }

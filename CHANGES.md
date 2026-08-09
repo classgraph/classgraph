@@ -76,6 +76,49 @@ sees the `IOException` itself. Code that catches `IllegalArgumentException` arou
 `forEach*` call needs to catch `IOException` instead. Everywhere else the compiler will
 point at the call, because `IOException` is checked.
 
+### The GraphViz .dot file generators now take an options object
+
+`ClassInfoList` had eight `generateGraphVizDotFile*` overloads, and the widest of them took
+two floats followed by six booleans:
+
+```java
+classInfoList.generateGraphVizDotFile(12, 8, false, true, false, true, true);
+```
+
+The options are now carried by `GraphVizDotFileOptions`, whose no-argument constructor
+holds the defaults, and whose methods each switch one option away from its default:
+
+```java
+classInfoList.generateGraphVizDotFile(
+        new GraphVizDotFileOptions().layoutSize(12, 8).hideFields().hideMethods());
+```
+
+| ClassGraph 4.x | ClassGraph 5.x |
+| --- | --- |
+| `generateGraphVizDotFile()` | `generateGraphVizDotFile()` |
+| `generateGraphVizDotFile(float, float)` | `generateGraphVizDotFile(options)` |
+| `generateGraphVizDotFile(float, float, boolean × 5)` | `generateGraphVizDotFile(options)` |
+| `generateGraphVizDotFile(float, float, boolean × 6)` | `generateGraphVizDotFile(options)` |
+| `generateGraphVizDotFile(File)` | `writeGraphVizDotFile(File)` |
+| `generateGraphVizDotFileFromInterClassDependencies()` | `generateGraphVizDotFileFromInterClassDependencies()` |
+| `generateGraphVizDotFileFromInterClassDependencies(float, float)` | `generateGraphVizDotFileFromInterClassDependencies(options)` |
+| `generateGraphVizDotFileFromInterClassDependencies(float, float, boolean)` | `generateGraphVizDotFileFromInterClassDependencies(options)` |
+
+The options and their defaults are `layoutSize(10.5f, 8.0f)`, `hideFields()`,
+`hideFieldTypeDependencyEdges()`, `hideMethods()`, `hideMethodTypeDependencyEdges()` and
+`hideAnnotations()` (all shown by default, subject to the corresponding
+`ClassGraph#enable*Info()` call having been made before scanning),
+`useFullyQualifiedNames()` (simple names by default), and `includeExternalClasses()` /
+`excludeExternalClasses()` (by default the inter-class dependency graph follows the scan's
+own `ClassGraph#enableExternalClasses()` setting). Every option is read by
+`generateGraphVizDotFile`; the inter-class dependency graph reads only the layout size and
+the external-class setting.
+
+Writing the graph to a file is now `writeGraphVizDotFile` rather than a `File`-typed
+overload of `generateGraphVizDotFile`, so the name says which one returns the .dot file
+contents and which one saves them, and the inter-class dependency graph has a matching
+`writeGraphVizDotFileFromInterClassDependencies`.
+
 ### The JSON serializer and deserializer have been removed
 
 ClassGraph 4.x could serialize a `ScanResult` to JSON and read it back:

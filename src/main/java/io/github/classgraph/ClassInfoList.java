@@ -539,26 +539,20 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
     /**
      * Generate a .dot file which can be fed into GraphViz for layout and
      * visualization of the class graph. The returned graph shows inter-class
-     * dependencies only. The sizeX and sizeY parameters are the image output size
-     * to use (in inches) when GraphViz is asked to render the .dot file. You must
-     * have called {@link ClassGraph#enableInterClassDependencies()} before scanning
-     * to use this method.
+     * dependencies only. You must have called
+     * {@link ClassGraph#enableInterClassDependencies()} before scanning to use this
+     * method.
      *
-     * @param sizeX                  The GraphViz layout width in inches.
-     * @param sizeY                  The GraphViz layout height in inches.
-     * @param includeExternalClasses If true, and if
-     *                               {@link ClassGraph#enableExternalClasses()} was
-     *                               called before scanning, show "external classes"
-     *                               (non-accepted classes) within the dependency
-     *                               graph.
+     * @param options the graph options. Only the layout size and the external-class
+     *                setting have any effect on this graph.
      * @return the GraphViz file contents.
      * @throws IllegalArgumentException if this {@link ClassInfoList} is empty or
      *                                  {@link ClassGraph#enableInterClassDependencies()}
      *                                  was not called before scanning (since there
      *                                  would be nothing to graph).
      */
-    public String generateGraphVizDotFileFromInterClassDependencies(final float sizeX, final float sizeY,
-            final boolean includeExternalClasses) {
+    public String generateGraphVizDotFileFromInterClassDependencies(final GraphVizDotFileOptions options) {
+        Assert.notNull(options, "options");
         if (isEmpty()) {
             throw new IllegalArgumentException("List is empty");
         }
@@ -566,59 +560,18 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
         if (!scanSpec.enableInterClassDependencies) {
             throw new IllegalArgumentException("Please call ClassGraph#enableInterClassDependencies() before #scan()");
         }
-        return GraphvizDotfileGenerator.generateGraphVizDotFileFromInterClassDependencies(this, sizeX, sizeY,
-                includeExternalClasses);
+        return GraphvizDotfileGenerator.generateGraphVizDotFileFromInterClassDependencies(this, options.sizeX,
+                options.sizeY,
+                options.includeExternalClasses != null ? options.includeExternalClasses
+                        : scanSpec.enableExternalClasses);
     }
 
     /**
      * Generate a .dot file which can be fed into GraphViz for layout and
-     * visualization of the class graph. The returned graph shows inter-class
-     * dependencies only. The sizeX and sizeY parameters are the image output size
-     * to use (in inches) when GraphViz is asked to render the .dot file. You must
-     * have called {@link ClassGraph#enableInterClassDependencies()} before scanning
-     * to use this method.
-     * 
-     * <p>
-     * Equivalent to calling
-     * {@link #generateGraphVizDotFileFromInterClassDependencies(float, float, boolean)}
-     * with parameters of (10.5f, 8f, scanSpec.enableExternalClasses), where
-     * scanSpec.enableExternalClasses is true if
-     * {@link ClassGraph#enableExternalClasses()} was called before scanning.
-     *
-     * @param sizeX The GraphViz layout width in inches.
-     * @param sizeY The GraphViz layout height in inches.
-     * @return the GraphViz file contents.
-     * @throws IllegalArgumentException if this {@link ClassInfoList} is empty or
-     *                                  {@link ClassGraph#enableInterClassDependencies()}
-     *                                  was not called before scanning (since there
-     *                                  would be nothing to graph).
-     */
-    public String generateGraphVizDotFileFromInterClassDependencies(final float sizeX, final float sizeY) {
-        if (isEmpty()) {
-            throw new IllegalArgumentException("List is empty");
-        }
-        final var scanSpec = get(0).scanResult().scanSpec;
-        if (!scanSpec.enableInterClassDependencies) {
-            throw new IllegalArgumentException("Please call ClassGraph#enableInterClassDependencies() before #scan()");
-        }
-        return GraphvizDotfileGenerator.generateGraphVizDotFileFromInterClassDependencies(this, sizeX, sizeY,
-                scanSpec.enableExternalClasses);
-    }
-
-    /**
-     * Generate a .dot file which can be fed into GraphViz for layout and
-     * visualization of the class graph. The returned graph shows inter-class
-     * dependencies only. The sizeX and sizeY parameters are the image output size
-     * to use (in inches) when GraphViz is asked to render the .dot file. You must
-     * have called {@link ClassGraph#enableInterClassDependencies()} before scanning
-     * to use this method.
-     * 
-     * <p>
-     * Equivalent to calling
-     * {@link #generateGraphVizDotFileFromInterClassDependencies(float, float, boolean)}
-     * with parameters of (10.5f, 8f, scanSpec.enableExternalClasses), where
-     * scanSpec.enableExternalClasses is true if
-     * {@link ClassGraph#enableExternalClasses()} was called before scanning.
+     * visualization of the class graph, using the default options. The returned graph
+     * shows inter-class dependencies only. You must have called
+     * {@link ClassGraph#enableInterClassDependencies()} before scanning to use this
+     * method.
      *
      * @return the GraphViz file contents.
      * @throws IllegalArgumentException if this {@link ClassInfoList} is empty or
@@ -627,25 +580,57 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      *                                  would be nothing to graph).
      */
     public String generateGraphVizDotFileFromInterClassDependencies() {
-        if (isEmpty()) {
-            throw new IllegalArgumentException("List is empty");
+        return generateGraphVizDotFileFromInterClassDependencies(new GraphVizDotFileOptions());
+    }
+
+    /**
+     * Generate a .dot file which can be fed into GraphViz for layout and
+     * visualization of the class graph, and save it to a file. The saved graph shows
+     * inter-class dependencies only. You must have called
+     * {@link ClassGraph#enableInterClassDependencies()} before scanning to use this
+     * method.
+     *
+     * @param file    the file to save the GraphViz .dot file to.
+     * @param options the graph options. Only the layout size and the external-class
+     *                setting have any effect on this graph.
+     * @throws IOException              if the file could not be saved.
+     * @throws IllegalArgumentException if this {@link ClassInfoList} is empty or
+     *                                  {@link ClassGraph#enableInterClassDependencies()}
+     *                                  was not called before scanning (since there
+     *                                  would be nothing to graph).
+     */
+    public void writeGraphVizDotFileFromInterClassDependencies(final File file, final GraphVizDotFileOptions options)
+            throws IOException {
+        Assert.notNull(file, "file");
+        try (var writer = new PrintWriter(file)) {
+            writer.print(generateGraphVizDotFileFromInterClassDependencies(options));
         }
-        final var scanSpec = get(0).scanResult().scanSpec;
-        if (!scanSpec.enableInterClassDependencies) {
-            throw new IllegalArgumentException("Please call ClassGraph#enableInterClassDependencies() before #scan()");
-        }
-        return GraphvizDotfileGenerator.generateGraphVizDotFileFromInterClassDependencies(this, 10.5f, 8.0f,
-                scanSpec.enableExternalClasses);
+    }
+
+    /**
+     * Generate a .dot file which can be fed into GraphViz for layout and
+     * visualization of the class graph, using the default options, and save it to a
+     * file. The saved graph shows inter-class dependencies only. You must have called
+     * {@link ClassGraph#enableInterClassDependencies()} before scanning to use this
+     * method.
+     *
+     * @param file the file to save the GraphViz .dot file to.
+     * @throws IOException              if the file could not be saved.
+     * @throws IllegalArgumentException if this {@link ClassInfoList} is empty or
+     *                                  {@link ClassGraph#enableInterClassDependencies()}
+     *                                  was not called before scanning (since there
+     *                                  would be nothing to graph).
+     */
+    public void writeGraphVizDotFileFromInterClassDependencies(final File file) throws IOException {
+        writeGraphVizDotFileFromInterClassDependencies(file, new GraphVizDotFileOptions());
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Generate a .dot file which can be fed into GraphViz for layout and
-     * visualization of the class graph. The sizeX and sizeY parameters are the
-     * image output size to use (in inches) when GraphViz is asked to render the
-     * .dot file.
-     * 
+     * visualization of the class graph.
+     *
      * <p>
      * To show non-public classes, call {@link ClassGraph#ignoreClassVisibility()}
      * before scanning.
@@ -666,31 +651,15 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      * {@link ClassGraph#ignoreFieldVisibility()} before scanning (there is no
      * separate visibility modifier for annotations).
      *
-     * @param sizeX                         The GraphViz layout width in inches.
-     * @param sizeY                         The GraphViz layout height in inches.
-     * @param showFields                    If true, show fields within class nodes
-     *                                      in the graph.
-     * @param showFieldTypeDependencyEdges  If true, show edges between classes and
-     *                                      the types of their fields.
-     * @param showMethods                   If true, show methods within class nodes
-     *                                      in the graph.
-     * @param showMethodTypeDependencyEdges If true, show edges between classes and
-     *                                      the return types and/or parameter types
-     *                                      of their methods.
-     * @param showAnnotations               If true, show annotations in the graph.
-     * @param useSimpleNames                whether to use simple names for classes
-     *                                      in type signatures (if true, the package
-     *                                      name is stripped from class names in
-     *                                      method and field type signatures).
+     * @param options the graph options.
      * @return the GraphViz file contents.
      * @throws IllegalArgumentException if this {@link ClassInfoList} is empty or
      *                                  {@link ClassGraph#enableClassInfo()} was not
      *                                  called before scanning (since there would be
      *                                  nothing to graph).
      */
-    public String generateGraphVizDotFile(final float sizeX, final float sizeY, final boolean showFields,
-            final boolean showFieldTypeDependencyEdges, final boolean showMethods,
-            final boolean showMethodTypeDependencyEdges, final boolean showAnnotations, final boolean useSimpleNames) {
+    public String generateGraphVizDotFile(final GraphVizDotFileOptions options) {
+        Assert.notNull(options, "options");
         if (isEmpty()) {
             throw new IllegalArgumentException("List is empty");
         }
@@ -698,103 +667,20 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
         if (!scanSpec.enableClassInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableClassInfo() before #scan()");
         }
-        return GraphvizDotfileGenerator.generateGraphVizDotFile(this, sizeX, sizeY, showFields,
-                showFieldTypeDependencyEdges, showMethods, showMethodTypeDependencyEdges, showAnnotations,
-                useSimpleNames, scanSpec);
+        return GraphvizDotfileGenerator.generateGraphVizDotFile(this, options.sizeX, options.sizeY, options.showFields,
+                options.showFieldTypeDependencyEdges, options.showMethods, options.showMethodTypeDependencyEdges,
+                options.showAnnotations, options.useSimpleNames, scanSpec);
     }
 
     /**
      * Generate a .dot file which can be fed into GraphViz for layout and
-     * visualization of the class graph. The sizeX and sizeY parameters are the
-     * image output size to use (in inches) when GraphViz is asked to render the
-     * .dot file.
-     * 
-     * <p>
-     * To show non-public classes, call {@link ClassGraph#ignoreClassVisibility()}
-     * before scanning.
-     * 
-     * <p>
-     * To show fields, call {@link ClassGraph#enableFieldInfo()} before scanning. To
-     * show non-public fields, also call {@link ClassGraph#ignoreFieldVisibility()}
-     * before scanning.
-     * 
-     * <p>
-     * To show methods, call {@link ClassGraph#enableMethodInfo()} before scanning.
-     * To show non-public methods, also call
-     * {@link ClassGraph#ignoreMethodVisibility()} before scanning.
-     * 
-     * <p>
-     * To show annotations, call {@link ClassGraph#enableAnnotationInfo()} before
-     * scanning. To show non-public annotations, also call
-     * {@link ClassGraph#ignoreFieldVisibility()} before scanning (there is no
-     * separate visibility modifier for annotations).
-     * 
-     * <p>
-     * This method uses simple names for class names in type signatures of fields
-     * and methods (package names are stripped).
+     * visualization of the class graph, using the default options.
      *
-     * @param sizeX                         The GraphViz layout width in inches.
-     * @param sizeY                         The GraphViz layout height in inches.
-     * @param showFields                    If true, show fields within class nodes
-     *                                      in the graph.
-     * @param showFieldTypeDependencyEdges  If true, show edges between classes and
-     *                                      the types of their fields.
-     * @param showMethods                   If true, show methods within class nodes
-     *                                      in the graph.
-     * @param showMethodTypeDependencyEdges If true, show edges between classes and
-     *                                      the return types and/or parameter types
-     *                                      of their methods.
-     * @param showAnnotations               If true, show annotations in the graph.
-     * @return the GraphViz file contents.
-     * @throws IllegalArgumentException if this {@link ClassInfoList} is empty or
-     *                                  {@link ClassGraph#enableClassInfo()} was not
-     *                                  called before scanning (since there would be
-     *                                  nothing to graph).
-     */
-    public String generateGraphVizDotFile(final float sizeX, final float sizeY, final boolean showFields,
-            final boolean showFieldTypeDependencyEdges, final boolean showMethods,
-            final boolean showMethodTypeDependencyEdges, final boolean showAnnotations) {
-        return generateGraphVizDotFile(sizeX, sizeY, showFields, showFieldTypeDependencyEdges, showMethods,
-                showMethodTypeDependencyEdges, showAnnotations, true);
-    }
-
-    /**
-     * Generate a .dot file which can be fed into GraphViz for layout and
-     * visualization of the class graph.
-     * 
      * <p>
      * Methods, fields and annotations are shown if enabled, via
      * {@link ClassGraph#enableMethodInfo()}, {@link ClassGraph#enableFieldInfo()}
      * and {@link ClassGraph#enableAnnotationInfo()}.
-     * 
-     * <p>
-     * Only public classes, methods, and fields are shown, unless
-     * {@link ClassGraph#ignoreClassVisibility()},
-     * {@link ClassGraph#ignoreMethodVisibility()}, and/or
-     * {@link ClassGraph#ignoreFieldVisibility()} has/have been called.
      *
-     * @param sizeX The GraphViz layout width in inches.
-     * @param sizeY The GraphViz layout height in inches.
-     * @return the GraphViz file contents.
-     * @throws IllegalArgumentException if this {@link ClassInfoList} is empty or
-     *                                  {@link ClassGraph#enableClassInfo()} was not
-     *                                  called before scanning (since there would be
-     *                                  nothing to graph).
-     */
-    public String generateGraphVizDotFile(final float sizeX, final float sizeY) {
-        return generateGraphVizDotFile(sizeX, sizeY, /* showFields = */ true, /* showFieldTypeDependencyEdges = */ true,
-                /* showMethods = */ true, /* showMethodTypeDependencyEdges = */ true, /* showAnnotations = */ true);
-    }
-
-    /**
-     * Generate a .dot file which can be fed into GraphViz for layout and
-     * visualization of the class graph.
-     * 
-     * <p>
-     * Methods, fields and annotations are shown if enabled, via
-     * {@link ClassGraph#enableMethodInfo()}, {@link ClassGraph#enableFieldInfo()}
-     * and {@link ClassGraph#enableAnnotationInfo()}.
-     * 
      * <p>
      * Only public classes, methods, and fields are shown, unless
      * {@link ClassGraph#ignoreClassVisibility()},
@@ -808,20 +694,38 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      *                                  nothing to graph).
      */
     public String generateGraphVizDotFile() {
-        return generateGraphVizDotFile(/* sizeX = */ 10.5f, /* sizeY = */ 8.0f, /* showFields = */ true,
-                /* showFieldTypeDependencyEdges = */ true, /* showMethods = */ true,
-                /* showMethodTypeDependencyEdges = */ true, /* showAnnotations = */ true);
+        return generateGraphVizDotFile(new GraphVizDotFileOptions());
     }
 
     /**
-     * Generate a and save a .dot file, which can be fed into GraphViz for layout
-     * and visualization of the class graph.
-     * 
+     * Generate a .dot file which can be fed into GraphViz for layout and
+     * visualization of the class graph, and save it to a file.
+     *
+     * @param file    the file to save the GraphViz .dot file to.
+     * @param options the graph options.
+     * @throws IOException              if the file could not be saved.
+     * @throws IllegalArgumentException if this {@link ClassInfoList} is empty or
+     *                                  {@link ClassGraph#enableClassInfo()} was not
+     *                                  called before scanning (since there would be
+     *                                  nothing to graph).
+     */
+    public void writeGraphVizDotFile(final File file, final GraphVizDotFileOptions options) throws IOException {
+        Assert.notNull(file, "file");
+        try (var writer = new PrintWriter(file)) {
+            writer.print(generateGraphVizDotFile(options));
+        }
+    }
+
+    /**
+     * Generate a .dot file which can be fed into GraphViz for layout and
+     * visualization of the class graph, using the default options, and save it to a
+     * file.
+     *
      * <p>
      * Methods, fields and annotations are shown if enabled, via
      * {@link ClassGraph#enableMethodInfo()}, {@link ClassGraph#enableFieldInfo()}
      * and {@link ClassGraph#enableAnnotationInfo()}.
-     * 
+     *
      * <p>
      * Only public classes, methods, and fields are shown, unless
      * {@link ClassGraph#ignoreClassVisibility()},
@@ -835,11 +739,8 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      *                                  called before scanning (since there would be
      *                                  nothing to graph).
      */
-    public void generateGraphVizDotFile(final File file) throws IOException {
-        Assert.notNull(file, "file");
-        try (var writer = new PrintWriter(file)) {
-            writer.print(generateGraphVizDotFile());
-        }
+    public void writeGraphVizDotFile(final File file) throws IOException {
+        writeGraphVizDotFile(file, new GraphVizDotFileOptions());
     }
 
     // -------------------------------------------------------------------------------------------------------------

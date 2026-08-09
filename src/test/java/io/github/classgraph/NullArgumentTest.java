@@ -174,6 +174,12 @@ class NullArgumentTest {
         rejectsNull(() -> classInfoList.getAssignableTo(null));
         rejectsNull(() -> classInfoList.loadClasses(null, false));
         rejectsNull(() -> classInfoList.generateGraphVizDotFile(null));
+        rejectsNull(() -> classInfoList.generateGraphVizDotFileFromInterClassDependencies(null));
+        rejectsNull(() -> classInfoList.writeGraphVizDotFile(null));
+        rejectsNull(() -> classInfoList.writeGraphVizDotFile(null, new GraphVizDotFileOptions()));
+        rejectsNull(() -> classInfoList.writeGraphVizDotFileFromInterClassDependencies(null));
+        rejectsNull(
+                () -> classInfoList.writeGraphVizDotFileFromInterClassDependencies(null, new GraphVizDotFileOptions()));
 
         final var classInfo = scanResult.getClassInfo(ClassInfoList.class.getName());
         rejectsNull(() -> classInfo.getMethodInfo().get(null));
