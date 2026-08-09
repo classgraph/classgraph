@@ -71,7 +71,8 @@ class ClassFields {
     final Map<String, FieldTypeInfo> fieldNameToFieldTypeInfo = new HashMap<>();
 
     /** If non-null, this is the field that has an {@link Id} annotation. */
-    // TODO: replace this with getter/setter MethodHandles for speed
+    // (Left as a Field rather than getter/setter MethodHandles, for the same
+    // reason as the constructors in ClassFieldCache.)
     @Nullable Field idField;
 
     /** Used to sort fields into deterministic order. */

@@ -80,10 +80,12 @@ class ClassFieldCache {
     private final boolean onlySerializePublicFields;
 
     /** The default constructor for each concrete type. */
-    // TODO: replace these with constructor MethodHandles for speed
-    // TODO: (although MethodHandles are disabled for now, due to Animal Sniffer
-    // bug):
-    // https://github.com/mojohaus/animal-sniffer/issues/67
+    // These could be constructor MethodHandles, which would be faster to invoke,
+    // but MethodHandles resolve access at lookup time rather than at invocation
+    // time, so the setAccessible-based fallbacks used here would have to be
+    // reworked. Since this JSON serializer is only used by ScanResult#toJSON and
+    // #fromJSON, which are not on any hot path, the reflection cost is not worth
+    // that change.
     private final Map<Class<?>, Constructor<?>> defaultConstructorForConcreteType = new HashMap<>();
 
     /** The constructor with size hint for each concrete type. */
