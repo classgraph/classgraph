@@ -296,10 +296,9 @@ class Classfile {
      */
     private void scheduleScanningIfExternalClass(final @Nullable String className, final String relationship,
             final @Nullable LogNode log) throws InterruptedException {
-        // Don't extend scanning upwards to Object -- it has no superclass, interfaces
-        // or annotations, so scanning it adds nothing to the class graph (the
-        // superclass link to Object is recorded from the class name alone, without
-        // needing to scan Object itself)
+        // Don't extend scanning upwards to Object -- it has no superclass, interfaces or annotations, so scanning
+        // it adds nothing to the class graph (the superclass link to Object is recorded from the class name alone,
+        // without needing to scan Object itself)
         if (className != null && !"java.lang.Object".equals(className)
         // Don't schedule a class for scanning that was already found to be accepted
                 && !acceptedClassNamesFound.contains(className)
@@ -311,21 +310,17 @@ class Classfile {
                             + ", since it is rejected");
                 }
             } else {
-                // Search for the named class' classfile among classpath elements, in classpath
-                // order (this is O(N)
-                // for each class, but there shouldn't be too many cases of extending scanning
-                // upwards)
+                // Search for the named class' classfile among classpath elements, in classpath order (this is O(N)
+                // for each class, but there shouldn't be too many cases of extending scanning upwards)
                 final var classfilePath = JarUtils.classNameToClassfilePath(className);
-                // First check current classpath element, to avoid iterating through other
-                // classpath elements
+                // First check current classpath element, to avoid iterating through other classpath elements
                 var classResource = classpathElement.getResource(classfilePath);
                 ClasspathElement foundInClasspathElt = null;
                 if (classResource != null) {
                     // Found the classfile in the current classpath element
                     foundInClasspathElt = classpathElement;
                 } else {
-                    // Didn't find the classfile in the current classpath element -- iterate through
-                    // other elements
+                    // Didn't find the classfile in the current classpath element -- iterate through other elements
                     for (final ClasspathElement classpathOrderElt : classpathOrder) {
                         if (classpathOrderElt != classpathElement) {
                             classResource = classpathOrderElt.getResource(classfilePath);
@@ -337,10 +332,9 @@ class Classfile {
                     }
                 }
                 if (classResource == null) {
-                    // The classfile is not in any classpath element that is being scanned. Look in
-                    // the modules that are not being scanned, so that the class graph above an
-                    // accepted class is still completed through classes in system modules, which
-                    // are not scanned unless they are asked for (#902)
+                    // The classfile is not in any classpath element that is being scanned. Look in the modules that
+                    // are not being scanned, so that the class graph above an accepted class is still completed
+                    // through classes in system modules, which are not scanned unless they are asked for (#902)
                     final var workUnit = unscannedModules.findClassfile(className, classfilePath, log);
                     if (workUnit != null) {
                         classResource = workUnit.classfileResource();
@@ -350,10 +344,8 @@ class Classfile {
                 if (classResource != null) {
                     // Found class resource
                     if (log != null) {
-                        // Log the extended scan as a child LogNode of the current class' scan log,
-                        // since the
-                        // external class is not scanned at the regular place in the classpath element
-                        // hierarchy
+                        // Log the extended scan as a child LogNode of the current class' scan log, since the
+                        // external class is not scanned at the regular place in the classpath element hierarchy
                         // traversal
                         classResource.scanLog = log
                                 .log("Extending scanning to external " + relationship
@@ -481,8 +473,7 @@ class Classfile {
                 }
             }
         }
-        // Check if this class is an inner class, and if so, extend scanning to outer
-        // class
+        // Check if this class is an inner class, and if so, extend scanning to outer class
         if (classContainmentEntries != null) {
             for (final ClassContainment classContainmentEntry : classContainmentEntries) {
                 if (classContainmentEntry.innerClassName().equals(className)) {
@@ -526,9 +517,9 @@ class Classfile {
             classInfo.setIsAnnotation(isAnnotation);
             classInfo.setIsRecord(isRecord);
             classInfo.setSourceFile(sourceFile);
-            // An interface's classfile names java.lang.Object as its superclass, but
-            // interfaces do not extend Object, so don't record that link (this matches
-            // Class#getSuperclass(), which returns null for an interface)
+            // An interface's classfile names java.lang.Object as its superclass, but interfaces do not extend
+            // Object, so don't record that link (this matches Class#getSuperclass(), which returns null for an
+            // interface)
             if (superclassName != null && !(isInterface && "java.lang.Object".equals(superclassName))) {
                 classInfo.addSuperclass(superclassName, classNameToClassInfo);
             }
@@ -568,18 +559,16 @@ class Classfile {
             }
         }
 
-        // An external class was only read so that an accepted class' own declarations can
-        // be reported, so it is not listed as a member of its package or module (this
-        // keeps PackageInfo and ModuleInfo in step with ScanResult#getAllClasses(), which
-        // leaves external classes out)
+        // An external class was only read so that an accepted class' own declarations can be reported, so it is not
+        // listed as a member of its package or module (this keeps PackageInfo and ModuleInfo in step with
+        // ScanResult#getAllClasses(), which leaves external classes out)
         final var listAsMember = !isExternalClass || scanSpec.enableExternalClasses;
 
-        // Get or create PackageInfo, if this is not a module descriptor (the module
-        // descriptor's package is "")
+        // Get or create PackageInfo, if this is not a module descriptor (the module descriptor's package is "")
         PackageInfo packageInfo = null;
         if (!isModuleDescriptor) {
-            // Get package for this class or package descriptor
-            // A class name is never empty, so getParentPackageName cannot return null
+            // Get package for this class or package descriptor A class name is never empty, so getParentPackageName
+            // cannot return null
             final var packageName = Objects.requireNonNull(PackageInfo.getParentPackageName(className));
             if (isPackageDescriptor) {
                 // Add any class annotations on the package-info.class file to the ModuleInfo
@@ -593,9 +582,8 @@ class Classfile {
             }
         }
 
-        // Get or create ModuleInfo, if there is a module name and there is something to
-        // record in it (packageInfo is null above exactly when this is an external class
-        // that is not being listed as a member)
+        // Get or create ModuleInfo, if there is a module name and there is something to record in it (packageInfo
+        // is null above exactly when this is an external class that is not being listed as a member)
         final var moduleName = classpathElement.getModuleName();
         if (moduleName != null && (isModuleDescriptor || packageInfo != null)) {
             // Get or create a ModuleInfo object for this module
@@ -963,8 +951,7 @@ class Classfile {
     private @Nullable Object getFieldConstantPoolValue(final int tag, final char fieldTypeDescriptorFirstChar,
             final int cpIdx) throws ClassfileFormatException, IOException {
         return switch (tag) {
-        // 1 => Modified UTF8; 7 => Class (N.B. unused? class references do not seem to
-        // actually be stored as
+        // 1 => Modified UTF8; 7 => Class (N.B. unused? class references do not seem to actually be stored as
         // constant initializers); 8 => String
         case 1, 7, 8 ->
             // Forward or backward indirect reference to a modified UTF8 entry
@@ -990,9 +977,8 @@ class Classfile {
         case 6 -> // double
             Double.longBitsToDouble(cpReadLong(cpIdx));
         default ->
-            // ClassGraph doesn't expect other types
-            // (N.B. in particular, enum values are not stored in the constant pool, so
-            // don't need to be handled)
+            // ClassGraph doesn't expect other types (N.B. in particular, enum values are not stored in the constant
+            // pool, so don't need to be handled)
             throw new ClassfileFormatException("Unknown field constant pool tag " + tag + ", "
                     + "cannot continue reading class. Please report this at "
                     + "https://github.com/classgraph/classgraph/issues");
@@ -1035,9 +1021,8 @@ class Classfile {
      */
     private Object readAnnotationElementValue() throws IOException {
         final var tag = reader().readUnsignedByte();
-        // This list of element_value tags is complete and up to date as of JDK 26 (JVMS
-        // 26 table 4.7.16.1-A).
-        // No tag has been added since annotations were introduced in Java SE 5.
+        // This list of element_value tags is complete and up to date as of JDK 26 (JVMS 26 table 4.7.16.1-A). No
+        // tag has been added since annotations were introduced in Java SE 5.
         return switch (tag) {
         case 'B' -> (byte) cpReadInt(reader().readUnsignedShort());
         case 'C' -> (char) cpReadInt(reader().readUnsignedShort());
@@ -1184,10 +1169,8 @@ class Classfile {
             // Skip the magic number and the minor and major version
             reader.skip(8);
 
-            // Read the constant pool, recording only the offset and tag of each entry, and
-            // for tag 7 (class ref)
-            // entries, the index of the tag 1 (modified UTF8) entry that holds the class
-            // name
+            // Read the constant pool, recording only the offset and tag of each entry, and for tag 7 (class ref)
+            // entries, the index of the tag 1 (modified UTF8) entry that holds the class name
             final var cpCount = reader.readUnsignedShort();
             final var entryOffset = new int[cpCount];
             final var entryTag = new int[cpCount];
@@ -1199,9 +1182,8 @@ class Classfile {
                 }
                 entryTag[i] = reader.readUnsignedByte();
                 entryOffset[i] = reader.currPos();
-                // Same set of constant pool tags as readConstantPoolEntries() -- see the note
-                // there.
-                // Complete and up to date as of JDK 26.
+                // Same set of constant pool tags as readConstantPoolEntries() -- see the note there. Complete and
+                // up to date as of JDK 26.
                 switch (entryTag[i]) {
                 // Modified UTF8
                 case 1 -> reader.skip(reader.readUnsignedShort());
@@ -1216,8 +1198,7 @@ class Classfile {
                 case 7 -> indirectStringRefs[i] = reader.readUnsignedShort();
                 // String, method type, module, package
                 case 8, 16, 19, 20 -> reader.skip(2);
-                // field ref, method ref, interface method ref, name and type, dynamic, invoke
-                // dynamic
+                // field ref, method ref, interface method ref, name and type, dynamic, invoke dynamic
                 case 9, 10, 11, 12, 17, 18 -> reader.skip(4);
                 // method handle
                 case 15 -> reader.skip(3);
@@ -1228,8 +1209,7 @@ class Classfile {
                 }
             }
 
-            // Skip the access flags, then read the constant pool index of the class' own
-            // name
+            // Skip the access flags, then read the constant pool index of the class' own name
             reader.skip(2);
             final var thisClassCpIdx = reader.readUnsignedShort();
             if (thisClassCpIdx < 1 || thisClassCpIdx >= cpCount || entryTag[thisClassCpIdx] != 7) {
@@ -1285,12 +1265,9 @@ class Classfile {
             }
             entryTag[i] = reader().readUnsignedByte();
             entryOffset[i] = reader().currPos();
-            // This list of constant pool tags is complete and up to date as of JDK 26 (JVMS
-            // 26 table 4.4-B).
-            // The newest tag is CONSTANT_Dynamic (17), added in Java SE 11; no tag has been
-            // added since.
-            // If a future JDK adds a tag, an entry of unknown size follows it, so parsing
-            // has to fail (below).
+            // This list of constant pool tags is complete and up to date as of JDK 26 (JVMS 26 table 4.4-B). The
+            // newest tag is CONSTANT_Dynamic (17), added in Java SE 11; no tag has been added since. If a future
+            // JDK adds a tag, an entry of unknown size follows it, so parsing has to fail (below).
             switch (entryTag[i]) {
             // Impossible, probably buffer underflow
             case 0 -> throw new ClassfileFormatException("Invalid constant pool tag 0 in classfile " + relativePath
@@ -1315,16 +1292,14 @@ class Classfile {
                 // Forward or backward indirect reference to a modified UTF8 entry
                 indirectStringRefs[i] = reader().readUnsignedShort();
                 if (classNameCpIdxs != null) {
-                    // If this is a class ref, and inter-class dependencies are enabled, record the
-                    // dependency
+                    // If this is a class ref, and inter-class dependencies are enabled, record the dependency
                     classNameCpIdxs.add(indirectStringRefs[i]);
                 }
             }
             // String -- forward or backward indirect reference to a modified UTF8 entry
             case 8 -> indirectStringRefs[i] = reader().readUnsignedShort();
-            // Field ref, method ref, interface method ref -- each refers to a class ref
-            // (case 7) and then a
-            // name and type (case 12)
+            // Field ref, method ref, interface method ref -- each refers to a class ref (case 7) and then a name
+            // and type (case 12)
             case 9, 10, 11 -> reader().skip(4);
             // Name and type
             case 12 -> {
@@ -1335,18 +1310,17 @@ class Classfile {
                 }
                 indirectStringRefs[i] = (nameRef << 16) | typeRef;
             }
-            // There is no constant pool tag type 13 or 14
-            // method handle
+            // There is no constant pool tag type 13 or 14 method handle
             case 15 -> reader().skip(3);
             // method type
             case 16 -> reader().skip(2);
             // dynamic, invoke dynamic
             case 17, 18 -> reader().skip(4);
-            // module (for module-info.class in JDK9+)
-            // see https://docs.oracle.com/javase/specs/jvms/se9/html/jvms-4.html#jvms-4.4
+            // module (for module-info.class in JDK9+) see
+            // https://docs.oracle.com/javase/specs/jvms/se9/html/jvms-4.html#jvms-4.4
             case 19 -> indirectStringRefs[i] = reader().readUnsignedShort();
-            // package (for module-info.class in JDK9+)
-            // see https://docs.oracle.com/javase/specs/jvms/se9/html/jvms-4.html#jvms-4.4
+            // package (for module-info.class in JDK9+) see
+            // https://docs.oracle.com/javase/specs/jvms/se9/html/jvms-4.html#jvms-4.4
             case 20 -> reader().skip(2);
             default -> throw new ClassfileFormatException("Unknown constant pool tag " + entryTag[i]
                     + " (element size unknown, cannot continue reading class). Please report this at "
@@ -1354,16 +1328,11 @@ class Classfile {
             }
         }
 
-        // Find classes referenced in the constant pool. Note that there are some class
-        // refs that will not be
-        // found this way, e.g. enum classes and class refs in annotation parameter
-        // values, since they are
-        // referenced as strings (tag 1) rather than classes (tag 7) or type signatures
-        // (part of tag 12).
-        // Therefore, a hybrid approach needs to be applied of extracting these other
-        // class refs from
-        // the ClassInfo graph, and combining them with class names extracted from the
-        // constant pool here.
+        // Find classes referenced in the constant pool. Note that there are some class refs that will not be found
+        // this way, e.g. enum classes and class refs in annotation parameter values, since they are referenced as
+        // strings (tag 1) rather than classes (tag 7) or type signatures (part of tag 12). Therefore, a hybrid
+        // approach needs to be applied of extracting these other class refs from the ClassInfo graph, and combining
+        // them with class names extracted from the constant pool here.
         if (classNameCpIdxs != null) {
             final Set<String> refdClassNamesSet = new HashSet<>();
             refdClassNames = refdClassNamesSet;
@@ -1373,8 +1342,7 @@ class Classfile {
                         /* stripLSemicolon = */ false);
                 if (refdClassName != null) {
                     if (refdClassName.startsWith("[")) {
-                        // Parse array type signature, e.g. "[Ljava.lang.String;" -- uses '.' rather
-                        // than '/'
+                        // Parse array type signature, e.g. "[Ljava.lang.String;" -- uses '.' rather than '/'
                         try {
                             final var typeSig = TypeSignature.parse(refdClassName.replace('.', '/'),
                                     /* definingClass = */ null);
@@ -1390,11 +1358,10 @@ class Classfile {
             }
         }
         if (typeSignatureIdxs != null) {
-            // classNameCpIdxs and typeSignatureIdxs are both non-null iff inter-class
-            // dependencies are enabled, so refdClassNames was initialized above
+            // classNameCpIdxs and typeSignatureIdxs are both non-null iff inter-class dependencies are enabled, so
+            // refdClassNames was initialized above
             final var refdClassNamesSet = Objects.requireNonNull(refdClassNames);
-            // Get class names from type signatures in "name and type" entries in constant
-            // pool
+            // Get class names from type signatures in "name and type" entries in constant pool
             for (final int cpIdx : typeSignatureIdxs) {
                 final var typeSigStr = getConstantPoolString(cpIdx);
                 if (typeSigStr != null) {
@@ -1548,9 +1515,8 @@ class Classfile {
                 for (var j = 0; j < attributesCount; j++) {
                     final var attributeNameCpIdx = reader().readUnsignedShort();
                     final var attributeLength = reader().readInt(); // == 2
-                    // See if field name matches one of the requested names for this class, and if
-                    // it does,
-                    // check if it is initialized with a constant value
+                    // See if field name matches one of the requested names for this class, and if it does, check if
+                    // it is initialized with a constant value
                     if (getStaticFinalFieldConstValue
                             && constantPoolStringEquals(attributeNameCpIdx, "ConstantValue")) {
                         // http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.2
@@ -1589,8 +1555,8 @@ class Classfile {
                             fieldTypeAnnotationDecorators = new ArrayList<>();
                             for (var m = 0; m < annotationCount; m++) {
                                 final var targetType = reader().readUnsignedByte();
-                                // 0x13 is the only target_type that JVMS 26 table 4.7.20-A permits in
-                                // field_info. Complete and up to date as of JDK 26.
+                                // 0x13 is the only target_type that JVMS 26 table 4.7.20-A permits in field_info.
+                                // Complete and up to date as of JDK 26.
                                 if (targetType != 0x13) {
                                     throw new ClassfileFormatException(
                                             "Class " + className + " has unknown field type annotation target 0x"
@@ -1645,8 +1611,7 @@ class Classfile {
             String methodName = null;
             String methodTypeDescriptor = null;
             String methodTypeSignatureStr = null;
-            // Always enable MethodInfo for annotations (this is how annotation constants
-            // are defined)
+            // Always enable MethodInfo for annotations (this is how annotation constants are defined)
             final var enableMethodInfo = scanSpec.enableMethodInfo || isAnnotation;
             if (enableMethodInfo) {
                 final var methodNameCpIdx = reader().readUnsignedShort();
@@ -1675,8 +1640,8 @@ class Classfile {
                 }
             } else {
                 if (methodName == null || methodTypeDescriptor == null) {
-                    // Should not happen for a valid classfile (enableMethodInfo is true here, so
-                    // the method name and type descriptor were read from the constant pool)
+                    // Should not happen for a valid classfile (enableMethodInfo is true here, so the method name
+                    // and type descriptor were read from the constant pool)
                     throw new ClassfileFormatException("Method name and/or type descriptor is null");
                 }
                 // Look for method annotations
@@ -1701,15 +1666,10 @@ class Classfile {
                             && (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleParameterAnnotations")
                                     || (!scanSpec.disableRuntimeInvisibleAnnotations && constantPoolStringEquals(
                                             attributeNameCpIdx, "RuntimeInvisibleParameterAnnotations")))) {
-                        // Merge together runtime visible and runtime invisible annotations into a
-                        // single array
-                        // of annotations for each method parameter (runtime visible and runtime
-                        // invisible
-                        // annotations are given in separate attributes, so if both attributes are
-                        // present,
-                        // have to make the parameter annotation arrays larger when the second attribute
-                        // is
-                        // encountered).
+                        // Merge together runtime visible and runtime invisible annotations into a single array of
+                        // annotations for each method parameter (runtime visible and runtime invisible annotations
+                        // are given in separate attributes, so if both attributes are present, have to make the
+                        // parameter annotation arrays larger when the second attribute is encountered).
                         final var numParams = reader().readUnsignedByte();
                         if (methodParameterAnnotations == null) {
                             methodParameterAnnotations = new AnnotationInfo[numParams][];
@@ -1749,10 +1709,10 @@ class Classfile {
                                 final int boundIndex;
                                 final int formalParameterIndex;
                                 final int throwsTypeIndex;
-                                // JVMS 26 table 4.7.20-A permits target_types 0x01, 0x12, 0x14, 0x15, 0x16 and
-                                // 0x17 in method_info; all are handled below, plus 0x10 and 0x13, which are
-                                // illegal here but are emitted by buggy compilers (see the notes below).
-                                // Complete and up to date as of JDK 26.
+                                // JVMS 26 table 4.7.20-A permits target_types 0x01, 0x12, 0x14, 0x15, 0x16 and 0x17
+                                // in method_info; all are handled below, plus 0x10 and 0x13, which are illegal here
+                                // but are emitted by buggy compilers (see the notes below). Complete and up to date
+                                // as of JDK 26.
                                 switch (targetType) {
                                 case 0x01 -> {
                                     // Type parameter declaration of generic method or constructor
@@ -1762,10 +1722,10 @@ class Classfile {
                                     throwsTypeIndex = -1;
                                 }
                                 case 0x10 -> {
-                                    // This target_type is not supposed to be added to methods, it is intended
-                                    // for ClassFile annotations, but Google's Java compiler adds annotations
-                                    // of this type to methods in guava for some reason. Just ignore these
-                                    // annotations. (#861)
+                                    // This target_type is not supposed to be added to methods, it is intended for
+                                    // ClassFile annotations, but Google's Java compiler adds annotations of this
+                                    // type to methods in guava for some reason. Just ignore these annotations.
+                                    // (#861)
                                     reader().readUnsignedShort();
                                     typeParameterIndex = -1;
                                     boundIndex = -1;
@@ -1773,30 +1733,28 @@ class Classfile {
                                     throwsTypeIndex = -1;
                                 }
                                 case 0x12 -> {
-                                    // Type in bound of type parameter declaration of generic method
-                                    // or constructor
+                                    // Type in bound of type parameter declaration of generic method or constructor
                                     typeParameterIndex = reader().readUnsignedByte();
                                     boundIndex = reader().readUnsignedByte();
                                     formalParameterIndex = -1;
                                     throwsTypeIndex = -1;
                                 }
                                 case 0x13, 0x14, 0x15 -> {
-                                    // 0x13: Type in field or record component declaration (empty target).
-                                    // This target_type is not supposed to be added to methods, but it seems
-                                    // that the JDK 17 compiler is buggy, and adds this target_type to the
-                                    // methods of records anyway (#797). Therefore, accept this, but ignore
-                                    // it (the same target_type should also be added to the fields of records).
-                                    // 0x14: Return type of method, or type of newly constructed object
-                                    // (empty target).
-                                    // 0x15: Receiver type of method or constructor (empty target).
+                                    // 0x13: Type in field or record component declaration (empty target). This
+                                    // target_type is not supposed to be added to methods, but it seems that the JDK
+                                    // 17 compiler is buggy, and adds this target_type to the methods of records
+                                    // anyway (#797). Therefore, accept this, but ignore it (the same target_type
+                                    // should also be added to the fields of records). 0x14: Return type of method,
+                                    // or type of newly constructed object (empty target). 0x15: Receiver type of
+                                    // method or constructor (empty target).
                                     typeParameterIndex = -1;
                                     boundIndex = -1;
                                     formalParameterIndex = -1;
                                     throwsTypeIndex = -1;
                                 }
                                 case 0x16 -> {
-                                    // Type in formal parameter declaration of method, constructor,
-                                    // or lambda expression
+                                    // Type in formal parameter declaration of method, constructor, or lambda
+                                    // expression
                                     typeParameterIndex = -1;
                                     boundIndex = -1;
                                     formalParameterIndex = reader().readUnsignedByte();
@@ -1827,8 +1785,8 @@ class Classfile {
                                             typeParameters.get(typeParameterIndex).addTypeAnnotation(typePath,
                                                     annotationInfo);
                                         }
-                                        // else this is a method type descriptor, not a method type signature,
-                                        // so there are no type parameters
+                                        // else this is a method type descriptor, not a method type signature, so
+                                        // there are no type parameters
                                     }
                                     case 0x12 -> {
                                         // Type in bound of type parameter declaration of generic method or
@@ -1851,8 +1809,8 @@ class Classfile {
                                                 }
                                             }
                                         }
-                                        // else this is a method type descriptor, not a method type signature,
-                                        // so there are no type parameters
+                                        // else this is a method type descriptor, not a method type signature, so
+                                        // there are no type parameters
                                     }
                                     case 0x14 ->
                                         // Return type of method, or type of newly constructed object
@@ -1862,19 +1820,17 @@ class Classfile {
                                         // Receiver type of method or constructor (explicit receiver parameter)
                                         methodTypeSignature.addReceiverTypeAnnotation(annotationInfo);
                                     case 0x16 -> {
-                                        // Type in formal parameter declaration of method, constructor,
-                                        // or lambda expression.
-                                        // N.B. formal parameter indices are dodgy, because not all compilers
-                                        // index parameters the same way -- so be robust here.
-                                        // The classfile spec says "A formal_parameter_index value of i may,
-                                        // but is not required to, correspond to the i'th parameter descriptor
-                                        // in the method descriptor". Also "The formal_parameter_target item
-                                        // records that a formal parameter's type is annotated, but does not
-                                        // record the type itself. The type may be found by inspecting the
-                                        // method descriptor, although a formal_parameter_index value of 0
-                                        // does not always indicate the first parameter descriptor in the
-                                        // method descriptor."
-                                        // What the heck, guys.
+                                        // Type in formal parameter declaration of method, constructor, or lambda
+                                        // expression.
+                                        // N.B. formal parameter indices are dodgy, because not all compilers index
+                                        // parameters the same way -- so be robust here. The classfile spec says "A
+                                        // formal_parameter_index value of i may, but is not required to, correspond
+                                        // to the i'th parameter descriptor in the method descriptor". Also "The
+                                        // formal_parameter_target item records that a formal parameter's type is
+                                        // annotated, but does not record the type itself. The type may be found by
+                                        // inspecting the method descriptor, although a formal_parameter_index value
+                                        // of 0 does not always indicate the first parameter descriptor in the
+                                        // method descriptor." What the heck, guys.
                                         final var parameterTypeSignatures = methodTypeSignature
                                                 .getParameterTypeSignatures();
                                         if (formalParameterIndex < parameterTypeSignatures.size()) {
@@ -1900,8 +1856,7 @@ class Classfile {
                             }
                         }
                     } else if (constantPoolStringEquals(attributeNameCpIdx, "MethodParameters")) {
-                        // Read method parameters. For Java, these are only produced in JDK8+, and only
-                        // if the
+                        // Read method parameters. For Java, these are only produced in JDK8+, and only if the
                         // commandline switch `-parameters` is provided at compiletime.
                         final var paramCount = reader().readUnsignedByte();
                         methodParameterNames = new String[paramCount];
@@ -1982,8 +1937,7 @@ class Classfile {
      *             if the classfile is incorrectly formatted.
      */
     private void readClassAttributes() throws IOException, ClassfileFormatException {
-        // Class attributes (including class annotations, class type variables, module
-        // info, etc.)
+        // Class attributes (including class annotations, class type variables, module info, etc.)
         final var attributesCount = reader().readUnsignedShort();
         for (var i = 0; i < attributesCount; i++) {
             final var attributeNameCpIdx = reader().readUnsignedShort();
@@ -2013,9 +1967,8 @@ class Classfile {
                         final int typeParameterIndex;
                         final int supertypeIndex;
                         final int boundIndex;
-                        // 0x00, 0x10 and 0x11 are the only target_types that JVMS 26 table 4.7.20-A
-                        // permits
-                        // in ClassFile. Complete and up to date as of JDK 26.
+                        // 0x00, 0x10 and 0x11 are the only target_types that JVMS 26 table 4.7.20-A permits in
+                        // ClassFile. Complete and up to date as of JDK 26.
                         switch (targetType) {
                         case 0x00 -> {
                             // Type parameter declaration of generic class or interface
@@ -2024,9 +1977,9 @@ class Classfile {
                             boundIndex = -1;
                         }
                         case 0x10 -> {
-                            // Type in extends or implements clause of class declaration (including
-                            // the direct superclass or direct superinterface of an anonymous class
-                            // declaration), or in extends clause of interface declaration
+                            // Type in extends or implements clause of class declaration (including the direct
+                            // superclass or direct superinterface of an anonymous class declaration), or in extends
+                            // clause of interface declaration
                             supertypeIndex = reader().readUnsignedShort();
                             typeParameterIndex = -1;
                             boundIndex = -1;
@@ -2055,9 +2008,9 @@ class Classfile {
                                 }
                             }
                             case 0x10 -> {
-                                // Type in extends or implements clause of class declaration (including
-                                // the direct superclass or direct superinterface of an anonymous class
-                                // declaration), or in extends clause of interface declaration
+                                // Type in extends or implements clause of class declaration (including the direct
+                                // superclass or direct superinterface of an anonymous class declaration), or in
+                                // extends clause of interface declaration
                                 if (supertypeIndex == 65535) {
                                     // Type in extends clause of class declaration
                                     final var superclassSignature = classTypeSignature.getSuperclassSignature();
@@ -2099,12 +2052,9 @@ class Classfile {
                 }
             } else if (constantPoolStringEquals(attributeNameCpIdx, "Record")) {
                 isRecord = true;
-                // No need to read record_components_info entries -- there is a 1:1
-                // correspondence between
-                // record components and fields/methods of the same name and type as the record
-                // component,
-                // so we can just rely on the field and method reading code to work correctly
-                // with records.
+                // No need to read record_components_info entries -- there is a 1:1 correspondence between record
+                // components and fields/methods of the same name and type as the record component, so we can just
+                // rely on the field and method reading code to work correctly with records.
                 reader().skip(attributeLength);
             } else if (constantPoolStringEquals(attributeNameCpIdx, "InnerClasses")) {
                 final var numInnerClasses = reader().readUnsignedShort();
@@ -2124,8 +2074,7 @@ class Classfile {
                             // Invalid according to spec
                             throw new ClassfileFormatException("Inner and outer class name cannot be the same");
                         }
-                        // Record types have a Lookup inner class for boostrap methods in JDK 14 -- drop
-                        // this
+                        // Record types have a Lookup inner class for boostrap methods in JDK 14 -- drop this
                         if (!("java.lang.invoke.MethodHandles$Lookup".equals(innerClassName)
                                 && "java.lang.invoke.MethodHandles".equals(outerClassName))) {
                             // Store relationship between inner class and outer class
@@ -2148,8 +2097,7 @@ class Classfile {
                 final var enclosingMethodCpIdx = reader().readUnsignedShort();
                 final String definingMethodName;
                 if (enclosingMethodCpIdx == 0) {
-                    // A cpIdx of 0 (which is an invalid value) is used for anonymous inner classes
-                    // declared in
+                    // A cpIdx of 0 (which is an invalid value) is used for anonymous inner classes declared in
                     // class initializer code, e.g. assigned to a class field.
                     definingMethodName = "<clinit>";
                 } else {
@@ -2164,15 +2112,13 @@ class Classfile {
                 }
                 classContainmentEntries
                         .add(new ClassContainment(className, classModifiers, innermostEnclosingClassName));
-                // Also store the fully-qualified name of the enclosing method, to mark this as
-                // an anonymous inner
+                // Also store the fully-qualified name of the enclosing method, to mark this as an anonymous inner
                 // class
                 this.fullyQualifiedDefiningMethodName = innermostEnclosingClassName + "." + definingMethodName;
             } else if (constantPoolStringEquals(attributeNameCpIdx, "Module")) {
                 final var moduleNameCpIdx = reader().readUnsignedShort();
                 classpathElement.moduleNameFromModuleDescriptor = getConstantPoolString(moduleNameCpIdx);
-                // (Future work): parse the rest of the module descriptor fields, and add to
-                // ModuleInfo:
+                // (Future work): parse the rest of the module descriptor fields, and add to ModuleInfo:
                 // https://docs.oracle.com/javase/specs/jvms/se9/html/jvms-4.html#jvms-4.7.25
                 reader().skip(attributeLength - 2);
             } else {
@@ -2321,13 +2267,9 @@ class Classfile {
             }
         }
 
-        // Check if any superclasses, interfaces or annotations are external
-        // (non-accepted) classes
-        // that need to be scheduled for scanning, so that all of the "upwards"
-        // direction of the class
-        // graph is scanned for any accepted class, even if the superclasses /
-        // interfaces / annotations
-        // are not themselves accepted.
+        // Check if any superclasses, interfaces or annotations are external (non-accepted) classes that need to be
+        // scheduled for scanning, so that all of the "upwards" direction of the class graph is scanned for any
+        // accepted class, even if the superclasses / interfaces / annotations are not themselves accepted.
         if (scanSpec.extendScanningUpwardsToExternalClasses) {
             extendScanningUpwards(subLog);
             // If any external classes were found, schedule them for scanning

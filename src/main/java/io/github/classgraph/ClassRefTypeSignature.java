@@ -208,25 +208,20 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
         var nextTypeArgIdx = -1;
         for (final TypePathNode typePathNode : typePath) {
             if (typePathNode.typePathKind() == 1) {
-                // Annotation is deeper in a nested type
-                // (can handle this iteratively)
+                // Annotation is deeper in a nested type (can handle this iteratively)
                 numDeeperNestedLevels++;
             } else if (typePathNode.typePathKind() == 3) {
-                // Annotation is on a type argument of a parameterized type
-                // (need to handle this recursively)
+                // Annotation is on a type argument of a parameterized type (need to handle this recursively)
                 nextTypeArgIdx = typePathNode.typeArgumentIdx();
                 break;
             } else {
-                // Not valid here:
-                // 0 => Annotation is deeper in an array type
-                // 2 => Annotation is on the bound of a wildcard type argument of a
-                // parameterized type
+                // Not valid here: 0 => Annotation is deeper in an array type 2 => Annotation is on the bound of a
+                // wildcard type argument of a parameterized type
                 throw new IllegalArgumentException("Bad typePathKind: " + typePathNode.typePathKind());
             }
         }
 
-        // Figure out whether to index the base type or a suffix, skipping over
-        // non-nested class pairs
+        // Figure out whether to index the base type or a suffix, skipping over non-nested class pairs
         var suffixIdx = -1;
         var nestingLevel = -1;
         var typePrefix = className;
@@ -235,9 +230,8 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
             if (suffixIdx >= suffixes.size()) {
                 throw new IllegalArgumentException("Ran out of nested types while trying to add type annotation");
             } else if (suffixIdx == suffixes.size() - 1) {
-                // The suffix to the right cannot be static, because there are no suffixes to
-                // the right,
-                // so this suffix doesn't need to be skipped
+                // The suffix to the right cannot be static, because there are no suffixes to the right, so this
+                // suffix doesn't need to be skipped
                 skipSuffix = false;
             } else {
                 // For suffix path X.Y, classes are not nested if Y is static
@@ -271,15 +265,11 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
             }
         } else {
             final var typeArgumentList = suffixIdx == -1 ? typeArguments : suffixTypeArguments.get(suffixIdx);
-            // For type descriptors (as opposed to type signatures), typeArguments is the
-            // empty list,
-            // so need to bounds-check nextTypeArgIdx
+            // For type descriptors (as opposed to type signatures), typeArguments is the empty list, so need to
+            // bounds-check nextTypeArgIdx
             if (nextTypeArgIdx < typeArgumentList.size()) {
-                // type_path_kind == 3 can be followed by type_path_kind == 2, for an annotation
-                // on the
-                // bound of a nested type, and this has to be handled recursively on the
-                // remaining
-                // part of the type path
+                // type_path_kind == 3 can be followed by type_path_kind == 2, for an annotation on the bound of a
+                // nested type, and this has to be handled recursively on the remaining part of the type path
                 final var remainingTypePath = typePath.subList(numDeeperNestedLevels + 1, typePath.size());
                 // Add type annotation to type argument
                 typeArgumentList.get(nextTypeArgIdx).addTypeAnnotation(remainingTypePath, annotationInfo);
@@ -401,8 +391,8 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
     @Override
     public boolean equalsIgnoringTypeParams(final @Nullable TypeSignature other) {
         if (other instanceof TypeVariableSignature) {
-            // Compare class type signature to type variable -- the logic for this
-            // is implemented in TypeVariableSignature, and is not duplicated here
+            // Compare class type signature to type variable -- the logic for this is implemented in
+            // TypeVariableSignature, and is not duplicated here
             return other.equalsIgnoringTypeParams(this);
         }
         if (!(other instanceof final ClassRefTypeSignature o)) {
@@ -417,8 +407,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
     @Override
     protected void toStringInternal(final boolean useSimpleNames,
             final @Nullable AnnotationInfoList annotationsToExclude, final StringBuilder buf) {
-        // Only render the base class if not using simple names, or if there are no
-        // suffixes
+        // Only render the base class if not using simple names, or if there are no suffixes
         if (!useSimpleNames || suffixes.isEmpty()) {
             // Append type annotations
             final var typeAnnotations = typeAnnotationInfo;
@@ -449,8 +438,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
         if (!suffixes.isEmpty()) {
             for (var i = useSimpleNames ? suffixes.size() - 1 : 0; i < suffixes.size(); i++) {
                 if (!useSimpleNames) {
-                    // Use '$' rather than '.' as separator for suffixes, since that is what
-                    // Class.getName() does.
+                    // Use '$' rather than '.' as separator for suffixes, since that is what Class.getName() does.
                     buf.append('$');
                 }
                 final var typeAnnotations = suffixTypeAnnotations == null ? null : suffixTypeAnnotations.get(i);
@@ -522,10 +510,8 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
                     }
                 }
                 if (dropSuffixes) {
-                    // Got an empty suffix -- either "$$", or a class name ending in a '$' (which
-                    // Scala uses).
-                    // In this case, take the whole class reference as a single class name without
-                    // suffixes.
+                    // Got an empty suffix -- either "$$", or a class name ending in a '$' (which Scala uses). In
+                    // this case, take the whole class reference as a single class name without suffixes.
                     className = parser.getSubstring(startParserPosition, parser.getPosition()).replace('/', '.');
                     suffixes = List.of();
                     suffixTypeArguments = List.of();

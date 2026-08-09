@@ -224,10 +224,9 @@ public class BaseTypeSignature extends TypeSignature {
      */
     @Override
     void setScanResult(final @Nullable ScanResult scanResult) {
-        // Don't set ScanResult for BaseTypeSignature objects (#419).
-        // The ScanResult is not needed, since this class does not classload through the
-        // ScanResult, and holding
-        // a reference to the ScanResult would prevent it from being garbage collected.
+        // Don't set ScanResult for BaseTypeSignature objects (#419). The ScanResult is not needed, since this class
+        // does not classload through the ScanResult, and holding a reference to the ScanResult would prevent it
+        // from being garbage collected.
     }
 
     // -------------------------------------------------------------------------------------------------------------

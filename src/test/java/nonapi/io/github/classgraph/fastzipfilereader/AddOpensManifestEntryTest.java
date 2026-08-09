@@ -54,10 +54,8 @@ public class AddOpensManifestEntryTest {
                     .get(jarFile.getPath(), /* log = */ null);
             return logicalZipFileAndPackageRoot.getKey();
         } finally {
-            // The manifest values have already been read into fields of the LogicalZipFile,
-            // so the zipfile can be
-            // closed. (The jarfile must not be left open, otherwise the temporary directory
-            // cannot be deleted on
+            // The manifest values have already been read into fields of the LogicalZipFile, so the zipfile can be
+            // closed. (The jarfile must not be left open, otherwise the temporary directory cannot be deleted on
             // Windows.)
             nestedJarHandler.close(/* log = */ null);
         }

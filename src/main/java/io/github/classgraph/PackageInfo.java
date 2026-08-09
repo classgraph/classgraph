@@ -339,10 +339,8 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
 
         // If this is not the root package ("")
         if (!packageName.isEmpty()) {
-            // Recursively create PackageInfo objects for parent packages (until a parent
-            // package that already
-            // exists or that is not accepted is reached), and connect each ancestral
-            // package to its parent
+            // Recursively create PackageInfo objects for parent packages (until a parent package that already
+            // exists or that is not accepted is reached), and connect each ancestral package to its parent
             // packageName is non-empty here, so getParentPackageName cannot return null
             final var parentPackageName = Objects.requireNonNull(getParentPackageName(packageInfo.name));
             if (scanSpec.packageAcceptReject.isAcceptedAndNotRejected(parentPackageName)

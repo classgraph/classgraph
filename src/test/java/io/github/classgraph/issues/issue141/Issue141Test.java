@@ -32,8 +32,8 @@ package io.github.classgraph.issues.issue141;
  * @author wuetherich
  */
 public class Issue141Test {
-    // Disabled because ClassGraph no longer stops if an invalid classfile is found
-    // (the classfile is simply skipped)
+    // Disabled because ClassGraph no longer stops if an invalid classfile is found (the classfile is simply
+    // skipped)
 
     // @Test
     // public void issue141Test() throws IOException {

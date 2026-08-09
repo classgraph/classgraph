@@ -143,15 +143,12 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
             // This is a multi-release jar path
             final var nextSlashIdx = entryName.indexOf('/', LogicalZipFile.MULTI_RELEASE_PATH_PREFIX.length());
             if (nextSlashIdx > 0) {
-                // Get path after version number, i.e. strip "META-INF/versions/{versionInt}/"
-                // prefix
+                // Get path after version number, i.e. strip "META-INF/versions/{versionInt}/" prefix
                 final var versionStr = entryName.substring(LogicalZipFile.MULTI_RELEASE_PATH_PREFIX.length(),
                         nextSlashIdx);
-                // For multi-release jars, the version number has to be an int >= 9
-                // Integer.parseInt() is slow, so this is a custom implementation (this is
-                // called many times
-                // for large classpaths, and Integer.parseInt() was a bit of a bottleneck,
-                // surprisingly)
+                // For multi-release jars, the version number has to be an int >= 9. Integer.parseInt() is slow, so
+                // this is a custom implementation (this is called many times for large classpaths, and
+                // Integer.parseInt() was a bit of a bottleneck, surprisingly)
                 var versionInt = 0;
                 if (versionStr.length() < 6 && !versionStr.isEmpty()) {
                     for (var i = 0; i < versionStr.length(); i++) {
@@ -177,8 +174,8 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
                 if (!enableMultiReleaseVersions && entryVersion > 8) {
                     // Strip version path prefix
                     entryNameWithoutVersionPrefix = entryName.substring(nextSlashIdx + 1);
-                    // For META-INF/versions/{versionInt}/META-INF/*, don't strip version prefix:
-                    // "The intention is that the META-INF directory cannot be versioned."
+                    // For META-INF/versions/{versionInt}/META-INF/*, don't strip version prefix: "The intention is
+                    // that the META-INF directory cannot be versioned."
                     // http://mail.openjdk.java.net/pipermail/jigsaw-dev/2018-October/013954.html
                     if (entryNameWithoutVersionPrefix.startsWith(LogicalZipFile.META_INF_PATH_PREFIX)) {
                         entryVersion = 8;
@@ -210,10 +207,8 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
             if (randomAccessReader.readInt(locHeaderPos) != 0x04034b50) {
                 throw new IOException("Zip entry has bad LOC header: " + entryName);
             }
-            // (The filename length and extra field length in the LOC header are unsigned
-            // 16-bit values, so they
-            // must be read with readUnsignedShort -- reading them as signed shorts makes
-            // any length of 32768 or
+            // (The filename length and extra field length in the LOC header are unsigned 16-bit values, so they
+            // must be read with readUnsignedShort -- reading them as signed shorts makes any length of 32768 or
             // more negative, which moves dataStartPos back before the LOC header)
             final var dataStartPos = locHeaderPos + 30 + randomAccessReader.readUnsignedShort(locHeaderPos + 26)
                     + randomAccessReader.readUnsignedShort(locHeaderPos + 28);
@@ -221,8 +216,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
                 throw new IOException("Unexpected EOF when trying to read zip entry data: " + entryName);
             }
 
-            // Create a new Slice that wraps just the data of the zip entry, and mark
-            // whether it is deflated
+            // Create a new Slice that wraps just the data of the zip entry, and mark whether it is deflated
             this.slice = slice = parentLogicalZipFile.slice.slice(dataStartPos, compressedSize, isDeflated,
                     uncompressedSize);
         }
@@ -247,8 +241,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
      * @return the last modified time in Epoch millis.
      */
     public long getLastModifiedTimeMillis() {
-        // If lastModifiedTimeMillis is zero, but there is an MSDOS date and time
-        // available
+        // If lastModifiedTimeMillis is zero, but there is an MSDOS date and time available
         if (lastModifiedTimeMillis == 0L && (lastModifiedDateMSDOS != 0 || lastModifiedTimeMSDOS != 0)) {
             // Convert from MS-DOS Date & Time Format to Epoch millis
             final var lastModifiedSecond = (lastModifiedTimeMSDOS & 0b11111) * 2;
@@ -293,10 +286,8 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
         if (diff2 != 0) {
             return diff2;
         }
-        // In case of multiple entries with the same entry name, return them in
-        // consecutive order of location,
-        // so that the earliest entry overrides later entries (this is an arbitrary
-        // decision for consistency)
+        // In case of multiple entries with the same entry name, return them in consecutive order of location, so
+        // that the earliest entry overrides later entries (this is an arbitrary decision for consistency)
         return Long.compare(locHeaderPos, o.locHeaderPos);
     }
 

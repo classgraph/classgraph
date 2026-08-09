@@ -126,8 +126,7 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
         if (substitutedElementTypeSignature == elementTypeSignature) {
             return this;
         }
-        // The array's own type signature string has to be rebuilt around the
-        // substituted element type
+        // The array's own type signature string has to be rebuilt around the substituted element type
         final var numDims = getNumDimensions();
         final StringBuilder buf = new StringBuilder();
         for (var i = 0; i < numDims; i++) {
@@ -184,12 +183,9 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
     protected String getClassName() {
         var name = className;
         if (name == null) {
-            // N.B. build the class name from the element type's class name rather than from
-            // toString(), since
-            // toString() also renders type annotations and type arguments, which are not
-            // part of the class name
-            // (and the class name is used both as the ArrayClassInfo cache key and as the
-            // name to classload by)
+            // N.B. build the class name from the element type's class name rather than from toString(), since
+            // toString() also renders type annotations and type arguments, which are not part of the class name
+            // (and the class name is used both as the ArrayClassInfo cache key and as the name to classload by)
             final StringBuilder buf = new StringBuilder(getElementTypeSignature().getClassName());
             for (int i = 0, numDims = getNumDimensions(); i < numDims; i++) {
                 buf.append("[]");
@@ -220,16 +216,14 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
             final var scanRes = scanResult;
             if (scanRes != null) {
                 final var clsName = getClassName();
-                // Cache ArrayClassInfo instances using scanResult.classNameToClassInfo, if
-                // scanResult is available
+                // Cache ArrayClassInfo instances using scanResult.classNameToClassInfo, if scanResult is available
                 classInfo = (ArrayClassInfo) scanRes.classNameToClassInfo.get(clsName);
                 if (classInfo == null) {
                     scanRes.classNameToClassInfo.put(clsName, classInfo = new ArrayClassInfo(this));
                     classInfo.setScanResult(scanRes);
                 }
             } else {
-                // scanResult is not yet available, create an uncached instance of an
-                // ArrayClassInfo for this type
+                // scanResult is not yet available, create an uncached instance of an ArrayClassInfo for this type
                 classInfo = new ArrayClassInfo(this);
             }
             arrayClassInfo = classInfo;

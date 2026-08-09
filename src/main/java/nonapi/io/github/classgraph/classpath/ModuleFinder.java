@@ -153,8 +153,7 @@ public class ModuleFinder {
             }
         }
 
-        // Remove parent layers from layer order if scanSpec.ignoreParentModuleLayers is
-        // true
+        // Remove parent layers from layer order if scanSpec.ignoreParentModuleLayers is true
         final List<ModuleLayer> layerOrderFinal;
         if (scanSpec.ignoreParentModuleLayers) {
             layerOrderFinal = new ArrayList<>();
@@ -220,15 +219,13 @@ public class ModuleFinder {
                 if (layer != null) {
                     layers.add(layer);
                 } else if (scanNonSystemModules) {
-                    // getLayer() returns null for unnamed modules -- in that case the classes are
-                    // on
+                    // getLayer() returns null for unnamed modules -- in that case the classes are on
                     // java.class.path, so java.class.path has to be scanned to find them
                     forceScanJavaClassPath = true;
                 }
             }
         }
-        // Add system modules from boot layer, if they weren't already found in
-        // stacktrace
+        // Add system modules from boot layer, if they weren't already found in stacktrace
         layers.add(ModuleLayer.boot());
         return findModuleRefs(layers, scanSpec, log);
     }
@@ -275,10 +272,9 @@ public class ModuleFinder {
             for (final ModuleRef moduleRef : allModuleRefsList) {
                 if (moduleRef != null) {
                     if (moduleRef.isSystemModule()) {
-                        // System modules are listed whether or not they are going to be scanned,
-                        // since the classfile of a class in a system module that is not being
-                        // scanned may still be read, in order to complete the class graph above an
-                        // accepted class (#902)
+                        // System modules are listed whether or not they are going to be scanned, since the
+                        // classfile of a class in a system module that is not being scanned may still be read, in
+                        // order to complete the class graph above an accepted class (#902)
                         systemModuleRefs.add(moduleRef);
                     } else if (scanNonSystemModules) {
                         nonSystemModuleRefs.add(moduleRef);

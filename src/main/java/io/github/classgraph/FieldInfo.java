@@ -165,8 +165,7 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
                 try {
                     decorator.decorate(fieldType);
                 } catch (final IllegalArgumentException e) {
-                    // Skip a type annotation that cannot be matched to the field type, rather than
-                    // failing to
+                    // Skip a type annotation that cannot be matched to the field type, rather than failing to
                     // produce the whole field type (best effort). (#897)
                 }
             }
@@ -398,8 +397,7 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
     void toString(final boolean includeModifiers, final boolean useSimpleNames, final StringBuilder buf) {
         if (annotationInfo != null) {
             for (final AnnotationInfo annotation : annotationInfo) {
-                // There can be a paren in the previous position if this field is a record
-                // parameter
+                // There can be a paren in the previous position if this field is a record parameter
                 if (!buf.isEmpty() && buf.charAt(buf.length() - 1) != ' ' && buf.charAt(buf.length() - 1) != '(') {
                     buf.append(' ');
                 }
@@ -430,10 +428,8 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
             if (val instanceof final String str) {
                 buf.append('"').append(str.replace("\\", "\\\\").replace("\"", "\\\"")).append('"');
             } else if (val instanceof final Character chr) {
-                // N.B. use replace() rather than replaceAll() -- in a replaceAll() replacement
-                // string, a
-                // backslash escapes the character that follows it, so the backslash would be
-                // dropped
+                // N.B. use replace() rather than replaceAll() -- in a replaceAll() replacement string, a backslash
+                // escapes the character that follows it, so the backslash would be dropped
                 buf.append('\'').append(chr.toString().replace("\\", "\\\\").replace("'", "\\'")).append('\'');
             } else {
                 buf.append(val);

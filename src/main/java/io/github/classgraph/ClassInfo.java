@@ -231,10 +231,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             // Spot check to make sure class names were parsed from descriptors
             throw new IllegalArgumentException("Bad class name");
         }
-        // Assign the field directly rather than calling setModifiers(int), which is
-        // overridable, and so would
-        // let a subclass see a partly-initialized instance. The field is still zero
-        // here, so the "|=" in
+        // Assign the field directly rather than calling setModifiers(int), which is overridable, and so would let a
+        // subclass see a partly-initialized instance. The field is still zero here, so the "|=" in
         // setModifiers(int) would have the same effect as this assignment.
         this.modifiers = classModifiers;
         this.classfileResource = classfileResource;
@@ -377,15 +375,13 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             numArrayDims++;
             baseClassName = baseClassName.substring(0, baseClassName.length() - 2);
         }
-        // Be resilient to the use of class descriptors rather than class names (should
-        // not be needed)
+        // Be resilient to the use of class descriptors rather than class names (should not be needed)
         while (baseClassName.startsWith("[")) {
             numArrayDims++;
             baseClassName = baseClassName.substring(1);
         }
         if (baseClassName.length() > 1 && baseClassName.charAt(0) == 'L' && baseClassName.endsWith(";")) {
-            // Strip the 'L' and the ';' from an object type descriptor, e.g.
-            // "Ljava/lang/String;"
+            // Strip the 'L' and the ';' from an object type descriptor, e.g. "Ljava/lang/String;"
             baseClassName = baseClassName.substring(1, baseClassName.length() - 1);
         }
         baseClassName = baseClassName.replace('/', '.');
@@ -406,8 +402,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                     arrayTypeSigStrBuf.append(baseTypeChar);
                     elementTypeSignature = new BaseTypeSignature(baseTypeChar);
                 } else {
-                    // Element type is not a base (primitive) type -- create a type signature for
-                    // element type
+                    // Element type is not a base (primitive) type -- create a type signature for element type
                     final var eltTypeSigStr = "L" + baseClassName.replace('.', '/') + ";";
                     arrayTypeSigStrBuf.append(eltTypeSigStr);
                     try {
@@ -780,14 +775,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             classNameToClassInfo.put(className,
                     classInfo = new ClassInfo(className, classModifiers, classfileResource));
         } else {
-            // There was a previous placeholder ClassInfo class added, due to the class
-            // being referred
-            // to as a superclass, interface or annotation. The isScannedClass field should
-            // be false
-            // in this case, since the actual class definition wasn't reached before now.
+            // There was a previous placeholder ClassInfo class added, due to the class being referred to as a
+            // superclass, interface or annotation. The isScannedClass field should be false in this case, since the
+            // actual class definition wasn't reached before now.
             if (classInfo.isScannedClass) {
-                // The class should not have been scanned more than once, because of classpath
-                // masking
+                // The class should not have been scanned more than once, because of classpath masking
                 throw new IllegalArgumentException("Class " + className
                         + " should not have been encountered more than once due to classpath masking --"
                         + " please report this bug at: https://github.com/classgraph/classgraph/issues");
@@ -806,8 +798,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         // Mark the class as non-external if it is an accepted class
         classInfo.isExternalClass = isExternalClass;
 
-        // Remember which classpath element (zipfile / classpath root directory /
-        // module) the class was found in
+        // Remember which classpath element (zipfile / classpath root directory / module) the class was found in
         classInfo.classpathElement = classpathElement;
 
         // Remember which classloader is used to load the class
@@ -896,11 +887,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                     || includeAnnotations && classInfo.isAnnotation() //
                     || includeEnums && classInfo.isEnum() //
                     || includeRecords && classInfo.isRecord();
-            // External (non-accepted) classes are returned only by "upwards" queries, or if
-            // external classes were enabled
+            // External (non-accepted) classes are returned only by "upwards" queries, or if external classes were
+            // enabled
             final var acceptClass = !classInfo.isExternalClass || scanSpec.enableExternalClasses || !strictAccept;
-            // If class is of correct type, and class is accepted, and class/package are not
-            // explicitly rejected
+            // If class is of correct type, and class is accepted, and class/package are not explicitly rejected
             if (includeType && acceptClass && !scanSpec.classOrPackageIsRejected(classInfo.name)) {
                 // Class passed accept criteria
                 classInfoSetFiltered.add(classInfo);
@@ -940,15 +930,13 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         if (directlyRelatedClasses == null) {
             return NO_REACHABLE_CLASSES;
         } else {
-            // Clone collection to prevent users modifying contents accidentally or
-            // intentionally
+            // Clone collection to prevent users modifying contents accidentally or intentionally
             directlyRelatedClasses = new LinkedHashSet<>(directlyRelatedClasses);
         }
         final Set<ClassInfo> reachableClasses = new LinkedHashSet<>(directlyRelatedClasses);
         if (relType == RelType.METHOD_ANNOTATIONS || relType == RelType.METHOD_PARAMETER_ANNOTATIONS
                 || relType == RelType.FIELD_ANNOTATIONS) {
-            // For method and field annotations, need to change the RelType when finding
-            // meta-annotations
+            // For method and field annotations, need to change the RelType when finding meta-annotations
             for (final ClassInfo annotation : directlyRelatedClasses) {
                 // Don't filter this intermediate traversal -- the result is filtered below
                 reachableClasses.addAll(annotation
@@ -960,12 +948,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 || relType == RelType.CLASSES_WITH_NONPRIVATE_METHOD_PARAMETER_ANNOTATION
                 || relType == RelType.CLASSES_WITH_FIELD_ANNOTATION
                 || relType == RelType.CLASSES_WITH_NONPRIVATE_FIELD_ANNOTATION) {
-            // If looking for meta-annotated methods or fields, need to find all
-            // meta-annotated annotations, then
-            // look for the methods or fields that they annotate
-            // Don't filter this intermediate traversal -- an accepted class can be annotated
-            // by an external annotation that is itself meta-annotated by this one. The
-            // result is filtered below.
+            // If looking for meta-annotated methods or fields, need to find all meta-annotated annotations, then
+            // look for the methods or fields that they annotate. Don't filter this intermediate traversal -- an
+            // accepted class can be annotated by an external annotation that is itself meta-annotated by this one.
+            // The result is filtered below.
             for (final ClassInfo subAnnotation : this.filterClassInfo(RelType.CLASSES_WITH_ANNOTATION,
                     /* strictAccept = */ false, ClassType.ANNOTATION).reachableClasses()) {
                 final var annotatedClasses = subAnnotation.relatedClasses.get(relType);
@@ -974,8 +960,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 }
             }
         } else {
-            // For other relationship types, the reachable type stays the same over the
-            // transitive closure. Find the
+            // For other relationship types, the reachable type stays the same over the transitive closure. Find the
             // transitive closure, breaking cycles where necessary.
             final LinkedList<ClassInfo> queue = new LinkedList<>(directlyRelatedClasses);
             while (!queue.isEmpty()) {
@@ -997,13 +982,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
 
         if (relType == RelType.CLASS_ANNOTATIONS || relType == RelType.METHOD_ANNOTATIONS
                 || relType == RelType.METHOD_PARAMETER_ANNOTATIONS || relType == RelType.FIELD_ANNOTATIONS) {
-            // Special case -- don't inherit java.lang.annotation.* meta-annotations as
-            // related meta-annotations
+            // Special case -- don't inherit java.lang.annotation.* meta-annotations as related meta-annotations
             // (but still return them as direct meta-annotations on annotation classes).
             Set<ClassInfo> reachableClassesToRemove = null;
             for (final ClassInfo reachableClassInfo : reachableClasses) {
-                // Remove all java.lang.annotation annotations that are not directly related to
-                // this class
+                // Remove all java.lang.annotation annotations that are not directly related to this class
                 if (reachableClassInfo.getName().startsWith("java.lang.annotation.")
                         && !directlyRelatedClasses.contains(reachableClassInfo)) {
                     if (reachableClassesToRemove == null) {
@@ -1824,8 +1807,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         // collect concrete super classes first, simply add to overrideOrder
         if (!isInterfaceOrAnnotation()) {
             overrideOrderOut.add(this);
-            // iterate over direct super classes first, they have the highest priority
-            // regarding method overrides
+            // iterate over direct super classes first, they have the highest priority regarding method overrides
             final var superclass = getSuperclass();
             if (superclass != null) {
                 superclass.getMethodOverrideOrder(visited, overrideOrderOut);
@@ -1835,17 +1817,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             }
             return overrideOrderOut;
         }
-        // overrideOrderOut already contains all concrete classes now.
-        // This is an interface. If one of the extended interfaces is already in the
-        // output, then this needs to be
-        // added before it.
-        // Otherwise, this is unrelated to all collected ClassInfo so far and can simply
-        // be added to the result.
-        // The compiler should've prevented inheriting unrelated interfaces with methods
-        // having the same signature.
-        // Can still happen thanks to dynamically linking a different interface during
-        // runtime, for which the
-        // returned order is undefined.
+        // overrideOrderOut already contains all concrete classes now. This is an interface. If one of the extended
+        // interfaces is already in the output, then this needs to be added before it. Otherwise, this is unrelated
+        // to all collected ClassInfo so far and can simply be added to the result. The compiler should've prevented
+        // inheriting unrelated interfaces with methods having the same signature. Can still happen thanks to
+        // dynamically linking a different interface during runtime, for which the returned order is undefined.
         final var interfaces = getAllSuperinterfaces();
         var minIndex = Integer.MAX_VALUE;
         for (final ClassInfo iface : interfaces) {
@@ -1893,9 +1869,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     public ClassInfoList getAllSubclasses() {
         if ("java.lang.Object".equals(getName())) {
-            // Every standard class is a subclass of Object by the rules of the language,
-            // whether or not its whole superclass chain was scanned, so answer from the
-            // list of standard classes rather than from the recorded superclass links
+            // Every standard class is a subclass of Object by the rules of the language, whether or not its whole
+            // superclass chain was scanned, so answer from the list of standard classes rather than from the
+            // recorded superclass links
             return scanResult().getAllStandardClasses().filter(classInfo -> classInfo != this);
         } else {
             return new ClassInfoList(this.filterClassInfo(RelType.SUBCLASSES, /* strictAccept = */ true),
@@ -2004,8 +1980,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                     .filterClassInfo(RelType.IMPLEMENTED_INTERFACES, /* strictAccept = */ false).reachableClasses();
             allInterfaces.addAll(superclassImplementedInterfaces);
         }
-        // Can't sort interfaces by name, since their order is significant in the
-        // definition of inheritance
+        // Can't sort interfaces by name, since their order is significant in the definition of inheritance
         return new ClassInfoList(allInterfaces, implementedInterfaces.directlyRelatedClasses(),
                 /* sortByName = */ false);
     }
@@ -2036,10 +2011,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         subinterfaces of this interface, if this is an interface, otherwise returns the empty list.
      */
     public ClassInfoList getAllClassesImplementing() {
-        // Subclasses of implementing classes also implement the interface. Don't filter
-        // the two traversals, since an accepted class can be reachable only through an
-        // external class (e.g. an accepted subclass of an external class that implements
-        // this interface) -- filter the union at the end instead.
+        // Subclasses of implementing classes also implement the interface. Don't filter the two traversals, since
+        // an accepted class can be reachable only through an external class (e.g. an accepted subclass of an
+        // external class that implements this interface) -- filter the union at the end instead.
         final var implementingClasses = this.filterClassInfo(RelType.CLASSES_IMPLEMENTING,
                 /* strictAccept = */ false);
         final Set<ClassInfo> allImplementingClasses = new LinkedHashSet<>(implementingClasses.reachableClasses());
@@ -2136,8 +2110,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 for (final ClassInfo superclassAnnotation : superclass
                         .filterClassInfo(RelType.CLASS_ANNOTATIONS, /* strictAccept = */ false)
                         .reachableClasses()) {
-                    // Check if any of the meta-annotations on this annotation are @Inherited,
-                    // which causes an annotation to annotate a class and all of its subclasses.
+                    // Check if any of the meta-annotations on this annotation are @Inherited, which causes an
+                    // annotation to annotate a class and all of its subclasses.
                     if (superclassAnnotation != null && superclassAnnotation.isInherited) {
                         // superclassAnnotation has an @Inherited meta-annotation
                         if (inheritedSuperclassAnnotations == null) {
@@ -2221,19 +2195,16 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         }
         final var classesWithDirectlyAnnotatedFieldsOrMethods = this.filterClassInfo(relType,
                 /* strictAccept = */ true);
-        // Don't filter the meta-annotated annotations -- they are only traversed through,
-        // and an accepted class can have a field or method annotated by an external
-        // annotation that is meta-annotated by this one
+        // Don't filter the meta-annotated annotations -- they are only traversed through, and an accepted class can
+        // have a field or method annotated by an external annotation that is meta-annotated by this one
         final var annotationsWithThisMetaAnnotation = this.filterClassInfo(RelType.CLASSES_WITH_ANNOTATION,
                 /* strictAccept = */ false, ClassType.ANNOTATION);
         if (annotationsWithThisMetaAnnotation.reachableClasses().isEmpty()) {
-            // This annotation does not meta-annotate another annotation that annotates a
-            // method
+            // This annotation does not meta-annotate another annotation that annotates a method
             return new ClassInfoList(classesWithDirectlyAnnotatedFieldsOrMethods, /* sortByName = */ true);
         } else {
-            // Take the union of all classes with fields or methods directly annotated by
-            // this annotation,
-            // and classes with fields or methods meta-annotated by this annotation
+            // Take the union of all classes with fields or methods directly annotated by this annotation, and
+            // classes with fields or methods meta-annotated by this annotation
             final Set<ClassInfo> allClassesWithAnnotatedOrMetaAnnotatedFieldsOrMethods = new LinkedHashSet<>(
                     classesWithDirectlyAnnotatedFieldsOrMethods.reachableClasses());
             for (final ClassInfo metaAnnotatedAnnotation : annotationsWithThisMetaAnnotation.reachableClasses()) {
@@ -2482,10 +2453,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         }
 
         if (isInherited) {
-            // If this is an inherited annotation, add into the result all subclasses of the
-            // annotated classes. Don't filter the two traversals, since an accepted class
-            // can inherit the annotation from an external superclass -- filter the union at
-            // the end instead.
+            // If this is an inherited annotation, add into the result all subclasses of the annotated classes.
+            // Don't filter the two traversals, since an accepted class can inherit the annotation from an external
+            // superclass -- filter the union at the end instead.
             final var classesWithAnnotation = this.filterClassInfo(RelType.CLASSES_WITH_ANNOTATION,
                     /* strictAccept = */ false);
             final Set<ClassInfo> classesWithAnnotationAndTheirSubclasses = new LinkedHashSet<>(
@@ -2545,8 +2515,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             return MethodInfoList.EMPTY_LIST;
         }
         if (methodName == null) {
-            // If no method name is provided, filter for methods with the right type (normal
-            // method / constructor /
+            // If no method name is provided, filter for methods with the right type (normal method / constructor /
             // static initializer)
             final MethodInfoList methodInfoList = new MethodInfoList();
             for (final MethodInfo mi : methodInfo) {
@@ -2561,8 +2530,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             }
             return methodInfoList;
         } else {
-            // If method name is provided, filter for methods whose name matches, and ignore
-            // method type
+            // If method name is provided, filter for methods whose name matches, and ignore method type
             var hasMethodWithName = false;
             for (final MethodInfo f : methodInfo) {
                 if (f.getName().equals(methodName)) {
@@ -3094,13 +3062,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         list if none.
      */
     public ClassInfoList getClassesWithMethodAnnotation() {
-        // Get all classes that have a method annotated or meta-annotated with this
-        // annotation
+        // Get all classes that have a method annotated or meta-annotated with this annotation
         final Set<ClassInfo> classesWithMethodAnnotation = new HashSet<>(
                 getClassesWithFieldOrMethodAnnotation(RelType.CLASSES_WITH_METHOD_ANNOTATION));
-        // Add subclasses of all classes with a method that is non-privately annotated
-        // or meta-annotated with
-        // this annotation (non-private methods are inherited)
+        // Add subclasses of all classes with a method that is non-privately annotated or meta-annotated with this
+        // annotation (non-private methods are inherited)
         for (final ClassInfo classWithNonprivateMethodAnnotationOrMetaAnnotation : //
         getClassesWithFieldOrMethodAnnotation(RelType.CLASSES_WITH_NONPRIVATE_METHOD_ANNOTATION)) {
             classesWithMethodAnnotation
@@ -3118,13 +3084,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         or meta-annotation, or the empty list if none.
      */
     public ClassInfoList getClassesWithMethodParameterAnnotation() {
-        // Get all classes that have a method annotated or meta-annotated with this
-        // annotation
+        // Get all classes that have a method annotated or meta-annotated with this annotation
         final Set<ClassInfo> classesWithMethodParameterAnnotation = new HashSet<>(
                 getClassesWithFieldOrMethodAnnotation(RelType.CLASSES_WITH_METHOD_PARAMETER_ANNOTATION));
-        // Add subclasses of all classes with a method that is non-privately annotated
-        // or meta-annotated with
-        // this annotation (non-private methods are inherited)
+        // Add subclasses of all classes with a method that is non-privately annotated or meta-annotated with this
+        // annotation (non-private methods are inherited)
         for (final ClassInfo classWithNonprivateMethodParameterAnnotationOrMetaAnnotation : //
         getClassesWithFieldOrMethodAnnotation(RelType.CLASSES_WITH_NONPRIVATE_METHOD_PARAMETER_ANNOTATION)) {
             classesWithMethodParameterAnnotation
@@ -3477,13 +3441,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         none.
      */
     public ClassInfoList getClassesWithFieldAnnotation() {
-        // Get all classes that have a field annotated or meta-annotated with this
-        // annotation
+        // Get all classes that have a field annotated or meta-annotated with this annotation
         final Set<ClassInfo> classesWithFieldAnnotation = new HashSet<>(
                 getClassesWithFieldOrMethodAnnotation(RelType.CLASSES_WITH_FIELD_ANNOTATION));
-        // Add subclasses of all classes with a field that is non-privately annotated or
-        // meta-annotated with
-        // this annotation (non-private fields are inherited)
+        // Add subclasses of all classes with a field that is non-privately annotated or meta-annotated with this
+        // annotation (non-private fields are inherited)
         for (final ClassInfo classWithNonprivateFieldAnnotationOrMetaAnnotation : //
         getClassesWithFieldOrMethodAnnotation(RelType.CLASSES_WITH_NONPRIVATE_FIELD_ANNOTATION)) {
             classesWithFieldAnnotation
@@ -3581,10 +3543,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     public ClassTypeSignature getTypeDescriptor() {
         synchronized (this) {
             if (typeDescriptor == null) {
-                // The descriptor must list only the directly implemented interfaces, in
-                // classfile order, since it stands in for the classfile's own super_class
-                // and interfaces[] entries, which is what the class type annotation
-                // targets index into
+                // The descriptor must list only the directly implemented interfaces, in classfile order, since it
+                // stands in for the classfile's own super_class and interfaces[] entries, which is what the class
+                // type annotation targets index into
                 typeDescriptor = new ClassTypeSignature(this, getSuperclass(), getDirectSuperinterfaces());
                 typeDescriptor.setScanResult(scanResult);
                 if (typeAnnotationDecorators != null) {
@@ -3620,9 +3581,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *             if the classpath element does not have a valid URI (e.g. for modules whose location URI is null).
      */
     public URI getClasspathElementURI() {
-        // Calling classfileResource.getClasspathElementURI() rather than
-        // classpathElement.getURI() will append
-        // any automatically-stripped package root prefix
+        // Calling classfileResource.getClasspathElementURI() rather than classpathElement.getURI() will append any
+        // automatically-stripped package root prefix
         return Objects.requireNonNull(classfileResource).getClasspathElementURI();
     }
 
@@ -3937,11 +3897,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         }
         if (typeSig != null) {
             // Generic classes
-            // N.B. pass useSimpleNames through, so that the type parameter bounds, the
-            // superclass and the
-            // superinterfaces are simplified too, not just the class name (toStringInternal
-            // simplifies the
-            // class name itself if useSimpleNames is true)
+            // N.B. pass useSimpleNames through, so that the type parameter bounds, the superclass and the
+            // superinterfaces are simplified too, not just the class name (toStringInternal simplifies the class
+            // name itself if useSimpleNames is true)
             typeSig.toStringInternal(name, useSimpleNames, modifiers, isAnnotation(), isInterface(), buf);
         } else {
             // Non-generic classes

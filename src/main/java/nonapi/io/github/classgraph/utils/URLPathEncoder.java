@@ -54,8 +54,7 @@ public final class URLPathEncoder {
         safe['$'] = safe['-'] = safe['_'] = safe['.'] = safe['+'] = true;
         // "extra" rule
         safe['!'] = safe['*'] = safe['\''] = safe['('] = safe[')'] = safe[','] = true;
-        // Only include "/" from "fsegment" and "hsegment" rules (exclude ':', '@', '&'
-        // and '=' for safety)
+        // Only include "/" from "fsegment" and "hsegment" rules (exclude ':', '@', '&' and '=' for safety)
         safe['/'] = true;
         // Also allow '+' characters (#468)
         // safe['+'] = true;
@@ -92,8 +91,7 @@ public final class URLPathEncoder {
         for (int chrIdx = 0, len = str.length(); chrIdx < len; chrIdx++) {
             final var c = str.charAt(chrIdx);
             if (c == '%') {
-                // Decode %-escaped char sequence, e.g. %5D, ignoring a truncated %-seq at
-                // the end of the string
+                // Decode %-escaped char sequence, e.g. %5D, ignoring a truncated %-seq at the end of the string
                 if (chrIdx <= len - 3) {
                     final var c1 = str.charAt(++chrIdx);
                     final var digit1 = c1 >= '0' && c1 <= '9' ? (c1 - '0')
@@ -206,11 +204,9 @@ public final class URLPathEncoder {
             }
             if (urlPathNormalized.startsWith("file:")) {
                 urlPathNormalized = urlPathNormalized.substring(5);
-                // "file:" may be followed by an empty authority, i.e. "file://" or "file:///".
-                // Collapse the run
-                // of leading slashes down to one, so that the "file://" prefix added below
-                // cannot produce a path
-                // with a run of slashes in it, e.g. "file://///tmp/x.jar".
+                // "file:" may be followed by an empty authority, i.e. "file://" or "file:///". Collapse the run of
+                // leading slashes down to one, so that the "file://" prefix added below cannot produce a path with
+                // a run of slashes in it, e.g. "file://///tmp/x.jar".
                 var numLeadingSlashes = 0;
                 while (numLeadingSlashes < urlPathNormalized.length()
                         && urlPathNormalized.charAt(numLeadingSlashes) == '/') {
@@ -221,9 +217,8 @@ public final class URLPathEncoder {
                 }
             }
 
-            // On Windows, remove drive prefix from path, if present (otherwise the ':'
-            // after the drive
-            // letter will be escaped as %3A)
+            // On Windows, remove drive prefix from path, if present (otherwise the ':' after the drive letter will
+            // be escaped as %3A)
             var windowsDrivePrefix = "";
             if (VersionFinder.OS == OperatingSystem.Windows) {
                 if (urlPathNormalized.length() >= 2 && Character.isLetter(urlPathNormalized.charAt(0))
@@ -239,8 +234,7 @@ public final class URLPathEncoder {
                 }
             }
 
-            // Any URL containing "!" segments must have "/" after "!" for the "jar:" URL
-            // scheme to work
+            // Any URL containing "!" segments must have "/" after "!" for the "jar:" URL scheme to work
             urlPathNormalized = urlPathNormalized.replace("/!", "!").replace("!/", "!").replace("!", "!/");
 
             // Prepend "file:///" to absolute paths and "file:" to relative paths

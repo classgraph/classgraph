@@ -165,8 +165,8 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
      */
     public @Nullable ClassInfo getClassInfo(final String className) {
         Assert.notNull(className, "className");
-        // classNameToClassInfo is null if no classes in this module were accepted, e.g.
-        // if the module-info.class file was the only classfile read from the module
+        // classNameToClassInfo is null if no classes in this module were accepted, e.g. if the module-info.class
+        // file was the only classfile read from the module
         final var classes = classNameToClassInfo;
         return classes == null ? null : classes.get(className);
     }

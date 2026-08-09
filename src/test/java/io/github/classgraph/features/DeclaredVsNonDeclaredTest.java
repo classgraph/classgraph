@@ -170,12 +170,9 @@ public class DeclaredVsNonDeclaredTest {
             assertThat(annotationsOnBw).extracting(AnnotationInfo::getName).isEmpty();
             // See note on inherited annotations on methods
             // https://docs.oracle.com/javase/8/docs/api/java/lang/annotation/Inherited.html
-            // "Note that this (@Inherited) meta-annotation type has no effect if the
-            // annotated type is used to
-            // annotate anything other than a class. Note also that this meta-annotation
-            // only causes annotations
-            // to be inherited from superclasses; annotations on implemented interfaces have
-            // no effect."
+            // "Note that this (@Inherited) meta-annotation type has no effect if the annotated type is used to
+            // annotate anything other than a class. Note also that this meta-annotation only causes annotations to
+            // be inherited from superclasses; annotations on implemented interfaces have no effect."
             assertThat(annotationsOnBw.directOnly()).extracting(AnnotationInfo::getName).isEmpty();
         }
     }

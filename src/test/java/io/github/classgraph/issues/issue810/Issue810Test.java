@@ -30,10 +30,8 @@ class Issue810Test {
         final var aURL = Issue810Test.class.getClassLoader().getResource("issue673/a.zip");
         final var bURL = Issue810Test.class.getClassLoader().getResource("issue673/b.zip");
 
-        // A toplevel classpath entry must take precedence over a Class-Path manifest
-        // entry that references the
-        // same jar, so b.zip must be ordered first, even though a.zip's manifest also
-        // references it
+        // A toplevel classpath entry must take precedence over a Class-Path manifest entry that references the same
+        // jar, so b.zip must be ordered first, even though a.zip's manifest also references it
         for (var i = 0; i < 20; i++) {
             try (var scanResult = new ClassGraph().overrideClasspath(bURL, aURL).scan()) {
                 final var order = scanResult.getClasspathFiles().stream().map(File::getName).toList();

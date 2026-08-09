@@ -46,9 +46,8 @@ class WeblogicClassLoaderHandler implements ClassLoaderHandler {
                 || classIsOrExtendsOrImplements(classLoaderClass, "weblogic.utils.classloaders.GenericClassLoader")
                 || classIsOrExtendsOrImplements(classLoaderClass,
                         "weblogic.utils.classloaders.FilteringClassLoader")
-                // TODO: The following two known classloader names have not been tested, and the
-                // fields/methods
-                // may not match those of the above classloaders.
+                // TODO: The following two known classloader names have not been tested, and the fields/methods may
+                // not match those of the above classloaders.
                 || classIsOrExtendsOrImplements(classLoaderClass, "weblogic.servlet.jsp.JspClassLoader")
                 || classIsOrExtendsOrImplements(classLoaderClass, "weblogic.servlet.jsp.TagFileClassLoader");
     }

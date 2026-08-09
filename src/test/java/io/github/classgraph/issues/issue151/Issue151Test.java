@@ -42,8 +42,7 @@ import io.github.classgraph.ClassGraph;
 public class Issue151Test {
     @Test
     public void issue151Test() {
-        // Scans io.github.classgraph.issues.issue146.CompiledWithJDK8, which is in
-        // src/test/resources
+        // Scans io.github.classgraph.issues.issue146.CompiledWithJDK8, which is in src/test/resources
         final var pkg = Issue151Test.class.getPackage().getName();
         try (var scanResult = new ClassGraph().acceptPackages(pkg) //
                 .enableMethodInfo() //

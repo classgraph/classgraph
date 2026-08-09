@@ -62,8 +62,7 @@ class NullArgumentTest {
         rejectsNull(() -> classGraph.filterClasspathElementsByURL(null));
         rejectsNull(() -> classGraph.addClassLoader(null));
         rejectsNull(() -> classGraph.addModuleLayer(null));
-        // Previously reported the misleading "URL schemes must contain at least two
-        // characters"
+        // Previously reported the misleading "URL schemes must contain at least two characters"
         rejectsNull(() -> classGraph.enableURLScheme(null));
     }
 

@@ -242,14 +242,13 @@ public abstract class SingletonMap<K, V, E extends Exception> {
             // There is already a SingletonHolder in the map for this key -- get the value
             instance = singletonHolder.get();
         } else {
-            // There is no SingletonHolder in the map for this key, need to create one
-            // (need to handle race condition, hence the putIfAbsent call)
+            // There is no SingletonHolder in the map for this key, need to create one (need to handle race
+            // condition, hence the putIfAbsent call)
             final SingletonHolder<V> newSingletonHolder = new SingletonHolder<>();
             final var oldSingletonHolder = map.putIfAbsent(key, newSingletonHolder);
             if (oldSingletonHolder != null) {
-                // There was already a singleton in the map for this key, due to a race
-                // condition --
-                // return the existing singleton
+                // There was already a singleton in the map for this key, due to a race condition -- return the
+                // existing singleton
                 instance = oldSingletonHolder.get();
             } else {
                 try {
@@ -263,18 +262,14 @@ public abstract class SingletonMap<K, V, E extends Exception> {
                     }
 
                 } catch (final Throwable t) {
-                    // Initialize newSingletonHolder with the new instance.
-                    // Always need to call .set() even if an exception is thrown by newInstance()
-                    // or newInstance() returns null, since .set() calls initialized.countDown().
-                    // Otherwise threads that call .get() may end up waiting forever.
+                    // Initialize newSingletonHolder with the new instance. Always need to call .set() even if an
+                    // exception is thrown by newInstance() or newInstance() returns null, since .set() calls
+                    // initialized.countDown(). Otherwise threads that call .get() may end up waiting forever.
                     newSingletonHolder.set(instance);
                     if (t instanceof final InterruptedException interruptedException) {
-                        // Don't swallow interruption by wrapping it in a NewInstanceException --
-                        // restore the
-                        // interrupt status (throwing InterruptedException cleared it) and propagate it,
-                        // so that
-                        // a cancelled scan is still seen as cancelled rather than as a failed
-                        // instantiation
+                        // Don't swallow interruption by wrapping it in a NewInstanceException -- restore the
+                        // interrupt status (throwing InterruptedException cleared it) and propagate it, so that a
+                        // cancelled scan is still seen as cancelled rather than as a failed instantiation
                         Thread.currentThread().interrupt();
                         throw interruptedException;
                     }

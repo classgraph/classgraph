@@ -92,30 +92,25 @@ public class Issue897Test {
      */
     @Test
     public void annotationOnInnerClassConstructor() {
-        // Scan this package non-recursively, so that the nested-class relationship
-        // between Issue897Test and Inner2
-        // can be resolved when placing the type annotation (which carries an INNER_TYPE
-        // type path), without pulling
+        // Scan this package non-recursively, so that the nested-class relationship between Issue897Test and Inner2
+        // can be resolved when placing the type annotation (which carries an INNER_TYPE type path), without pulling
         // in the compiler-specific fixture sub-packages (ecjenum, fieldcrash).
         try (var scanResult = new ClassGraph().acceptPackagesNonRecursive(Issue897Test.class.getPackage().getName())
                 .ignoreClassVisibility().enableMethodInfo().enableAnnotationInfo().scan()) {
             final var classInfo = scanResult.getClassInfo(Inner1.class.getName());
             final var methodInfo = classInfo.getDeclaredConstructorInfo().get(0);
 
-            // Must not throw "Ran out of nested types while trying to add type annotation"
-            // (#897).
+            // Must not throw "Ran out of nested types while trying to add type annotation" (#897).
             methodInfo.getTypeSignatureOrTypeDescriptor();
             methodInfo.getTypeDescriptor();
 
-            // The descriptor has a leading (implicit) enclosing-instance parameter,
-            // followed by the
-            // source-declared parameter of type Inner2.
+            // The descriptor has a leading (implicit) enclosing-instance parameter, followed by the source-declared
+            // parameter of type Inner2.
             final var parameterInfo = methodInfo.getParameterInfo();
             assertThat(parameterInfo).hasSize(2);
 
             final var annoName = Anno.class.getName();
-            // The annotation must be attached to the Inner2 parameter (the source-declared
-            // parameter)...
+            // The annotation must be attached to the Inner2 parameter (the source-declared parameter)...
             assertThat(typeAnnotationNames(parameterInfo[1].getTypeSignatureOrTypeDescriptor()))
                     .containsExactly(annoName);
             // ...and not to the compiler-generated enclosing-instance parameter.
@@ -138,13 +133,11 @@ public class Issue897Test {
             final var classInfo = scanResult.getClassInfo(Inner3.class.getName());
             final var methodInfo = classInfo.getDeclaredConstructorInfo().get(0);
 
-            // Must not throw ConcurrentModificationException on a direct type-descriptor
-            // call (#897).
+            // Must not throw ConcurrentModificationException on a direct type-descriptor call (#897).
             methodInfo.getTypeDescriptor();
             methodInfo.getTypeSignatureOrTypeDescriptor();
 
-            // The @Anno must be attached to the List parameter (the source-declared
-            // parameter), not the
+            // The @Anno must be attached to the List parameter (the source-declared parameter), not the
             // compiler-generated enclosing-instance parameter.
             final var parameterInfo = methodInfo.getParameterInfo();
             final var listParam = parameterInfo[parameterInfo.length - 1];

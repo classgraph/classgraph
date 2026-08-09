@@ -27,8 +27,7 @@ public class Issue352Test {
                 "istack-commons-runtime", null, null, "3.0.7");
         assertThat(resolvedFile).isFile();
 
-        // Test that module-info.class is not included in resource list if the root
-        // package ("") is not accepted
+        // Test that module-info.class is not included in resource list if the root package ("") is not accepted
         try (var scanResult = new ClassGraph().overrideClasspath(resolvedFile).acceptPackagesNonRecursive("")
                 .enableClassInfo().scan()) {
             assertThat(scanResult.getAllResources().getPaths()).contains("module-info.class");
@@ -38,8 +37,7 @@ public class Issue352Test {
             assertThat(scanResult.getAllResources().getPaths()).doesNotContain("module-info.class");
         }
 
-        // Test that package-info.class is only included in resource list for accepted
-        // packages
+        // Test that package-info.class is only included in resource list for accepted packages
         final var pkgInfoPath = Issue107Test.class.getPackage().getName().replace('.', '/') + "/package-info.class";
         try (var scanResult = new ClassGraph().acceptPackages(Issue107Test.class.getPackage().getName())
                 .enableClassInfo().scan()) {

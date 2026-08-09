@@ -129,8 +129,7 @@ final class GraphvizDotfileGenerator {
             case '\'' -> buf.append("&#x27;"); // See http://goo.gl/FzoP6m
             case '\\' -> buf.append("&lsol;");
             case '/' -> buf.append("&#x2F;"); // '/' can be a dangerous char if attr values are not quoted
-            // Encode a few common characters that like to get screwed up in some
-            // charset/browser variants
+            // Encode a few common characters that like to get screwed up in some charset/browser variants
             case '—' -> buf.append("&mdash;");
             case '–' -> buf.append("&ndash;");
             case '“' -> buf.append("&ldquo;");

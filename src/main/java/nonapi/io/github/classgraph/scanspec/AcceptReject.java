@@ -114,26 +114,23 @@ public abstract class AcceptReject {
             final var c = glob.charAt(i);
             if (c == '*') {
                 if (i + 1 < glob.length() && glob.charAt(i + 1) == '*') {
-                    // "**" matches zero or more whole segments, so it must itself form a complete
-                    // segment.
-                    // One adjacent separator is absorbed into the repeating group, so that matching
-                    // zero
-                    // segments also consumes the separator, e.g. "com.**.impl" matches "com.impl"
-                    // as well
-                    // as "com.a.impl" and "com.a.b.impl". (#940)
+                    // "**" matches zero or more whole segments, so it must itself form a complete segment. One
+                    // adjacent separator is absorbed into the repeating group, so that matching zero segments also
+                    // consumes the separator, e.g. "com.**.impl" matches "com.impl" as well as "com.a.impl" and
+                    // "com.a.b.impl". (#940)
                     if (!(i == 0 || glob.charAt(i - 1) == separatorChar)
                             || !(i + 2 == glob.length() || glob.charAt(i + 2) == separatorChar)) {
                         throw new IllegalArgumentException(
                                 "\"**\" may only be used as a complete segment of a glob: " + glob);
                     }
                     if (i + 2 < glob.length()) {
-                        // "**" is followed by a separator -- absorb the separator into the group, and
-                        // skip the second '*' and the separator
+                        // "**" is followed by a separator -- absorb the separator into the group, and skip the
+                        // second '*' and the separator
                         buf.append("(?:").append(segmentRegex).append(separatorRegex).append(")*");
                         i += 2;
                     } else if (i > 0) {
-                        // "**" is the final segment -- absorb the preceding separator into the group
-                        // (normally unreachable, since callers strip a redundant trailing "**")
+                        // "**" is the final segment -- absorb the preceding separator into the group (normally
+                        // unreachable, since callers strip a redundant trailing "**")
                         buf.setLength(buf.length() - separatorRegex.length());
                         buf.append("(?:").append(separatorRegex).append(segmentRegex).append(")*");
                         i++;
@@ -232,10 +229,8 @@ public abstract class AcceptReject {
         @Override
         public void addToAccept(final String str) {
             if (containsWildcard(str)) {
-                // A glob prefix, e.g. "eu.*.domain." -- matched as a regexp rather than by
-                // String#startsWith,
-                // so that glob accepts are recursive into sub-packages, just like literal
-                // accepts (#870)
+                // A glob prefix, e.g. "eu.*.domain." -- matched as a regexp rather than by String#startsWith, so
+                // that glob accepts are recursive into sub-packages, just like literal accepts (#870)
                 if (this.acceptGlobs == null || this.acceptPatterns == null) {
                     this.acceptGlobs = new HashSet<>();
                     this.acceptPatterns = new ArrayList<>();
@@ -358,13 +353,10 @@ public abstract class AcceptReject {
                     }
                 }
             }
-            // Also test any glob reject prefixes, which are matched as regexps rather than
-            // by
-            // String#startsWith. Without this, a reject criterion containing a wildcard was
-            // not applied to
-            // sub-packages or sub-directories of a matched package or directory, so e.g.
-            // rejectPackages("javax.swing.*") rejected javax.swing.plaf but not
-            // javax.swing.plaf.basic (#884)
+            // Also test any glob reject prefixes, which are matched as regexps rather than by String#startsWith.
+            // Without this, a reject criterion containing a wildcard was not applied to sub-packages or
+            // sub-directories of a matched package or directory, so e.g. rejectPackages("javax.swing.*") rejected
+            // javax.swing.plaf but not javax.swing.plaf.basic (#884)
             return matchesPatternList(str, rejectPatterns);
         }
     }
@@ -403,12 +395,10 @@ public abstract class AcceptReject {
                 this.accept.add(str);
             }
 
-            // For AcceptRejectWholeString, which doesn't perform prefix matches like
-            // AcceptRejectPrefix,
-            // use acceptPrefixes to store all parent prefixes of an accepted path, so that
-            // acceptHasPrefix() can operate efficiently on very large accepts (#338),
-            // in particular where the size of the accept is much larger than the maximum
-            // path depth.
+            // For AcceptRejectWholeString, which doesn't perform prefix matches like AcceptRejectPrefix, use
+            // acceptPrefixes to store all parent prefixes of an accepted path, so that acceptHasPrefix() can
+            // operate efficiently on very large accepts (#338), in particular where the size of the accept is much
+            // larger than the maximum path depth.
             if (this.acceptPrefixesSet == null) {
                 this.acceptPrefixesSet = new HashSet<>();
                 acceptPrefixesSet.add("");
@@ -418,11 +408,10 @@ public abstract class AcceptReject {
             var prefix = str;
             final var firstWildcardIdx = indexOfWildcard(prefix);
             if (firstWildcardIdx >= 0) {
-                // Stop performing prefix search at the first wildcard -- this means prefix
-                // matching will break if there is more than one wildcard in the path
+                // Stop performing prefix search at the first wildcard -- this means prefix matching will break if
+                // there is more than one wildcard in the path
                 prefix = prefix.substring(0, firstWildcardIdx);
-                // /path/to/wildcard*.jar -> /path/to
-                // /path/to/*.jar -> /path/to
+                // /path/to/wildcard*.jar -> /path/to /path/to/*.jar -> /path/to
                 final var sepIdx = prefix.lastIndexOf(separatorChar);
                 prefix = sepIdx < 0 ? "" : prefix.substring(0, sepIdx);
             }
@@ -430,26 +419,18 @@ public abstract class AcceptReject {
             while (prefix.endsWith(separator)) {
                 prefix = prefix.substring(0, prefix.length() - 1);
             }
-            // Record the accepted path itself and each of its parent directories as a
-            // prefix, so that
-            // acceptHasPrefix() can tell whether a directory may still lead to an accepted
-            // path
+            // Record the accepted path itself and each of its parent directories as a prefix, so that
+            // acceptHasPrefix() can tell whether a directory may still lead to an accepted path
             for (; !prefix.isEmpty(); prefix = FileUtils.getParentDirPath(prefix, separatorChar)) {
                 acceptPrefixesSet.add(prefix + separatorChar);
             }
 
-            // The literal prefix search above stops at the first wildcard, so for a glob
-            // with a wildcard before its
-            // final segment, e.g. "eu/*/domain/", the only recorded prefix is "eu/".
-            // Recursive directory
-            // scanning would then stop at "eu/core/", since that is neither an accepted
-            // path nor a recorded
-            // prefix of one, and the accepted path "eu/core/domain/" would never be
-            // reached. Record a pattern
-            // for each path prefix of the glob that contains a wildcard ("eu/*/" here), so
-            // that
-            // acceptHasPrefix() can report that "eu/core/" may still lead to an accepted
-            // path. (#870, #643)
+            // The literal prefix search above stops at the first wildcard, so for a glob with a wildcard before its
+            // final segment, e.g. "eu/*/domain/", the only recorded prefix is "eu/". Recursive directory scanning
+            // would then stop at "eu/core/", since that is neither an accepted path nor a recorded prefix of one,
+            // and the accepted path "eu/core/domain/" would never be reached. Record a pattern for each path prefix
+            // of the glob that contains a wildcard ("eu/*/" here), so that acceptHasPrefix() can report that
+            // "eu/core/" may still lead to an accepted path. (#870, #643)
             if (firstWildcardIdx >= 0) {
                 for (var sepIdx = str.indexOf(separatorChar); sepIdx >= 0; sepIdx = str.indexOf(separatorChar,
                         sepIdx + 1)) {
@@ -525,9 +506,8 @@ public abstract class AcceptReject {
             if (acceptPrefixesSet == null) {
                 return false;
             }
-            // Also test the prefixes of any accepted glob that contain a wildcard, since
-            // those cannot be
-            // enumerated into acceptPrefixesSet. (#870, #643)
+            // Also test the prefixes of any accepted glob that contain a wildcard, since those cannot be enumerated
+            // into acceptPrefixesSet. (#870, #643)
             return acceptPrefixesSet.contains(str) || matchesPatternList(str, acceptPrefixPatterns);
         }
 
@@ -766,10 +746,8 @@ public abstract class AcceptReject {
      * @return true if there were no accept criteria added.
      */
     public boolean acceptIsEmpty() {
-        // (Also test acceptPrefixesSet, since acceptPrefixes is only populated from it
-        // by sortPrefixes(),
-        // so an AcceptRejectPrefix would otherwise look empty until sortPrefixes() had
-        // been called)
+        // (Also test acceptPrefixesSet, since acceptPrefixes is only populated from it by sortPrefixes(), so an
+        // AcceptRejectPrefix would otherwise look empty until sortPrefixes() had been called)
         return accept == null && acceptPrefixes == null && acceptPrefixesSet == null && acceptGlobs == null;
     }
 

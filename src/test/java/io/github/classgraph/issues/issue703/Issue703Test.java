@@ -49,14 +49,13 @@ public class Issue703Test {
             assertThat(scanResult.getClassInfo(ExtendsSomething.class.getName()).getAllSuperclasses().getNames())
                     .containsExactly(ExtendsNothing.class.getName(), "java.lang.Object");
 
-            // An interface's classfile names Object as its superclass, but interfaces do not
-            // extend Object
+            // An interface's classfile names Object as its superclass, but interfaces do not extend Object
             assertThat(scanResult.getClassInfo(Iface.class.getName()).getSuperclass()).isNull();
             assertThat(scanResult.getAllSubclasses("java.lang.Object").getNames())
                     .doesNotContain(Iface.class.getName());
 
-            // Only classes that name Object as their superclass in their own classfile are
-            // direct subclasses of Object
+            // Only classes that name Object as their superclass in their own classfile are direct subclasses of
+            // Object
             assertThat(scanResult.getDirectSubclasses("java.lang.Object").getNames())
                     .contains(ExtendsNothing.class.getName()).doesNotContain(ExtendsSomething.class.getName());
         }

@@ -123,9 +123,8 @@ class UnscannedModules {
         if (!scanSpec.scanModules || unscannedModuleRefs.isEmpty()) {
             return null;
         }
-        // A class can only be in the module that contains its package (a package is not
-        // allowed to be split across two modules in the same module layer), so there is
-        // at most one module to look in
+        // A class can only be in the module that contains its package (a package is not allowed to be split across
+        // two modules in the same module layer), so there is at most one module to look in
         final var packageName = PackageInfo.getParentPackageName(className);
         final var moduleRef = packageName == null ? null : packageNameToModuleRef().get(packageName);
         if (moduleRef == null) {
@@ -159,8 +158,8 @@ class UnscannedModules {
             map = new HashMap<>();
             for (final ModuleRef moduleRef : unscannedModuleRefs) {
                 for (final String packageName : moduleRef.getPackages()) {
-                    // If a package is somehow in more than one module, the module that comes first
-                    // in the module order wins, as it would if the modules were being scanned
+                    // If a package is somehow in more than one module, the module that comes first in the module
+                    // order wins, as it would if the modules were being scanned
                     map.putIfAbsent(packageName, moduleRef);
                 }
             }

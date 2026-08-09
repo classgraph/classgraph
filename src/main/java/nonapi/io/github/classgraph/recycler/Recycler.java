@@ -122,8 +122,7 @@ public abstract class Recycler<T, E extends Exception> implements AutoCloseable 
             if (instance instanceof final Resettable resettable) {
                 resettable.reset();
             }
-            // (The usedInstances.remove() check above is what catches an instance being
-            // recycled twice --
+            // (The usedInstances.remove() check above is what catches an instance being recycled twice --
             // unusedInstances is unbounded, so add() always returns true)
             unusedInstances.add(instance);
         }

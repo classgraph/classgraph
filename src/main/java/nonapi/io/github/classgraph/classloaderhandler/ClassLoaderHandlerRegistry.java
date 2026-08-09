@@ -62,12 +62,11 @@ public final class ClassLoaderHandlerRegistry {
             // For unit testing of PARENT_LAST delegation order
             new ClassLoaderHandlerRegistryEntry(new ParentLastDelegationOrderTestClassLoaderHandler()),
 
-            // JPMS support (this handler does nothing, since modules are handled
-            // separately)
+            // JPMS support (this handler does nothing, since modules are handled separately)
             new ClassLoaderHandlerRegistryEntry(new JPMSClassLoaderHandler()),
 
-            // URLClassLoader support (should be last, so that subclasses of
-            // URLClassLoader are handled by more specific handlers above)
+            // URLClassLoader support (should be last, so that subclasses of URLClassLoader are handled by more
+            // specific handlers above)
             new ClassLoaderHandlerRegistryEntry(new URLClassLoaderHandler())
 
     // FallbackClassLoaderHandler.class is registered separately below

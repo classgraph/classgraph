@@ -58,8 +58,8 @@ public class Issue209Test {
                         .acceptPackages("org.springframework.boot.loader.util", "com.foo", "issue209lib") //
                         .overrideClassLoaders(classLoader).scan()) {
             assertThat(result.getAllClasses().getNames()).containsOnlyElementsOf(classNames);
-            // The classfile of each class must be readable, including the classfile
-            // of the class that is in a jar nested within the Spring Boot jar
+            // The classfile of each class must be readable, including the classfile of the class that is in a jar
+            // nested within the Spring Boot jar
             for (final var className : classNames) {
                 final var classInfo = result.getClassInfo(className);
                 assertThat(classInfo).isNotNull();

@@ -53,9 +53,8 @@ public class Issue924Test {
             assertThat(implementingA.getStandardClasses().getNames())
                     .containsExactlyInAnyOrder(DImpl.class.getName(), EImpl.class.getName());
 
-            // getSubclasses() does not traverse the interface hierarchy --
-            // getClassesImplementing() is the
-            // method to use for that
+            // getSubclasses() does not traverse the interface hierarchy -- getClassesImplementing() is the method
+            // to use for that
             assertThat(scanResult.getAllSubclasses(A.class).getNames()).isEmpty();
         }
     }
@@ -80,8 +79,7 @@ public class Issue924Test {
             assertThat(scanResult.getClassInfo(A.class.getName()).getAllSubinterfaces().getNames())
                     .containsExactlyInAnyOrder(B.class.getName(), C.class.getName());
 
-            // Implementing classes are not subinterfaces, and a standard class has no
-            // subinterfaces
+            // Implementing classes are not subinterfaces, and a standard class has no subinterfaces
             assertThat(scanResult.getAllSubinterfaces(A.class).getNames()).doesNotContain(DImpl.class.getName(),
                     EImpl.class.getName());
             assertThat(scanResult.getClassInfo(DImpl.class.getName()).getAllSubinterfaces()).isEmpty();

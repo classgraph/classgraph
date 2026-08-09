@@ -61,15 +61,11 @@ class JPMSClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
             final ScanSpec scanSpec, final @Nullable LogNode log) {
-        // The JDK9 classloaders have a field, `URLClassPath ucp`, containing URLs for
-        // unnamed modules,
-        // but it is not visible. Modules therefore have to be scanned using the JPMS
-        // API.
-        // However, it is possible for a Java agent to extend UCP by adding directly to
-        // the `ucp` field
-        // (#537), and there is no way to read this field. Therefore, we need to use
-        // Narcissus to break
-        // Java's encapsulation to read this, for this small corner case.
+        // The JDK9 classloaders have a field, `URLClassPath ucp`, containing URLs for unnamed modules, but it is
+        // not visible. Modules therefore have to be scanned using the JPMS API. However, it is possible for a Java
+        // agent to extend UCP by adding directly to the `ucp` field (#537), and there is no way to read this field.
+        // Therefore, we need to use Narcissus to break Java's encapsulation to read this, for this small corner
+        // case.
         final var ucpVal = classpathOrder.reflectionUtils.getFieldVal(false, classLoader, "ucp");
         if (ucpVal != null) {
             final var urls = (URL[]) classpathOrder.reflectionUtils.invokeMethod(false, ucpVal, "getURLs");

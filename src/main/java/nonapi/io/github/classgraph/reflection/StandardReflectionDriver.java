@@ -55,8 +55,7 @@ class StandardReflectionDriver extends ReflectionDriver {
     }
 
     static {
-        // AccessController is deprecated for removal in JDK 17, so it is called
-        // reflectively, to avoid a
+        // AccessController is deprecated for removal in JDK 17, so it is called reflectively, to avoid a
         // deprecation warning (the build compiles with -Xlint:all -Werror)
         try {
             final Class<?> accessControllerClass = Class.forName("java.security.AccessController");

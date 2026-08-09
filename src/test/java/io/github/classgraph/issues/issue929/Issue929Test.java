@@ -162,9 +162,8 @@ public class Issue929Test {
      */
     @Test
     public void packageRootNamedClassesIsStillAPackageRoot(@TempDir final File tempDir) throws IOException {
-        // The class name is "com.xyz.Beta", but the classfile is at
-        // "classes/com/xyz/Beta.class", so "classes/"
-        // is a package root, not a package
+        // The class name is "com.xyz.Beta", but the classfile is at "classes/com/xyz/Beta.class", so "classes/" is
+        // a package root, not a package
         final var dir = buildDir(new File(tempDir, "antproject"),
                 new String[] { "classes/com/xyz/Beta.class", "com.xyz.Beta" });
         try (var scanResult = new ClassGraph() //

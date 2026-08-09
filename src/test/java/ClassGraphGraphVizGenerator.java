@@ -24,8 +24,7 @@ public class ClassGraphGraphVizGenerator {
                 .enableFieldInfo() //
                 .ignoreFieldVisibility() //
                 .enableAnnotationInfo() //
-                // .enableInterClassDependencies() //
-                // .verbose() //
+                // .enableInterClassDependencies() // .verbose() //
                 .scan()) {
             final var fileName = "/tmp/graph.dot";
             try (var writer = new PrintWriter(fileName)) {

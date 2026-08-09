@@ -47,8 +47,7 @@ public class Issue897FieldTypeAnnotationTest {
             // The valid annotation is still applied.
             assertThat(baseTypeAnnotationNames(classInfo.getFieldInfo("validlyAnnotated"))).containsExactly(ANNO);
 
-            // The bogus [ARRAY] path on a non-array type must be skipped rather than
-            // throwing (#897).
+            // The bogus [ARRAY] path on a non-array type must be skipped rather than throwing (#897).
             final var bogus = classInfo.getFieldInfo("bogusArrayPath");
             bogus.getTypeSignatureOrTypeDescriptor();
             bogus.getTypeDescriptor();

@@ -114,10 +114,8 @@ public class FileSlice extends Slice {
             this.backingByteBuffer.limit((int) (sliceStartPos + sliceLength));
         }
 
-        // Only mark toplevel file slices as open (sub slices don't need to be marked as
-        // open since
-        // they don't need to be closed, they just copy the resource references of the
-        // toplevel slice)
+        // Only mark toplevel file slices as open (sub slices don't need to be marked as open since they don't need
+        // to be closed, they just copy the resource references of the toplevel slice)
     }
 
     /**
@@ -148,20 +146,17 @@ public class FileSlice extends Slice {
         this.fileLength = file.length();
         this.isTopLevelFileSlice = true;
 
-        // (Files larger than MAX_BUFFER_SIZE cannot be memory-mapped to a single
-        // ByteBuffer -- for those,
-        // fall through and use the RandomAccessFile API instead)
+        // (Files larger than MAX_BUFFER_SIZE cannot be memory-mapped to a single ByteBuffer -- for those, fall
+        // through and use the RandomAccessFile API instead)
         if (nestedJarHandler.scanSpec.enableMemoryMapping && fileLength <= FileUtils.MAX_BUFFER_SIZE) {
-            // On JDK 22+, memory-map the file using the java.lang.foreign.Arena API, so
-            // that the mapped
-            // ByteBuffer can be unmapped by closing the arena when this slice is closed,
-            // rather than by
-            // calling the terminally-deprecated method Unsafe::invokeCleaner (#939).
-            // (openArena returns null on JDK older than 22.)
+            // On JDK 22+, memory-map the file using the java.lang.foreign.Arena API, so that the mapped ByteBuffer
+            // can be unmapped by closing the arena when this slice is closed, rather than by calling the
+            // terminally-deprecated method Unsafe::invokeCleaner (#939). (openArena returns null on JDK older than
+            // 22.)
             arena = FileUtils.openArena(nestedJarHandler.reflectionUtils);
             try {
-                // Try mapping file (some operating systems throw OutOfMemoryError if file
-                // can't be mapped, some throw IOException)
+                // Try mapping file (some operating systems throw OutOfMemoryError if file can't be mapped, some
+                // throw IOException)
                 backingByteBuffer = mapFile();
             } catch (IOException | OutOfMemoryError e) {
                 // Try running garbage collection then try mapping the file again
@@ -204,13 +199,9 @@ public class FileSlice extends Slice {
                     nestedJarHandler.reflectionUtils);
         }
         if (VersionFinder.JAVA_MAJOR_VERSION >= 22) {
-            // An arena could not be opened, even though the arena API should be available
-            // -- don't fall
-            // back to FileChannel#map, since the resulting MappedByteBuffer could only be
-            // unmapped by the
-            // garbage collector (Unsafe::invokeCleaner is not used on JDK 22+, see #939) --
-            // use the
-            // RandomAccessFile API instead
+            // An arena could not be opened, even though the arena API should be available -- don't fall back to
+            // FileChannel#map, since the resulting MappedByteBuffer could only be unmapped by the garbage collector
+            // (Unsafe::invokeCleaner is not used on JDK 22+, see #939) -- use the RandomAccessFile API instead
             return null;
         }
         return openFileChannel.map(MapMode.READ_ONLY, 0L, fileLength);
@@ -316,10 +307,8 @@ public class FileSlice extends Slice {
     @Override
     public ByteBuffer read() throws IOException {
         if (isDeflatedZipEntry) {
-            // Inflate to RAM if deflated (unfortunately there is no lazy-loading ByteBuffer
-            // that will
-            // decompress partial streams on demand, so we have to decompress the whole zip
-            // entry)
+            // Inflate to RAM if deflated (unfortunately there is no lazy-loading ByteBuffer that will decompress
+            // partial streams on demand, so we have to decompress the whole zip entry)
             if (inflatedLengthHint > FileUtils.MAX_BUFFER_SIZE) {
                 throw new IOException("Uncompressed size is larger than 2GB");
             }
@@ -331,8 +320,7 @@ public class FileSlice extends Slice {
             }
             return ByteBuffer.wrap(load());
         } else {
-            // FileSlice is backed with a MappedByteBuffer -- duplicate it and return it
-            // (low-cost operation)
+            // FileSlice is backed with a MappedByteBuffer -- duplicate it and return it (low-cost operation)
             return backingByteBuffer.duplicate();
         }
     }
@@ -342,13 +330,10 @@ public class FileSlice extends Slice {
     public void close() {
         if (!isClosed.getAndSet(true)) {
             if (isTopLevelFileSlice && backingByteBuffer != null) {
-                // Only unmap the backing ByteBuffer in the toplevel file slice, so that it is
-                // only closed
-                // once (also duplicates of mapped ByteBuffers cannot be closed by the cleaner
-                // API)
+                // Only unmap the backing ByteBuffer in the toplevel file slice, so that it is only closed once
+                // (also duplicates of mapped ByteBuffers cannot be closed by the cleaner API)
                 if (arena != null) {
-                    // JDK 22+: unmap the ByteBuffer by closing the arena that was used to map it
-                    // (#939)
+                    // JDK 22+: unmap the ByteBuffer by closing the arena that was used to map it (#939)
                     FileUtils.closeArena(arena, nestedJarHandler.reflectionUtils, /* log = */ null);
                     arena = null;
                 } else {

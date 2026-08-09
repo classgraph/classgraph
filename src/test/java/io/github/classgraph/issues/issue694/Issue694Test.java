@@ -29,8 +29,8 @@ public class Issue694Test {
             for (final ClassInfo info : scan.getAllStandardClasses()) {
                 for (final MethodInfo methodInfo : info.getDeclaredMethodInfo()) {
                     foundMethodInfo.add(methodInfo.toString());
-                    // The type descriptor gives the erased types, whereas the type
-                    // signature gives the generic types
+                    // The type descriptor gives the erased types, whereas the type signature gives the generic
+                    // types
                     foundMethodDescriptors.add(methodInfo.getTypeDescriptor().toString());
                 }
             }

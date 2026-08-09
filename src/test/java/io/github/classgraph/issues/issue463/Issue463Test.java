@@ -70,8 +70,7 @@ public class Issue463Test {
                     Base.class.getName());
             assertThat(scanResult.getAllSuperinterfaces(Leaf.class).getNames()).containsOnly(Iface.class.getName());
 
-            // Downwards: only what was accepted, even though the class each query starts
-            // from is itself external
+            // Downwards: only what was accepted, even though the class each query starts from is itself external
             assertThat(scanResult.getAllSubclasses(Base.class).getNames()).containsOnly(Leaf.class.getName());
             assertThat(scanResult.getAllClassesImplementing(Iface.class).getNames())
                     .containsOnly(Leaf.class.getName());

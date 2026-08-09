@@ -98,13 +98,11 @@ public final class FileUtils {
      * @return The current directory, as a string
      */
     public static String currDirPath() {
-        // Read the volatile field once, so that the value returned cannot differ from
-        // the value tested
+        // Read the volatile field once, so that the value returned cannot differ from the value tested
         var currDirPathCached = currDirPath;
         if (currDirPathCached == null) {
-            // user.dir should be the current directory at the time the JVM is started,
-            // which is
-            // where classpath elements should be resolved relative to
+            // user.dir should be the current directory at the time the JVM is started, which is where classpath
+            // elements should be resolved relative to
             Path path = null;
             final var currDirPathStr = VersionFinder.getProperty("user.dir");
             if (currDirPathStr != null) {
@@ -115,9 +113,8 @@ public final class FileUtils {
                 }
             }
             if (path == null) {
-                // user.dir should probably always be set. But just in case it is not, try
-                // reading the
-                // actual current directory at the time ClassGraph is first invoked.
+                // user.dir should probably always be set. But just in case it is not, try reading the actual
+                // current directory at the time ClassGraph is first invoked.
                 try {
                     path = Path.of("");
                 } catch (final InvalidPathException e) {
@@ -125,11 +122,9 @@ public final class FileUtils {
                 }
             }
 
-            // Normalize current directory the same way all other paths are normalized in
-            // ClassGraph,
-            // for consistency
-            // Two threads racing here compute the same value, so whichever write lands last
-            // is equivalent
+            // Normalize current directory the same way all other paths are normalized in ClassGraph, for
+            // consistency. Two threads racing here compute the same value, so whichever write lands last is
+            // equivalent
             currDirPathCached = FastPathResolver.resolve(path == null ? "" : path.toString());
             currDirPath = currDirPathCached;
         }
@@ -157,17 +152,13 @@ public final class FileUtils {
             return "";
         }
 
-        // A '!' is only a nested jar separator if the path before it names an existing
-        // jarfile -- it is
-        // otherwise a legal filename character, and must not be treated as a path
-        // hierarchy root (#903)
+        // A '!' is only a nested jar separator if the path before it names an existing jarfile -- it is otherwise a
+        // legal filename character, and must not be treated as a path hierarchy root (#903)
         final var nestedJarSepIdx = JarUtils.indexOfNestedJarSeparator(path);
 
-        // Find all '/' and nested jar separator '!' character positions, which split a
-        // path into segments.
-        // This scan reads the path via charAt() rather than copying it into a char[],
-        // since the common case is
-        // that nothing needs sanitizing, and the copy would then be pure overhead.
+        // Find all '/' and nested jar separator '!' character positions, which split a path into segments. This
+        // scan reads the path via charAt() rather than copying it into a char[], since the common case is that
+        // nothing needs sanitizing, and the copy would then be pure overhead.
         var foundSegmentToSanitize = false;
         final var pathLen = path.length();
         {
@@ -197,8 +188,7 @@ public final class FileUtils {
         final var pathHasInitialSlashSlash = pathHasInitialSlash && pathLen > 1 && path.charAt(1) == '/';
         final StringBuilder pathSanitized = new StringBuilder(pathLen + 16);
         if (foundSegmentToSanitize) {
-            // Sanitize between "!" section markers separately (".." should not apply past
-            // preceding "!")
+            // Sanitize between "!" section markers separately (".." should not apply past preceding "!")
             final List<List<CharSequence>> allSectionSegments = new ArrayList<>();
             List<CharSequence> currSectionSegments = new ArrayList<>();
             allSectionSegments.add(currSectionSegments);
@@ -213,8 +203,7 @@ public final class FileUtils {
                         // Ignore empty segment "//" or idempotent segment "/./"
                     } else if (segmentLen == 2 && path.charAt(segmentStartIdx) == '.'
                             && path.charAt(segmentStartIdx + 1) == '.') {
-                        // Remove one segment if ".." encountered, but do not allow ".." above top of
-                        // hierarchy
+                        // Remove one segment if ".." encountered, but do not allow ".." above top of hierarchy
                         if (!currSectionSegments.isEmpty()) {
                             currSectionSegments.remove(currSectionSegments.size() - 1);
                         }
@@ -250,16 +239,13 @@ public final class FileUtils {
             pathSanitized.append(path);
         }
 
-        // Intended to preserve the double slash at the start of UNC paths (#736).
-        // e.g. //server/file/path
+        // Intended to preserve the double slash at the start of UNC paths (#736). e.g. //server/file/path
         if (VersionFinder.OS == OperatingSystem.Windows && pathHasInitialSlashSlash) {
             pathSanitized.insert(0, '/');
         }
 
-        // Strip the final slashes before the initial ones, so that for a path
-        // consisting only of slashes (which is
-        // what "/.." and "/." normalize to), truncating the buffer cannot leave it
-        // shorter than startIdx
+        // Strip the final slashes before the initial ones, so that for a path consisting only of slashes (which is
+        // what "/.." and "/." normalize to), truncating the buffer cannot leave it shorter than startIdx
         if (removeFinalSlash) {
             while (!pathSanitized.isEmpty() && pathSanitized.charAt(pathSanitized.length() - 1) == '/') {
                 pathSanitized.setLength(pathSanitized.length() - 1);
@@ -267,11 +253,9 @@ public final class FileUtils {
         }
         var startIdx = 0;
         if (removeInitialSlash || !pathHasInitialSlash) {
-            // Strip off leading "/" if it needs to be removed, or if it wasn't present in
-            // the original path
-            // (the string-building code above prepends "/" to every segment). Note that "/"
-            // is always added
-            // after "!", since "jar:" URLs expect this.
+            // Strip off leading "/" if it needs to be removed, or if it wasn't present in the original path (the
+            // string-building code above prepends "/" to every segment). Note that "/" is always added after "!",
+            // since "jar:" URLs expect this.
             while (startIdx < pathSanitized.length() && pathSanitized.charAt(startIdx) == '/') {
                 startIdx++;
             }
@@ -549,17 +533,12 @@ public final class FileUtils {
      */
     private static void lookupCleanMethodPrivileged() {
         if (VersionFinder.JAVA_MAJOR_VERSION < 22) {
-            // Unsafe::invokeCleaner is terminally deprecated, and JDK 24+ reports: "A
-            // terminally
-            // deprecated method in sun.misc.Unsafe has been called" if it is used. On JDK
-            // 22+, direct
-            // ByteBuffers are allocated and memory-mapped using the java.lang.foreign.Arena
-            // API instead,
-            // and they are freed/unmapped by closing the arena that created them, so the
-            // cleaner method
-            // is only needed on JDK 17-21.
-            // See: https://github.com/classgraph/classgraph/issues/899
-            // and: https://github.com/classgraph/classgraph/issues/939
+            // Unsafe::invokeCleaner is terminally deprecated, and JDK 24+ reports: "A terminally deprecated method
+            // in sun.misc.Unsafe has been called" if it is used. On JDK 22+, direct ByteBuffers are allocated and
+            // memory-mapped using the java.lang.foreign.Arena API instead, and they are freed/unmapped by closing
+            // the arena that created them, so the cleaner method is only needed on JDK 17-21. See:
+            // https://github.com/classgraph/classgraph/issues/899 and:
+            // https://github.com/classgraph/classgraph/issues/939
             try {
                 Class<?> unsafeClass;
                 try {
@@ -620,14 +599,10 @@ public final class FileUtils {
                     return false;
                 }
             } else {
-                // JDK 22+: direct ByteBuffers are allocated or memory-mapped using the
-                // java.lang.foreign.Arena API, and they are freed/unmapped by closing the arena
-                // that
-                // created them (see FileSlice#close()), rather than by calling the
-                // terminally-deprecated
-                // Unsafe::invokeCleaner method (#939). A ByteBuffer that was not created from
-                // an arena
-                // cannot be closed explicitly, so return false here.
+                // JDK 22+: direct ByteBuffers are allocated or memory-mapped using the java.lang.foreign.Arena API,
+                // and they are freed/unmapped by closing the arena that created them (see FileSlice#close()),
+                // rather than by calling the terminally-deprecated Unsafe::invokeCleaner method (#939). A
+                // ByteBuffer that was not created from an arena cannot be closed explicitly, so return false here.
                 return false;
             }
         } catch (final ReflectiveOperationException | SecurityException e) {
@@ -652,9 +627,8 @@ public final class FileUtils {
     public static boolean closeDirectByteBuffer(final ByteBuffer byteBuffer, final ReflectionUtils reflectionUtils,
             final @Nullable LogNode log) {
         if (byteBuffer != null && byteBuffer.isDirect()) {
-            // Double-checked locking, so that two threads calling this for the first time
-            // concurrently cannot
-            // both run the lookup and race on the static fields it assigns
+            // Double-checked locking, so that two threads calling this for the first time concurrently cannot both
+            // run the lookup and race on the static fields it assigns
             if (!initialized) {
                 synchronized (FileUtils.class) {
                     if (!initialized) {
@@ -683,13 +657,10 @@ public final class FileUtils {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    // TODO: once ClassGraph's minimum supported JDK version is 22 or later, the
-    // Unsafe reflection code above
-    // (lookupCleanMethodPrivileged and closeDirectByteBufferPrivileged) can be
-    // removed, and the arena methods
-    // below can open and close arenas, and allocate and memory-map ByteBuffers, by
-    // calling the
-    // java.lang.foreign API directly rather than through reflection.
+    // TODO: once ClassGraph's minimum supported JDK version is 22 or later, the Unsafe reflection code above
+    // (lookupCleanMethodPrivileged and closeDirectByteBufferPrivileged) can be removed, and the arena methods below
+    // can open and close arenas, and allocate and memory-map ByteBuffers, by calling the java.lang.foreign API
+    // directly rather than through reflection.
 
     /**
      * The fully-qualified name of the JDK 22+ {@code java.lang.foreign.Arena} interface.
@@ -712,19 +683,16 @@ public final class FileUtils {
     // #939
     public static @Nullable Object openArena(final ReflectionUtils reflectionUtils) {
         if (VersionFinder.JAVA_MAJOR_VERSION < 22) {
-            // The java.lang.foreign API was only finalized in JDK 22 (the preview versions
-            // of the API in
-            // JDK 19-21 cannot be invoked reflectively without --enable-preview)
+            // The java.lang.foreign API was only finalized in JDK 22 (the preview versions of the API in JDK 19-21
+            // cannot be invoked reflectively without --enable-preview)
             return null;
         }
         final Class<?> arenaClass = reflectionUtils.classForNameOrNull(ARENA_CLASS_NAME);
         if (arenaClass == null) {
             return null;
         }
-        // Invoke Arena.ofShared() -- a shared arena is needed rather than a confined
-        // arena, since the
-        // ByteBuffers obtained from the arena may be read and closed by multiple
-        // threads
+        // Invoke Arena.ofShared() -- a shared arena is needed rather than a confined arena, since the ByteBuffers
+        // obtained from the arena may be read and closed by multiple threads
         return reflectionUtils.invokeStaticMethod(/* throwException = */ false, arenaClass, "ofShared");
     }
 
@@ -778,8 +746,7 @@ public final class FileUtils {
             return null;
         }
         try {
-            // Invoke fileChannel.map(MapMode.READ_ONLY, position, size,
-            // arena).asByteBuffer()
+            // Invoke fileChannel.map(MapMode.READ_ONLY, position, size, arena).asByteBuffer()
             final var memorySegment = reflectionUtils.invokeMethod(/* throwException = */ true, fileChannel, "map",
                     new Class<?>[] { MapMode.class, long.class, long.class, arenaClass },
                     new Object[] { MapMode.READ_ONLY, position, size, arena });
@@ -787,11 +754,9 @@ public final class FileUtils {
                     : (ByteBuffer) reflectionUtils.invokeMethod(/* throwException = */ true, memorySegment,
                             "asByteBuffer");
         } catch (final Exception e) {
-            // Mapping the file can fail with IOException or OutOfMemoryError, which the
-            // reflective method
-            // invocation wraps in other exceptions -- unwrap and rethrow, so that the
-            // caller can retry
-            // mapping after running garbage collection
+            // Mapping the file can fail with IOException or OutOfMemoryError, which the reflective method
+            // invocation wraps in other exceptions -- unwrap and rethrow, so that the caller can retry mapping
+            // after running garbage collection
             for (Throwable t = e; t != null; t = t.getCause()) {
                 if (t instanceof final IOException ioException) {
                     throw ioException;
@@ -799,8 +764,7 @@ public final class FileUtils {
                     throw outOfMemoryError;
                 }
             }
-            // The reflective invocation itself failed -- the caller will fall back to the
-            // FileChannel API
+            // The reflective invocation itself failed -- the caller will fall back to the FileChannel API
             return null;
         }
     }
@@ -841,8 +805,7 @@ public final class FileUtils {
      */
     public static FileAttributesGetter createCachedAttributesGetter() {
         final Map<Path, BasicFileAttributes> cache = new HashMap<>();
-        // readAttributes never returns null, so computeIfAbsent caches every path after
-        // the first read
+        // readAttributes never returns null, so computeIfAbsent caches every path after the first read
         return path -> cache.computeIfAbsent(path, FileUtils::readAttributes);
     }
 

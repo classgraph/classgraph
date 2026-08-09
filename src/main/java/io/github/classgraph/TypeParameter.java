@@ -167,8 +167,7 @@ public final class TypeParameter extends HierarchicalTypeSignature {
      */
     @Override
     protected String getClassName() {
-        // getClassInfo() is not valid for this type, so getClassName() does not need to
-        // be implemented
+        // getClassInfo() is not valid for this type, so getClassName() does not need to be implemented
         throw new UnsupportedOperationException("getClassName() cannot be called here");
     }
 
@@ -272,10 +271,8 @@ public final class TypeParameter extends HierarchicalTypeSignature {
             classBoundStr = null;
         } else {
             classBoundStr = bound.toString(useSimpleNames);
-            // A type parameter may itself be named "Object", in which case a bound
-            // referring to it also renders
-            // as "Object" but is a TypeVariableSignature, not java.lang.Object -- so check
-            // the type too
+            // A type parameter may itself be named "Object", in which case a bound referring to it also renders as
+            // "Object" but is a TypeVariableSignature, not java.lang.Object -- so check the type too
             if ("java.lang.Object".equals(classBoundStr) || ("Object".equals(classBoundStr)
                     && bound instanceof final ClassRefTypeSignature classRefTypeSignature
                     && "java.lang.Object".equals(classRefTypeSignature.className))) {

@@ -169,11 +169,9 @@ class FallbackClassLoaderHandler implements ClassLoaderHandler {
         valid |= classpathOrder.addClasspathEntryObject(
                 classpathOrder.reflectionUtils.getFieldVal(false, classLoader, "urls"), classLoader, scanSpec, log);
         if (!valid) {
-            // None of the known field or method names worked, so fall back to asking the
-            // classloader for
-            // resources that are present in the root of most classpath elements, and strip
-            // the resource path
-            // from the returned URLs to get the classpath element itself (#892)
+            // None of the known field or method names worked, so fall back to asking the classloader for resources
+            // that are present in the root of most classpath elements, and strip the resource path from the
+            // returned URLs to get the classpath element itself (#892)
             valid = findClasspathOrderByProbingForResources(classLoader, classpathOrder, scanSpec, log);
         }
         if (log != null) {
@@ -273,10 +271,8 @@ class FallbackClassLoaderHandler implements ClassLoaderHandler {
             return null;
         }
         var classpathEntry = resourceURL.substring(0, resourceURL.length() - resourcePath.length());
-        // Strip the jar entry separator, so that e.g. "jar:file:/x.jar!/" becomes
-        // "jar:file:/x.jar"
-        // (FastPathResolver strips the "jar:" prefix, and handles the "!/" separators
-        // of nested jars)
+        // Strip the jar entry separator, so that e.g. "jar:file:/x.jar!/" becomes "jar:file:/x.jar"
+        // (FastPathResolver strips the "jar:" prefix, and handles the "!/" separators of nested jars)
         if (classpathEntry.endsWith("!/")) {
             classpathEntry = classpathEntry.substring(0, classpathEntry.length() - 2);
         }

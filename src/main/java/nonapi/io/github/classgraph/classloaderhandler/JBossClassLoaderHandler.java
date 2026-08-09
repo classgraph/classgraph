@@ -126,14 +126,12 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
         if (mount == null) {
             return null;
         }
-        // try to access the fileSystem of the mount. Type is
-        // org.jboss.vfs.spi.FileSystem
+        // try to access the fileSystem of the mount. Type is org.jboss.vfs.spi.FileSystem
         final var fileSystem = classpathOrderOut.reflectionUtils.invokeMethod(false, mount, "getFileSystem");
         if (fileSystem == null) {
             return null;
         }
-        // now access the mount source, which is the file that is used to create the
-        // mount.
+        // now access the mount source, which is the file that is used to create the mount.
         final var mountSource = (File) classpathOrderOut.reflectionUtils.invokeMethod(false, fileSystem,
                 "getMountSource");
         if (mountSource == null) {
@@ -160,10 +158,8 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
         // we need access to the class 'VFS' of org.jboss.vfs
         try {
             if (root.getClass().getName().contains("org.jboss.vfs")) {
-                // first, try the classloader of the root object. Since the root object comes
-                // from org.jboss.vfs,
-                // it is likely that we can get access to org.jboss.vfs.VFS from this
-                // classloader
+                // first, try the classloader of the root object. Since the root object comes from org.jboss.vfs, it
+                // is likely that we can get access to org.jboss.vfs.VFS from this classloader
                 final var vfsRootClassloader = root.getClass().getClassLoader();
                 jbossVFS = loadJBossVFS(vfsRootClassloader);
             } else {
@@ -172,10 +168,8 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
             }
         } catch (final ClassNotFoundException e) {
             try {
-                // try to load JBoss VFS access from the current threads classloader since the
-                // previous method failed
-                // if the previous method was already the currentThreads classloader, it will
-                // fail again...
+                // try to load JBoss VFS access from the current threads classloader since the previous method
+                // failed if the previous method was already the currentThreads classloader, it will fail again...
                 jbossVFS = loadJBossVFS(Thread.currentThread().getContextClassLoader());
             } catch (final ClassNotFoundException e1) {
                 // swallow the exception. If there is no VFS present, we can't do anything...
@@ -274,12 +268,9 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
                 "getResourceLoaders");
         if (vfsResourceLoaders != null) {
             for (int i = 0, n = Array.getLength(vfsResourceLoaders); i < n; i++) {
-                // type JarFileResourceLoader for jars, VFSResourceLoader for exploded jars,
-                // PathResourceLoader
-                // for resource directories, or NativeLibraryResourceLoader for (usually
-                // non-existent) native
-                // library "lib/" dirs adjacent to the jarfiles that they were presumably
-                // extracted from.
+                // type JarFileResourceLoader for jars, VFSResourceLoader for exploded jars, PathResourceLoader for
+                // resource directories, or NativeLibraryResourceLoader for (usually non-existent) native library
+                // "lib/" dirs adjacent to the jarfiles that they were presumably extracted from.
                 final var resourceLoader = Array.get(vfsResourceLoaders, i);
                 // Could skip NativeLibraryResourceLoader instances altogether, but testing for
                 // their existence
@@ -315,8 +306,7 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
         @SuppressWarnings("unchecked")
         final var pathsMap = (Map<String, List<?>>) classpathOrder.reflectionUtils.invokeMethod(false, module,
                 "getPaths");
-        // (invokeMethod returns null if the method is not present, so don't assume it
-        // was found)
+        // (invokeMethod returns null if the method is not present, so don't assume it was found)
         final var pathsMapEntries = pathsMap != null ? pathsMap.entrySet() : Set.<Entry<String, List<?>>> of();
         for (final Entry<String, List<?>> ent : pathsMapEntries) {
             for (final Object /* ModuleClassLoader$1 */ localLoader : ent.getValue()) {

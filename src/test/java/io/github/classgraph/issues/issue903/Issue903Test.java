@@ -49,11 +49,9 @@ class Issue903Test {
 
     /** Scan a classpath element, and return the accepted resource paths. */
     private static List<String> scanPaths(final File classpathElt) throws IOException {
-        // ClassGraph canonicalizes classpath element paths, and the temporary directory
-        // is reached through a
-        // symlink on macOS ("/var" -> "/private/var") and through an 8.3 short name on
-        // Windows
-        // ("C:\Users\RUNNER~1" -> "C:\Users\runneradmin"), so compare canonical paths
+        // ClassGraph canonicalizes classpath element paths, and the temporary directory is reached through a
+        // symlink on macOS ("/var" -> "/private/var") and through an 8.3 short name on Windows ("C:\Users\RUNNER~1"
+        // -> "C:\Users\runneradmin"), so compare canonical paths
         final var classpathEltCanonical = classpathElt.getCanonicalFile();
         try (var scanResult = new ClassGraph().overrideClasspath(classpathElt.getPath()).acceptPaths("issue903")
                 .scan()) {

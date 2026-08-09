@@ -202,9 +202,8 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
     @SuppressWarnings("unchecked")
     private static void findClasspathOrderForRunnerClassloader(final ClassLoader classLoader,
             final ClasspathOrder classpathOrder, final ScanSpec scanSpec, final @Nullable LogNode log) {
-        // (getFieldVal returns null if the field is not present -- Quarkus renames
-        // these fields between
-        // releases, so don't assume the field was found)
+        // (getFieldVal returns null if the field is not present -- Quarkus renames these fields between releases,
+        // so don't assume the field was found)
         final var resourceDirectoryMap = (Map<String, Object[]>) classpathOrder.reflectionUtils.getFieldVal(false,
                 classLoader, "resourceDirectoryMap");
         if (resourceDirectoryMap == null) {

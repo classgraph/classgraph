@@ -55,8 +55,7 @@ class SpringBootRestartClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
             final @Nullable LogNode log) {
-        // The Restart classloader is a parent-last classloader, so add the Restart
-        // classloader itself to the
+        // The Restart classloader is a parent-last classloader, so add the Restart classloader itself to the
         // classloader order first
         classLoaderOrder.add(classLoader, log);
 

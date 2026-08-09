@@ -70,8 +70,7 @@ class PlexusClassWorldsClassRealmClassLoaderHandler extends URLClassLoaderHandle
                 return false;
             }
         }
-        // Strategy is org.codehaus.plexus.classworlds.strategy.ParentFirstStrategy (or
-        // failed to find strategy)
+        // Strategy is org.codehaus.plexus.classworlds.strategy.ParentFirstStrategy (or failed to find strategy)
         return true;
     }
 
@@ -95,34 +94,28 @@ class PlexusClassWorldsClassRealmClassLoaderHandler extends URLClassLoaderHandle
         // Get delegation order -- different strategies have different delegation orders
         final var isParentFirst = isParentFirstStrategy(classLoader, classLoaderOrder.reflectionUtils);
 
-        // From ClassRealm#loadClassFromSelf(String) -> findLoadedClass(String) for
-        // self-first strategy
+        // From ClassRealm#loadClassFromSelf(String) -> findLoadedClass(String) for self-first strategy
         if (!isParentFirst) {
             // Add self before parent
             classLoaderOrder.add(classLoader, log);
         }
 
-        // From ClassRealm#loadClassFromParent -- N.B. we are ignoring parentImports,
-        // which is used to filter
-        // a class name before deciding whether or not to call the parent classloader
-        // (so ClassGraph will be
-        // able to load classes by name that are not imported from the parent
-        // classloader).
+        // From ClassRealm#loadClassFromParent -- N.B. we are ignoring parentImports, which is used to filter a
+        // class name before deciding whether or not to call the parent classloader (so ClassGraph will be able to
+        // load classes by name that are not imported from the parent classloader).
         final var parentClassLoader = (ClassLoader) classLoaderOrder.reflectionUtils.invokeMethod(false,
                 classLoader, "getParentClassLoader");
         classLoaderOrder.delegateTo(parentClassLoader, /* isParent = */ true, log);
         classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
 
-        // From ClassRealm#loadClassFromSelf(String) -> findLoadedClass(String) for
-        // parent-first strategy
+        // From ClassRealm#loadClassFromSelf(String) -> findLoadedClass(String) for parent-first strategy
         if (isParentFirst) {
             // Add self after parent
             classLoaderOrder.add(classLoader, log);
         }
     }
 
-    // findClasspathOrder() is inherited from URLClassLoaderHandler, since ClassRealm
-    // extends URLClassLoader
+    // findClasspathOrder() is inherited from URLClassLoaderHandler, since ClassRealm extends URLClassLoader
 
     /**
      * Get the automatic package root prefixes for classpath elements obtained from this classloader.

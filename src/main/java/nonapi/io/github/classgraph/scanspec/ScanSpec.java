@@ -492,8 +492,7 @@ public class ScanSpec {
 
         // Ancestor of accepted path
         if (
-        // The default package is always the ancestor of accepted paths (need to keep
-        // recursing)
+        // The default package is always the ancestor of accepted paths (need to keep recursing)
         "/".equals(relativePath)
                 // relativePath is an ancestor (prefix) of an accepted path
                 || pathAcceptReject.acceptHasPrefix(relativePath)

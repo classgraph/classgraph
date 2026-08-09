@@ -76,11 +76,9 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
             classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
         }
         if ("org.apache.tomee.catalina.TomEEWebappClassLoader".equals(classLoader.getClass().getName())) {
-            // TomEEWebappClassLoader has a lot of complex delegation rules, including
-            // classname-specific
-            // delegation, which is not supported by the current ClassGraph model, so we
-            // just try to approximate
-            // the delegation order with a fixed order.
+            // TomEEWebappClassLoader has a lot of complex delegation rules, including classname-specific
+            // delegation, which is not supported by the current ClassGraph model, so we just try to approximate the
+            // delegation order with a fixed order.
             try {
                 classLoaderOrder.delegateTo(Class.forName("org.apache.openejb.OpenEJB").getClassLoader(),
                         /* isParent = */ true, log);
@@ -101,19 +99,15 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
         // type StandardRoot (implements WebResourceRoot)
         var resources = classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getResources");
         if (resources == null) {
-            // WebappClassLoaderBase#getResources() was deprecated in Tomcat 8.5 and 9.0,
-            // and removed in Tomcat
-            // 10.1, so fall back to reading the "resources" field that it returned, which
-            // is still present.
-            // Without this, none of the WebResourceSets below were found on Tomcat 10.1 or
-            // above. (#925)
+            // WebappClassLoaderBase#getResources() was deprecated in Tomcat 8.5 and 9.0, and removed in Tomcat
+            // 10.1, so fall back to reading the "resources" field that it returned, which is still present. Without
+            // this, none of the WebResourceSets below were found on Tomcat 10.1 or above. (#925)
             resources = classpathOrder.reflectionUtils.getFieldVal(false, classLoader, "resources");
         }
         // type List<URL>
         final var baseURLs = classpathOrder.reflectionUtils.invokeMethod(false, resources, "getBaseUrls");
         classpathOrder.addClasspathEntryObject(baseURLs, classLoader, scanSpec, log);
-        // type List<List<WebResourceSet>>
-        // members: preResources, mainResources, classResources, jarResources,
+        // type List<List<WebResourceSet>> members: preResources, mainResources, classResources, jarResources,
         // postResources
         @SuppressWarnings("unchecked")
         final var allResources = (List<List<?>>) classpathOrder.reflectionUtils.getFieldVal(false, resources,
@@ -136,15 +130,13 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
                                     "getBase");
                         }
                         if (base == null) {
-                            // For JarResourceSet and JarWarResourceSet
-                            // The absolute path to the WAR file on the file system in which the JAR is
-                            // located
+                            // For JarResourceSet and JarWarResourceSet, the absolute path to the WAR file on the
+                            // file system in which the JAR is located
                             base = (String) classpathOrder.reflectionUtils.invokeMethod(false, webResourceSet,
                                     "getBaseUrlString");
                         }
                         if (base != null) {
-                            // For JarWarResourceSet: the path within the WAR file where the JAR file is
-                            // located
+                            // For JarWarResourceSet: the path within the WAR file where the JAR file is located
                             final var archivePath = (String) classpathOrder.reflectionUtils.getFieldVal(false,
                                     webResourceSet, "archivePath");
                             if (archivePath != null && !archivePath.isEmpty()) {
@@ -152,15 +144,13 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
                                 base += "!" + (archivePath.startsWith("/") ? archivePath : "/" + archivePath);
                             }
                             final var className = webResourceSet.getClass().getName();
-                            // (These class names previously had a spurious "java." prefix, so isJar was
-                            // always
-                            // false, and the internal path of a resource JAR was appended as a directory
-                            // path
+                            // (These class names previously had a spurious "java." prefix, so isJar was always
+                            // false, and the internal path of a resource JAR was appended as a directory path
                             // rather than as a path within the JAR)
                             final var isJar = "org.apache.catalina.webresources.JarResourceSet".equals(className)
                                     || "org.apache.catalina.webresources.JarWarResourceSet".equals(className);
-                            // The path within this WebResourceSet where resources will be served from,
-                            // e.g. for a resource JAR, this would be "META-INF/resources"
+                            // The path within this WebResourceSet where resources will be served from, e.g. for a
+                            // resource JAR, this would be "META-INF/resources"
                             final var internalPath = (String) classpathOrder.reflectionUtils.invokeMethod(false,
                                     webResourceSet, "getInternalPath");
                             if (internalPath != null && !internalPath.isEmpty() && !"/".equals(internalPath)) {

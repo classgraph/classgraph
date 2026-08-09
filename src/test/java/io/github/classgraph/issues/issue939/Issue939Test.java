@@ -55,8 +55,7 @@ public class Issue939Test {
         buf.put(0, (byte) 42);
         assertThat(buf.get(0)).isEqualTo((byte) 42);
         assertThat(FileUtils.closeArena(arena, reflectionUtils, /* log = */ null)).isTrue();
-        // The buffer is freed once the arena is closed, so accessing it now throws
-        // IllegalStateException
+        // The buffer is freed once the arena is closed, so accessing it now throws IllegalStateException
         assertThatThrownBy(() -> buf.get(0)).isInstanceOf(IllegalStateException.class);
     }
 
@@ -78,8 +77,7 @@ public class Issue939Test {
             assertThat(buf.capacity()).isEqualTo(4);
             assertThat(buf.get(2)).isEqualTo((byte) 3);
             assertThat(FileUtils.closeArena(arena, reflectionUtils, /* log = */ null)).isTrue();
-            // The file is unmapped once the arena is closed, so accessing the buffer now
-            // throws
+            // The file is unmapped once the arena is closed, so accessing the buffer now throws
             // IllegalStateException
             assertThatThrownBy(() -> buf.get(0)).isInstanceOf(IllegalStateException.class);
         }

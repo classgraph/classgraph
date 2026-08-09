@@ -131,9 +131,8 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
                 }
             }
         }
-        // If that failed, then this is a type variable that cannot be resolved.
-        // Return a new TypeParameter that only has the name set, with no class or
-        // interface bounds. (#706)
+        // If that failed, then this is a type variable that cannot be resolved. Return a new TypeParameter that
+        // only has the name set, with no class or interface bounds. (#706)
         final TypeParameter typeParameter = new TypeParameter(name, null, List.of());
         typeParameter.setScanResult(scanResult);
         typeParameterCached = typeParameter;
@@ -152,8 +151,7 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
     // #735
     @Nullable
     TypeArgument substitution(final Map<String, TypeArgument> substitutions) {
-        // A type variable declared by the method itself shadows any type variable of
-        // the same name declared by the
+        // A type variable declared by the method itself shadows any type variable of the same name declared by the
         // enclosing class, and is not bound by the context class
         final var methodSignature = containingMethodSignature;
         if (methodSignature != null && methodSignature.typeParameters != null) {
@@ -172,10 +170,8 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
         if (typeArgument == null) {
             return this;
         }
-        // Outside type argument position there is no way to express "?" or "? super X",
-        // so leave the type variable
-        // unsubstituted in those cases; "? extends X" is substituted as its upper bound
-        // X
+        // Outside type argument position there is no way to express "?" or "? super X", so leave the type variable
+        // unsubstituted in those cases; "? extends X" is substituted as its upper bound X
         final var typeSignature = typeArgument.getTypeSignature();
         return typeSignature == null || typeArgument.getWildcard() == TypeArgument.Wildcard.ANY
                 || typeArgument.getWildcard() == TypeArgument.Wildcard.SUPER ? this : typeSignature;
@@ -218,9 +214,8 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
             final TypeVariableSignature typeVariableSignature = new TypeVariableSignature(parser.currToken(),
                     definingClassName);
 
-            // Save type variable signatures in the parser state, so method and class type
-            // signatures can link
-            // to type signatures
+            // Save type variable signatures in the parser state, so method and class type signatures can link to
+            // type signatures
             @SuppressWarnings("unchecked")
             var typeVariableSignatures = (List<TypeVariableSignature>) parser.getState();
             if (typeVariableSignatures == null) {
@@ -255,9 +250,8 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
      */
     @Override
     protected void findReferencedClassNames(final Set<String> refdClassNames) {
-        // Any class names present in resolved type variables have to be present in
-        // enclosing method or class,
-        // so there's no need to look up class references in resolved type variables
+        // Any class names present in resolved type variables have to be present in enclosing method or class, so
+        // there's no need to look up class references in resolved type variables
     }
 
     @Override
@@ -307,9 +301,7 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
     public boolean equalsIgnoringTypeParams(final @Nullable TypeSignature other) {
         if (other instanceof final ClassRefTypeSignature otherClassRef) {
             if ("java.lang.Object".equals(otherClassRef.className)) {
-                // java.lang.Object can be reconciled with any type, so it can be reconciled
-                // with
-                // any type variable
+                // java.lang.Object can be reconciled with any type, so it can be reconciled with any type variable
                 return true;
             }
             // Resolve the type variable against the containing class' type parameters
@@ -317,15 +309,14 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
             try {
                 typeParameter = resolve();
             } catch (final IllegalStateException e) {
-                // If the corresponding type parameter cannot be resolved:
-                // unknown type variables can always be reconciled with a concrete class
+                // If the corresponding type parameter cannot be resolved: unknown type variables can always be
+                // reconciled with a concrete class
                 return true;
             }
             if (typeParameter.classBound == null
                     && (typeParameter.interfaceBounds == null || typeParameter.interfaceBounds.isEmpty())) {
-                // If the type parameter has no bounds, just assume the type variable can be
-                // reconciled
-                // to the class by type inference
+                // If the type parameter has no bounds, just assume the type variable can be reconciled to the class
+                // by type inference
                 return true;
             }
             if (typeParameter.classBound != null) {
@@ -356,19 +347,14 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
                     }
                 }
             }
-            // Type variable has a concrete bound that is not reconcilable with 'other'
-            // (we don't follow the class hierarchy to compare the bound against the class
-            // reference,
-            // since the compiler should only use the bound during type erasure, not some
-            // other class
-            // in the class hierarchy)
+            // Type variable has a concrete bound that is not reconcilable with 'other' (we don't follow the class
+            // hierarchy to compare the bound against the class reference, since the compiler should only use the
+            // bound during type erasure, not some other class in the class hierarchy)
             return false;
         }
-        // Technically I think type variables are never equal to each other, due to
-        // capturing,
-        // but just compare the variable name for equality here (this should never get
-        // triggered in general, since we only compare type-erased signatures to
-        // non-type-erased signatures currently).
+        // Technically I think type variables are never equal to each other, due to capturing, but just compare the
+        // variable name for equality here (this should never get triggered in general, since we only compare
+        // type-erased signatures to non-type-erased signatures currently).
         return this.equals(other);
     }
 

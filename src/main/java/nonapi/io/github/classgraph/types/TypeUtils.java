@@ -162,8 +162,7 @@ public final class TypeUtils {
         if (modifierType != ModifierType.FIELD && (modifiers & Modifier.STRICT) != 0) {
             appendModifierKeyword(buf, "strictfp");
         }
-        // Ignored:
-        // ACC_SUPER (0x0020): Treat superclass methods specially when invoked by the
-        // invokespecial instruction
+        // Ignored: ACC_SUPER (0x0020): Treat superclass methods specially when invoked by the invokespecial
+        // instruction
     }
 }

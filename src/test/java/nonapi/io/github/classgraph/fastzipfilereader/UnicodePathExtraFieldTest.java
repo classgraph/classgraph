@@ -81,8 +81,7 @@ public class UnicodePathExtraFieldTest {
                 entryNames.add(zipEntry.entryName);
             }
         } finally {
-            // The jarfile must not be left open, otherwise the temporary directory cannot
-            // be deleted on Windows
+            // The jarfile must not be left open, otherwise the temporary directory cannot be deleted on Windows
             nestedJarHandler.close(/* log = */ null);
         }
         assertThat(entryNames).containsExactly(UNICODE_NAME);

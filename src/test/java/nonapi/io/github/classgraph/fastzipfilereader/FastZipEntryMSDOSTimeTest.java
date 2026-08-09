@@ -38,9 +38,9 @@ public class FastZipEntryMSDOSTimeTest {
         final var jarFile = new File(tempDir, "msdos-time.jar");
         try (var fileOut = new FileOutputStream(jarFile); var zipOut = new ZipOutputStream(fileOut)) {
             final var entry = new ZipEntry(ENTRY_NAME);
-            // ZipEntry#setTime(long) records only an MS-DOS timestamp, converted using the
-            // default timezone -- it does not add an extended timestamp extra field, so
-            // ClassGraph has to decode the MS-DOS date and time fields
+            // ZipEntry#setTime(long) records only an MS-DOS timestamp, converted using the default timezone -- it
+            // does not add an extended timestamp extra field, so ClassGraph has to decode the MS-DOS date and time
+            // fields
             entry.setTime(LAST_MODIFIED.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli());
             zipOut.putNextEntry(entry);
             zipOut.write("contents".getBytes(StandardCharsets.UTF_8));
@@ -58,8 +58,7 @@ public class FastZipEntryMSDOSTimeTest {
             assertThat(entries.get(0).entryName).isEqualTo(ENTRY_NAME);
             lastModifiedTimeMillis = entries.get(0).getLastModifiedTimeMillis();
         } finally {
-            // The jarfile must not be left open, otherwise the temporary directory cannot
-            // be deleted on Windows
+            // The jarfile must not be left open, otherwise the temporary directory cannot be deleted on Windows
             nestedJarHandler.close(/* log = */ null);
         }
 

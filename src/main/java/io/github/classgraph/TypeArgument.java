@@ -114,10 +114,8 @@ public final class TypeArgument extends HierarchicalTypeSignature {
             return this;
         }
         if (wildcard == Wildcard.NONE && typeSig instanceof final TypeVariableSignature typeVariable) {
-            // A type variable in type argument position can be replaced by the substituted
-            // type argument as a
-            // whole, so that a wildcard type argument keeps its wildcard, e.g. substituting
-            // T := "? extends Number"
+            // A type variable in type argument position can be replaced by the substituted type argument as a
+            // whole, so that a wildcard type argument keeps its wildcard, e.g. substituting T := "? extends Number"
             // into "List<T>" gives "List<? extends Number>"
             final var substitution = typeVariable.substitution(substitutions);
             if (substitution != null) {
@@ -163,16 +161,15 @@ public final class TypeArgument extends HierarchicalTypeSignature {
             // Annotation before wildcard
             addTypeAnnotation(annotationInfo);
         } else if (!typePath.isEmpty() && typePath.get(0).typePathKind() == 2) {
-            // Annotation is on the bound of a wildcard type argument of a parameterized
-            // type.
-            // TypeSignature can be null in a corrupt classfile (#758).
+            // Annotation is on the bound of a wildcard type argument of a parameterized type. TypeSignature can be
+            // null in a corrupt classfile (#758).
             final var typeSig = typeSignature;
             if (typeSig != null) {
                 typeSig.addTypeAnnotation(typePath.subList(1, typePath.size()), annotationInfo);
             }
         } else {
-            // Annotation is on a type argument of a parameterized type.
-            // TypeSignature can be null in a corrupt classfile (#758).
+            // Annotation is on a type argument of a parameterized type. TypeSignature can be null in a corrupt
+            // classfile (#758).
             final var typeSig = typeSignature;
             if (typeSig != null) {
                 typeSig.addTypeAnnotation(typePath, annotationInfo);
@@ -260,8 +257,7 @@ public final class TypeArgument extends HierarchicalTypeSignature {
      */
     @Override
     protected String getClassName() {
-        // getClassInfo() is not valid for this type, so getClassName() does not need to
-        // be implemented
+        // getClassInfo() is not valid for this type, so getClassName() does not need to be implemented
         throw new UnsupportedOperationException("getClassName() cannot be called here");
     }
 

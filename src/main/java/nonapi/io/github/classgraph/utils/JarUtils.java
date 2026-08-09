@@ -73,13 +73,10 @@ public final class JarUtils {
      */
     private static final String[] UNIX_NON_PATH_SEPARATORS = { //
             "jar:", "file:", "http://", "https://", //
-            // Tomcat serves a non-exploded WAR file through its own "war:" URL protocol
-            // (#925)
+            // Tomcat serves a non-exploded WAR file through its own "war:" URL protocol (#925)
             "war:", //
-            // Allow for escaping of ':' characters in paths, which probably goes beyond
-            // what the spec would allow
-            // for, but would make sense, since File.separatorChar will never be '\\' when
-            // File.pathSeparatorChar is
+            // Allow for escaping of ':' characters in paths, which probably goes beyond what the spec would allow
+            // for, but would make sense, since File.separatorChar will never be '\\' when File.pathSeparatorChar is
             // ':'
             "\\:" //
     };
@@ -138,8 +135,7 @@ public final class JarUtils {
             return new String[0];
         }
         if (separatorChar != ':') {
-            // The fast path for Windows (which uses ';' as a path separator), or for
-            // separator other than ':'
+            // The fast path for Windows (which uses ';' as a path separator), or for separator other than ':'
             final List<String> partsFiltered = new ArrayList<>();
             for (final String part : pathStr.split(String.valueOf(separatorChar))) {
                 final var partFiltered = part.trim();
@@ -149,15 +145,12 @@ public final class JarUtils {
             }
             return partsFiltered.toArray(new String[0]);
         } else {
-            // If the separator char is ':', don't split on URL protocol boundaries.
-            // This will allow for HTTP(S) jars to be given in java.class.path.
-            // (The JRE may not even support them, but we may as well do so.)
+            // If the separator char is ':', don't split on URL protocol boundaries. This will allow for HTTP(S)
+            // jars to be given in java.class.path. (The JRE may not even support them, but we may as well do so.)
             final Set<Integer> splitPoints = new HashSet<>();
             for (var i = -1;;) {
-                // A ':' escaped as "\:" is part of a path element, not a separator (this is the
-                // escaping
-                // applied by appendPathElt, and undone by the DOUBLE_BACKSHLASH_WITH_COLON
-                // unescape below)
+                // A ':' escaped as "\:" is part of a path element, not a separator (this is the escaping applied by
+                // appendPathElt, and undone by the DOUBLE_BACKSHLASH_WITH_COLON unescape below)
                 var foundNonPathSeparator = i > 0 && pathStr.charAt(i - 1) == '\\';
                 for (var j = 0; !foundNonPathSeparator && j < UNIX_NON_PATH_SEPARATORS.length; j++) {
                     // Skip ':' characters in the middle of non-path-separators such as "http://"
@@ -172,8 +165,7 @@ public final class JarUtils {
                 }
                 if (!foundNonPathSeparator && scanSpec != null && scanSpec.allowedURLSchemes != null
                         && !scanSpec.allowedURLSchemes.isEmpty()) {
-                    // If custom URL schemes have been registered, allow those to be used as
-                    // delimiters too
+                    // If custom URL schemes have been registered, allow those to be used as delimiters too
                     for (final String scheme : scanSpec.allowedURLSchemes) {
                         // Skip schemes already handled by the faster matching code above
                         if (!"http".equals(scheme) && !"https".equals(scheme) && !"jar".equals(scheme)
@@ -232,16 +224,11 @@ public final class JarUtils {
         if (!buf.isEmpty()) {
             buf.append(File.pathSeparatorChar);
         }
-        // Escape any rogue path separators, as long as file separator is not '\\' (on
-        // Windows, if there are any
-        // extra ';' characters in a path element, there's really nothing we can do to
-        // escape them, since they can't
-        // be escaped as "\\;")
-        // (Use String.replace() rather than String.replaceAll(), so that both arguments
-        // are literal -- in a
-        // replaceAll() replacement string, a single backslash escapes the char after
-        // it, so the intended
-        // escape sequence would be emitted as a bare path separator.)
+        // Escape any rogue path separators, as long as file separator is not '\\' (on Windows, if there are any
+        // extra ';' characters in a path element, there's really nothing we can do to escape them, since they can't
+        // be escaped as "\\;") (Use String.replace() rather than String.replaceAll(), so that both arguments are
+        // literal -- in a replaceAll() replacement string, a single backslash escapes the char after it, so the
+        // intended escape sequence would be emitted as a bare path separator.)
         final var path = File.separatorChar == '\\' ? pathElt.toString()
                 : pathElt.toString().replace(File.pathSeparator, "\\" + File.pathSeparator);
         buf.append(path);
@@ -321,14 +308,11 @@ public final class JarUtils {
             return plingIdx;
         }
         while (plingIdx >= 0) {
-            // The outermost jarfile has to exist as a regular file for the classpath
-            // element to be scannable,
-            // so if the path before the '!' names one, this '!' is the outermost separator
+            // The outermost jarfile has to exist as a regular file for the classpath element to be scannable, so if
+            // the path before the '!' names one, this '!' is the outermost separator.
             // N.B. the path is not resolved via FastPathResolver here, since that calls
-            // FileUtils#sanitizeEntryPath, which calls this method -- a relative path is
-            // resolved by
-            // java.io.File against the current directory, which is the same base path
-            // anyway
+            // FileUtils#sanitizeEntryPath, which calls this method -- a relative path is resolved by java.io.File
+            // against the current directory, which is the same base path anyway
             if (new File(path.substring(0, plingIdx)).isFile()) {
                 return plingIdx;
             }
@@ -348,9 +332,8 @@ public final class JarUtils {
      */
     // #903
     public static int lastIndexOfNestedJarSeparator(final String path) {
-        // Every '!' after the outermost separator is also a separator, so if there is
-        // an outermost separator,
-        // the last '!' in the path is the innermost separator
+        // Every '!' after the outermost separator is also a separator, so if there is an outermost separator, the
+        // last '!' in the path is the innermost separator
         return indexOfNestedJarSeparator(path) < 0 ? -1 : path.lastIndexOf('!');
     }
 
@@ -368,8 +351,7 @@ public final class JarUtils {
         final var endIdx = bangIdx >= 0 ? bangIdx : path.length();
         var leafStartIdx = 1 + (File.separatorChar == '/' ? path.lastIndexOf('/', endIdx)
                 : Math.max(path.lastIndexOf('/', endIdx), path.lastIndexOf(File.separatorChar, endIdx)));
-        // In case of temp files (for jars extracted from within jars), remove the temp
-        // filename prefix -- see
+        // In case of temp files (for jars extracted from within jars), remove the temp filename prefix -- see
         // NestedJarHandler.unzipToTempFile()
         var sepIdx = path.indexOf(NestedJarHandler.TEMP_FILENAME_LEAF_SEPARATOR);
         if (sepIdx >= 0) {
@@ -419,9 +401,8 @@ public final class JarUtils {
      * @return The automatic module name.
      */
     public static String derivedAutomaticModuleName(final String jarPath) {
-        // If jar path does not end in a file extension (with ".jar" most likely), strip
-        // off everything after
-        // the last '!', in order to remove package root
+        // If jar path does not end in a file extension (with ".jar" most likely), strip off everything after the
+        // last '!', in order to remove package root
         var endIdx = jarPath.length();
         final var lastPlingIdx = jarPath.lastIndexOf('!');
         if (lastPlingIdx > 0

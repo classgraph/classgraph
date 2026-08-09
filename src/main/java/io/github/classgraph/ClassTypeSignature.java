@@ -181,8 +181,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
 
     @Override
     void addTypeAnnotation(final List<TypePathNode> typePath, final AnnotationInfo annotationInfo) {
-        // Individual parts of a class' type each have their own addTypeAnnotation
-        // methods
+        // Individual parts of a class' type each have their own addTypeAnnotation methods
         throw new UnsupportedOperationException(
                 "Cannot call this method on " + ClassTypeSignature.class.getSimpleName());
     }
@@ -420,11 +419,9 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
      */
     static ClassTypeSignature parse(final String typeDescriptor, final ClassInfo classInfo) throws ParseException {
         final Parser parser = new Parser(typeDescriptor);
-        // The defining class name is used to resolve type variables using the defining
-        // class' type descriptor.
-        // But here we are parsing the defining class' type descriptor, so it can't
-        // contain variables that
-        // point to itself => just use null as the defining class name.
+        // The defining class name is used to resolve type variables using the defining class' type descriptor. But
+        // here we are parsing the defining class' type descriptor, so it can't contain variables that point to
+        // itself => just use null as the defining class name.
         final @Nullable String definingClassNameNull = null;
         final var typeParameters = TypeParameter.parseList(parser, definingClassNameNull);
         final var superclassSignature = ClassRefTypeSignature.parse(parser, definingClassNameNull);
@@ -447,22 +444,14 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
         }
         final List<ClassRefOrTypeVariableSignature> throwsSignatures;
         if (parser.peek() == '^') {
-            // There is an illegal "throws" suffix at the end of this class type signature.
-            // Scala adds these if you tag a class with "@throws" (#495).
-            // Classes with this sort of type signature are rejected by javac and javap, and
-            // they will throw
-            // GenericSignatureFormatError if you call getClass().getGenericSuperclass() on
-            // a subclass.
-            // But the JVM ignores type signatures due to type erasure, and Scala seems to
-            // rely on this
-            // -- or at the very least, the Scala team never noticed the issue, because the
-            // classes work
-            // fine at runtime if you live in a Scala-only world.
-            // Since this issue is probably widespread in the Scala world, it's probably
-            // better to accept
-            // these invalid type signatures, and actually parse out any "throws" suffixes,
-            // rather than
-            // throwing an exception and refusing to parse the type signature.
+            // There is an illegal "throws" suffix at the end of this class type signature. Scala adds these if you
+            // tag a class with "@throws" (#495). Classes with this sort of type signature are rejected by javac and
+            // javap, and they will throw GenericSignatureFormatError if you call getClass().getGenericSuperclass()
+            // on a subclass. But the JVM ignores type signatures due to type erasure, and Scala seems to rely on
+            // this -- or at the very least, the Scala team never noticed the issue, because the classes work fine
+            // at runtime if you live in a Scala-only world. Since this issue is probably widespread in the Scala
+            // world, it's probably better to accept these invalid type signatures, and actually parse out any
+            // "throws" suffixes, rather than throwing an exception and refusing to parse the type signature.
             throwsSignatures = new ArrayList<>();
             while (parser.peek() == '^') {
                 parser.expect('^');

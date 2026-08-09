@@ -84,8 +84,7 @@ public abstract class ReferenceTypeSignature extends TypeSignature {
     static @Nullable ReferenceTypeSignature parseClassBound(final Parser parser,
             final @Nullable String definingClassName) throws ParseException {
         parser.expect(':');
-        // May return null if there is no signature after ':' (class bound signature may
-        // be empty)
+        // May return null if there is no signature after ':' (class bound signature may be empty)
         return parseReferenceTypeSignature(parser, definingClassName);
     }
 }

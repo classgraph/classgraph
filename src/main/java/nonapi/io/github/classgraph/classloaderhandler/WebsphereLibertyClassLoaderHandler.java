@@ -99,8 +99,8 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
         }
 
         // Expecting this to be an instance of
-        // "com.ibm.ws.classloading.internal.ContainerClassLoader$UniversalContainer".
-        // Call "getContainerURLs" to get its container's classpath.
+        // "com.ibm.ws.classloading.internal.ContainerClassLoader$UniversalContainer". Call "getContainerURLs" to
+        // get its container's classpath.
         var urls = callGetUrls(containerClassLoader, "getContainerURLs", reflectionUtils);
         if (urls != null && !urls.isEmpty()) {
             return urls;
@@ -112,15 +112,13 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
             return List.of();
         }
 
-        // Should be an instance of "com.ibm.wsspi.adaptable.module.Container".
-        // Call "getURLs" to get its classpath.
+        // Should be an instance of "com.ibm.wsspi.adaptable.module.Container". Call "getURLs" to get its classpath.
         urls = callGetUrls(container, "getURLs", reflectionUtils);
         if (urls != null && !urls.isEmpty()) {
             return urls;
         }
 
-        // "getURLs" did not work, reverting to previous logic of introspection of the
-        // "delegate".
+        // "getURLs" did not work, reverting to previous logic of introspection of the "delegate".
         final var delegate = reflectionUtils.getFieldVal(false, container, "delegate");
         if (delegate == null) {
             return List.of();
@@ -204,8 +202,8 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
             smartClassPath = classpathOrder.reflectionUtils.getFieldVal(false, classLoader, "smartClassPath");
         }
         if (smartClassPath != null) {
-            // "com.ibm.ws.classloading.internal.ContainerClassLoader$SmartClassPath"
-            // interface specifies a "getClassPath" to return all urls that makeup its path.
+            // "com.ibm.ws.classloading.internal.ContainerClassLoader$SmartClassPath" interface specifies a
+            // "getClassPath" to return all urls that makeup its path.
             final var paths = callGetUrls(smartClassPath, "getClassPath", classpathOrder.reflectionUtils);
             if (!paths.isEmpty()) {
                 for (final Object path : paths) {

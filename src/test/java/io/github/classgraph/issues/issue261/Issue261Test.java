@@ -55,16 +55,15 @@ public class Issue261Test {
 
     @Test
     public void issue261Test() {
-        // Accept only the class Cls, so that SuperCls and SuperSuperCls are external
-        // classes
+        // Accept only the class Cls, so that SuperCls and SuperSuperCls are external classes
         try (var scanResult = new ClassGraph().acceptClasses(Cls.class.getName()).enableAllInfo().scan()) {
-            // Looking upwards through the hierarchy reports what Cls' own classfile
-            // declares, so external classes are included
+            // Looking upwards through the hierarchy reports what Cls' own classfile declares, so external classes
+            // are included
             assertThat(scanResult.getAllSuperclasses(Cls.class).getNames()).contains(SuperCls.class.getName(),
                     SuperSuperCls.class.getName());
 
-            // Looking downwards can only report what was scanned, so only accepted classes
-            // are included: SuperCls is external, and is left out
+            // Looking downwards can only report what was scanned, so only accepted classes are included: SuperCls
+            // is external, and is left out
             assertThat(scanResult.getAllSubclasses(SuperSuperCls.class).getNames())
                     .containsOnly(Cls.class.getName());
         }

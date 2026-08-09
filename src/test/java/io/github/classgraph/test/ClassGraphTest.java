@@ -245,8 +245,8 @@ public class ClassGraphTest {
     public void testRejectedPlaceholderNotReturned() {
         try (var scanResult = new ClassGraph().acceptPackages(ROOT_PACKAGE)
                 .rejectPackages(RejectedAnnotation.class.getPackage().getName()).enableAnnotationInfo().scan()) {
-            // The rejected superclass is filtered out, but Object, which is above it in the
-            // hierarchy, is not rejected
+            // The rejected superclass is filtered out, but Object, which is above it in the hierarchy, is not
+            // rejected
             assertThat(scanResult.getAllSuperclasses(Accepted.class.getName()).getNames())
                     .containsExactly("java.lang.Object");
             assertThat(scanResult.getAllSubclasses(Accepted.class).getNames()).isEmpty();

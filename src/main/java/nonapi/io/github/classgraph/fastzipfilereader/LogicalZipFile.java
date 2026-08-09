@@ -234,8 +234,7 @@ public class LogicalZipFile extends ZipFileSlice {
                     // Value ends if line break is not followed by a space
                     break;
                 }
-                // If line break was followed by a space, then the curr++ in the for loop header
-                // will skip it
+                // If line break was followed by a space, then the curr++ in the for loop header will skip it
             }
             val = buf.toString(StandardCharsets.UTF_8);
         }
@@ -300,8 +299,7 @@ public class LogicalZipFile extends ZipFileSlice {
 
         // Find field keys (separated by newlines)
         for (var i = 0; i < manifest.length;) {
-            // There cannot be any space after a newline before the manifest key, so key
-            // starts immediately
+            // There cannot be any space after a newline before the manifest key, so key starts immediately
             var skip = false;
             if (manifest[i] == (byte) '\n' || manifest[i] == (byte) '\r') {
                 // Skip blank lines
@@ -407,8 +405,7 @@ public class LogicalZipFile extends ZipFileSlice {
             }
 
             if (skip) {
-                // Field key didn't match -- skip to next key (after next newline that is not
-                // followed by a space)
+                // Field key didn't match -- skip to next key (after next newline that is not followed by a space)
                 for (; i < manifest.length - 2; i++) {
                     if (manifest[i] == (byte) '\r' && manifest[i + 1] == (byte) '\n'
                             && manifest[i + 2] != (byte) ' ') {
@@ -450,11 +447,9 @@ public class LogicalZipFile extends ZipFileSlice {
 
         final var reader = slice.randomAccessReader();
 
-        // Scan for End Of Central Directory (EOCD) signature. Final comment can be up
-        // to 64kB in length,
-        // so need to scan back that far to determine if this is a valid zipfile.
-        // However for speed,
-        // initially just try reading back a maximum of 32 characters.
+        // Scan for End Of Central Directory (EOCD) signature. Final comment can be up to 64kB in length, so need to
+        // scan back that far to determine if this is a valid zipfile. However for speed, initially just try reading
+        // back a maximum of 32 characters.
         long eocdPos = -1;
         for (long i = slice.sliceLength - 22, iMin = slice.sliceLength - 22 - 32; i >= iMin && i >= 0L; --i) {
             if (reader.readUnsignedInt(i) == 0x06054b50L) {
@@ -463,10 +458,8 @@ public class LogicalZipFile extends ZipFileSlice {
             }
         }
         if (eocdPos < 0 && slice.sliceLength > 22 + 32) {
-            // If EOCD signature was not found, read the last 64kB of file to RAM in a
-            // single chunk
-            // so that we can scan back through it at higher speed to locate the EOCD
-            // signature
+            // If EOCD signature was not found, read the last 64kB of file to RAM in a single chunk so that we can
+            // scan back through it at higher speed to locate the EOCD signature
             final var bytesToRead = (int) Math.min(slice.sliceLength, 65536);
             final var eocdBytes = new byte[bytesToRead];
             final var readStartOff = slice.sliceLength - bytesToRead;
@@ -551,26 +544,20 @@ public class LogicalZipFile extends ZipFileSlice {
             throw new IOException("Local file header offset out of range: " + locPos + ": " + getPath());
         }
 
-        // Read entries into a byte array, if central directory is smaller than 2GB. If
-        // central directory
-        // is larger than 2GB, need to read each entry field from the file directly
-        // using ZipFileSliceReader.
+        // Read entries into a byte array, if central directory is smaller than 2GB. If central directory is larger
+        // than 2GB, need to read each entry field from the file directly using ZipFileSliceReader.
         RandomAccessReader cenReader;
         if (cenSize > FileUtils.MAX_BUFFER_SIZE) {
-            // Create a slice that covers the central directory (this allows a central
-            // directory larger than
-            // 2GB to be accessed using the slower FileSlice API, which reads the file
-            // directly, but also
-            // the slice can be accessed without adding cenPos to each read offset, so that
-            // this slice or
-            // the slice in the "else" clause below are accessed with the same index, which
-            // is the offset
-            // from the start of the central directory).
+            // Create a slice that covers the central directory (this allows a central directory larger than 2GB to
+            // be accessed using the slower FileSlice API, which reads the file directly, but also the slice can be
+            // accessed without adding cenPos to each read offset, so that this slice or the slice in the "else"
+            // clause below are accessed with the same index, which is the offset from the start of the central
+            // directory).
             cenReader = slice.slice(cenPos, cenSize, /* isDeflatedZipEntry = */ false, /* inflatedSizeHint = */ 0L)
                     .randomAccessReader();
         } else {
-            // Read the central directory into RAM for speed, then wrap it in an ArraySlice
-            // (random access is faster for ArraySlice than for FileSlice)
+            // Read the central directory into RAM for speed, then wrap it in an ArraySlice (random access is faster
+            // for ArraySlice than for FileSlice)
             final var entryBytes = new byte[(int) cenSize];
             if (reader.read(cenPos, entryBytes, 0, (int) cenSize) < cenSize) {
                 // Should not happen
@@ -597,11 +584,9 @@ public class LogicalZipFile extends ZipFileSlice {
             }
         }
 
-        // Can't have more than (Integer.MAX_VALUE - 8) entries, since they are stored
-        // in an ArrayList
+        // Can't have more than (Integer.MAX_VALUE - 8) entries, since they are stored in an ArrayList
         if (numEnt > FileUtils.MAX_BUFFER_SIZE) {
-            // One alternative in this (impossibly rare) situation would be to return only
-            // the first 2B entries
+            // One alternative in this (impossibly rare) situation would be to return only the first 2B entries
             throw new IOException("Too many zipfile entries: " + numEnt);
         }
 
@@ -674,8 +659,7 @@ public class LogicalZipFile extends ZipFileSlice {
 
                 var pos = cenReader.readUnsignedInt(entOff + 42);
 
-                // Check for Zip64 header in extra fields
-                // See:
+                // Check for Zip64 header in extra fields. See:
                 // https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT
                 // https://github.com/LuaDist/zip/blob/master/proginfo/extrafld.txt
                 var lastModifiedMillis = 0L;
@@ -729,8 +713,7 @@ public class LogicalZipFile extends ZipFileSlice {
                         } else if (tag == 0x5855 && size >= 20) {
                             // Unix extra field (deprecated)
                             lastModifiedMillis = cenReader.readLong(tagOff + 4 + 8) * 1000L;
-                            // There are also optional UID and GID fields in this extra field (currently
-                            // ignored)
+                            // There are also optional UID and GID fields in this extra field (currently ignored)
 
                         } else if (tag == 0x7855) {
                             // Info-ZIP Unix UID and GID fields (currently ignored)
@@ -742,10 +725,9 @@ public class LogicalZipFile extends ZipFileSlice {
                                 throw new IOException("Unknown Unicode entry name format " + version
                                         + " in extra field: " + entryNameSanitized);
                             } else if (size > 5) {
-                                // Replace non-Unicode entry name with Unicode version. The data area of this
-                                // extra field is version(1) + nameCRC32(4) + name, so the name starts 5 bytes
-                                // into the data area (i.e. 9 bytes after the tag), and is (size - 5) bytes
-                                // long.
+                                // Replace non-Unicode entry name with Unicode version. The data area of this extra
+                                // field is version(1) + nameCRC32(4) + name, so the name starts 5 bytes into the
+                                // data area (i.e. 9 bytes after the tag), and is (size - 5) bytes long.
                                 try {
                                     entryNameSanitized = cenReader.readString(tagOff + 9, size - 5);
                                 } catch (final IllegalArgumentException e) {
@@ -761,8 +743,7 @@ public class LogicalZipFile extends ZipFileSlice {
                 var lastModifiedTimeMSDOS = 0;
                 var lastModifiedDateMSDOS = 0;
                 if (lastModifiedMillis == 0L) {
-                    // If Unix timestamp was not provided, convert zip entry timestamp from MS-DOS
-                    // format
+                    // If Unix timestamp was not provided, convert zip entry timestamp from MS-DOS format
                     lastModifiedTimeMSDOS = cenReader.readUnsignedShort(entOff + 12);
                     lastModifiedDateMSDOS = cenReader.readUnsignedShort(entOff + 14);
                 }
@@ -827,8 +808,7 @@ public class LogicalZipFile extends ZipFileSlice {
             parseManifest(manifestZipEntry, log);
         }
 
-        // For multi-release jars, drop any older or non-versioned entries that are
-        // masked by the most recent
+        // For multi-release jars, drop any older or non-versioned entries that are masked by the most recent
         // version-specific entry
         if (isMultiReleaseJar) {
             if (log != null) {
@@ -848,10 +828,8 @@ public class LogicalZipFile extends ZipFileSlice {
             // Sort in decreasing order of version in preparation for version masking
             CollectionUtils.sortIfNotEmpty(entries);
 
-            // Mask files that appear in multiple version sections, so that there is only
-            // one entry
-            // for each unversioned path, i.e. the versioned path with the highest version
-            // number
+            // Mask files that appear in multiple version sections, so that there is only one entry for each
+            // unversioned path, i.e. the versioned path with the highest version number
             final List<FastZipEntry> unversionedZipEntriesMasked = new ArrayList<>(entries.size());
             final Map<String, String> unversionedPathToVersionedPath = new HashMap<>();
             for (final FastZipEntry versionedZipEntry : entries) {

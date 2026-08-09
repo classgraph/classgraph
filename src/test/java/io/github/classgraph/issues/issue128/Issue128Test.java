@@ -66,8 +66,7 @@ public class Issue128Test {
                 .enableRemoteJarScanning().scan()) {
             final var filesInsideLevel3 = scanResult.getAllResources().getPaths();
             if (filesInsideLevel3.isEmpty()) {
-                // If there were no files inside jar, it is possible that remote jar could not
-                // be downloaded
+                // If there were no files inside jar, it is possible that remote jar could not be downloaded
                 try {
                     final var connection = (HttpURLConnection) jarURL.openConnection();
                     connection.setRequestMethod("GET");

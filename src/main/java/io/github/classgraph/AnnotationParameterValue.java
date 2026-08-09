@@ -119,8 +119,7 @@ public class AnnotationParameterValue extends ScanResultObject
      */
     @Override
     protected String getClassName() {
-        // getClassInfo() is not valid for this type, so getClassName() does not need to
-        // be implemented
+        // getClassInfo() is not valid for this type, so getClassName() does not need to be implemented
         throw new UnsupportedOperationException("getClassName() cannot be called here");
     }
 
@@ -235,8 +234,8 @@ public class AnnotationParameterValue extends ScanResultObject
             final var eltTypeName = getArrayValueTypeName(arrayValue, annotationClassInfo);
             final var eltType = ARRAY_ELEMENT_TYPES.get(eltTypeName);
             if (eltType != null) {
-                // The array holds boxed values of a primitive type, or strings -- convert it to
-                // an array of that element type
+                // The array holds boxed values of a primitive type, or strings -- convert it to an array of that
+                // element type
                 final var typedArray = Array.newInstance(eltType, arrayValue.length);
                 for (var i = 0; i < arrayValue.length; i++) {
                     final var elt = arrayValue[i];
@@ -263,8 +262,7 @@ public class AnnotationParameterValue extends ScanResultObject
      * @return the name of the array element type.
      */
     private String getArrayValueTypeName(final Object[] arrayValue, final @Nullable ClassInfo annotationClassInfo) {
-        // Find the method in the annotation class with the same name as the annotation
-        // parameter.
+        // Find the method in the annotation class with the same name as the annotation parameter.
         final var annotationMethodList = annotationClassInfo == null || annotationClassInfo.methodInfo == null
                 ? null
                 : annotationClassInfo.methodInfo.get(name);
@@ -274,8 +272,7 @@ public class AnnotationParameterValue extends ScanResultObject
                 throw new IllegalArgumentException("Duplicated annotation parameter method " + name + "()"
                         + " in annotation class " + annotationClassInfo.getName());
             }
-            // Get the result type of the method with the same name as the annotation
-            // parameter
+            // Get the result type of the method with the same name as the annotation parameter
             final var annotationMethodResultTypeSig = annotationMethodList.get(0).getTypeSignatureOrTypeDescriptor()
                     .getResultType();
             // The result type has to be an array type
@@ -296,9 +293,8 @@ public class AnnotationParameterValue extends ScanResultObject
                 return baseTypeSignature.getTypeString();
             }
         } else {
-            // Could not find a method with this name -- this is an external class.
-            // Find first non-null element in the array, and use its type as the element type
-            // of the array.
+            // Could not find a method with this name -- this is an external class. Find first non-null element in
+            // the array, and use its type as the element type of the array.
             for (final Object elt : arrayValue) {
                 if (elt != null) {
                     // Primitive typed arrays will be turned into arrays of boxed types
@@ -321,9 +317,8 @@ public class AnnotationParameterValue extends ScanResultObject
                     } else if (elt instanceof Float) {
                         return "float";
                     } else {
-                        // The element type could not be determined (the element is an enum value, a
-                        // class reference or a nested annotation) -- fall through and use Object as
-                        // the element type
+                        // The element type could not be determined (the element is an enum value, a class reference
+                        // or a nested annotation) -- fall through and use Object as the element type
                         break;
                     }
                 }
@@ -352,10 +347,8 @@ public class AnnotationParameterValue extends ScanResultObject
         if (Objects.deepEquals(value, other.value)) {
             return 0;
         }
-        // Use toString() order (which can be slow) as a last-ditch effort -- only
-        // happens
-        // if the annotation has multiple parameters of the same name but different
-        // value.
+        // Use toString() order (which can be slow) as a last-ditch effort -- only happens if the annotation has
+        // multiple parameters of the same name but different value.
         final var p0 = value;
         final var p1 = other.value;
         return p0 == null || p1 == null ? (p0 == null ? 0 : 1) - (p1 == null ? 0 : 1)
@@ -375,8 +368,7 @@ public class AnnotationParameterValue extends ScanResultObject
         if (!(obj instanceof final AnnotationParameterValue other)) {
             return false;
         }
-        // N.B. use deepEquals, so that array-valued parameters are compared by their
-        // contents, not by identity
+        // N.B. use deepEquals, so that array-valued parameters are compared by their contents, not by identity
         return this.name.equals(other.name) && Objects.deepEquals(value, other.value);
     }
 
@@ -387,8 +379,8 @@ public class AnnotationParameterValue extends ScanResultObject
      */
     @Override
     public int hashCode() {
-        // N.B. wrap the value in an array, so that Arrays#deepHashCode hashes an
-        // array-valued parameter by its contents, matching equals(Object)
+        // N.B. wrap the value in an array, so that Arrays#deepHashCode hashes an array-valued parameter by its
+        // contents, matching equals(Object)
         return name.hashCode() * 31 + Arrays.deepHashCode(new Object[] { value });
     }
 

@@ -208,8 +208,7 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
                 remove(i);
             }
         }
-        // Add the component annotations in each of the parameters of the repeatable
-        // annotation
+        // Add the component annotations in each of the parameters of the repeatable annotation
         if (repeatableAnnotations != null) {
             for (final AnnotationInfo repeatableAnnotation : repeatableAnnotations) {
                 final var values = repeatableAnnotation.getParameterValues();
@@ -310,10 +309,8 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
         // Don't get in a cycle
                 && visited.add(annotationClassInfo)) {
             for (final AnnotationInfo metaAnnotationInfo : annotationClassInfo.annotationInfo) {
-                // N.B. read the class name from the AnnotationInfo rather than from its
-                // ClassInfo, since
-                // ClassInfo is null if the meta-annotation's class was not encountered during
-                // the scan
+                // N.B. read the class name from the AnnotationInfo rather than from its ClassInfo, since ClassInfo
+                // is null if the meta-annotation's class was not encountered during the scan
                 final var metaAnnotationClassName = metaAnnotationInfo.getName();
                 // Don't treat java.lang.annotation annotations as meta-annotations
                 if (!metaAnnotationClassName.startsWith("java.lang.annotation.")) {
@@ -343,9 +340,9 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
         final Set<ClassInfo> reachedAnnotationClasses = new HashSet<>();
         final AnnotationInfoList reachableAnnotationInfo = new AnnotationInfoList(
                 directAnnotationInfo == null ? 2 : directAnnotationInfo.size());
-        // Record how directly each annotation is related to the annotated element, so
-        // that an annotation that is reached in more than one way is listed only once,
-        // and is sorted according to the most direct of those ways #559
+        // Record how directly each annotation is related to the annotated element, so that an annotation that is
+        // reached in more than one way is listed only once, and is sorted according to the most direct of those
+        // ways #559
         final Map<AnnotationInfo, Directness> directness = new IdentityHashMap<>();
         if (directAnnotationInfo != null) {
             for (final AnnotationInfo dai : directAnnotationInfo) {
@@ -383,9 +380,9 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
         CollectionUtils.sortIfNotEmpty(directAnnotationInfoSorted);
         final AnnotationInfoList annotationInfoList = new AnnotationInfoList(reachableAnnotationInfo,
                 directAnnotationInfoSorted);
-        // Sort by name, then put the most directly related of any annotations that share
-        // a name first, so that AnnotationInfoList#get(String) returns the annotation
-        // that is directly present on the annotated element, if there is one #559
+        // Sort by name, then put the most directly related of any annotations that share a name first, so that
+        // AnnotationInfoList#get(String) returns the annotation that is directly present on the annotated element,
+        // if there is one #559
         CollectionUtils.sortIfNotEmpty(annotationInfoList,
                 Comparator.comparing(AnnotationInfo::getName).thenComparing(
                         (final AnnotationInfo ai) -> directness.getOrDefault(ai, Directness.META_ANNOTATION))
@@ -404,11 +401,9 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
      * @return The list of directly-related annotations.
      */
     public AnnotationInfoList directOnly() {
-        // If directlyRelatedAnnotations == null, this is already a list of direct
-        // annotations (the list of
-        // AnnotationInfo objects created when the classfile is read). Otherwise return
-        // a new list consisting
-        // of only the direct annotations.
+        // If directlyRelatedAnnotations == null, this is already a list of direct annotations (the list of
+        // AnnotationInfo objects created when the classfile is read). Otherwise return a new list consisting of
+        // only the direct annotations.
         return this.directlyRelatedAnnotations == null ? this
                 // Make .directOnly() idempotent
                 : new AnnotationInfoList(directlyRelatedAnnotations, /* directlyRelatedAnnotations = */ null);

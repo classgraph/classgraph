@@ -131,8 +131,7 @@ public class InterruptionChecker {
         if (executionException != null) {
             throw executionException;
         }
-        // If this thread or another thread has been interrupted, throw
-        // InterruptedException
+        // If this thread or another thread has been interrupted, throw InterruptedException
         if (checkAndReturn()) {
             throw new InterruptedException();
         }

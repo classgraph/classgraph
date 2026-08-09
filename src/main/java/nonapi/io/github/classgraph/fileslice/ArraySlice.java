@@ -121,8 +121,7 @@ public class ArraySlice extends Slice {
                 return NestedJarHandler.readAllBytesAsArray(inputStream, inflatedLengthHint);
             }
         } else if (sliceStartPos == 0L && sliceLength == arr.length) {
-            // Fast path -- return whole array, if the array is the whole slice and is not
-            // deflated
+            // Fast path -- return whole array, if the array is the whole slice and is not deflated
             return arr;
         } else {
             // Copy range of array, if it is a slice and it is not deflated

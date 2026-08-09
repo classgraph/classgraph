@@ -37,8 +37,8 @@ import io.github.classgraph.ClassInfo;
 
 public class Issue148Test {
     /** The anonymous inner class 1. */
-    // N.B. this must remain an anonymous inner class rather than a lambda -- the test asserts on the
-    // Issue148Test$1 classfile that the compiler generates for it.
+    // N.B. this must remain an anonymous inner class rather than a lambda -- the test asserts on the Issue148Test$1
+    // classfile that the compiler generates for it.
     final Runnable anonymousInnerClass1 = new Runnable() {
         @Override
         public void run() {

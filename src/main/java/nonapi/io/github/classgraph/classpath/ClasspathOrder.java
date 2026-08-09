@@ -266,15 +266,12 @@ public class ClasspathOrder {
      */
     private boolean addClasspathEntry(final Object pathElement, final String pathElementStr,
             final @Nullable ClassLoader classLoader, final ScanSpec scanSpec) {
-        // Check if classpath element path ends with an automatic package root. If so,
-        // strip it off to
-        // eliminate duplication, since automatic package roots are detected
-        // automatically (#435)
+        // Check if classpath element path ends with an automatic package root. If so, strip it off to eliminate
+        // duplication, since automatic package roots are detected automatically (#435)
         var pathElementStrWithoutSuffix = pathElementStr;
         var hasSuffix = false;
         for (final String packageRootPrefix : currPackageRootPrefixes) {
-            // Convert package root prefix to a suffix, e.g. "BOOT-INF/classes/" ->
-            // "!/BOOT-INF/classes"
+            // Convert package root prefix to a suffix, e.g. "BOOT-INF/classes/" -> "!/BOOT-INF/classes"
             final var suffix = "!/" + packageRootPrefix.substring(0, packageRootPrefix.length() - 1);
             if (pathElementStr.endsWith(suffix)) {
                 // Strip off automatic package root suffix
@@ -316,9 +313,8 @@ public class ClasspathOrder {
                     pathElementStrWithoutSuffix);
             if (scanSpec.overrideClasspath == null
                     && SystemJarFinder.getJreLibOrExtJars().contains(pathElementStrResolved)) {
-                // JRE lib and ext jars are handled separately, so reject them as duplicates if
-                // they are
-                // returned by a system classloader
+                // JRE lib and ext jars are handled separately, so reject them as duplicates if they are returned by
+                // a system classloader
                 return false;
             }
             if (classpathEntryUniqueResolvedPaths.add(pathElementStrResolved)) {
@@ -353,12 +349,10 @@ public class ClasspathOrder {
         String pathElementStr;
         if (pathElement instanceof final Path pathElementPath) {
             try {
-                // Path objects have to be converted to URIs before calling .toString(),
-                // otherwise scheme is dropped
+                // Path objects have to be converted to URIs before calling .toString(), otherwise scheme is dropped
                 pathElementStr = pathElementPath.toUri().toString();
-                // Windows paths ("C:\x\y") are encoded as "file:///C:/x/y" by
-                // Path.toUri().toString(),
-                // but then Path.of() can't handle paths of the form "///C:/x/y"
+                // Windows paths ("C:\x\y") are encoded as "file:///C:/x/y" by Path.toUri().toString(), but then
+                // Path.of() can't handle paths of the form "///C:/x/y"
                 if (pathElementStr.startsWith("file:///")) {
                     pathElementStr = pathElementPath.toFile().toString();
                 }
@@ -386,9 +380,8 @@ public class ClasspathOrder {
         } else {
             final var m1 = schemeMatcher.matcher(pathElementStr);
             if (m1.find()) {
-                // Path element string is URL with scheme other than `[jar:]file:`, so need to
-                // actually
-                // parse URL, since the scheme may be a custom scheme
+                // Path element string is URL with scheme other than `[jar:]file:`, so need to actually parse URL,
+                // since the scheme may be a custom scheme
                 try {
                     pathElementURL = pathElement instanceof final URL url ? url
                             : pathElement instanceof final URI uri ? uri.toURL()
@@ -449,8 +442,8 @@ public class ClasspathOrder {
             }
         }
         if (hasWildcardSuffix) {
-            // Has wildcard path element (allowable for local classpaths as of JDK 6)
-            // Apply classpath element filters, if any
+            // Has wildcard path element (allowable for local classpaths as of JDK 6). Apply classpath element
+            // filters, if any
             final var baseDirPath = pathElementStr;
             final var baseDirPathResolved = FastPathResolver.resolve(FileUtils.currDirPath(), baseDirPath);
             if (!filter(pathElementURL, baseDirPath)
@@ -533,8 +526,7 @@ public class ClasspathOrder {
                 return false;
             }
             if (pathElementResolved.startsWith("//")) {
-                // Handle Windows UNC paths (#705).
-                // File supports UNC paths directly:
+                // Handle Windows UNC paths (#705). File supports UNC paths directly:
                 // https://wiki.eclipse.org/Eclipse/UNC_Paths#Programming_with_UNC_paths
                 try {
                     final File file = new File(pathElementResolved);
@@ -664,9 +656,8 @@ public class ClasspathOrder {
                         valid |= addClasspathEntryObject(elt, classLoader, scanSpec, log);
                     }
                 } else {
-                    // Try simply calling toString() as a final fallback, to handle String objects,
-                    // or to
-                    // try to handle anything else
+                    // Try simply calling toString() as a final fallback, to handle String objects, or to try to
+                    // handle anything else
                     valid |= addClasspathPathStr(pathObject.toString(), classLoader, scanSpec, log);
                 }
             }

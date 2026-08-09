@@ -144,8 +144,7 @@ class ClasspathElementDir extends ClasspathElement {
                 for (final String packageRootPrefix : packageRootPrefixes) {
                     final var packageRoot = classpathEltPath.resolve(packageRootPrefix);
                     if (FileUtils.canReadAndIsDir(packageRoot)) {
-                        // "classes/" and "test-classes/" are legal package names, so check that the
-                        // candidate
+                        // "classes/" and "test-classes/" are legal package names, so check that the candidate
                         // package root is not simply a package with the same name (#929)
                         final var disprovingClassName = getClassNameDisprovingPackageRoot(packageRoot);
                         if (disprovingClassName != null) {
@@ -231,8 +230,7 @@ class ClasspathElementDir extends ClasspathElement {
     private static @Nullable String getClassNameDisprovingPackageRoot(final Path packageRoot) {
         final var classfilePath = findFirstClassfile(packageRoot);
         if (classfilePath == null) {
-            // There are no classfiles beneath the candidate package root, so there is
-            // nothing to check
+            // There are no classfiles beneath the candidate package root, so there is nothing to check
             return null;
         }
         final var classfileRelativePath = packageRoot.relativize(classfilePath).toString()
@@ -241,8 +239,7 @@ class ClasspathElementDir extends ClasspathElement {
                 var classfileReader = new ClassfileReader(inputStream, /* resourceToClose = */ null)) {
             return getClassNameDisprovingPackageRoot(classfileReader, classfileRelativePath);
         } catch (final IOException | SecurityException e) {
-            // If the classfile cannot be read, give the candidate package root the benefit
-            // of the doubt
+            // If the classfile cannot be read, give the candidate package root the benefit of the doubt
             return null;
         }
     }
@@ -431,8 +428,7 @@ class ClasspathElementDir extends ClasspathElement {
      *            the log node, or null to skip logging
      */
     private void scanPathRecursively(final Path path, final @Nullable LogNode log) {
-        // See if this canonical path has been scanned before, so that recursive
-        // scanning doesn't get stuck in an
+        // See if this canonical path has been scanned before, so that recursive scanning doesn't get stuck in an
         // infinite loop due to symlinks
         final Path canonicalPath;
         try {
@@ -467,12 +463,9 @@ class ClasspathElementDir extends ClasspathElement {
             return;
         }
 
-        // Ignore versioned sections in exploded jars -- they are only supposed to be
-        // used in jars.
-        // TODO: is it necessary to support multi-versioned exploded jars anyway? If so,
-        // all the paths in a
-        // directory classpath entry will have to be pre-scanned and masked, as happens
-        // in ClasspathElementZip.
+        // Ignore versioned sections in exploded jars -- they are only supposed to be used in jars.
+        // TODO: is it necessary to support multi-versioned exploded jars anyway? If so, all the paths in a
+        // directory classpath entry will have to be pre-scanned and masked, as happens in ClasspathElementZip.
         if (!scanSpec.enableMultiReleaseVersions
                 && dirRelativePathStr.startsWith(LogicalZipFile.MULTI_RELEASE_PATH_PREFIX)) {
             if (log != null) {
@@ -524,11 +517,9 @@ class ClasspathElementDir extends ClasspathElement {
         // Determine whether this is a modular jar
         final var isModularJar = getModuleName() != null;
 
-        // Only scan files in directory if directory is not only an ancestor of an
-        // accepted path
+        // Only scan files in directory if directory is not only an ancestor of an accepted path
         if (parentMatchStatus != ScanSpecPathMatch.ANCESTOR_OF_ACCEPTED_PATH) {
-            // Do preorder traversal (files in dir, then subdirs), to reduce filesystem
-            // cache misses
+            // Do preorder traversal (files in dir, then subdirs), to reduce filesystem cache misses
             final var pathsIterator = pathsInDir.iterator();
             while (pathsIterator.hasNext()) {
                 final var subPath = pathsIterator.next();
@@ -538,9 +529,8 @@ class ClasspathElementDir extends ClasspathElement {
                     pathsIterator.remove();
                     final var subPathRelative = classpathEltPath.relativize(subPath);
                     final var subPathRelativeStr = FastPathResolver.resolve(subPathRelative.toString());
-                    // If this is a modular jar, ignore all classfiles other than
-                    // "module-info.class" in the
-                    // default package, since these are disallowed.
+                    // If this is a modular jar, ignore all classfiles other than "module-info.class" in the default
+                    // package, since these are disallowed.
                     if (isModularJar && isDefaultPackage && subPathRelativeStr.endsWith(".class")
                             && !"module-info.class".equals(subPathRelativeStr)) {
                         continue;
@@ -574,8 +564,7 @@ class ClasspathElementDir extends ClasspathElement {
                 }
             }
         } else if (scanSpec.enableClassInfo && "/".equals(dirRelativePathStr)) {
-            // Always check for module descriptor in package root, even if package root
-            // isn't in accept
+            // Always check for module descriptor in package root, even if package root isn't in accept
             final var pathsIterator = pathsInDir.iterator();
             while (pathsIterator.hasNext()) {
                 final var subPath = pathsIterator.next();

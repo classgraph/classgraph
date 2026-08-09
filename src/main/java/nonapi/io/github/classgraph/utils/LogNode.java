@@ -48,17 +48,14 @@ import org.jspecify.annotations.Nullable;
  * retain a sane order. The order may also be made deterministic by specifying a sort key for log entries.
  */
 public final class LogNode {
-    // Mitigate log4j2 vulnerability (CVE-2021-44228), in case log4j is added to the
-    // classpath as the logger
+    // Mitigate log4j2 vulnerability (CVE-2021-44228), in case log4j is added to the classpath as the logger
     // https://blog.cloudflare.com/inside-the-log4j2-vulnerability-cve-2021-44228/
     static {
         try {
             System.getProperties().setProperty("log4j2.formatMsgNoLookups", "true");
         } catch (final SecurityException e) {
-            // Ignore -- if the system properties cannot be read or written, the mitigation
-            // cannot be applied,
-            // but this must not throw ExceptionInInitializerError, which would make LogNode
-            // unusable
+            // Ignore -- if the system properties cannot be read or written, the mitigation cannot be applied, but
+            // this must not throw ExceptionInInitializerError, which would make LogNode unusable
         }
     }
 
@@ -275,10 +272,8 @@ public final class LogNode {
                 + String.format("%09d", sortKeyUniqueSuffix.getAndIncrement());
         final LogNode newChild = new LogNode(newSortKey, msg, elapsedTimeNanos, exception);
         newChild.parent = this;
-        // Make the sort key unique, so that log entries are not clobbered if keys are
-        // reused; increment unique
-        // suffix with each new log entry, so that ties are broken in chronological
-        // order.
+        // Make the sort key unique, so that log entries are not clobbered if keys are reused; increment unique
+        // suffix with each new log entry, so that ties are broken in chronological order.
         children.put(newSortKey, newChild);
         return newChild;
     }

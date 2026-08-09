@@ -339,8 +339,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
         try {
             return dir.toPath().toRealPath().toString();
         } catch (final IOException | RuntimeException e) {
-            // The directory does not exist, or the path is not valid for the default
-            // filesystem
+            // The directory does not exist, or the path is not valid for the default filesystem
             return dir.getCanonicalPath();
         }
     }
@@ -367,10 +366,8 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      */
     private static String getFileIdentityKey(final URI uri, final Map<String, String> canonicalDirPathCache) {
         final var uriStr = uri.toString();
-        // Find the file part of the URI: "file:<path>", or "jar:file:<path>!/<entry>"
-        // (for a jar within a jar,
-        // <path> is the path of the outermost jar, and everything from the first "!/"
-        // is part of the entry)
+        // Find the file part of the URI: "file:<path>", or "jar:file:<path>!/<entry>" (for a jar within a jar,
+        // <path> is the path of the outermost jar, and everything from the first "!/" is part of the entry)
         final var filePartStartIdx = uriStr.startsWith("file:") ? 5 : uriStr.startsWith("jar:file:") ? 9 : -1;
         if (filePartStartIdx < 0) {
             // Not a file URI, so there is no path to canonicalize
@@ -439,19 +436,16 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
                 try {
                     uri = res.getURI();
                 } catch (final RuntimeException e) {
-                    // If the URI of a resource cannot be determined, it cannot be compared to any
-                    // other
-                    // resource's URI, so keep the resource rather than masking it
+                    // If the URI of a resource cannot be determined, it cannot be compared to any other resource's
+                    // URI, so keep the resource rather than masking it
                     uri = null;
                 }
                 isMasked = uri != null
                         && !fileIdentityKeysFound.add(getFileIdentityKey(uri, canonicalDirPathCache));
                 if (isMasked) {
                     if (maskedResources == null) {
-                        // Compare by identity, since Resource#equals compares string representations,
-                        // and the
-                        // masked resource and the resource that masks it are in different classpath
-                        // elements
+                        // Compare by identity, since Resource#equals compares string representations, and the
+                        // masked resource and the resource that masks it are in different classpath elements
                         maskedResources = Collections.newSetFromMap(new IdentityHashMap<>());
                     }
                     maskedResources.add(res);
@@ -497,26 +491,20 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      */
     void maskClassfiles(final int classpathIdx, final Set<String> classpathRelativePathsFound,
             final @Nullable LogNode log) {
-        // Find relative paths that occur more than once in the classpath / module path.
-        // Usually duplicate relative paths occur only between classpath / module path
-        // elements, not within,
-        // but actually there is no restriction for paths within a zipfile to be unique,
-        // and in fact
-        // zipfiles in the wild do contain the same classfiles multiple times with the
-        // same exact path,
-        // e.g.: xmlbeans-2.6.0.jar!org/apache/xmlbeans/xml/stream/Location.class
+        // Find relative paths that occur more than once in the classpath / module path. Usually duplicate relative
+        // paths occur only between classpath / module path elements, not within, but actually there is no
+        // restriction for paths within a zipfile to be unique, and in fact zipfiles in the wild do contain the same
+        // classfiles multiple times with the same exact path, e.g.:
+        // xmlbeans-2.6.0.jar!org/apache/xmlbeans/xml/stream/Location.class
         final List<Resource> acceptedClassfileResourcesFiltered = new ArrayList<>(
                 acceptedClassfileResources.size());
         var foundMasked = false;
         for (final Resource res : acceptedClassfileResources) {
             final var pathRelativeToPackageRoot = res.getPath();
-            // Don't mask module-info.class or package-info.class, these are read for every
-            // module/package,
-            // and they don't result in a ClassInfo object, so there will be no duplicate
-            // ClassInfo objects
-            // created, even if they are encountered multiple times. Instead, any
-            // annotations on modules or
-            // packages are merged into the appropriate ModuleInfo / PackageInfo object.
+            // Don't mask module-info.class or package-info.class, these are read for every module/package, and they
+            // don't result in a ClassInfo object, so there will be no duplicate ClassInfo objects created, even if
+            // they are encountered multiple times. Instead, any annotations on modules or packages are merged into
+            // the appropriate ModuleInfo / PackageInfo object.
             if (!"module-info.class".equals(pathRelativeToPackageRoot)
                     && !"package-info.class".equals(pathRelativeToPackageRoot)
                     && !pathRelativeToPackageRoot.endsWith("/package-info.class")
@@ -534,11 +522,9 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
             }
         }
         if (foundMasked) {
-            // Remove masked (duplicated) paths. N.B. this replaces the concurrent
-            // collection with a non-concurrent
-            // collection, but this is the last time the collection is changed during a
-            // scan, and this method is
-            // run from a single thread.
+            // Remove masked (duplicated) paths. N.B. this replaces the concurrent collection with a non-concurrent
+            // collection, but this is the last time the collection is changed during a scan, and this method is run
+            // from a single thread.
             acceptedClassfileResources = acceptedClassfileResourcesFiltered;
         }
     }
@@ -564,8 +550,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
         final var isClassFile = FileUtils.isClassfile(path);
         var isAccepted = false;
         if (isClassFile) {
-            // Check classfile scanning is enabled, and classfile is not specifically
-            // rejected
+            // Check classfile scanning is enabled, and classfile is not specifically rejected
             if (scanSpec.enableClassInfo && !scanSpec.classfilePathAcceptReject.isRejected(path)) {
                 // ClassInfo is enabled, and found an accepted classfile
                 acceptedClassfileResources.add(resource);
@@ -577,14 +562,12 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
         }
 
         if (!isClassfileOnly) {
-            // Add resource to list of accepted resources, whether for a classfile or
-            // non-classfile resource
+            // Add resource to list of accepted resources, whether for a classfile or non-classfile resource
             acceptedResources.add(resource);
         }
 
-        // Write to log if enabled, and as long as classfile scanning is not disabled,
-        // and this is not
-        // a rejected classfile
+        // Write to log if enabled, and as long as classfile scanning is not disabled, and this is not a rejected
+        // classfile
         if (log != null && isAccepted) {
             final var type = isClassFile ? "classfile" : "resource";
             final var logStr = switch (parentMatchStatus) {
@@ -593,8 +576,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
             case AT_ACCEPTED_CLASS_PACKAGE -> "Found specifically-accepted " + type + ": ";
             default -> "Found accepted " + type + ": ";
             };
-            // Precede log entry sort key with "0:file:" so that file entries come before
-            // dir entries for
+            // Precede log entry sort key with "0:file:" so that file entries come before dir entries for
             // ClasspathElementDir classpath elements
             resource.scanLog = log.log("0:" + path,
                     logStr + path + (path.equals(resource.getPathRelativeToClasspathElement()) ? ""

@@ -149,10 +149,8 @@ class PhysicalZipFile {
             final NestedJarHandler nestedJarHandler, final @Nullable LogNode log) throws IOException {
         this.nestedJarHandler = nestedJarHandler;
         this.pathStr = pathStr;
-        // Try downloading the InputStream to a byte array. If this succeeds, this will
-        // result in an ArraySlice.
-        // If it fails, the InputStream will be spilled to disk, resulting in a
-        // FileSlice.
+        // Try downloading the InputStream to a byte array. If this succeeds, this will result in an ArraySlice. If
+        // it fails, the InputStream will be spilled to disk, resulting in a FileSlice.
         this.slice = nestedJarHandler.readAllBytesWithSpilloverToDisk(inputStream, /* tempFileBaseName = */ pathStr,
                 inputStreamLengthHint, log);
         this.file = this.slice instanceof final FileSlice fileSlice ? fileSlice.file : null;
@@ -206,10 +204,8 @@ class PhysicalZipFile {
      */
     @Override
     public int hashCode() {
-        // (Use pathStr for identity, not file -- file is null for Path-backed zipfiles,
-        // and is the outermost
-        // file, shared between all nested jars extracted to RAM from the same outer
-        // zipfile)
+        // (Use pathStr for identity, not file -- file is null for Path-backed zipfiles, and is the outermost file,
+        // shared between all nested jars extracted to RAM from the same outer zipfile)
         return Objects.hashCode(pathStr);
     }
 

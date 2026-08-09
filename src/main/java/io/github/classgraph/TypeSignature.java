@@ -97,8 +97,7 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
         }
         final var substituted = substituteTypeVariables(substitutions);
         if (substituted != this) {
-            // Any nodes built during substitution have no ScanResult yet, so getClassInfo()
-            // etc. would fail on them
+            // Any nodes built during substitution have no ScanResult yet, so getClassInfo() etc. would fail on them
             substituted.setScanResult(scanResult);
         }
         return substituted;
@@ -137,8 +136,7 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
         }
         final var classSignature = classInfo.getTypeSignature();
         if (classSignature == null) {
-            // The class has no generic signature, so it supplies no type arguments -- but a
-            // class further up the
+            // The class has no generic signature, so it supplies no type arguments -- but a class further up the
             // hierarchy may still be generic, so keep walking
             addSubstitutions(classInfo.getSuperclass(), substitutions, visited);
             for (final ClassInfo interfaceInfo : classInfo.getAllSuperinterfaces()) {
@@ -146,12 +144,9 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
             }
             return;
         }
-        // A type variable that appears within a class signature has no defining class
-        // name recorded (unlike one in
-        // a method or field signature), so alias the bindings of this class' own type
-        // parameters under the key
-        // that those type variables will look themselves up by, in order to compose
-        // them
+        // A type variable that appears within a class signature has no defining class name recorded (unlike one in
+        // a method or field signature), so alias the bindings of this class' own type parameters under the key that
+        // those type variables will look themselves up by, in order to compose them
         var composeWith = substitutions;
         final var ownTypeParameters = classSignature.getTypeParameters();
         if (!ownTypeParameters.isEmpty()) {
@@ -190,12 +185,9 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
         if (supertypeSignature == null) {
             return;
         }
-        // A reference to a nested class carries a separate list of type arguments for
-        // each level of nesting, e.g.
-        // "Outer<A>.Inner<B>" (and even for a static nested class, where the type
-        // arguments of the reference are
-        // all attached to the last level), so bind the type parameters of each level in
-        // turn
+        // A reference to a nested class carries a separate list of type arguments for each level of nesting, e.g.
+        // "Outer<A>.Inner<B>" (and even for a static nested class, where the type arguments of the reference are
+        // all attached to the last level), so bind the type parameters of each level in turn
         final StringBuilder classNameBuf = new StringBuilder(supertypeSignature.getBaseClassName());
         addTypeArgumentSubstitutions(supertypeSignature, classNameBuf.toString(),
                 supertypeSignature.getTypeArguments(), substitutions, composeWith);
@@ -232,8 +224,7 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
         }
         final var classInfo = supertypeSignature.scanResult.getClassInfo(className);
         if (classInfo == null) {
-            // The class was not encountered during scanning, so its type parameters are
-            // unknown
+            // The class was not encountered during scanning, so its type parameters are unknown
             return;
         }
         final var classSignature = classInfo.getTypeSignature();
@@ -242,10 +233,8 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
             return;
         }
         for (var i = 0; i < typeParameters.size(); i++) {
-            // Compose with the substitutions already collected from the classes below this
-            // one, so that
-            // "class Derived extends Mid<String>" and "class Mid<U> extends Base<U>" map
-            // Base's T to String
+            // Compose with the substitutions already collected from the classes below this one, so that "class
+            // Derived extends Mid<String>" and "class Mid<U> extends Base<U>" map Base's T to String
             substitutions.put(substitutionKey(className, typeParameters.get(i).getName()),
                     typeArguments.get(i).substituteTypeVariables(composeWith));
         }

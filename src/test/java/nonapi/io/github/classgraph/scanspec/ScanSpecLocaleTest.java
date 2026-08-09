@@ -14,8 +14,8 @@ public class ScanSpecLocaleTest {
     public void enableURLSchemeIsLocaleIndependent() {
         final var original = Locale.getDefault();
         try {
-            // Turkish locale: "I".toLowerCase() -> dotless 'ı', so a naive
-            // toLowerCase() turns "FILE" into "fıle" and scheme matching breaks.
+            // Turkish locale: "I".toLowerCase() -> dotless 'ı', so a naive toLowerCase() turns "FILE" into "fıle"
+            // and scheme matching breaks.
             Locale.setDefault(new Locale("tr", "TR"));
             final var scanSpec = new ScanSpec();
             scanSpec.enableURLScheme("FILE");

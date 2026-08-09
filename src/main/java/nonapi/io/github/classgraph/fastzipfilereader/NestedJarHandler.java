@@ -124,22 +124,20 @@ public class NestedJarHandler {
                 throws IOException, InterruptedException {
             ZipFileSlice childZipEntrySlice;
             if (!childZipEntry.isDeflated) {
-                // The child zip entry is a stored nested zipfile -- wrap it in a new
-                // ZipFileSlice.
-                // Hopefully nested zipfiles are stored, not deflated, as this is the fast path.
+                // The child zip entry is a stored nested zipfile -- wrap it in a new ZipFileSlice. Hopefully nested
+                // zipfiles are stored, not deflated, as this is the fast path.
                 childZipEntrySlice = new ZipFileSlice(childZipEntry);
 
             } else {
-                // If child entry is deflated i.e. (for a deflated nested zipfile), must inflate
-                // the contents of the entry before its central directory can be read (most of
-                // the time nested zipfiles are stored, not deflated, so this should be rare)
+                // If child entry is deflated i.e. (for a deflated nested zipfile), must inflate the contents of the
+                // entry before its central directory can be read (most of the time nested zipfiles are stored, not
+                // deflated, so this should be rare)
                 if (log != null) {
                     log.log("Inflating nested zip entry: " + childZipEntry + " ; uncompressed size: "
                             + childZipEntry.uncompressedSize);
                 }
 
-                // Read the InputStream for the child zip entry to a RAM buffer, or spill to
-                // disk if it's too large
+                // Read the InputStream for the child zip entry to a RAM buffer, or spill to disk if it's too large
                 final PhysicalZipFile physicalZipFile = new PhysicalZipFile(childZipEntry.getSlice().open(),
                         childZipEntry.uncompressedSize >= 0L
                                 && childZipEntry.uncompressedSize <= FileUtils.MAX_BUFFER_SIZE
@@ -202,27 +200,23 @@ public class NestedJarHandler {
                 public Entry<LogicalZipFile, String> newInstance(final String nestedJarPathRaw,
                         final @Nullable LogNode log) throws IOException, InterruptedException {
                     final var nestedJarPath = FastPathResolver.resolve(nestedJarPathRaw);
-                    // A '!' is only a nested jar separator if the outermost path component names an
-                    // existing
+                    // A '!' is only a nested jar separator if the outermost path component names an existing
                     // jarfile -- it is otherwise a legal filename character (#903)
                     final var lastPlingIdx = JarUtils.lastIndexOfNestedJarSeparator(nestedJarPath);
                     if (lastPlingIdx < 0) {
-                        // nestedJarPath is a simple file path or URL (i.e. doesn't have any '!'
-                        // sections).
-                        // This is also the last frame of recursion for the 'else' clause below.
+                        // nestedJarPath is a simple file path or URL (i.e. doesn't have any '!' sections). This is
+                        // also the last frame of recursion for the 'else' clause below.
 
-                        // If the path starts with "http://" or "https://" or any other URI/URL scheme,
-                        // download the jar to a temp file or to a ByteBuffer in RAM. ("jar:" and
-                        // "file:"
-                        // have already been stripped from any URL/URI.)
+                        // If the path starts with "http://" or "https://" or any other URI/URL scheme, download the
+                        // jar to a temp file or to a ByteBuffer in RAM. ("jar:" and "file:" have already been
+                        // stripped from any URL/URI.)
                         final var isURL = JarUtils.URL_SCHEME_PATTERN.matcher(nestedJarPath).matches();
                         PhysicalZipFile physicalZipFile;
                         if (isURL) {
                             final var scheme = nestedJarPath.substring(0, nestedJarPath.indexOf(':'));
                             if (scanSpec.allowedURLSchemes == null
                                     || !scanSpec.allowedURLSchemes.contains(scheme)) {
-                                // No URL schemes other than "file:" (with optional "jar:" prefix) allowed
-                                // (these
+                                // No URL schemes other than "file:" (with optional "jar:" prefix) allowed (these
                                 // schemes were already stripped by FastPathResolver.resolve(nestedJarPathRaw))
                                 throw new IOException("Scanning of URL scheme \"" + scheme
                                         + "\" has not been enabled -- cannot scan classpath element: "
@@ -272,12 +266,9 @@ public class NestedJarHandler {
                         childPath = FileUtils.sanitizeEntryPath(childPath, /* removeInitialSlash = */ true,
                                 /* removeFinalSlash = */ true);
 
-                        // Recursively remove one '!' section at a time, back towards the beginning of
-                        // the URL or
-                        // file path. At the last frame of recursion, the toplevel jarfile will be
-                        // reached and
-                        // returned. The recursion is guaranteed to terminate because parentPath gets
-                        // one
+                        // Recursively remove one '!' section at a time, back towards the beginning of the URL or
+                        // file path. At the last frame of recursion, the toplevel jarfile will be reached and
+                        // returned. The recursion is guaranteed to terminate because parentPath gets one
                         // '!'-section shorter with each recursion frame.
                         Entry<LogicalZipFile, String> parentLogicalZipFileAndPackageRoot;
                         try {
@@ -289,8 +280,7 @@ public class NestedJarHandler {
                             throw new IOException("Could not get parent logical zipfile " + parentPath, e);
                         }
 
-                        // Only the last item in a '!'-delimited list can be a non-jar path, so the
-                        // parent must
+                        // Only the last item in a '!'-delimited list can be a non-jar path, so the parent must
                         // always be a jarfile.
                         final var parentLogicalZipFile = parentLogicalZipFileAndPackageRoot.getKey();
 
@@ -303,18 +293,15 @@ public class NestedJarHandler {
                         }
                         FastZipEntry childZipEntry = null;
                         if (!isDirectory) {
-                            // If child path doesn't end with a slash, see if there's a non-directory entry
-                            // with a name matching the child path (LogicalZipFile discards directory
-                            // entries
-                            // ending with a slash when reading the central directory of a zipfile).
+                            // If child path doesn't end with a slash, see if there's a non-directory entry with a
+                            // name matching the child path (LogicalZipFile discards directory entries ending with a
+                            // slash when reading the central directory of a zipfile).
                             // N.B. We perform an O(N) search here because we assume the number of classpath
-                            // elements containing "!" sections is relatively small compared to the total
-                            // number
-                            // of entries in all jarfiles (i.e. building a HashMap of entry path to entry
-                            // for
-                            // every jarfile would generally be more expensive than performing this linear
-                            // search, and unless the classpath is enormous, the overall time performance
-                            // will not tend towards O(N^2).
+                            // elements containing "!" sections is relatively small compared to the total number of
+                            // entries in all jarfiles (i.e. building a HashMap of entry path to entry for every
+                            // jarfile would generally be more expensive than performing this linear search, and
+                            // unless the classpath is enormous, the overall time performance will not tend towards
+                            // O(N^2).
                             for (final FastZipEntry entry : parentLogicalZipFile.entries) {
                                 if (entry.entryName.equals(childPath)) {
                                     childZipEntry = entry;
@@ -323,9 +310,8 @@ public class NestedJarHandler {
                             }
                         }
                         if (childZipEntry == null) {
-                            // If there is no non-directory zipfile entry with a name matching the child
-                            // path,
-                            // test to see if any entries in the zipfile have the child path as a dir prefix
+                            // If there is no non-directory zipfile entry with a name matching the child path, test
+                            // to see if any entries in the zipfile have the child path as a dir prefix
                             final var childPathPrefix = childPath + "/";
                             for (final FastZipEntry entry : parentLogicalZipFile.entries) {
                                 if (entry.entryName.startsWith(childPathPrefix)) {
@@ -339,9 +325,9 @@ public class NestedJarHandler {
                         // If path component is a directory, it is a package root
                         if (isDirectory) {
                             if (!childPath.isEmpty()) {
-                                // Add directory path to parent jarfile root relative paths set
-                                // (this has the side effect of adding this parent jarfile root
-                                // to the set of roots for all references to the parent path)
+                                // Add directory path to parent jarfile root relative paths set (this has the side
+                                // effect of adding this parent jarfile root to the set of roots for all references
+                                // to the parent path)
                                 if (log != null) {
                                     log.log("Path " + childPath + " in jarfile " + parentLogicalZipFile
                                             + " is a directory, not a file -- using as package root");
@@ -363,14 +349,10 @@ public class NestedJarHandler {
                                     "Nested jar scanning is disabled -- skipping nested jar " + nestedJarPath);
                         }
 
-                        // The child path corresponds to a non-directory zip entry, so it must be a
-                        // nested jar
-                        // (since non-jar nested files cannot be used on the classpath). Map the nested
-                        // jar as
-                        // a new ZipFileSlice if it is stored, or inflate it to RAM or to a temporary
-                        // file if
-                        // it is deflated, then create a new ZipFileSlice over the temporary file or
-                        // ByteBuffer.
+                        // The child path corresponds to a non-directory zip entry, so it must be a nested jar
+                        // (since non-jar nested files cannot be used on the classpath). Map the nested jar as a new
+                        // ZipFileSlice if it is stored, or inflate it to RAM or to a temporary file if it is
+                        // deflated, then create a new ZipFileSlice over the temporary file or ByteBuffer.
 
                         // Get zip entry as a ZipFileSlice, possibly inflating to disk or RAM
 
@@ -574,8 +556,7 @@ public class NestedJarHandler {
     public boolean removeTemporaryFiles(final @Nullable LogNode log) {
         final var tempFilesCurr = tempFiles;
         if (tempFilesCurr == null || tempFilesCurr.isEmpty()) {
-            // No temp files were created, so there is nothing to remove, and no need to
-            // close anything
+            // No temp files were created, so there is nothing to remove, and no need to close anything
             return false;
         }
         close(log);
@@ -656,9 +637,8 @@ public class NestedJarHandler {
 
         final var scheme = url.getProtocol();
         if (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme)) {
-            // Check if this URL is backed by a filesystem -- if it is, don't download a
-            // copy of the file
-            // over the URL; instead, access the filesystem directly
+            // Check if this URL is backed by a filesystem -- if it is, don't download a copy of the file over the
+            // URL; instead, access the filesystem directly
             try {
                 final var path = Path.of(url.toURI());
                 // Fails with FileSystemNotFoundException if filesystem not registered for URL
@@ -685,14 +665,11 @@ public class NestedJarHandler {
                             "Got response code " + urlConn.httpConn.getResponseCode() + " for URL " + url);
                 }
             } else if ("file".equalsIgnoreCase(url.getProtocol())) {
-                // We ended up with a "file:" URL, which can happen as a result of a custom URL
-                // scheme that
-                // rewrites its URLs into "file:" URLs (see Issue400.java).
+                // We ended up with a "file:" URL, which can happen as a result of a custom URL scheme that rewrites
+                // its URLs into "file:" URLs (see Issue400.java).
                 try {
-                    // If this is a "file:" URL, get the file from the URL and return it as a new
-                    // PhysicalZipFile
-                    // (this avoids going through an InputStream). Throws IOException if the file
-                    // cannot be read.
+                    // If this is a "file:" URL, get the file from the URL and return it as a new PhysicalZipFile
+                    // (this avoids going through an InputStream). Throws IOException if the file cannot be read.
                     final var file = Path.of(url.toURI()).toFile();
                     return new PhysicalZipFile(file, this, log);
 
@@ -708,8 +685,7 @@ public class NestedJarHandler {
             // Fetch content from URL
             final var subLog = log == null ? null : log.log("Downloading jar from URL " + jarURL);
             try (var inputStream = urlConn.conn.getInputStream()) {
-                // Fetch the jar contents from the URL's InputStream. If it doesn't fit in RAM,
-                // spill over to disk.
+                // Fetch the jar contents from the URL's InputStream. If it doesn't fit in RAM, spill over to disk.
                 final PhysicalZipFile physicalZipFile = new PhysicalZipFile(inputStream, contentLengthHint, jarURL,
                         this, subLog);
                 if (subLog != null) {
@@ -859,8 +835,7 @@ public class NestedJarHandler {
                     return 0;
                 }
                 try {
-                    // Keep fetching data from rawInputStream until buffer is full or inflater has
-                    // finished
+                    // Keep fetching data from rawInputStream until buffer is full or inflater has finished
                     var totInflatedBytes = 0;
                     while (!inflater.finished() && totInflatedBytes < len) {
                         final var numInflatedBytes = inflater.inflate(outBuf, off + totInflatedBytes,
@@ -873,9 +848,8 @@ public class NestedJarHandler {
                                 // Read a chunk of data from the raw InputStream
                                 final var numRawBytesRead = rawInputStream.read(buf, 0, buf.length);
                                 if (numRawBytesRead == -1) {
-                                    // An extra dummy byte is needed at the end of the input stream when
-                                    // using the "nowrap" Inflater option.
-                                    // See: ZipFile.ZipFileInflaterInputStream.fill()
+                                    // An extra dummy byte is needed at the end of the input stream when using the
+                                    // "nowrap" Inflater option. See: ZipFile.ZipFileInflaterInputStream.fill()
                                     buf[0] = (byte) 0;
                                     inflater.setInput(buf, 0, 1);
                                 } else {
@@ -909,8 +883,7 @@ public class NestedJarHandler {
                     // (InputStream#skip returns 0 at the end of the stream, it does not return -1)
                     return 0;
                 }
-                // (Use a separate destination buffer -- buf is the inflater's input buffer, see
-                // above)
+                // (Use a separate destination buffer -- buf is the inflater's input buffer, see above)
                 final var skipBuf = new byte[(int) Math.min(numToSkip, INFLATE_BUF_SIZE)];
                 var totBytesSkipped = 0L;
                 while (totBytesSkipped < numToSkip) {
@@ -930,10 +903,9 @@ public class NestedJarHandler {
                 if (closed.get()) {
                     throw new IOException("InputStream is already closed");
                 }
-                // We don't know how many bytes are available, but have to return greater than
-                // zero if there is still input, according to the API contract. Hopefully
-                // nothing
-                // relies on this and ends up reading just one byte at a time.
+                // We don't know how many bytes are available, but have to return greater than zero if there is
+                // still input, according to the API contract. Hopefully nothing relies on this and ends up reading
+                // just one byte at a time.
                 return inflater.finished() ? 0 : 1;
             }
 
@@ -994,15 +966,11 @@ public class NestedJarHandler {
         // Open an InflaterInputStream on the slice
         try (inputStream) {
             if (inputStreamLengthHint <= scanSpec.maxBufferedJarRAMSize) {
-                // inputStreamLengthHint is unknown (-1) or shorter than
-                // scanSpec.maxBufferedJarRAMSize,
-                // so try reading from the InputStream into an array of size
-                // scanSpec.maxBufferedJarRAMSize
-                // or inputStreamLengthHint respectively. Also if inputStreamLengthHint == 0,
-                // which may or
-                // may not be valid, use a buffer size of 16kB to avoid spilling to disk in case
-                // this is
-                // wrong but the file is still small.
+                // inputStreamLengthHint is unknown (-1) or shorter than scanSpec.maxBufferedJarRAMSize, so try
+                // reading from the InputStream into an array of size scanSpec.maxBufferedJarRAMSize or
+                // inputStreamLengthHint respectively. Also if inputStreamLengthHint == 0, which may or may not be
+                // valid, use a buffer size of 16kB to avoid spilling to disk in case this is wrong but the file is
+                // still small.
                 final var bufSize = inputStreamLengthHint == -1L ? scanSpec.maxBufferedJarRAMSize
                         : inputStreamLengthHint == 0L ? 16384
                                 : Math.min((int) inputStreamLengthHint, scanSpec.maxBufferedJarRAMSize);
@@ -1016,26 +984,21 @@ public class NestedJarHandler {
                     bufBytesUsed += bytesRead;
                 }
                 if (bytesRead == 0) {
-                    // If bytesRead was zero rather than -1, we need to probe the InputStream (by
-                    // reading
-                    // one more byte) to see if inputStreamHint underestimated the actual length of
-                    // the stream
+                    // If bytesRead was zero rather than -1, we need to probe the InputStream (by reading one more
+                    // byte) to see if inputStreamHint underestimated the actual length of the stream
                     final var overflowBuf = new byte[1];
                     final var overflowBufBytesUsed = inputStream.read(overflowBuf, 0, 1);
                     if (overflowBufBytesUsed == 1) {
-                        // We were able to read one more byte, so we're still not at the end of the
-                        // stream,
-                        // and we need to spill to disk, because buf is full
+                        // We were able to read one more byte, so we're still not at the end of the stream, and we
+                        // need to spill to disk, because buf is full
                         return spillToDisk(inputStream, tempFileBaseName, buf, overflowBuf, log);
                     }
-                    // else (overflowBufBytesUsed == -1), so reached the end of the stream => don't
-                    // spill to disk
+                    // else (overflowBufBytesUsed == -1), so reached the end of the stream => don't spill to disk
                 }
                 // Successfully reached end of stream
                 if (bufBytesUsed < buf.length) {
-                    // Trim array if needed (this is needed if inputStreamLengthHint was -1, or
-                    // overestimated
-                    // the length of the InputStream)
+                    // Trim array if needed (this is needed if inputStreamLengthHint was -1, or overestimated the
+                    // length of the InputStream)
                     buf = Arrays.copyOf(buf, bufBytesUsed);
                 }
                 // Return buf as new ArraySlice
@@ -1043,8 +1006,7 @@ public class NestedJarHandler {
                         0L, this);
 
             }
-            // inputStreamLengthHint is longer than scanSpec.maxJarRamSize, so immediately
-            // spill to disk
+            // inputStreamLengthHint is longer than scanSpec.maxJarRamSize, so immediately spill to disk
             return spillToDisk(inputStream, tempFileBaseName, /* buf = */ null, /* overflowBuf = */ null, log);
         }
     }
@@ -1082,11 +1044,10 @@ public class NestedJarHandler {
                     + tempFileBaseName + " -> " + tempFile);
         }
 
-        // Copy everything read so far and the rest of the InputStream to the temporary
-        // file
+        // Copy everything read so far and the rest of the InputStream to the temporary file
         try (OutputStream outputStream = new BufferedOutputStream(new FileOutputStream(tempFile))) {
-            // Write already-read buffered bytes to temp file, if anything was read
-            // (buf and overflowBuf always have the same nullity)
+            // Write already-read buffered bytes to temp file, if anything was read (buf and overflowBuf always have
+            // the same nullity)
             if (buf != null && overflowBuf != null) {
                 outputStream.write(buf);
                 outputStream.write(overflowBuf);
@@ -1122,8 +1083,7 @@ public class NestedJarHandler {
             final var bufferSize = uncompressedLengthHint < 1L
                     // If fileSizeHint is zero or unknown, use default buffer size
                     ? DEFAULT_BUFFER_SIZE
-                    // fileSizeHint is just a hint -- limit the max allocated buffer size, so that
-                    // invalid ZipEntry
+                    // fileSizeHint is just a hint -- limit the max allocated buffer size, so that invalid ZipEntry
                     // lengths do not become a memory allocation attack vector
                     : Math.min((int) uncompressedLengthHint, MAX_INITIAL_BUFFER_SIZE);
             var buf = new byte[bufferSize];
@@ -1138,20 +1098,16 @@ public class NestedJarHandler {
                     break;
                 }
 
-                // bytesRead == 0: either the buffer was the correct size and the end of the
-                // stream has been
-                // reached, or the buffer was too small. Need to try reading one more byte to
-                // see which is
-                // the case.
+                // bytesRead == 0: either the buffer was the correct size and the end of the stream has been
+                // reached, or the buffer was too small. Need to try reading one more byte to see which is the case.
                 final var extraByte = inputStream.read();
                 if (extraByte == -1) {
                     // Reached end of stream
                     break;
                 }
 
-                // Haven't reached end of stream yet. Need to grow the buffer (double its size),
-                // and append
-                // the extra byte that was just read.
+                // Haven't reached end of stream yet. Need to grow the buffer (double its size), and append the
+                // extra byte that was just read.
                 if (buf.length == FileUtils.MAX_BUFFER_SIZE) {
                     throw new IOException("InputStream too large to read into array");
                 }
@@ -1228,8 +1184,7 @@ public class NestedJarHandler {
                 openSlices = null;
             }
             inflaterRecycler.forceClose();
-            // Temp files have to be deleted last, after all PhysicalZipFiles are closed and
-            // files are unmapped
+            // Temp files have to be deleted last, after all PhysicalZipFiles are closed and files are unmapped
             final var tempFilesCurr = tempFiles;
             if (tempFilesCurr != null) {
                 final var rmLog = tempFilesCurr.isEmpty() || log == null ? null
@@ -1260,10 +1215,8 @@ public class NestedJarHandler {
 
     /** Call {@code System.runFinalization()}, if it is available in this JDK. */
     public void runFinalizationMethod() {
-        // Read the volatile field once, so that the method invoked cannot differ from
-        // the method tested. Two
-        // threads racing here resolve the same method, so whichever write lands last is
-        // equivalent.
+        // Read the volatile field once, so that the method invoked cannot differ from the method tested. Two
+        // threads racing here resolve the same method, so whichever write lands last is equivalent.
         var runFinalizationMethodCached = runFinalizationMethod;
         if (runFinalizationMethodCached == null) {
             runFinalizationMethodCached = reflectionUtils.staticMethodForNameOrNull("System", "runFinalization");

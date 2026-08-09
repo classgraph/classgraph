@@ -49,8 +49,7 @@ public class CustomURLScheme {
         URL.setURLStreamHandlerFactory(protocol -> SCHEME.equals(protocol) ? new URLStreamHandler() {
             @Override
             protected URLConnection openConnection(final URL url) throws IOException {
-                // Record that the URL was remapped, so we know this custom URLStreamHandler was
-                // called
+                // Record that the URL was remapped, so we know this custom URLStreamHandler was called
                 final var newURL = "file:" + url.getPath();
                 remappedURLs.put(url.toString(), newURL);
                 // Replace scheme with "file://"

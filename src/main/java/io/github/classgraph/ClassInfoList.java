@@ -59,13 +59,10 @@ import org.jspecify.annotations.Nullable;
  */
 public class ClassInfoList extends MappableInfoList<ClassInfo> {
     /** Directly related classes. */
-    // N.B. this is marked transient to keep Scrutinizer happy, since this class
-    // extends ArrayList, which is
-    // Serializable, so all fields must be serializable (and Set is an interface, so
-    // is not Serializable).
-    // Marking this transient will mean direct relationships will be lost on
-    // serialization, but the
-    // Serializable interface is not widely used today anyway.
+    // N.B. this is marked transient to keep Scrutinizer happy, since this class extends ArrayList, which is
+    // Serializable, so all fields must be serializable (and Set is an interface, so is not Serializable). Marking
+    // this transient will mean direct relationships will be lost on serialization, but the Serializable interface
+    // is not widely used today anyway.
     private final transient Set<ClassInfo> directlyRelatedClasses;
 
     /** Whether to sort by name. */
@@ -103,14 +100,11 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      */
     ClassInfoList(final Set<ClassInfo> reachableClasses, final @Nullable Set<ClassInfo> directlyRelatedClasses,
             final boolean sortByName) {
-        // Sort a copy of the classes before handing them to the superclass constructor,
-        // rather than sorting this
-        // list once it has been built, so that a partly-initialized instance is never
-        // passed to another method
+        // Sort a copy of the classes before handing them to the superclass constructor, rather than sorting this
+        // list once it has been built, so that a partly-initialized instance is never passed to another method
         super(sortByName ? CollectionUtils.sortCopy(reachableClasses) : reachableClasses);
         this.sortByName = sortByName;
-        // If directlyRelatedClasses was not provided, then assume all reachable classes
-        // were directly related
+        // If directlyRelatedClasses was not provided, then assume all reachable classes were directly related
         this.directlyRelatedClasses = directlyRelatedClasses == null ? reachableClasses : directlyRelatedClasses;
     }
 
@@ -222,9 +216,8 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      */
     public ClassInfoList intersect(final ClassInfoList... others) {
         Assert.notNullElements(others, "others");
-        // Put the first ClassInfoList that is not being sorted by name at the head of
-        // the list,
-        // so that its order is preserved in the intersection (#238)
+        // Put the first ClassInfoList that is not being sorted by name at the head of the list, so that its order
+        // is preserved in the intersection (#238)
         final ArrayDeque<ClassInfoList> intersectionOrder = new ArrayDeque<>();
         intersectionOrder.add(this);
         var foundFirst = false;

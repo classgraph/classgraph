@@ -76,9 +76,8 @@ public class AnnotationClassRef extends ScanResultObject {
         var typeSig = typeSignature;
         if (typeSig == null) {
             try {
-                // There can't be any type variables to resolve in ClassRefTypeSignature,
-                // BaseTypeSignature or ArrayTypeSignature, so just set definingClassName to
-                // null
+                // There can't be any type variables to resolve in ClassRefTypeSignature, BaseTypeSignature or
+                // ArrayTypeSignature, so just set definingClassName to null
                 typeSignature = typeSig = TypeSignature.parse(typeDescriptorStr, /* definingClassName = */ null);
                 typeSig.setScanResult(scanResult);
             } catch (final ParseException e) {
@@ -171,11 +170,9 @@ public class AnnotationClassRef extends ScanResultObject {
 
     @Override
     protected void toString(final boolean useSimpleNames, final StringBuilder buf) {
-        // More recent versions of Annotation::toString() have dropped the
-        // "class"/"interface" prefix,
-        // and added ".class" to the end of the class reference (which does not actually
-        // match the
-        // annotation source syntax...)
+        // More recent versions of Annotation::toString() have dropped the "class"/"interface" prefix, and added
+        // ".class" to the end of the class reference (which does not actually match the annotation source
+        // syntax...)
 
         // String prefix = "class ";
         // if (scanResult != null) {

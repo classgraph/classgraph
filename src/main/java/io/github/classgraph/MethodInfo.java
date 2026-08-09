@@ -191,29 +191,21 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
                     typeDescriptor = MethodTypeSignature.parse(typeDescriptorStr, declaringClassName);
                     typeDescriptor.setScanResult(this.scanResult);
                     if (typeAnnotationDecorators != null) {
-                        // Type annotations index formal parameters starting from the first parameter
-                        // that was
-                        // declared in source code. However, the method type descriptor may begin with
-                        // extra
-                        // implicit (compiler-synthesized) parameters that formal_parameter_index does
-                        // not count
-                        // -- e.g. the leading enclosing-instance parameter of a non-static inner class
-                        // constructor, or the leading (String name, int ordinal) parameters of an enum
-                        // constructor. Determine how many such implicit prefix parameters there are,
-                        // strip them
-                        // from the descriptor while running the decorators so that
-                        // formal_parameter_index lines
-                        // up, then restore them. See also getParameterInfo(), which "right-aligns"
-                        // parameter
-                        // metadata for the same reason. (#897)
+                        // Type annotations index formal parameters starting from the first parameter that was
+                        // declared in source code. However, the method type descriptor may begin with extra
+                        // implicit (compiler-synthesized) parameters that formal_parameter_index does not count --
+                        // e.g. the leading enclosing-instance parameter of a non-static inner class constructor, or
+                        // the leading (String name, int ordinal) parameters of an enum constructor. Determine how
+                        // many such implicit prefix parameters there are, strip them from the descriptor while
+                        // running the decorators so that formal_parameter_index lines up, then restore them. See
+                        // also getParameterInfo(), which "right-aligns" parameter metadata for the same reason.
+                        // (#897)
                         final var descNumParam = typeDescriptor.getParameterTypeSignatures().size();
                         int numImplicitPrefixParams;
                         final var sig = getTypeSignature();
                         if (sig != null) {
-                            // The generic type signature omits implicit prefix parameters, so the
-                            // difference in
-                            // parameter count reveals how many there are (the spec-sanctioned
-                            // relationship).
+                            // The generic type signature omits implicit prefix parameters, so the difference in
+                            // parameter count reveals how many there are (the spec-sanctioned relationship).
                             numImplicitPrefixParams = descNumParam - sig.getParameterTypeSignatures().size();
                         } else {
                             // There is no generic type signature (e.g. a non-generic inner-class or enum
@@ -253,12 +245,10 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
             final var declaringClassInfo = getClassInfo();
             if (declaringClassInfo != null) {
                 if (declaringClassInfo.isEnum()) {
-                    // enum constructors have two leading synthetic params: (String name, int
-                    // ordinal)
+                    // enum constructors have two leading synthetic params: (String name, int ordinal)
                     return 2;
                 } else if (declaringClassInfo.isInnerClass() && !declaringClassInfo.isStatic()) {
-                    // Non-static inner class constructors have a leading enclosing-instance
-                    // parameter
+                    // Non-static inner class constructors have a leading enclosing-instance parameter
                     return 1;
                 }
             }
@@ -284,10 +274,8 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
     private void decorateMethodType(final MethodTypeSignature methodType,
             final List<MethodTypeAnnotationDecorator> decorators, final int numImplicitPrefixParams) {
         final var paramSigs = methodType.getParameterTypeSignatures();
-        // Take a copy of the implicit prefix params before removing them -- do not use
-        // the live view returned
-        // by List.subList(), since it would be invalidated by the structural
-        // modification of paramSigs below.
+        // Take a copy of the implicit prefix params before removing them -- do not use the live view returned by
+        // List.subList(), since it would be invalidated by the structural modification of paramSigs below.
         final var implicitPrefixParams = numImplicitPrefixParams <= 0 ? null
                 : new ArrayList<>(paramSigs.subList(0, numImplicitPrefixParams));
         for (var i = 0; i < numImplicitPrefixParams; i++) {
@@ -297,9 +285,8 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
             try {
                 decorator.decorate(methodType);
             } catch (final IllegalArgumentException e) {
-                // Skip a type annotation that cannot be matched to a parameter type, rather
-                // than failing to
-                // produce the whole method type (best effort). (#897)
+                // Skip a type annotation that cannot be matched to a parameter type, rather than failing to produce
+                // the whole method type (best effort). (#897)
             }
         }
         if (implicitPrefixParams != null) {
@@ -511,30 +498,19 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
      * @return The {@link MethodParameterInfo} objects for the method parameters, one per parameter.
      */
     public MethodParameterInfo[] getParameterInfo() {
-        // Kotlin is very inconsistent about the arity of each of the parameter metadata
-        // types, see:
+        // Kotlin is very inconsistent about the arity of each of the parameter metadata types, see:
         // https://github.com/classgraph/classgraph/issues/175#issuecomment-363031510
-        // As a workaround, we assume that any synthetic / mandated parameters must come
-        // first in the
-        // parameter list, when the arities don't match, and we right-align the metadata
-        // fields.
-        // This is probably the safest assumption across JVM languages, even though this
-        // convention
-        // is by no means the only possibility. (Unfortunately we can't just rely on the
-        // modifier
-        // bits to find synthetic / mandated parameters, because these bits are not
-        // always available,
-        // and even when they are, they don't always give the right alignment, at least
-        // for Kotlin-
-        // generated code).
+        // As a workaround, we assume that any synthetic / mandated parameters must come first in the parameter
+        // list, when the arities don't match, and we right-align the metadata fields. This is probably the safest
+        // assumption across JVM languages, even though this convention is by no means the only possibility.
+        // (Unfortunately we can't just rely on the modifier bits to find synthetic / mandated parameters, because
+        // these bits are not always available, and even when they are, they don't always give the right alignment,
+        // at least for Kotlin- generated code).
 
-        // Actually the Java spec says specifically: "The signature and descriptor of a
-        // given method
-        // or constructor may not correspond exactly, due to compiler-generated
-        // artifacts. In particular,
-        // the number of TypeSignatures that encode formal arguments in
-        // MethodTypeSignature may be less
-        // than the number of ParameterDescriptors in MethodDescriptor."
+        // Actually the Java spec says specifically: "The signature and descriptor of a given method or constructor
+        // may not correspond exactly, due to compiler-generated artifacts. In particular, the number of
+        // TypeSignatures that encode formal arguments in MethodTypeSignature may be less than the number of
+        // ParameterDescriptors in MethodDescriptor."
 
         // This was also triggered by an implicit param in Guava 28.2 (#660).
 
@@ -547,15 +523,10 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
                     paramTypeSignatures = typeSig.getParameterTypeSignatures();
                 }
 
-                // If there is no type signature (i.e. if this is not a generic method), fall
-                // back to the type
-                // descriptor (N.B. the type descriptor is basically junk, because the compiler
-                // may prepend
-                // `synthetic` and/or `bridge` parameters automatically, without providing any
-                // modifiers for
-                // the method, so that it is impossible to know how many parameters have been
-                // prepended --
-                // see #660.)
+                // If there is no type signature (i.e. if this is not a generic method), fall back to the type
+                // descriptor (N.B. the type descriptor is basically junk, because the compiler may prepend
+                // `synthetic` and/or `bridge` parameters automatically, without providing any modifiers for the
+                // method, so that it is impossible to know how many parameters have been prepended -- see #660.)
                 List<TypeSignature> paramTypeDescriptors = null;
                 try {
                     final var typeDesc = getTypeDescriptor();
@@ -563,11 +534,9 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
                         paramTypeDescriptors = typeDesc.getParameterTypeSignatures();
                     }
                 } catch (final Exception e) {
-                    // Ignore any IllegalArgumentExceptions triggered when type annotations are not
-                    // able to be
-                    // aligned with parameters, when there is a `synthetic`, `bridge` or `mandated`
-                    // parameter
-                    // added to the first parameter position.
+                    // Ignore any IllegalArgumentExceptions triggered when type annotations are not able to be
+                    // aligned with parameters, when there is a `synthetic`, `bridge` or `mandated` parameter added
+                    // to the first parameter position.
                 }
 
                 // Find the max length of all the parameter information sources
@@ -585,8 +554,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
                     numParams = parameterAnnotationInfo.length;
                 }
 
-                // "Right-align" all parameter info, i.e. assume that any automatically-added
-                // implicit parameters
+                // "Right-align" all parameter info, i.e. assume that any automatically-added implicit parameters
                 // were added at the beginning of the parameter list, not the end.
 
                 @Nullable
@@ -845,13 +813,10 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
             }
         }
         if (thrownExceptionNames != null) {
-            // The exceptions in the throws clause are dependencies of the declaring class.
-            // (Resolving them also
-            // gives their ClassInfo objects a backref to the ScanResult.) N.B. any
-            // exception types in the
-            // generic method type signature were already added above, but the throws clause
-            // of a non-generic
-            // method is only recorded in the "Exceptions" attribute of the method.
+            // The exceptions in the throws clause are dependencies of the declaring class. (Resolving them also
+            // gives their ClassInfo objects a backref to the ScanResult.) N.B. any exception types in the generic
+            // method type signature were already added above, but the throws clause of a non-generic method is only
+            // recorded in the "Exceptions" attribute of the method.
             refdClassInfo.addAll(getThrownExceptions());
         }
     }
@@ -966,9 +931,8 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
         }
         buf.append(useSimpleNames ? ClassInfo.getSimpleName(name) : name);
 
-        // If at least one param is named, then use placeholder names for unnamed
-        // params,
-        // otherwise don't show names for any params
+        // If at least one param is named, then use placeholder names for unnamed params, otherwise don't show names
+        // for any params
         final var allParamInfo = getParameterInfo();
         var hasParamNames = false;
         for (final MethodParameterInfo methodParamInfo : allParamInfo) {
@@ -978,12 +942,9 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
             }
         }
 
-        // Find varargs param index, if present -- this is, for varargs methods, the
-        // last argument that
-        // is not a synthetic or mandated parameter (turns out the Java compiler can
-        // tack on parameters
-        // *after* the varargs parameter, for variable capture with anonymous inner
-        // classes -- see #260).
+        // Find varargs param index, if present -- this is, for varargs methods, the last argument that is not a
+        // synthetic or mandated parameter (turns out the Java compiler can tack on parameters *after* the varargs
+        // parameter, for variable capture with anonymous inner classes -- see #260).
         var varArgsParamIndex = -1;
         if (isVarArgs()) {
             for (var i = allParamInfo.length - 1; i >= 0; --i) {
@@ -1015,8 +976,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
             MethodParameterInfo.modifiersToString(paramInfo.getModifiers(), buf);
 
             final var paramTypeSignature = paramInfo.getTypeSignatureOrTypeDescriptor();
-            // Param type signature may be null in the case of a `synthetic`, `bridge`, or
-            // `mandated` parameter
+            // Param type signature may be null in the case of a `synthetic`, `bridge`, or `mandated` parameter
             // implicitly added to a non-generic method
             if (paramTypeSignature != null) {
                 if (i == varArgsParamIndex) {
@@ -1035,9 +995,8 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
                     }
                     buf.append("...");
                 } else {
-                    // Exclude parameter annotations from type annotations at toplevel of type
-                    // signature,
-                    // so that annotation is not listed twice
+                    // Exclude parameter annotations from type annotations at toplevel of type signature, so that
+                    // annotation is not listed twice
                     final AnnotationInfoList annotationsToExclude;
                     if (paramInfo.annotationInfo == null || paramInfo.annotationInfo.length == 0) {
                         annotationsToExclude = null;
@@ -1061,8 +1020,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
         }
         buf.append(')');
 
-        // when throws signature is present, it includes both generic type variables and
-        // class names
+        // when throws signature is present, it includes both generic type variables and class names
         if (!methodType.getThrowsSignatures().isEmpty()) {
             buf.append(" throws ");
             for (var i = 0; i < methodType.getThrowsSignatures().size(); i++) {

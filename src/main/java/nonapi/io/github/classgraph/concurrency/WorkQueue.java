@@ -141,18 +141,14 @@ public final class WorkQueue<T> implements AutoCloseable {
             // Nothing to do
             return;
         }
-        // WorkQueue#close() is called when this try-with-resources block terminates,
-        // initiating a barrier wait
+        // WorkQueue#close() is called when this try-with-resources block terminates, initiating a barrier wait
         // while all worker threads complete.
         try (WorkQueue<U> workQueue = new WorkQueue<>(elements, workUnitProcessor, numParallelTasks,
                 interruptionChecker, log)) {
-            // Start (numParallelTasks - 1) worker threads (may start zero threads if
-            // numParallelTasks == 1)
+            // Start (numParallelTasks - 1) worker threads (may start zero threads if numParallelTasks == 1)
             workQueue.startWorkers(executorService, numParallelTasks - 1);
-            // Use the current thread to do work too, in case there is only one thread
-            // available in the
-            // ExecutorService, or in case numParallelTasks is greater than the number of
-            // available threads in the
+            // Use the current thread to do work too, in case there is only one thread available in the
+            // ExecutorService, or in case numParallelTasks is greater than the number of available threads in the
             // ExecutorService.
             workQueue.runWorkLoop();
         }
@@ -238,16 +234,14 @@ public final class WorkQueue<T> implements AutoCloseable {
                 workUnitProcessor.processWorkUnit(workUnit, this, log);
 
             } catch (InterruptedException | Error e) {
-                // On InterruptedException or OutOfMemoryError, drain work queue, send poison
-                // pills, and re-throw
+                // On InterruptedException or OutOfMemoryError, drain work queue, send poison pills, and re-throw
                 workUnits.clear();
                 numIncompleteWorkUnits.set(0);
                 sendPoisonPills();
                 throw e;
 
             } catch (final RuntimeException e) {
-                // On unchecked exception, drain work queue, send poison pills, and throw
-                // ExecutionException
+                // On unchecked exception, drain work queue, send poison pills, and throw ExecutionException
                 workUnits.clear();
                 numIncompleteWorkUnits.set(0);
                 sendPoisonPills();
@@ -302,8 +296,7 @@ public final class WorkQueue<T> implements AutoCloseable {
     public void close() throws ExecutionException {
         for (Future<?> future; (future = workerFutures.poll()) != null;) {
             try {
-                // Block on completion using future.get(), which may throw one of the exceptions
-                // below
+                // Block on completion using future.get(), which may throw one of the exceptions below
                 future.get();
             } catch (final CancellationException e) {
                 if (log != null) {

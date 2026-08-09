@@ -75,8 +75,7 @@ public class Issue355Test {
             final var annClassRef = (AnnotationClassRef) annParamVal;
             assertThat(annClassRef.getClassInfo().getName()).isEqualTo(X.class.getName());
 
-            // Test class dep from annotation param of array element type shows up in class
-            // deps
+            // Test class dep from annotation param of array element type shows up in class deps
             final var yDeps = scanResult.getClassDependencyMap().get(y);
             assertThat(yDeps).isNotNull();
             assertThat(yDeps).contains(x);

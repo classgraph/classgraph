@@ -125,8 +125,7 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
 
     @Override
     void addTypeAnnotation(final List<TypePathNode> typePath, final AnnotationInfo annotationInfo) {
-        // Individual parts of a class' type each have their own addTypeAnnotation
-        // methods
+        // Individual parts of a class' type each have their own addTypeAnnotation methods
         throw new UnsupportedOperationException(
                 "Cannot call this method on " + MethodTypeSignature.class.getSimpleName());
     }
@@ -163,8 +162,7 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
      */
     @Override
     protected String getClassName() {
-        // getClassInfo() is not valid for this type, so getClassName() does not need to
-        // be implemented
+        // getClassInfo() is not valid for this type, so getClassName() does not need to be implemented
         throw new UnsupportedOperationException("getClassName() cannot be called here");
     }
 
@@ -344,8 +342,7 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
     static MethodTypeSignature parse(final String typeDescriptor, final @Nullable String definingClassName)
             throws ParseException {
         if ("<init>".equals(typeDescriptor)) {
-            // Special case for instance initialization method signatures in a
-            // CONSTANT_NameAndType_info structure:
+            // Special case for instance initialization method signatures in a CONSTANT_NameAndType_info structure:
             // https://docs.oracle.com/javase/specs/jvms/se11/html/jvms-4.html#jvms-4.4.2
             return new MethodTypeSignature(List.of(), List.of(), /* void */ new BaseTypeSignature('V'), List.of());
         }
@@ -393,9 +390,8 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
         }
         final MethodTypeSignature methodSignature = new MethodTypeSignature(typeParameters, paramTypes, resultType,
                 throwsSignatures);
-        // Add back-links from type variable signature to the method signature it is
-        // part of,
-        // and to the enclosing class' type signature
+        // Add back-links from type variable signature to the method signature it is part of, and to the enclosing
+        // class' type signature
         @SuppressWarnings("unchecked")
         final var typeVariableSignatures = (List<TypeVariableSignature>) parser.getState();
         if (typeVariableSignatures != null) {

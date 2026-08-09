@@ -99,10 +99,8 @@ public class PathSlice extends Slice {
         this.fileLength = parentSlice.fileLength;
         this.isTopLevelFileSlice = false;
 
-        // Only mark toplevel file slices as open (sub slices don't need to be marked as
-        // open since
-        // they don't need to be closed, they just copy the resource references of the
-        // toplevel slice)
+        // Only mark toplevel file slices as open (sub slices don't need to be marked as open since they don't need
+        // to be closed, they just copy the resource references of the toplevel slice)
     }
 
     /**
@@ -157,9 +155,7 @@ public class PathSlice extends Slice {
         this.fileLength = fileChannelOpened.size();
         this.isTopLevelFileSlice = true;
 
-        // Had to use 0L for sliceLength in call to super, since FileChannel wasn't open
-        // yet
-        // => update sliceLength
+        // Had to use 0L for sliceLength in call to super, since FileChannel wasn't open yet => update sliceLength
         this.sliceLength = fileLength;
 
         // Mark toplevel slice as open
@@ -257,10 +253,8 @@ public class PathSlice extends Slice {
     @Override
     public ByteBuffer read() throws IOException {
         if (isDeflatedZipEntry) {
-            // Inflate to RAM if deflated (unfortunately there is no lazy-loading ByteBuffer
-            // that will
-            // decompress partial streams on demand, so we have to decompress the whole zip
-            // entry)
+            // Inflate to RAM if deflated (unfortunately there is no lazy-loading ByteBuffer that will decompress
+            // partial streams on demand, so we have to decompress the whole zip entry)
             if (inflatedLengthHint > FileUtils.MAX_BUFFER_SIZE) {
                 throw new IOException("Uncompressed size is larger than 2GB");
             }
@@ -281,9 +275,8 @@ public class PathSlice extends Slice {
         if (!isClosed.getAndSet(true)) {
             final var fileChannelCurr = fileChannel;
             if (isTopLevelFileSlice && fileChannelCurr != null) {
-                // Only close the FileChannel in the toplevel file slice, so that it is only
-                // closed once
-                // (sub slices just copy the reference to the toplevel slice's FileChannel)
+                // Only close the FileChannel in the toplevel file slice, so that it is only closed once (sub slices
+                // just copy the reference to the toplevel slice's FileChannel)
                 try {
                     fileChannelCurr.close();
                 } catch (final IOException e) {

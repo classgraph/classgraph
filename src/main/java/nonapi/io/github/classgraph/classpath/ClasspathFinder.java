@@ -130,9 +130,9 @@ public class ClasspathFinder {
     // #639, #795
     private static void mapSystemClassLoaderToScanningMechanism(final ClassLoader classLoader,
             final ScanSpec scanSpec, final String methodName, final @Nullable LogNode log) {
-        // Neither of these classloaders can be instantiated, so if one was passed in, it
-        // must have been obtained from Thread.currentThread().getContextClassLoader()
-        // [.getParent()], ClassLoader.getSystemClassLoader(), or similar
+        // Neither of these classloaders can be instantiated, so if one was passed in, it must have been obtained
+        // from Thread.currentThread().getContextClassLoader() [.getParent()], ClassLoader.getSystemClassLoader(),
+        // or similar
         if (isApplicationClassLoader(classLoader)) {
             if (log != null) {
                 log.log(methodName + " was called with an instance of " + classLoader.getClass().getName()
@@ -165,9 +165,8 @@ public class ClasspathFinder {
             final @Nullable LogNode log) {
         final var classpathFinderLog = log == null ? null : log.log("Finding classpath and modules");
 
-        // Set to true if java.class.path has to be scanned even though it would not
-        // otherwise be, because a named classloader can only be reached that way
-        // #639, #795
+        // Set to true if java.class.path has to be scanned even though it would not otherwise be, because a named
+        // classloader can only be reached that way #639, #795
         var forceScanJavaClassPath = false;
 
         boolean scanNonSystemModules;
@@ -175,9 +174,8 @@ public class ClasspathFinder {
             // Don't scan non-system modules if classpath is overridden
             scanNonSystemModules = false;
         } else if (scanSpec.overrideClassLoaders != null) {
-            // If classloaders are overridden, scan only what the named classloaders can
-            // load -- so non-system modules are scanned only if the application
-            // classloader is one of the override classloaders
+            // If classloaders are overridden, scan only what the named classloaders can load -- so non-system
+            // modules are scanned only if the application classloader is one of the override classloaders
             scanNonSystemModules = false;
             for (final ClassLoader classLoader : scanSpec.overrideClassLoaders) {
                 mapSystemClassLoaderToScanningMechanism(classLoader, scanSpec, "overrideClassLoaders()",
@@ -188,13 +186,12 @@ public class ClasspathFinder {
                 }
             }
         } else {
-            // If classloaders are not overridden and classpath is not overridden, only scan
-            // non-system modules
-            // if module scanning is enabled
+            // If classloaders are not overridden and classpath is not overridden, only scan non-system modules if
+            // module scanning is enabled
             scanNonSystemModules = scanSpec.scanModules;
             if (scanSpec.addedClassLoaders != null) {
-                // The environment classloaders are scanned as well as the added classloaders,
-                // so an added classloader can only widen what is scanned, never narrow it
+                // The environment classloaders are scanned as well as the added classloaders, so an added
+                // classloader can only widen what is scanned, never narrow it
                 for (final ClassLoader classLoader : scanSpec.addedClassLoaders) {
                     mapSystemClassLoaderToScanningMechanism(classLoader, scanSpec, "addClassLoader()",
                             classpathFinderLog);
@@ -205,10 +202,9 @@ public class ClasspathFinder {
             }
         }
 
-        // Also look for system modules if any module was specifically accepted by name --
-        // a module that was asked for by name is scanned whether or not it is a system
-        // module, and only the specifically-accepted system modules are scanned, so the
-        // cost of scanning the (large) system modules is not incurred for the others
+        // Also look for system modules if any module was specifically accepted by name -- a module that was asked
+        // for by name is scanned whether or not it is a system module, and only the specifically-accepted system
+        // modules are scanned, so the cost of scanning the (large) system modules is not incurred for the others
         // #658
         final var scanSystemModules = scanSpec.enableSystemJarsAndModules
                 || !scanSpec.moduleAcceptReject.acceptIsEmpty();
@@ -221,8 +217,7 @@ public class ClasspathFinder {
 
         classpathOrder = new ClasspathOrder(scanSpec, reflectionUtils);
 
-        // Only look for environment classloaders if classpath and classloaders are not
-        // overridden
+        // Only look for environment classloaders if classpath and classloaders are not overridden
         final var classLoaderFinder = scanSpec.overrideClasspath == null && scanSpec.overrideClassLoaders == null
                 ? new ClassLoaderFinder(scanSpec, reflectionUtils, classpathFinderLog)
                 : null;
@@ -237,8 +232,8 @@ public class ClasspathFinder {
             }
             final var overrideLog = classpathFinderLog == null ? null
                     : classpathFinderLog.log("Overriding classpath with: " + scanSpec.overrideClasspath);
-            // The classloader is only recorded for each classpath entry, it is not used to
-            // find the entries, so just use defaultClassLoader as a placeholder here
+            // The classloader is only recorded for each classpath entry, it is not used to find the entries, so
+            // just use defaultClassLoader as a placeholder here
             classpathOrder.addClasspathEntries(scanSpec.overrideClasspath, defaultClassLoader, scanSpec,
                     overrideLog);
             if (overrideLog != null) {
@@ -249,8 +244,7 @@ public class ClasspathFinder {
             classLoaderOrderRespectingParentDelegation = contextClassLoaders;
         }
 
-        // If system jars and modules are enabled, add the JRE lib and ext jars to the
-        // beginning of the classpath
+        // If system jars and modules are enabled, add the JRE lib and ext jars to the beginning of the classpath
         if (scanSpec.enableSystemJarsAndModules) {
             final var systemJarsLog = classpathFinderLog == null ? null : classpathFinderLog.log("System jars:");
             for (final String libOrExtJarPath : SystemJarFinder.getJreLibOrExtJars()) {
@@ -306,17 +300,14 @@ public class ClasspathFinder {
                 for (final ClassLoaderHandlerRegistryEntry classLoaderHandlerRegistryEntry : ent.getValue()) {
                     // Add classpath entries to ignoredClasspathOrder or classpathOrder
                     if (!scanSpec.ignoreParentClassLoaders || !allParentClassLoaders.contains(classLoader)) {
-                        // Otherwise add classpath entries to classpathOrder, and add the classloader to
-                        // the
-                        // final classloader ordering
+                        // Otherwise add classpath entries to classpathOrder, and add the classloader to the final
+                        // classloader ordering
                         final var classloaderHandlerLog = classloaderURLLog == null ? null
                                 : classloaderURLLog.log("Classloader " + classLoader.getClass().getName()
                                         + " is handled by " + classLoaderHandlerRegistryEntry.getHandlerName());
-                        // Record the package roots that this ClassLoaderHandler's classpath elements
-                        // can have,
-                        // so that only the package roots that are applicable to each classpath element
-                        // are
-                        // looked for and stripped when it is scanned (#929)
+                        // Record the package roots that this ClassLoaderHandler's classpath elements can have, so
+                        // that only the package roots that are applicable to each classpath element are looked for
+                        // and stripped when it is scanned (#929)
                         classpathOrder
                                 .setPackageRootPrefixes(classLoaderHandlerRegistryEntry.getPackageRootPrefixes());
                         try {
@@ -333,19 +324,15 @@ public class ClasspathFinder {
                 }
             }
 
-            // Need to record the classloader delegation order, in particular to respect
-            // parent-last delegation
+            // Need to record the classloader delegation order, in particular to respect parent-last delegation
             // order, since this is not the default (issue #267).
             classLoaderOrderRespectingParentDelegation = finalClassLoaderOrder.toArray(new ClassLoader[0]);
         }
 
-        // Only scan java.class.path if parent classloaders are not ignored,
-        // classloaders are not overridden,
-        // and the classpath is not overridden, unless only module scanning was enabled,
-        // and an unnamed module
-        // layer was encountered -- in this case, have to forcibly scan java.class.path,
-        // since the ModuleLayer
-        // API doesn't allow for the opening of unnamed modules.
+        // Only scan java.class.path if parent classloaders are not ignored, classloaders are not overridden, and
+        // the classpath is not overridden, unless only module scanning was enabled, and an unnamed module layer was
+        // encountered -- in this case, have to forcibly scan java.class.path, since the ModuleLayer API doesn't
+        // allow for the opening of unnamed modules.
         if (forceScanJavaClassPath
                 || (!scanSpec.ignoreParentClassLoaders && scanSpec.overrideClassLoaders == null
                         && scanSpec.overrideClasspath == null)

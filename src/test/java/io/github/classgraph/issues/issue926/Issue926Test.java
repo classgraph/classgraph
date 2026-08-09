@@ -37,8 +37,7 @@ public class Issue926Test {
                 if (!"f".equals(methodInfo.getName())) {
                     continue;
                 }
-                // Neither the real method nor the synthetic bridge may throw while parsing its
-                // type (#926).
+                // Neither the real method nor the synthetic bridge may throw while parsing its type (#926).
                 assertThatCode(methodInfo::getTypeSignatureOrTypeDescriptor).doesNotThrowAnyException();
                 assertThatCode(methodInfo::getTypeDescriptor).doesNotThrowAnyException();
                 if (methodInfo.isBridge()) {

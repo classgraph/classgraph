@@ -175,8 +175,7 @@ public final class FastPathResolver {
                 }
                 translateSeparator(path, prevEndMatchIdx, len, /* stripFinalSeparator = */ true, buf);
             } else {
-                // Fast path -- no '%', or "http(s)://" or "jrt:" URL, or non-"file:" or
-                // non-"jar:" URL
+                // Fast path -- no '%', or "http(s)://" or "jrt:" URL, or non-"file:" or non-"jar:" URL
                 translateSeparator(path, 0, len, /* stripFinalSeparator = */ true, buf);
                 return buf.toString();
             }
@@ -203,8 +202,7 @@ public final class FastPathResolver {
         if (!path.regionMatches(true, 0, "war:", 0, 4)) {
             return path;
         }
-        // Strip the "war:" prefix, leaving a "file:" URL that the rest of the resolver
-        // understands
+        // Strip the "war:" prefix, leaving a "file:" URL that the rest of the resolver understands
         final var jarUrl = path.substring(4);
         // Mirrors the separators tried by org.apache.tomcat.util.buf.UriUtil#warToJar
         var sepIdx = jarUrl.indexOf("*/");
@@ -237,9 +235,8 @@ public final class FastPathResolver {
             return resolveBasePath == null ? "" : resolveBasePath;
         }
 
-        // Convert Tomcat's "war:" URLs into the standard "jar:" form before anything
-        // else, so that the rest of
-        // this method sees a path it understands (#925)
+        // Convert Tomcat's "war:" URLs into the standard "jar:" form before anything else, so that the rest of this
+        // method sees a path it understands (#925)
         final var relativePath = warUrlToJarUrl(relativePathRaw);
 
         var prefix = "";
@@ -260,9 +257,8 @@ public final class FastPathResolver {
                 startIdx += 7;
                 // Force protocol name to lowercase
                 prefix += "http://";
-                // Treat the part after the protocol as an absolute path, so the domain is not
-                // treated as a directory
-                // relative to the current directory.
+                // Treat the part after the protocol as an absolute path, so the domain is not treated as a
+                // directory relative to the current directory.
                 isAbsolutePath = true;
                 // Don't un-escape percent encoding etc.
             } else if (relativePath.regionMatches(true, startIdx, "https://", 0, 8)) {
@@ -291,8 +287,7 @@ public final class FastPathResolver {
                     final var match = matcher.group();
                     startIdx += match.length();
                     prefix += match;
-                    // Treat the part after the protocol as an absolute path, so the rest of the URL
-                    // is not treated
+                    // Treat the part after the protocol as an absolute path, so the rest of the URL is not treated
                     // as a directory relative to the current directory.
                     isAbsolutePath = true;
                 }
@@ -333,17 +328,12 @@ public final class FastPathResolver {
             if (pathStr.endsWith("/")) {
                 pathStr = pathStr.substring(0, pathStr.length() - 1);
             }
-            // Only strip a trailing '!' if it is really a nested jar separator, i.e. if it
-            // marks the whole of
-            // the jarfile before it -- a trailing '!' is otherwise part of a directory name
-            // (#903).
-            // Use lastIndexOfNestedJarSeparator, not indexOfNestedJarSeparator, so that the
-            // trailing '!' of a
-            // doubly-nested path such as "/a/b.war!/WEB-INF/lib/c.jar!" is stripped too:
-            // the innermost
-            // separator is the relevant one, and this is the rule NestedJarHandler applies
-            // when splitting the
-            // resulting path back apart.
+            // Only strip a trailing '!' if it is really a nested jar separator, i.e. if it marks the whole of the
+            // jarfile before it -- a trailing '!' is otherwise part of a directory name (#903). Use
+            // lastIndexOfNestedJarSeparator, not indexOfNestedJarSeparator, so that the trailing '!' of a
+            // doubly-nested path such as "/a/b.war!/WEB-INF/lib/c.jar!" is stripped too: the innermost separator is
+            // the relevant one, and this is the rule NestedJarHandler applies when splitting the resulting path
+            // back apart.
             if (pathStr.endsWith("!") && JarUtils.lastIndexOfNestedJarSeparator(pathStr) == pathStr.length() - 1) {
                 pathStr = pathStr.substring(0, pathStr.length() - 1);
             }
@@ -358,9 +348,8 @@ public final class FastPathResolver {
         // Sanitize path (resolve ".." sections, collapse "//" double separators, etc.)
         String pathResolved;
         if (isAbsolutePath || resolveBasePath == null || resolveBasePath.isEmpty()) {
-            // There is no base path to resolve against, or path is an absolute path or
-            // http(s):// URL
-            // (ignore the base path)
+            // There is no base path to resolve against, or path is an absolute path or http(s):// URL (ignore the
+            // base path)
             pathResolved = FileUtils.sanitizeEntryPath(pathStr, /* removeInitialSlash = */ false,
                     /* removeFinalSlash = */ true);
         } else {

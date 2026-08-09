@@ -105,12 +105,9 @@ public final class VersionFinder {
     }
 
     static {
-        // N.B. getProperty() returns null, not the default value, if a
-        // SecurityException is thrown, so the
-        // result has to be null-checked before it is lowercased -- otherwise this
-        // static initializer can throw
-        // ExceptionInInitializerError, rather than falling through to
-        // OperatingSystem.Unknown as intended.
+        // N.B. getProperty() returns null, not the default value, if a SecurityException is thrown, so the result
+        // has to be null-checked before it is lowercased -- otherwise this static initializer can throw
+        // ExceptionInInitializerError, rather than falling through to OperatingSystem.Unknown as intended.
         final var osNameRaw = getProperty("os.name", "unknown");
         final var osName = osNameRaw == null ? null : osNameRaw.toLowerCase(Locale.ENGLISH);
         if (File.separatorChar == '\\') {

@@ -62,16 +62,14 @@ class CxfContainerClassLoaderHandler implements ClassLoaderHandler {
         classLoaderOrder.delegateTo(
                 (ClassLoader) classLoaderOrder.reflectionUtils.invokeMethod(false, classLoader, "tccl"),
                 /* isParent = */ false, log);
-        // This classloader doesn't actually load any classes, but add it to the order
-        // to improve logging
+        // This classloader doesn't actually load any classes, but add it to the order to improve logging
         classLoaderOrder.add(classLoader, log);
     }
 
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
             final ScanSpec scanSpec, final @Nullable LogNode log) {
-        // Classloader doesn't do any classloading of its own, it only delegates to
-        // other classloaders
+        // Classloader doesn't do any classloading of its own, it only delegates to other classloaders
     }
 
     /**

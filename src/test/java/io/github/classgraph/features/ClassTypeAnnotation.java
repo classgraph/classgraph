@@ -82,11 +82,8 @@ class ClassTypeAnnotation {
         try (var scanResult = new ClassGraph().acceptPackages(ClassTypeAnnotation.class.getPackage().getName())
                 .enableAllInfo().scan()) {
 
-            // Type with annotations should be rendered by toString() as
-            // Y<T> extends ClassTypeAnnotation$@X Z
-            // and not
-            // Y<T> extends @X ClassTypeAnnotation$Z
-            // because the annotation is on Z, not ClassTypeAnnotation
+            // Type with annotations should be rendered by toString() as Y<T> extends ClassTypeAnnotation$@X Z and
+            // not Y<T> extends @X ClassTypeAnnotation$Z because the annotation is on Z, not ClassTypeAnnotation
 
             assertThat(scanResult.getClassInfo(E.class.getName()).getTypeSignature().toString())
                     .isEqualTo("private static class " + E.class.getName() + "<T> extends "
@@ -123,9 +120,8 @@ class ClassTypeAnnotation {
                             + B.class.getSimpleName() + ", " + ClassTypeAnnotation.class.getName() + "$@"
                             + R.class.getName() + " " + A.class.getSimpleName());
 
-            // The synthesized type descriptor must list the directly implemented
-            // interfaces, in classfile order, since the class type annotation targets
-            // index into the classfile's own interfaces[] array
+            // The synthesized type descriptor must list the directly implemented interfaces, in classfile order,
+            // since the class type annotation targets index into the classfile's own interfaces[] array
             assertThat(scanResult.getClassInfo(J.class.getName()).getTypeSignatureOrTypeDescriptor().toString())
                     .isEqualTo("private static class " + J.class.getName() + " implements "
                             + ClassTypeAnnotation.class.getName() + "$@" + Q.class.getName() + " "

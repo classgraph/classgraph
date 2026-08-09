@@ -19,12 +19,9 @@ class Issue854Test {
             final var classInfo = scanResult.getClassInfo(anonymousClass);
             final var signature = classInfo.getTypeSignatureOrTypeDescriptor().getSuperclassSignature();
 
-            // Before the fix to 854, this would give the following, because type parameter
-            // token parsing
-            // did not stop at '.':
-            // com.google.common.collect.TreeRangeMap$SubRangeMap.SubRangeMapAsMap
-            // But the fully-qualified class name in the classfile is:
-            // com.google.common.collect.TreeRangeMap$SubRangeMap$SubRangeMapAsMap
+            // Before the fix to 854, type parameter token parsing did not stop at '.', so this gave
+            // "com.google.common.collect.TreeRangeMap$SubRangeMap.SubRangeMapAsMap", whereas the fully-qualified
+            // class name in the classfile is "com.google.common.collect.TreeRangeMap$SubRangeMap$SubRangeMapAsMap".
             final var subRangeMapAsMapClassName = signature.getFullyQualifiedClassName();
             assertThat(subRangeMapAsMapClassName)
                     .isEqualTo("com.google.common.collect.TreeRangeMap$SubRangeMap$SubRangeMapAsMap");

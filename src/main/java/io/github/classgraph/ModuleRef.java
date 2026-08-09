@@ -277,9 +277,8 @@ public class ModuleRef implements Comparable<ModuleRef> {
     @Override
     public int compareTo(final ModuleRef o) {
         final var diff = this.name.compareTo(o.name);
-        // Compare hashcodes rather than subtracting them, since the subtraction can
-        // overflow, which would
-        // break the transitivity that the Comparable contract requires
+        // Compare hashcodes rather than subtracting them, since the subtraction can overflow, which would break the
+        // transitivity that the Comparable contract requires
         return diff != 0 ? diff : Integer.compare(this.hashCode(), o.hashCode());
     }
 

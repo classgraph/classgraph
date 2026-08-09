@@ -56,11 +56,9 @@ public class ClassLoaderOrder {
      * The set of all {@link ClassLoader} instances that have been added to the order so far, so that classloaders
      * don't get added twice.
      */
-    // Need to use IdentityHashMap for maps and sets here, because TomEE weirdly
-    // makes instances of
-    // CxfContainerClassLoader equal to (via .equals()) the instance of
-    // TomEEWebappClassLoader that it
-    // delegates to (#515)
+    // Need to use IdentityHashMap for maps and sets here, because TomEE weirdly makes instances of
+    // CxfContainerClassLoader equal to (via .equals()) the instance of TomEEWebappClassLoader that it delegates to
+    // (#515)
     private final Set<ClassLoader> added = Collections.newSetFromMap(new IdentityHashMap<>());
 
     /**
@@ -122,8 +120,7 @@ public class ClassLoaderOrder {
         var matched = false;
         for (final ClassLoaderHandlerRegistryEntry ent : ClassLoaderHandlerRegistry.CLASS_LOADER_HANDLERS) {
             if (ent.canHandle(classLoader.getClass(), log)) {
-                // This ClassLoaderHandler can handle the ClassLoader class, or one of its
-                // superclasses
+                // This ClassLoaderHandler can handle the ClassLoader class, or one of its superclasses
                 ents.add(ent);
                 matched = true;
             }
@@ -166,19 +163,16 @@ public class ClassLoaderOrder {
         if (classLoader == null) {
             return;
         }
-        // Check if this is a parent before checking if the classloader is already in
-        // the delegatedTo set,
-        // so that if the classloader is a context classloader but also a parent, it
-        // still gets marked as
-        // a parent classloader.
+        // Check if this is a parent before checking if the classloader is already in the delegatedTo set, so that
+        // if the classloader is a context classloader but also a parent, it still gets marked as a parent
+        // classloader.
         if (isParent) {
             allParentClassLoaders.add(classLoader);
         }
         // Don't delegate to a classloader twice
         if (delegatedTo.add(classLoader)) {
             add(classLoader, log);
-            // Recurse to get delegation order
-            // (note: may be wrong if multiple ClassLoaderHandlers can handle this
+            // Recurse to get delegation order (note: may be wrong if multiple ClassLoaderHandlers can handle this
             // classloader)
             for (final ClassLoaderHandlerRegistryEntry entry : getClassLoaderHandlerRegistryEntries(classLoader,
                     /* Don't log twice -- also logged by add method above */ null)) {

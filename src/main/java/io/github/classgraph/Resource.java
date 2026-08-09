@@ -104,8 +104,7 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
         try {
             return uri.toURL();
         } catch (final IllegalArgumentException | MalformedURLException e) {
-            // N.B. uri.getScheme() is null for a relative URI, which is one of the cases
-            // where toURL() throws
+            // N.B. uri.getScheme() is null for a relative URI, which is one of the cases where toURL() throws
             if ("jrt".equals(uri.getScheme())) {
                 // Currently URL cannot handle the "jrt:" scheme, used by system modules.
                 throw new IllegalStateException("Could not create URL from URI with \"jrt:\" scheme "

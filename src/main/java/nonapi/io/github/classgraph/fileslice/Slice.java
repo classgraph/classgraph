@@ -185,10 +185,8 @@ public abstract class Slice implements Closeable {
                 return read(byteBuf, 0, 1);
             }
 
-            // InputStream's default implementation of this method is very slow -- it calls
-            // read()
-            // for every byte. This method reads the maximum number of bytes possible in one
-            // call.
+            // InputStream's default implementation of this method is very slow -- it calls read() for every byte.
+            // This method reads the maximum number of bytes possible in one call.
             @Override
             public int read(final byte[] buf, final int off, final int len) throws IOException {
                 if (closed.get()) {
@@ -213,13 +211,11 @@ public abstract class Slice implements Closeable {
                     throw new IOException("Already closed");
                 }
                 if (n <= 0L) {
-                    // InputStream#skip returns 0 for a non-positive argument, rather than seeking
-                    // backwards
+                    // InputStream#skip returns 0 for a non-positive argument, rather than seeking backwards
                     return 0L;
                 }
-                // (Compute the number of remaining bytes first, rather than testing currOff +
-                // n, so that a
-                // huge n cannot overflow to a negative value)
+                // (Compute the number of remaining bytes first, rather than testing currOff + n, so that a huge n
+                // cannot overflow to a negative value)
                 final var numBytesToSkip = Math.min(n, sliceLength - currOff);
                 currOff += numBytesToSkip;
                 return numBytesToSkip;

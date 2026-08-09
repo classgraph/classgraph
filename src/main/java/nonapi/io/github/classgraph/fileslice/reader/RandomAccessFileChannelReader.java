@@ -114,9 +114,8 @@ public class RandomAccessFileChannelReader implements RandomAccessReader {
             }
             var byteBuffer = reusableByteBuffer;
             if (byteBuffer == null || byteBuffer.array() != dstArr) {
-                // If reusableByteBuffer is not set, or wraps a different array from a previous
-                // operation,
-                // wrap dstArr with a new ByteBuffer
+                // If reusableByteBuffer is not set, or wraps a different array from a previous operation, wrap
+                // dstArr with a new ByteBuffer
                 reusableByteBuffer = byteBuffer = ByteBuffer.wrap(dstArr);
             }
             // Read into reusableByteBuffer, which is backed with dstArr
@@ -191,8 +190,7 @@ public class RandomAccessFileChannelReader implements RandomAccessReader {
     @Override
     public String readString(final long offset, final int numBytes, final boolean replaceSlashWithDot,
             final boolean stripLSemicolon) throws IOException {
-        // Reuse UTF8 buffer array if it's non-null from a previous call, and if it's
-        // big enough
+        // Reuse UTF8 buffer array if it's non-null from a previous call, and if it's big enough
         var utf8BytesBuf = utf8Bytes;
         if (utf8BytesBuf == null || utf8BytesBuf.length < numBytes) {
             utf8Bytes = utf8BytesBuf = new byte[numBytes];

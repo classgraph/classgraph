@@ -35,8 +35,7 @@ public class Issue884Test {
         acceptReject.addToReject("javax.swing.*.");
         assertThat(acceptReject.isRejected("javax.swing.plaf.basic")).isTrue();
         assertThat(acceptReject.isRejected("javax.swing.text.html.parser")).isTrue();
-        // The wildcard matches within a single segment only, so "javax.swing" itself is
-        // not matched
+        // The wildcard matches within a single segment only, so "javax.swing" itself is not matched
         assertThat(acceptReject.isRejected("javax.swing")).isFalse();
         // ... and nor is an unrelated package
         assertThat(acceptReject.isRejected("javax.sound.midi")).isFalse();

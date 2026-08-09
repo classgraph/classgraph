@@ -74,8 +74,7 @@ class CallStackReader {
     Class<?>[] getClassContext() {
         Class<?>[] callStack = null;
 
-        // Get the stack via StackWalker.
-        // Invoke with doPrivileged -- see:
+        // Get the stack via StackWalker. Invoke with doPrivileged -- see:
         // http://mail.openjdk.java.net/pipermail/jigsaw-dev/2018-October/013974.html
         try {
             callStack = reflectionUtils.doPrivileged(CallStackReader::getCallStackViaStackWalker);

@@ -42,8 +42,8 @@ public class AnnotationDefaultValuesTest {
             assertThat(classInfo).isNotNull();
             final var annotationInfo = classInfo.getAllAnnotationInfo(MyAnnotation.class.getName());
             assertThat(annotationInfo).isNotNull();
-            // The parameter value is not stored in the classfile of the annotated class,
-            // only in the classfile of the annotation
+            // The parameter value is not stored in the classfile of the annotated class, only in the classfile of
+            // the annotation
             assertThat(annotationInfo.getDeclaredParameterValues()).isEmpty();
             assertThat(annotationInfo.getDefaultParameterValues().asMap()).containsOnlyKeys("msg");
             assertThat(annotationInfo.getDefaultParameterValues().getValue("msg")).isEqualTo("hello");

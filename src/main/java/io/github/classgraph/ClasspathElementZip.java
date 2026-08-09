@@ -116,12 +116,11 @@ class ClasspathElementZip extends ClasspathElement {
         super(workUnit, scanSpec);
         final var rawPathObj = Objects.requireNonNull(workUnit.classpathEntryObj);
 
-        // Convert the raw path object (Path, URL, or URI) to a string.
-        // Any required URL/URI parsing are done in NestedJarHandler.
+        // Convert the raw path object (Path, URL, or URI) to a string. Any required URL/URI parsing are done in
+        // NestedJarHandler.
         String rawPath = null;
         if (rawPathObj instanceof final Path path) {
-            // Path.toString does not include URI scheme => turn into a URI so that toString
-            // works
+            // Path.toString does not include URI scheme => turn into a URI so that toString works
             try {
                 rawPath = path.toUri().toString();
             } catch (final IOError | SecurityException e) {
@@ -174,9 +173,8 @@ class ClasspathElementZip extends ClasspathElement {
                 logicalZipFileAndPackageRoot = nestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap()
                         .get(rawPath, subLog);
             } catch (final NullSingletonException | NewInstanceException e) {
-                // Generally thrown on the second and subsequent attempt to call .get(), after
-                // the first failed,
-                // or newInstance() threw an exception
+                // Generally thrown on the second and subsequent attempt to call .get(), after the first failed, or
+                // newInstance() threw an exception
                 throw new IOException("Could not get logical zipfile " + rawPath + " : "
                         + (e.getCause() == null ? e : e.getCause()));
             }
@@ -204,10 +202,8 @@ class ClasspathElementZip extends ClasspathElement {
         }
 
         if (!scanSpec.enableSystemJarsAndModules && logicalZipFile.isJREJar) {
-            // Found a rejected JRE jar that was not caught by filtering for rt.jar in
-            // ClasspathFinder
-            // (the isJREJar value was set by detecting JRE headers in the jar's manifest
-            // file)
+            // Found a rejected JRE jar that was not caught by filtering for rt.jar in ClasspathFinder (the isJREJar
+            // value was set by detecting JRE headers in the jar's manifest file)
             if (subLog != null) {
                 subLog.log("Ignoring JRE jar: " + rawPath);
             }
@@ -223,15 +219,13 @@ class ClasspathElementZip extends ClasspathElement {
             return;
         }
 
-        // Automatically add any nested "lib/" dirs to classpath, since not all
-        // classloaders return them
-        // as classpath elements
+        // Automatically add any nested "lib/" dirs to classpath, since not all classloaders return them as
+        // classpath elements
         var childClasspathEntryIdx = 0;
         if (scanSpec.scanNestedJars) {
             for (final FastZipEntry zipEntry : logicalZipFile.entries) {
                 for (final String libDirPrefix : ClassLoaderHandlerRegistry.AUTOMATIC_LIB_DIR_PREFIXES) {
-                    // Even if a package root is given, e.g. BOOT-INF/classes, still look in lib/
-                    // etc. for jars
+                    // Even if a package root is given, e.g. BOOT-INF/classes, still look in lib/ etc. for jars
                     if (zipEntry.entryNameUnversioned.startsWith(libDirPrefix)
                             && zipEntry.entryNameUnversioned.endsWith(".jar")) {
                         final var entryPath = zipEntry.getPath();
@@ -248,25 +242,19 @@ class ClasspathElementZip extends ClasspathElement {
             }
         }
 
-        // Don't add child classpath elements that are identical to this classpath
-        // element, or that are duplicates
+        // Don't add child classpath elements that are identical to this classpath element, or that are duplicates
         final Set<String> scheduledChildClasspathElements = new HashSet<>();
         scheduledChildClasspathElements.add(rawPath);
 
-        // Create child classpath elements from values obtained from Class-Path entry in
-        // manifest, resolving
-        // the paths relative to the dir or parent jarfile that the jarfile is contained
-        // in
+        // Create child classpath elements from values obtained from Class-Path entry in manifest, resolving the
+        // paths relative to the dir or parent jarfile that the jarfile is contained in
         if (logicalZipFile.classPathManifestEntryValue != null) {
-            // Get parent dir of logical zipfile within grandparent slice,
-            // e.g. for a zipfile slice path of "/path/to/jar1.jar!/lib/jar2.jar", this is
-            // "lib",
-            // or for "/path/to/jar1.jar", this is "/path/to", or "" if the jar is in the
-            // toplevel dir.
+            // Get parent dir of logical zipfile within grandparent slice, e.g. for a zipfile slice path of
+            // "/path/to/jar1.jar!/lib/jar2.jar", this is "lib", or for "/path/to/jar1.jar", this is "/path/to", or
+            // "" if the jar is in the toplevel dir.
             final var jarParentDir = FileUtils.getParentDirPath(logicalZipFile.getPathWithinParentZipFileSlice());
-            // Add paths in manifest file's "Class-Path" entry to the classpath, resolving
-            // paths relative to
-            // the parent directory or jar
+            // Add paths in manifest file's "Class-Path" entry to the classpath, resolving paths relative to the
+            // parent directory or jar
             for (final String childClassPathEltPathRelative : logicalZipFile.classPathManifestEntryValue
                     .split(" ")) {
                 if (!childClassPathEltPathRelative.isEmpty()) {
@@ -291,9 +279,8 @@ class ClasspathElementZip extends ClasspathElement {
                 }
             }
         }
-        // Add paths in an OSGi bundle jar manifest's "Bundle-ClassPath" entry to the
-        // classpath, resolving
-        // the paths relative to the root of the jarfile
+        // Add paths in an OSGi bundle jar manifest's "Bundle-ClassPath" entry to the classpath, resolving the paths
+        // relative to the root of the jarfile
         if (logicalZipFile.bundleClassPathManifestEntryValue != null) {
             final var zipFilePathPrefix = zipFilePath + "!/";
             // Class-Path is split on " ", but Bundle-ClassPath is split on ","
@@ -302,13 +289,10 @@ class ClasspathElementZip extends ClasspathElement {
                 while (childBundlePath.startsWith("/")) {
                     childBundlePath = childBundlePath.substring(1);
                 }
-                // Currently the position of "." relative to child classpath entries is ignored
-                // (the
-                // Bundle-ClassPath path is treated as if "." is in the first position, since
-                // child
-                // classpath entries are always added to the classpath after the parent
-                // classpath
-                // entry that they were obtained from).
+                // Currently the position of "." relative to child classpath entries is ignored (the
+                // Bundle-ClassPath path is treated as if "." is in the first position, since child classpath
+                // entries are always added to the classpath after the parent classpath entry that they were
+                // obtained from).
                 if (!childBundlePath.isEmpty() && !".".equals(childBundlePath)) {
                     // Resolve Bundle-ClassPath entry within jar
                     final var childClassPathEltPath = zipFilePathPrefix + FileUtils.sanitizeEntryPath(
@@ -462,9 +446,8 @@ class ClasspathElementZip extends ClasspathElement {
             public void close() {
                 if (isOpen.getAndSet(false)) {
                     if (byteBuffer != null) {
-                        // ByteBuffer should be a duplicate or slice, or should wrap an array, so it
-                        // doesn't
-                        // need to be unmapped
+                        // ByteBuffer should be a duplicate or slice, or should wrap an array, so it doesn't need to
+                        // be unmapped
                         byteBuffer = null;
                     }
 
@@ -512,8 +495,8 @@ class ClasspathElementZip extends ClasspathElement {
             for (var i = 0; i < packageRootPrefixes.length; i++) {
                 final var prefix = packageRootPrefixes[i];
                 if (firstClassfileEntry[i] == null && entryName.startsWith(prefix)
-                // The path of a classfile below META-INF (e.g. in a multi-release jar) does not
-                // necessarily correspond to the name of the class it declares
+                // The path of a classfile below META-INF (e.g. in a multi-release jar) does not necessarily
+                // correspond to the name of the class it declares
                         && !entryName.startsWith("META-INF/", prefix.length())) {
                     firstClassfileEntry[i] = zipEntry;
                 }
@@ -530,8 +513,7 @@ class ClasspathElementZip extends ClasspathElement {
                     disprovingClassName = getClassNameDisprovingPackageRoot(classfileReader,
                             zipEntry.entryNameUnversioned.substring(prefix.length()));
                 } catch (final IOException e) {
-                    // If the classfile cannot be read, give the candidate package root the benefit
-                    // of the doubt
+                    // If the classfile cannot be read, give the candidate package root the benefit of the doubt
                 }
             }
             if (disprovingClassName == null) {
@@ -578,10 +560,8 @@ class ClasspathElementZip extends ClasspathElement {
         }
         final var isModularJar = moduleName != null && !moduleName.isEmpty();
 
-        // "classes/" and "test-classes/" are legal package names, so only strip a
-        // package root prefix from the
-        // relative path of an entry if the prefix is not simply a package with the same
-        // name (#929)
+        // "classes/" and "test-classes/" are legal package names, so only strip a package root prefix from the
+        // relative path of an entry if the prefix is not simply a package with the same name (#929)
         final var verifiedPackageRootPrefixes = packageRootPrefix.isEmpty() && packageRootPrefixes.length > 0
                 ? getVerifiedPackageRootPrefixes(logicalZipFile, subLog)
                 : packageRootPrefixes;
@@ -592,14 +572,10 @@ class ClasspathElementZip extends ClasspathElement {
         for (final FastZipEntry zipEntry : logicalZipFile.entries) {
             var relativePath = zipEntry.entryNameUnversioned;
 
-            // Paths should never start with "META-INF/versions/{version}/", because either
-            // this is a versioned
-            // jar, in which case zipEntry.entryNameUnversioned has the version prefix
-            // stripped, or this is an
-            // unversioned jar (e.g. the multi-version flag is not set in the manifest file)
-            // and there are some
-            // spurious files in a multi-version path (in which case, they should be
-            // ignored).
+            // Paths should never start with "META-INF/versions/{version}/", because either this is a versioned jar,
+            // in which case zipEntry.entryNameUnversioned has the version prefix stripped, or this is an
+            // unversioned jar (e.g. the multi-version flag is not set in the manifest file) and there are some
+            // spurious files in a multi-version path (in which case, they should be ignored).
             if (!scanSpec.enableMultiReleaseVersions
                     && relativePath.startsWith(LogicalZipFile.MULTI_RELEASE_PATH_PREFIX)) {
                 if (subLog != null) {
@@ -609,9 +585,8 @@ class ClasspathElementZip extends ClasspathElement {
                 continue;
             }
 
-            // If this is a modular jar, ignore all classfiles other than
-            // "module-info.class" in the
-            // default package, since these are disallowed.
+            // If this is a modular jar, ignore all classfiles other than "module-info.class" in the default
+            // package, since these are disallowed.
             if (isModularJar && relativePath.indexOf('/') < 0 && relativePath.endsWith(".class")
                     && !"module-info.class".equals(relativePath)) {
                 continue;
@@ -619,8 +594,7 @@ class ClasspathElementZip extends ClasspathElement {
 
             // Check if the relative path is within a nested classpath root
             if (nestedClasspathRootPrefixes != null) {
-                // This is O(mn), which is inefficient, but the number of nested classpath roots
-                // should be small
+                // This is O(mn), which is inefficient, but the number of nested classpath roots should be small
                 var reachedNestedRoot = false;
                 for (final String nestedClasspathRoot : nestedClasspathRootPrefixes) {
                     if (relativePath.startsWith(nestedClasspathRoot)) {
@@ -674,8 +648,7 @@ class ClasspathElementZip extends ClasspathElement {
                 continue;
             }
 
-            // Get match status of the parent directory of this ZipEntry file's relative
-            // path (or reuse the last
+            // Get match status of the parent directory of this ZipEntry file's relative path (or reuse the last
             // match status for speed, if the directory name hasn't changed).
             final var lastSlashIdx = relativePath.lastIndexOf('/');
             final var parentRelativePath = lastSlashIdx < 0 ? "/" : relativePath.substring(0, lastSlashIdx + 1);
@@ -683,8 +656,8 @@ class ClasspathElementZip extends ClasspathElement {
             final var parentMatchStatus = //
                     parentRelativePathChanged ? scanSpec.dirAcceptMatchStatus(parentRelativePath)
                             // parentRelativePathChanged is always true on the first iteration, since
-                            // prevParentRelativePath starts out null, so prevParentMatchStatus has
-                            // always been set by the time it is read
+                            // prevParentRelativePath starts out null, so prevParentMatchStatus has always been set
+                            // by the time it is read
                             : Objects.requireNonNull(prevParentMatchStatus);
             prevParentRelativePath = parentRelativePath;
             prevParentMatchStatus = parentMatchStatus;
@@ -708,10 +681,8 @@ class ClasspathElementZip extends ClasspathElement {
                     // Resource is accepted
                     addAcceptedResource(resource, parentMatchStatus, /* isClassfileOnly = */ false, subLog);
                 } else if (scanSpec.enableClassInfo && "module-info.class".equals(relativePath)) {
-                    // Add module descriptor as an accepted classfile resource, so that it is
-                    // scanned,
-                    // but don't add it to the list of resources in the ScanResult, since it is not
-                    // in an accepted package (#352)
+                    // Add module descriptor as an accepted classfile resource, so that it is scanned, but don't add
+                    // it to the list of resources in the ScanResult, since it is not in an accepted package (#352)
                     addAcceptedResource(resource, parentMatchStatus, /* isClassfileOnly = */ true, subLog);
                 }
             }
@@ -808,8 +779,7 @@ class ClasspathElementZip extends ClasspathElement {
         if (logicalZipFile != null) {
             return logicalZipFile.getPhysicalFile();
         } else {
-            // Not performing a full scan (only getting classpath elements), so
-            // logicalZipFile is not set
+            // Not performing a full scan (only getting classpath elements), so logicalZipFile is not set
             final var plingIdx = JarUtils.indexOfNestedJarSeparator(rawPath);
             final var outermostZipFilePathResolved = FastPathResolver.resolve(FileUtils.currDirPath(),
                     plingIdx < 0 ? rawPath : rawPath.substring(0, plingIdx));

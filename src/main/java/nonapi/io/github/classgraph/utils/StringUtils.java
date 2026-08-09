@@ -127,8 +127,7 @@ public final class StringUtils {
      */
     public static String readString(final byte[] arr, final int startOffset, final int numBytes,
             final boolean replaceSlashWithDot, final boolean stripLSemicolon) throws IllegalArgumentException {
-        // Compare by subtraction rather than addition, so that a large startOffset plus
-        // a large numBytes cannot
+        // Compare by subtraction rather than addition, so that a large startOffset plus a large numBytes cannot
         // overflow int and slip past the range check
         if (startOffset < 0 || numBytes < 0 || numBytes > arr.length - startOffset) {
             throw new IllegalArgumentException("offset or numBytes out of range");

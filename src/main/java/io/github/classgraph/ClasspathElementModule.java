@@ -246,8 +246,8 @@ class ClasspathElementModule extends ClasspathElement {
                             // Close the wrapped InputStream obtained from moduleReader
                             super.close();
                             try {
-                                // Close the Resource, releasing any underlying ByteBuffer and recycling
-                                // the moduleReader
+                                // Close the Resource, releasing any underlying ByteBuffer and recycling the
+                                // moduleReader
                                 thisResource.close();
                             } catch (final Exception e) {
                                 // Ignore
@@ -293,9 +293,8 @@ class ClasspathElementModule extends ClasspathElement {
                         }
                         // Recycle the (open) ModuleReader instance.
                         moduleReaderRecycler().recycle(reader);
-                        // Don't call ModuleReader#close(), leave the ModuleReader open in the recycler.
-                        // Just set the ref to null here. The ModuleReader will be closed by
-                        // ClasspathElementModule#close().
+                        // Don't call ModuleReader#close(), leave the ModuleReader open in the recycler. Just set
+                        // the ref to null here. The ModuleReader will be closed by ClasspathElementModule#close().
                         moduleReader = null;
                     }
 
@@ -318,8 +317,8 @@ class ClasspathElementModule extends ClasspathElement {
     @Nullable
     Resource getResource(final String relativePath) {
         if (isLookupOnly) {
-            // The paths of the resources in a module that is not being scanned were never
-            // listed, so ask the module reader whether the module contains this one
+            // The paths of the resources in a module that is not being scanned were never listed, so ask the module
+            // reader whether the module contains this one
             if (skipClasspathElement) {
                 return null;
             }
@@ -368,12 +367,10 @@ class ClasspathElementModule extends ClasspathElement {
                 resourceRelativePaths = ModuleReaderUtils.list(moduleReaderRecycleOnClose.get(),
                         moduleRef.getName(), subLog);
             } catch (final SecurityException | IllegalArgumentException e) {
-                // A module whose contents cannot be listed is skipped, rather than aborting the
-                // whole scan.
-                // (A ModuleReader that returns null from list(), in violation of its contract,
-                // is handled by
-                // ModuleReaderUtils#list(ModuleReader, String, LogNode) instead, which treats
-                // the module as empty -- see #887)
+                // A module whose contents cannot be listed is skipped, rather than aborting the whole scan. (A
+                // ModuleReader that returns null from list(), in violation of its contract, is handled by
+                // ModuleReaderUtils#list(ModuleReader, String, LogNode) instead, which treats the module as empty
+                // -- see #887)
                 if (subLog != null) {
                     subLog.log("Could not get resource list for module " + moduleRef.getName()
                             + " -- skipping this module", e);
@@ -385,34 +382,23 @@ class ClasspathElementModule extends ClasspathElement {
             String prevParentRelativePath = null;
             ScanSpecPathMatch prevParentMatchStatus = null;
             for (final String relativePath : resourceRelativePaths) {
-                // From ModuleReader#find(): "If the module reader can determine that the name
-                // locates a
-                // directory then the resulting URI will end with a slash ('/')." But from the
-                // documentation
-                // for ModuleReader#list(): "Whether the stream of elements includes names
-                // corresponding to
-                // directories in the module is module reader specific." We don't have a way of
-                // checking if
-                // a resource is a directory without trying to open it, unless
-                // ModuleReader#list() also decides
-                // to put a "/" on the end of resource paths corresponding to directories. Skip
-                // directories if
-                // they are found, but if they are not able to be skipped, we will have to
-                // settle for having
-                // some IOExceptions thrown when directories are mistaken for resource files.
+                // From ModuleReader#find(): "If the module reader can determine that the name locates a directory
+                // then the resulting URI will end with a slash ('/')." But from the documentation for
+                // ModuleReader#list(): "Whether the stream of elements includes names corresponding to directories
+                // in the module is module reader specific." We don't have a way of checking if a resource is a
+                // directory without trying to open it, unless ModuleReader#list() also decides to put a "/" on the
+                // end of resource paths corresponding to directories. Skip directories if they are found, but if
+                // they are not able to be skipped, we will have to settle for having some IOExceptions thrown when
+                // directories are mistaken for resource files.
                 if (relativePath.endsWith("/")) {
                     continue;
                 }
 
-                // Paths in modules should never start with "META-INF/versions/{version}/",
-                // because the module
-                // system should already strip these prefixes away. If they are found, then the
-                // jarfile must
-                // contain a path like
-                // "META-INF/versions/{version}/META-INF/versions/{version}/", which cannot
-                // be valid (META-INF should only ever exist in the module root), and the nested
-                // versioned section
-                // should be ignored.
+                // Paths in modules should never start with "META-INF/versions/{version}/", because the module
+                // system should already strip these prefixes away. If they are found, then the jarfile must contain
+                // a path like "META-INF/versions/{version}/META-INF/versions/{version}/", which cannot be valid
+                // (META-INF should only ever exist in the module root), and the nested versioned section should be
+                // ignored.
                 if (!scanSpec.enableMultiReleaseVersions
                         && relativePath.startsWith(LogicalZipFile.MULTI_RELEASE_PATH_PREFIX)) {
                     if (subLog != null) {
@@ -422,9 +408,8 @@ class ClasspathElementModule extends ClasspathElement {
                     continue;
                 }
 
-                // If this is a modular jar, ignore all classfiles other than
-                // "module-info.class" in the
-                // default package, since these are disallowed.
+                // If this is a modular jar, ignore all classfiles other than "module-info.class" in the default
+                // package, since these are disallowed.
                 if (isModularJar && relativePath.indexOf('/') < 0 && relativePath.endsWith(".class")
                         && !"module-info.class".equals(relativePath)) {
                     continue;
@@ -435,8 +420,7 @@ class ClasspathElementModule extends ClasspathElement {
                     continue;
                 }
 
-                // Get match status of the parent directory of this resource's relative path (or
-                // reuse the last
+                // Get match status of the parent directory of this resource's relative path (or reuse the last
                 // match status for speed, if the directory name hasn't changed).
                 final var lastSlashIdx = relativePath.lastIndexOf('/');
                 final var parentRelativePath = lastSlashIdx < 0 ? "/" : relativePath.substring(0, lastSlashIdx + 1);
@@ -444,8 +428,8 @@ class ClasspathElementModule extends ClasspathElement {
                 final var parentMatchStatus = //
                         prevParentRelativePath == null || parentRelativePathChanged
                                 ? scanSpec.dirAcceptMatchStatus(parentRelativePath)
-                                // prevParentRelativePath is null on the first iteration, so
-                                // prevParentMatchStatus has always been set by the time it is read
+                                // prevParentRelativePath is null on the first iteration, so prevParentMatchStatus
+                                // has always been set by the time it is read
                                 : Objects.requireNonNull(prevParentMatchStatus);
                 prevParentRelativePath = parentRelativePath;
                 prevParentMatchStatus = parentMatchStatus;
@@ -469,10 +453,9 @@ class ClasspathElementModule extends ClasspathElement {
                         addAcceptedResource(newResource(relativePath), parentMatchStatus,
                                 /* isClassfileOnly = */ false, subLog);
                     } else if (scanSpec.enableClassInfo && "module-info.class".equals(relativePath)) {
-                        // Add module descriptor as an accepted classfile resource, so that it is
-                        // scanned,
-                        // but don't add it to the list of resources in the ScanResult, since it is not
-                        // in an accepted package (#352)
+                        // Add module descriptor as an accepted classfile resource, so that it is scanned, but don't
+                        // add it to the list of resources in the ScanResult, since it is not in an accepted package
+                        // (#352)
                         addAcceptedResource(newResource(relativePath), parentMatchStatus,
                                 /* isClassfileOnly = */ true, subLog);
                     }
@@ -537,8 +520,7 @@ class ClasspathElementModule extends ClasspathElement {
     URI getURI() {
         final var uri = moduleRef.getLocation();
         if (uri == null) {
-            // Some modules have no known module location (ModuleReference#location() can
-            // return null)
+            // Some modules have no known module location (ModuleReference#location() can return null)
             throw new IllegalStateException("Module " + getModuleName() + " has a null location");
         }
         return uri;

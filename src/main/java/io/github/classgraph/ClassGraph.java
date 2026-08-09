@@ -94,11 +94,9 @@ public class ClassGraph {
             // Always scan with at least 2 threads
             2, //
             (int) Math.ceil(
-                    // Num IO threads (top out at 4, since most I/O devices won't scale better than
-                    // this)
+                    // Num IO threads (top out at 4, since most I/O devices won't scale better than this)
                     Math.min(4.0, Runtime.getRuntime().availableProcessors() * 0.75) +
-                    // Num scanning threads (higher than available processors, because some threads
-                    // can be blocked)
+                    // Num scanning threads (higher than available processors, because some threads can be blocked)
                             Runtime.getRuntime().availableProcessors() * 1.25) //
     );
 
@@ -735,8 +733,7 @@ public class ClassGraph {
         Assert.notNullElements(packageNames, "packageNames");
         enableClassInfo();
         for (final String packageName : packageNames) {
-            // A trailing "**" means "and everything below", which acceptPackages() already
-            // does -- strip it
+            // A trailing "**" means "and everything below", which acceptPackages() already does -- strip it
             final var packageNameNormalized = AcceptReject
                     .stripTrailingDoubleGlob(AcceptReject.normalizePackageOrClassName(packageName), '.');
             // Accept package
@@ -746,9 +743,8 @@ public class ClassGraph {
             if (packageNameNormalized.isEmpty()) {
                 scanSpec.pathAcceptReject.addToAccept("");
             }
-            // Accept sub-packages (glob-containing package names included, since the prefix
-            // matcher can
-            // hold a glob -- #870)
+            // Accept sub-packages (glob-containing package names included, since the prefix matcher can hold a glob
+            // -- #870)
             if (packageNameNormalized.isEmpty()) {
                 scanSpec.packagePrefixAcceptReject.addToAccept("");
                 scanSpec.pathPrefixAcceptReject.addToAccept("");
@@ -774,8 +770,7 @@ public class ClassGraph {
     public ClassGraph acceptPaths(final String... paths) {
         Assert.notNullElements(paths, "paths");
         for (final String path : paths) {
-            // A trailing "**" means "and everything below", which acceptPaths() already
-            // does -- strip it
+            // A trailing "**" means "and everything below", which acceptPaths() already does -- strip it
             final var pathNormalized = AcceptReject.stripTrailingDoubleGlob(AcceptReject.normalizePath(path), '/');
             // Accept path
             final var packageName = AcceptReject.pathToPackageName(pathNormalized);
@@ -784,8 +779,7 @@ public class ClassGraph {
             if (pathNormalized.isEmpty()) {
                 scanSpec.pathAcceptReject.addToAccept("");
             }
-            // Accept sub-directories / nested paths (glob-containing paths included --
-            // #870)
+            // Accept sub-directories / nested paths (glob-containing paths included -- #870)
             if (pathNormalized.isEmpty()) {
                 scanSpec.packagePrefixAcceptReject.addToAccept("");
                 scanSpec.pathPrefixAcceptReject.addToAccept("");
@@ -921,8 +915,7 @@ public class ClassGraph {
                 throw new IllegalArgumentException(
                         "Rejecting the root package (\"\") will cause nothing to be scanned");
             }
-            // Rejecting always prevents further recursion, no need to reject
-            // sub-directories / nested paths
+            // Rejecting always prevents further recursion, no need to reject sub-directories / nested paths
             final var packageName = AcceptReject.pathToPackageName(pathNormalized);
             scanSpec.packageAcceptReject.addToReject(packageName);
             scanSpec.pathAcceptReject.addToReject(pathNormalized + "/");
@@ -959,9 +952,8 @@ public class ClassGraph {
                     .addToAccept(AcceptReject.classNameToClassfilePath(classNameNormalized));
             // A class name is never empty, so getParentPackageName cannot return null
             final var packageName = Objects.requireNonNull(PackageInfo.getParentPackageName(classNameNormalized));
-            // Record the package containing the class, so we can recurse to this point even
-            // if the package
-            // is not itself accepted
+            // Record the package containing the class, so we can recurse to this point even if the package is not
+            // itself accepted
             scanSpec.classPackageAcceptReject.addToAccept(packageName);
             scanSpec.classPackagePathAcceptReject.addToAccept(AcceptReject.packageNameToPath(packageName) + "/");
         }
@@ -1065,8 +1057,7 @@ public class ClassGraph {
                     for (final String libOrExtJarPath : SystemJarFinder.getJreLibOrExtJars()) {
                         final var libOrExtJarLeafName = JarUtils.leafName(libOrExtJarPath);
                         if (pattern.matcher(libOrExtJarLeafName).matches()) {
-                            // Check for a wildcard in the filename to prevent infinite recursion
-                            // (shouldn't happen)
+                            // Check for a wildcard in the filename to prevent infinite recursion (shouldn't happen)
                             if (!AcceptReject.containsWildcard(libOrExtJarLeafName)) {
                                 acceptOrRejectLibOrExtJars(accept, libOrExtJarLeafName);
                             }
@@ -1336,9 +1327,8 @@ public class ClassGraph {
         scanSpec.enableStaticFinalFieldConstantInitializerValues = false;
         scanSpec.enableAnnotationInfo = false;
         scanSpec.enableInterClassDependencies = false;
-        // N.B. this field has the opposite polarity to the others in this block --
-        // annotation info is not read,
-        // so runtime-invisible annotations should be disabled, not enabled
+        // N.B. this field has the opposite polarity to the others in this block -- annotation info is not read, so
+        // runtime-invisible annotations should be disabled, not enabled
         scanSpec.disableRuntimeInvisibleAnnotations = true;
         scanSpec.enableExternalClasses = false;
         scanSpec.enableSystemJarsAndModules = false;
@@ -1405,15 +1395,13 @@ public class ClassGraph {
     public void scanAsync(final ExecutorService executorService, final int numParallelTasks,
             final ScanResultProcessor scanResultProcessor, final FailureHandler failureHandler) {
         Assert.notNull(executorService, "executorService");
-        // If scanResultProcessor is null, the scan won't do anything after completion,
-        // and the ScanResult will simply be lost.
+        // If scanResultProcessor is null, the scan won't do anything after completion, and the ScanResult will
+        // simply be lost.
         Assert.notNull(scanResultProcessor, "scanResultProcessor");
-        // The result of the Future<ScanObject> object returned by launchAsyncScan is
-        // discarded below, so a FailureHandler is required, so that exceptions are not
-        // silently swallowed.
+        // The result of the Future<ScanObject> object returned by launchAsyncScan is discarded below, so a
+        // FailureHandler is required, so that exceptions are not silently swallowed.
         Assert.notNull(failureHandler, "failureHandler");
-        // Use execute() rather than submit(), since a ScanResultProcessor and
-        // FailureHandler are used
+        // Use execute() rather than submit(), since a ScanResultProcessor and FailureHandler are used
         executorService.execute(() -> {
             try {
                 // Call scanner, but ignore the returned ScanResult
@@ -1447,12 +1435,9 @@ public class ClassGraph {
             return executorService.submit(new Scanner(performScan, scanSpec, executorService, numParallelTasks,
                     /* scanResultProcessor = */ null, /* failureHandler = */ null, reflectionUtils, topLevelLog));
         } catch (final InterruptedException e) {
-            // Interrupted during the Scanner constructor's execution (specifically, by
-            // getModuleOrder(),
-            // which is unlikely to ever actually be interrupted -- but this exception needs
-            // to be caught).
-            // (the cast is needed to disambiguate ExecutorService::submit's Callable and
-            // Runnable overloads)
+            // Interrupted during the Scanner constructor's execution (specifically, by getModuleOrder(), which is
+            // unlikely to ever actually be interrupted -- but this exception needs to be caught). (the cast is
+            // needed to disambiguate ExecutorService::submit's Callable and Runnable overloads)
             return executorService.submit((Callable<ScanResult>) () -> {
                 throw e;
             });
@@ -1499,8 +1484,7 @@ public class ClassGraph {
             // Start the scan, then block waiting for the result
             final var scanResult = scanAsync(executorService, numParallelTasks).get();
 
-            // The resulting scanResult cannot be null, but check for null to keep SpotBugs
-            // happy
+            // The resulting scanResult cannot be null, but check for null to keep SpotBugs happy
             if (scanResult == null) {
                 throw new NullPointerException();
             }
@@ -1559,8 +1543,7 @@ public class ClassGraph {
             final var scanResult = scanAsync(/* performScan = */ false, executorService, DEFAULT_NUM_WORKER_THREADS)
                     .get();
 
-            // The resulting scanResult cannot be null, but check for null to keep SpotBugs
-            // happy
+            // The resulting scanResult cannot be null, but check for null to keep SpotBugs happy
             if (scanResult == null) {
                 throw new NullPointerException();
             }

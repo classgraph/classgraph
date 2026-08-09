@@ -82,16 +82,11 @@ public final class ModuleReaderUtils {
             throw new IllegalArgumentException("Could not call ModuleReader#list() for module " + moduleName, e);
         }
         if (resourcesStream == null) {
-            // ModuleReader#list() is specified to return a Stream<String>, and is not
-            // allowed to return null,
-            // so a null return means the ModuleReader implementation does not honour its
-            // contract. Some do
-            // anyway -- e.g. Minecraft Forge's securejarhandler
-            // (cpw.mods.cl.JarModuleFinder$JarModuleReader) -- so treat the module as empty
-            // rather than
-            // aborting the whole scan, and record which implementation is at fault in the
-            // log, so that the
-            // report can go to the right project. (#887)
+            // ModuleReader#list() is specified to return a Stream<String>, and is not allowed to return null, so a
+            // null return means the ModuleReader implementation does not honour its contract. Some do anyway --
+            // e.g. Minecraft Forge's securejarhandler (cpw.mods.cl.JarModuleFinder$JarModuleReader) -- so treat the
+            // module as empty rather than aborting the whole scan, and record which implementation is at fault in
+            // the log, so that the report can go to the right project. (#887)
             if (log != null) {
                 log.log("ModuleReader#list() returned null for module " + moduleName
                         + ", which its contract does not permit -- this is a bug in the ModuleReader "
@@ -100,9 +95,8 @@ public final class ModuleReaderUtils {
             }
             return List.of();
         }
-        // N.B. the returned list must be mutable, since ClasspathElementModule sorts it
-        // in place
-        // (so Stream#toList() cannot be used here)
+        // N.B. the returned list must be mutable, since ClasspathElementModule sorts it in place (so
+        // Stream#toList() cannot be used here)
         return resourcesStream.collect(Collectors.toCollection(ArrayList::new));
     }
 

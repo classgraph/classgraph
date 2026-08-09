@@ -202,26 +202,22 @@ public final class ScanResult implements Closeable {
      */
     static void init(final ReflectionUtils reflectionUtils) {
         if (!initialized.getAndSet(true)) {
-            // Pre-load non-system classes necessary for calling scanResult.close(), so that
-            // classes that need
-            // to be loaded to close resources are already loaded and cached. This was
-            // originally for use in
-            // a shutdown hook (#331), which has now been removed, but it is probably still
-            // a good idea to
-            // ensure that classes needed to free/unmap DirectByteBuffer instances are
-            // available at init.
-            // We achieve this by allocating a small direct ByteBuffer and then freeing it.
+            // Pre-load non-system classes necessary for calling scanResult.close(), so that classes that need to be
+            // loaded to close resources are already loaded and cached. This was originally for use in a shutdown
+            // hook (#331), which has now been removed, but it is probably still a good idea to ensure that classes
+            // needed to free/unmap DirectByteBuffer instances are available at init. We achieve this by allocating
+            // a small direct ByteBuffer and then freeing it.
             final var arena = FileUtils.openArena(reflectionUtils);
             if (arena != null) {
-                // On JDK 22+, direct ByteBuffers are allocated and memory-mapped using the
-                // java.lang.foreign.Arena API, and freed/unmapped by closing the arena that
-                // created them, rather than by calling the terminally-deprecated method
-                // Unsafe::invokeCleaner (#939) -- warm up the reflective arena code paths
+                // On JDK 22+, direct ByteBuffers are allocated and memory-mapped using the java.lang.foreign.Arena
+                // API, and freed/unmapped by closing the arena that created them, rather than by calling the
+                // terminally-deprecated method Unsafe::invokeCleaner (#939) -- warm up the reflective arena code
+                // paths
                 FileUtils.allocateDirectByteBufferUsingArena(arena, 32, reflectionUtils);
                 FileUtils.closeArena(arena, reflectionUtils, /* log = */ null);
             } else {
-                // On JDK less than 22, the only problematic classes are the PrivilegedAction
-                // anonymous inner classes used by FileUtils::closeDirectByteBuffer
+                // On JDK less than 22, the only problematic classes are the PrivilegedAction anonymous inner
+                // classes used by FileUtils::closeDirectByteBuffer
                 FileUtils.closeDirectByteBuffer(ByteBuffer.allocateDirect(32), reflectionUtils, /* log = */ null);
             }
         }
@@ -315,9 +311,8 @@ public final class ScanResult implements Closeable {
             classInfo.setScanResult(this);
         }
 
-        // If inter-class dependencies are enabled, create placeholder ClassInfo objects
-        // for any referenced
-        // classes that were not scanned
+        // If inter-class dependencies are enabled, create placeholder ClassInfo objects for any referenced classes
+        // that were not scanned
         if (scanSpec.enableInterClassDependencies) {
             for (final ClassInfo ci : new ArrayList<>(classNameToClassInfo.values())) {
                 final Set<ClassInfo> refdClassesFiltered = new HashSet<>();
@@ -594,12 +589,10 @@ public final class ScanResult implements Closeable {
                 /* removeFinalSlash = */ true);
         ResourceList matchingResources = null;
         if (getResourcesWithPathCallCount.incrementAndGet() > 3) {
-            // If numerous calls are made, produce and cache a single HashMap for O(1)
-            // access time
+            // If numerous calls are made, produce and cache a single HashMap for O(1) access time
             matchingResources = getAllResourcesAsMap().get(path);
         } else {
-            // If just a few calls are made, directly search for resource with the requested
-            // path
+            // If just a few calls are made, directly search for resource with the requested path
             for (final ClasspathElement classpathElt : classpathOrder()) {
                 for (final Resource res : classpathElt.acceptedResources) {
                     if (res.getPath().equals(path)) {
@@ -957,9 +950,9 @@ public final class ScanResult implements Closeable {
         checkClassInfoEnabled();
         Assert.notNull(superclassName, "superclassName");
         if ("java.lang.Object".equals(superclassName)) {
-            // Every standard class is a subclass of Object by the rules of the language,
-            // whether or not its whole superclass chain was scanned, and whether or not
-            // Object itself was scanned (interfaces don't extend Object)
+            // Every standard class is a subclass of Object by the rules of the language, whether or not its whole
+            // superclass chain was scanned, and whether or not Object itself was scanned (interfaces don't extend
+            // Object)
             return getAllStandardClasses().filter(classInfo -> !"java.lang.Object".equals(classInfo.getName()));
         } else {
             final var superclass = classNameToClassInfo.get(superclassName);
@@ -1607,10 +1600,9 @@ public final class ScanResult implements Closeable {
                 pathToAcceptedResourcesCached.clear();
                 pathToAcceptedResourcesCached = null;
             }
-            // Don't clear classNameToClassInfo, since ClassInfo objects and the objects
-            // reachable from them keep working after the ScanResult they came from is
-            // closed. Just rely on the garbage collector to collect these once the
-            // ScanResult goes out of scope.
+            // Don't clear classNameToClassInfo, since ClassInfo objects and the objects reachable from them keep
+            // working after the ScanResult they came from is closed. Just rely on the garbage collector to collect
+            // these once the ScanResult goes out of scope.
             if (packageNameToPackageInfo != null) {
                 packageNameToPackageInfo.clear();
                 packageNameToPackageInfo = null;
@@ -1623,17 +1615,14 @@ public final class ScanResult implements Closeable {
                 fileToLastModified.clear();
                 fileToLastModified = null;
             }
-            // nestedJarHandler should be closed last, since it needs to have all
-            // MappedByteBuffer refs
-            // dropped before it tries to delete any temporary files that were written to
-            // disk
+            // nestedJarHandler should be closed last, since it needs to have all MappedByteBuffer refs dropped
+            // before it tries to delete any temporary files that were written to disk
             if (nestedJarHandler != null) {
                 nestedJarHandler.close(topLevelLog);
                 nestedJarHandler = null;
             }
             reflectionUtils = null;
-            // Flush log on exit, in case additional log entries were generated after scan()
-            // completed
+            // Flush log on exit, in case additional log entries were generated after scan() completed
             if (topLevelLog != null) {
                 topLevelLog.flush();
             }

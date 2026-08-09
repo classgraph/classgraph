@@ -111,31 +111,27 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
         this.classfileLengthHint = (int) slice.sliceLength;
         this.resourceToClose = resourceToClose;
         if (slice.isDeflatedZipEntry) {
-            // If this is a deflated slice, need to read from an InflaterInputStream to fill
-            // buffer
+            // If this is a deflated slice, need to read from an InflaterInputStream to fill buffer
             inflaterInputStream = slice.open();
             arr = new byte[INITIAL_BUF_SIZE];
             classfileLengthHint = (int) Math.min(slice.inflatedLengthHint, FileUtils.MAX_BUFFER_SIZE);
         } else {
             if (slice instanceof final ArraySlice arraySlice) {
-                // If slice is an ArraySlice, avoid copying by simply reusing the wrapped byte
-                // array
-                // in place of the buffer array, and mark it as fully loaded
+                // If slice is an ArraySlice, avoid copying by simply reusing the wrapped byte array in place of the
+                // buffer array, and mark it as fully loaded
                 if (arraySlice.sliceStartPos == 0 && arraySlice.sliceLength == arraySlice.arr.length) {
                     // ArraySlice is the whole array
                     arr = arraySlice.arr;
                 } else {
-                    // ArraySlice covers only a partial array, and this class doesn't support a
-                    // starting
-                    // offset, so copy the sliced part of the array to a new buffer
+                    // ArraySlice covers only a partial array, and this class doesn't support a starting offset, so
+                    // copy the sliced part of the array to a new buffer
                     arr = Arrays.copyOfRange(arraySlice.arr, (int) arraySlice.sliceStartPos,
                             (int) (arraySlice.sliceStartPos + arraySlice.sliceLength));
                 }
                 arrUsed = arr.length;
                 classfileLengthHint = arr.length;
             } else {
-                // Otherwise this is a FileSlice -- need to fetch chunks of bytes using a random
-                // access reader
+                // Otherwise this is a FileSlice -- need to fetch chunks of bytes using a random access reader
                 randomAccessReader = slice.randomAccessReader();
                 arr = new byte[INITIAL_BUF_SIZE];
                 classfileLengthHint = (int) Math.min(slice.sliceLength, FileUtils.MAX_BUFFER_SIZE);
@@ -188,18 +184,14 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
      *             Signals that an I/O exception has occurred.
      */
     private void readTo(final int targetArrUsed) throws IOException {
-        // Array does not need to grow larger than the length hint (if the uncompressed
-        // size of the zip entry
-        // is an underestimate, classfile will be truncated). If -1, assume 2GB is the
-        // max size.
+        // Array does not need to grow larger than the length hint (if the uncompressed size of the zip entry is an
+        // underestimate, classfile will be truncated). If -1, assume 2GB is the max size.
         final var maxArrLen = classfileLengthHint == -1 ? FileUtils.MAX_BUFFER_SIZE : classfileLengthHint;
         final var inflaterInputStream = this.inflaterInputStream;
         final var randomAccessReader = this.randomAccessReader;
         if (inflaterInputStream == null && randomAccessReader == null) {
-            // If neither inflaterInputStream nor randomAccessReader is set, then slice is
-            // an ArraySlice,
-            // and array is already "fully loaded" (the ArraySlice's backing array is used
-            // as the buffer).
+            // If neither inflaterInputStream nor randomAccessReader is set, then slice is an ArraySlice, and array
+            // is already "fully loaded" (the ArraySlice's backing array is used as the buffer).
             throw new IOException("Tried to read past end of fixed array buffer");
         }
         if (targetArrUsed > FileUtils.MAX_BUFFER_SIZE || targetArrUsed < 0 || arrUsed == maxArrLen) {
@@ -210,8 +202,7 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
         final var maxNewArrUsed = (int) Math.min(Math.max(targetArrUsed, (long) (arrUsed + BUF_CHUNK_SIZE)),
                 maxArrLen);
 
-        // Double the size of the array if it's too small to contain the new chunk of
-        // bytes
+        // Double the size of the array if it's too small to contain the new chunk of bytes
         long newArrLength = arr.length;
         while (newArrLength < maxNewArrUsed) {
             newArrLength = Math.min(maxNewArrUsed, newArrLength * 2L);
@@ -234,8 +225,8 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
         } else /* inflaterInputStream == null, so this is a (non-deflated) FileSlice */ {
             // Don't read past end of slice
             final var bytesToRead = Math.min(maxBytesToRead, maxArrLen - arrUsed);
-            // Read bytes from FileSlice into arr
-            // randomAccessReader is non-null if inflaterInputStream is null (see above)
+            // Read bytes from FileSlice into arr randomAccessReader is non-null if inflaterInputStream is null (see
+            // above)
             final var numBytesRead = Objects.requireNonNull(randomAccessReader).read(/* srcOffset = */ arrUsed,
                     /* dstArr = */ arr, /* dstArrStart = */ arrUsed, /* numBytes = */ bytesToRead);
             if (numBytesRead > 0) {
@@ -449,10 +440,8 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
     @Override
     public String readString(final int numBytes, final boolean replaceSlashWithDot, final boolean stripLSemicolon)
             throws IOException {
-        // Delegate to the random access overload, as the other sequential read methods
-        // do, so that the buffer is
-        // grown to cover the requested bytes first. Reading straight out of arr would
-        // silently return whatever
+        // Delegate to the random access overload, as the other sequential read methods do, so that the buffer is
+        // grown to cover the requested bytes first. Reading straight out of arr would silently return whatever
         // happened to be in the buffer past arrUsed.
         final var val = readString(currIdx, numBytes, replaceSlashWithDot, stripLSemicolon);
         currIdx += numBytes;

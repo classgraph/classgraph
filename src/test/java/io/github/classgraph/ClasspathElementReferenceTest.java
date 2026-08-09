@@ -52,8 +52,7 @@ class ClasspathElementReferenceTest {
         final ClassLoader childRefClassLoader = new URLClassLoader(new URL[0]);
         final ClassLoader toplevelRefClassLoader = new URLClassLoader(new URL[0]);
 
-        // The classpath element is created by the work unit that references it from a
-        // parent classpath element
+        // The classpath element is created by the work unit that references it from a parent classpath element
         final var classpathElement = classpathElementCreatedBy(childRefClassLoader, /* isToplevelRef = */ false,
                 /* idx = */ 0);
         assertThat(classpathElement.getClassLoader()).isSameAs(childRefClassLoader);
@@ -62,10 +61,8 @@ class ClasspathElementReferenceTest {
         classpathElement.addReference(/* isToplevelRef = */ true, /* idx = */ 5, toplevelRefClassLoader);
         assertThat(classpathElement.getClassLoader()).isSameAs(toplevelRefClassLoader);
 
-        // The classpath element must now be ordered as toplevel element 5, i.e. after
-        // toplevel element 4 and before
-        // toplevel element 6 -- rather than as child element 0, which would sort after
-        // every toplevel element
+        // The classpath element must now be ordered as toplevel element 5, i.e. after toplevel element 4 and before
+        // toplevel element 6 -- rather than as child element 0, which would sort after every toplevel element
         assertThat(classpathElement)
                 .isGreaterThan(classpathElementCreatedBy(toplevelRefClassLoader, /* isToplevelRef = */ true, 4));
         assertThat(classpathElement)
@@ -78,8 +75,7 @@ class ClasspathElementReferenceTest {
         final ClassLoader laterRefClassLoader = new URLClassLoader(new URL[0]);
         final ClassLoader earlierRefClassLoader = new URLClassLoader(new URL[0]);
 
-        // The classpath element is created by the work unit for the later of two
-        // toplevel references
+        // The classpath element is created by the work unit for the later of two toplevel references
         final var classpathElement = classpathElementCreatedBy(laterRefClassLoader, /* isToplevelRef = */ true,
                 /* idx = */ 3);
         assertThat(classpathElement.getClassLoader()).isSameAs(laterRefClassLoader);

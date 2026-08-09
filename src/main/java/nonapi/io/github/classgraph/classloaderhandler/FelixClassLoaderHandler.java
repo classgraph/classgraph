@@ -139,8 +139,7 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
         final var bundleWiring = classpathOrder.reflectionUtils.getFieldVal(false, classLoader, "m_wiring");
         addBundle(bundleWiring, classLoader, classpathOrder, bundles, scanSpec, log);
 
-        // Deal with any other bundles we might be wired to. TODO: Use the ScanSpec to
-        // narrow down the list of wires
+        // Deal with any other bundles we might be wired to. TODO: Use the ScanSpec to narrow down the list of wires
         // that we follow.
 
         final List<?> requiredWires = (List<?>) classpathOrder.reflectionUtils.invokeMethod(false, bundleWiring,

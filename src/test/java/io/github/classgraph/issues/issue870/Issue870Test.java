@@ -98,10 +98,8 @@ public class Issue870Test {
      */
     @Test
     public void globDoesNotSpanPackageSeparator() {
-        // "issue870.*.domain" must not match "issue870.alpha.domain.sub" as a *whole*
-        // package name via a
-        // separator-spanning wildcard -- it matches it only by recursion below
-        // "issue870.alpha.domain"
+        // "issue870.*.domain" must not match "issue870.alpha.domain.sub" as a *whole* package name via a
+        // separator-spanning wildcard -- it matches it only by recursion below "issue870.alpha.domain"
         assertThat(scan(PKG + ".*.domain.sub")).containsExactly(SUB_THING);
         assertThat(scan(PKG + ".*.sub")).isEmpty();
     }

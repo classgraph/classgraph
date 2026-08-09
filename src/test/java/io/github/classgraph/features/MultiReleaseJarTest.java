@@ -32,8 +32,8 @@ public class MultiReleaseJarTest {
             assertThat(classInfo).isNotNull();
             final var classfileResource = classInfo.getResource();
             assertThat(classfileResource).isNotNull();
-            // The class is reported under its unversioned path, but the classfile that
-            // was read is the JDK 9 version of the class, not the base version
+            // The class is reported under its unversioned path, but the classfile that was read is the JDK 9
+            // version of the class, not the base version
             assertThat(classfileResource.getPath()).isEqualTo("mrj/Cls.class");
             assertThat(classfileResource.getPathRelativeToClasspathElement())
                     .isEqualTo("META-INF/versions/9/mrj/Cls.class");

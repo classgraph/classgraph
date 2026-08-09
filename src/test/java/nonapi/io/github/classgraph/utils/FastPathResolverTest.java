@@ -18,10 +18,8 @@ public class FastPathResolverTest {
         assertThat(FastPathResolver.resolve("jrt:/modules/java.base")).isEqualTo("jrt:/modules/java.base");
         // The scheme is case-insensitive, and is normalized to lowercase
         assertThat(FastPathResolver.resolve("JRT:/modules/java.base")).isEqualTo("jrt:/modules/java.base");
-        // (A doubled separator after the scheme, "jrt://modules/java.base", is not
-        // tested here: on Windows a
-        // path starting with "//" is deliberately kept doubled, since it may be a UNC
-        // path (#736))
+        // (A doubled separator after the scheme, "jrt://modules/java.base", is not tested here: on Windows a path
+        // starting with "//" is deliberately kept doubled, since it may be a UNC path (#736))
     }
 
     /**

@@ -114,9 +114,8 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
         final var paramValues = annotationParamValues;
         final var classInfo = getClassInfo();
         if (classInfo == null) {
-            // ClassInfo has not yet been set, just return values without defaults
-            // (happens when trying to log AnnotationInfo during scanning, before ScanResult
-            // is available)
+            // ClassInfo has not yet been set, just return values without defaults (happens when trying to log
+            // AnnotationInfo during scanning, before ScanResult is available)
             return paramValues == null ? AnnotationParameterValueList.EMPTY_LIST : paramValues;
         }
         // Lazily convert any Object[] arrays of boxed types to primitive arrays
@@ -135,8 +134,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
                 classInfo.annotationDefaultParamValuesHasBeenConvertedToPrimitive = true;
             }
 
-            // Check if one or both of the defaults and the values in this annotation
-            // instance are null (empty)
+            // Check if one or both of the defaults and the values in this annotation instance are null (empty)
             final var defaultParamValues = classInfo.annotationDefaultParamValues;
             if (defaultParamValues == null) {
                 return paramValues == null ? AnnotationParameterValueList.EMPTY_LIST : paramValues;
@@ -153,12 +151,10 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
                 allParamValues.put(annotationParamValue.getName(), annotationParamValue.getValue());
             }
 
-            // Put annotation values in the same order as the annotation methods (there is
-            // one method for each
+            // Put annotation values in the same order as the annotation methods (there is one method for each
             // annotation constant)
             if (classInfo.methodInfo == null) {
-                // Should not happen (when classfile is read, methods are always read, whether
-                // or not
+                // Should not happen (when classfile is read, methods are always read, whether or not
                 // scanSpec.enableMethodInfo is true)
                 throw new IllegalStateException("Could not find methods for annotation " + classInfo.getName());
             }
@@ -167,10 +163,8 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
             for (final MethodInfo mi : classInfo.methodInfo) {
                 final var paramName = mi.getName();
                 switch (paramName) {
-                // None of these method names should be present in the @interface class itself,
-                // it should only
-                // contain methods for the annotation constants (but skip them anyway to be
-                // safe). These methods
+                // None of these method names should be present in the @interface class itself, it should only
+                // contain methods for the annotation constants (but skip them anyway to be safe). These methods
                 // should only exist in concrete instances of the annotation.
                 case "<init>", "<clinit>", "hashCode", "equals", "toString", "annotationType" -> {
                     // Skip
@@ -178,8 +172,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
                 default -> {
                     // Annotation constant
                     final var paramValue = allParamValues.get(paramName);
-                    // Annotation values cannot be null (or absent, from either defaults or
-                    // annotation instance)
+                    // Annotation values cannot be null (or absent, from either defaults or annotation instance)
                     if (paramValue != null) {
                         withDefaults.add(new AnnotationParameterValue(paramName, paramValue));
                     }

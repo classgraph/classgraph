@@ -62,8 +62,8 @@ public class Issue37Test {
                 }
             }
             // Issue37Annotation declares no methods of its own, but inherits the methods of
-            // java.lang.annotation.Annotation, whose classfile is read from a system module
-            // in order to complete the class hierarchy above the annotation (#902)
+            // java.lang.annotation.Annotation, whose classfile is read from a system module in order to complete
+            // the class hierarchy above the annotation (#902)
             assertThat(methodNames).containsExactlyInAnyOrder("equals", "hashCode", "toString", "annotationType",
                     "<init>", "issue37Test", "unannotatedMethod");
         }

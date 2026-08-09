@@ -66,8 +66,7 @@ public class Issue925Test {
             zipOut.write(libJar.toByteArray());
             zipOut.closeEntry();
         }
-        // Strip the trailing slash that File#toURI() does not add for a file, for
-        // clarity at the use sites
+        // Strip the trailing slash that File#toURI() does not add for a file, for clarity at the use sites
         warUrl = war.toURI().toString();
     }
 
@@ -112,12 +111,9 @@ public class Issue925Test {
     public void warUrlClasspathElementIsScanned() {
         try (var scanResult = new ClassGraph().overrideClasspath("war:" + warUrl + "*/WEB-INF/classes/")
                 .enableClassInfo().scan()) {
-            // Both classes are found, not just the one in WEB-INF/classes/, because
-            // ClassGraph already treats
-            // "WEB-INF/classes/" as a package root and "WEB-INF/lib/" as a library
-            // directory within a WAR file,
-            // so the whole webapp is scanned. That matches what the webapp's classloader
-            // can load.
+            // Both classes are found, not just the one in WEB-INF/classes/, because ClassGraph already treats
+            // "WEB-INF/classes/" as a package root and "WEB-INF/lib/" as a library directory within a WAR file, so
+            // the whole webapp is scanned. That matches what the webapp's classloader can load.
             assertThat(scanResult.getAllClasses().getNames()).containsExactlyInAnyOrder(Widget.class.getName(),
                     LibWidget.class.getName());
         }

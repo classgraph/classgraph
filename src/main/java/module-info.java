@@ -43,8 +43,8 @@ import org.jspecify.annotations.NullMarked;
 module io.github.classgraph {
     exports io.github.classgraph;
 
-    // N.B. make sure the "Import-Package" entries in the manifest (in pom.xml)
-    // match these "requires" statements
+    // N.B. make sure the "Import-Package" entries in the manifest (in pom.xml) match these "requires" statements.
+
     // VersionFinder requires java.xml
     requires java.xml;
     // FileUtils requires jdk.unsupported (for usage of Unsafe)
@@ -57,7 +57,7 @@ module io.github.classgraph {
     // ReflectionUtils may use Narcissus, if it is available
     requires static io.github.toolfactory.narcissus;
 
-    // JSpecify nullability annotations are only needed at compile time, but they appear in
-    // exported signatures, so the requirement has to be transitive
+    // JSpecify nullability annotations are only needed at compile time, but they appear in exported signatures, so
+    // the requirement has to be transitive
     requires static transitive org.jspecify;
 }

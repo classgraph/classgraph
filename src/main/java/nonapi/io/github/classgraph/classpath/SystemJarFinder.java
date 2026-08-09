@@ -80,16 +80,12 @@ public final class SystemJarFinder {
                     if (filePath.endsWith(".jar")) {
                         final var jarPathResolved = FastPathResolver.resolve(FileUtils.currDirPath(), filePath);
                         if (jarPathResolved.endsWith("/jrt-fs.jar")) {
-                            // "{java.home}/lib/jrt-fs.jar" is not part of the class library -- it is the
-                            // jrt:
-                            // filesystem provider, shipped so that tools running on an older JDK can read a
-                            // JDK 9+ runtime image. Its classes (jdk.internal.jimage and
-                            // jdk.internal.jrtfs)
-                            // are also present in java.base of the JDK it ships with, so when running on
-                            // JDK 9
-                            // or above, scanning it just duplicates classes that are already reachable
-                            // through
-                            // the system modules.
+                            // "{java.home}/lib/jrt-fs.jar" is not part of the class library -- it is the jrt:
+                            // filesystem provider, shipped so that tools running on an older JDK can read a JDK 9+
+                            // runtime image. Its classes (jdk.internal.jimage and jdk.internal.jrtfs) are also
+                            // present in java.base of the JDK it ships with, so when running on JDK 9 or above,
+                            // scanning it just duplicates classes that are already reachable through the system
+                            // modules.
                             continue;
                         }
                         jreLibOrExtJars.add(jarPathResolved);
@@ -97,8 +93,8 @@ public final class SystemJarFinder {
                             final var canonicalFile = file.getCanonicalFile();
                             final var canonicalFilePath = canonicalFile.getPath();
                             if (!canonicalFilePath.equals(filePath)) {
-                                // The jar is a symlink (or is otherwise reachable by more than one path), so
-                                // also add the path it resolves to, since a classpath entry may name either
+                                // The jar is a symlink (or is otherwise reachable by more than one path), so also
+                                // add the path it resolves to, since a classpath entry may name either
                                 final var canonicalJarPathResolved = FastPathResolver
                                         .resolve(FileUtils.currDirPath(), canonicalFilePath);
                                 jreLibOrExtJars.add(canonicalJarPathResolved);
@@ -150,8 +146,7 @@ public final class SystemJarFinder {
                 || FileUtils.canReadAndIsFile(new File(dir, "bin/javac.exe"));
     }
 
-    // Find jars in JRE dirs ({java.home}, {java.home}/lib, {java.home}/lib/ext,
-    // etc.)
+    // Find jars in JRE dirs ({java.home}, {java.home}/lib, {java.home}/lib/ext, etc.)
     static {
         var javaHome = VersionFinder.getProperty("java.home");
         if (javaHome == null || javaHome.isEmpty()) {
@@ -161,12 +156,9 @@ public final class SystemJarFinder {
             final File javaHomeFile = new File(javaHome);
             addJREPath(javaHomeFile);
             if ("jre".equals(javaHomeFile.getName())) {
-                // Try adding "{java.home}/.." as a JDK root when java.home is a JRE path -- but
-                // only if the
-                // parent directory really is a JDK root, since an application directory
-                // containing a bundled
-                // JRE in "jre/" and the application's own jars in "lib/" has the same shape
-                // (#816)
+                // Try adding "{java.home}/.." as a JDK root when java.home is a JRE path -- but only if the parent
+                // directory really is a JDK root, since an application directory containing a bundled JRE in "jre/"
+                // and the application's own jars in "lib/" has the same shape (#816)
                 final var jreParent = javaHomeFile.getParentFile();
                 if (jreParent != null && isJDKRoot(jreParent)) {
                     addJREPath(jreParent);

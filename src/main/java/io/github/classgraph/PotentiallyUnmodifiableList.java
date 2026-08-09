@@ -170,9 +170,8 @@ class PotentiallyUnmodifiableList<T> extends ArrayList<T> {
         }
     }
 
-    // Provide replacement iterators so that there is no chance of a thread that
-    // is trying to sort the empty list causing a ConcurrentModificationException
-    // in another thread that is iterating over the empty list (#334)
+    // Provide replacement iterators so that there is no chance of a thread that is trying to sort the empty list
+    // causing a ConcurrentModificationException in another thread that is iterating over the empty list (#334)
 
     @Override
     public Iterator<T> iterator() {

@@ -81,8 +81,7 @@ abstract class ReflectionDriver {
          *             if the class' members could not be enumerated
          */
         private ClassMemberCache(final Class<?> cls) throws Exception {
-            // Iterate from class to its superclasses, and find initial interfaces to start
-            // traversing from
+            // Iterate from class to its superclasses, and find initial interfaces to start traversing from
             final Set<Class<?>> visited = new HashSet<>();
             final LinkedList<Class<?>> interfaceQueue = new LinkedList<>();
             for (Class<?> c = cls; c != null; c = c.getSuperclass()) {
@@ -94,8 +93,7 @@ abstract class ReflectionDriver {
                     for (final Field f : getDeclaredFields(c)) {
                         cacheField(f);
                     }
-                    // Find interfaces and superinterfaces implemented by this class or its
-                    // superclasses
+                    // Find interfaces and superinterfaces implemented by this class or its superclasses
                     if (c.isInterface() && visited.add(c)) {
                         interfaceQueue.add(c);
                     }
@@ -143,9 +141,8 @@ abstract class ReflectionDriver {
          *            the field to cache
          */
         private void cacheField(final Field field) {
-            // Only put a field name to field mapping if it is absent, so that subclasses
-            // mask fields
-            // of the same name in superclasses
+            // Only put a field name to field mapping if it is absent, so that subclasses mask fields of the same
+            // name in superclasses
             fieldNameToField.putIfAbsent(field.getName(), field);
         }
     }
@@ -305,8 +302,7 @@ abstract class ReflectionDriver {
         try {
             return fieldOrMethod.canAccess(instance);
         } catch (final Throwable e) {
-            // canAccess throws IllegalArgumentException if the instance does not match the
-            // member
+            // canAccess throws IllegalArgumentException if the instance does not match the member
             return false;
         }
     }
@@ -329,9 +325,8 @@ abstract class ReflectionDriver {
         final var field = classToClassMemberCache.get(cls, /* log = */ null).fieldNameToField.get(fieldName);
         if (field != null) {
             if (!isAccessible(obj, field)) {
-                // If field was found but is not accessible, try making it accessible and then
-                // returning it
-                // (may result in a reflective access warning on stderr)
+                // If field was found but is not accessible, try making it accessible and then returning it (may
+                // result in a reflective access warning on stderr)
                 makeAccessible(obj, field);
             }
             return field;
@@ -401,9 +396,8 @@ abstract class ReflectionDriver {
                     }
                 }
             }
-            // If method was found but is not accessible, try making it accessible and then
-            // returning it
-            // (may result in a reflective access warning on stderr)
+            // If method was found but is not accessible, try making it accessible and then returning it (may result
+            // in a reflective access warning on stderr)
             if (found) {
                 for (final Method method : methodsForName) {
                     if (Arrays.equals(method.getParameterTypes(), paramTypes) && makeAccessible(obj, method)) {

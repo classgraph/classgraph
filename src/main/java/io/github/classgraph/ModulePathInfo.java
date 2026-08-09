@@ -148,19 +148,14 @@ public class ModulePathInfo {
      *            the {@link ReflectionUtils} instance to read the commandline arguments with.
      */
     synchronized void getRuntimeInfo(final ReflectionUtils reflectionUtils) {
-        // Only call this reflective method if ModulePathInfo is specifically requested,
-        // to avoid illegal
-        // access warning on some JREs, e.g. Adopt JDK 11 (#605)
+        // Only call this reflective method if ModulePathInfo is specifically requested, to avoid illegal access
+        // warning on some JREs, e.g. Adopt JDK 11 (#605)
         if (!gotRuntimeInfo) {
             gotRuntimeInfo = true;
-            // Read the raw commandline arguments to get the module path override
-            // parameters.
-            // If the java.management module is not present in the deployed runtime (for JDK
-            // 9+), or the runtime
-            // does not contain the java.lang.management package (e.g. the Android build
-            // system, which also does
-            // not support JPMS currently), then skip trying to read the commandline
-            // arguments (#404).
+            // Read the raw commandline arguments to get the module path override parameters. If the java.management
+            // module is not present in the deployed runtime (for JDK 9+), or the runtime does not contain the
+            // java.lang.management package (e.g. the Android build system, which also does not support JPMS
+            // currently), then skip trying to read the commandline arguments (#404).
             final Class<?> managementFactory = reflectionUtils
                     .classForNameOrNull("java.lang.management.ManagementFactory");
             final var runtimeMXBean = managementFactory == null ? null

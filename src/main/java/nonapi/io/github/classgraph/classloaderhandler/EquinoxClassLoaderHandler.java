@@ -169,8 +169,7 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
                 addClasspathEntries(fragment, classLoader, classpathOrder, scanSpec, log);
             }
         }
-        // Only read system bundles once per scan (all bundles should give the same
-        // results for this).
+        // Only read system bundles once per scan (all bundles should give the same results for this).
         if (classpathOrder.tryAddEquinoxSystemBundles()) {
             // type BundleLoader
             final var delegate = classpathOrder.reflectionUtils.getFieldVal(false, classLoader, "delegate");

@@ -35,8 +35,7 @@ class Issue892Test {
         private final URLClassLoader resourceSource;
 
         OpaqueClassLoader(final URL jarURL) {
-            // Use the bootstrap classloader as the parent, so that the jar is only
-            // reachable through this
+            // Use the bootstrap classloader as the parent, so that the jar is only reachable through this
             // classloader, and not through a parent classloader
             super(null);
             this.resourceSource = new URLClassLoader(new URL[] { jarURL }, null);
@@ -87,23 +86,19 @@ class Issue892Test {
      */
     @Test
     void classpathElementIsFoundByProbingForResources() throws IOException {
-        // Not @TempDir: on Windows, the jar cannot be deleted while it is still open,
-        // and it may be held open
-        // by a memory mapping until it is garbage collected, which would fail the temp
-        // directory cleanup
+        // Not @TempDir: on Windows, the jar cannot be deleted while it is still open, and it may be held open by a
+        // memory mapping until it is garbage collected, which would fail the temp directory cleanup
         final var jarFile = File.createTempFile("issue892-", ".jar");
         jarFile.deleteOnExit();
         buildJar(jarFile, ClassInProbedJar.class);
 
         try (var classLoader = new OpaqueClassLoader(jarFile.toURI().toURL())) {
-            // Only scan the opaque classloader, so that the class can only be found within
-            // the jar it serves,
-            // and not in the directory of test classes that it was copied from
+            // Only scan the opaque classloader, so that the class can only be found within the jar it serves, and
+            // not in the directory of test classes that it was copied from
             try (var scanResult = new ClassGraph().overrideClassLoaders(classLoader).enableClassInfo().scan()) {
                 assertThat(scanResult.getAllClasses().getNames()).contains(ClassInProbedJar.class.getName());
-                // Compare by filename, since the canonical form of the temp directory is
-                // platform-dependent
-                // (a symlink on macOS, an 8.3 short name on Windows)
+                // Compare by filename, since the canonical form of the temp directory is platform-dependent (a
+                // symlink on macOS, an 8.3 short name on Windows)
                 assertThat(scanResult.getClasspathFiles()).hasSize(1);
                 assertThat(scanResult.getClasspathFiles().get(0).getName()).isEqualTo(jarFile.getName());
             }

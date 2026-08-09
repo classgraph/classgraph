@@ -77,8 +77,8 @@ class AnnotationEqualityTest {
             assertThat(paramValues.getValue("a")).isEqualTo(annotation.a());
             assertThat(paramValues.getValue("b")).isEqualTo(annotation.b());
 
-            // Class references in annotation parameters are returned as
-            // AnnotationClassRef, which holds the name of the referenced class
+            // Class references in annotation parameters are returned as AnnotationClassRef, which holds the name of
+            // the referenced class
             final var classRefs = Arrays.stream((Object[]) paramValues.getValue("c"))
                     .map(ref -> ((AnnotationClassRef) ref).getName()).toList();
             final var expectedClassNames = Arrays.stream(annotation.c()).map(Class::getName).toList();

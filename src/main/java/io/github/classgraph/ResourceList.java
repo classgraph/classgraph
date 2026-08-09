@@ -92,8 +92,8 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      *            the collection of {@link Resource} objects.
      */
     public ResourceList(final Collection<Resource> resourceCollection) {
-        // Objects.requireNonNull rather than Assert.notNull, since Assert.notNull
-        // returns void, and so cannot be called before the super() call
+        // Objects.requireNonNull rather than Assert.notNull, since Assert.notNull returns void, and so cannot be
+        // called before the super() call
         super(Objects.requireNonNull(resourceCollection, "resourceCollection must not be null"));
     }
 

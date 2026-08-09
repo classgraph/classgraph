@@ -58,11 +58,9 @@ public class ClassLoadingWorksWithParentLastLoaders {
 
         final var classGraph = new ClassGraph().acceptPackages("com.xyz.meta").enableAllInfo();
 
-        // ClassGraph is in that setup not part of the RestartClass loader. That one
-        // takes by default only
-        // URLs from the current project into consideration and can only be modified by
-        // adding additional
-        // directories, see https://github.com/spring-projects/spring-boot/issues/12869
+        // ClassGraph is in that setup not part of the RestartClass loader. That one takes by default only URLs from
+        // the current project into consideration and can only be modified by adding additional directories, see
+        // https://github.com/spring-projects/spring-boot/issues/12869
         assertThat(classGraph.getClass().getClassLoader().getClass().getSimpleName()).isEqualTo(parentClassLoader);
 
         // Now use ClassGraph to find everything
@@ -70,9 +68,8 @@ public class ClassLoadingWorksWithParentLastLoaders {
             final var classInfo = scanResult.getAllClasses()
                     .filter(classInfo1 -> "A".equals(classInfo1.getSimpleName())).get(0);
 
-            // ClassGraph finds "A" through the RestartClass Loader, and reports that
-            // classloader, so that the class can be loaded through the same classloader
-            // that it was found with
+            // ClassGraph finds "A" through the RestartClass Loader, and reports that classloader, so that the class
+            // can be loaded through the same classloader that it was found with
             final var classInfoClassLoader = classInfo.getClassLoader();
             assertThat(classInfoClassLoader).isNotNull();
             assertThat(classInfoClassLoader.getClass().getSimpleName()).isEqualTo(expectedClassLoader);

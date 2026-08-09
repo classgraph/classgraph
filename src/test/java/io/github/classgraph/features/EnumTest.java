@@ -51,8 +51,8 @@ public class EnumTest {
             assertThat(myEnum.getName()).isEqualTo(EnumWithMethod.class.getName());
             final var constantNames = myEnum.getEnumConstants().getNames();
             assertThat(constantNames).containsExactly("P", "Q");
-            // The reported names are the real constant names, in declaration order --
-            // Enum#valueOf throws if a name is not a constant of the enum
+            // The reported names are the real constant names, in declaration order -- Enum#valueOf throws if a name
+            // is not a constant of the enum
             assertThat(constantNames.stream().map(EnumWithMethod::valueOf).map(EnumWithMethod::getVal).toList())
                     .containsExactly(1, 2);
         }

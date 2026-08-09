@@ -25,8 +25,7 @@ public class ExternalAnnotationArrayValueTest {
      */
     @Test
     public void arrayValueElementTypeFromUnscannedAnnotationClass() throws IOException {
-        // Copy just this class' own classfile into an otherwise empty directory, so
-        // that the annotation class'
+        // Copy just this class' own classfile into an otherwise empty directory, so that the annotation class'
         // classfile is not reachable from the scanned classpath
         final var classfilePath = ExternalAnnotationArrayValueTest.class.getName().replace('.', '/') + ".class";
         final var tempDir = Files.createTempDirectory("classgraph-test");
@@ -48,9 +47,8 @@ public class ExternalAnnotationArrayValueTest {
                 final var classInfo = scanResult.getClassInfo(ExternalAnnotationArrayValueTest.class.getName());
                 assertThat(classInfo).isNotNull();
 
-                // The annotation class' methods were not scanned, so the element type of the
-                // array-typed
-                // annotation parameter has to be inferred from the array elements
+                // The annotation class' methods were not scanned, so the element type of the array-typed annotation
+                // parameter has to be inferred from the array elements
                 final var annotationClassInfo = scanResult.getClassInfo(ExternalAnnotation.class.getName());
                 assertThat(annotationClassInfo == null || annotationClassInfo.getMethodInfo().isEmpty()).isTrue();
 

@@ -50,8 +50,7 @@ public class Issue100Test {
         final var bJarURL = classLoader.getResource(bJarName);
         final var overrideClassLoader = new URLClassLoader(new URL[] { aJarURL, bJarURL });
 
-        // Class issue100.Test with field "a" should mask class of same name with field
-        // "b", because "...a.jar" is
+        // Class issue100.Test with field "a" should mask class of same name with field "b", because "...a.jar" is
         // earlier in classpath than "...b.jar"
         final ArrayList<String> fieldNames1 = new ArrayList<>();
         try (var scanResult = new ClassGraph().overrideClassLoaders(overrideClassLoader).acceptPackages("issue100")
@@ -64,14 +63,10 @@ public class Issue100Test {
         }
         assertThat(fieldNames1).containsOnly("a");
 
-        // However, if "...b.jar" is specifically accepted, "...a.jar" should not be
-        // visible. Originally, the
-        // version of the class in "...a.jar" was supposed to mask the same class in
-        // "...b.jar" (#100). However,
-        // this resulted in a slowdown in scan time (#117). Since classloading behavior
-        // is undefined if you override
-        // the classpath (or in this case, the classloaders), we should only see field
-        // "b" in "...b.jar" (which is
+        // However, if "...b.jar" is specifically accepted, "...a.jar" should not be visible. Originally, the
+        // version of the class in "...a.jar" was supposed to mask the same class in "...b.jar" (#100). However,
+        // this resulted in a slowdown in scan time (#117). Since classloading behavior is undefined if you override
+        // the classpath (or in this case, the classloaders), we should only see field "b" in "...b.jar" (which is
         // what we actually see through scanning the accepted jar, "bJarName").
         final ArrayList<String> fieldNames2 = new ArrayList<>();
         try (var scanResult = new ClassGraph().overrideClassLoaders(overrideClassLoader).acceptPackages("issue100")
