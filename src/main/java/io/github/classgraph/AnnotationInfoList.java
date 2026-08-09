@@ -31,7 +31,9 @@ package io.github.classgraph;
 import java.lang.annotation.Annotation;
 import java.lang.annotation.Repeatable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -241,6 +243,24 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Add a reachable annotation to a list, unless the same annotation was already reached by another route.
+     *
+     * @param ai
+     *            the annotation
+     * @param reachableAnnotationsOut
+     *            the list of reachable annotations
+     * @param addedAnnotations
+     *            the annotations that have already been added to the list
+     */
+    // #559
+    private static void addReachableAnnotation(final AnnotationInfo ai,
+            final AnnotationInfoList reachableAnnotationsOut, final Set<AnnotationInfo> addedAnnotations) {
+        if (addedAnnotations.add(ai)) {
+            reachableAnnotationsOut.add(ai);
+        }
+    }
+
+    /**
      * Find the transitive closure of meta-annotations.
      *
      * @param ai
@@ -249,9 +269,11 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
      *            annotations out
      * @param visited
      *            visited
+     * @param addedAnnotations
+     *            the annotations that have already been added to allAnnotationsOut
      */
     private static void findMetaAnnotations(final AnnotationInfo ai, final AnnotationInfoList allAnnotationsOut,
-            final Set<ClassInfo> visited) {
+            final Set<ClassInfo> visited, final Set<AnnotationInfo> addedAnnotations) {
         final ClassInfo annotationClassInfo = ai.getClassInfo();
         if (annotationClassInfo != null && annotationClassInfo.annotationInfo != null
         // Don't get in a cycle
@@ -263,9 +285,9 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
                 // Don't treat java.lang.annotation annotations as meta-annotations
                 if (!metaAnnotationClassName.startsWith("java.lang.annotation.")) {
                     // Add the meta-annotation to the transitive closure
-                    allAnnotationsOut.add(metaAnnotationInfo);
+                    addReachableAnnotation(metaAnnotationInfo, allAnnotationsOut, addedAnnotations);
                     // Recurse to meta-meta-annotation
-                    findMetaAnnotations(metaAnnotationInfo, allAnnotationsOut, visited);
+                    findMetaAnnotations(metaAnnotationInfo, allAnnotationsOut, visited, addedAnnotations);
                 }
             }
         }
@@ -287,11 +309,17 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
         final Set<ClassInfo> reachedAnnotationClasses = new HashSet<>();
         final AnnotationInfoList reachableAnnotationInfo = new AnnotationInfoList(
                 directAnnotationInfo == null ? 2 : directAnnotationInfo.size());
+        // An annotation can be reached by more than one route -- e.g. an annotation that annotates itself is both
+        // directly present and its own meta-annotation. List each one only once. Compared by identity, not by
+        // equality, since two occurrences of a repeatable annotation with identical parameter values are equal,
+        // but are distinct annotations that must both be listed. #559
+        final Set<AnnotationInfo> addedAnnotations = Collections
+                .newSetFromMap(new IdentityHashMap<AnnotationInfo, Boolean>());
         if (directAnnotationInfo != null) {
             for (final AnnotationInfo dai : directAnnotationInfo) {
                 directOrInheritedAnnotationClasses.add(dai.getClassInfo());
-                reachableAnnotationInfo.add(dai);
-                findMetaAnnotations(dai, reachableAnnotationInfo, reachedAnnotationClasses);
+                addReachableAnnotation(dai, reachableAnnotationInfo, addedAnnotations);
+                findMetaAnnotations(dai, reachableAnnotationInfo, reachedAnnotationClasses, addedAnnotations);
             }
         }
         if (annotatedClass != null) {
@@ -301,13 +329,17 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
                     for (final AnnotationInfo sai : superclass.annotationInfo) {
                         // Don't add inherited superclass annotation if it is overridden in a subclass
                         if (sai.isInherited() && directOrInheritedAnnotationClasses.add(sai.getClassInfo())) {
-                            reachableAnnotationInfo.add(sai);
+                            addReachableAnnotation(sai, reachableAnnotationInfo, addedAnnotations);
                             final AnnotationInfoList reachableMetaAnnotationInfo = new AnnotationInfoList(2);
-                            findMetaAnnotations(sai, reachableMetaAnnotationInfo, reachedAnnotationClasses);
+                            // These are collected into a separate list, and filtered by isInherited() before they
+                            // are added to reachableAnnotationInfo, so this needs its own set of added annotations
+                            findMetaAnnotations(sai, reachableMetaAnnotationInfo, reachedAnnotationClasses,
+                                    Collections.<AnnotationInfo> newSetFromMap(
+                                            new IdentityHashMap<AnnotationInfo, Boolean>()));
                             // Meta-annotations also have to have @Inherited to be inherited
                             for (final AnnotationInfo rmai : reachableMetaAnnotationInfo) {
                                 if (rmai.isInherited()) {
-                                    reachableAnnotationInfo.add(rmai);
+                                    addReachableAnnotation(rmai, reachableAnnotationInfo, addedAnnotations);
                                 }
                             }
                         }
