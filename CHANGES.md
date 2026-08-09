@@ -542,6 +542,26 @@ as described above.
   asking for that one module, and only the named system modules are scanned, so the cost
   of scanning the rest of the JDK is still not incurred.
 
+* **The JDK's application and platform classloaders are now mapped to the scanning
+  mechanism that can reach their classes.** Neither of them exposes the locations it
+  loads classes from, so neither can be scanned as a classloader; ClassGraph has always
+  had to substitute something else when one of them was named. That substitution is now
+  the same in both directions, and applies to `addClassLoader()` as well as to
+  `overrideClassLoaders()`:
+
+  * The **application** classloader (`ClassLoader.getSystemClassLoader()`, and usually
+    also `Thread.currentThread().getContextClassLoader()`) loads the classes on
+    `java.class.path` and the application's own modules, so both are scanned. In 4.x,
+    the non-system modules were not, so `overrideClassLoaders(appClassLoader)` found
+    nothing at all in an application launched on the module path.
+  * The **platform** classloader loads only system modules, so the system jars and
+    modules are scanned, as if `enableSystemJarsAndModules()` had been called. In 4.x
+    the `java.class.path` classpath was scanned too, so
+    `overrideClassLoaders(platformClassLoader)` returned the whole application
+    classpath — classes that the platform classloader cannot load.
+  * In 4.x, `addClassLoader()` did neither of these, so adding one of the two
+    classloaders had no effect on what was scanned.
+
 ## Bug fixes
 
 Bugs found during the port. Each of these is a pre-existing bug in ClassGraph 4.x, and
@@ -571,6 +591,13 @@ is fixed on the 4.x branch as well.
   its own matched neither case. System modules now follow the same accept/reject rule as
   every other module once system module scanning is enabled: with no accept criteria, all
   but the rejected modules are scanned.
+
+* `overrideClassLoaders()` did not scan what the classloader it was given loads from,
+  when that classloader was one of the two JDK system classloaders: the platform
+  classloader caused the `java.class.path` classpath to be scanned, which it cannot load
+  from, and the application classloader did not cause the non-system modules to be
+  scanned, which it does load from. See the behavior change above; only the part that
+  applies to `addClassLoader()` is new in 5.x.
 
 Two further bugs found during the port were only reachable through the JSON
 serialization API, which 5.x removes (`AnnotationParameterValue#toString()` threw

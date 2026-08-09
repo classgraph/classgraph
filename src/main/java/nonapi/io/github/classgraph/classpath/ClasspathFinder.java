@@ -115,8 +115,71 @@ public class ClasspathFinder {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Determine whether a classloader is the JDK's application classloader, which
+     * loads the classes on the {@code java.class.path} classpath, and the
+     * application's own (non-system) modules.
+     *
+     * @param classLoader the classloader
+     * @return true if the classloader is the application classloader
+     */
+    private static boolean isApplicationClassLoader(final ClassLoader classLoader) {
+        return "jdk.internal.loader.ClassLoaders$AppClassLoader".equals(classLoader.getClass().getName());
+    }
+
+    /**
+     * Determine whether a classloader is the JDK's platform classloader, which
+     * loads only system modules.
+     *
+     * @param classLoader the classloader
+     * @return true if the classloader is the platform classloader
+     */
+    private static boolean isPlatformClassLoader(final ClassLoader classLoader) {
+        return "jdk.internal.loader.ClassLoaders$PlatformClassLoader".equals(classLoader.getClass().getName());
+    }
+
+    /**
+     * Neither the application classloader nor the platform classloader exposes the
+     * locations it loads classes from, so neither of them can be scanned as a
+     * classloader. If the user names one of them, scan instead using the mechanism
+     * that can reach the classes that classloader loads: for the platform
+     * classloader, that is the system jars and modules, so
+     * {@code enableSystemJarsAndModules()} is applied here; for the application
+     * classloader, it is the {@code java.class.path} classpath and the non-system
+     * modules, which the caller enables.
+     *
+     * @param classLoader the classloader
+     * @param scanSpec    the {@link ScanSpec}
+     * @param methodName  the name of the API method the classloader was passed to,
+     *                    for logging
+     * @param log         the log
+     */
+    // #639, #795
+    private static void mapSystemClassLoaderToScanningMechanism(final ClassLoader classLoader,
+            final ScanSpec scanSpec, final String methodName, final @Nullable LogNode log) {
+        // Neither of these classloaders can be instantiated, so if one was passed in, it
+        // must have been obtained from Thread.currentThread().getContextClassLoader()
+        // [.getParent()], ClassLoader.getSystemClassLoader(), or similar
+        if (isApplicationClassLoader(classLoader)) {
+            if (log != null) {
+                log.log(methodName + " was called with an instance of " + classLoader.getClass().getName()
+                        + ", which does not expose the locations it loads from, so the java.class.path "
+                        + "classpath and the non-system modules will be scanned instead, since these are "
+                        + "what it loads from");
+            }
+        } else if (isPlatformClassLoader(classLoader)) {
+            if (log != null) {
+                log.log(methodName + " was called with an instance of " + classLoader.getClass().getName()
+                        + ", which does not expose the locations it loads from, so "
+                        + "enableSystemJarsAndModules() was called automatically, since the system jars "
+                        + "and modules are what it loads from");
+            }
+            scanSpec.enableSystemJarsAndModules = true;
+        }
+    }
+
+    /**
      * A class to find the unique ordered classpath elements.
-     * 
+     *
      * @param scanSpec        The {@link ScanSpec}.
      * @param reflectionUtils The reflection utils instance.
      * @param log             The log.
@@ -124,43 +187,26 @@ public class ClasspathFinder {
     public ClasspathFinder(final ScanSpec scanSpec, final ReflectionUtils reflectionUtils, final @Nullable LogNode log) {
         final var classpathFinderLog = log == null ? null : log.log("Finding classpath and modules");
 
-        // Require scanning traditional classpath if an override classloader is
-        // AppClassLoader (#639)
+        // Set to true if java.class.path has to be scanned even though it would not
+        // otherwise be, because a named classloader can only be reached that way
+        // #639, #795
         var forceScanJavaClassPath = false;
 
-        // If classloaders are overridden, check if the override classloader(s) is/are
-        // JPMS classloaders.
-        // If so, need to enable non-system module scanning.
         boolean scanNonSystemModules;
         if (scanSpec.overrideClasspath != null) {
             // Don't scan non-system modules if classpath is overridden
             scanNonSystemModules = false;
         } else if (scanSpec.overrideClassLoaders != null) {
-            // If classloaders are overridden, only scan non-system modules if an override
-            // classloader is a JPMS
-            // AppClassLoader or PlatformClassLoader
+            // If classloaders are overridden, scan only what the named classloaders can
+            // load -- so non-system modules are scanned only if the application
+            // classloader is one of the override classloaders
             scanNonSystemModules = false;
             for (final ClassLoader classLoader : scanSpec.overrideClassLoaders) {
-                final var classLoaderClassName = classLoader.getClass().getName();
-                // It's not possible to instantiate AppClassLoader or PlatformClassLoader, so if
-                // these are
-                // passed in as override classloaders, they must have been obtained using
-                // Thread.currentThread().getContextClassLoader() [.getParent()] or similar
-                if (!scanSpec.enableSystemJarsAndModules
-                        && "jdk.internal.loader.ClassLoaders$PlatformClassLoader".equals(classLoaderClassName)) {
-                    if (classpathFinderLog != null) {
-                        classpathFinderLog.log("overrideClassLoaders() was called with an instance of "
-                                + classLoaderClassName + ", so enableSystemJarsAndModules() was called automatically");
-                    }
-                    scanSpec.enableSystemJarsAndModules = true;
-                }
-                if ("jdk.internal.loader.ClassLoaders$AppClassLoader".equals(classLoaderClassName)
-                        || "jdk.internal.loader.ClassLoaders$PlatformClassLoader".equals(classLoaderClassName)) {
-                    if (classpathFinderLog != null) {
-                        classpathFinderLog.log("overrideClassLoaders() was called with an instance of "
-                                + classLoaderClassName + ", so the `java.class.path` classpath will also be scanned");
-                    }
+                mapSystemClassLoaderToScanningMechanism(classLoader, scanSpec, "overrideClassLoaders()",
+                        classpathFinderLog);
+                if (isApplicationClassLoader(classLoader)) {
                     forceScanJavaClassPath = true;
+                    scanNonSystemModules = true;
                 }
             }
         } else {
@@ -168,6 +214,17 @@ public class ClasspathFinder {
             // non-system modules
             // if module scanning is enabled
             scanNonSystemModules = scanSpec.scanModules;
+            if (scanSpec.addedClassLoaders != null) {
+                // The environment classloaders are scanned as well as the added classloaders,
+                // so an added classloader can only widen what is scanned, never narrow it
+                for (final ClassLoader classLoader : scanSpec.addedClassLoaders) {
+                    mapSystemClassLoaderToScanningMechanism(classLoader, scanSpec, "addClassLoader()",
+                            classpathFinderLog);
+                    if (isApplicationClassLoader(classLoader)) {
+                        forceScanJavaClassPath = true;
+                    }
+                }
+            }
         }
 
         // Also look for system modules if any module was specifically accepted by name --

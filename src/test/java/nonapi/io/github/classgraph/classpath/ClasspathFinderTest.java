@@ -84,4 +84,87 @@ public class ClasspathFinderTest {
         assertTrue(paths.remove(classesDir), "Classpath should have contained " + classesDir + ": " + paths);
         assertEquals(0, paths.size(), "Classpath should have no other entries: " + paths);
     }
+
+    /**
+     * The directory or jar this test class was loaded from, which is on
+     * {@code java.class.path}, and is loaded by the application classloader.
+     *
+     * @return the path of the classpath element containing this test class.
+     * @throws Exception if the location could not be determined.
+     */
+    private static Path testClasspathElement() throws Exception {
+        return Path.of(ClasspathFinderTest.class.getProtectionDomain().getCodeSource().getLocation().toURI())
+                .toRealPath();
+    }
+
+    /**
+     * Get the resolved classpath element paths found by a {@link ClasspathFinder}.
+     *
+     * @param classpathFinder the classpath finder.
+     * @return the resolved paths.
+     */
+    private static Set<Path> resolvedPaths(final ClasspathFinder classpathFinder) {
+        final Set<Path> paths = new TreeSet<>();
+        for (final String path : classpathFinder.getClasspathOrder().getClasspathEntryUniqueResolvedPaths()) {
+            paths.add(Path.of(path));
+        }
+        return paths;
+    }
+
+    /**
+     * The application classloader does not expose the locations it loads from, so
+     * passing it to {@code overrideClassLoaders()} must scan the two things it does
+     * load from: the {@code java.class.path} classpath, and the non-system modules.
+     */
+    @Test
+    public void applicationClassLoaderOverrideScansClasspathAndNonSystemModules() throws Exception {
+        final var scanSpec = new ScanSpec();
+        scanSpec.overrideClassLoaders(ClassLoader.getSystemClassLoader());
+
+        final var classpathFinder = new ClasspathFinder(scanSpec, new ReflectionUtils(), new LogNode());
+
+        assertTrue(resolvedPaths(classpathFinder).contains(testClasspathElement()),
+                "java.class.path should have been scanned");
+        final var moduleFinder = classpathFinder.getModuleFinder();
+        assertNotNull(moduleFinder, "Modules should have been searched for");
+        assertNotNull(moduleFinder.getNonSystemModuleRefs(), "Non-system modules should have been scanned");
+    }
+
+    /**
+     * The platform classloader loads only system modules, so passing it to
+     * {@code overrideClassLoaders()} must scan the system modules, and must not
+     * scan the {@code java.class.path} classpath, which the platform classloader
+     * cannot load from.
+     */
+    @Test
+    public void platformClassLoaderOverrideDoesNotScanClasspath() throws Exception {
+        final var scanSpec = new ScanSpec();
+        scanSpec.overrideClassLoaders(ClassLoader.getPlatformClassLoader());
+
+        final var classpathFinder = new ClasspathFinder(scanSpec, new ReflectionUtils(), new LogNode());
+
+        final var moduleFinder = classpathFinder.getModuleFinder();
+        assertNotNull(moduleFinder, "Modules should have been searched for");
+        assertFalse(moduleFinder.getSystemModuleRefs().isEmpty(), "System modules should have been scanned");
+        final var paths = resolvedPaths(classpathFinder);
+        assertFalse(paths.contains(testClasspathElement()),
+                "java.class.path should not have been scanned: " + paths);
+    }
+
+    /**
+     * The platform classloader is mapped to the scanning mechanism that can reach
+     * its classes whether it is passed to {@code overrideClassLoaders()} or to
+     * {@code addClassLoader()}.
+     */
+    @Test
+    public void addedPlatformClassLoaderEnablesSystemJarsAndModules() {
+        final var scanSpec = new ScanSpec();
+        scanSpec.addClassLoader(ClassLoader.getPlatformClassLoader());
+
+        final var classpathFinder = new ClasspathFinder(scanSpec, new ReflectionUtils(), new LogNode());
+
+        final var moduleFinder = classpathFinder.getModuleFinder();
+        assertNotNull(moduleFinder, "Modules should have been searched for");
+        assertFalse(moduleFinder.getSystemModuleRefs().isEmpty(), "System modules should have been scanned");
+    }
 }

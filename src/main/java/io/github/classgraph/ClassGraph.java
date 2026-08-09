@@ -646,6 +646,11 @@ public class ClassGraph {
      * if this method is called before
      * {@link #overrideClassLoaders(ClassLoader...)}.
      *
+     * <p>
+     * If the JDK's own application or platform ClassLoader is passed in, the
+     * scanning mechanism that can reach the classes it loads is enabled instead --
+     * see {@link #overrideClassLoaders(ClassLoader...)}.
+     *
      * @param classLoader The additional ClassLoader to scan.
      * @return this (for method chaining).
      */
@@ -656,11 +661,30 @@ public class ClassGraph {
     }
 
     /**
-     * Completely override (and ignore) system ClassLoaders and the java.class.path
-     * system property. Also causes modules not to be scanned. Note that you may
-     * want to use this together with {@link #ignoreParentClassLoaders()} to extract
-     * classpath URLs from only the classloaders you specified in the parameter to
-     * `overrideClassLoaders`, and not their parent classloaders.
+     * Completely override (and ignore) the automatically-detected ClassLoaders,
+     * scanning only what the given ClassLoaders can load. Neither the
+     * {@code java.class.path} classpath nor the modules are scanned, unless one of
+     * the given ClassLoaders loads from them (see below).
+     *
+     * <p>
+     * Note that you may want to use this together with
+     * {@link #ignoreParentClassLoaders()}, so that classpath entries are obtained
+     * from only the ClassLoaders you passed in, and not from their parent
+     * ClassLoaders.
+     *
+     * <p>
+     * The JDK's own application and platform ClassLoaders do not expose the
+     * locations they load classes from, so they cannot be scanned as ClassLoaders.
+     * If one of them is passed in -- e.g. the value returned by
+     * {@link ClassLoader#getSystemClassLoader()} or by
+     * {@link Thread#getContextClassLoader()} -- then the scanning mechanism that
+     * can reach the classes it loads is used instead:
+     * <ul>
+     * <li>for the application ClassLoader, the {@code java.class.path} classpath
+     * and the non-system modules are scanned;</li>
+     * <li>for the platform ClassLoader, the system jars and modules are scanned, as
+     * if {@link #enableSystemJarsAndModules()} had been called.</li>
+     * </ul>
      *
      * <p>
      * This call is ignored if {@link #overrideClasspath(String)} is called.
