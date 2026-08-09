@@ -74,7 +74,7 @@ public final class CollectionUtils {
     public static <T extends @Nullable Object> void sortIfNotEmpty(final List<T> list,
             final Comparator<? super T> comparator) {
         if (list.size() > 1) {
-            Collections.sort(list, comparator);
+            list.sort(comparator);
         }
     }
 

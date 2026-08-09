@@ -252,16 +252,6 @@ public class PathSlice extends Slice {
         return ByteBuffer.wrap(load());
     }
 
-    @Override
-    public boolean equals(final @Nullable Object o) {
-        return super.equals(o);
-    }
-
-    @Override
-    public int hashCode() {
-        return super.hashCode();
-    }
-
     /**
      * Close the slice, closing the {@link FileChannel} if this is the toplevel
      * slice.

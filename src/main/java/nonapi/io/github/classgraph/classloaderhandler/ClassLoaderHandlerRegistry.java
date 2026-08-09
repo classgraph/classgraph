@@ -28,8 +28,6 @@
  */
 package nonapi.io.github.classgraph.classloaderhandler;
 
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
@@ -44,43 +42,41 @@ public final class ClassLoaderHandlerRegistry {
      * Default ClassLoaderHandlers. If a ClassLoaderHandler is added to ClassGraph,
      * it should be added to this list.
      */
-    @SuppressWarnings("null")
-    public static final List<ClassLoaderHandlerRegistryEntry> CLASS_LOADER_HANDLERS = //
-            Collections.unmodifiableList(Arrays.asList(
-                    // ClassLoaderHandlers for other ClassLoaders that are handled by ClassGraph
-                    new ClassLoaderHandlerRegistryEntry(new AntClassLoaderHandler()),
-                    new ClassLoaderHandlerRegistryEntry(new EquinoxClassLoaderHandler()),
-                    new ClassLoaderHandlerRegistryEntry(new EquinoxContextFinderClassLoaderHandler()),
-                    new ClassLoaderHandlerRegistryEntry(new FelixClassLoaderHandler()),
-                    new ClassLoaderHandlerRegistryEntry(new JBossClassLoaderHandler()),
-                    new ClassLoaderHandlerRegistryEntry(new WeblogicClassLoaderHandler()),
-                    new ClassLoaderHandlerRegistryEntry(new WebsphereLibertyClassLoaderHandler()),
-                    new ClassLoaderHandlerRegistryEntry(new WebsphereTraditionalClassLoaderHandler()),
-                    new ClassLoaderHandlerRegistryEntry(new OSGiDefaultClassLoaderHandler()),
-                    new ClassLoaderHandlerRegistryEntry(new SpringBootRestartClassLoaderHandler()),
-                    new ClassLoaderHandlerRegistryEntry(new TomcatWebappClassLoaderBaseHandler()),
-                    new ClassLoaderHandlerRegistryEntry(new CxfContainerClassLoaderHandler()),
-                    new ClassLoaderHandlerRegistryEntry(new PlexusClassWorldsClassRealmClassLoaderHandler()),
-                    new ClassLoaderHandlerRegistryEntry(new QuarkusClassLoaderHandler()),
-                    new ClassLoaderHandlerRegistryEntry(new UnoOneJarClassLoaderHandler()),
+    public static final List<ClassLoaderHandlerRegistryEntry> CLASS_LOADER_HANDLERS = List.of(
+            // ClassLoaderHandlers for other ClassLoaders that are handled by ClassGraph
+            new ClassLoaderHandlerRegistryEntry(new AntClassLoaderHandler()),
+            new ClassLoaderHandlerRegistryEntry(new EquinoxClassLoaderHandler()),
+            new ClassLoaderHandlerRegistryEntry(new EquinoxContextFinderClassLoaderHandler()),
+            new ClassLoaderHandlerRegistryEntry(new FelixClassLoaderHandler()),
+            new ClassLoaderHandlerRegistryEntry(new JBossClassLoaderHandler()),
+            new ClassLoaderHandlerRegistryEntry(new WeblogicClassLoaderHandler()),
+            new ClassLoaderHandlerRegistryEntry(new WebsphereLibertyClassLoaderHandler()),
+            new ClassLoaderHandlerRegistryEntry(new WebsphereTraditionalClassLoaderHandler()),
+            new ClassLoaderHandlerRegistryEntry(new OSGiDefaultClassLoaderHandler()),
+            new ClassLoaderHandlerRegistryEntry(new SpringBootRestartClassLoaderHandler()),
+            new ClassLoaderHandlerRegistryEntry(new TomcatWebappClassLoaderBaseHandler()),
+            new ClassLoaderHandlerRegistryEntry(new CxfContainerClassLoaderHandler()),
+            new ClassLoaderHandlerRegistryEntry(new PlexusClassWorldsClassRealmClassLoaderHandler()),
+            new ClassLoaderHandlerRegistryEntry(new QuarkusClassLoaderHandler()),
+            new ClassLoaderHandlerRegistryEntry(new UnoOneJarClassLoaderHandler()),
 
-                    // For unit testing of PARENT_LAST delegation order
-                    new ClassLoaderHandlerRegistryEntry(new ParentLastDelegationOrderTestClassLoaderHandler()),
+            // For unit testing of PARENT_LAST delegation order
+            new ClassLoaderHandlerRegistryEntry(new ParentLastDelegationOrderTestClassLoaderHandler()),
 
-                    // JPMS support (this handler does nothing, since modules are handled
-                    // separately)
-                    new ClassLoaderHandlerRegistryEntry(new JPMSClassLoaderHandler()),
+            // JPMS support (this handler does nothing, since modules are handled
+            // separately)
+            new ClassLoaderHandlerRegistryEntry(new JPMSClassLoaderHandler()),
 
-                    // URLClassLoader support (should be second-to-last, so that subclasses of
-                    // URLClassLoader are handled by more specific handlers above)
-                    new ClassLoaderHandlerRegistryEntry(new URLClassLoaderHandler()),
+            // URLClassLoader support (should be second-to-last, so that subclasses of
+            // URLClassLoader are handled by more specific handlers above)
+            new ClassLoaderHandlerRegistryEntry(new URLClassLoaderHandler()),
 
-                    // Placeholder for delegation to a ClassGraphClassLoader instance from an outer
-                    // nested scan
-                    new ClassLoaderHandlerRegistryEntry(new ClassGraphClassLoaderHandler())
+            // Placeholder for delegation to a ClassGraphClassLoader instance from an outer
+            // nested scan
+            new ClassLoaderHandlerRegistryEntry(new ClassGraphClassLoaderHandler())
 
             // FallbackClassLoaderHandler.class is registered separately below
-            ));
+            );
 
     /** Fallback ClassLoaderHandler. */
     public static final ClassLoaderHandlerRegistryEntry FALLBACK_HANDLER = new ClassLoaderHandlerRegistryEntry(

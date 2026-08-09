@@ -40,7 +40,6 @@ import org.junit.jupiter.api.Test;
 import io.github.classgraph.ArrayClassInfo;
 import io.github.classgraph.ArrayTypeSignature;
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.MethodInfo;
 import io.github.classgraph.MethodParameterInfo;
 import io.github.classgraph.test.external.ExternalAnnotation;
 

@@ -35,7 +35,6 @@ import java.io.Serial;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -221,7 +220,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
     public <T> List<Class<T>> loadClasses(final Class<T> superclassOrInterfaceType, final boolean ignoreExceptions) {
         Assert.notNull(superclassOrInterfaceType, "superclassOrInterfaceType");
         if (this.isEmpty()) {
-            return Collections.emptyList();
+            return List.of();
         } else {
             final List<Class<T>> classRefs = new ArrayList<>();
             for (final ClassInfo classInfo : this) {
@@ -230,7 +229,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
                     classRefs.add(classRef);
                 }
             }
-            return classRefs.isEmpty() ? Collections.emptyList() : classRefs;
+            return classRefs.isEmpty() ? List.of() : classRefs;
         }
     }
 
@@ -280,7 +279,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      */
     public List<Class<?>> loadClasses(final boolean ignoreExceptions) {
         if (this.isEmpty()) {
-            return Collections.emptyList();
+            return List.of();
         } else {
             final List<Class<?>> classRefs = new ArrayList<>();
             // Try loading each class
@@ -290,7 +289,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
                     classRefs.add(classRef);
                 }
             }
-            return classRefs.isEmpty() ? Collections.emptyList() : classRefs;
+            return classRefs.isEmpty() ? List.of() : classRefs;
         }
     }
 

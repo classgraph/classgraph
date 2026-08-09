@@ -29,7 +29,6 @@
 package io.github.classgraph;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -241,7 +240,7 @@ public final class TypeArgument extends HierarchicalTypeSignature {
             parser.expect('>');
             return typeArguments;
         } else {
-            return Collections.emptyList();
+            return List.of();
         }
     }
 
@@ -323,7 +322,7 @@ public final class TypeArgument extends HierarchicalTypeSignature {
             return false;
         }
         return Objects.equals(this.typeAnnotationInfo, other.typeAnnotationInfo)
-                && (Objects.equals(this.typeSignature, other.typeSignature) && other.wildcard.equals(this.wildcard));
+                && (Objects.equals(this.typeSignature, other.typeSignature) && other.wildcard == this.wildcard);
     }
 
     // -------------------------------------------------------------------------------------------------------------

@@ -29,7 +29,6 @@
 package io.github.classgraph;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -528,7 +527,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
                     if (!TypeUtils.getIdentifierToken(parser, /* stopAtDollarSign = */ true, /* stopAtDot = */ true)) {
                         // Got the empty string as the next token after '$', i.e. found an empty suffix.
                         suffixes.add("");
-                        suffixTypeArguments.add(Collections.emptyList());
+                        suffixTypeArguments.add(List.of());
                         dropSuffixes = true;
                     } else {
                         suffixes.add(parser.currToken());
@@ -541,12 +540,12 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
                     // In this case, take the whole class reference as a single class name without
                     // suffixes.
                     className = parser.getSubstring(startParserPosition, parser.getPosition()).replace('/', '.');
-                    suffixes = Collections.emptyList();
-                    suffixTypeArguments = Collections.emptyList();
+                    suffixes = List.of();
+                    suffixTypeArguments = List.of();
                 }
             } else {
-                suffixes = Collections.emptyList();
-                suffixTypeArguments = Collections.emptyList();
+                suffixes = List.of();
+                suffixTypeArguments = List.of();
             }
             parser.expect(';');
             return new ClassRefTypeSignature(className, typeArguments, suffixes, suffixTypeArguments);

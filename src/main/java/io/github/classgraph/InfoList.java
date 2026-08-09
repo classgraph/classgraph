@@ -31,10 +31,7 @@ package io.github.classgraph;
 import java.io.Serial;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
-
-import org.jspecify.annotations.Nullable;
 
 /**
  * A list of named objects.
@@ -71,18 +68,6 @@ public class InfoList<T extends HasName> extends PotentiallyUnmodifiableList<T> 
         super(infoCollection);
     }
 
-    // Keep Scrutinizer happy
-    @Override
-    public boolean equals(final @Nullable Object o) {
-        return super.equals(o);
-    }
-
-    // Keep Scrutinizer happy
-    @Override
-    public int hashCode() {
-        return super.hashCode();
-    }
-
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -94,7 +79,7 @@ public class InfoList<T extends HasName> extends PotentiallyUnmodifiableList<T> 
      */
     public List<String> getNames() {
         if (this.isEmpty()) {
-            return Collections.emptyList();
+            return List.of();
         } else {
             final List<String> names = new ArrayList<>(this.size());
             for (final T i : this) {
@@ -115,7 +100,7 @@ public class InfoList<T extends HasName> extends PotentiallyUnmodifiableList<T> 
      */
     public List<String> getAsStrings() {
         if (this.isEmpty()) {
-            return Collections.emptyList();
+            return List.of();
         } else {
             final List<String> toStringVals = new ArrayList<>(this.size());
             for (final T i : this) {
@@ -141,7 +126,7 @@ public class InfoList<T extends HasName> extends PotentiallyUnmodifiableList<T> 
      */
     public List<String> getAsStringsWithSimpleNames() {
         if (this.isEmpty()) {
-            return Collections.emptyList();
+            return List.of();
         } else {
             final List<String> toStringVals = new ArrayList<>(this.size());
             for (final T i : this) {

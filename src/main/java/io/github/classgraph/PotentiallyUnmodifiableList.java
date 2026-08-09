@@ -34,8 +34,6 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.ListIterator;
 
-import org.jspecify.annotations.Nullable;
-
 /**
  * A potentially unmodifiable list of objects.
  *
@@ -72,18 +70,6 @@ class PotentiallyUnmodifiableList<T> extends ArrayList<T> {
      */
     PotentiallyUnmodifiableList(final Collection<T> collection) {
         super(collection);
-    }
-
-    // Keep Scrutinizer happy
-    @Override
-    public boolean equals(final @Nullable Object o) {
-        return super.equals(o);
-    }
-
-    // Keep Scrutinizer happy
-    @Override
-    public int hashCode() {
-        return super.hashCode();
     }
 
     /** Make this list unmodifiable. */

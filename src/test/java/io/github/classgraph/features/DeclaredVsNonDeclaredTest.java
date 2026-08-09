@@ -11,23 +11,23 @@ import org.junit.jupiter.api.Test;
 import io.github.classgraph.AnnotationInfo;
 import io.github.classgraph.ClassGraph;
 
-@Retention(value = RetentionPolicy.RUNTIME)
+@Retention(RetentionPolicy.RUNTIME)
 @Inherited
 @interface InheritedMetaAnnotation {
 }
 
-@Retention(value = RetentionPolicy.RUNTIME)
+@Retention(RetentionPolicy.RUNTIME)
 @interface NonInheritedMetaAnnotation {
 }
 
-@Retention(value = RetentionPolicy.RUNTIME)
+@Retention(RetentionPolicy.RUNTIME)
 @Inherited
 @InheritedMetaAnnotation
 @NonInheritedMetaAnnotation
 @interface InheritedAnnotation {
 }
 
-@Retention(value = RetentionPolicy.RUNTIME)
+@Retention(RetentionPolicy.RUNTIME)
 @interface NormalAnnotation {
 }
 

@@ -29,7 +29,6 @@
 package io.github.classgraph;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -118,7 +117,7 @@ public final class TypeParameter extends HierarchicalTypeSignature {
     static List<TypeParameter> parseList(final Parser parser, final @Nullable String definingClassName)
             throws ParseException {
         if (parser.peek() != '<') {
-            return Collections.emptyList();
+            return List.of();
         }
         parser.expect('<');
         final List<TypeParameter> typeParams = new ArrayList<>(1);
@@ -146,7 +145,7 @@ public final class TypeParameter extends HierarchicalTypeSignature {
                     interfaceBounds.add(interfaceTypeSignature);
                 }
             } else {
-                interfaceBounds = Collections.emptyList();
+                interfaceBounds = List.of();
             }
             typeParams.add(new TypeParameter(identifier, classBound, interfaceBounds));
         }

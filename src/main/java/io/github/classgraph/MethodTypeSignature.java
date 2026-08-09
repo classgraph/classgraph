@@ -29,7 +29,6 @@
 package io.github.classgraph;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -345,8 +344,8 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
             // Special case for instance initialization method signatures in a
             // CONSTANT_NameAndType_info structure:
             // https://docs.oracle.com/javase/specs/jvms/se11/html/jvms-4.html#jvms-4.4.2
-            return new MethodTypeSignature(Collections.emptyList(), Collections.emptyList(),
-                    /* void */ new BaseTypeSignature('V'), Collections.emptyList());
+            return new MethodTypeSignature(List.of(), List.of(),
+                    /* void */ new BaseTypeSignature('V'), List.of());
         }
         final Parser parser = new Parser(typeDescriptor);
         final var typeParameters = TypeParameter.parseList(parser, definingClassName);
@@ -385,7 +384,7 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
                 }
             }
         } else {
-            throwsSignatures = Collections.emptyList();
+            throwsSignatures = List.of();
         }
         if (parser.hasMore()) {
             throw new ParseException(parser, "Extra characters at end of type descriptor");

@@ -28,6 +28,7 @@
  */
 package nonapi.io.github.classgraph.concurrency;
 
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -35,7 +36,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  * @author Johno Crawford (johno@sulake.com)
  */
-public class SimpleThreadFactory implements java.util.concurrent.ThreadFactory {
+public class SimpleThreadFactory implements ThreadFactory {
     /** The thread name prefix. */
     private final String threadNamePrefix;
 

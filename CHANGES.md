@@ -90,6 +90,10 @@ compiler's `-Xlint:exports` check is enabled to keep it that way.
   all nine of its sibling type signature classes is `protected`. It is now `protected`
   too. It takes an output set that only the scanner populates, so there was nothing a
   caller could do with it.
+* `ArrayClassInfo` and `InfoList` (and so all of its subclasses) declared `equals(Object)`
+  and `hashCode()` overrides whose whole body was a call to `super`. These have been
+  removed, so the methods are simply inherited. Behavior is identical; only reflection
+  over the declared methods of those classes sees a difference.
 
 ### Nullability is now declared, using JSpecify
 
@@ -175,6 +179,15 @@ annotated `@Nullable` to say so.
 
 Code that relied on passing null to mean "no filter" has to stop passing it. Code that
 was already passing non-null arguments is unaffected.
+
+### Empty lists returned by the API are now `List.of()` / `Set.of()`
+
+Methods that return an empty collection (for example `InfoList#getNames()`,
+`ClassInfoList#loadClasses()`) used to return `Collections.emptyList()`, and now return
+`List.of()`. Both are immutable and empty, but the JDK's `List.of()` rejects a null
+argument to `contains()`, `indexOf()` and `lastIndexOf()` with `NullPointerException`,
+where `Collections.emptyList()` answered `false` / `-1`. This matches the rest of 5.x,
+which rejects null rather than answering it.
 
 ## Behavior changes
 

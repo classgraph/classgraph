@@ -34,7 +34,6 @@ import java.util.Arrays;
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.fileslice.reader.RandomAccessArrayReader;
 import nonapi.io.github.classgraph.fileslice.reader.RandomAccessReader;
-import org.jspecify.annotations.Nullable;
 
 /** A byte array slice. */
 public class ArraySlice extends Slice {
@@ -127,15 +126,5 @@ public class ArraySlice extends Slice {
     @Override
     public RandomAccessReader randomAccessReader() {
         return new RandomAccessArrayReader(arr, (int) sliceStartPos, (int) sliceLength);
-    }
-
-    @Override
-    public boolean equals(final @Nullable Object o) {
-        return super.equals(o);
-    }
-
-    @Override
-    public int hashCode() {
-        return super.hashCode();
     }
 }

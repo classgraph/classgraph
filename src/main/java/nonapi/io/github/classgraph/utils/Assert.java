@@ -4,6 +4,11 @@ import org.jspecify.annotations.Nullable;
 
 /** Assertions. */
 public final class Assert {
+    /** Class can't be constructed. */
+    private Assert() {
+        // Empty
+    }
+
     /**
      * Throw {@link NullPointerException} if the argument is null.
      *

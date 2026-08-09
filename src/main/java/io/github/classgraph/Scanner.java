@@ -61,6 +61,7 @@ import io.github.classgraph.ClassGraph.FailureHandler;
 import io.github.classgraph.ClassGraph.ScanResultProcessor;
 import io.github.classgraph.Classfile.ClassfileFormatException;
 import io.github.classgraph.Classfile.SkipClassException;
+import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
 import nonapi.io.github.classgraph.classpath.ClasspathFinder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder.ClasspathEntry;
 import nonapi.io.github.classgraph.concurrency.AutoCloseableExecutorService;
@@ -190,7 +191,7 @@ class Scanner implements Callable<ScanResult> {
                             final var classpathElementModule = new ClasspathElementModule(systemModuleRef,
                                     nestedJarHandler.moduleRefToModuleReaderRecyclerMap(),
                                     new ClasspathEntryWorkUnit(null, defaultClassLoader, null, moduleOrder.size(), "",
-                                            nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES),
+                                            ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES),
                                     scanSpec);
                             moduleOrder.add(classpathElementModule);
                             // Open the ClasspathElementModule
@@ -215,7 +216,7 @@ class Scanner implements Callable<ScanResult> {
                             final var classpathElementModule = new ClasspathElementModule(nonSystemModuleRef,
                                     nestedJarHandler.moduleRefToModuleReaderRecyclerMap(),
                                     new ClasspathEntryWorkUnit(null, defaultClassLoader, null, moduleOrder.size(), "",
-                                            nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES),
+                                            ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES),
                                     scanSpec);
                             moduleOrder.add(classpathElementModule);
                             // Open the ClasspathElementModule

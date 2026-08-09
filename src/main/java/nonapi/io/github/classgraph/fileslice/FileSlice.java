@@ -320,16 +320,6 @@ public class FileSlice extends Slice {
         }
     }
 
-    @Override
-    public boolean equals(final @Nullable Object o) {
-        return super.equals(o);
-    }
-
-    @Override
-    public int hashCode() {
-        return super.hashCode();
-    }
-
     /** Close the slice. Unmaps any backing {@link MappedByteBuffer}. */
     @Override
     public void close() {

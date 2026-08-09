@@ -17,19 +17,19 @@ import io.github.classgraph.ClassGraph;
 class ClassTypeAnnotation {
     /***/
     @Retention(RetentionPolicy.RUNTIME)
-    @Target(value = { ElementType.TYPE_USE, ElementType.TYPE })
+    @Target({ ElementType.TYPE_USE, ElementType.TYPE })
     private static @interface P {
     }
 
     /***/
     @Retention(RetentionPolicy.RUNTIME)
-    @Target(value = { ElementType.TYPE_USE, ElementType.TYPE })
+    @Target({ ElementType.TYPE_USE, ElementType.TYPE })
     private static @interface Q {
     }
 
     /***/
     @Retention(RetentionPolicy.RUNTIME)
-    @Target(value = { ElementType.TYPE_USE, ElementType.TYPE })
+    @Target({ ElementType.TYPE_USE, ElementType.TYPE })
     private static @interface R {
     }
 

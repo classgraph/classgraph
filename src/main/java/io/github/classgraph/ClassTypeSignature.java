@@ -29,7 +29,6 @@
 package io.github.classgraph;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -105,7 +104,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
             final ClassInfoList interfaces) {
         super();
         this.classInfo = classInfo;
-        this.typeParameters = Collections.emptyList();
+        this.typeParameters = List.of();
         ClassRefTypeSignature superclassSignature = null;
         try {
             superclassSignature = superclass == null ? null
@@ -115,7 +114,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
             // Silently fail (should not happen)
         }
         this.superclassSignature = superclassSignature;
-        this.superinterfaceSignatures = interfaces == null || interfaces.isEmpty() ? Collections.emptyList()
+        this.superinterfaceSignatures = interfaces == null || interfaces.isEmpty() ? List.of()
                 : new ArrayList<>(interfaces.size());
         if (interfaces != null) {
             for (final ClassInfo iface : interfaces) {
@@ -425,7 +424,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
                 superinterfaceSignatures.add(superinterfaceSignature);
             }
         } else {
-            superinterfaceSignatures = Collections.emptyList();
+            superinterfaceSignatures = List.of();
         }
         final List<ClassRefOrTypeVariableSignature> throwsSignatures;
         if (parser.peek() == '^') {

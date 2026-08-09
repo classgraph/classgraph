@@ -32,9 +32,7 @@ import java.util.SortedSet;
 
 import nonapi.io.github.classgraph.classpath.ClassLoaderFinder;
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
-import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
-import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
@@ -118,12 +116,8 @@ class PlexusClassWorldsClassRealmClassLoaderHandler extends URLClassLoaderHandle
         }
     }
 
-    @Override
-    public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-            final ScanSpec scanSpec, final @Nullable LogNode log) {
-        // ClassRealm extends URLClassLoader
-        super.findClasspathOrder(classLoader, classpathOrder, scanSpec, log);
-    }
+    // findClasspathOrder() is inherited from URLClassLoaderHandler, since ClassRealm
+    // extends URLClassLoader
 
     /**
      * Get the automatic package root prefixes for classpath elements obtained from

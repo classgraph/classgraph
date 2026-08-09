@@ -39,7 +39,6 @@ import java.net.URL;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -214,7 +213,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
 
     /** The constant empty return value used when no classes are reachable. */
     private static final ReachableAndDirectlyRelatedClasses NO_REACHABLE_CLASSES = //
-            new ReachableAndDirectlyRelatedClasses(Collections.emptySet(), Collections.emptySet());
+            new ReachableAndDirectlyRelatedClasses(Set.of(), Set.of());
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -846,7 +845,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     private static Set<ClassInfo> filterClassInfo(final Collection<ClassInfo> classes, final ScanSpec scanSpec,
             final boolean strictAccept, final ClassType... classTypes) {
         if (classes == null) {
-            return Collections.emptySet();
+            return Set.of();
         }
         var includeAllTypes = classTypes.length == 0;
         var includeStandardClasses = false;

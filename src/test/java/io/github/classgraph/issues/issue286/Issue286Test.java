@@ -43,7 +43,7 @@ public class Issue286Test {
      * Issue 286 test.
      */
     @Test
-    @Timeout(value = 1)
+    @Timeout(1)
     public void issue286Test() {
         final var jarURL = getClass().getClassLoader().getResource("issue286.jar");
         assertThat(jarURL).isNotNull();

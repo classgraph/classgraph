@@ -29,7 +29,6 @@
 package io.github.classgraph;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -135,7 +134,7 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
         // If that failed, then this is a type variable that cannot be resolved.
         // Return a new TypeParameter that only has the name set, with no class or
         // interface bounds. (#706)
-        final TypeParameter typeParameter = new TypeParameter(name, null, Collections.emptyList());
+        final TypeParameter typeParameter = new TypeParameter(name, null, List.of());
         typeParameter.setScanResult(scanResult);
         typeParameterCached = typeParameter;
         return typeParameter;

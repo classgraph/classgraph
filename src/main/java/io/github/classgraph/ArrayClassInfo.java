@@ -211,26 +211,4 @@ public class ArrayClassInfo extends ClassInfo {
         }
         return classRef;
     }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /*
-     * (non-Javadoc)
-     *
-     * @see io.github.classgraph.ClassInfo#equals(java.lang.Object)
-     */
-    @Override
-    public boolean equals(final @Nullable Object obj) {
-        return super.equals(obj);
-    }
-
-    /*
-     * (non-Javadoc)
-     *
-     * @see io.github.classgraph.ClassInfo#hashCode()
-     */
-    @Override
-    public int hashCode() {
-        return super.hashCode();
-    }
 }
