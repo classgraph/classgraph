@@ -51,6 +51,7 @@ import nonapi.io.github.classgraph.scanspec.ScanSpec.ScanSpecPathMatch;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
+import org.jspecify.annotations.Nullable;
 
 /** A classpath element (a directory or jarfile on the classpath). */
 abstract class ClasspathElement implements Comparable<ClasspathElement> {
@@ -67,7 +68,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      * because we don't scan jars-within-jars unless the inner jar is explicitly
      * listed on the classpath).
      */
-    List<String> nestedClasspathRootPrefixes;
+    @Nullable List<String> nestedClasspathRootPrefixes;
 
     /**
      * True if there was an exception when trying to open this classpath element
@@ -121,8 +122,11 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
     /** Flag to ensure classpath element is only scanned once. */
     protected final AtomicBoolean scanned = new AtomicBoolean(false);
 
-    /** The classloader that this classpath element was obtained from. */
-    protected ClassLoader classLoader;
+    /**
+     * The classloader that this classpath element was obtained from, or null if
+     * unknown.
+     */
+    protected @Nullable ClassLoader classLoader;
 
     /** The package root within the jarfile or Path. */
     protected String packageRootPrefix;
@@ -140,13 +144,16 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      * The name of the module from the {@code module-info.class} module descriptor,
      * if one is present in the root of the classpath element.
      */
-    String moduleNameFromModuleDescriptor;
+    @Nullable String moduleNameFromModuleDescriptor;
 
     /** The scan spec. */
     final ScanSpec scanSpec;
 
-    /** The ScanResult that the classpath element came from. */
-    protected ScanResult scanResult;
+    /**
+     * The ScanResult that the classpath element came from, or null until
+     * {@link #setScanResult(ScanResult)} is called after the scan is complete.
+     */
+    protected @Nullable ScanResult scanResult;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -209,9 +216,10 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      * @param idx           the index of the reference within the classpath, or
      *                      within the parent classpath element
      * @param classLoader   the classloader that the referencing work unit obtained
-     *                      the classpath entry from
+     *                      the classpath entry from, or null if unknown
      */
-    synchronized void addReference(final boolean isToplevelRef, final int idx, final ClassLoader classLoader) {
+    synchronized void addReference(final boolean isToplevelRef, final int idx,
+            final @Nullable ClassLoader classLoader) {
         if (isToplevelRef && !isToplevel) {
             // A toplevel reference always beats a reference from a parent classpath element
             isToplevel = true;
@@ -242,8 +250,9 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
     /**
      * Get the ClassLoader the classpath element was obtained from.
      *
-     * @return the classloader
+     * @return the classloader, or null if unknown
      */
+    @Nullable
     ClassLoader getClassLoader() {
         return classLoader;
     }
@@ -266,7 +275,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      * @param log          the log
      * @return true if path should be scanned
      */
-    protected boolean checkResourcePathAcceptReject(final String relativePath, final LogNode log) {
+    protected boolean checkResourcePathAcceptReject(final String relativePath, final @Nullable LogNode log) {
         // Accept/reject classpath elements based on file resource paths
         if (!scanSpec.classpathElementResourcePathAcceptReject.acceptAndRejectAreEmpty()) {
             if (scanSpec.classpathElementResourcePathAcceptReject.isRejected(relativePath)) {
@@ -315,7 +324,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      *         by the classfile, which disproves that the candidate is a package
      *         root.
      */
-    static String getClassNameDisprovingPackageRoot(final ClassfileReader classfileReader,
+    static @Nullable String getClassNameDisprovingPackageRoot(final ClassfileReader classfileReader,
             final String classfileRelativePath) {
         final var className = Classfile.readClassName(classfileReader);
         return className == null || (className + ".class").equals(classfileRelativePath) ? null
@@ -440,7 +449,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      */
     void maskDuplicateResources(final int classpathIdx, final Set<String> collidingPaths,
             final Set<String> fileIdentityKeysFound, final Map<String, String> canonicalDirPathCache,
-            final LogNode log) {
+            final @Nullable LogNode log) {
         final List<Resource> acceptedResourcesFiltered = new ArrayList<>(acceptedResources.size());
         Set<Resource> maskedResources = null;
         for (final Resource res : acceptedResources) {
@@ -502,7 +511,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      * @param classpathRelativePathsFound the classpath relative paths found
      * @param log                         the log
      */
-    void maskClassfiles(final int classpathIdx, final Set<String> classpathRelativePathsFound, final LogNode log) {
+    void maskClassfiles(final int classpathIdx, final Set<String> classpathRelativePathsFound, final @Nullable LogNode log) {
         // Find relative paths that occur more than once in the classpath / module path.
         // Usually duplicate relative paths occur only between classpath / module path
         // elements, not within,
@@ -561,7 +570,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      * @param log               the log
      */
     protected void addAcceptedResource(final Resource resource, final ScanSpecPathMatch parentMatchStatus,
-            final boolean isClassfileOnly, final LogNode log) {
+            final boolean isClassfileOnly, final @Nullable LogNode log) {
         final var path = resource.getPath();
         final var isClassFile = FileUtils.isClassfile(path);
         var isAccepted = false;
@@ -611,7 +620,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      *
      * @param log the log
      */
-    protected void finishScanPaths(final LogNode log) {
+    protected void finishScanPaths(final @Nullable LogNode log) {
         if (log != null) {
             if (acceptedResources.isEmpty() && acceptedClassfileResources.isEmpty()) {
                 log.log(scanSpec.enableClassInfo ? "No accepted classfiles or resources found"
@@ -669,7 +678,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      * @throws InterruptedException if the thread was interrupted while trying to
      *                              open the classpath element.
      */
-    abstract void open(final WorkQueue<ClasspathEntryWorkUnit> workQueue, final LogNode log)
+    abstract void open(final WorkQueue<ClasspathEntryWorkUnit> workQueue, final @Nullable LogNode log)
             throws InterruptedException;
 
     /**
@@ -678,7 +687,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      *
      * @param log the log
      */
-    abstract void scanPaths(final LogNode log);
+    abstract void scanPaths(final @Nullable LogNode log);
 
     /**
      * Get the {@link Resource} for a given relative path.
@@ -692,7 +701,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      * @return The {@link Resource} for the given relative path, or null if
      *         relativePath does not exist in this classpath element.
      */
-    abstract Resource getResource(final String relativePath);
+    abstract @Nullable Resource getResource(final String relativePath);
 
     /**
      * Get the URI for this classpath element.
@@ -716,7 +725,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      *
      * @return the file for the classpath element.
      */
-    abstract File getFile();
+    abstract @Nullable File getFile();
 
     /**
      * Get the name of this classpath element's module, or null if there is no
@@ -724,5 +733,5 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      *
      * @return the module name
      */
-    abstract String getModuleName();
+    abstract @Nullable String getModuleName();
 }

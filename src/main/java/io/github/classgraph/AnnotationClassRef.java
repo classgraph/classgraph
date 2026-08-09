@@ -29,6 +29,7 @@
 package io.github.classgraph;
 
 import nonapi.io.github.classgraph.types.ParseException;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Stores the type descriptor of a {@code Class<?>}, as found in an annotation
@@ -39,14 +40,16 @@ public class AnnotationClassRef extends ScanResultObject {
     private String typeDescriptorStr;
 
     /** The type signature. */
-    private transient TypeSignature typeSignature;
+    private transient @Nullable TypeSignature typeSignature;
 
     /** The class name. */
-    private transient String className;
+    private transient @Nullable String className;
 
     /**
-     * Constructor.
+     * Default constructor for deserialization. {@code typeDescriptorStr} is
+     * populated by the deserializer, so it is not assigned here.
      */
+    @SuppressWarnings("NullAway.Init")
     AnnotationClassRef() {
         super();
     }
@@ -80,18 +83,20 @@ public class AnnotationClassRef extends ScanResultObject {
      *         {@link ArrayTypeSignature}.
      */
     private TypeSignature getTypeSignature() {
-        if (typeSignature == null) {
+        var typeSig = typeSignature;
+        if (typeSig == null) {
             try {
                 // There can't be any type variables to resolve in ClassRefTypeSignature,
                 // BaseTypeSignature or ArrayTypeSignature, so just set definingClassName to
                 // null
-                typeSignature = TypeSignature.parse(typeDescriptorStr, /* definingClassName = */ null);
-                typeSignature.setScanResult(scanResult);
+                typeSignature = typeSig = TypeSignature.parse(typeDescriptorStr,
+                        /* definingClassName = */ null);
+                typeSig.setScanResult(scanResult);
             } catch (final ParseException e) {
                 throw new IllegalArgumentException(e);
             }
         }
-        return typeSignature;
+        return typeSig;
     }
 
     /**
@@ -105,16 +110,14 @@ public class AnnotationClassRef extends ScanResultObject {
      *                                  ignoreExceptions was false.
      */
     @Override
-    public Class<?> loadClass(final boolean ignoreExceptions) {
-        getTypeSignature();
-        if (typeSignature instanceof final BaseTypeSignature baseTypeSignature) {
+    public @Nullable Class<?> loadClass(final boolean ignoreExceptions) {
+        final var typeSig = getTypeSignature();
+        if (typeSig instanceof final BaseTypeSignature baseTypeSignature) {
             return baseTypeSignature.getType();
-        } else if (typeSignature instanceof ClassRefTypeSignature) {
-            return typeSignature.loadClass(ignoreExceptions);
-        } else if (typeSignature instanceof ArrayTypeSignature) {
-            return typeSignature.loadClass(ignoreExceptions);
+        } else if (typeSig instanceof ClassRefTypeSignature || typeSig instanceof ArrayTypeSignature) {
+            return typeSig.loadClass(ignoreExceptions);
         } else {
-            throw new IllegalArgumentException("Got unexpected type " + typeSignature.getClass().getName()
+            throw new IllegalArgumentException("Got unexpected type " + typeSig.getClass().getName()
                     + " for ref type signature: " + typeDescriptorStr);
         }
     }
@@ -127,7 +130,7 @@ public class AnnotationClassRef extends ScanResultObject {
      * @throws IllegalArgumentException if the class could not be loaded.
      */
     @Override
-    public Class<?> loadClass() {
+    public @Nullable Class<?> loadClass() {
         return loadClass(/* ignoreExceptions = */ false);
     }
 
@@ -140,20 +143,22 @@ public class AnnotationClassRef extends ScanResultObject {
      */
     @Override
     protected String getClassName() {
-        if (className == null) {
-            getTypeSignature();
-            if (typeSignature instanceof final BaseTypeSignature baseTypeSignature) {
-                className = baseTypeSignature.getTypeStr();
-            } else if (typeSignature instanceof final ClassRefTypeSignature classRefTypeSignature) {
-                className = classRefTypeSignature.getFullyQualifiedClassName();
-            } else if (typeSignature instanceof ArrayTypeSignature) {
-                className = typeSignature.getClassName();
+        var name = className;
+        if (name == null) {
+            final var typeSig = getTypeSignature();
+            if (typeSig instanceof final BaseTypeSignature baseTypeSignature) {
+                name = baseTypeSignature.getTypeStr();
+            } else if (typeSig instanceof final ClassRefTypeSignature classRefTypeSignature) {
+                name = classRefTypeSignature.getFullyQualifiedClassName();
+            } else if (typeSig instanceof final ArrayTypeSignature arrayTypeSignature) {
+                name = arrayTypeSignature.getClassName();
             } else {
-                throw new IllegalArgumentException("Got unexpected type " + typeSignature.getClass().getName()
+                throw new IllegalArgumentException("Got unexpected type " + typeSig.getClass().getName()
                         + " for ref type signature: " + typeDescriptorStr);
             }
+            className = name;
         }
-        return className;
+        return name;
     }
 
     /**
@@ -166,9 +171,8 @@ public class AnnotationClassRef extends ScanResultObject {
      *         load the referenced class by name.
      */
     @Override
-    public ClassInfo getClassInfo() {
-        getTypeSignature();
-        return typeSignature.getClassInfo();
+    public @Nullable ClassInfo getClassInfo() {
+        return getTypeSignature().getClassInfo();
     }
 
     /*
@@ -179,7 +183,7 @@ public class AnnotationClassRef extends ScanResultObject {
      * ScanResult)
      */
     @Override
-    void setScanResult(final ScanResult scanResult) {
+    void setScanResult(final @Nullable ScanResult scanResult) {
         super.setScanResult(scanResult);
         if (typeSignature != null) {
             typeSignature.setScanResult(scanResult);
@@ -204,7 +208,7 @@ public class AnnotationClassRef extends ScanResultObject {
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
-    public boolean equals(final Object obj) {
+    public boolean equals(final @Nullable Object obj) {
         if (obj == this) {
             return true;
         }

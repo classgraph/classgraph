@@ -33,6 +33,7 @@ import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Handle the WebSphere traditional ClassLoaders.
@@ -41,7 +42,7 @@ import nonapi.io.github.classgraph.utils.LogNode;
  */
 class WebsphereTraditionalClassLoaderHandler implements ClassLoaderHandler {
     @Override
-    public boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
+    public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
         return ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass,
                 "com.ibm.ws.classloader.CompoundClassLoader")
                 || ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass,
@@ -52,14 +53,14 @@ class WebsphereTraditionalClassLoaderHandler implements ClassLoaderHandler {
 
     @Override
     public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
-            final LogNode log) {
+            final @Nullable LogNode log) {
         classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
         classLoaderOrder.add(classLoader, log);
     }
 
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-            final ScanSpec scanSpec, final LogNode log) {
+            final ScanSpec scanSpec, final @Nullable LogNode log) {
         final var classpath = (String) classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getClassPath");
         classpathOrder.addClasspathPathStr(classpath, classLoader, scanSpec, log);
     }

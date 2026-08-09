@@ -49,6 +49,7 @@ import nonapi.io.github.classgraph.utils.CollectionUtils;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.StringUtils;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A logical zipfile, which represents a zipfile contained within a ZipFileSlice
@@ -68,31 +69,31 @@ public class LogicalZipFile extends ZipFileSlice {
      * The value of the "Class-Path" manifest entry, if present in the manifest,
      * else null.
      */
-    public String classPathManifestEntryValue;
+    public @Nullable String classPathManifestEntryValue;
 
     /**
      * The value of the "Bundle-ClassPath" manifest entry, if present in the
      * manifest, else null.
      */
-    public String bundleClassPathManifestEntryValue;
+    public @Nullable String bundleClassPathManifestEntryValue;
 
     /**
      * The value of the "Add-Exports" manifest entry, if present in the manifest,
      * else null.
      */
-    public String addExportsManifestEntryValue;
+    public @Nullable String addExportsManifestEntryValue;
 
     /**
      * The value of the "Add-Opens" manifest entry, if present in the manifest, else
      * null.
      */
-    public String addOpensManifestEntryValue;
+    public @Nullable String addOpensManifestEntryValue;
 
     /**
      * The value of the "Automatic-Module-Name" manifest entry, if present in the
      * manifest, else null.
      */
-    public String automaticModuleNameManifestEntryValue;
+    public @Nullable String automaticModuleNameManifestEntryValue;
 
     /** If true, this is a JRE jar. */
     public boolean isJREJar;
@@ -162,7 +163,7 @@ public class LogicalZipFile extends ZipFileSlice {
      * @throws IOException          If an I/O exception occurs.
      * @throws InterruptedException if the thread was interrupted.
      */
-    LogicalZipFile(final ZipFileSlice zipFileSlice, final NestedJarHandler nestedJarHandler, final LogNode log,
+    LogicalZipFile(final ZipFileSlice zipFileSlice, final NestedJarHandler nestedJarHandler, final @Nullable LogNode log,
             final boolean enableMultiReleaseVersions) throws IOException, InterruptedException {
         super(zipFileSlice);
         this.enableMultiReleaseVersions = enableMultiReleaseVersions;
@@ -283,7 +284,7 @@ public class LogicalZipFile extends ZipFileSlice {
      * @throws IOException          If an I/O exception occurs.
      * @throws InterruptedException If the thread was interrupted.
      */
-    private void parseManifest(final FastZipEntry manifestZipEntry, final LogNode log)
+    private void parseManifest(final FastZipEntry manifestZipEntry, final @Nullable LogNode log)
             throws IOException, InterruptedException {
         // Load contents of manifest entry as a byte array
         final var manifest = manifestZipEntry.getSlice().load();
@@ -423,7 +424,7 @@ public class LogicalZipFile extends ZipFileSlice {
      * @throws InterruptedException if the thread was interrupted.
      */
     @SuppressWarnings("resource")
-    private void readCentralDirectory(final NestedJarHandler nestedJarHandler, final LogNode log)
+    private void readCentralDirectory(final NestedJarHandler nestedJarHandler, final @Nullable LogNode log)
             throws IOException, InterruptedException {
         if (slice.sliceLength < 22) {
             throw new IOException("Zipfile too short to have a central directory");

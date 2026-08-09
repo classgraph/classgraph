@@ -35,6 +35,7 @@ import java.util.Map.Entry;
 
 import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.Parser;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A JSON parser, based on the PEG grammar found at:
@@ -87,10 +88,10 @@ final class JSONParser extends Parser {
      * 
      * </pre>
      *
-     * @return the char sequence
+     * @return the char sequence, or null if the next token is not a quoted string
      * @throws ParseException if the escape sequence was invalid
      */
-    private CharSequence parseString() throws ParseException {
+    private @Nullable CharSequence parseString() throws ParseException {
         skipWhitespace();
         if (peek() != '"') {
             return null;
@@ -292,7 +293,7 @@ final class JSONParser extends Parser {
             return new JSONArray(List.of());
         }
 
-        final List<Object> elements = new ArrayList<>();
+        final List<@Nullable Object> elements = new ArrayList<>();
         var first = true;
         while (peek() != ']') {
             if (first) {
@@ -330,7 +331,7 @@ final class JSONParser extends Parser {
             return new JSONObject(List.of());
         }
 
-        final List<Entry<String, Object>> kvPairs = new ArrayList<>();
+        final List<Entry<String, @Nullable Object>> kvPairs = new ArrayList<>();
         final JSONObject jsonObject = new JSONObject(kvPairs);
         var first = true;
         while (peek() != '}') {
@@ -379,10 +380,10 @@ final class JSONParser extends Parser {
      * 
      * </pre>
      *
-     * @return the parsed JSON object
+     * @return the parsed JSON object, or null for a JSON null value
      * @throws ParseException if parsing fails
      */
-    private Object parseJSON() throws ParseException {
+    private @Nullable Object parseJSON() throws ParseException {
         skipWhitespace();
         final var c = peek();
         if (c == '{') {
@@ -436,10 +437,10 @@ final class JSONParser extends Parser {
      * Parse a JSON object, array, string, value or object reference.
      *
      * @param str the str
-     * @return the parsed JSON object
+     * @return the parsed JSON object, or null for a JSON null value
      * @throws ParseException if parsing fails
      */
-    static Object parseJSON(final String str) throws ParseException {
+    static @Nullable Object parseJSON(final String str) throws ParseException {
         return new JSONParser(str).parseJSON();
     }
 }

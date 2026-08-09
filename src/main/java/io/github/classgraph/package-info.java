@@ -26,24 +26,18 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package nonapi.io.github.classgraph.types;
-
-import org.jspecify.annotations.Nullable;
 
 /**
- * A parsing exception.
+ * <a href="https://github.com/classgraph/classgraph">ClassGraph</a>: the
+ * uber-fast, ultra-lightweight classpath and module scanner for JVM languages.
+ *
+ * <p>
+ * This package is {@link org.jspecify.annotations.NullMarked}: unless a type is
+ * annotated {@link org.jspecify.annotations.Nullable}, it is never null.
+ *
+ * @author Luke Hutchison
  */
-public class ParseException extends Exception {
-    /** serialVersionUID. */
-    static final long serialVersionUID = 1L;
+@NullMarked
+package io.github.classgraph;
 
-    /**
-     * A parsing exception.
-     * 
-     * @param parser The parser, or null if there is no parsing context to report.
-     * @param msg    The exception message.
-     */
-    public ParseException(final @Nullable Parser parser, final String msg) {
-        super(parser == null ? msg : msg + " (" + parser.getPositionInfo() + ")");
-    }
-}
+import org.jspecify.annotations.NullMarked;

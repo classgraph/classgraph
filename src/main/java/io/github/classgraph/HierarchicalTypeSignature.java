@@ -31,6 +31,7 @@ package io.github.classgraph;
 import java.util.List;
 
 import io.github.classgraph.Classfile.TypePathNode;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A Java type signature. Subclasses are ClassTypeSignature,
@@ -38,7 +39,7 @@ import io.github.classgraph.Classfile.TypePathNode;
  */
 public abstract class HierarchicalTypeSignature extends ScanResultObject {
     /** The type annotations on this type, or null if none. */
-    protected AnnotationInfoList typeAnnotationInfo;
+    protected @Nullable AnnotationInfoList typeAnnotationInfo;
 
     /** A hierarchical type signature. */
     protected HierarchicalTypeSignature() {
@@ -51,17 +52,19 @@ public abstract class HierarchicalTypeSignature extends ScanResultObject {
      * @param annotationInfo the annotation
      */
     void addTypeAnnotation(final AnnotationInfo annotationInfo) {
-        if (typeAnnotationInfo == null) {
-            typeAnnotationInfo = new AnnotationInfoList(1);
+        var typeAnnotations = typeAnnotationInfo;
+        if (typeAnnotations == null) {
+            typeAnnotationInfo = typeAnnotations = new AnnotationInfoList(1);
         }
-        typeAnnotationInfo.add(annotationInfo);
+        typeAnnotations.add(annotationInfo);
     }
 
     @Override
-    void setScanResult(final ScanResult scanResult) {
+    void setScanResult(final @Nullable ScanResult scanResult) {
         super.setScanResult(scanResult);
-        if (typeAnnotationInfo != null) {
-            for (final AnnotationInfo annotationInfo : typeAnnotationInfo) {
+        final var typeAnnotations = typeAnnotationInfo;
+        if (typeAnnotations != null) {
+            for (final AnnotationInfo annotationInfo : typeAnnotations) {
                 annotationInfo.setScanResult(scanResult);
             }
         }
@@ -74,7 +77,7 @@ public abstract class HierarchicalTypeSignature extends ScanResultObject {
      * @return a list of {@link AnnotationInfo} objects for any type annotations on
      *         this type, or null if none.
      */
-    public AnnotationInfoList getTypeAnnotationInfo() {
+    public @Nullable AnnotationInfoList getTypeAnnotationInfo() {
         return typeAnnotationInfo;
     }
 
@@ -96,7 +99,8 @@ public abstract class HierarchicalTypeSignature extends ScanResultObject {
      *                             annotations).
      * @param buf                  the {@link StringBuilder} to write to.
      */
-    protected abstract void toStringInternal(final boolean useSimpleNames, AnnotationInfoList annotationsToExclude,
+    protected abstract void toStringInternal(final boolean useSimpleNames,
+            @Nullable AnnotationInfoList annotationsToExclude,
             StringBuilder buf);
 
     /**

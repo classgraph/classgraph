@@ -42,6 +42,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -62,6 +63,7 @@ import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.URLPathEncoder;
+import org.jspecify.annotations.Nullable;
 
 /** A zip/jarfile classpath element. */
 class ClasspathElementZip extends ClasspathElement {
@@ -70,8 +72,11 @@ class ClasspathElementZip extends ClasspathElement {
      * {@link URI}, or {@link Path} for this zipfile.
      */
     private final String rawPath;
-    /** The logical zipfile for this classpath element. */
-    LogicalZipFile logicalZipFile;
+    /**
+     * The logical zipfile for this classpath element, or null until {@link #open}
+     * has been called (or if the classpath element could not be opened).
+     */
+    @Nullable LogicalZipFile logicalZipFile;
     /**
      * The normalized path of the jarfile, "!/"-separated if nested, excluding any
      * package root.
@@ -92,9 +97,9 @@ class ClasspathElementZip extends ClasspathElement {
      * The name of the module from the {@code Automatic-Module-Name} manifest
      * attribute, if one is present in the root of the classpath element.
      */
-    String moduleNameFromManifestFile;
+    @Nullable String moduleNameFromManifestFile;
     /** The automatic module name, derived from the jarfile filename. */
-    private String derivedAutomaticModuleName;
+    private @Nullable String derivedAutomaticModuleName;
 
     /**
      * A jarfile classpath element.
@@ -106,7 +111,7 @@ class ClasspathElementZip extends ClasspathElement {
     ClasspathElementZip(final ClasspathEntryWorkUnit workUnit, final NestedJarHandler nestedJarHandler,
             final ScanSpec scanSpec) {
         super(workUnit, scanSpec);
-        final var rawPathObj = workUnit.classpathEntryObj;
+        final var rawPathObj = Objects.requireNonNull(workUnit.classpathEntryObj);
 
         // Convert the raw path object (Path, URL, or URI) to a string.
         // Any required URL/URI parsing are done in NestedJarHandler.
@@ -136,7 +141,7 @@ class ClasspathElementZip extends ClasspathElement {
      * nonapi.io.github.classgraph.utils.LogNode)
      */
     @Override
-    void open(final WorkQueue<ClasspathEntryWorkUnit> workQueue, final LogNode log) throws InterruptedException {
+    void open(final WorkQueue<ClasspathEntryWorkUnit> workQueue, final @Nullable LogNode log) throws InterruptedException {
         if (!scanSpec.scanJars) {
             if (log != null) {
                 log(classpathElementIdx, "Skipping classpath element, since jar scanning is disabled: " + rawPath, log);
@@ -156,11 +161,12 @@ class ClasspathElementZip extends ClasspathElement {
             return;
         }
 
+        final LogicalZipFile logicalZipFile;
         try {
             // Get LogicalZipFile for innermost nested jarfile
             final Entry<LogicalZipFile, String> logicalZipFileAndPackageRoot;
             try {
-                logicalZipFileAndPackageRoot = nestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap.get(rawPath,
+                logicalZipFileAndPackageRoot = nestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap().get(rawPath,
                         subLog);
             } catch (final NullSingletonException | NewInstanceException e) {
                 // Generally thrown on the second and subsequent attempt to call .get(), after
@@ -169,11 +175,12 @@ class ClasspathElementZip extends ClasspathElement {
                 throw new IOException(
                         "Could not get logical zipfile " + rawPath + " : " + (e.getCause() == null ? e : e.getCause()));
             }
-            logicalZipFile = logicalZipFileAndPackageRoot.getKey();
-            if (logicalZipFile == null) {
+            final var logicalZipFileFromMap = logicalZipFileAndPackageRoot.getKey();
+            if (logicalZipFileFromMap == null) {
                 // Should not happen, but this keeps lgtm static analysis happy
                 throw new IOException("Logical zipfile was null");
             }
+            this.logicalZipFile = logicalZipFile = logicalZipFileFromMap;
 
             // Get the normalized path of the logical zipfile
             zipFilePath = FastPathResolver.resolve(FileUtils.currDirPath(), logicalZipFile.getPath());
@@ -356,7 +363,7 @@ class ClasspathElementZip extends ClasspathElement {
             }
 
             @Override
-            public Set<PosixFilePermission> getPosixFilePermissions() {
+            public @Nullable Set<PosixFilePermission> getPosixFilePermissions() {
                 final var fileAttributes = zipEntry.fileAttributes;
                 final Set<PosixFilePermission> perms;
                 if (fileAttributes == 0) {
@@ -475,6 +482,7 @@ class ClasspathElementZip extends ClasspathElement {
      *         relativePath does not exist in this classpath element.
      */
     @Override
+    @Nullable
     Resource getResource(final String relativePath) {
         return relativePathToResource.get(relativePath);
     }
@@ -484,10 +492,12 @@ class ClasspathElementZip extends ClasspathElement {
      * the same name as the prefix, e.g. a package named {@code classes} in a jar
      * that has no {@code classes/} package root (#929).
      *
-     * @param log the log
+     * @param logicalZipFile the logical zipfile
+     * @param log            the log
      * @return the package root prefixes that were not disproved
      */
-    private String[] getVerifiedPackageRootPrefixes(final LogNode log) {
+    private String[] getVerifiedPackageRootPrefixes(final LogicalZipFile logicalZipFile,
+            final @Nullable LogNode log) {
         // Find the first classfile beneath each candidate package root prefix
         final var firstClassfileEntry = new FastZipEntry[packageRootPrefixes.length];
         for (final FastZipEntry zipEntry : logicalZipFile.entries) {
@@ -538,8 +548,8 @@ class ClasspathElementZip extends ClasspathElement {
      * @param log the log
      */
     @Override
-    void scanPaths(final LogNode log) {
-        if (logicalZipFile == null) {
+    void scanPaths(final @Nullable LogNode log) {
+        if (this.logicalZipFile == null) {
             skipClasspathElement = true;
         }
         if (!checkResourcePathAcceptReject(getZipFilePath(), log)) {
@@ -552,6 +562,8 @@ class ClasspathElementZip extends ClasspathElement {
             // Should not happen
             throw new IllegalArgumentException("Already scanned classpath element " + getZipFilePath());
         }
+
+        final var logicalZipFile = Objects.requireNonNull(this.logicalZipFile);
 
         final var subLog = log == null ? null
                 : log(classpathElementIdx, "Scanning jarfile classpath element " + getZipFilePath(), log);
@@ -568,7 +580,7 @@ class ClasspathElementZip extends ClasspathElement {
         // relative path of an entry if the prefix is not simply a package with the same
         // name (#929)
         final var verifiedPackageRootPrefixes = packageRootPrefix.isEmpty() && packageRootPrefixes.length > 0
-                ? getVerifiedPackageRootPrefixes(subLog)
+                ? getVerifiedPackageRootPrefixes(logicalZipFile, subLog)
                 : packageRootPrefixes;
 
         Set<String> loggedNestedClasspathRootPrefixes = null;
@@ -667,7 +679,10 @@ class ClasspathElementZip extends ClasspathElement {
             final var parentRelativePathChanged = !parentRelativePath.equals(prevParentRelativePath);
             final var parentMatchStatus = //
                     parentRelativePathChanged ? scanSpec.dirAcceptMatchStatus(parentRelativePath)
-                            : prevParentMatchStatus;
+                            // parentRelativePathChanged is always true on the first iteration, since
+                            // prevParentRelativePath starts out null, so prevParentMatchStatus has
+                            // always been set by the time it is read
+                            : Objects.requireNonNull(prevParentMatchStatus);
             prevParentRelativePath = parentRelativePath;
             prevParentMatchStatus = parentMatchStatus;
 
@@ -715,7 +730,7 @@ class ClasspathElementZip extends ClasspathElement {
      * @return the module name
      */
     @Override
-    public String getModuleName() {
+    public @Nullable String getModuleName() {
         var moduleName = moduleNameFromModuleDescriptor;
         if (moduleName == null || moduleName.isEmpty()) {
             moduleName = moduleNameFromManifestFile;
@@ -786,6 +801,7 @@ class ClasspathElementZip extends ClasspathElement {
      *         the {@link Path} API put not the {@link File} API.
      */
     @Override
+    @Nullable
     File getFile() {
         if (logicalZipFile != null) {
             return logicalZipFile.getPhysicalFile();
@@ -815,7 +831,7 @@ class ClasspathElementZip extends ClasspathElement {
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
-    public boolean equals(final Object obj) {
+    public boolean equals(final @Nullable Object obj) {
         if (obj == this) {
             return true;
         }

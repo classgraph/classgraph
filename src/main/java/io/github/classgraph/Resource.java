@@ -45,6 +45,7 @@ import java.util.zip.ZipEntry;
 import nonapi.io.github.classgraph.fileslice.reader.ClassfileReader;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.URLPathEncoder;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A classpath or module path resource (i.e. file) that was found in an
@@ -55,23 +56,23 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     private final ClasspathElement classpathElement;
 
     /** The input stream, or null. */
-    protected InputStream inputStream;
+    protected @Nullable InputStream inputStream;
 
     /** The byte buffer, or null. */
-    protected ByteBuffer byteBuffer;
+    protected @Nullable ByteBuffer byteBuffer;
 
     /** The length, or -1L for unknown. */
     protected long length;
 
-    /** The cached result of toString(). */
-    private String toString;
+    /** The cached result of toString(), or null if not yet computed. */
+    private @Nullable String toString;
 
     /**
      * The {@link LogNode} used to log that the resource was found when classpath
      * element paths are scanned. In the case of accepted classfile resources,
      * sublog entries are added when the classfile's contents are scanned.
      */
-    LogNode scanLog;
+    @Nullable LogNode scanLog;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -200,7 +201,7 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
      *         directly to RAM, rather than to a temp file on disk (e.g. if the temp
      *         dir is not writeable).
      */
-    public File getClasspathElementFile() {
+    public @Nullable File getClasspathElementFile() {
         return classpathElement.getFile();
     }
 
@@ -212,7 +213,7 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
      *         found within, as a {@link ModuleRef}, or null if this
      *         {@link Resource} was found in a directory or jar in the classpath.
      */
-    public ModuleRef getModuleRef() {
+    public @Nullable ModuleRef getModuleRef() {
         return classpathElement instanceof final ClasspathElementModule classpathElementModule
                 ? classpathElementModule.moduleRef
                 : null;
@@ -369,7 +370,7 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
      * @return The set of {@link PosixFilePermission} permission flags for the
      *         resource, or null if unknown.
      */
-    public abstract Set<PosixFilePermission> getPosixFilePermissions();
+    public abstract @Nullable Set<PosixFilePermission> getPosixFilePermissions();
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -414,7 +415,7 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
-    public boolean equals(final Object obj) {
+    public boolean equals(final @Nullable Object obj) {
         if (obj == this) {
             return true;
         } else if (!(obj instanceof Resource)) {
@@ -447,9 +448,10 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     @Override
     public void close() {
         // Override in subclasses, and call super.close(), then at end, markAsClosed()
-        if (inputStream != null) {
+        final var in = inputStream;
+        if (in != null) {
             try {
-                inputStream.close();
+                in.close();
             } catch (final IOException e) {
                 // Ignore
             }

@@ -38,6 +38,7 @@ import java.util.Set;
 import io.github.classgraph.Classfile.TypePathNode;
 import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.Parser;
+import org.jspecify.annotations.Nullable;
 
 /** A type argument. */
 public final class TypeArgument extends HierarchicalTypeSignature {
@@ -60,7 +61,7 @@ public final class TypeArgument extends HierarchicalTypeSignature {
     private final Wildcard wildcard;
 
     /** Type signature (will be null if wildcard == ANY). */
-    private final ReferenceTypeSignature typeSignature;
+    private final @Nullable ReferenceTypeSignature typeSignature;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -70,7 +71,7 @@ public final class TypeArgument extends HierarchicalTypeSignature {
      * @param wildcard      The wildcard type
      * @param typeSignature The type signature
      */
-    private TypeArgument(final Wildcard wildcard, final ReferenceTypeSignature typeSignature) {
+    private TypeArgument(final Wildcard wildcard, final @Nullable ReferenceTypeSignature typeSignature) {
         super();
         this.wildcard = wildcard;
         this.typeSignature = typeSignature;
@@ -93,7 +94,7 @@ public final class TypeArgument extends HierarchicalTypeSignature {
      * 
      * @return The type signature.
      */
-    public ReferenceTypeSignature getTypeSignature() {
+    public @Nullable ReferenceTypeSignature getTypeSignature() {
         return typeSignature;
     }
 
@@ -106,11 +107,12 @@ public final class TypeArgument extends HierarchicalTypeSignature {
      *         nothing was substituted.
      */
     TypeArgument substituteTypeVariables(final Map<String, TypeArgument> substitutions) {
-        if (typeSignature == null) {
+        final var typeSig = typeSignature;
+        if (typeSig == null) {
             // A "?" wildcard has no type signature to substitute into
             return this;
         }
-        if (wildcard == Wildcard.NONE && typeSignature instanceof final TypeVariableSignature typeVariable) {
+        if (wildcard == Wildcard.NONE && typeSig instanceof final TypeVariableSignature typeVariable) {
             // A type variable in type argument position can be replaced by the substituted
             // type argument as a
             // whole, so that a wildcard type argument keeps its wildcard, e.g. substituting
@@ -122,8 +124,8 @@ public final class TypeArgument extends HierarchicalTypeSignature {
             }
             return this;
         }
-        final var substitutedTypeSignature = typeSignature.substituteTypeVariables(substitutions);
-        return substitutedTypeSignature != typeSignature
+        final var substitutedTypeSignature = typeSig.substituteTypeVariables(substitutions);
+        return substitutedTypeSignature != typeSig
                 && substitutedTypeSignature instanceof final ReferenceTypeSignature referenceTypeSignature
                         ? new TypeArgument(wildcard, referenceTypeSignature)
                         : this;
@@ -162,14 +164,16 @@ public final class TypeArgument extends HierarchicalTypeSignature {
             // Annotation is on the bound of a wildcard type argument of a parameterized
             // type.
             // TypeSignature can be null in a corrupt classfile (#758).
-            if (typeSignature != null) {
-                typeSignature.addTypeAnnotation(typePath.subList(1, typePath.size()), annotationInfo);
+            final var typeSig = typeSignature;
+            if (typeSig != null) {
+                typeSig.addTypeAnnotation(typePath.subList(1, typePath.size()), annotationInfo);
             }
         } else {
             // Annotation is on a type argument of a parameterized type.
             // TypeSignature can be null in a corrupt classfile (#758).
-            if (typeSignature != null) {
-                typeSignature.addTypeAnnotation(typePath, annotationInfo);
+            final var typeSig = typeSignature;
+            if (typeSig != null) {
+                typeSig.addTypeAnnotation(typePath, annotationInfo);
             }
         }
     }
@@ -185,7 +189,8 @@ public final class TypeArgument extends HierarchicalTypeSignature {
      * @return The parsed method type signature.
      * @throws ParseException If method type signature could not be parsed.
      */
-    private static TypeArgument parse(final Parser parser, final String definingClassName) throws ParseException {
+    private static TypeArgument parse(final Parser parser, final @Nullable String definingClassName)
+            throws ParseException {
         final var peek = parser.peek();
         if (peek == '*') {
             parser.expect('*');
@@ -222,7 +227,8 @@ public final class TypeArgument extends HierarchicalTypeSignature {
      * @return The list of type arguments.
      * @throws ParseException If type signature could not be parsed.
      */
-    static List<TypeArgument> parseList(final Parser parser, final String definingClassName) throws ParseException {
+    static List<TypeArgument> parseList(final Parser parser, final @Nullable String definingClassName)
+            throws ParseException {
         if (parser.peek() == '<') {
             parser.expect('<');
             final List<TypeArgument> typeArguments = new ArrayList<>(2);
@@ -271,10 +277,11 @@ public final class TypeArgument extends HierarchicalTypeSignature {
      * ScanResult)
      */
     @Override
-    void setScanResult(final ScanResult scanResult) {
+    void setScanResult(final @Nullable ScanResult scanResult) {
         super.setScanResult(scanResult);
-        if (this.typeSignature != null) {
-            this.typeSignature.setScanResult(scanResult);
+        final var typeSig = this.typeSignature;
+        if (typeSig != null) {
+            typeSig.setScanResult(scanResult);
         }
     }
 
@@ -284,8 +291,9 @@ public final class TypeArgument extends HierarchicalTypeSignature {
      * @param refdClassNames the referenced class names.
      */
     public void findReferencedClassNames(final Set<String> refdClassNames) {
-        if (typeSignature != null) {
-            typeSignature.findReferencedClassNames(refdClassNames);
+        final var typeSig = typeSignature;
+        if (typeSig != null) {
+            typeSig.findReferencedClassNames(refdClassNames);
         }
     }
 
@@ -307,7 +315,7 @@ public final class TypeArgument extends HierarchicalTypeSignature {
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
-    public boolean equals(final Object obj) {
+    public boolean equals(final @Nullable Object obj) {
         if (obj == this) {
             return true;
         }
@@ -321,10 +329,12 @@ public final class TypeArgument extends HierarchicalTypeSignature {
     // -------------------------------------------------------------------------------------------------------------
 
     @Override
-    protected void toStringInternal(final boolean useSimpleNames, final AnnotationInfoList annotationsToExclude,
+    protected void toStringInternal(final boolean useSimpleNames,
+            final @Nullable AnnotationInfoList annotationsToExclude,
             final StringBuilder buf) {
-        if (typeAnnotationInfo != null) {
-            for (final AnnotationInfo annotationInfo : typeAnnotationInfo) {
+        final var typeAnnotations = typeAnnotationInfo;
+        if (typeAnnotations != null) {
+            for (final AnnotationInfo annotationInfo : typeAnnotations) {
                 if (annotationsToExclude == null || !annotationsToExclude.contains(annotationInfo)) {
                     annotationInfo.toString(useSimpleNames, buf);
                     buf.append(' ');
@@ -334,15 +344,15 @@ public final class TypeArgument extends HierarchicalTypeSignature {
         switch (wildcard) {
         case ANY -> buf.append('?');
         case EXTENDS -> {
-            final var typeSigStr = typeSignature.toString(useSimpleNames);
+            final var typeSigStr = Objects.requireNonNull(typeSignature).toString(useSimpleNames);
             buf.append("java.lang.Object".equals(typeSigStr) ? "?" : "? extends " + typeSigStr);
         }
         case SUPER -> {
             buf.append("? super ");
-            typeSignature.toString(useSimpleNames, buf);
+            Objects.requireNonNull(typeSignature).toString(useSimpleNames, buf);
         }
         // Wildcard.NONE
-        default -> typeSignature.toString(useSimpleNames, buf);
+        default -> Objects.requireNonNull(typeSignature).toString(useSimpleNames, buf);
         }
     }
 }

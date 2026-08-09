@@ -32,6 +32,7 @@ import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A ClassLoader handler.
@@ -58,7 +59,7 @@ interface ClassLoaderHandler {
      * @return true if this {@link ClassLoaderHandler} can handle the
      *         {@link ClassLoader}.
      */
-    boolean canHandle(Class<?> classLoaderClass, LogNode log);
+    boolean canHandle(Class<?> classLoaderClass, @Nullable LogNode log);
 
     /**
      * Find the {@link ClassLoader} delegation order for a {@link ClassLoader}.
@@ -67,7 +68,7 @@ interface ClassLoaderHandler {
      * @param classLoaderOrder a {@link ClassLoaderOrder} object to update.
      * @param log              the log
      */
-    void findClassLoaderOrder(ClassLoader classLoader, ClassLoaderOrder classLoaderOrder, LogNode log);
+    void findClassLoaderOrder(ClassLoader classLoader, ClassLoaderOrder classLoaderOrder, @Nullable LogNode log);
 
     /**
      * Find the classpath entries for the associated {@link ClassLoader}.
@@ -78,7 +79,7 @@ interface ClassLoaderHandler {
      * @param scanSpec       the {@link ScanSpec}.
      * @param log            the log.
      */
-    void findClasspathOrder(ClassLoader classLoader, ClasspathOrder classpathOrder, ScanSpec scanSpec, LogNode log);
+    void findClasspathOrder(ClassLoader classLoader, ClasspathOrder classpathOrder, ScanSpec scanSpec, @Nullable LogNode log);
 
     /**
      * The automatic package root prefixes (e.g. {@code "BOOT-INF/classes/"}) to

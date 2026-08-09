@@ -30,6 +30,7 @@ package io.github.classgraph;
 
 import java.util.BitSet;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
@@ -275,7 +276,7 @@ final class GraphvizDotfileGenerator {
                     if (buf.charAt(buf.length() - 1) != ' ') {
                         buf.append(' ');
                     }
-                    final var typeSig = fi.getTypeSignatureOrTypeDescriptor();
+                    final var typeSig = Objects.requireNonNull(fi.getTypeSignatureOrTypeDescriptor());
                     htmlEncode(useSimpleNames ? typeSig.toStringWithSimpleNames() : typeSig.toString(), buf);
                     buf.append("</td>");
 
@@ -398,7 +399,8 @@ final class GraphvizDotfileGenerator {
                             }
 
                             // Param type
-                            final var paramTypeSig = paramInfo[i].getTypeSignatureOrTypeDescriptor();
+                            final var paramTypeSig = Objects
+                                    .requireNonNull(paramInfo[i].getTypeSignatureOrTypeDescriptor());
                             final var paramTypeStr = useSimpleNames ? paramTypeSig.toStringWithSimpleNames()
                                     : paramTypeSig.toString();
                             htmlEncode(paramTypeStr, buf);

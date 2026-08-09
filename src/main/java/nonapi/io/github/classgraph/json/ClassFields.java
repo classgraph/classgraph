@@ -42,6 +42,7 @@ import java.util.Set;
 
 import io.github.classgraph.ScanResult;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The list of fields that can be (de)serialized (non-final, non-transient,
@@ -71,7 +72,7 @@ class ClassFields {
 
     /** If non-null, this is the field that has an {@link Id} annotation. */
     // TODO: replace this with getter/setter MethodHandles for speed
-    Field idField;
+    @Nullable Field idField;
 
     /** Used to sort fields into deterministic order. */
     private static final Comparator<Field> FIELD_NAME_ORDER_COMPARATOR = Comparator.comparing(Field::getName);

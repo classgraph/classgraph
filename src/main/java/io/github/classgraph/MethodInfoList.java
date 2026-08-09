@@ -32,9 +32,11 @@ import java.io.Serial;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 import nonapi.io.github.classgraph.utils.LogNode;
+import org.jspecify.annotations.Nullable;
 
 /** A list of {@link MethodInfo} objects. */
 public class MethodInfoList extends InfoList<MethodInfo> {
@@ -93,7 +95,7 @@ public class MethodInfoList extends InfoList<MethodInfo> {
      * @param log                  the log
      */
     void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
-            final Set<ClassInfo> refdClassInfo, final LogNode log) {
+            final Set<ClassInfo> refdClassInfo, final @Nullable LogNode log) {
         for (final MethodInfo mi : this) {
             mi.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
         }
@@ -184,7 +186,7 @@ public class MethodInfoList extends InfoList<MethodInfo> {
      * @throws IllegalArgumentException if there are two or more methods with the
      *                                  given name.
      */
-    public MethodInfo getSingleMethod(final String methodName) {
+    public @Nullable MethodInfo getSingleMethod(final String methodName) {
         var numMethodsWithName = 0;
         MethodInfo lastFoundMethod = null;
         for (final MethodInfo mi : this) {
@@ -199,7 +201,7 @@ public class MethodInfoList extends InfoList<MethodInfo> {
             return lastFoundMethod;
         } else {
             throw new IllegalArgumentException("There are multiple methods named \"" + methodName + "\" in class "
-                    + iterator().next().getClassInfo().getName());
+                    + Objects.requireNonNull(iterator().next().getClassInfo()).getName());
         }
     }
 

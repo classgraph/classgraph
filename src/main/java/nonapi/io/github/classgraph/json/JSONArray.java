@@ -32,13 +32,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * An intermediate object in the (de)serialization process, representing a JSON
  * array.
  */
 class JSONArray {
-    /** Array items. */
-    List<Object> items;
+    /** Array items (a JSON null value is stored as a null item). */
+    List<@Nullable Object> items;
 
     /**
      * Constructor.
@@ -52,7 +54,7 @@ class JSONArray {
      *
      * @param items the items
      */
-    public JSONArray(final List<Object> items) {
+    public JSONArray(final List<@Nullable Object> items) {
         this.items = items;
     }
 

@@ -61,6 +61,7 @@ import nonapi.io.github.classgraph.scanspec.ScanSpec.ScanSpecPathMatch;
 import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
+import org.jspecify.annotations.Nullable;
 
 /** A directory classpath element, using the {@link Path} API. */
 class ClasspathElementDir extends ClasspathElement {
@@ -93,7 +94,7 @@ class ClasspathElementDir extends ClasspathElement {
     ClasspathElementDir(final ClasspathEntryWorkUnit workUnit, final NestedJarHandler nestedJarHandler,
             final ScanSpec scanSpec) {
         super(workUnit, scanSpec);
-        this.classpathEltPath = (Path) workUnit.classpathEntryObj;
+        this.classpathEltPath = (Path) Objects.requireNonNull(workUnit.classpathEntryObj);
         this.nestedJarHandler = nestedJarHandler;
     }
 
@@ -105,7 +106,7 @@ class ClasspathElementDir extends ClasspathElement {
      * nonapi.io.github.classgraph.utils.LogNode)
      */
     @Override
-    void open(final WorkQueue<ClasspathEntryWorkUnit> workQueue, final LogNode log) {
+    void open(final WorkQueue<ClasspathEntryWorkUnit> workQueue, final @Nullable LogNode log) {
         if (!scanSpec.scanDirs) {
             if (log != null) {
                 log(classpathElementIdx,
@@ -228,7 +229,7 @@ class ClasspathElementDir extends ClasspathElement {
      *         class that disproves it (see
      *         {@link ClasspathElement#getClassNameDisprovingPackageRoot(ClassfileReader, String)}).
      */
-    private static String getClassNameDisprovingPackageRoot(final Path packageRoot) {
+    private static @Nullable String getClassNameDisprovingPackageRoot(final Path packageRoot) {
         final var classfilePath = findFirstClassfile(packageRoot);
         if (classfilePath == null) {
             // There are no classfiles beneath the candidate package root, so there is
@@ -256,7 +257,7 @@ class ClasspathElementDir extends ClasspathElement {
      *                     known
      * @return the resource
      */
-    private Resource newResource(final Path resourcePath, final BasicFileAttributes attributes) {
+    private Resource newResource(final Path resourcePath, final @Nullable BasicFileAttributes attributes) {
         return newResource(resourcePath, FastPathResolver.resolve(classpathEltPath.relativize(resourcePath).toString()),
                 attributes);
     }
@@ -275,7 +276,7 @@ class ClasspathElementDir extends ClasspathElement {
      * @return the resource
      */
     private Resource newResource(final Path resourcePath, final String resourcePathRelativeStr,
-            final BasicFileAttributes attributes) {
+            final @Nullable BasicFileAttributes attributes) {
         var startIdx = 0;
         while (startIdx < resourcePathRelativeStr.length() && resourcePathRelativeStr.charAt(startIdx) == '/') {
             startIdx++;
@@ -283,7 +284,7 @@ class ClasspathElementDir extends ClasspathElement {
         final var path = startIdx == 0 ? resourcePathRelativeStr : resourcePathRelativeStr.substring(startIdx);
         return new Resource(this, attributes == null ? NOT_YET_LOADED_LENGTH : attributes.size()) {
             /** The {@link PathSlice} opened on the file. */
-            private PathSlice pathSlice;
+            private @Nullable PathSlice pathSlice;
 
             /** True if the resource is open. */
             private final AtomicBoolean isOpen = new AtomicBoolean();
@@ -322,7 +323,7 @@ class ClasspathElementDir extends ClasspathElement {
 
             @SuppressWarnings("null")
             @Override
-            public Set<PosixFilePermission> getPosixFilePermissions() {
+            public @Nullable Set<PosixFilePermission> getPosixFilePermissions() {
                 Set<PosixFilePermission> posixFilePermissions = null;
                 try {
                     if (attributes instanceof final PosixFileAttributes posixFileAttributes) {
@@ -353,30 +354,27 @@ class ClasspathElementDir extends ClasspathElement {
 
             @Override
             public ByteBuffer read() throws IOException {
-                openAndCreateSlice();
-                byteBuffer = pathSlice.read();
+                byteBuffer = openAndCreateSlice().read();
                 return byteBuffer;
             }
 
             @Override
             ClassfileReader openClassfile() throws IOException {
                 // Classfile won't be compressed, so wrap it in a new PathSlice and then open it
-                openAndCreateSlice();
-                return new ClassfileReader(pathSlice, this);
+                return new ClassfileReader(openAndCreateSlice(), this);
             }
 
             @Override
             public InputStream open() throws IOException {
-                openAndCreateSlice();
-                inputStream = pathSlice.open(this);
+                final var slice = openAndCreateSlice();
+                inputStream = slice.open(this);
                 return inputStream;
             }
 
             @Override
             public byte[] load() throws IOException {
                 try {
-                    openAndCreateSlice();
-                    return pathSlice.load();
+                    return openAndCreateSlice().load();
                 } finally {
                     close();
                 }
@@ -389,9 +387,10 @@ class ClasspathElementDir extends ClasspathElement {
                         // Any ByteBuffer ref should be a duplicate, so it doesn't need to be cleaned
                         byteBuffer = null;
                     }
-                    if (pathSlice != null) {
-                        pathSlice.close();
-                        nestedJarHandler.markSliceAsClosed(pathSlice);
+                    final var slice = pathSlice;
+                    if (slice != null) {
+                        slice.close();
+                        nestedJarHandler.markSliceAsClosed(slice);
                         pathSlice = null;
                     }
 
@@ -400,10 +399,12 @@ class ClasspathElementDir extends ClasspathElement {
                 }
             }
 
-            private void openAndCreateSlice() throws IOException {
+            private PathSlice openAndCreateSlice() throws IOException {
                 checkCanOpen();
-                pathSlice = new PathSlice(resourcePath, false, 0L, nestedJarHandler, false);
-                length = pathSlice.sliceLength;
+                final var slice = new PathSlice(resourcePath, false, 0L, nestedJarHandler, false);
+                pathSlice = slice;
+                length = slice.sliceLength;
+                return slice;
             }
         };
     }
@@ -416,6 +417,7 @@ class ClasspathElementDir extends ClasspathElement {
      *         relativePath does not exist in this classpath element.
      */
     @Override
+    @Nullable
     Resource getResource(final String relativePath) {
         final var resourcePath = classpathEltPath.resolve(relativePath);
         return FileUtils.canReadAndIsFile(resourcePath) ? newResource(resourcePath, null) : null;
@@ -427,7 +429,7 @@ class ClasspathElementDir extends ClasspathElement {
      * @param path the {@link Path}
      * @param log  the log
      */
-    private void scanPathRecursively(final Path path, final LogNode log) {
+    private void scanPathRecursively(final Path path, final @Nullable LogNode log) {
         // See if this canonical path has been scanned before, so that recursive
         // scanning doesn't get stuck in an
         // infinite loop due to symlinks
@@ -623,7 +625,7 @@ class ClasspathElementDir extends ClasspathElement {
      * @param log the log
      */
     @Override
-    void scanPaths(final LogNode log) {
+    void scanPaths(final @Nullable LogNode log) {
         if (!checkResourcePathAcceptReject(classpathEltPath.toString(), log)) {
             skipClasspathElement = true;
         }
@@ -649,7 +651,7 @@ class ClasspathElementDir extends ClasspathElement {
      * @return the module name
      */
     @Override
-    public String getModuleName() {
+    public @Nullable String getModuleName() {
         return moduleNameFromModuleDescriptor == null || moduleNameFromModuleDescriptor.isEmpty() ? null
                 : moduleNameFromModuleDescriptor;
     }
@@ -661,7 +663,7 @@ class ClasspathElementDir extends ClasspathElement {
      *         classpath element is not backed by a directory (should not happen).
      */
     @Override
-    public File getFile() {
+    public @Nullable File getFile() {
         try {
             return classpathEltPath.toFile();
         } catch (final UnsupportedOperationException e) {
@@ -719,7 +721,7 @@ class ClasspathElementDir extends ClasspathElement {
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
-    public boolean equals(final Object obj) {
+    public boolean equals(final @Nullable Object obj) {
         if (obj == this) {
             return true;
         }

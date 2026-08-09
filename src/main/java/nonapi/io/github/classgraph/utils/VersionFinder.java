@@ -43,6 +43,7 @@ import javax.xml.xpath.XPathFactory;
 import javax.xml.xpath.XPathFactoryConfigurationException;
 
 import io.github.classgraph.ClassGraph;
+import org.jspecify.annotations.Nullable;
 
 /** Finds the version number of ClassGraph, and the version of the JDK. */
 public final class VersionFinder {
@@ -56,8 +57,8 @@ public final class VersionFinder {
     /** The operating system type. */
     public static final OperatingSystem OS;
 
-    /** Java version string. */
-    public static final String JAVA_VERSION = getProperty("java.version");
+    /** Java version string (null if the {@code "java.version"} property is unreadable). */
+    public static final @Nullable String JAVA_VERSION = getProperty("java.version");
 
     /** Java major version -- 17 for "17.0.4", 21 for "21-ea", etc. */
     public static final int JAVA_MAJOR_VERSION;
@@ -150,7 +151,7 @@ public final class VersionFinder {
      * @param propName the property name
      * @return the property value
      */
-    public static String getProperty(final String propName) {
+    public static @Nullable String getProperty(final String propName) {
         try {
             return System.getProperty(propName);
         } catch (final SecurityException e) {
@@ -165,7 +166,7 @@ public final class VersionFinder {
      * @param defaultVal the default value for the property
      * @return the property value, or the default if the property is not defined.
      */
-    public static String getProperty(final String propName, final String defaultVal) {
+    public static @Nullable String getProperty(final String propName, final String defaultVal) {
         try {
             return System.getProperty(propName, defaultVal);
         } catch (final SecurityException e) {

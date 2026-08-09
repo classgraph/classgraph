@@ -35,6 +35,7 @@ import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Handle the OSGi DefaultClassLoader.
@@ -43,21 +44,21 @@ import nonapi.io.github.classgraph.utils.LogNode;
  */
 class OSGiDefaultClassLoaderHandler implements ClassLoaderHandler {
     @Override
-    public boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
+    public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
         return ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass,
                 "org.eclipse.osgi.internal.baseadaptor.DefaultClassLoader");
     }
 
     @Override
     public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
-            final LogNode log) {
+            final @Nullable LogNode log) {
         classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
         classLoaderOrder.add(classLoader, log);
     }
 
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-            final ScanSpec scanSpec, final LogNode log) {
+            final ScanSpec scanSpec, final @Nullable LogNode log) {
         final var classpathManager = classpathOrder.reflectionUtils.invokeMethod(false, classLoader,
                 "getClasspathManager");
         final var entries = (Object[]) classpathOrder.reflectionUtils.getFieldVal(false, classpathManager, "entries");

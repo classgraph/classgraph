@@ -34,6 +34,7 @@ import java.util.Set;
 
 import io.github.classgraph.Classfile.TypePathNode;
 import nonapi.io.github.classgraph.types.Parser;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A type signature for a base type (byte, char, double, float, int, long,
@@ -68,7 +69,7 @@ public class BaseTypeSignature extends TypeSignature {
      * @param typeChar the type character, e.g. 'I'.
      * @return The name of the type, e.g. "int", or null if there was no match.
      */
-    static String getTypeStr(final char typeChar) {
+    static @Nullable String getTypeStr(final char typeChar) {
         return switch (typeChar) {
         case 'B' -> "byte";
         case 'C' -> "char";
@@ -110,7 +111,7 @@ public class BaseTypeSignature extends TypeSignature {
      * @param typeChar the type character, e.g. 'I'.
      * @return The type class, e.g. int.class, or null if there was no match.
      */
-    static Class<?> getType(final char typeChar) {
+    static @Nullable Class<?> getType(final char typeChar) {
         return switch (typeChar) {
         case 'B' -> byte.class;
         case 'C' -> char.class;
@@ -142,7 +143,7 @@ public class BaseTypeSignature extends TypeSignature {
      * @return The name of the type, such as "int", "float", or "void".
      */
     public String getTypeStr() {
-        return getTypeStr(typeSignatureChar);
+        return Objects.requireNonNull(getTypeStr(typeSignatureChar));
     }
 
     /**
@@ -152,7 +153,7 @@ public class BaseTypeSignature extends TypeSignature {
      *         void.class.
      */
     public Class<?> getType() {
-        return getType(typeSignatureChar);
+        return Objects.requireNonNull(getType(typeSignatureChar));
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -199,7 +200,7 @@ public class BaseTypeSignature extends TypeSignature {
      * @param parser the parser
      * @return the base type signature
      */
-    static BaseTypeSignature parse(final Parser parser) {
+    static @Nullable BaseTypeSignature parse(final Parser parser) {
         final var typeSignatureChar = parser.peek();
         return switch (typeSignatureChar) {
         case 'B', 'C', 'D', 'F', 'I', 'J', 'S', 'Z', 'V' -> {
@@ -228,7 +229,7 @@ public class BaseTypeSignature extends TypeSignature {
      * @see io.github.classgraph.ScanResultObject#getClassInfo()
      */
     @Override
-    protected ClassInfo getClassInfo() {
+    protected @Nullable ClassInfo getClassInfo() {
         return null;
     }
 
@@ -248,7 +249,7 @@ public class BaseTypeSignature extends TypeSignature {
      * @see io.github.classgraph.ScanResultObject#setScanResult(ScanResult)
      */
     @Override
-    void setScanResult(final ScanResult scanResult) {
+    void setScanResult(final @Nullable ScanResult scanResult) {
         // Don't set ScanResult for BaseTypeSignature objects (#419).
         // The ScanResult is not needed, since this class does not classload through the
         // ScanResult, and holding
@@ -273,7 +274,7 @@ public class BaseTypeSignature extends TypeSignature {
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
-    public boolean equals(final Object obj) {
+    public boolean equals(final @Nullable Object obj) {
         if (obj == this) {
             return true;
         }
@@ -301,7 +302,8 @@ public class BaseTypeSignature extends TypeSignature {
     // -------------------------------------------------------------------------------------------------------------
 
     @Override
-    protected void toStringInternal(final boolean useSimpleNames, final AnnotationInfoList annotationsToExclude,
+    protected void toStringInternal(final boolean useSimpleNames,
+            final @Nullable AnnotationInfoList annotationsToExclude,
             final StringBuilder buf) {
         if (typeAnnotationInfo != null) {
             for (final AnnotationInfo annotationInfo : typeAnnotationInfo) {

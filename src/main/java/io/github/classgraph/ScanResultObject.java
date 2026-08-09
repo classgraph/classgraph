@@ -30,9 +30,11 @@ package io.github.classgraph;
 
 import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 import nonapi.io.github.classgraph.utils.LogNode;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A superclass of objects accessible from a {@link ScanResult} that are
@@ -40,13 +42,13 @@ import nonapi.io.github.classgraph.utils.LogNode;
  */
 abstract class ScanResultObject {
     /** The scan result. */
-    protected transient ScanResult scanResult;
+    protected transient @Nullable ScanResult scanResult;
 
     /** The associated {@link ClassInfo} object. */
-    private transient ClassInfo classInfo;
+    private transient @Nullable ClassInfo classInfo;
 
     /** The class ref, once the class is loaded. */
-    protected transient Class<?> classRef;
+    protected transient @Nullable Class<?> classRef;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -55,8 +57,20 @@ abstract class ScanResultObject {
      *
      * @param scanResult the scan result
      */
-    void setScanResult(final ScanResult scanResult) {
+    void setScanResult(final @Nullable ScanResult scanResult) {
         this.scanResult = scanResult;
+    }
+
+    /**
+     * Get the {@link ScanResult} this object was obtained from, for use in code
+     * paths that can only be reached through a completed scan.
+     *
+     * @return the scan result
+     * @throws NullPointerException if the scan result has not been set (i.e. if
+     *                              this object was created outside a scan).
+     */
+    final ScanResult scanResult() {
+        return Objects.requireNonNull(scanResult);
     }
 
     /**
@@ -65,7 +79,7 @@ abstract class ScanResultObject {
      * @param log the log
      * @return the referenced class info.
      */
-    final Set<ClassInfo> findReferencedClassInfo(final LogNode log) {
+    final Set<ClassInfo> findReferencedClassInfo(final @Nullable LogNode log) {
         final Set<ClassInfo> refdClassInfo = new LinkedHashSet<>();
         if (scanResult != null) {
             findReferencedClassInfo(scanResult.classNameToClassInfo, refdClassInfo, log);
@@ -81,7 +95,7 @@ abstract class ScanResultObject {
      * @param log                  the log
      */
     void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
-            final Set<ClassInfo> refdClassInfo, final LogNode log) {
+            final Set<ClassInfo> refdClassInfo, final @Nullable LogNode log) {
         final var ci = getClassInfo();
         if (ci != null) {
             refdClassInfo.add(ci);
@@ -91,12 +105,12 @@ abstract class ScanResultObject {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * The name of the class (used by {@link #getClassInfo()} to fetch the
+     * The name of the class (used by {@code getClassInfo()} to fetch the
      * {@link ClassInfo} object for the class).
      * 
      * @return The class name.
      */
-    protected abstract String getClassName();
+    protected abstract @Nullable String getClassName();
 
     /**
      * Get the {@link ClassInfo} object for the referenced class, or null if the
@@ -107,6 +121,7 @@ abstract class ScanResultObject {
      * 
      * @return The {@link ClassInfo} object for the referenced class.
      */
+    @Nullable
     ClassInfo getClassInfo() {
         if (classInfo == null) {
             if (scanResult == null) {
@@ -169,7 +184,7 @@ abstract class ScanResultObject {
      * @throws IllegalArgumentException if the class could not be loaded or cast,
      *                                  and ignoreExceptions was false.
      */
-    <T> Class<T> loadClass(final Class<T> superclassOrInterfaceType, final boolean ignoreExceptions) {
+    <T> @Nullable Class<T> loadClass(final Class<T> superclassOrInterfaceType, final boolean ignoreExceptions) {
         synchronized (this) {
             // If class is not already loaded, try loading class
             if (classRef == null) {
@@ -208,7 +223,7 @@ abstract class ScanResultObject {
      * @throws IllegalArgumentException if the class could not be loaded or cast,
      *                                  and ignoreExceptions was false.
      */
-    <T> Class<T> loadClass(final Class<T> superclassOrInterfaceType) {
+    <T> @Nullable Class<T> loadClass(final Class<T> superclassOrInterfaceType) {
         return loadClass(superclassOrInterfaceType, /* ignoreExceptions = */ false);
     }
 
@@ -224,6 +239,7 @@ abstract class ScanResultObject {
      * @throws IllegalArgumentException if the class could not be loaded and
      *                                  ignoreExceptions was false.
      */
+    @Nullable
     Class<?> loadClass(final boolean ignoreExceptions) {
         if (classRef == null) {
             final var className = getClassInfoNameOrClassName();
@@ -251,6 +267,7 @@ abstract class ScanResultObject {
      * @return The {@code Class<?>} reference for the referenced class.
      * @throws IllegalArgumentException if the class could not be loaded.
      */
+    @Nullable
     Class<?> loadClass() {
         return loadClass(/* ignoreExceptions = */ false);
     }

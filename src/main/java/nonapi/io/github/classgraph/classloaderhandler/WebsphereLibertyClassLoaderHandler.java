@@ -42,6 +42,7 @@ import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
+import org.jspecify.annotations.Nullable;
 
 /**
  * WebsphereLibertyClassLoaderHandler.
@@ -62,14 +63,14 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
     private static final String IBM_THREAD_CONTEXT_CLASS_LOADER = PKG_PREFIX + "ThreadContextClassLoader";
 
     @Override
-    public boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
+    public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
         return ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass, IBM_APP_CLASS_LOADER)
                 || ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass, IBM_THREAD_CONTEXT_CLASS_LOADER);
     }
 
     @Override
     public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
-            final LogNode log) {
+            final @Nullable LogNode log) {
         classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
         classLoaderOrder.add(classLoader, log);
     }
@@ -190,7 +191,7 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
 
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-            final ScanSpec scanSpec, final LogNode log) {
+            final ScanSpec scanSpec, final @Nullable LogNode log) {
         Object smartClassPath;
         final var appLoader = classpathOrder.reflectionUtils.getFieldVal(false, classLoader, "appLoader");
         if (appLoader != null) {

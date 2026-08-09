@@ -34,6 +34,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * A list of named objects.
  *
@@ -71,7 +73,7 @@ public class InfoList<T extends HasName> extends PotentiallyUnmodifiableList<T> 
 
     // Keep Scrutinizer happy
     @Override
-    public boolean equals(final Object o) {
+    public boolean equals(final @Nullable Object o) {
         return super.equals(o);
     }
 

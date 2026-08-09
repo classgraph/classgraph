@@ -32,6 +32,8 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * A wrapper for {@link ByteBuffer} that implements the {@link Closeable}
  * interface, releasing the {@link ByteBuffer} when it is no longer needed.
@@ -40,12 +42,12 @@ public class CloseableByteBuffer implements Closeable {
     /**
      * The wrapped {@link ByteBuffer}, or null once this wrapper has been closed.
      */
-    private ByteBuffer byteBuffer;
+    private @Nullable ByteBuffer byteBuffer;
 
     /**
      * The method to run on close, or null if this wrapper has already been closed.
      */
-    private Runnable onClose;
+    private @Nullable Runnable onClose;
 
     /**
      * A wrapper for {@link ByteBuffer} that implements the {@link Closeable}
@@ -62,18 +64,20 @@ public class CloseableByteBuffer implements Closeable {
     /**
      * Get the wrapped ByteBuffer.
      * 
-     * @return The wrapped {@link ByteBuffer}.
+     * @return The wrapped {@link ByteBuffer}, or null if this wrapper has been
+     *         closed.
      */
-    public ByteBuffer getByteBuffer() {
+    public @Nullable ByteBuffer getByteBuffer() {
         return byteBuffer;
     }
 
     /** Release the wrapped {@link ByteBuffer}. */
     @Override
     public void close() throws IOException {
-        if (onClose != null) {
+        final var onCloseRunnable = onClose;
+        if (onCloseRunnable != null) {
             try {
-                onClose.run();
+                onCloseRunnable.run();
             } catch (final Exception e) {
                 // Ignore
             }

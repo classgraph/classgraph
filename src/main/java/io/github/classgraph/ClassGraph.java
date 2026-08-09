@@ -37,6 +37,7 @@ import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
@@ -54,6 +55,7 @@ import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.VersionFinder;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Uber-fast, ultra-lightweight Java classpath and module path scanner. Scans
@@ -134,7 +136,7 @@ public class ClassGraph {
     /**
      * If non-null, log while scanning.
      */
-    private LogNode topLevelLog;
+    private @Nullable LogNode topLevelLog;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -1089,7 +1091,8 @@ public class ClassGraph {
             // Accept the class itself
             scanSpec.classAcceptReject.addToAccept(classNameNormalized);
             scanSpec.classfilePathAcceptReject.addToAccept(AcceptReject.classNameToClassfilePath(classNameNormalized));
-            final var packageName = PackageInfo.getParentPackageName(classNameNormalized);
+            // A class name is never empty, so getParentPackageName cannot return null
+            final var packageName = Objects.requireNonNull(PackageInfo.getParentPackageName(classNameNormalized));
             // Record the package containing the class, so we can recurse to this point even
             // if the package
             // is not itself accepted

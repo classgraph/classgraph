@@ -34,6 +34,7 @@ import java.util.TimeZone;
 
 import nonapi.io.github.classgraph.fileslice.Slice;
 import nonapi.io.github.classgraph.utils.VersionFinder;
+import org.jspecify.annotations.Nullable;
 
 /** A zip entry within a {@link LogicalZipFile}. */
 public class FastZipEntry implements Comparable<FastZipEntry> {
@@ -78,9 +79,9 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
 
     /**
      * The {@link Slice} for the zip entry's raw data (which can be either stored or
-     * deflated).
+     * deflated), or null until {@link #getSlice()} is first called.
      */
-    private Slice slice;
+    private @Nullable Slice slice;
 
     /**
      * The version code (&gt;= 9), or 8 for the base layer or a non-versioned jar
@@ -206,6 +207,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
      * @throws IOException If an I/O exception occurs.
      */
     public Slice getSlice() throws IOException {
+        var slice = this.slice;
         if (slice == null) {
             final var randomAccessReader = parentLogicalZipFile.slice.randomAccessReader();
 
@@ -226,7 +228,8 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
 
             // Create a new Slice that wraps just the data of the zip entry, and mark
             // whether it is deflated
-            slice = parentLogicalZipFile.slice.slice(dataStartPos, compressedSize, isDeflated, uncompressedSize);
+            this.slice = slice = parentLogicalZipFile.slice.slice(dataStartPos, compressedSize, isDeflated,
+                    uncompressedSize);
         }
         return slice;
     }
@@ -317,7 +320,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
-    public boolean equals(final Object obj) {
+    public boolean equals(final @Nullable Object obj) {
         if (this == obj) {
             return true;
         }

@@ -41,6 +41,7 @@ import io.github.classgraph.Resource;
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.fileslice.reader.RandomAccessReader;
 import nonapi.io.github.classgraph.utils.FileUtils;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A slice of a {@link File}, {@link ByteBuffer} or {@link InputStream}. A
@@ -50,8 +51,8 @@ public abstract class Slice implements Closeable {
     /** The {@link NestedJarHandler}. */
     protected final NestedJarHandler nestedJarHandler;
 
-    /** The parent slice. */
-    protected final Slice parentSlice;
+    /** The parent slice, or null if this is a toplevel slice. */
+    protected final @Nullable Slice parentSlice;
 
     /** The start position of the slice. */
     public final long sliceStartPos;
@@ -77,7 +78,8 @@ public abstract class Slice implements Closeable {
     /**
      * Constructor for treating a range of a slice as a sub-slice.
      *
-     * @param parentSlice        the parent slice
+     * @param parentSlice        the parent slice, or null if this is a toplevel
+     *                           slice
      * @param offset             the offset of the sub-slice within the parent slice
      * @param length             the length of the sub-slice
      * @param isDeflatedZipEntry true if this is a deflated zip entry
@@ -86,7 +88,7 @@ public abstract class Slice implements Closeable {
      *                           entry.
      * @param nestedJarHandler   the nested jar handler
      */
-    protected Slice(final Slice parentSlice, final long offset, final long length, final boolean isDeflatedZipEntry,
+    protected Slice(final @Nullable Slice parentSlice, final long offset, final long length, final boolean isDeflatedZipEntry,
             final long inflatedLengthHint, final NestedJarHandler nestedJarHandler) {
         this.parentSlice = parentSlice;
         final var parentSliceStartPos = parentSlice == null ? 0L : parentSlice.sliceStartPos;
@@ -156,7 +158,7 @@ public abstract class Slice implements Closeable {
      * @return the input stream
      * @throws IOException if an inflater cannot be created for this {@link Slice}.
      */
-    public InputStream open(final Resource resourceToClose) throws IOException {
+    public InputStream open(final @Nullable Resource resourceToClose) throws IOException {
         final InputStream rawInputStream = new InputStream() {
             RandomAccessReader randomAccessReader = randomAccessReader();
             private long currOff;
@@ -300,7 +302,7 @@ public abstract class Slice implements Closeable {
     }
 
     @Override
-    public boolean equals(final Object o) {
+    public boolean equals(final @Nullable Object o) {
         if (o == this) {
             return true;
         } else if (!(o instanceof final Slice other)) {

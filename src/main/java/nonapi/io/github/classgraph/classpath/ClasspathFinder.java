@@ -42,6 +42,7 @@ import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.VersionFinder;
+import org.jspecify.annotations.Nullable;
 
 /** A class to find the unique ordered classpath elements. */
 public class ClasspathFinder {
@@ -49,13 +50,13 @@ public class ClasspathFinder {
     private final ClasspathOrder classpathOrder;
 
     /** The {@link ModuleFinder}, if modules are to be scanned. */
-    private final ModuleFinder moduleFinder;
+    private final @Nullable ModuleFinder moduleFinder;
 
     /**
      * The default order in which ClassLoaders are called to load classes,
      * respecting parent-first/parent-last delegation order.
      */
-    private ClassLoader[] classLoaderOrderRespectingParentDelegation;
+    private ClassLoader @Nullable [] classLoaderOrderRespectingParentDelegation;
 
     /**
      * If one of the classloaders that was found was an existing instance of
@@ -63,7 +64,7 @@ public class ClasspathFinder {
      * than trying to load from the {@link ClassGraphClassLoader} of the current
      * scan, so that classes are compatible between nested scans (#485).
      */
-    private ClassGraphClassLoader delegateClassGraphClassLoader;
+    private @Nullable ClassGraphClassLoader delegateClassGraphClassLoader;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -79,9 +80,9 @@ public class ClasspathFinder {
     /**
      * Get the {@link ModuleFinder}.
      *
-     * @return The {@link ModuleFinder}.
+     * @return The {@link ModuleFinder}, or null if modules are not being scanned.
      */
-    public ModuleFinder getModuleFinder() {
+    public @Nullable ModuleFinder getModuleFinder() {
         return moduleFinder;
     }
 
@@ -89,9 +90,9 @@ public class ClasspathFinder {
      * Get the ClassLoader order, respecting parent-first/parent-last delegation
      * order.
      *
-     * @return the class loader order.
+     * @return the class loader order, or null if the classpath was overridden.
      */
-    public ClassLoader[] getClassLoaderOrderRespectingParentDelegation() {
+    public ClassLoader @Nullable [] getClassLoaderOrderRespectingParentDelegation() {
         return classLoaderOrderRespectingParentDelegation;
     }
 
@@ -105,7 +106,7 @@ public class ClasspathFinder {
      *         classes with this scan's own {@link ClassGraphClassLoader} (or null
      *         if none).
      */
-    public ClassGraphClassLoader getDelegateClassGraphClassLoader() {
+    public @Nullable ClassGraphClassLoader getDelegateClassGraphClassLoader() {
         return delegateClassGraphClassLoader;
     }
 
@@ -118,7 +119,7 @@ public class ClasspathFinder {
      * @param reflectionUtils The reflection utils instance.
      * @param log             The log.
      */
-    public ClasspathFinder(final ScanSpec scanSpec, final ReflectionUtils reflectionUtils, final LogNode log) {
+    public ClasspathFinder(final ScanSpec scanSpec, final ReflectionUtils reflectionUtils, final @Nullable LogNode log) {
         final var classpathFinderLog = log == null ? null : log.log("Finding classpath and modules");
 
         // Require scanning traditional classpath if an override classloader is

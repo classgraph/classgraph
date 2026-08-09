@@ -30,6 +30,8 @@ package io.github.classgraph;
 
 import java.lang.reflect.Field;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * Class for wrapping an enum constant value (split into class name and constant
  * name), as used as an annotation parameter value.
@@ -41,7 +43,12 @@ public class AnnotationEnumValue extends ScanResultObject implements Comparable<
     /** The value name. */
     private String valueName;
 
-    /** Default constructor for deserialization. */
+    /**
+     * Default constructor for deserialization. {@code className} and
+     * {@code valueName} are populated by the deserializer, so they are not assigned
+     * here.
+     */
+    @SuppressWarnings("NullAway.Init")
     AnnotationEnumValue() {
         super();
     }
@@ -102,7 +109,7 @@ public class AnnotationEnumValue extends ScanResultObject implements Comparable<
      *                                  ignoreExceptions was false, or if the enum
      *                                  constant is invalid.
      */
-    public Object loadClassAndReturnEnumValue(final boolean ignoreExceptions) throws IllegalArgumentException {
+    public @Nullable Object loadClassAndReturnEnumValue(final boolean ignoreExceptions) throws IllegalArgumentException {
         final Class<?> classRef = super.loadClass(ignoreExceptions);
         if (classRef == null) {
             if (ignoreExceptions) {
@@ -140,7 +147,7 @@ public class AnnotationEnumValue extends ScanResultObject implements Comparable<
      * @throws IllegalArgumentException if the class could not be loaded, or the
      *                                  enum constant is invalid.
      */
-    public Object loadClassAndReturnEnumValue() throws IllegalArgumentException {
+    public @Nullable Object loadClassAndReturnEnumValue() throws IllegalArgumentException {
         return loadClassAndReturnEnumValue(/* ignoreExceptions = */ false);
     }
 
@@ -163,7 +170,7 @@ public class AnnotationEnumValue extends ScanResultObject implements Comparable<
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
-    public boolean equals(final Object obj) {
+    public boolean equals(final @Nullable Object obj) {
         if (obj == this) {
             return true;
         }

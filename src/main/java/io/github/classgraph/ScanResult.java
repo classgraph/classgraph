@@ -43,6 +43,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -62,6 +63,7 @@ import nonapi.io.github.classgraph.utils.CollectionUtils;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The result of a scan. You should assign a ScanResult in a try-with-resources
@@ -75,10 +77,13 @@ public final class ScanResult implements Closeable {
      * The order of classpath elements, after inner jars have been extracted to
      * temporary files, etc.
      */
-    private List<ClasspathElement> classpathOrder;
+    private @Nullable List<ClasspathElement> classpathOrder;
 
-    /** A list of all files that were found in accepted packages. */
-    private ResourceList allAcceptedResourcesCached;
+    /**
+     * A list of all files that were found in accepted packages, or null if not yet
+     * cached, or if this {@link ScanResult} has been closed.
+     */
+    private @Nullable ResourceList allAcceptedResourcesCached;
 
     /**
      * The number of times {@link #getResourcesWithPath(String)} has been called.
@@ -89,16 +94,16 @@ public final class ScanResult implements Closeable {
      * The map from path (relative to package root) to a list of {@link Resource}
      * elements with the matching path.
      */
-    private Map<String, ResourceList> pathToAcceptedResourcesCached;
+    private @Nullable Map<String, ResourceList> pathToAcceptedResourcesCached;
 
     /** The map from class name to {@link ClassInfo}. */
     Map<String, ClassInfo> classNameToClassInfo;
 
     /** The map from package name to {@link PackageInfo}. */
-    private Map<String, PackageInfo> packageNameToPackageInfo;
+    private @Nullable Map<String, PackageInfo> packageNameToPackageInfo;
 
     /** The map from class name to {@link ClassInfo}. */
-    private Map<String, ModuleInfo> moduleNameToModuleInfo;
+    private @Nullable Map<String, ModuleInfo> moduleNameToModuleInfo;
 
     /**
      * The file, directory and jarfile resources timestamped during a scan, along
@@ -107,7 +112,7 @@ public final class ScanResult implements Closeable {
      * ScanResult object is the result of a call to
      * ClassGraph#getUniqueClasspathElementsAsync().
      */
-    private Map<File, Long> fileToLastModified;
+    private @Nullable Map<File, Long> fileToLastModified;
 
     /**
      * If true, this {@link ScanResult} was produced by
@@ -116,13 +121,13 @@ public final class ScanResult implements Closeable {
     private boolean isObtainedFromDeserialization;
 
     /** A custom ClassLoader that can load classes found during the scan. */
-    private ClassGraphClassLoader classGraphClassLoader;
+    private @Nullable ClassGraphClassLoader classGraphClassLoader;
 
     /** The {@link ClasspathFinder}. */
-    ClasspathFinder classpathFinder;
+    private @Nullable ClasspathFinder classpathFinder;
 
     /** The nested jar handler instance. */
-    private NestedJarHandler nestedJarHandler;
+    private @Nullable NestedJarHandler nestedJarHandler;
 
     /** The scan spec. */
     ScanSpec scanSpec;
@@ -134,7 +139,7 @@ public final class ScanResult implements Closeable {
      * The {@link ReflectionUtils} instance, or null if this {@link ScanResult} has
      * been closed.
      */
-    ReflectionUtils reflectionUtils;
+    @Nullable ReflectionUtils reflectionUtils;
 
     /**
      * Get the {@link ReflectionUtils} instance of a {@link ScanResult}, falling
@@ -149,13 +154,68 @@ public final class ScanResult implements Closeable {
      * @param scanResult the {@link ScanResult}, or null.
      * @return a non-null {@link ReflectionUtils}.
      */
-    static ReflectionUtils getReflectionUtils(final ScanResult scanResult) {
+    static ReflectionUtils getReflectionUtils(final @Nullable ScanResult scanResult) {
         final var reflectionUtils = scanResult == null ? null : scanResult.reflectionUtils;
         return reflectionUtils == null ? new ReflectionUtils() : reflectionUtils;
     }
 
+    /**
+     * Get the classpath order, for use in code paths that are only reachable before
+     * this {@link ScanResult} is closed.
+     *
+     * @return the classpath order
+     * @throws NullPointerException if this {@link ScanResult} has been closed.
+     */
+    private List<ClasspathElement> classpathOrder() {
+        return Objects.requireNonNull(classpathOrder);
+    }
+
+    /**
+     * Get the map from package name to {@link PackageInfo}, for use in code paths
+     * that are only reachable before this {@link ScanResult} is closed.
+     *
+     * @return the map from package name to {@link PackageInfo}
+     * @throws NullPointerException if this {@link ScanResult} has been closed.
+     */
+    private Map<String, PackageInfo> packageNameToPackageInfo() {
+        return Objects.requireNonNull(packageNameToPackageInfo);
+    }
+
+    /**
+     * Get the map from module name to {@link ModuleInfo}, for use in code paths that
+     * are only reachable before this {@link ScanResult} is closed.
+     *
+     * @return the map from module name to {@link ModuleInfo}
+     * @throws NullPointerException if this {@link ScanResult} has been closed.
+     */
+    private Map<String, ModuleInfo> moduleNameToModuleInfo() {
+        return Objects.requireNonNull(moduleNameToModuleInfo);
+    }
+
+    /**
+     * Get the {@link ClasspathFinder}, for use in code paths that are only reachable
+     * before this {@link ScanResult} is closed.
+     *
+     * @return the {@link ClasspathFinder}
+     * @throws NullPointerException if this {@link ScanResult} has been closed.
+     */
+    ClasspathFinder classpathFinder() {
+        return Objects.requireNonNull(classpathFinder);
+    }
+
+    /**
+     * Get the {@link ClassGraphClassLoader}, for use in code paths that are only
+     * reachable before this {@link ScanResult} is closed.
+     *
+     * @return the {@link ClassGraphClassLoader}
+     * @throws NullPointerException if this {@link ScanResult} has been closed.
+     */
+    private ClassGraphClassLoader classGraphClassLoader() {
+        return Objects.requireNonNull(classGraphClassLoader);
+    }
+
     /** The toplevel log. */
-    private final LogNode topLevelLog;
+    private final @Nullable LogNode topLevelLog;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -201,9 +261,10 @@ public final class ScanResult implements Closeable {
         public List<ModuleInfo> moduleInfo;
 
         /**
-         * Constructor.
+         * Default constructor for deserialization. All fields are populated by the
+         * deserializer, so none are assigned here.
          */
-        @SuppressWarnings("unused")
+        @SuppressWarnings({ "unused", "NullAway.Init" })
         public SerializationFormat() {
             // Empty
         }
@@ -285,8 +346,8 @@ public final class ScanResult implements Closeable {
     ScanResult(final ScanSpec scanSpec, final List<ClasspathElement> classpathOrder,
             final List<String> rawClasspathEltOrderStrs, final ClasspathFinder classpathFinder,
             final Map<String, ClassInfo> classNameToClassInfo, final Map<String, PackageInfo> packageNameToPackageInfo,
-            final Map<String, ModuleInfo> moduleNameToModuleInfo, final Map<File, Long> fileToLastModified,
-            final NestedJarHandler nestedJarHandler, final LogNode topLevelLog) {
+            final Map<String, ModuleInfo> moduleNameToModuleInfo, final @Nullable Map<File, Long> fileToLastModified,
+            final NestedJarHandler nestedJarHandler, final @Nullable LogNode topLevelLog) {
         this.scanSpec = scanSpec;
         this.rawClasspathEltOrderStrs = rawClasspathEltOrderStrs;
         this.classpathOrder = classpathOrder;
@@ -299,35 +360,30 @@ public final class ScanResult implements Closeable {
         this.reflectionUtils = nestedJarHandler.reflectionUtils;
         this.topLevelLog = topLevelLog;
 
-        if (classNameToClassInfo != null) {
-            indexResourcesAndClassInfo(topLevelLog);
-        }
+        indexResourcesAndClassInfo(topLevelLog);
 
-        if (classNameToClassInfo != null) {
-            // Handle @Repeatable annotations
-            final Set<String> allRepeatableAnnotationNames = new HashSet<>();
-            for (final ClassInfo classInfo : classNameToClassInfo.values()) {
-                if (classInfo.isAnnotation() && classInfo.annotationInfo != null) {
-                    final var repeatableMetaAnnotation = classInfo.annotationInfo
-                            .get("java.lang.annotation.Repeatable");
-                    if (repeatableMetaAnnotation != null) {
-                        final var vals = repeatableMetaAnnotation.getParameterValues();
-                        if (!vals.isEmpty()) {
-                            final var val = vals.getValue("value");
-                            if (val instanceof final AnnotationClassRef classRef) {
-                                final var repeatableAnnotationName = classRef.getName();
-                                if (repeatableAnnotationName != null) {
-                                    allRepeatableAnnotationNames.add(repeatableAnnotationName);
-                                }
+        // Handle @Repeatable annotations
+        final Set<String> allRepeatableAnnotationNames = new HashSet<>();
+        for (final ClassInfo classInfo : classNameToClassInfo.values()) {
+            if (classInfo.isAnnotation() && classInfo.annotationInfo != null) {
+                final var repeatableMetaAnnotation = classInfo.annotationInfo.get("java.lang.annotation.Repeatable");
+                if (repeatableMetaAnnotation != null) {
+                    final var vals = repeatableMetaAnnotation.getParameterValues();
+                    if (!vals.isEmpty()) {
+                        final var val = vals.getValue("value");
+                        if (val instanceof final AnnotationClassRef classRef) {
+                            final var repeatableAnnotationName = classRef.getName();
+                            if (repeatableAnnotationName != null) {
+                                allRepeatableAnnotationNames.add(repeatableAnnotationName);
                             }
                         }
                     }
                 }
             }
-            if (!allRepeatableAnnotationNames.isEmpty()) {
-                for (final ClassInfo classInfo : classNameToClassInfo.values()) {
-                    classInfo.handleRepeatableAnnotations(allRepeatableAnnotationNames);
-                }
+        }
+        if (!allRepeatableAnnotationNames.isEmpty()) {
+            for (final ClassInfo classInfo : classNameToClassInfo.values()) {
+                classInfo.handleRepeatableAnnotations(allRepeatableAnnotationNames);
             }
         }
 
@@ -344,7 +400,7 @@ public final class ScanResult implements Closeable {
      *
      * @param log the log
      */
-    private void indexResourcesAndClassInfo(final LogNode log) {
+    private void indexResourcesAndClassInfo(final @Nullable LogNode log) {
         // Add backrefs from Info objects back to this ScanResult
         final var allClassInfo = classNameToClassInfo.values();
         for (final ClassInfo classInfo : allClassInfo) {
@@ -372,11 +428,11 @@ public final class ScanResult implements Closeable {
         }
 
         if (scanSpec.enableClassInfo) {
-            for (final PackageInfo pkgInfo : packageNameToPackageInfo.values()) {
+            for (final PackageInfo pkgInfo : packageNameToPackageInfo().values()) {
                 pkgInfo.setScanResult(this);
             }
 
-            for (final ModuleInfo moduleInfo : moduleNameToModuleInfo.values()) {
+            for (final ModuleInfo moduleInfo : moduleNameToModuleInfo().values()) {
                 moduleInfo.setScanResult(this);
             }
         }
@@ -470,7 +526,7 @@ public final class ScanResult implements Closeable {
     public List<File> getClasspathFiles() {
         checkNotClosed();
         final List<File> classpathElementOrderFiles = new ArrayList<>();
-        for (final ClasspathElement classpathElement : classpathOrder) {
+        for (final ClasspathElement classpathElement : classpathOrder()) {
             final var file = classpathElement.getFile();
             if (file != null) {
                 classpathElementOrderFiles.add(file);
@@ -500,7 +556,7 @@ public final class ScanResult implements Closeable {
     public List<URI> getClasspathURIs() {
         checkNotClosed();
         final List<URI> classpathElementOrderURIs = new ArrayList<>();
-        for (final ClasspathElement classpathElement : classpathOrder) {
+        for (final ClasspathElement classpathElement : classpathOrder()) {
             try {
                 for (final URI uri : classpathElement.getAllURIs()) {
                     if (uri != null) {
@@ -542,7 +598,7 @@ public final class ScanResult implements Closeable {
     public List<ModuleRef> getModules() {
         checkNotClosed();
         final List<ModuleRef> moduleRefs = new ArrayList<>();
-        for (final ClasspathElement classpathElement : classpathOrder) {
+        for (final ClasspathElement classpathElement : classpathOrder()) {
             if (classpathElement instanceof final ClasspathElementModule classpathElementModule) {
                 moduleRefs.add(classpathElementModule.getModuleRef());
             }
@@ -567,7 +623,7 @@ public final class ScanResult implements Closeable {
      */
     public ModulePathInfo getModulePathInfo() {
         checkNotClosed();
-        scanSpec.modulePathInfo.getRuntimeInfo(reflectionUtils);
+        scanSpec.modulePathInfo.getRuntimeInfo(Objects.requireNonNull(reflectionUtils));
         return scanSpec.modulePathInfo;
     }
 
@@ -583,16 +639,17 @@ public final class ScanResult implements Closeable {
     public ResourceList getAllResources() {
         checkNotClosed();
         synchronized (this) {
-            if (allAcceptedResourcesCached == null) {
+            var allAcceptedResources = allAcceptedResourcesCached;
+            if (allAcceptedResources == null) {
                 // Index Resource objects by path
                 final var acceptedResourcesList = new ResourceList();
-                for (final ClasspathElement classpathElt : classpathOrder) {
+                for (final ClasspathElement classpathElt : classpathOrder()) {
                     acceptedResourcesList.addAll(classpathElt.acceptedResources);
                 }
                 // Set atomically for thread safety
-                allAcceptedResourcesCached = acceptedResourcesList;
+                allAcceptedResourcesCached = allAcceptedResources = acceptedResourcesList;
             }
-            return allAcceptedResourcesCached;
+            return allAcceptedResources;
         }
     }
 
@@ -606,15 +663,16 @@ public final class ScanResult implements Closeable {
     public Map<String, ResourceList> getAllResourcesAsMap() {
         checkNotClosed();
         synchronized (this) {
-            if (pathToAcceptedResourcesCached == null) {
+            var pathToAcceptedResources = pathToAcceptedResourcesCached;
+            if (pathToAcceptedResources == null) {
                 final Map<String, ResourceList> pathToAcceptedResourceListMap = new HashMap<>();
                 for (final Resource res : getAllResources()) {
                     pathToAcceptedResourceListMap.computeIfAbsent(res.getPath(), k -> new ResourceList()).add(res);
                 }
                 // Set atomically for thread safety
-                pathToAcceptedResourcesCached = pathToAcceptedResourceListMap;
+                pathToAcceptedResourcesCached = pathToAcceptedResources = pathToAcceptedResourceListMap;
             }
-            return pathToAcceptedResourcesCached;
+            return pathToAcceptedResources;
         }
     }
 
@@ -641,7 +699,7 @@ public final class ScanResult implements Closeable {
         } else {
             // If just a few calls are made, directly search for resource with the requested
             // path
-            for (final ClasspathElement classpathElt : classpathOrder) {
+            for (final ClasspathElement classpathElt : classpathOrder()) {
                 for (final Resource res : classpathElt.acceptedResources) {
                     if (res.getPath().equals(path)) {
                         if (matchingResources == null) {
@@ -678,7 +736,7 @@ public final class ScanResult implements Closeable {
         final var path = FileUtils.sanitizeEntryPath(resourcePath, /* removeInitialSlash = */ true,
                 /* removeFinalSlash = */ true);
         final var matchingResources = new ResourceList();
-        for (final ClasspathElement classpathElt : classpathOrder) {
+        for (final ClasspathElement classpathElt : classpathOrder()) {
             final var matchingResource = classpathElt.getResource(path);
             if (matchingResource != null) {
                 matchingResources.add(matchingResource);
@@ -831,9 +889,9 @@ public final class ScanResult implements Closeable {
      * @return The {@link ModuleInfo} object for the named module, or null if the
      *         module was not found.
      */
-    public ModuleInfo getModuleInfo(final String moduleName) {
+    public @Nullable ModuleInfo getModuleInfo(final String moduleName) {
         checkClassInfoEnabled();
-        return moduleNameToModuleInfo.get(moduleName);
+        return moduleNameToModuleInfo().get(moduleName);
     }
 
     /**
@@ -844,7 +902,7 @@ public final class ScanResult implements Closeable {
      */
     public ModuleInfoList getModuleInfo() {
         checkClassInfoEnabled();
-        return new ModuleInfoList(moduleNameToModuleInfo.values());
+        return new ModuleInfoList(moduleNameToModuleInfo().values());
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -858,9 +916,9 @@ public final class ScanResult implements Closeable {
      * @return The {@link PackageInfo} object for the named package, or null if the
      *         package was not found.
      */
-    public PackageInfo getPackageInfo(final String packageName) {
+    public @Nullable PackageInfo getPackageInfo(final String packageName) {
         checkClassInfoEnabled();
-        return packageNameToPackageInfo.get(packageName);
+        return packageNameToPackageInfo().get(packageName);
     }
 
     /**
@@ -871,7 +929,7 @@ public final class ScanResult implements Closeable {
      */
     public PackageInfoList getPackageInfo() {
         checkClassInfoEnabled();
-        return new PackageInfoList(packageNameToPackageInfo.values());
+        return new PackageInfoList(packageNameToPackageInfo().values());
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -942,7 +1000,7 @@ public final class ScanResult implements Closeable {
      * @return The {@link ClassInfo} object for the named class, or null if the
      *         class was not found.
      */
-    public ClassInfo getClassInfo(final String className) {
+    public @Nullable ClassInfo getClassInfo(final String className) {
         checkClassInfoEnabled();
         return classNameToClassInfo.get(className);
     }
@@ -1471,8 +1529,8 @@ public final class ScanResult implements Closeable {
      *
      * @return the class loader order.
      */
-    ClassLoader[] getClassLoaderOrderRespectingParentDelegation() {
-        return classpathFinder.getClassLoaderOrderRespectingParentDelegation();
+    ClassLoader @Nullable [] getClassLoaderOrderRespectingParentDelegation() {
+        return classpathFinder().getClassLoaderOrderRespectingParentDelegation();
     }
 
     /**
@@ -1504,14 +1562,14 @@ public final class ScanResult implements Closeable {
      *                                  null is returned if any of these problems
      *                                  occurs.
      */
-    public Class<?> loadClass(final String className, final boolean returnNullIfClassNotFound)
+    public @Nullable Class<?> loadClass(final String className, final boolean returnNullIfClassNotFound)
             throws IllegalArgumentException {
         checkNotClosed();
         if (className == null || className.isEmpty()) {
             throw new NullPointerException("className cannot be null or empty");
         }
         try {
-            return Class.forName(className, scanSpec.initializeLoadedClasses, classGraphClassLoader);
+            return Class.forName(className, scanSpec.initializeLoadedClasses, classGraphClassLoader());
         } catch (final ClassNotFoundException | LinkageError e) {
             if (returnNullIfClassNotFound) {
                 return null;
@@ -1553,7 +1611,7 @@ public final class ScanResult implements Closeable {
      *                                  null is returned if any of these problems
      *                                  occurs.
      */
-    public <T> Class<T> loadClass(final String className, final Class<T> superclassOrInterfaceType,
+    public <T> @Nullable Class<T> loadClass(final String className, final Class<T> superclassOrInterfaceType,
             final boolean returnNullIfClassNotFound) throws IllegalArgumentException {
         checkNotClosed();
         if (className == null || className.isEmpty()) {
@@ -1564,7 +1622,7 @@ public final class ScanResult implements Closeable {
         }
         final Class<?> loadedClass;
         try {
-            loadedClass = Class.forName(className, scanSpec.initializeLoadedClasses, classGraphClassLoader);
+            loadedClass = Class.forName(className, scanSpec.initializeLoadedClasses, classGraphClassLoader());
         } catch (final ClassNotFoundException | LinkageError e) {
             if (returnNullIfClassNotFound) {
                 return null;
@@ -1638,16 +1696,18 @@ public final class ScanResult implements Closeable {
                 ci.setScanResult(scanResult);
             }
         }
-        scanResult.moduleNameToModuleInfo = new HashMap<>();
+        final Map<String, ModuleInfo> moduleNameToModuleInfo = new HashMap<>();
+        scanResult.moduleNameToModuleInfo = moduleNameToModuleInfo;
         if (deserialized.moduleInfo != null) {
             for (final ModuleInfo mi : deserialized.moduleInfo) {
-                scanResult.moduleNameToModuleInfo.put(mi.getName(), mi);
+                moduleNameToModuleInfo.put(mi.getName(), mi);
             }
         }
-        scanResult.packageNameToPackageInfo = new HashMap<>();
+        final Map<String, PackageInfo> packageNameToPackageInfo = new HashMap<>();
+        scanResult.packageNameToPackageInfo = packageNameToPackageInfo;
         if (deserialized.packageInfo != null) {
             for (final PackageInfo pi : deserialized.packageInfo) {
-                scanResult.packageNameToPackageInfo.put(pi.getName(), pi);
+                packageNameToPackageInfo.put(pi.getName(), pi);
             }
         }
 
@@ -1669,9 +1729,9 @@ public final class ScanResult implements Closeable {
         checkClassInfoEnabled();
         final List<ClassInfo> allClassInfo = new ArrayList<>(classNameToClassInfo.values());
         CollectionUtils.sortIfNotEmpty(allClassInfo);
-        final List<PackageInfo> allPackageInfo = new ArrayList<>(packageNameToPackageInfo.values());
+        final List<PackageInfo> allPackageInfo = new ArrayList<>(packageNameToPackageInfo().values());
         CollectionUtils.sortIfNotEmpty(allPackageInfo);
-        final List<ModuleInfo> allModuleInfo = new ArrayList<>(moduleNameToModuleInfo.values());
+        final List<ModuleInfo> allModuleInfo = new ArrayList<>(moduleNameToModuleInfo().values());
         CollectionUtils.sortIfNotEmpty(allModuleInfo);
         return JSONSerializer.serializeObject(new SerializationFormat(CURRENT_SERIALIZATION_FORMAT, scanSpec,
                 allClassInfo, allPackageInfo, allModuleInfo, rawClasspathEltOrderStrs), indentWidth, false);
@@ -1715,11 +1775,12 @@ public final class ScanResult implements Closeable {
                 classpathOrder.clear();
                 classpathOrder = null;
             }
-            if (allAcceptedResourcesCached != null) {
-                for (final Resource classpathResource : allAcceptedResourcesCached) {
+            final var allAcceptedResources = allAcceptedResourcesCached;
+            if (allAcceptedResources != null) {
+                for (final Resource classpathResource : allAcceptedResources) {
                     classpathResource.close();
                 }
-                allAcceptedResourcesCached.clear();
+                allAcceptedResources.clear();
                 allAcceptedResourcesCached = null;
             }
             if (pathToAcceptedResourcesCached != null) {

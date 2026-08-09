@@ -33,6 +33,7 @@ import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
+import org.jspecify.annotations.Nullable;
 
 /**
  * This handler uses parent-last delegation order (i.e. it adds the classloader
@@ -45,14 +46,14 @@ import nonapi.io.github.classgraph.utils.LogNode;
  */
 class SpringBootRestartClassLoaderHandler implements ClassLoaderHandler {
     @Override
-    public boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
+    public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
         return ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass,
                 "org.springframework.boot.devtools.restart.classloader.RestartClassLoader");
     }
 
     @Override
     public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
-            final LogNode log) {
+            final @Nullable LogNode log) {
         // The Restart classloader is a parent-last classloader, so add the Restart
         // classloader itself to the
         // classloader order first
@@ -86,7 +87,7 @@ class SpringBootRestartClassLoaderHandler implements ClassLoaderHandler {
      */
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-            final ScanSpec scanSpec, final LogNode log) {
+            final ScanSpec scanSpec, final @Nullable LogNode log) {
         // The Restart classloader doesn't itself store any URLs
     }
 

@@ -43,6 +43,7 @@ import java.util.Set;
 
 import io.github.classgraph.ClassInfo.ReachableAndDirectlyRelatedClasses;
 import nonapi.io.github.classgraph.utils.CollectionUtils;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A <i>uniquified</i> (deduplicated) list of {@link ClassInfo} objects, which
@@ -102,8 +103,8 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      * @param directlyRelatedClasses directly related classes
      * @param sortByName             whether to sort by name
      */
-    ClassInfoList(final Set<ClassInfo> reachableClasses, final Set<ClassInfo> directlyRelatedClasses,
-            final boolean sortByName) {
+    ClassInfoList(final Set<ClassInfo> reachableClasses,
+            final @Nullable Set<ClassInfo> directlyRelatedClasses, final boolean sortByName) {
         // Sort a copy of the classes before handing them to the superclass constructor,
         // rather than sorting this
         // list once it has been built, so that a partly-initialized instance is never
@@ -556,7 +557,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
         if (isEmpty()) {
             throw new IllegalArgumentException("List is empty");
         }
-        final var scanSpec = get(0).scanResult.scanSpec;
+        final var scanSpec = get(0).scanResult().scanSpec;
         if (!scanSpec.enableInterClassDependencies) {
             throw new IllegalArgumentException("Please call ClassGraph#enableInterClassDependencies() before #scan()");
         }
@@ -591,7 +592,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
         if (isEmpty()) {
             throw new IllegalArgumentException("List is empty");
         }
-        final var scanSpec = get(0).scanResult.scanSpec;
+        final var scanSpec = get(0).scanResult().scanSpec;
         if (!scanSpec.enableInterClassDependencies) {
             throw new IllegalArgumentException("Please call ClassGraph#enableInterClassDependencies() before #scan()");
         }
@@ -624,7 +625,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
         if (isEmpty()) {
             throw new IllegalArgumentException("List is empty");
         }
-        final var scanSpec = get(0).scanResult.scanSpec;
+        final var scanSpec = get(0).scanResult().scanSpec;
         if (!scanSpec.enableInterClassDependencies) {
             throw new IllegalArgumentException("Please call ClassGraph#enableInterClassDependencies() before #scan()");
         }
@@ -705,7 +706,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
         if (isEmpty()) {
             throw new IllegalArgumentException("List is empty");
         }
-        final var scanSpec = get(0).scanResult.scanSpec;
+        final var scanSpec = get(0).scanResult().scanSpec;
         if (!scanSpec.enableClassInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableClassInfo() before #scan()");
         }
@@ -860,7 +861,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      * @see java.util.ArrayList#equals(java.lang.Object)
      */
     @Override
-    public boolean equals(final Object obj) {
+    public boolean equals(final @Nullable Object obj) {
         if (this == obj) {
             return true;
         }

@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.Set;
 
 import nonapi.io.github.classgraph.utils.LogNode;
+import org.jspecify.annotations.Nullable;
 
 /** A list of {@link FieldInfo} objects. */
 public class FieldInfoList extends MappableInfoList<FieldInfo> {
@@ -93,7 +94,7 @@ public class FieldInfoList extends MappableInfoList<FieldInfo> {
      * @param log                  the log
      */
     void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
-            final Set<ClassInfo> refdClassInfo, final LogNode log) {
+            final Set<ClassInfo> refdClassInfo, final @Nullable LogNode log) {
         for (final FieldInfo fi : this) {
             fi.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
         }

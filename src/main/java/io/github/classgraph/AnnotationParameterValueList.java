@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.Set;
 
 import nonapi.io.github.classgraph.utils.LogNode;
+import org.jspecify.annotations.Nullable;
 
 /** A list of {@link AnnotationParameterValue} objects. */
 public class AnnotationParameterValueList extends MappableInfoList<AnnotationParameterValue> {
@@ -97,7 +98,7 @@ public class AnnotationParameterValueList extends MappableInfoList<AnnotationPar
      * @param log                  the log
      */
     void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
-            final Set<ClassInfo> refdClassInfo, final LogNode log) {
+            final Set<ClassInfo> refdClassInfo, final @Nullable LogNode log) {
         for (final AnnotationParameterValue apv : this) {
             apv.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
         }
@@ -112,7 +113,7 @@ public class AnnotationParameterValueList extends MappableInfoList<AnnotationPar
      *
      * @param annotationClassInfo the annotation class info
      */
-    void convertWrapperArraysToPrimitiveArrays(final ClassInfo annotationClassInfo) {
+    void convertWrapperArraysToPrimitiveArrays(final @Nullable ClassInfo annotationClassInfo) {
         for (final AnnotationParameterValue apv : this) {
             apv.convertWrapperArraysToPrimitiveArrays(annotationClassInfo);
         }
@@ -150,7 +151,7 @@ public class AnnotationParameterValueList extends MappableInfoList<AnnotationPar
      *         <li>{@link AnnotationInfo}, for nested annotations
      *         </ul>
      */
-    public Object getValue(final String parameterName) {
+    public @Nullable Object getValue(final String parameterName) {
         final var apv = get(parameterName);
         return apv == null ? null : apv.getValue();
     }

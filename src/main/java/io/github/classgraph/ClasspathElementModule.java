@@ -37,6 +37,7 @@ import java.nio.ByteBuffer;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -54,6 +55,7 @@ import nonapi.io.github.classgraph.utils.CollectionUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.ModuleReaderUtils;
 import nonapi.io.github.classgraph.utils.ProxyingInputStream;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A module classpath element.
@@ -72,8 +74,19 @@ class ClasspathElementModule extends ClasspathElement {
     SingletonMap<ModuleRef, Recycler<ModuleReader, IOException>, IOException> //
     moduleRefToModuleReaderRecyclerMap;
 
-    /** The module reader recycler. */
-    private Recycler<ModuleReader, IOException> moduleReaderRecycler;
+    /** The module reader recycler, or null until {@link #open} has been called. */
+    private @Nullable Recycler<ModuleReader, IOException> moduleReaderRecycler;
+
+    /**
+     * Get the module reader recycler.
+     *
+     * @return the module reader recycler
+     * @throws NullPointerException if {@link #open} has not been called, or it
+     *                              failed to open the module
+     */
+    private Recycler<ModuleReader, IOException> moduleReaderRecycler() {
+        return Objects.requireNonNull(moduleReaderRecycler);
+    }
 
     /** All resource paths. */
     private final Set<String> allResourcePaths = new HashSet<>();
@@ -103,7 +116,8 @@ class ClasspathElementModule extends ClasspathElement {
      * nonapi.io.github.classgraph.utils.LogNode)
      */
     @Override
-    void open(final WorkQueue<ClasspathEntryWorkUnit> workQueueIgnored, final LogNode log) throws InterruptedException {
+    void open(final @Nullable WorkQueue<ClasspathEntryWorkUnit> workQueueIgnored, final @Nullable LogNode log)
+            throws InterruptedException {
         if (!scanSpec.scanModules) {
             if (log != null) {
                 log(classpathElementIdx, "Skipping module, since module scanning is disabled: " + getModuleName(), log);
@@ -132,8 +146,8 @@ class ClasspathElementModule extends ClasspathElement {
      */
     private Resource newResource(final String resourcePath) {
         return new Resource(this, /* length unknown */ -1L) {
-            /** The module reader. */
-            private ModuleReader moduleReader;
+            /** The module reader, or null if no module reader is currently acquired. */
+            private @Nullable ModuleReader moduleReader;
 
             /** True if the resource is open. */
             private final AtomicBoolean isOpen = new AtomicBoolean();
@@ -149,7 +163,7 @@ class ClasspathElementModule extends ClasspathElement {
             }
 
             @Override
-            public Set<PosixFilePermission> getPosixFilePermissions() {
+            public @Nullable Set<PosixFilePermission> getPosixFilePermissions() {
                 return null; // N/A
             }
 
@@ -171,12 +185,14 @@ class ClasspathElementModule extends ClasspathElement {
             public ByteBuffer read() throws IOException {
                 checkCanOpen();
                 try {
-                    moduleReader = moduleReaderRecycler.acquire();
+                    final var reader = moduleReaderRecycler().acquire();
+                    moduleReader = reader;
                     // ModuleReader#read(String name) internally calls:
                     // InputStream is = open(name); return ByteBuffer.wrap(is.readAllBytes());
-                    byteBuffer = ModuleReaderUtils.read(moduleReader, resourcePath);
-                    length = byteBuffer.remaining();
-                    return byteBuffer;
+                    final var buf = ModuleReaderUtils.read(reader, resourcePath);
+                    byteBuffer = buf;
+                    length = buf.remaining();
+                    return buf;
 
                 } catch (final SecurityException | OutOfMemoryError e) {
                     close();
@@ -192,11 +208,11 @@ class ClasspathElementModule extends ClasspathElement {
             @Override
             public URI getURI() {
                 try {
-                    final var localModuleReader = moduleReaderRecycler.acquire();
+                    final var localModuleReader = moduleReaderRecycler().acquire();
                     try {
                         return ModuleReaderUtils.find(localModuleReader, resourcePath);
                     } finally {
-                        moduleReaderRecycler.recycle(localModuleReader);
+                        moduleReaderRecycler().recycle(localModuleReader);
                     }
                 } catch (final IOException e) {
                     throw new RuntimeException(e);
@@ -208,8 +224,9 @@ class ClasspathElementModule extends ClasspathElement {
                 checkCanOpen();
                 try {
                     final Resource thisResource = this;
-                    moduleReader = moduleReaderRecycler.acquire();
-                    inputStream = new ProxyingInputStream(ModuleReaderUtils.open(moduleReader, resourcePath)) {
+                    final var reader = moduleReaderRecycler().acquire();
+                    moduleReader = reader;
+                    inputStream = new ProxyingInputStream(ModuleReaderUtils.open(reader, resourcePath)) {
                         @Override
                         public void close() throws IOException {
                             // Close the wrapped InputStream obtained from moduleReader
@@ -236,14 +253,13 @@ class ClasspathElementModule extends ClasspathElement {
             @Override
             public byte[] load() throws IOException {
                 try (Resource res = this) { // Close this after use
-                    read(); // Fill byteBuffer
+                    final var buf = read(); // Fill byteBuffer
                     final byte[] byteArray;
-                    if (res.byteBuffer.hasArray() && res.byteBuffer.position() == 0
-                            && res.byteBuffer.limit() == res.byteBuffer.capacity()) {
-                        byteArray = res.byteBuffer.array();
+                    if (buf.hasArray() && buf.position() == 0 && buf.limit() == buf.capacity()) {
+                        byteArray = buf.array();
                     } else {
-                        byteArray = new byte[res.byteBuffer.remaining()];
-                        res.byteBuffer.get(byteArray);
+                        byteArray = new byte[buf.remaining()];
+                        buf.get(byteArray);
                     }
                     res.length = byteArray.length;
                     return byteArray;
@@ -253,14 +269,16 @@ class ClasspathElementModule extends ClasspathElement {
             @Override
             public void close() {
                 if (isOpen.getAndSet(false)) {
-                    if (moduleReader != null) {
-                        if (byteBuffer != null) {
+                    final var reader = moduleReader;
+                    if (reader != null) {
+                        final var buf = byteBuffer;
+                        if (buf != null) {
                             // Release any open ByteBuffer
-                            moduleReader.release(byteBuffer);
+                            reader.release(buf);
                             byteBuffer = null;
                         }
                         // Recycle the (open) ModuleReader instance.
-                        moduleReaderRecycler.recycle(moduleReader);
+                        moduleReaderRecycler().recycle(reader);
                         // Don't call ModuleReader#close(), leave the ModuleReader open in the recycler.
                         // Just set the ref to null here. The ModuleReader will be closed by
                         // ClasspathElementModule#close().
@@ -282,6 +300,7 @@ class ClasspathElementModule extends ClasspathElement {
      *         relativePath does not exist in this classpath element.
      */
     @Override
+    @Nullable
     Resource getResource(final String relativePath) {
         return allResourcePaths.contains(relativePath) ? newResource(relativePath) : null;
     }
@@ -292,7 +311,7 @@ class ClasspathElementModule extends ClasspathElement {
      * @param log the log
      */
     @Override
-    void scanPaths(final LogNode log) {
+    void scanPaths(final @Nullable LogNode log) {
         if (skipClasspathElement) {
             return;
         }
@@ -307,7 +326,7 @@ class ClasspathElementModule extends ClasspathElement {
         final var isModularJar = getModuleName() != null;
 
         try (var moduleReaderRecycleOnClose //
-                = moduleReaderRecycler.acquireRecycleOnClose()) {
+                = moduleReaderRecycler().acquireRecycleOnClose()) {
             // Look for accepted files in the module.
             final List<String> resourceRelativePaths;
             try {
@@ -389,7 +408,9 @@ class ClasspathElementModule extends ClasspathElement {
                 final var parentMatchStatus = //
                         prevParentRelativePath == null || parentRelativePathChanged
                                 ? scanSpec.dirAcceptMatchStatus(parentRelativePath)
-                                : prevParentMatchStatus;
+                                // prevParentRelativePath is null on the first iteration, so
+                                // prevParentMatchStatus has always been set by the time it is read
+                                : Objects.requireNonNull(prevParentMatchStatus);
                 prevParentRelativePath = parentRelativePath;
                 prevParentMatchStatus = parentMatchStatus;
 
@@ -453,7 +474,7 @@ class ClasspathElementModule extends ClasspathElement {
      * @return the module name, or null if the module does not have a name.
      */
     @Override
-    public String getModuleName() {
+    public @Nullable String getModuleName() {
         var moduleName = moduleRef.getName();
         if (moduleName == null || moduleName.isEmpty()) {
             moduleName = moduleNameFromModuleDescriptor;
@@ -499,6 +520,7 @@ class ClasspathElementModule extends ClasspathElement {
      * @see io.github.classgraph.ClasspathElement#getFile()
      */
     @Override
+    @Nullable
     File getFile() {
         try {
             final var uri = moduleRef.getLocation();
@@ -537,7 +559,7 @@ class ClasspathElementModule extends ClasspathElement {
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
-    public boolean equals(final Object obj) {
+    public boolean equals(final @Nullable Object obj) {
         if (obj == this) {
             return true;
         }

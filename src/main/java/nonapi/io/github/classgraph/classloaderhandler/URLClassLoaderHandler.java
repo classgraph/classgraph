@@ -36,26 +36,27 @@ import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
+import org.jspecify.annotations.Nullable;
 
 /**
  * ClassLoaderHandler that is able to extract the URLs from a URLClassLoader.
  */
 class URLClassLoaderHandler implements ClassLoaderHandler {
     @Override
-    public boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
+    public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
         return ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass, "java.net.URLClassLoader");
     }
 
     @Override
     public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
-            final LogNode log) {
+            final @Nullable LogNode log) {
         classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
         classLoaderOrder.add(classLoader, log);
     }
 
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-            final ScanSpec scanSpec, final LogNode log) {
+            final ScanSpec scanSpec, final @Nullable LogNode log) {
         final var urls = ((URLClassLoader) classLoader).getURLs();
         if (urls != null) {
             for (final URL url : urls) {

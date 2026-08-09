@@ -32,6 +32,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.regex.Pattern;
 
 import nonapi.io.github.classgraph.utils.VersionFinder.OperatingSystem;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Resolve relative paths and URLs/URIs against a base path in a way that is
@@ -53,7 +54,7 @@ public final class FastPathResolver {
      * system property, since a WAR file's path may itself contain {@code '*'} or
      * {@code '^'}. See {@code org.apache.tomcat.util.buf.UriUtil#warToJar}. (#925)
      */
-    private static final String customWarSeparator = VersionFinder
+    private static final @Nullable String customWarSeparator = VersionFinder
             .getProperty("org.apache.tomcat.util.buf.UriUtil.WAR_SEPARATOR");
 
     /**
@@ -213,11 +214,11 @@ public final class FastPathResolver {
      * path, handling possibly-broken mixes of filesystem and URI conventions;
      * resolve relative paths relative to resolveBasePath.
      *
-     * @param resolveBasePath The base path.
+     * @param resolveBasePath The base path, or null to resolve against nothing.
      * @param relativePathRaw The path to resolve relative to the base path.
      * @return The resolved path.
      */
-    public static String resolve(final String resolveBasePath, final String relativePathRaw) {
+    public static String resolve(final @Nullable String resolveBasePath, final String relativePathRaw) {
         // See: http://stackoverflow.com/a/17870390/3950982
         // https://weblogs.java.net/blog/kohsuke/archive/2007/04/how_to_convert.html
 

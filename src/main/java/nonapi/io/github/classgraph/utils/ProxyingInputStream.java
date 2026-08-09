@@ -37,7 +37,15 @@ import java.io.OutputStream;
  * {@link InputStream}.
  */
 public class ProxyingInputStream extends InputStream {
-    private InputStream inputStream;
+    private final InputStream inputStream;
+
+    /**
+     * True once {@link #close()} has been called. Guards against closing the
+     * wrapped {@link InputStream} more than once, including re-entrantly, if a
+     * subclass' {@link #close()} method closes a resource that in turn closes this
+     * stream.
+     */
+    private boolean closed;
 
     /**
      * Constructor.
@@ -120,12 +128,9 @@ public class ProxyingInputStream extends InputStream {
 
     @Override
     public void close() throws IOException {
-        if (inputStream != null) {
-            try {
-                inputStream.close();
-            } finally {
-                inputStream = null;
-            }
+        if (!closed) {
+            closed = true;
+            inputStream.close();
         }
     }
 }

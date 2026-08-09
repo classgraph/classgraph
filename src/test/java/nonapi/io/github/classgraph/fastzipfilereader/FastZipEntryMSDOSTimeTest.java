@@ -52,7 +52,7 @@ public class FastZipEntryMSDOSTimeTest {
                 new ReflectionUtils());
         final long lastModifiedTimeMillis;
         try {
-            final var logicalZipFileAndPackageRoot = nestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap
+            final var logicalZipFileAndPackageRoot = nestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap()
                     .get(jarFile.getPath(), /* log = */ null);
             final var entries = logicalZipFileAndPackageRoot.getKey().entries;
             assertThat(entries).hasSize(1);

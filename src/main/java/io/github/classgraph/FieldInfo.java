@@ -32,6 +32,7 @@ import java.lang.annotation.Repeatable;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.List;
+import java.util.Objects;
 import java.util.Map;
 import java.util.Set;
 
@@ -41,6 +42,7 @@ import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.TypeUtils;
 import nonapi.io.github.classgraph.types.TypeUtils.ModifierType;
 import nonapi.io.github.classgraph.utils.LogNode;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Holds metadata about fields of a class encountered during a scan. All values
@@ -48,21 +50,21 @@ import nonapi.io.github.classgraph.utils.LogNode;
  */
 public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> {
     /** The parsed type signature. */
-    private transient TypeSignature typeSignature;
+    private transient @Nullable TypeSignature typeSignature;
 
     /** The parsed type descriptor. */
-    private transient TypeSignature typeDescriptor;
+    private transient @Nullable TypeSignature typeDescriptor;
 
     /** The constant initializer value for the field, if any. */
     // This is transient because the constant initializer value is final, so the
     // value doesn't need to be serialized
-    private ObjectTypedValueWrapper constantInitializerValue;
+    private @Nullable ObjectTypedValueWrapper constantInitializerValue;
 
     /**
      * The type annotation decorators for the {@link TypeSignature} instance of this
      * field.
      */
-    private transient List<TypeAnnotationDecorator> typeAnnotationDecorators;
+    private transient @Nullable List<TypeAnnotationDecorator> typeAnnotationDecorators;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -87,8 +89,9 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
      *                                 the parsed field type, or null if none.
      */
     FieldInfo(final String definingClassName, final String fieldName, final int modifiers,
-            final String typeDescriptorStr, final String typeSignatureStr, final Object constantInitializerValue,
-            final AnnotationInfoList annotationInfo, final List<TypeAnnotationDecorator> typeAnnotationDecorators) {
+            final String typeDescriptorStr, final @Nullable String typeSignatureStr,
+            final @Nullable Object constantInitializerValue, final @Nullable AnnotationInfoList annotationInfo,
+            final @Nullable List<TypeAnnotationDecorator> typeAnnotationDecorators) {
         super(definingClassName, fieldName, modifiers, typeDescriptorStr, typeSignatureStr, annotationInfo);
         if (fieldName == null) {
             throw new IllegalArgumentException("fieldName must not be null");
@@ -150,7 +153,7 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
      * @return The parsed type descriptor string for the field.
      */
     @Override
-    public TypeSignature getTypeDescriptor() {
+    public @Nullable TypeSignature getTypeDescriptor() {
         synchronized (this) {
             if (typeDescriptorStr == null) {
                 return null;
@@ -158,7 +161,7 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
             if (typeDescriptor == null) {
                 try {
                     typeDescriptor = TypeSignature.parse(typeDescriptorStr, declaringClassName);
-                    typeDescriptor.setScanResult(scanResult);
+                    typeDescriptor.setScanResult(this.scanResult);
                     decorateType(typeDescriptor);
                 } catch (final ParseException e) {
                     throw new IllegalArgumentException(e);
@@ -204,7 +207,7 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
      *                                  written to the classfile).
      */
     @Override
-    public TypeSignature getTypeSignature() {
+    public @Nullable TypeSignature getTypeSignature() {
         synchronized (this) {
             if (typeSignatureStr == null) {
                 return null;
@@ -212,7 +215,7 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
             if (typeSignature == null) {
                 try {
                     typeSignature = TypeSignature.parse(typeSignatureStr, declaringClassName);
-                    typeSignature.setScanResult(scanResult);
+                    typeSignature.setScanResult(this.scanResult);
                     decorateType(typeSignature);
                 } catch (final ParseException e) {
                     throw new IllegalArgumentException(
@@ -237,7 +240,7 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
      *         parsed type descriptor for the field.
      */
     @Override
-    public TypeSignature getTypeSignatureOrTypeDescriptor() {
+    public @Nullable TypeSignature getTypeSignatureOrTypeDescriptor() {
         TypeSignature typeSig = null;
         try {
             typeSig = getTypeSignature();
@@ -264,8 +267,8 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
      * @return The initializer value, if this field has a constant initializer
      *         value, or null if none.
      */
-    public Object getConstantInitializerValue() {
-        if (!scanResult.scanSpec.enableStaticFinalFieldConstantInitializerValues) {
+    public @Nullable Object getConstantInitializerValue() {
+        if (!scanResult().scanSpec.enableStaticFinalFieldConstantInitializerValues) {
             throw new IllegalArgumentException(
                     "Please call ClassGraph#enableStaticFinalFieldConstantInitializerValues() " + "before #scan()");
         }
@@ -284,7 +287,7 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
      */
     public Field loadClassAndGetField() throws IllegalArgumentException {
         try {
-            return loadClass().getField(getName());
+            return Objects.requireNonNull(loadClass()).getField(getName());
         } catch (final NoSuchFieldException e1) {
             try {
                 return loadClass().getDeclaredField(getName());
@@ -319,7 +322,7 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
      * ScanResult)
      */
     @Override
-    void setScanResult(final ScanResult scanResult) {
+    void setScanResult(final @Nullable ScanResult scanResult) {
         super.setScanResult(scanResult);
         if (this.typeSignature != null) {
             this.typeSignature.setScanResult(scanResult);
@@ -344,7 +347,7 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
      */
     @Override
     void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
-            final Set<ClassInfo> refdClassInfo, final LogNode log) {
+            final Set<ClassInfo> refdClassInfo, final @Nullable LogNode log) {
         try {
             final var fieldSig = getTypeSignature();
             if (fieldSig != null) {
@@ -383,7 +386,7 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
      * @return true if equal
      */
     @Override
-    public boolean equals(final Object obj) {
+    public boolean equals(final @Nullable Object obj) {
         if (obj == this) {
             return true;
         }
@@ -443,7 +446,8 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
             buf.append(' ');
         }
         final var typeSig = getTypeSignatureOrTypeDescriptor();
-        typeSig.toStringInternal(useSimpleNames, /* annotationsToExclude = */ annotationInfo, buf);
+        Objects.requireNonNull(typeSig).toStringInternal(useSimpleNames, /* annotationsToExclude = */ annotationInfo,
+                buf);
 
         buf.append(' ');
         buf.append(name);

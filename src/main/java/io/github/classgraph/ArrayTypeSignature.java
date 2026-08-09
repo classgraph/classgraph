@@ -37,6 +37,7 @@ import java.util.Set;
 import io.github.classgraph.Classfile.TypePathNode;
 import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.Parser;
+import org.jspecify.annotations.Nullable;
 
 /** An array type signature. */
 public class ArrayTypeSignature extends ReferenceTypeSignature {
@@ -44,13 +45,13 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
     private final String typeSignatureStr;
 
     /** Human-readable class name, e.g. "java.lang.String[]". */
-    private String className;
+    private @Nullable String className;
 
     /** Array class info. */
-    private ArrayClassInfo arrayClassInfo;
+    private @Nullable ArrayClassInfo arrayClassInfo;
 
     /** The element class. */
-    private Class<?> elementClassRef;
+    private @Nullable Class<?> elementClassRef;
 
     /**
      * The nested type (another {@link ArrayTypeSignature}, or the base element
@@ -172,7 +173,7 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
      *         on this array type, or null if none.
      */
     @Override
-    public AnnotationInfoList getTypeAnnotationInfo() {
+    public @Nullable AnnotationInfoList getTypeAnnotationInfo() {
         return typeAnnotationInfo;
     }
 
@@ -185,7 +186,8 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
      */
     @Override
     protected String getClassName() {
-        if (className == null) {
+        var name = className;
+        if (name == null) {
             // N.B. build the class name from the element type's class name rather than from
             // toString(), since
             // toString() also renders type annotations and type arguments, which are not
@@ -196,9 +198,9 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
             for (int i = 0, numDims = getNumDimensions(); i < numDims; i++) {
                 buf.append("[]");
             }
-            className = buf.toString();
+            className = name = buf.toString();
         }
-        return className;
+        return name;
     }
 
     /*
@@ -218,23 +220,26 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
      * @return the {@link ArrayClassInfo} instance.
      */
     public ArrayClassInfo getArrayClassInfo() {
-        if (arrayClassInfo == null) {
-            if (scanResult != null) {
+        var classInfo = arrayClassInfo;
+        if (classInfo == null) {
+            final var scanRes = scanResult;
+            if (scanRes != null) {
                 final var clsName = getClassName();
                 // Cache ArrayClassInfo instances using scanResult.classNameToClassInfo, if
                 // scanResult is available
-                arrayClassInfo = (ArrayClassInfo) scanResult.classNameToClassInfo.get(clsName);
-                if (arrayClassInfo == null) {
-                    scanResult.classNameToClassInfo.put(clsName, arrayClassInfo = new ArrayClassInfo(this));
-                    arrayClassInfo.setScanResult(this.scanResult);
+                classInfo = (ArrayClassInfo) scanRes.classNameToClassInfo.get(clsName);
+                if (classInfo == null) {
+                    scanRes.classNameToClassInfo.put(clsName, classInfo = new ArrayClassInfo(this));
+                    classInfo.setScanResult(scanRes);
                 }
             } else {
                 // scanResult is not yet available, create an uncached instance of an
                 // ArrayClassInfo for this type
-                arrayClassInfo = new ArrayClassInfo(this);
+                classInfo = new ArrayClassInfo(this);
             }
+            arrayClassInfo = classInfo;
         }
-        return arrayClassInfo;
+        return classInfo;
     }
 
     /*
@@ -245,11 +250,12 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
      * ScanResult)
      */
     @Override
-    void setScanResult(final ScanResult scanResult) {
+    void setScanResult(final @Nullable ScanResult scanResult) {
         super.setScanResult(scanResult);
         nestedType.setScanResult(scanResult);
-        if (arrayClassInfo != null) {
-            arrayClassInfo.setScanResult(scanResult);
+        final var classInfo = arrayClassInfo;
+        if (classInfo != null) {
+            classInfo.setScanResult(scanResult);
         }
     }
 
@@ -273,7 +279,7 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
      * @return a {@code Class<?>} reference for the innermost array element type.
      *         Also works for arrays of primitive element type.
      */
-    public Class<?> loadElementClass(final boolean ignoreExceptions) {
+    public @Nullable Class<?> loadElementClass(final boolean ignoreExceptions) {
         if (elementClassRef == null) {
             // Try resolving element type against base types (int, etc.)
             final var elementTypeSignature = getElementTypeSignature();
@@ -306,7 +312,7 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
      * @return a {@code Class<?>} reference for the array element type. Also works
      *         for arrays of primitive element type.
      */
-    public Class<?> loadElementClass() {
+    public @Nullable Class<?> loadElementClass() {
         return loadElementClass(/* ignoreExceptions = */ false);
     }
 
@@ -322,7 +328,7 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
      *                                  problems loading the class.
      */
     @Override
-    public Class<?> loadClass(final boolean ignoreExceptions) {
+    public @Nullable Class<?> loadClass(final boolean ignoreExceptions) {
         if (classRef == null) {
             // Get the element type
             Class<?> eltClassRef = null;
@@ -356,7 +362,7 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
      * @throws IllegalArgumentException if there were problems loading the class.
      */
     @Override
-    public Class<?> loadClass() {
+    public @Nullable Class<?> loadClass() {
         return loadClass(/* ignoreExceptions = */ false);
     }
 
@@ -378,7 +384,7 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
-    public boolean equals(final Object obj) {
+    public boolean equals(final @Nullable Object obj) {
         if (obj == this) {
             return true;
         }
@@ -409,15 +415,17 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
     // -------------------------------------------------------------------------------------------------------------
 
     @Override
-    protected void toStringInternal(final boolean useSimpleNames, final AnnotationInfoList annotationsToExclude,
+    protected void toStringInternal(final boolean useSimpleNames,
+            final @Nullable AnnotationInfoList annotationsToExclude,
             final StringBuilder buf) {
         // Start with innermost array element type
         getElementTypeSignature().toStringInternal(useSimpleNames, annotationsToExclude, buf);
 
         // Append array dimensions
         for (var curr = this;;) {
-            if (curr.typeAnnotationInfo != null && !curr.typeAnnotationInfo.isEmpty()) {
-                for (final AnnotationInfo annotationInfo : curr.typeAnnotationInfo) {
+            final var typeAnnotations = curr.typeAnnotationInfo;
+            if (typeAnnotations != null && !typeAnnotations.isEmpty()) {
+                for (final AnnotationInfo annotationInfo : typeAnnotations) {
                     if (buf.isEmpty() || buf.charAt(buf.length() - 1) != ' ') {
                         buf.append(' ');
                     }
@@ -446,7 +454,8 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
      * @return the array type signature
      * @throws ParseException if parsing fails
      */
-    static ArrayTypeSignature parse(final Parser parser, final String definingClassName) throws ParseException {
+    static @Nullable ArrayTypeSignature parse(final Parser parser, final @Nullable String definingClassName)
+            throws ParseException {
         var numArrayDims = 0;
         final var begin = parser.getPosition();
         while (parser.peek() == '[') {

@@ -32,12 +32,14 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 import io.github.classgraph.Classfile.TypePathNode;
 import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.Parser;
 import nonapi.io.github.classgraph.utils.LogNode;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A type signature for a reference type or base type. Subclasses are
@@ -118,7 +120,7 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
      * @param typeVariableName  the name of the type variable.
      * @return the substitution map key.
      */
-    static String substitutionKey(final String definingClassName, final String typeVariableName) {
+    static String substitutionKey(final @Nullable String definingClassName, final String typeVariableName) {
         return definingClassName + "::" + typeVariableName;
     }
 
@@ -132,7 +134,8 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
      * @param visited       the names of the classes already visited, to terminate
      *                      on cyclic or diamond hierarchies.
      */
-    private static void addSubstitutions(final ClassInfo classInfo, final Map<String, TypeArgument> substitutions,
+    private static void addSubstitutions(final @Nullable ClassInfo classInfo,
+            final Map<String, TypeArgument> substitutions,
             final Set<String> visited) {
         if (classInfo == null || !visited.add(classInfo.getName())) {
             return;
@@ -183,7 +186,7 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
      *                           subclass' own type parameters already have.
      * @param visited            the names of the classes already visited.
      */
-    private static void addSupertypeSubstitutions(final ClassRefTypeSignature supertypeSignature,
+    private static void addSupertypeSubstitutions(final @Nullable ClassRefTypeSignature supertypeSignature,
             final Map<String, TypeArgument> substitutions, final Map<String, TypeArgument> composeWith,
             final Set<String> visited) {
         if (supertypeSignature == null) {
@@ -293,7 +296,7 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
                 // Wildcard.NONE -- no prefix character
             }
             }
-            toTypeSignatureStr(typeArgument.getTypeSignature(), buf);
+            toTypeSignatureStr(Objects.requireNonNull(typeArgument.getTypeSignature()), buf);
         } else if (typeSignature instanceof final ClassRefTypeSignature classRefTypeSignature) {
             buf.append('L').append(classRefTypeSignature.getBaseClassName().replace('.', '/'));
             toTypeArgumentsStr(classRefTypeSignature.getTypeArguments(), buf);
@@ -362,7 +365,7 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
      */
     @Override
     final void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
-            final Set<ClassInfo> refdClassInfo, final LogNode log) {
+            final Set<ClassInfo> refdClassInfo, final @Nullable LogNode log) {
         final Set<String> refdClassNames = new HashSet<>();
         findReferencedClassNames(refdClassNames);
         for (final String refdClassName : refdClassNames) {
@@ -380,7 +383,7 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
      *         this type, or null if none.
      */
     @Override
-    public AnnotationInfoList getTypeAnnotationInfo() {
+    public @Nullable AnnotationInfoList getTypeAnnotationInfo() {
         return typeAnnotationInfo;
     }
 
@@ -401,7 +404,8 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
      * @return The parsed type descriptor or type signature.
      * @throws ParseException If the type signature could not be parsed.
      */
-    static TypeSignature parse(final Parser parser, final String definingClass) throws ParseException {
+    static @Nullable TypeSignature parse(final Parser parser, final @Nullable String definingClass)
+            throws ParseException {
         final var referenceTypeSignature = ReferenceTypeSignature.parseReferenceTypeSignature(parser, definingClass);
         if (referenceTypeSignature != null) {
             return referenceTypeSignature;
@@ -421,7 +425,8 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
      * @return The parsed type descriptor or type signature.
      * @throws ParseException If the type signature could not be parsed.
      */
-    static TypeSignature parse(final String typeDescriptor, final String definingClass) throws ParseException {
+    static TypeSignature parse(final String typeDescriptor, final @Nullable String definingClass)
+            throws ParseException {
         final Parser parser = new Parser(typeDescriptor);
         final var typeSignature = parse(parser, definingClass);
         if (typeSignature == null) {

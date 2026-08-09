@@ -34,13 +34,14 @@ import java.util.Objects;
 
 import nonapi.io.github.classgraph.fileslice.Slice;
 import nonapi.io.github.classgraph.scanspec.AcceptReject.AcceptRejectLeafname;
+import org.jspecify.annotations.Nullable;
 
 /** A zipfile slice (a sub-range of bytes within a {@link PhysicalZipFile}). */
 public class ZipFileSlice {
     /**
      * The parent slice, or null if this is the toplevel slice (the whole zipfile).
      */
-    private final ZipFileSlice parentZipFileSlice;
+    private final @Nullable ZipFileSlice parentZipFileSlice;
     /** The underlying physical zipfile. */
     protected final PhysicalZipFile physicalZipFile;
     /**
@@ -123,7 +124,7 @@ public class ZipFileSlice {
      * 
      * @return the parent ZipFileslice, or null if this is a toplevel slice.
      */
-    public ZipFileSlice getParentZipFileSlice() {
+    public @Nullable ZipFileSlice getParentZipFileSlice() {
         return parentZipFileSlice;
     }
 
@@ -171,7 +172,7 @@ public class ZipFileSlice {
      * @return the physical {@link File} that this ZipFileSlice is a slice of, or
      *         null if this file was downloaded from a URL directly to RAM.
      */
-    public File getPhysicalFile() {
+    public @Nullable File getPhysicalFile() {
         final var path = physicalZipFile.getPath();
         if (path != null) {
             try {
@@ -191,7 +192,7 @@ public class ZipFileSlice {
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
-    public boolean equals(final Object o) {
+    public boolean equals(final @Nullable Object o) {
         if (o == this) {
             return true;
         }
@@ -220,9 +221,11 @@ public class ZipFileSlice {
     @Override
     public String toString() {
         final var path = getPath();
-        var fileStr = physicalZipFile.getPath() == null ? null : physicalZipFile.getPath().toString();
+        final var physicalPath = physicalZipFile.getPath();
+        var fileStr = physicalPath == null ? null : physicalPath.toString();
         if (fileStr == null) {
-            fileStr = physicalZipFile.getFile() == null ? null : physicalZipFile.getFile().toString();
+            final var physicalFile = physicalZipFile.getFile();
+            fileStr = physicalFile == null ? null : physicalFile.toString();
         }
         return "[" + (fileStr != null && !fileStr.equals(path) ? path + " -> " + fileStr : path) + " ; byte range: "
                 + slice.sliceStartPos + ".." + (slice.sliceStartPos + slice.sliceLength) + " / "

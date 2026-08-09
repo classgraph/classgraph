@@ -37,11 +37,12 @@ import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
+import org.jspecify.annotations.Nullable;
 
 /** Extract classpath entries from the Tomcat/Catalina WebappClassLoaderBase. */
 class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
     @Override
-    public boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
+    public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
         return ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass,
                 "org.apache.catalina.loader.WebappClassLoaderBase");
     }
@@ -64,7 +65,7 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
 
     @Override
     public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
-            final LogNode log) {
+            final @Nullable LogNode log) {
         final var isParentFirst = isParentFirst(classLoader, classLoaderOrder.reflectionUtils);
         if (isParentFirst) {
             // Use parent-first delegation order
@@ -92,7 +93,7 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
 
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-            final ScanSpec scanSpec, final LogNode log) {
+            final ScanSpec scanSpec, final @Nullable LogNode log) {
         // type StandardRoot (implements WebResourceRoot)
         var resources = classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getResources");
         if (resources == null) {

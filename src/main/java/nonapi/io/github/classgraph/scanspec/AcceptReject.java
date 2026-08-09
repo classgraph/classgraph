@@ -39,33 +39,34 @@ import nonapi.io.github.classgraph.utils.CollectionUtils;
 import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.JarUtils;
+import org.jspecify.annotations.Nullable;
 
 /** A class storing accept or reject criteria. */
 public abstract class AcceptReject {
     /** Accepted items (whole-string match). */
-    protected Set<String> accept;
+    protected @Nullable Set<String> accept;
     /** Rejected items (whole-string match). */
-    protected Set<String> reject;
+    protected @Nullable Set<String> reject;
     /** Accepted items (prefix match), as a set. */
-    protected Set<String> acceptPrefixesSet;
+    protected @Nullable Set<String> acceptPrefixesSet;
     /** Accepted items (prefix match), as a sorted list. */
-    protected List<String> acceptPrefixes;
+    protected @Nullable List<String> acceptPrefixes;
     /** Rejected items (prefix match). */
-    protected List<String> rejectPrefixes;
+    protected @Nullable List<String> rejectPrefixes;
     /** Accept glob strings. (Serialized to JSON, for logging purposes.) */
-    protected Set<String> acceptGlobs;
+    protected @Nullable Set<String> acceptGlobs;
     /** Reject glob strings. (Serialized to JSON, for logging purposes.) */
-    protected Set<String> rejectGlobs;
+    protected @Nullable Set<String> rejectGlobs;
     /** Accept regexp patterns. (Not serialized to JSON.) */
-    protected transient List<Pattern> acceptPatterns;
+    protected transient @Nullable List<Pattern> acceptPatterns;
     /**
      * Regexp patterns matching the wildcard-containing path prefixes of accepted
      * globs, used by {@link #acceptHasPrefix(String)}. (Not serialized to JSON.)
      * (#870)
      */
-    protected transient List<Pattern> acceptPrefixPatterns;
+    protected transient @Nullable List<Pattern> acceptPrefixPatterns;
     /** Reject regexp patterns. (Not serialized to JSON.) */
-    protected transient List<Pattern> rejectPatterns;
+    protected transient @Nullable List<Pattern> rejectPatterns;
     /** The separator character. */
     protected char separatorChar;
     /**
@@ -230,7 +231,7 @@ public abstract class AcceptReject {
                 // String#startsWith,
                 // so that glob accepts are recursive into sub-packages, just like literal
                 // accepts (#870)
-                if (this.acceptGlobs == null) {
+                if (this.acceptGlobs == null || this.acceptPatterns == null) {
                     this.acceptGlobs = new HashSet<>();
                     this.acceptPatterns = new ArrayList<>();
                 }
@@ -252,7 +253,7 @@ public abstract class AcceptReject {
         @Override
         public void addToReject(final String str) {
             if (str.contains("*")) {
-                if (this.rejectGlobs == null) {
+                if (this.rejectGlobs == null || this.rejectPatterns == null) {
                     this.rejectGlobs = new HashSet<>();
                     this.rejectPatterns = new ArrayList<>();
                 }
@@ -407,7 +408,7 @@ public abstract class AcceptReject {
         @Override
         public void addToAccept(final String str) {
             if (str.contains("*")) {
-                if (this.acceptGlobs == null) {
+                if (this.acceptGlobs == null || this.acceptPatterns == null) {
                     this.acceptGlobs = new HashSet<>();
                     this.acceptPatterns = new ArrayList<>();
                 }
@@ -488,7 +489,7 @@ public abstract class AcceptReject {
         @Override
         public void addToReject(final String str) {
             if (str.contains("*")) {
-                if (this.rejectGlobs == null) {
+                if (this.rejectGlobs == null || this.rejectPatterns == null) {
                     this.rejectGlobs = new HashSet<>();
                     this.rejectPatterns = new ArrayList<>();
                 }
@@ -778,7 +779,7 @@ public abstract class AcceptReject {
      * @param patterns the patterns
      * @return true, if successful
      */
-    private static boolean matchesPatternList(final String str, final List<Pattern> patterns) {
+    private static boolean matchesPatternList(final String str, final @Nullable List<Pattern> patterns) {
         if (patterns != null) {
             for (final Pattern pattern : patterns) {
                 if (pattern.matcher(str).matches()) {

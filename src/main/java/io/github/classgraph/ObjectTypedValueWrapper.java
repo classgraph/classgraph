@@ -35,6 +35,7 @@ import java.util.Objects;
 import java.util.Set;
 
 import nonapi.io.github.classgraph.utils.LogNode;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A union type, used for typesafe serialization/deserialization to/from JSON.
@@ -49,70 +50,70 @@ class ObjectTypedValueWrapper extends ScanResultObject {
     // TODO: remove this class once JSON serialization is removed
 
     /** Enum value. */
-    private AnnotationEnumValue annotationEnumValue;
+    private @Nullable AnnotationEnumValue annotationEnumValue;
 
     /** Class ref. */
-    private AnnotationClassRef annotationClassRef;
+    private @Nullable AnnotationClassRef annotationClassRef;
 
     /** AnnotationInfo. */
-    private AnnotationInfo annotationInfo;
+    private @Nullable AnnotationInfo annotationInfo;
 
     /** String value. */
-    private String stringValue;
+    private @Nullable String stringValue;
 
     /** Integer value. */
-    private Integer integerValue;
+    private @Nullable Integer integerValue;
 
     /** Long value. */
-    private Long longValue;
+    private @Nullable Long longValue;
 
     /** Short value. */
-    private Short shortValue;
+    private @Nullable Short shortValue;
 
     /** Boolean value. */
-    private Boolean booleanValue;
+    private @Nullable Boolean booleanValue;
 
     /** Character value. */
-    private Character characterValue;
+    private @Nullable Character characterValue;
 
     /** Float value. */
-    private Float floatValue;
+    private @Nullable Float floatValue;
 
     /** Double value. */
-    private Double doubleValue;
+    private @Nullable Double doubleValue;
 
     /** Byte value. */
-    private Byte byteValue;
+    private @Nullable Byte byteValue;
 
     /** String array value. */
-    private String[] stringArrayValue;
+    private @Nullable String @Nullable [] stringArrayValue;
 
     /** Int array value. */
-    private int[] intArrayValue;
+    private int @Nullable [] intArrayValue;
 
     /** Long array value. */
-    private long[] longArrayValue;
+    private long @Nullable [] longArrayValue;
 
     /** Short array value. */
-    private short[] shortArrayValue;
+    private short @Nullable [] shortArrayValue;
 
     /** Boolean array value. */
-    private boolean[] booleanArrayValue;
+    private boolean @Nullable [] booleanArrayValue;
 
     /** Char array value. */
-    private char[] charArrayValue;
+    private char @Nullable [] charArrayValue;
 
     /** Float array value. */
-    private float[] floatArrayValue;
+    private float @Nullable [] floatArrayValue;
 
     /** Double array value. */
-    private double[] doubleArrayValue;
+    private double @Nullable [] doubleArrayValue;
 
     /** Byte array value. */
-    private byte[] byteArrayValue;
+    private byte @Nullable [] byteArrayValue;
 
     /** Object array value. */
-    private ObjectTypedValueWrapper[] objectArrayValue;
+    private ObjectTypedValueWrapper @Nullable [] objectArrayValue;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -126,9 +127,9 @@ class ObjectTypedValueWrapper extends ScanResultObject {
     /**
      * Constructor.
      *
-     * @param annotationParamValue annotation parameter value
+     * @param annotationParamValue annotation parameter value, or null
      */
-    public ObjectTypedValueWrapper(final Object annotationParamValue) {
+    public ObjectTypedValueWrapper(final @Nullable Object annotationParamValue) {
         super();
         if (annotationParamValue != null) {
             final Class<?> annotationParameterValueClass = annotationParamValue.getClass();
@@ -201,9 +202,11 @@ class ObjectTypedValueWrapper extends ScanResultObject {
      *                            parameter value of this annotation class.
      * @param paramName           if non-null, instantiate this object as a value of
      *                            this named parameter.
-     * @return The value wrapped by this wrapper class.
+     * @return The value wrapped by this wrapper class, or null if no value is
+     *         wrapped.
      */
-    Object instantiateOrGet(final ClassInfo annotationClassInfo, final String paramName) {
+    @Nullable
+    Object instantiateOrGet(final @Nullable ClassInfo annotationClassInfo, final @Nullable String paramName) {
         final var instantiate = annotationClassInfo != null;
         if (annotationEnumValue != null) {
             return instantiate ? annotationEnumValue.loadClassAndReturnEnumValue() : annotationEnumValue;
@@ -275,9 +278,10 @@ class ObjectTypedValueWrapper extends ScanResultObject {
     /**
      * Get the value wrapped by this wrapper class.
      *
-     * @return The value wrapped by this wrapper class.
+     * @return The value wrapped by this wrapper class, or null if no value is
+     *         wrapped.
      */
-    public Object get() {
+    public @Nullable Object get() {
         return instantiateOrGet(null, null);
     }
 
@@ -293,12 +297,13 @@ class ObjectTypedValueWrapper extends ScanResultObject {
      * @return the array value type as a {@code Class<?>} reference if getClass is
      *         true, otherwise the class name as a String.
      */
-    private Object getArrayValueClassOrName(final ClassInfo annotationClassInfo, final String paramName,
-            final boolean getClass) {
+    private Object getArrayValueClassOrName(final @Nullable ClassInfo annotationClassInfo,
+            final @Nullable String paramName, final boolean getClass) {
         // Find the method in the annotation class with the same name as the annotation
         // parameter.
-        final var annotationMethodList = annotationClassInfo == null || annotationClassInfo.methodInfo == null ? null
-                : annotationClassInfo.methodInfo.get(paramName);
+        final var annotationMethodList = annotationClassInfo == null || paramName == null
+                || annotationClassInfo.methodInfo == null ? null
+                        : annotationClassInfo.methodInfo.get(paramName);
         if (annotationClassInfo != null && annotationMethodList != null && !annotationMethodList.isEmpty()) {
             if (annotationMethodList.size() > 1) {
                 // There should only be one method with a given name in an annotation
@@ -320,7 +325,8 @@ class ObjectTypedValueWrapper extends ScanResultObject {
             final var elementTypeSig = arrayTypeSig.getElementTypeSignature();
             if (elementTypeSig instanceof final ClassRefTypeSignature classRefTypeSignature) {
                 // Look up the name of the element type, for non-primitive arrays
-                return getClass ? classRefTypeSignature.loadClass() : classRefTypeSignature.getClassName();
+                return getClass ? Objects.requireNonNull(classRefTypeSignature.loadClass())
+                        : classRefTypeSignature.getClassName();
             } else if (elementTypeSig instanceof final BaseTypeSignature baseTypeSignature) {
                 // Look up the name of the primitive class, for primitive arrays
                 return getClass ? baseTypeSignature.getType() : baseTypeSignature.getTypeStr();
@@ -329,7 +335,7 @@ class ObjectTypedValueWrapper extends ScanResultObject {
             // Could not find a method with this name -- this is an external class.
             // Find first non-null object in array, and use its type as the element type of
             // the array.
-            for (final ObjectTypedValueWrapper elt : objectArrayValue) {
+            for (final ObjectTypedValueWrapper elt : Objects.requireNonNull(objectArrayValue)) {
                 if (elt != null) {
                     // Primitive typed arrays will be turned into arrays of boxed types
                     if (elt.stringValue != null) {
@@ -373,19 +379,21 @@ class ObjectTypedValueWrapper extends ScanResultObject {
      * @param annotationClassInfo annotation class info
      * @param paramName           the param name
      */
-    void convertWrapperArraysToPrimitiveArrays(final ClassInfo annotationClassInfo, final String paramName) {
+    void convertWrapperArraysToPrimitiveArrays(final @Nullable ClassInfo annotationClassInfo,
+            final String paramName) {
         if (annotationInfo != null) {
             // Recursively convert primitive arrays in nested annotations
             annotationInfo.convertWrapperArraysToPrimitiveArrays();
         } else if (objectArrayValue != null) {
-            for (final ObjectTypedValueWrapper elt : objectArrayValue) {
+            final ObjectTypedValueWrapper[] objArr = objectArrayValue;
+            for (final ObjectTypedValueWrapper elt : objArr) {
                 if (elt.annotationInfo != null) {
                     // Recurse
                     elt.annotationInfo.convertWrapperArraysToPrimitiveArrays();
                 }
             }
 
-            if (objectArrayValue.getClass().getComponentType().isArray()) {
+            if (objArr.getClass().getComponentType().isArray()) {
                 // More than one array dimension -- not possible for annotation parameter values
                 // => skip
                 return;
@@ -401,121 +409,121 @@ class ObjectTypedValueWrapper extends ScanResultObject {
             switch (targetElementTypeName) {
             case "java.lang.String" -> {
                 // Convert Object[] array containing String objects to String[] array
-                stringArrayValue = new String[objectArrayValue.length];
-                for (var j = 0; j < objectArrayValue.length; j++) {
-                    stringArrayValue[j] = objectArrayValue[j].stringValue;
+                stringArrayValue = new String[objArr.length];
+                for (var j = 0; j < objArr.length; j++) {
+                    stringArrayValue[j] = objArr[j].stringValue;
                 }
                 objectArrayValue = null;
             }
             case "int" -> {
-                intArrayValue = new int[objectArrayValue.length];
-                for (var j = 0; j < objectArrayValue.length; j++) {
-                    final var elt = objectArrayValue[j];
+                intArrayValue = new int[objArr.length];
+                for (var j = 0; j < objArr.length; j++) {
+                    final var elt = objArr[j];
                     if (elt == null) {
                         throw new IllegalArgumentException("Illegal null value for array of element type "
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
                                 + (annotationClassInfo == null ? "<class outside accept>"
                                         : annotationClassInfo.getName()));
                     }
-                    intArrayValue[j] = objectArrayValue[j].integerValue;
+                    intArrayValue[j] = Objects.requireNonNull(elt.integerValue);
                 }
                 objectArrayValue = null;
             }
             case "long" -> {
-                longArrayValue = new long[objectArrayValue.length];
-                for (var j = 0; j < objectArrayValue.length; j++) {
-                    final var elt = objectArrayValue[j];
+                longArrayValue = new long[objArr.length];
+                for (var j = 0; j < objArr.length; j++) {
+                    final var elt = objArr[j];
                     if (elt == null) {
                         throw new IllegalArgumentException("Illegal null value for array of element type "
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
                                 + (annotationClassInfo == null ? "<class outside accept>"
                                         : annotationClassInfo.getName()));
                     }
-                    longArrayValue[j] = objectArrayValue[j].longValue;
+                    longArrayValue[j] = Objects.requireNonNull(elt.longValue);
                 }
                 objectArrayValue = null;
             }
             case "short" -> {
-                shortArrayValue = new short[objectArrayValue.length];
-                for (var j = 0; j < objectArrayValue.length; j++) {
-                    final var elt = objectArrayValue[j];
+                shortArrayValue = new short[objArr.length];
+                for (var j = 0; j < objArr.length; j++) {
+                    final var elt = objArr[j];
                     if (elt == null) {
                         throw new IllegalArgumentException("Illegal null value for array of element type "
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
                                 + (annotationClassInfo == null ? "<class outside accept>"
                                         : annotationClassInfo.getName()));
                     }
-                    shortArrayValue[j] = objectArrayValue[j].shortValue;
+                    shortArrayValue[j] = Objects.requireNonNull(elt.shortValue);
                 }
                 objectArrayValue = null;
             }
             case "char" -> {
-                charArrayValue = new char[objectArrayValue.length];
-                for (var j = 0; j < objectArrayValue.length; j++) {
-                    final var elt = objectArrayValue[j];
+                charArrayValue = new char[objArr.length];
+                for (var j = 0; j < objArr.length; j++) {
+                    final var elt = objArr[j];
                     if (elt == null) {
                         throw new IllegalArgumentException("Illegal null value for array of element type "
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
                                 + (annotationClassInfo == null ? "<class outside accept>"
                                         : annotationClassInfo.getName()));
                     }
-                    charArrayValue[j] = objectArrayValue[j].characterValue;
+                    charArrayValue[j] = Objects.requireNonNull(elt.characterValue);
                 }
                 objectArrayValue = null;
             }
             case "float" -> {
-                floatArrayValue = new float[objectArrayValue.length];
-                for (var j = 0; j < objectArrayValue.length; j++) {
-                    final var elt = objectArrayValue[j];
+                floatArrayValue = new float[objArr.length];
+                for (var j = 0; j < objArr.length; j++) {
+                    final var elt = objArr[j];
                     if (elt == null) {
                         throw new IllegalArgumentException("Illegal null value for array of element type "
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
                                 + (annotationClassInfo == null ? "<class outside accept>"
                                         : annotationClassInfo.getName()));
                     }
-                    floatArrayValue[j] = objectArrayValue[j].floatValue;
+                    floatArrayValue[j] = Objects.requireNonNull(elt.floatValue);
                 }
                 objectArrayValue = null;
             }
             case "double" -> {
-                doubleArrayValue = new double[objectArrayValue.length];
-                for (var j = 0; j < objectArrayValue.length; j++) {
-                    final var elt = objectArrayValue[j];
+                doubleArrayValue = new double[objArr.length];
+                for (var j = 0; j < objArr.length; j++) {
+                    final var elt = objArr[j];
                     if (elt == null) {
                         throw new IllegalArgumentException("Illegal null value for array of element type "
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
                                 + (annotationClassInfo == null ? "<class outside accept>"
                                         : annotationClassInfo.getName()));
                     }
-                    doubleArrayValue[j] = objectArrayValue[j].doubleValue;
+                    doubleArrayValue[j] = Objects.requireNonNull(elt.doubleValue);
                 }
                 objectArrayValue = null;
             }
             case "boolean" -> {
-                booleanArrayValue = new boolean[objectArrayValue.length];
-                for (var j = 0; j < objectArrayValue.length; j++) {
-                    final var elt = objectArrayValue[j];
+                booleanArrayValue = new boolean[objArr.length];
+                for (var j = 0; j < objArr.length; j++) {
+                    final var elt = objArr[j];
                     if (elt == null) {
                         throw new IllegalArgumentException("Illegal null value for array of element type "
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
                                 + (annotationClassInfo == null ? "<class outside accept>"
                                         : annotationClassInfo.getName()));
                     }
-                    booleanArrayValue[j] = objectArrayValue[j].booleanValue;
+                    booleanArrayValue[j] = Objects.requireNonNull(elt.booleanValue);
                 }
                 objectArrayValue = null;
             }
             case "byte" -> {
-                byteArrayValue = new byte[objectArrayValue.length];
-                for (var j = 0; j < objectArrayValue.length; j++) {
-                    final var elt = objectArrayValue[j];
+                byteArrayValue = new byte[objArr.length];
+                for (var j = 0; j < objArr.length; j++) {
+                    final var elt = objArr[j];
                     if (elt == null) {
                         throw new IllegalArgumentException("Illegal null value for array of element type "
                                 + targetElementTypeName + " in parameter " + paramName + " of annotation class "
                                 + (annotationClassInfo == null ? "<class outside accept>"
                                         : annotationClassInfo.getName()));
                     }
-                    byteArrayValue[j] = objectArrayValue[j].byteValue;
+                    byteArrayValue[j] = Objects.requireNonNull(elt.byteValue);
                 }
                 objectArrayValue = null;
             }
@@ -558,7 +566,7 @@ class ObjectTypedValueWrapper extends ScanResultObject {
      * ScanResult)
      */
     @Override
-    void setScanResult(final ScanResult scanResult) {
+    void setScanResult(final @Nullable ScanResult scanResult) {
         super.setScanResult(scanResult);
         if (annotationEnumValue != null) {
             annotationEnumValue.setScanResult(scanResult);
@@ -584,7 +592,7 @@ class ObjectTypedValueWrapper extends ScanResultObject {
      */
     @Override
     void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
-            final Set<ClassInfo> refdClassInfo, final LogNode log) {
+            final Set<ClassInfo> refdClassInfo, final @Nullable LogNode log) {
         if (annotationEnumValue != null) {
             annotationEnumValue.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
         } else if (annotationClassRef != null) {
@@ -624,7 +632,7 @@ class ObjectTypedValueWrapper extends ScanResultObject {
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
-    public boolean equals(final Object other) {
+    public boolean equals(final @Nullable Object other) {
         if (other == this) {
             return true;
         }

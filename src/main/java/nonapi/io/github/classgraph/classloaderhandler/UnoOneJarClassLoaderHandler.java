@@ -34,6 +34,7 @@ import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.VersionFinder;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Extract classpath entries from the Uno-Jar's JarClassLoader and One-Jar's
@@ -41,7 +42,7 @@ import nonapi.io.github.classgraph.utils.VersionFinder;
  */
 class UnoOneJarClassLoaderHandler implements ClassLoaderHandler {
     @Override
-    public boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
+    public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
         return ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass,
                 "com.needhamsoftware.unojar.JarClassLoader")
                 || ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass,
@@ -50,14 +51,14 @@ class UnoOneJarClassLoaderHandler implements ClassLoaderHandler {
 
     @Override
     public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
-            final LogNode log) {
+            final @Nullable LogNode log) {
         classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
         classLoaderOrder.add(classLoader, log);
     }
 
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-            final ScanSpec scanSpec, final LogNode log) {
+            final ScanSpec scanSpec, final @Nullable LogNode log) {
 
         // For Uno-Jar:
 

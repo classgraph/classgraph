@@ -42,6 +42,7 @@ import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
+import org.jspecify.annotations.Nullable;
 
 /** A class to find all unique classloaders. */
 public class ClassLoaderOrder {
@@ -113,7 +114,7 @@ public class ClassLoaderOrder {
      *         list containing the fallback handler if none can.
      */
     private static List<ClassLoaderHandlerRegistryEntry> getClassLoaderHandlerRegistryEntries(
-            final ClassLoader classLoader, final LogNode log) {
+            final ClassLoader classLoader, final @Nullable LogNode log) {
         final List<ClassLoaderHandlerRegistryEntry> ents = new ArrayList<>();
         var matched = false;
         for (final ClassLoaderHandlerRegistryEntry ent : ClassLoaderHandlerRegistry.CLASS_LOADER_HANDLERS) {
@@ -133,10 +134,10 @@ public class ClassLoaderOrder {
     /**
      * Add a {@link ClassLoader} to the ClassLoader order at the current position.
      *
-     * @param classLoader the class loader
+     * @param classLoader the class loader, or null (ignored)
      * @param log         the log
      */
-    public void add(final ClassLoader classLoader, final LogNode log) {
+    public void add(final @Nullable ClassLoader classLoader, final @Nullable LogNode log) {
         if (classLoader == null) {
             return;
         }
@@ -148,11 +149,12 @@ public class ClassLoaderOrder {
     /**
      * Recursively delegate to another {@link ClassLoader}.
      *
-     * @param classLoader the class loader
+     * @param classLoader the class loader, or null (ignored)
      * @param isParent    true if this is a parent of another classloader
      * @param log         the log
      */
-    public void delegateTo(final ClassLoader classLoader, final boolean isParent, final LogNode log) {
+    public void delegateTo(final @Nullable ClassLoader classLoader, final boolean isParent,
+            final @Nullable LogNode log) {
         if (classLoader == null) {
             return;
         }

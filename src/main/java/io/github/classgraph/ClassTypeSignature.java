@@ -42,6 +42,7 @@ import nonapi.io.github.classgraph.types.Parser;
 import nonapi.io.github.classgraph.types.TypeUtils;
 import nonapi.io.github.classgraph.types.TypeUtils.ModifierType;
 import nonapi.io.github.classgraph.utils.LogNode;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A class type signature (called "ClassSignature" in the classfile
@@ -56,7 +57,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
     final List<TypeParameter> typeParameters;
 
     /** The superclass type. */
-    private final ClassRefTypeSignature superclassSignature;
+    private final @Nullable ClassRefTypeSignature superclassSignature;
 
     /** The superinterface signatures. */
     private final List<ClassRefTypeSignature> superinterfaceSignatures;
@@ -66,7 +67,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
      * classes, if the class is marked up with {@code @throws}, and they violate the
      * classfile spec (#495), but we parse them anyway.
      */
-    private final List<ClassRefOrTypeVariableSignature> throwsSignatures;
+    private final @Nullable List<ClassRefOrTypeVariableSignature> throwsSignatures;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -82,8 +83,9 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
      *                                 Usually null.
      */
     private ClassTypeSignature(final ClassInfo classInfo, final List<TypeParameter> typeParameters,
-            final ClassRefTypeSignature superclassSignature, final List<ClassRefTypeSignature> superinterfaceSignatures,
-            final List<ClassRefOrTypeVariableSignature> throwsSignatures) {
+            final @Nullable ClassRefTypeSignature superclassSignature,
+            final List<ClassRefTypeSignature> superinterfaceSignatures,
+            final @Nullable List<ClassRefOrTypeVariableSignature> throwsSignatures) {
         super();
         this.classInfo = classInfo;
         this.typeParameters = typeParameters;
@@ -99,7 +101,8 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
      * @param superclass The superclass.
      * @param interfaces The implemented interfaces.
      */
-    ClassTypeSignature(final ClassInfo classInfo, final ClassInfo superclass, final ClassInfoList interfaces) {
+    ClassTypeSignature(final ClassInfo classInfo, final @Nullable ClassInfo superclass,
+            final ClassInfoList interfaces) {
         super();
         this.classInfo = classInfo;
         this.typeParameters = Collections.emptyList();
@@ -146,7 +149,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
      * @return The type signature for the superclass, or null if no superclass (i.e.
      *         for {@link java.lang.Object}).
      */
-    public ClassRefTypeSignature getSuperclassSignature() {
+    public @Nullable ClassRefTypeSignature getSuperclassSignature() {
         return superclassSignature;
     }
 
@@ -166,6 +169,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
      *
      * @return the throws signatures
      */
+    @Nullable
     List<ClassRefOrTypeVariableSignature> getThrowsSignatures() {
         return throwsSignatures;
     }
@@ -185,7 +189,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
      * @see io.github.classgraph.ScanResultObject#getClassName()
      */
     @Override
-    protected String getClassName() {
+    protected @Nullable String getClassName() {
         return classInfo != null ? classInfo.getName() : null;
     }
 
@@ -207,15 +211,16 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
      * ScanResult)
      */
     @Override
-    void setScanResult(final ScanResult scanResult) {
+    void setScanResult(final @Nullable ScanResult scanResult) {
         super.setScanResult(scanResult);
         if (typeParameters != null) {
             for (final TypeParameter typeParameter : typeParameters) {
                 typeParameter.setScanResult(scanResult);
             }
         }
-        if (this.superclassSignature != null) {
-            this.superclassSignature.setScanResult(scanResult);
+        final var superclassSig = this.superclassSignature;
+        if (superclassSig != null) {
+            superclassSig.setScanResult(scanResult);
         }
         if (superinterfaceSignatures != null) {
             for (final ClassRefTypeSignature classRefTypeSignature : superinterfaceSignatures) {
@@ -233,16 +238,18 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
         for (final TypeParameter typeParameter : typeParameters) {
             typeParameter.findReferencedClassNames(refdClassNames);
         }
-        if (superclassSignature != null) {
-            superclassSignature.findReferencedClassNames(refdClassNames);
+        final var superclassSig = superclassSignature;
+        if (superclassSig != null) {
+            superclassSig.findReferencedClassNames(refdClassNames);
         }
         if (superinterfaceSignatures != null) {
             for (final ClassRefTypeSignature typeSignature : superinterfaceSignatures) {
                 typeSignature.findReferencedClassNames(refdClassNames);
             }
         }
-        if (throwsSignatures != null) {
-            for (final ClassRefOrTypeVariableSignature typeSignature : throwsSignatures) {
+        final var throwsSigs = throwsSignatures;
+        if (throwsSigs != null) {
+            for (final ClassRefOrTypeVariableSignature typeSignature : throwsSigs) {
                 typeSignature.findReferencedClassNames(refdClassNames);
             }
         }
@@ -257,7 +264,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
      */
     @Override
     void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
-            final Set<ClassInfo> refdClassInfo, final LogNode log) {
+            final Set<ClassInfo> refdClassInfo, final @Nullable LogNode log) {
         final Set<String> refdClassNames = new HashSet<>();
         findReferencedClassNames(refdClassNames);
         for (final String refdClassName : refdClassNames) {
@@ -286,7 +293,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
-    public boolean equals(final Object obj) {
+    public boolean equals(final @Nullable Object obj) {
         if (obj == this) {
             return true;
         }
@@ -312,8 +319,9 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
      */
     void toStringInternal(final String className, final boolean useSimpleNames, final int modifiers,
             final boolean isAnnotation, final boolean isInterface, final StringBuilder buf) {
-        if (throwsSignatures != null) {
-            for (final ClassRefOrTypeVariableSignature throwsSignature : throwsSignatures) {
+        final var throwsSigs = throwsSignatures;
+        if (throwsSigs != null) {
+            for (final ClassRefOrTypeVariableSignature throwsSignature : throwsSigs) {
                 if (!buf.isEmpty()) {
                     buf.append(' ');
                 }
@@ -345,11 +353,12 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
             }
             buf.append('>');
         }
-        if (superclassSignature != null) {
-            final var superSig = superclassSignature.toString(useSimpleNames);
+        final var superclassSig = superclassSignature;
+        if (superclassSig != null) {
+            final var superSig = superclassSig.toString(useSimpleNames);
             // superSig could have a class type annotation even if the superclass is Object
             if (!"java.lang.Object".equals(superSig)
-                    && !("Object".equals(superSig) && "java.lang.Object".equals(superclassSignature.className))) {
+                    && !("Object".equals(superSig) && "java.lang.Object".equals(superclassSig.className))) {
                 buf.append(" extends ");
                 buf.append(superSig);
             }
@@ -373,7 +382,8 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
      * @param buf                  the buf
      */
     @Override
-    protected void toStringInternal(final boolean useSimpleNames, final AnnotationInfoList annotationsToExclude,
+    protected void toStringInternal(final boolean useSimpleNames,
+            final @Nullable AnnotationInfoList annotationsToExclude,
             final StringBuilder buf) {
         toStringInternal(classInfo.getName(), useSimpleNames, classInfo.getModifiers(), classInfo.isAnnotation(),
                 classInfo.isInterface(), buf);
@@ -397,7 +407,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
         // But here we are parsing the defining class' type descriptor, so it can't
         // contain variables that
         // point to itself => just use null as the defining class name.
-        final String definingClassNameNull = null;
+        final @Nullable String definingClassNameNull = null;
         final var typeParameters = TypeParameter.parseList(parser, definingClassNameNull);
         final var superclassSignature = ClassRefTypeSignature.parse(parser, definingClassNameNull);
         final List<ClassRefTypeSignature> superinterfaceSignatures;

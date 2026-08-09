@@ -37,6 +37,7 @@ import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Extract classpath entries from the Eclipse Equinox ClassLoader.
@@ -46,14 +47,14 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
     private static final String[] FIELD_NAMES = { "cp", "nestedDirName" };
 
     @Override
-    public boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
+    public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
         return ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass,
                 "org.eclipse.osgi.internal.loader.EquinoxClassLoader");
     }
 
     @Override
     public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
-            final LogNode log) {
+            final @Nullable LogNode log) {
         classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
         classLoaderOrder.add(classLoader, log);
     }
@@ -61,15 +62,16 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
     /**
      * Add the bundle file.
      *
-     * @param bundlefile        the bundle file
+     * @param bundlefile        the bundle file, or null (ignored)
      * @param path              the path
      * @param classLoader       the classloader
      * @param classpathOrderOut the classpath order
      * @param scanSpec          the scan spec
      * @param log               the log
      */
-    private static void addBundleFile(final Object bundlefile, final Set<Object> path, final ClassLoader classLoader,
-            final ClasspathOrder classpathOrderOut, final ScanSpec scanSpec, final LogNode log) {
+    private static void addBundleFile(final @Nullable Object bundlefile, final Set<Object> path,
+            final ClassLoader classLoader,
+            final ClasspathOrder classpathOrderOut, final ScanSpec scanSpec, final @Nullable LogNode log) {
         // Don't get stuck in infinite loop
         if (bundlefile != null && path.add(bundlefile)) {
             // type File
@@ -115,14 +117,14 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
     /**
      * Adds the classpath entries.
      *
-     * @param owner             the owner
+     * @param owner             the owner, or null
      * @param classLoader       the class loader
      * @param classpathOrderOut the classpath order out
      * @param scanSpec          the scan spec
      * @param log               the log
      */
-    private static void addClasspathEntries(final Object owner, final ClassLoader classLoader,
-            final ClasspathOrder classpathOrderOut, final ScanSpec scanSpec, final LogNode log) {
+    private static void addClasspathEntries(final @Nullable Object owner, final ClassLoader classLoader,
+            final ClasspathOrder classpathOrderOut, final ScanSpec scanSpec, final @Nullable LogNode log) {
         // type ClasspathEntry[]
         final var entries = classpathOrderOut.reflectionUtils.getFieldVal(false, owner, "entries");
         if (entries != null) {
@@ -138,7 +140,7 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
 
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-            final ScanSpec scanSpec, final LogNode log) {
+            final ScanSpec scanSpec, final @Nullable LogNode log) {
         // type ClasspathManager
         final var manager = classpathOrder.reflectionUtils.getFieldVal(false, classLoader, "manager");
         addClasspathEntries(manager, classLoader, classpathOrder, scanSpec, log);

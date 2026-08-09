@@ -39,6 +39,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import nonapi.io.github.classgraph.utils.LogNode;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A parallel work queue.
@@ -73,7 +74,7 @@ public final class WorkQueue<T> implements AutoCloseable {
     private final InterruptionChecker interruptionChecker;
 
     /** The log node. */
-    private final LogNode log;
+    private final @Nullable LogNode log;
 
     /**
      * A wrapper for work units (needed to send a poison pill as a null value, since
@@ -82,7 +83,7 @@ public final class WorkQueue<T> implements AutoCloseable {
      * @param <T>      the generic type
      * @param workUnit the work unit, or null to represent a poison pill.
      */
-    private record WorkUnitWrapper<T>(T workUnit) {
+    private record WorkUnitWrapper<T>(@Nullable T workUnit) {
     }
 
     /**
@@ -99,7 +100,7 @@ public final class WorkQueue<T> implements AutoCloseable {
          * @param log       The log.
          * @throws InterruptedException If the worker thread is interrupted.
          */
-        void processWorkUnit(T workUnit, WorkQueue<T> workQueue, LogNode log) throws InterruptedException;
+        void processWorkUnit(T workUnit, WorkQueue<T> workQueue, @Nullable LogNode log) throws InterruptedException;
     }
 
     /**
@@ -117,7 +118,7 @@ public final class WorkQueue<T> implements AutoCloseable {
      * @throws ExecutionException   If a worker throws an uncaught exception.
      */
     public static <U> void runWorkQueue(final Collection<U> elements, final ExecutorService executorService,
-            final InterruptionChecker interruptionChecker, final int numParallelTasks, final LogNode log,
+            final InterruptionChecker interruptionChecker, final int numParallelTasks, final @Nullable LogNode log,
             final WorkUnitProcessor<U> workUnitProcessor) throws InterruptedException, ExecutionException {
         if (elements.isEmpty()) {
             // Nothing to do
@@ -150,7 +151,7 @@ public final class WorkQueue<T> implements AutoCloseable {
      * @param log                 the log
      */
     private WorkQueue(final Collection<T> initialWorkUnits, final WorkUnitProcessor<T> workUnitProcessor,
-            final int numWorkers, final InterruptionChecker interruptionChecker, final LogNode log) {
+            final int numWorkers, final InterruptionChecker interruptionChecker, final @Nullable LogNode log) {
         this.workUnitProcessor = workUnitProcessor;
         this.numWorkers = numWorkers;
         this.interruptionChecker = interruptionChecker;
@@ -176,7 +177,6 @@ public final class WorkQueue<T> implements AutoCloseable {
     /**
      * Send poison pills to workers.
      */
-    @SuppressWarnings("null")
     private void sendPoisonPills() {
         for (var i = 0; i < numWorkers; i++) {
             workUnits.add(new WorkUnitWrapper<>(null));
@@ -203,15 +203,15 @@ public final class WorkQueue<T> implements AutoCloseable {
                 interruptionChecker.check();
 
                 // Get next work unit
-                final var workUnitWrapper = workUnits.take();
+                final var workUnit = workUnits.take().workUnit();
 
-                if (workUnitWrapper.workUnit() == null) {
+                if (workUnit == null) {
                     // Received poison pill
                     break;
                 }
 
                 // Process the work unit (may throw InterruptedException)
-                workUnitProcessor.processWorkUnit(workUnitWrapper.workUnit(), this, log);
+                workUnitProcessor.processWorkUnit(workUnit, this, log);
 
             } catch (InterruptedException | Error e) {
                 // On InterruptedException or OutOfMemoryError, drain work queue, send poison

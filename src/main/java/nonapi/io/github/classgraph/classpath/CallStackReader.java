@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
+import org.jspecify.annotations.Nullable;
 
 /** A class to read the classes in the current call stack. */
 class CallStackReader {
@@ -52,7 +53,7 @@ class CallStackReader {
      *
      * @return the call stack, or null if it could not be obtained.
      */
-    private static Class<?>[] getCallStackViaStackWalker() {
+    private static Class<?> @Nullable [] getCallStackViaStackWalker() {
         try {
             return StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE).walk(
                     stackFrames -> stackFrames.map(StackWalker.StackFrame::getDeclaringClass).toArray(Class<?>[]::new));

@@ -34,6 +34,7 @@ import java.util.Objects;
 import java.util.Set;
 
 import nonapi.io.github.classgraph.utils.LogNode;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A wrapper used to pair annotation parameter names with annotation parameter
@@ -44,10 +45,17 @@ public class AnnotationParameterValue extends ScanResultObject
     /** The parameter name. */
     private String name;
 
-    /** The parameter value. */
-    private ObjectTypedValueWrapper value;
+    /**
+     * The parameter value. This is null for an {@link AnnotationParameterValue} that
+     * has been deserialized but not yet populated.
+     */
+    private @Nullable ObjectTypedValueWrapper value;
 
-    /** Default constructor for deserialization. */
+    /**
+     * Default constructor for deserialization. {@code name} is populated by the
+     * deserializer, so it is not assigned here.
+     */
+    @SuppressWarnings("NullAway.Init")
     AnnotationParameterValue() {
         super();
     }
@@ -58,7 +66,7 @@ public class AnnotationParameterValue extends ScanResultObject
      * @param name  The annotation parameter name.
      * @param value The annotation parameter value.
      */
-    AnnotationParameterValue(final String name, final Object value) {
+    AnnotationParameterValue(final String name, final @Nullable Object value) {
         super();
         this.name = name;
         this.value = new ObjectTypedValueWrapper(value);
@@ -95,7 +103,7 @@ public class AnnotationParameterValue extends ScanResultObject
      *         <li>{@link AnnotationInfo}, for nested annotations
      *         </ul>
      */
-    public Object getValue() {
+    public @Nullable Object getValue() {
         return value == null ? null : value.get();
     }
 
@@ -105,7 +113,7 @@ public class AnnotationParameterValue extends ScanResultObject
      *
      * @param newValue the new value
      */
-    void setValue(final Object newValue) {
+    void setValue(final @Nullable Object newValue) {
         this.value = new ObjectTypedValueWrapper(newValue);
     }
 
@@ -141,10 +149,11 @@ public class AnnotationParameterValue extends ScanResultObject
      * ScanResult)
      */
     @Override
-    void setScanResult(final ScanResult scanResult) {
+    void setScanResult(final @Nullable ScanResult scanResult) {
         super.setScanResult(scanResult);
-        if (value != null) {
-            value.setScanResult(scanResult);
+        final var val = value;
+        if (val != null) {
+            val.setScanResult(scanResult);
         }
     }
 
@@ -157,9 +166,10 @@ public class AnnotationParameterValue extends ScanResultObject
      */
     @Override
     void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
-            final Set<ClassInfo> refdClassInfo, final LogNode log) {
-        if (value != null) {
-            value.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
+            final Set<ClassInfo> refdClassInfo, final @Nullable LogNode log) {
+        final var val = value;
+        if (val != null) {
+            val.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
         }
     }
 
@@ -172,9 +182,10 @@ public class AnnotationParameterValue extends ScanResultObject
      *
      * @param annotationClassInfo the annotation class info
      */
-    void convertWrapperArraysToPrimitiveArrays(final ClassInfo annotationClassInfo) {
-        if (value != null) {
-            value.convertWrapperArraysToPrimitiveArrays(annotationClassInfo, name);
+    void convertWrapperArraysToPrimitiveArrays(final @Nullable ClassInfo annotationClassInfo) {
+        final var val = value;
+        if (val != null) {
+            val.convertWrapperArraysToPrimitiveArrays(annotationClassInfo, name);
         }
     }
 
@@ -184,8 +195,9 @@ public class AnnotationParameterValue extends ScanResultObject
      * @param annotationClassInfo the annotation class info
      * @return the instance
      */
-    Object instantiate(final ClassInfo annotationClassInfo) {
-        return value.instantiateOrGet(annotationClassInfo, name);
+    @Nullable
+    Object instantiate(final @Nullable ClassInfo annotationClassInfo) {
+        return Objects.requireNonNull(value).instantiateOrGet(annotationClassInfo, name);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -225,7 +237,7 @@ public class AnnotationParameterValue extends ScanResultObject
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
-    public boolean equals(final Object obj) {
+    public boolean equals(final @Nullable Object obj) {
         if (obj == this) {
             return true;
         }
@@ -262,7 +274,7 @@ public class AnnotationParameterValue extends ScanResultObject
      * @param useSimpleNames the use simple names
      * @param buf            the buffer
      */
-    private static void toString(final Object val, final boolean useSimpleNames, final StringBuilder buf) {
+    private static void toString(final @Nullable Object val, final boolean useSimpleNames, final StringBuilder buf) {
         if (val == null) {
             buf.append("null");
         } else if (val instanceof final ScanResultObject scanResultObject) {
@@ -279,10 +291,11 @@ public class AnnotationParameterValue extends ScanResultObject
      * @param buf            the buf
      */
     void toStringParamValueOnly(final boolean useSimpleNames, final StringBuilder buf) {
-        if (value == null) {
+        final var val = value;
+        final var paramVal = val == null ? null : val.get();
+        if (paramVal == null) {
             buf.append("null");
         } else {
-            final var paramVal = value.get();
             final Class<?> valClass = paramVal.getClass();
             if (valClass.isArray()) {
                 buf.append('{');

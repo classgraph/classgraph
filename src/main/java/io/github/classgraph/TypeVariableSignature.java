@@ -39,6 +39,7 @@ import io.github.classgraph.Classfile.TypePathNode;
 import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.Parser;
 import nonapi.io.github.classgraph.types.TypeUtils;
+import org.jspecify.annotations.Nullable;
 
 /** A type variable signature. */
 public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
@@ -46,13 +47,14 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
     private final String name;
 
     /** The name of the class that this type variable is defined in. */
-    private final String definingClassName;
+    private final @Nullable String definingClassName;
 
     /** The method signature that this type variable is part of. */
+    @Nullable
     MethodTypeSignature containingMethodSignature;
 
     /** The resolved type parameter, if any. */
-    private TypeParameter typeParameterCached;
+    private @Nullable TypeParameter typeParameterCached;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -62,7 +64,7 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
      * @param typeVariableName  The type variable name.
      * @param definingClassName the defining class name.
      */
-    private TypeVariableSignature(final String typeVariableName, final String definingClassName) {
+    private TypeVariableSignature(final String typeVariableName, final @Nullable String definingClassName) {
         super();
         this.name = typeVariableName;
         this.definingClassName = definingClassName;
@@ -93,13 +95,15 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
      *                                  the scan.
      */
     public TypeParameter resolve() {
-        if (typeParameterCached != null) {
-            return typeParameterCached;
+        final var cached = typeParameterCached;
+        if (cached != null) {
+            return cached;
         }
         // Try resolving the type variable against the containing method
-        if (containingMethodSignature != null && containingMethodSignature.typeParameters != null
-                && !containingMethodSignature.typeParameters.isEmpty()) {
-            for (final TypeParameter typeParameter : containingMethodSignature.typeParameters) {
+        final var methodSignature = containingMethodSignature;
+        if (methodSignature != null && methodSignature.typeParameters != null
+                && !methodSignature.typeParameters.isEmpty()) {
+            for (final TypeParameter typeParameter : methodSignature.typeParameters) {
                 if (typeParameter.name.equals(this.name)) {
                     typeParameterCached = typeParameter;
                     return typeParameter;
@@ -145,12 +149,14 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
      * @return the type argument to substitute for this type variable, or null if
      *         this type variable is not substitutable.
      */
+    @Nullable
     TypeArgument substitution(final Map<String, TypeArgument> substitutions) {
         // A type variable declared by the method itself shadows any type variable of
         // the same name declared by the
         // enclosing class, and is not bound by the context class
-        if (containingMethodSignature != null && containingMethodSignature.typeParameters != null) {
-            for (final TypeParameter typeParameter : containingMethodSignature.typeParameters) {
+        final var methodSignature = containingMethodSignature;
+        if (methodSignature != null && methodSignature.typeParameters != null) {
+            for (final TypeParameter typeParameter : methodSignature.typeParameters) {
                 if (typeParameter.getName().equals(name)) {
                     return null;
                 }
@@ -195,7 +201,8 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
      * @return the type variable signature
      * @throws ParseException if parsing fails
      */
-    static TypeVariableSignature parse(final Parser parser, final String definingClassName) throws ParseException {
+    static @Nullable TypeVariableSignature parse(final Parser parser, final @Nullable String definingClassName)
+            throws ParseException {
         final var peek = parser.peek();
         if (peek == 'T') {
             parser.next();
@@ -232,7 +239,7 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
      * @return the defining class name.
      */
     @Override
-    protected String getClassName() {
+    protected @Nullable String getClassName() {
         return definingClassName;
     }
 
@@ -249,10 +256,11 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
     }
 
     @Override
-    void setScanResult(final ScanResult scanResult) {
+    void setScanResult(final @Nullable ScanResult scanResult) {
         super.setScanResult(scanResult);
-        if (typeParameterCached != null) {
-            typeParameterCached.setScanResult(scanResult);
+        final var cached = typeParameterCached;
+        if (cached != null) {
+            cached.setScanResult(scanResult);
         }
     }
 
@@ -274,7 +282,7 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
-    public boolean equals(final Object obj) {
+    public boolean equals(final @Nullable Object obj) {
         if (obj == this) {
             return true;
         }
@@ -377,7 +385,8 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
     }
 
     @Override
-    protected void toStringInternal(final boolean useSimpleNames, final AnnotationInfoList annotationsToExclude,
+    protected void toStringInternal(final boolean useSimpleNames,
+            final @Nullable AnnotationInfoList annotationsToExclude,
             final StringBuilder buf) {
         if (typeAnnotationInfo != null) {
             for (final AnnotationInfo annotationInfo : typeAnnotationInfo) {

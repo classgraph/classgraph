@@ -36,6 +36,7 @@ import java.lang.reflect.Type;
 import java.util.Collection;
 
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
+import org.jspecify.annotations.Nullable;
 
 /** Utils for Java serialization and deserialization. */
 public final class JSONUtils {
@@ -297,7 +298,7 @@ public final class JSONUtils {
      * @param type the type
      * @return true, if the type is a basic value type
      */
-    static boolean isBasicValueType(final Type type) {
+    static boolean isBasicValueType(final @Nullable Type type) {
         if (type instanceof final Class<?> cls) {
             return isBasicValueType(cls);
         } else if (type instanceof final ParameterizedType parameterizedType) {

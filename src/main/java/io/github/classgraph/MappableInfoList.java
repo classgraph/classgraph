@@ -33,6 +33,8 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * A list of named objects that can be indexed by name.
  *
@@ -108,7 +110,7 @@ public class MappableInfoList<T extends HasName> extends InfoList<T> {
      * @return The list item with the given name, or null if not found.
      */
     @SuppressWarnings("null")
-    public T get(final String name) {
+    public @Nullable T get(final String name) {
         for (final T i : this) {
             if (i != null && i.getName().equals(name)) {
                 return i;

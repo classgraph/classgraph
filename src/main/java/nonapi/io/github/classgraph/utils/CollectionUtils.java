@@ -35,6 +35,8 @@ import java.util.Comparator;
 import java.util.ConcurrentModificationException;
 import java.util.List;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * Collection utilities.
  */
@@ -65,11 +67,12 @@ public final class CollectionUtils {
      * been returned more than once is being sorted in one thread and iterated
      * through in another thread -- #334).
      *
-     * @param <T>        the element type
+     * @param <T>        the element type (which may be a nullable type)
      * @param list       the list
      * @param comparator the comparator
      */
-    public static <T> void sortIfNotEmpty(final List<T> list, final Comparator<? super T> comparator) {
+    public static <T extends @Nullable Object> void sortIfNotEmpty(final List<T> list,
+            final Comparator<? super T> comparator) {
         if (list.size() > 1) {
             Collections.sort(list, comparator);
         }

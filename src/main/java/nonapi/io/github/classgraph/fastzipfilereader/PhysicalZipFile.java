@@ -42,6 +42,7 @@ import nonapi.io.github.classgraph.fileslice.Slice;
 import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A physical zipfile, backed by a {@link File} (which may be mmap'd using a
@@ -49,10 +50,10 @@ import nonapi.io.github.classgraph.utils.LogNode;
  */
 class PhysicalZipFile {
     /** The {@link Path} backing this {@link PhysicalZipFile}, if any. */
-    private Path path;
+    private @Nullable Path path;
 
     /** The {@link File} backing this {@link PhysicalZipFile}, if any. */
-    private File file;
+    private @Nullable File file;
 
     /** The path to the zipfile. */
     private final String pathStr;
@@ -71,7 +72,7 @@ class PhysicalZipFile {
      * @param log              the log
      * @throws IOException if an I/O exception occurs.
      */
-    PhysicalZipFile(final File file, final NestedJarHandler nestedJarHandler, final LogNode log) throws IOException {
+    PhysicalZipFile(final File file, final NestedJarHandler nestedJarHandler, final @Nullable LogNode log) throws IOException {
         this.nestedJarHandler = nestedJarHandler;
         this.file = file;
         this.pathStr = FastPathResolver.resolve(FileUtils.currDirPath(), file.getPath());
@@ -86,7 +87,7 @@ class PhysicalZipFile {
      * @param log              the log
      * @throws IOException if an I/O exception occurs.
      */
-    PhysicalZipFile(final Path path, final NestedJarHandler nestedJarHandler, final LogNode log) throws IOException {
+    PhysicalZipFile(final Path path, final NestedJarHandler nestedJarHandler, final @Nullable LogNode log) throws IOException {
         this.nestedJarHandler = nestedJarHandler;
         this.path = path;
         this.pathStr = FastPathResolver.resolve(FileUtils.currDirPath(), path.toString());
@@ -126,7 +127,7 @@ class PhysicalZipFile {
      * @throws IOException if an I/O exception occurs.
      */
     PhysicalZipFile(final InputStream inputStream, final long inputStreamLengthHint, final String pathStr,
-            final NestedJarHandler nestedJarHandler, final LogNode log) throws IOException {
+            final NestedJarHandler nestedJarHandler, final @Nullable LogNode log) throws IOException {
         this.nestedJarHandler = nestedJarHandler;
         this.pathStr = pathStr;
         // Try downloading the InputStream to a byte array. If this succeeds, this will
@@ -145,7 +146,7 @@ class PhysicalZipFile {
      *         or null if this file was downloaded from a URL directly to RAM, or is
      *         backed by a {@link File}.
      */
-    public Path getPath() {
+    public @Nullable Path getPath() {
         return path;
     }
 
@@ -156,7 +157,7 @@ class PhysicalZipFile {
      *         or null if this file was downloaded from a URL directly to RAM, or is
      *         backed by a {@link Path}.
      */
-    public File getFile() {
+    public @Nullable File getFile() {
         return file;
     }
 
@@ -201,7 +202,7 @@ class PhysicalZipFile {
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
-    public boolean equals(final Object o) {
+    public boolean equals(final @Nullable Object o) {
         if (o == this) {
             return true;
         }

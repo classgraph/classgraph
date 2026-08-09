@@ -42,14 +42,15 @@ import io.github.classgraph.ModuleRef;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.CollectionUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
+import org.jspecify.annotations.Nullable;
 
 /** A class to find the visible modules. */
 public class ModuleFinder {
     /** The system module refs. */
-    private List<ModuleRef> systemModuleRefs;
+    private @Nullable List<ModuleRef> systemModuleRefs;
 
     /** The non system module refs. */
-    private List<ModuleRef> nonSystemModuleRefs;
+    private @Nullable List<ModuleRef> nonSystemModuleRefs;
 
     /**
      * If true, must forcibly scan {@code java.class.path}, since there was an
@@ -65,7 +66,7 @@ public class ModuleFinder {
      * @return The system modules as {@link ModuleRef} wrappers, or null if no
      *         modules were found.
      */
-    public List<ModuleRef> getSystemModuleRefs() {
+    public @Nullable List<ModuleRef> getSystemModuleRefs() {
         return systemModuleRefs;
     }
 
@@ -75,7 +76,7 @@ public class ModuleFinder {
      * @return The non-system modules as {@link ModuleRef} wrappers, or null if no
      *         modules were found.
      */
-    public List<ModuleRef> getNonSystemModuleRefs() {
+    public @Nullable List<ModuleRef> getNonSystemModuleRefs() {
         return nonSystemModuleRefs;
     }
 
@@ -128,7 +129,7 @@ public class ModuleFinder {
      * @return the list
      */
     private static List<ModuleRef> findModuleRefs(final LinkedHashSet<ModuleLayer> layers, final ScanSpec scanSpec,
-            final LogNode log) {
+            final @Nullable LogNode log) {
         if (layers.isEmpty()) {
             return List.of();
         }
@@ -205,7 +206,7 @@ public class ModuleFinder {
      * @return the list
      */
     private List<ModuleRef> findModuleRefsFromCallstack(final Class<?>[] callStack, final ScanSpec scanSpec,
-            final boolean scanNonSystemModules, final LogNode log) {
+            final boolean scanNonSystemModules, final @Nullable LogNode log) {
         final LinkedHashSet<ModuleLayer> layers = new LinkedHashSet<>();
         if (callStack != null) {
             for (final Class<?> stackFrameClass : callStack) {
@@ -238,7 +239,7 @@ public class ModuleFinder {
      * @param log                  The log.
      */
     public ModuleFinder(final Class<?>[] callStack, final ScanSpec scanSpec, final boolean scanNonSystemModules,
-            final boolean scanSystemModules, final LogNode log) {
+            final boolean scanSystemModules, final @Nullable LogNode log) {
         // Get the module resolution order
         List<ModuleRef> allModuleRefsList = null;
         if (scanSpec.overrideModuleLayers == null) {

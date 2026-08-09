@@ -32,6 +32,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * Check if this thread or any other thread that shares this InterruptionChecker
  * instance has been interrupted or has thrown an exception.
@@ -41,7 +43,7 @@ public class InterruptionChecker {
     private final AtomicBoolean interrupted = new AtomicBoolean(false);
 
     /** The first {@link ExecutionException} that was thrown. */
-    private final AtomicReference<ExecutionException> thrownExecutionException = //
+    private final AtomicReference<@Nullable ExecutionException> thrownExecutionException = //
             new AtomicReference<>();
 
     /** Interrupt all threads that share this InterruptionChecker. */
@@ -55,7 +57,7 @@ public class InterruptionChecker {
      *
      * @param executionException the execution exception that was thrown
      */
-    public void setExecutionException(final ExecutionException executionException) {
+    public void setExecutionException(final @Nullable ExecutionException executionException) {
         // Only set the execution exception once
         if (executionException != null && thrownExecutionException.get() == null) {
             thrownExecutionException.compareAndSet(/* expectedValue = */ null, executionException);
@@ -69,7 +71,7 @@ public class InterruptionChecker {
      * @return the {@link ExecutionException} that was thrown by a worker, or null
      *         if none.
      */
-    public ExecutionException getExecutionException() {
+    public @Nullable ExecutionException getExecutionException() {
         return thrownExecutionException.get();
     }
 

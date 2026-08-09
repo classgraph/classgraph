@@ -35,6 +35,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * An implementation of {@link ParameterizedType}, used to replace type
  * variables with concrete types.
@@ -47,8 +49,8 @@ class ParameterizedTypeImpl implements ParameterizedType {
     /** The raw type. */
     private final Class<?> rawType;
 
-    /** The owner type. */
-    private final Type ownerType;
+    /** The owner type, or null if the raw type is not a nested class. */
+    private final @Nullable Type ownerType;
 
     /** The type parameters of {@link Map} instances of unknown generic type. */
     public static final Type MAP_OF_UNKNOWN_TYPE = new ParameterizedTypeImpl(Map.class,
@@ -63,9 +65,11 @@ class ParameterizedTypeImpl implements ParameterizedType {
      *
      * @param rawType             the raw type
      * @param actualTypeArguments the actual type arguments
-     * @param ownerType           the owner type
+     * @param ownerType           the owner type, or null to use the declaring
+     *                            class of {@code rawType}
      */
-    ParameterizedTypeImpl(final Class<?> rawType, final Type[] actualTypeArguments, final Type ownerType) {
+    ParameterizedTypeImpl(final Class<?> rawType, final Type[] actualTypeArguments,
+            final @Nullable Type ownerType) {
         this.actualTypeArguments = actualTypeArguments;
         this.rawType = rawType;
         this.ownerType = ownerType != null ? ownerType : rawType.getDeclaringClass();
@@ -100,7 +104,7 @@ class ParameterizedTypeImpl implements ParameterizedType {
      * @see java.lang.reflect.ParameterizedType#getOwnerType()
      */
     @Override
-    public Type getOwnerType() {
+    public @Nullable Type getOwnerType() {
         return ownerType;
     }
 
@@ -110,7 +114,7 @@ class ParameterizedTypeImpl implements ParameterizedType {
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
-    public boolean equals(final Object obj) {
+    public boolean equals(final @Nullable Object obj) {
         if (obj == this) {
             return true;
         }

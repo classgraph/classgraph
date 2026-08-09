@@ -29,6 +29,7 @@
 package nonapi.io.github.classgraph.types;
 
 import nonapi.io.github.classgraph.json.JSONUtils;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A generic PEG parser.
@@ -44,7 +45,7 @@ public class Parser {
     private final StringBuilder token = new StringBuilder();
 
     /** Extra parsing state. */
-    private Object state;
+    private @Nullable Object state;
 
     /** How much context to show before the current position. */
     private static final int SHOW_BEFORE = 80;
@@ -85,7 +86,7 @@ public class Parser {
      * @param state The state object.
      * @return The old value of the state object.
      */
-    public Object setState(final Object state) {
+    public @Nullable Object setState(final @Nullable Object state) {
         final var oldState = this.state;
         this.state = state;
         return oldState;
@@ -97,7 +98,7 @@ public class Parser {
      * 
      * @return The current value of the state object.
      */
-    public Object getState() {
+    public @Nullable Object getState() {
         return state;
     }
 

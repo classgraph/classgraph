@@ -28,6 +28,8 @@
  */
 package io.github.classgraph;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * Holds metadata about an array class. This class extends {@link ClassInfo}
  * with additional methods relevant to array classes, in particular
@@ -44,10 +46,14 @@ public class ArrayClassInfo extends ClassInfo {
     /** The array type signature. */
     private ArrayTypeSignature arrayTypeSignature;
 
-    /** The element class info. */
-    private ClassInfo elementClassInfo;
+    /** The element class info, or null if the element type is a primitive type. */
+    private @Nullable ClassInfo elementClassInfo;
 
-    /** Default constructor for deserialization. */
+    /**
+     * Default constructor for deserialization. {@code arrayTypeSignature} is
+     * populated by the deserializer, so it is not assigned here.
+     */
+    @SuppressWarnings("NullAway.Init")
     ArrayClassInfo() {
         super();
     }
@@ -84,7 +90,7 @@ public class ArrayClassInfo extends ClassInfo {
      * @return null (always).
      */
     @Override
-    public ClassTypeSignature getTypeSignature() {
+    public @Nullable ClassTypeSignature getTypeSignature() {
         return null;
     }
 
@@ -125,24 +131,25 @@ public class ArrayClassInfo extends ClassInfo {
      *         particular, will return null for arrays that have a primitive element
      *         type.
      */
-    public ClassInfo getElementClassInfo() {
-        if (elementClassInfo == null) {
+    public @Nullable ClassInfo getElementClassInfo() {
+        var elementInfo = elementClassInfo;
+        if (elementInfo == null) {
             final var elementTypeSignature = arrayTypeSignature.getElementTypeSignature();
             if (!(elementTypeSignature instanceof BaseTypeSignature)) {
-                elementClassInfo = arrayTypeSignature.getElementTypeSignature().getClassInfo();
-                if (elementClassInfo != null) {
+                elementClassInfo = elementInfo = elementTypeSignature.getClassInfo();
+                if (elementInfo != null) {
                     // Copy over relevant fields from array element ClassInfo
-                    this.classpathElement = elementClassInfo.classpathElement;
-                    this.classfileResource = elementClassInfo.classfileResource;
-                    this.classLoader = elementClassInfo.classLoader;
-                    this.isScannedClass = elementClassInfo.isScannedClass;
-                    this.isExternalClass = elementClassInfo.isExternalClass;
-                    this.moduleInfo = elementClassInfo.moduleInfo;
-                    this.packageInfo = elementClassInfo.packageInfo;
+                    this.classpathElement = elementInfo.classpathElement;
+                    this.classfileResource = elementInfo.classfileResource;
+                    this.classLoader = elementInfo.classLoader;
+                    this.isScannedClass = elementInfo.isScannedClass;
+                    this.isExternalClass = elementInfo.isExternalClass;
+                    this.moduleInfo = elementInfo.moduleInfo;
+                    this.packageInfo = elementInfo.packageInfo;
                 }
             }
         }
-        return elementClassInfo;
+        return elementInfo;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -155,7 +162,7 @@ public class ArrayClassInfo extends ClassInfo {
      * @return a {@code Class<?>} reference for the array element type. Also works
      *         for arrays of primitive element type.
      */
-    public Class<?> loadElementClass(final boolean ignoreExceptions) {
+    public @Nullable Class<?> loadElementClass(final boolean ignoreExceptions) {
         return arrayTypeSignature.loadElementClass(ignoreExceptions);
     }
 
@@ -166,7 +173,7 @@ public class ArrayClassInfo extends ClassInfo {
      * @return a {@code Class<?>} reference for the array element type. Also works
      *         for arrays of primitive element type.
      */
-    public Class<?> loadElementClass() {
+    public @Nullable Class<?> loadElementClass() {
         return arrayTypeSignature.loadElementClass();
     }
 
@@ -182,7 +189,7 @@ public class ArrayClassInfo extends ClassInfo {
      *                                  problems loading the class.
      */
     @Override
-    public Class<?> loadClass(final boolean ignoreExceptions) {
+    public @Nullable Class<?> loadClass(final boolean ignoreExceptions) {
         if (classRef == null) {
             classRef = arrayTypeSignature.loadClass(ignoreExceptions);
         }
@@ -198,7 +205,7 @@ public class ArrayClassInfo extends ClassInfo {
      * @throws IllegalArgumentException if there were problems loading the class.
      */
     @Override
-    public Class<?> loadClass() {
+    public @Nullable Class<?> loadClass() {
         if (classRef == null) {
             classRef = arrayTypeSignature.loadClass();
         }
@@ -213,7 +220,7 @@ public class ArrayClassInfo extends ClassInfo {
      * @see io.github.classgraph.ClassInfo#equals(java.lang.Object)
      */
     @Override
-    public boolean equals(final Object obj) {
+    public boolean equals(final @Nullable Object obj) {
         return super.equals(obj);
     }
 

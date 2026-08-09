@@ -38,6 +38,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import nonapi.io.github.classgraph.utils.CollectionUtils;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Information about a module: its {@link ModuleReference}, its
@@ -60,25 +61,25 @@ public class ModuleRef implements Comparable<ModuleRef> {
     private final List<String> packages;
 
     /** The location URI for the module (may be null). */
-    private final URI location;
+    private final @Nullable URI location;
 
     /** The location URI for the module, as a cached string (may be null). */
-    private String locationStr;
+    private @Nullable String locationStr;
 
     /**
      * A file formed from the location URI. The file will not exist if the location
      * URI is a "jrt:" URI.
      */
-    private File locationFile;
+    private @Nullable File locationFile;
 
     /** The raw module version, or null if none. */
-    private final String rawVersion;
+    private final @Nullable String rawVersion;
 
     /**
      * The ClassLoader that loads classes in the module. May be null, to represent
      * the bootstrap classloader.
      */
-    private final ClassLoader classLoader;
+    private final @Nullable ClassLoader classLoader;
 
     /**
      * Constructor.
@@ -176,7 +177,7 @@ public class ModuleRef implements Comparable<ModuleRef> {
      * @return The module location, i.e. {@code getReference().location()}. Returns
      *         null for modules that do not have a location.
      */
-    public URI getLocation() {
+    public @Nullable URI getLocation() {
         return location;
     }
 
@@ -189,11 +190,12 @@ public class ModuleRef implements Comparable<ModuleRef> {
      *         {@code getReference().location().toString()}. Returns null for
      *         modules that do not have a location.
      */
-    public String getLocationStr() {
-        if (locationStr == null && location != null) {
-            locationStr = location.toString();
+    public @Nullable String getLocationStr() {
+        var str = locationStr;
+        if (str == null && location != null) {
+            locationStr = str = location.toString();
         }
-        return locationStr;
+        return str;
     }
 
     /**
@@ -208,11 +210,12 @@ public class ModuleRef implements Comparable<ModuleRef> {
      *         that do not have a location, or for modules whole location is a
      *         "jrt:" URI.
      */
-    public File getLocationFile() {
-        if (locationFile == null && location != null && "file".equals(location.getScheme())) {
-            locationFile = new File(location);
+    public @Nullable File getLocationFile() {
+        var file = locationFile;
+        if (file == null && location != null && "file".equals(location.getScheme())) {
+            locationFile = file = new File(location);
         }
-        return locationFile;
+        return file;
     }
 
     /**
@@ -222,7 +225,7 @@ public class ModuleRef implements Comparable<ModuleRef> {
      * @return The raw version of the module, obtained by
      *         {@code ModuleReference#rawVersion().orElse(null)}.
      */
-    public String getRawVersion() {
+    public @Nullable String getRawVersion() {
         return rawVersion;
     }
 
@@ -245,7 +248,7 @@ public class ModuleRef implements Comparable<ModuleRef> {
      * @return The classloader for the module, i.e.
      *         {@code moduleLayer.findLoader(getReference().descriptor().name())}.
      */
-    public ClassLoader getClassLoader() {
+    public @Nullable ClassLoader getClassLoader() {
         return classLoader;
     }
 
@@ -255,7 +258,7 @@ public class ModuleRef implements Comparable<ModuleRef> {
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
-    public boolean equals(final Object obj) {
+    public boolean equals(final @Nullable Object obj) {
         return obj == this || obj instanceof final ModuleRef modRef && modRef.reference.equals(this.reference)
                 && modRef.layer.equals(this.layer);
     }

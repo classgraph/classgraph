@@ -36,6 +36,7 @@ import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.Map;
 import java.util.Set;
 
@@ -46,6 +47,7 @@ import nonapi.io.github.classgraph.types.TypeUtils;
 import nonapi.io.github.classgraph.types.TypeUtils.ModifierType;
 import nonapi.io.github.classgraph.utils.Assert;
 import nonapi.io.github.classgraph.utils.LogNode;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Holds metadata about methods of a class encountered during a scan. All values
@@ -53,31 +55,31 @@ import nonapi.io.github.classgraph.utils.LogNode;
  */
 public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo> {
     /** The parsed type descriptor. */
-    private transient MethodTypeSignature typeDescriptor;
+    private transient @Nullable MethodTypeSignature typeDescriptor;
 
     /**
      * The parsed type signature (or null if none). Method parameter types are
      * unaligned.
      */
-    private transient MethodTypeSignature typeSignature;
+    private transient @Nullable MethodTypeSignature typeSignature;
 
     /**
      * Unaligned parameter names. These are only produced in JDK8+, and only if the
      * commandline switch `-parameters` is provided at compiletime.
      */
-    private String[] parameterNames;
+    private @Nullable String @Nullable [] parameterNames;
 
     /**
      * Unaligned parameter modifiers. These are only produced in JDK8+, and only if
      * the commandline switch `-parameters` is provided at compiletime.
      */
-    private int[] parameterModifiers;
+    private int @Nullable [] parameterModifiers;
 
     /** Unaligned parameter annotations. */
-    AnnotationInfo[][] parameterAnnotationInfo;
+    AnnotationInfo @Nullable [][] parameterAnnotationInfo;
 
     /** Aligned method parameter info. */
-    private transient MethodParameterInfo[] parameterInfo;
+    private transient MethodParameterInfo @Nullable [] parameterInfo;
 
     /** True if this method has a body. */
     private boolean hasBody;
@@ -91,13 +93,13 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
     /**
      * The type annotation decorators for the {@link MethodTypeSignature} instance.
      */
-    private transient List<MethodTypeAnnotationDecorator> typeAnnotationDecorators;
+    private transient @Nullable List<MethodTypeAnnotationDecorator> typeAnnotationDecorators;
 
     /** The names of the exceptions thrown by this method, or null if none. */
-    private String[] thrownExceptionNames;
+    private String @Nullable [] thrownExceptionNames;
 
     /** The exceptions thrown by this method, as a {@link ClassInfoList}. */
-    private transient ClassInfoList thrownExceptions;
+    private transient @Nullable ClassInfoList thrownExceptions;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -119,7 +121,9 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
      *                                       string.
      * @param typeSignatureStr               The internal method type signature
      *                                       string, or null if none.
-     * @param parameterNames                 The parameter names.
+     * @param parameterNames                 The parameter names, or null if not
+     *                                       available. Individual entries are null
+     *                                       for unnamed parameters.
      * @param parameterModifiers             The parameter modifiers.
      * @param parameterAnnotationInfo        The parameter {@link AnnotationInfo}.
      * @param hasBody                        True if this method has a body.
@@ -131,12 +135,14 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
      *                                       annotations.
      * @param thrownExceptionNames           exceptions thrown by this method.
      */
-    MethodInfo(final String definingClassName, final String methodName, final AnnotationInfoList methodAnnotationInfo,
-            final int modifiers, final String typeDescriptorStr, final String typeSignatureStr,
-            final String[] parameterNames, final int[] parameterModifiers,
-            final AnnotationInfo[][] parameterAnnotationInfo, final boolean hasBody, final int minLineNum,
-            final int maxLineNum, final List<MethodTypeAnnotationDecorator> methodTypeAnnotationDecorators,
-            final String[] thrownExceptionNames) {
+    MethodInfo(final String definingClassName, final String methodName,
+            final @Nullable AnnotationInfoList methodAnnotationInfo, final int modifiers,
+            final String typeDescriptorStr, final @Nullable String typeSignatureStr,
+            final @Nullable String @Nullable [] parameterNames, final int @Nullable [] parameterModifiers,
+            final AnnotationInfo @Nullable [][] parameterAnnotationInfo, final boolean hasBody, final int minLineNum,
+            final int maxLineNum,
+            final @Nullable List<MethodTypeAnnotationDecorator> methodTypeAnnotationDecorators,
+            final String @Nullable [] thrownExceptionNames) {
         super(definingClassName, methodName, modifiers, typeDescriptorStr, typeSignatureStr, methodAnnotationInfo);
         this.parameterNames = parameterNames;
         this.parameterModifiers = parameterModifiers;
@@ -188,7 +194,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
             if (typeDescriptor == null) {
                 try {
                     typeDescriptor = MethodTypeSignature.parse(typeDescriptorStr, declaringClassName);
-                    typeDescriptor.setScanResult(scanResult);
+                    typeDescriptor.setScanResult(this.scanResult);
                     if (typeAnnotationDecorators != null) {
                         // Type annotations index formal parameters starting from the first parameter
                         // that was
@@ -225,7 +231,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
                         } else if (numImplicitPrefixParams > descNumParam) {
                             numImplicitPrefixParams = descNumParam;
                         }
-                        decorateMethodType(typeDescriptor, numImplicitPrefixParams);
+                        decorateMethodType(typeDescriptor, typeAnnotationDecorators, numImplicitPrefixParams);
                     }
                 } catch (final ParseException e) {
                     throw new IllegalArgumentException(e);
@@ -279,10 +285,12 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
      *
      * @param methodType              the parsed method type signature or descriptor
      *                                to decorate.
+     * @param decorators              the type annotation decorators to run.
      * @param numImplicitPrefixParams the number of implicit prefix parameters to
      *                                strip while decorating (0 for none).
      */
-    private void decorateMethodType(final MethodTypeSignature methodType, final int numImplicitPrefixParams) {
+    private void decorateMethodType(final MethodTypeSignature methodType,
+            final List<MethodTypeAnnotationDecorator> decorators, final int numImplicitPrefixParams) {
         final var paramSigs = methodType.getParameterTypeSignatures();
         // Take a copy of the implicit prefix params before removing them -- do not use
         // the live view returned
@@ -293,7 +301,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
         for (var i = 0; i < numImplicitPrefixParams; i++) {
             paramSigs.remove(0);
         }
-        for (final MethodTypeAnnotationDecorator decorator : typeAnnotationDecorators) {
+        for (final MethodTypeAnnotationDecorator decorator : decorators) {
             try {
                 decorator.decorate(methodType);
             } catch (final IllegalArgumentException e) {
@@ -323,16 +331,16 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
      *                                  be written to the classfile).
      */
     @Override
-    public MethodTypeSignature getTypeSignature() {
+    public @Nullable MethodTypeSignature getTypeSignature() {
         synchronized (this) {
             if (typeSignature == null && typeSignatureStr != null) {
                 try {
                     typeSignature = MethodTypeSignature.parse(typeSignatureStr, declaringClassName);
-                    typeSignature.setScanResult(scanResult);
+                    typeSignature.setScanResult(this.scanResult);
                     if (typeAnnotationDecorators != null) {
                         // The generic type signature already omits any implicit prefix parameters, so
                         // formal_parameter_index lines up with it directly (strip 0). (#897)
-                        decorateMethodType(typeSignature, 0);
+                        decorateMethodType(typeSignature, typeAnnotationDecorators, 0);
                     }
                 } catch (final ParseException e) {
                     throw new IllegalArgumentException(
@@ -383,7 +391,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
             if (thrownExceptions == null && thrownExceptionNames != null) {
                 thrownExceptions = new ClassInfoList(thrownExceptionNames.length);
                 for (final String thrownExceptionName : thrownExceptionNames) {
-                    final var classInfo = scanResult.getClassInfo(thrownExceptionName);
+                    final var classInfo = scanResult().getClassInfo(thrownExceptionName);
                     if (classInfo != null) {
                         thrownExceptions.add(classInfo);
                         classInfo.setScanResult(scanResult);
@@ -602,14 +610,14 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
                 // implicit parameters
                 // were added at the beginning of the parameter list, not the end.
 
-                String[] paramNamesAligned = null;
+                @Nullable String @Nullable [] paramNamesAligned = null;
                 if (parameterNames != null && parameterNames.length > 0) {
                     if (parameterNames.length == numParams) {
                         // No alignment necessary
                         paramNamesAligned = parameterNames;
                     } else {
                         // Right-align when not the right length
-                        paramNamesAligned = new String[numParams];
+                        paramNamesAligned = new @Nullable String[numParams];
                         for (int i = 0, lenDiff = numParams - parameterNames.length; i < parameterNames.length; i++) {
                             paramNamesAligned[lenDiff + i] = parameterNames[i];
                         }
@@ -747,7 +755,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
                     throw new IllegalArgumentException("TypeVariableSignature has no bounds");
                 }
             } else {
-                actualParameterType = parameterType;
+                actualParameterType = Objects.requireNonNull(parameterType);
             }
             parameterClasses.add(actualParameterType.loadClass());
         }
@@ -780,10 +788,10 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
         }
         final var parameterClassesArr = loadParameterClasses();
         try {
-            return loadClass().getMethod(getName(), parameterClassesArr);
+            return Objects.requireNonNull(loadClass()).getMethod(getName(), parameterClassesArr);
         } catch (final NoSuchMethodException e1) {
             try {
-                return loadClass().getDeclaredMethod(getName(), parameterClassesArr);
+                return Objects.requireNonNull(loadClass()).getDeclaredMethod(getName(), parameterClassesArr);
             } catch (final NoSuchMethodException e2) {
                 throw new IllegalArgumentException("Method not found: " + getClassName() + "." + getName());
             }
@@ -818,10 +826,10 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
         }
         final var parameterClassesArr = loadParameterClasses();
         try {
-            return loadClass().getConstructor(parameterClassesArr);
+            return Objects.requireNonNull(loadClass()).getConstructor(parameterClassesArr);
         } catch (final NoSuchMethodException e1) {
             try {
-                return loadClass().getDeclaredConstructor(parameterClassesArr);
+                return Objects.requireNonNull(loadClass()).getDeclaredConstructor(parameterClassesArr);
             } catch (final NoSuchMethodException e2) {
                 throw new IllegalArgumentException("Constructor not found for class " + getClassName());
             }
@@ -875,7 +883,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
      * ScanResult)
      */
     @Override
-    void setScanResult(final ScanResult scanResult) {
+    void setScanResult(final @Nullable ScanResult scanResult) {
         super.setScanResult(scanResult);
         if (this.typeDescriptor != null) {
             this.typeDescriptor.setScanResult(scanResult);
@@ -921,7 +929,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
      */
     @Override
     void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
-            final Set<ClassInfo> refdClassInfo, final LogNode log) {
+            final Set<ClassInfo> refdClassInfo, final @Nullable LogNode log) {
         try {
             final var methodSig = getTypeSignature();
             if (methodSig != null) {
@@ -978,7 +986,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
      * @return true if equal
      */
     @Override
-    public boolean equals(final Object obj) {
+    public boolean equals(final @Nullable Object obj) {
         if (obj == this) {
             return true;
         }

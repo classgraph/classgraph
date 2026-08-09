@@ -43,13 +43,14 @@ import java.util.Set;
 
 import nonapi.io.github.classgraph.concurrency.SingletonMap;
 import nonapi.io.github.classgraph.utils.LogNode;
+import org.jspecify.annotations.Nullable;
 
 /** Reflection driver */
 abstract class ReflectionDriver {
     private final SingletonMap<Class<?>, ClassMemberCache, Exception> classToClassMemberCache //
             = new SingletonMap<>() {
                 @Override
-                public ClassMemberCache newInstance(final Class<?> cls, final LogNode log)
+                public ClassMemberCache newInstance(final Class<?> cls, final @Nullable LogNode log)
                         throws Exception, InterruptedException {
                     return new ClassMemberCache(cls);
                 }
@@ -158,7 +159,7 @@ abstract class ReflectionDriver {
      * @param field  the non-static field
      * @return the value of the field
      */
-    abstract Object getField(final Object object, final Field field) throws Exception;
+    abstract @Nullable Object getField(final Object object, final Field field) throws Exception;
 
     /**
      * Set the value of a non-static field, unboxing the value if necessary.
@@ -167,7 +168,7 @@ abstract class ReflectionDriver {
      * @param field  the non-static field
      * @param value  the value to set
      */
-    abstract void setField(final Object object, final Field field, Object value) throws Exception;
+    abstract void setField(final Object object, final Field field, @Nullable Object value) throws Exception;
 
     /**
      * Get the value of a static field, boxing the value if necessary.
@@ -175,7 +176,7 @@ abstract class ReflectionDriver {
      * @param field the static field
      * @return the static field
      */
-    abstract Object getStaticField(final Field field) throws Exception;
+    abstract @Nullable Object getStaticField(final Field field) throws Exception;
 
     /**
      * Set the value of a static field, unboxing the value if necessary.
@@ -183,7 +184,7 @@ abstract class ReflectionDriver {
      * @param field the static field
      * @param value the value to set
      */
-    abstract void setStaticField(final Field field, Object value) throws Exception;
+    abstract void setStaticField(final Field field, @Nullable Object value) throws Exception;
 
     /**
      * Invoke a non-static method, boxing the result if necessary.
@@ -194,7 +195,8 @@ abstract class ReflectionDriver {
      *               args)
      * @return the return value (possibly a boxed value)
      */
-    abstract Object invokeMethod(final Object object, final Method method, final Object... args) throws Exception;
+    abstract @Nullable Object invokeMethod(final Object object, final Method method, final @Nullable Object... args)
+            throws Exception;
 
     /**
      * Invoke a static method, boxing the result if necessary.
@@ -204,7 +206,8 @@ abstract class ReflectionDriver {
      *               args)
      * @return the return value (possibly a boxed value)
      */
-    abstract Object invokeStaticMethod(final Method method, final Object... args) throws Exception;
+    abstract @Nullable Object invokeStaticMethod(final Method method, final @Nullable Object... args)
+            throws Exception;
 
     /**
      * Make a field or method accessible.
@@ -214,7 +217,7 @@ abstract class ReflectionDriver {
      * 
      * @return true if successful.
      */
-    abstract boolean makeAccessible(final Object instance, final AccessibleObject fieldOrMethod);
+    abstract boolean makeAccessible(final @Nullable Object instance, final AccessibleObject fieldOrMethod);
 
     /**
      * Check whether a field or method is accessible.
@@ -228,7 +231,7 @@ abstract class ReflectionDriver {
      * 
      * @return true if accessible.
      */
-    boolean isAccessible(final Object instance, final AccessibleObject fieldOrMethod) {
+    boolean isAccessible(final @Nullable Object instance, final AccessibleObject fieldOrMethod) {
         try {
             return fieldOrMethod.canAccess(instance);
         } catch (final Throwable e) {
@@ -247,7 +250,8 @@ abstract class ReflectionDriver {
      * @return The {@link Field} object for the requested field name (never null).
      * @throws Exception if the field could not be found
      */
-    protected Field findField(final Class<?> cls, final Object obj, final String fieldName) throws Exception {
+    protected Field findField(final Class<?> cls, final @Nullable Object obj, final String fieldName)
+            throws Exception {
         final var field = classToClassMemberCache.get(cls, /* log = */ null).fieldNameToField.get(fieldName);
         if (field != null) {
             if (!isAccessible(obj, field)) {
@@ -276,7 +280,7 @@ abstract class ReflectionDriver {
     /**
      * Get the non-static field of the class that has a given field name.
      * 
-     * @param obj       the object instance, or null for a static field.
+     * @param obj       the object instance.
      * @param fieldName The name of the field.
      * @return The {@link Field} object for the requested field name (never null).
      * @throws Exception if the field could not be found
@@ -300,7 +304,7 @@ abstract class ReflectionDriver {
      * @throws Exception if the method could not be found, or could not be made
      *                   accessible.
      */
-    protected Method findMethod(final Class<?> cls, final Object obj, final String methodName,
+    protected Method findMethod(final Class<?> cls, final @Nullable Object obj, final String methodName,
             final Class<?>... paramTypes) throws Exception {
         final var methodsForName = classToClassMemberCache.get(cls, null).methodNameToMethods.get(methodName);
         if (methodsForName != null) {
@@ -348,7 +352,7 @@ abstract class ReflectionDriver {
     /**
      * Get a non-static method by name and parameter types.
      * 
-     * @param obj        the object instance, or null for a static method.
+     * @param obj        the object instance.
      * @param methodName The name of the method.
      * @param paramTypes The types of the parameters of the method. For
      *                   primitive-typed parameters, use e.g. Integer.TYPE.

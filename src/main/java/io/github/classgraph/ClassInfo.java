@@ -46,6 +46,7 @@ import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Map.Entry;
 import java.util.Set;
 
@@ -60,6 +61,7 @@ import nonapi.io.github.classgraph.types.TypeUtils;
 import nonapi.io.github.classgraph.types.TypeUtils.ModifierType;
 import nonapi.io.github.classgraph.utils.Assert;
 import nonapi.io.github.classgraph.utils.LogNode;
+import org.jspecify.annotations.Nullable;
 
 /** Holds metadata about a class encountered during a scan. */
 public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>, HasName {
@@ -87,19 +89,19 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     private int classfileMajorVersion;
 
     /** The class type signature string. */
-    protected String typeSignatureStr;
+    protected @Nullable String typeSignatureStr;
 
     /** The class type signature, parsed. */
-    private transient ClassTypeSignature typeSignature;
+    private transient @Nullable ClassTypeSignature typeSignature;
 
     /** The synthetic class type descriptor. */
-    private transient ClassTypeSignature typeDescriptor;
+    private transient @Nullable ClassTypeSignature typeDescriptor;
 
     /** The name of the source file this class has been compiled from */
-    private String sourceFile;
+    private @Nullable String sourceFile;
 
     /** The fully-qualified defining method name, for anonymous inner classes. */
-    private String fullyQualifiedDefiningMethodName;
+    private @Nullable String fullyQualifiedDefiningMethodName;
 
     /**
      * If true, this class is only being referenced by another class' classfile as a
@@ -119,49 +121,55 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     protected boolean isScannedClass;
 
     /** The classpath element that this class was found within. */
-    transient ClasspathElement classpathElement;
+    transient @Nullable ClasspathElement classpathElement;
 
     /** The {@link Resource} for the classfile of this class. */
-    protected transient Resource classfileResource;
+    protected transient @Nullable Resource classfileResource;
 
     /** The classloader this class was obtained from. */
-    transient ClassLoader classLoader;
+    transient @Nullable ClassLoader classLoader;
 
     /** Info on the class module. */
+    @Nullable
     ModuleInfo moduleInfo;
 
     /** Info on the package containing the class. */
+    @Nullable
     PackageInfo packageInfo;
 
     /** Info on class annotations, including optional annotation param values. */
+    @Nullable
     AnnotationInfoList annotationInfo;
 
     /** Info on fields. */
+    @Nullable
     FieldInfoList fieldInfo;
 
     /** Info on fields. */
+    @Nullable
     MethodInfoList methodInfo;
 
     /** For annotations, the default values of parameters. */
+    @Nullable
     AnnotationParameterValueList annotationDefaultParamValues;
 
     /**
      * The type annotation decorators for the {@link ClassTypeSignature} instance.
      */
-    transient List<ClassTypeAnnotationDecorator> typeAnnotationDecorators;
+    transient @Nullable List<ClassTypeAnnotationDecorator> typeAnnotationDecorators;
 
     /**
      * Names of classes referenced by this class in class refs and type signatures
      * in the constant pool of the classfile.
      */
-    private Set<String> referencedClassNames;
+    private @Nullable Set<String> referencedClassNames;
 
     /**
      * A list of ClassInfo objects for classes referenced by this class. Derived
      * from {@link #referencedClassNames} when the relevant {@link ClassInfo}
      * objects are created.
      */
-    private ClassInfoList referencedClasses;
+    private @Nullable ClassInfoList referencedClasses;
 
     /**
      * Set to true once any Object[] arrays of boxed types in
@@ -176,19 +184,19 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * The override order for a class' fields or methods (base class, followed by
      * interfaces, followed by superclasses).
      */
-    private transient List<ClassInfo> overrideOrder;
+    private transient @Nullable List<ClassInfo> overrideOrder;
 
     /**
      * The override order for a class' methods (base class, followed by
      * superclasses, followed by interfaces).
      */
-    private transient List<ClassInfo> methodOverrideOrder;
+    private transient @Nullable List<ClassInfo> methodOverrideOrder;
 
     /** The annotations, once they are loaded */
-    private ClassInfoList annotationsRef;
+    private @Nullable ClassInfoList annotationsRef;
 
     /** The annotation infos, once they are loaded */
-    private AnnotationInfoList annotationInfoRef;
+    private @Nullable AnnotationInfoList annotationInfoRef;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -210,7 +218,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Default constructor for deserialization. */
+    /**
+     * Default constructor for deserialization. {@code name},
+     * {@code classfileResource} and {@code relatedClasses} are populated by the
+     * deserializer, so they are not assigned here.
+     */
+    @SuppressWarnings("NullAway.Init")
     ClassInfo() {
         super();
     }
@@ -222,8 +235,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @param classModifiers    the class modifiers
      * @param classfileResource the classfile resource
      */
-    @SuppressWarnings("null")
-    protected ClassInfo(final String name, final int classModifiers, final Resource classfileResource) {
+    protected ClassInfo(final String name, final int classModifiers,
+            final @Nullable Resource classfileResource) {
         super();
         this.name = name;
         if (name.endsWith(";")) {
@@ -521,9 +534,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Set source file.
      *
-     * @param sourceFile the source file
+     * @param sourceFile the source file, or null if the classfile has no
+     *                   {@code SourceFile} attribute
      */
-    void setSourceFile(final String sourceFile) {
+    void setSourceFile(final @Nullable String sourceFile) {
         this.sourceFile = sourceFile;
     }
 
@@ -630,8 +644,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @param modifiers            the field or method modifiers
      * @param classNameToClassInfo the map from class name to class info
      */
-    private void addFieldOrMethodAnnotationInfo(final AnnotationInfoList annotationInfoList, final boolean isField,
-            final int modifiers, final Map<String, ClassInfo> classNameToClassInfo) {
+    private void addFieldOrMethodAnnotationInfo(final @Nullable AnnotationInfoList annotationInfoList,
+            final boolean isField, final int modifiers, final Map<String, ClassInfo> classNameToClassInfo) {
         if (annotationInfoList != null) {
             for (final AnnotationInfo fieldAnnotationInfo : annotationInfoList) {
                 final var annotationClassInfo = getOrCreateClassInfo(fieldAnnotationInfo.getName(),
@@ -978,8 +992,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         }
 
         return new ReachableAndDirectlyRelatedClasses(
-                filterClassInfo(reachableClasses, scanResult.scanSpec, strictAccept, classTypes),
-                filterClassInfo(directlyRelatedClasses, scanResult.scanSpec, strictAccept, classTypes));
+                filterClassInfo(reachableClasses, scanResult().scanSpec, strictAccept, classTypes),
+                filterClassInfo(directlyRelatedClasses, scanResult().scanSpec, strictAccept, classTypes));
 
     }
 
@@ -1129,7 +1143,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return the {@link ModuleInfo} object for the class, or null if the class is
      *         not part of a named module.
      */
-    public ModuleInfo getModuleInfo() {
+    public @Nullable ModuleInfo getModuleInfo() {
         return moduleInfo;
     }
 
@@ -1139,7 +1153,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return the {@link PackageInfo} object for the package that contains the
      *         class.
      */
-    public PackageInfo getPackageInfo() {
+    public @Nullable PackageInfo getPackageInfo() {
         return packageInfo;
     }
 
@@ -1149,7 +1163,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return The name of the class' package.
      */
     public String getPackageName() {
-        return PackageInfo.getParentPackageName(name);
+        // A class name is never empty, so getParentPackageName cannot return null
+        return Objects.requireNonNull(PackageInfo.getParentPackageName(name));
     }
 
     /**
@@ -1830,7 +1845,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     public ClassInfoList getSubclasses() {
         if ("java.lang.Object".equals(getName())) {
             // Make an exception for querying all subclasses of java.lang.Object
-            return scanResult.getAllStandardClasses();
+            return scanResult().getAllStandardClasses();
         } else {
             return new ClassInfoList(this.filterClassInfo(RelType.SUBCLASSES, /* strictAccept = */ !isExternalClass),
                     /* sortByName = */ true);
@@ -1860,7 +1875,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * @return the superclass of this class, or null if none.
      */
-    public ClassInfo getSuperclass() {
+    public @Nullable ClassInfo getSuperclass() {
         final var superClasses = relatedClasses.get(RelType.SUPERCLASSES);
         if (superClasses == null || superClasses.isEmpty()) {
             return null;
@@ -1908,7 +1923,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         followed by dot, followed by method name) for the defining method, if
      *         this is an anonymous inner class, or null if not.
      */
-    public String getFullyQualifiedDefiningMethodName() {
+    public @Nullable String getFullyQualifiedDefiningMethodName() {
         return fullyQualifiedDefiningMethodName;
     }
 
@@ -2015,7 +2030,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 return annotationsRef;
             }
 
-            if (!scanResult.scanSpec.enableAnnotationInfo) {
+            if (!scanResult().scanSpec.enableAnnotationInfo) {
                 throw new IllegalArgumentException("Please call ClassGraph#enableAnnotationInfo() before #scan()");
             }
 
@@ -2066,8 +2081,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     private ClassInfoList getFieldOrMethodAnnotations(final RelType relType) {
         final var isField = relType == RelType.FIELD_ANNOTATIONS;
-        if (!(isField ? scanResult.scanSpec.enableFieldInfo : scanResult.scanSpec.enableMethodInfo)
-                || !scanResult.scanSpec.enableAnnotationInfo) {
+        if (!(isField ? scanResult().scanSpec.enableFieldInfo : scanResult().scanSpec.enableMethodInfo)
+                || !scanResult().scanSpec.enableAnnotationInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enable" + (isField ? "Field" : "Method")
                     + "Info() and " + "#enableAnnotationInfo() before #scan()");
         }
@@ -2095,8 +2110,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     private ClassInfoList getClassesWithFieldOrMethodAnnotation(final RelType relType) {
         final var isField = relType == RelType.CLASSES_WITH_FIELD_ANNOTATION
                 || relType == RelType.CLASSES_WITH_NONPRIVATE_FIELD_ANNOTATION;
-        if (!(isField ? scanResult.scanSpec.enableFieldInfo : scanResult.scanSpec.enableMethodInfo)
-                || !scanResult.scanSpec.enableAnnotationInfo) {
+        if (!(isField ? scanResult().scanSpec.enableFieldInfo : scanResult().scanSpec.enableMethodInfo)
+                || !scanResult().scanSpec.enableAnnotationInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enable" + (isField ? "Field" : "Method")
                     + "Info() and " + "#enableAnnotationInfo() before #scan()");
         }
@@ -2140,7 +2155,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 return annotationInfoRef;
             }
 
-            if (!scanResult.scanSpec.enableAnnotationInfo) {
+            if (!scanResult().scanSpec.enableAnnotationInfo) {
                 throw new IllegalArgumentException("Please call ClassGraph#enableAnnotationInfo() before #scan()");
             }
 
@@ -2169,7 +2184,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return An {@link AnnotationInfo} object representing the annotation on this
      *         class, or null if the class does not have the annotation.
      */
-    public AnnotationInfo getAnnotationInfo(final Class<? extends Annotation> annotation) {
+    public @Nullable AnnotationInfo getAnnotationInfo(final Class<? extends Annotation> annotation) {
         Assert.isAnnotation(annotation);
         return getAnnotationInfo(annotation.getName());
     }
@@ -2194,7 +2209,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return An {@link AnnotationInfo} object representing the named annotation on
      *         this class, or null if the class does not have the named annotation.
      */
-    public AnnotationInfo getAnnotationInfo(final String annotationName) {
+    public @Nullable AnnotationInfo getAnnotationInfo(final String annotationName) {
         return getAnnotationInfo().get(annotationName);
     }
 
@@ -2255,7 +2270,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         list.
      */
     public AnnotationParameterValueList getAnnotationDefaultParameterValues() {
-        if (!scanResult.scanSpec.enableAnnotationInfo) {
+        if (!scanResult().scanSpec.enableAnnotationInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableAnnotationInfo() before #scan()");
         }
         if (!isAnnotation()) {
@@ -2283,7 +2298,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         subclasses.
      */
     public ClassInfoList getClassesWithAnnotation() {
-        if (!scanResult.scanSpec.enableAnnotationInfo) {
+        if (!scanResult().scanSpec.enableAnnotationInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableAnnotationInfo() before #scan()");
         }
 
@@ -2332,9 +2347,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @param getStaticInitializerMethods whether to get static initializer methods
      * @return the declared method info
      */
-    private MethodInfoList getDeclaredMethodInfo(final String methodName, final boolean getNormalMethods,
+    private MethodInfoList getDeclaredMethodInfo(final @Nullable String methodName, final boolean getNormalMethods,
             final boolean getConstructorMethods, final boolean getStaticInitializerMethods) {
-        if (!scanResult.scanSpec.enableMethodInfo) {
+        if (!scanResult().scanSpec.enableMethodInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableMethodInfo() before #scan()");
         }
         if (methodInfo == null) {
@@ -2389,9 +2404,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @param getStaticInitializerMethods whether to get static initializer methods
      * @return the method info
      */
-    private MethodInfoList getMethodInfo(final String methodName, final boolean getNormalMethods,
+    private MethodInfoList getMethodInfo(final @Nullable String methodName, final boolean getNormalMethods,
             final boolean getConstructorMethods, final boolean getStaticInitializerMethods) {
-        if (!scanResult.scanSpec.enableMethodInfo) {
+        if (!scanResult().scanSpec.enableMethodInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableMethodInfo() before #scan()");
         }
         // Implement method/constructor overriding
@@ -3007,7 +3022,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *                                  not called prior to initiating the scan.
      */
     public FieldInfoList getDeclaredFieldInfo() {
-        if (!scanResult.scanSpec.enableFieldInfo) {
+        if (!scanResult().scanSpec.enableFieldInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableFieldInfo() before #scan()");
         }
         return fieldInfo == null ? FieldInfoList.EMPTY_LIST : fieldInfo;
@@ -3037,7 +3052,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *                                  not called prior to initiating the scan.
      */
     public FieldInfoList getFieldInfo() {
-        if (!scanResult.scanSpec.enableFieldInfo) {
+        if (!scanResult().scanSpec.enableFieldInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableFieldInfo() before #scan()");
         }
         // Implement field overriding
@@ -3117,8 +3132,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @throws IllegalArgumentException if {@link ClassGraph#enableFieldInfo()} was
      *                                  not called prior to initiating the scan.
      */
-    public FieldInfo getDeclaredFieldInfo(final String fieldName) {
-        if (!scanResult.scanSpec.enableFieldInfo) {
+    public @Nullable FieldInfo getDeclaredFieldInfo(final String fieldName) {
+        if (!scanResult().scanSpec.enableFieldInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableFieldInfo() before #scan()");
         }
         if (fieldInfo == null) {
@@ -3156,8 +3171,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @throws IllegalArgumentException if {@link ClassGraph#enableFieldInfo()} was
      *                                  not called prior to initiating the scan.
      */
-    public FieldInfo getFieldInfo(final String fieldName) {
-        if (!scanResult.scanSpec.enableFieldInfo) {
+    public @Nullable FieldInfo getFieldInfo(final String fieldName) {
+        if (!scanResult().scanSpec.enableFieldInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableFieldInfo() before #scan()");
         }
         // Implement field overriding
@@ -3369,7 +3384,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *                                  causes an invalid type signature to be
      *                                  written to the classfile).
      */
-    public ClassTypeSignature getTypeSignature() {
+    public @Nullable ClassTypeSignature getTypeSignature() {
         synchronized (this) {
             if (typeSignatureStr == null) {
                 return null;
@@ -3399,7 +3414,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         parameters, or null if not available (probably indicating the class
      *         is not generic).
      */
-    public String getTypeSignatureStr() {
+    public @Nullable String getTypeSignatureStr() {
         return typeSignatureStr;
     }
 
@@ -3459,7 +3474,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return The name of the source file of this class, or {@code null} if not
      *         available
      */
-    public String getSourceFile() {
+    public @Nullable String getSourceFile() {
         return sourceFile;
     }
 
@@ -3479,7 +3494,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         // Calling classfileResource.getClasspathElementURI() rather than
         // classpathElement.getURI() will append
         // any automatically-stripped package root prefix
-        return classfileResource.getClasspathElementURI();
+        return Objects.requireNonNull(classfileResource).getClasspathElementURI();
     }
 
     /**
@@ -3516,7 +3531,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         directly to RAM, rather than to a temp file on disk (e.g. if the temp
      *         dir is not writeable).
      */
-    public File getClasspathElementFile() {
+    public @Nullable File getClasspathElementFile() {
         if (classpathElement == null) {
             throw new IllegalArgumentException("Classpath element is not known for this classpath element");
         }
@@ -3532,7 +3547,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         or null if this class was found in a directory or jar in the
      *         classpath. (See also {@link #getClasspathElementFile()}.)
      */
-    public ModuleRef getModuleRef() {
+    public @Nullable ModuleRef getModuleRef() {
         if (classpathElement == null) {
             throw new IllegalArgumentException("Classpath element is not known for this classpath element");
         }
@@ -3547,7 +3562,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         e.g. because this class was not itself accepted, but was referenced
      *         by an accepted class.
      */
-    public Resource getResource() {
+    public @Nullable Resource getResource() {
         return classfileResource;
     }
 
@@ -3583,7 +3598,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *                                  the requested type.
      */
     @Override
-    public <T> Class<T> loadClass(final Class<T> superclassOrInterfaceType, final boolean ignoreExceptions) {
+    public <T> @Nullable Class<T> loadClass(final Class<T> superclassOrInterfaceType,
+            final boolean ignoreExceptions) {
         return super.loadClass(superclassOrInterfaceType, ignoreExceptions);
     }
 
@@ -3606,7 +3622,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *                                  casting it to the requested type.
      */
     @Override
-    public <T> Class<T> loadClass(final Class<T> superclassOrInterfaceType) {
+    public <T> @Nullable Class<T> loadClass(final Class<T> superclassOrInterfaceType) {
         return super.loadClass(superclassOrInterfaceType, /* ignoreExceptions = */ false);
     }
 
@@ -3622,7 +3638,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *                                  problems loading the class.
      */
     @Override
-    public Class<?> loadClass(final boolean ignoreExceptions) {
+    public @Nullable Class<?> loadClass(final boolean ignoreExceptions) {
         return super.loadClass(ignoreExceptions);
     }
 
@@ -3635,7 +3651,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @throws IllegalArgumentException if there were problems loading the class.
      */
     @Override
-    public Class<?> loadClass() {
+    public @Nullable Class<?> loadClass() {
         return super.loadClass(/* ignoreExceptions = */ false);
     }
 
@@ -3669,7 +3685,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * ScanResult)
      */
     @Override
-    void setScanResult(final ScanResult scanResult) {
+    void setScanResult(final @Nullable ScanResult scanResult) {
         super.setScanResult(scanResult);
         if (this.typeSignature != null) {
             this.typeSignature.setScanResult(scanResult);
@@ -3745,7 +3761,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     @Override
     void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
-            final Set<ClassInfo> refdClassInfo, final LogNode log) {
+            final Set<ClassInfo> refdClassInfo, final @Nullable LogNode log) {
         // Add this class to the set of references
         super.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
         if (this.referencedClassNames != null) {
@@ -3796,7 +3812,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         in the result.
      */
     public ClassInfoList getClassDependencies() {
-        if (!scanResult.scanSpec.enableInterClassDependencies) {
+        if (!scanResult().scanSpec.enableInterClassDependencies) {
             throw new IllegalArgumentException("Please call ClassGraph#enableInterClassDependencies() before #scan()");
         }
         return referencedClasses == null ? ClassInfoList.EMPTY_LIST : referencedClasses;
@@ -3822,7 +3838,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return Whether the objects were equal.
      */
     @Override
-    public boolean equals(final Object obj) {
+    public boolean equals(final @Nullable Object obj) {
         if (obj == this) {
             return true;
         }

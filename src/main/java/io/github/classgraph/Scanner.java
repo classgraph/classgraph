@@ -76,6 +76,7 @@ import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
+import org.jspecify.annotations.Nullable;
 
 /** The classpath scanner. */
 class Scanner implements Callable<ScanResult> {
@@ -98,14 +99,14 @@ class Scanner implements Callable<ScanResult> {
     /** The number of parallel tasks. */
     private final int numParallelTasks;
 
-    /** The scan result processor. */
-    private final ScanResultProcessor scanResultProcessor;
+    /** The scan result processor, or null if none was provided. */
+    private final @Nullable ScanResultProcessor scanResultProcessor;
 
-    /** The failure handler. */
-    private final FailureHandler failureHandler;
+    /** The failure handler, or null if none was provided. */
+    private final @Nullable FailureHandler failureHandler;
 
     /** The toplevel log. */
-    private final LogNode topLevelLog;
+    private final @Nullable LogNode topLevelLog;
 
     /** The classpath finder. */
     private final ClasspathFinder classpathFinder;
@@ -132,8 +133,9 @@ class Scanner implements Callable<ScanResult> {
      * @throws InterruptedException if interrupted
      */
     Scanner(final boolean performScan, final ScanSpec scanSpec, final ExecutorService executorService,
-            final int numParallelTasks, final ScanResultProcessor scanResultProcessor,
-            final FailureHandler failureHandler, final ReflectionUtils reflectionUtils, final LogNode topLevelLog)
+            final int numParallelTasks, final @Nullable ScanResultProcessor scanResultProcessor,
+            final @Nullable FailureHandler failureHandler, final ReflectionUtils reflectionUtils,
+            final @Nullable LogNode topLevelLog)
             throws InterruptedException {
         this.scanSpec = scanSpec;
         this.performScan = performScan;
@@ -186,7 +188,7 @@ class Scanner implements Callable<ScanResult> {
                                 || scanSpec.moduleAcceptReject.isSpecificallyAcceptedAndNotRejected(moduleName)) {
                             // Create a new ClasspathElementModule
                             final var classpathElementModule = new ClasspathElementModule(systemModuleRef,
-                                    nestedJarHandler.moduleRefToModuleReaderRecyclerMap,
+                                    nestedJarHandler.moduleRefToModuleReaderRecyclerMap(),
                                     new ClasspathEntryWorkUnit(null, defaultClassLoader, null, moduleOrder.size(), "",
                                             nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES),
                                     scanSpec);
@@ -211,7 +213,7 @@ class Scanner implements Callable<ScanResult> {
                         if (scanSpec.moduleAcceptReject.isAcceptedAndNotRejected(moduleName)) {
                             // Create a new ClasspathElementModule
                             final var classpathElementModule = new ClasspathElementModule(nonSystemModuleRef,
-                                    nestedJarHandler.moduleRefToModuleReaderRecyclerMap,
+                                    nestedJarHandler.moduleRefToModuleReaderRecyclerMap(),
                                     new ClasspathEntryWorkUnit(null, defaultClassLoader, null, moduleOrder.size(), "",
                                             nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES),
                                     scanSpec);
@@ -299,7 +301,7 @@ class Scanner implements Callable<ScanResult> {
      * @throws InterruptedException if a worker was interrupted.
      * @throws ExecutionException   If a worker threw an uncaught exception.
      */
-    private <W> void processWorkUnits(final Collection<W> workUnits, final LogNode log,
+    private <W> void processWorkUnits(final Collection<W> workUnits, final @Nullable LogNode log,
             final WorkUnitProcessor<W> workUnitProcessor) throws InterruptedException, ExecutionException {
         WorkQueue.runWorkQueue(workUnits, executorService, interruptionChecker, numParallelTasks, log,
                 workUnitProcessor);
@@ -316,15 +318,18 @@ class Scanner implements Callable<ScanResult> {
     static class ClasspathEntryWorkUnit {
         /**
          * The classpath entry object (a {@link String} path, {@link Path}, {@link URL}
-         * or {@link URI}).
+         * or {@link URI}), or null for module classpath entries.
          */
-        Object classpathEntryObj;
+        @Nullable Object classpathEntryObj;
 
-        /** The classloader the classpath entry object was obtained from. */
-        final ClassLoader classLoader;
+        /**
+         * The classloader the classpath entry object was obtained from, or null if
+         * unknown.
+         */
+        final @Nullable ClassLoader classLoader;
 
-        /** The parent classpath element. */
-        final ClasspathElement parentClasspathElement;
+        /** The parent classpath element, or null if this is a toplevel entry. */
+        final @Nullable ClasspathElement parentClasspathElement;
 
         /** The order within the parent classpath element. */
         final int classpathElementIdxWithinParent;
@@ -353,8 +358,8 @@ class Scanner implements Callable<ScanResult> {
          * @param packageRootPrefixes             the automatic package root prefixes to
          *                                        look for within this classpath element
          */
-        public ClasspathEntryWorkUnit(final Object classpathEntryObj, final ClassLoader classLoader,
-                final ClasspathElement parentClasspathElement, final int classpathElementIdxWithinParent,
+        public ClasspathEntryWorkUnit(final @Nullable Object classpathEntryObj, final @Nullable ClassLoader classLoader,
+                final @Nullable ClasspathElement parentClasspathElement, final int classpathElementIdxWithinParent,
                 final String packageRootPrefix, final String[] packageRootPrefixes) {
             this.classpathEntryObj = classpathEntryObj;
             this.classLoader = classLoader;
@@ -379,7 +384,7 @@ class Scanner implements Callable<ScanResult> {
      * @throws IOException if the classpath entry object is null, or could not be
      *                     normalized.
      */
-    private static Object normalizeClasspathEntry(final Object classpathEntryObj) throws IOException {
+    private static Object normalizeClasspathEntry(final @Nullable Object classpathEntryObj) throws IOException {
         if (classpathEntryObj == null) {
             // Should not happen
             throw new IOException("Got null classpath entry object");
@@ -512,7 +517,7 @@ class Scanner implements Callable<ScanResult> {
     classpathEntryObjToClasspathEntrySingletonMap = //
             new SingletonMap<>() {
                 @Override
-                public ClasspathElement newInstance(final Object classpathEntryObj, final LogNode log)
+                public ClasspathElement newInstance(final Object classpathEntryObj, final @Nullable LogNode log)
                         throws IOException, InterruptedException {
                     // Overridden by a NewInstanceFactory
                     throw new IOException("Should not reach here");
@@ -535,14 +540,15 @@ class Scanner implements Callable<ScanResult> {
         return (workUnit, workQueue, log) -> {
             try {
                 // Normalize the classpath entry object, and update it in the work unit
-                workUnit.classpathEntryObj = normalizeClasspathEntry(workUnit.classpathEntryObj);
+                final var classpathEntryObj = normalizeClasspathEntry(workUnit.classpathEntryObj);
+                workUnit.classpathEntryObj = classpathEntryObj;
 
                 // Determine if classpath entry is a jar or dir
                 final boolean isJar;
-                if (workUnit.classpathEntryObj instanceof URL || workUnit.classpathEntryObj instanceof URI) {
+                if (classpathEntryObj instanceof URL || classpathEntryObj instanceof URI) {
                     // URLs and URIs always point to jars
                     isJar = true;
-                } else if (workUnit.classpathEntryObj instanceof final Path path) {
+                } else if (classpathEntryObj instanceof final Path path) {
                     if ("JrtFileSystem".equals(path.getFileSystem().getClass().getSimpleName())) {
                         // Ignore JrtFileSystem (#553) -- paths are of form:
                         // /modules/java.base/module-info.class
@@ -566,14 +572,13 @@ class Scanner implements Callable<ScanResult> {
                 } else {
                     // Should not happen
                     throw new IOException("Got unexpected classpath entry object type "
-                            + workUnit.classpathEntryObj.getClass().getName() + " : " + workUnit.classpathEntryObj);
+                            + classpathEntryObj.getClass().getName() + " : " + classpathEntryObj);
                 }
 
                 // Create a ClasspathElementZip or ClasspathElementDir from the classpath entry
                 // Use a singleton map to ensure that classpath elements are only opened once
                 // per unique Path, URL, or URI
-                final var classpathElement = classpathEntryObjToClasspathEntrySingletonMap.get(
-                        workUnit.classpathEntryObj, log,
+                final var classpathElement = classpathEntryObjToClasspathEntrySingletonMap.get(classpathEntryObj, log,
                         // A NewInstanceFactory is used here because workUnit has to be passed in,
                         // and the standard newInstance API doesn't support an extra parameter like this
                         () -> {
@@ -607,14 +612,15 @@ class Scanner implements Callable<ScanResult> {
                 // from the Class-Path manifest entry of another classpath element, and which of
                 // those work
                 // units wins the race to create the singleton is nondeterministic (#810).
-                final var isToplevelRef = workUnit.parentClasspathElement == null;
-                if (isToplevelRef) {
+                final var parentClasspathElement = workUnit.parentClasspathElement;
+                if (parentClasspathElement == null) {
                     toplevelClasspathEltsOut.add(classpathElement);
                 } else {
                     // Link classpath element to its parent, if it is not a toplevel element
-                    workUnit.parentClasspathElement.childClasspathElements.add(classpathElement);
+                    parentClasspathElement.childClasspathElements.add(classpathElement);
                 }
-                classpathElement.addReference(isToplevelRef, workUnit.classpathElementIdxWithinParent,
+                classpathElement.addReference(parentClasspathElement == null,
+                        workUnit.classpathElementIdxWithinParent,
                         workUnit.classLoader);
 
             } catch (final Exception e) {
@@ -703,7 +709,7 @@ class Scanner implements Callable<ScanResult> {
          */
         @Override
         public void processWorkUnit(final ClassfileScanWorkUnit workUnit,
-                final WorkQueue<ClassfileScanWorkUnit> workQueue, final LogNode log) throws InterruptedException {
+                final WorkQueue<ClassfileScanWorkUnit> workQueue, final @Nullable LogNode log) throws InterruptedException {
             // Classfile scan log entries are listed inline below the entry that was added
             // to the log
             // when the path of the corresponding resource was found, by using the LogNode
@@ -762,7 +768,7 @@ class Scanner implements Callable<ScanResult> {
      * @param log           the log
      */
     private void findNestedClasspathElements(final List<SimpleEntry<String, ClasspathElement>> classpathElts,
-            final LogNode log) {
+            final @Nullable LogNode log) {
         // Sort classpath elements into lexicographic order
         CollectionUtils.sortIfNotEmpty(classpathElts,
                 Comparator.comparing(SimpleEntry<String, ClasspathElement>::getKey));
@@ -822,7 +828,7 @@ class Scanner implements Callable<ScanResult> {
      * @param classpathFinderLog                the classpath finder log
      */
     private void preprocessClasspathElementsByType(final List<ClasspathElement> finalTraditionalClasspathEltOrder,
-            final LogNode classpathFinderLog) {
+            final @Nullable LogNode classpathFinderLog) {
         final List<SimpleEntry<String, ClasspathElement>> classpathEltDirs = new ArrayList<>();
         final List<SimpleEntry<String, ClasspathElement>> classpathEltZips = new ArrayList<>();
         for (final ClasspathElement classpathElt : finalTraditionalClasspathEltOrder) {
@@ -884,7 +890,7 @@ class Scanner implements Callable<ScanResult> {
      * @param classpathElementOrder the classpath element order
      * @param maskLog               the mask log
      */
-    private void maskClassfiles(final List<ClasspathElement> classpathElementOrder, final LogNode maskLog) {
+    private void maskClassfiles(final List<ClasspathElement> classpathElementOrder, final @Nullable LogNode maskLog) {
         final Set<String> acceptedClasspathRelativePathsFound = new HashSet<>();
         for (var classpathIdx = 0; classpathIdx < classpathElementOrder.size(); classpathIdx++) {
             final var classpathElement = classpathElementOrder.get(classpathIdx);
@@ -905,7 +911,7 @@ class Scanner implements Callable<ScanResult> {
      * @param maskLog               the mask log
      */
     private static void maskDuplicateResources(final List<ClasspathElement> classpathElementOrder,
-            final LogNode maskLog) {
+            final @Nullable LogNode maskLog) {
         // Only a relative path that occurs more than once can be a duplicate of the
         // same file, and computing the
         // URI of a resource is not free (for modules it requires a reflective call to
@@ -1172,8 +1178,8 @@ class Scanner implements Callable<ScanResult> {
                 topLevelLog.log("Only returning classpath elements (not performing a scan)");
             }
             return new ScanResult(scanSpec, finalClasspathEltOrderFiltered, finalClasspathEltOrderStrs, classpathFinder,
-                    /* classNameToClassInfo = */ null, /* packageNameToPackageInfo = */ null,
-                    /* moduleNameToModuleInfo = */ null, /* fileToLastModified = */ null, nestedJarHandler,
+                    /* classNameToClassInfo = */ new HashMap<>(), /* packageNameToPackageInfo = */ new HashMap<>(),
+                    /* moduleNameToModuleInfo = */ new HashMap<>(), /* fileToLastModified = */ null, nestedJarHandler,
                     topLevelLog);
         }
     }
@@ -1184,13 +1190,15 @@ class Scanner implements Callable<ScanResult> {
      * Determine the unique ordered classpath elements, and run a scan looking for
      * file or classfile matches if necessary.
      *
-     * @return the scan result
+     * @return the scan result, or null if a {@link FailureHandler} was provided and
+     *         the scan failed (in which case the failure handler was called, and the
+     *         result is ignored by the caller).
      * @throws InterruptedException  if scanning was interrupted
      * @throws CancellationException if scanning was cancelled
      * @throws ExecutionException    if a worker threw an uncaught exception
      */
     @Override
-    public ScanResult call() throws InterruptedException, CancellationException, ExecutionException {
+    public @Nullable ScanResult call() throws InterruptedException, CancellationException, ExecutionException {
         ScanResult scanResult = null;
         final var scanStart = System.currentTimeMillis();
         var removeTemporaryFilesAfterScan = scanSpec.removeTemporaryFilesAfterScan;

@@ -62,6 +62,7 @@ import java.util.concurrent.LinkedTransferQueue;
 import java.util.concurrent.TransferQueue;
 
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A cache of field types and associated constructors for each encountered
@@ -153,9 +154,11 @@ class ClassFieldCache {
      *
      * @param rawType                        the raw type
      * @param returnNullIfNotMapOrCollection return null if not map or collection
-     * @return the concrete type
+     * @return the concrete type, or null if {@code rawType} is not a map or
+     *         collection and {@code returnNullIfNotMapOrCollection} is true
      */
-    private static Class<?> getConcreteType(final Class<?> rawType, final boolean returnNullIfNotMapOrCollection) {
+    private static @Nullable Class<?> getConcreteType(final Class<?> rawType,
+            final boolean returnNullIfNotMapOrCollection) {
         // This list is not complete (e.g. EnumMap cannot be instantiated directly, you
         // need to pass the
         // enum key type into a factory method), but this should cover a lot of the
@@ -233,8 +236,10 @@ class ClassFieldCache {
      * constructor with size hint.
      *
      * @param cls the class
-     * @return the constructor with size hint for concrete type of class
+     * @return the constructor with size hint for concrete type of class, or null if
+     *         there is none
      */
+    @Nullable
     Constructor<?> getConstructorWithSizeHintForConcreteTypeOf(final Class<?> cls) {
         // Check cache
         final Constructor<?> constructor = constructorForConcreteTypeWithSizeHint.get(cls);

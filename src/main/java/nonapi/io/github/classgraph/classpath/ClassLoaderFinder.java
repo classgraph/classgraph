@@ -33,6 +33,7 @@ import java.util.LinkedHashSet;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
+import org.jspecify.annotations.Nullable;
 
 /** A class to find the unique ordered classpath elements. */
 public class ClassLoaderFinder {
@@ -87,9 +88,9 @@ public class ClassLoaderFinder {
      * @param reflectionUtils The reflection utils instance.
      * @param log             The log.
      */
-    ClassLoaderFinder(final ScanSpec scanSpec, final ReflectionUtils reflectionUtils, final LogNode log) {
+    ClassLoaderFinder(final ScanSpec scanSpec, final ReflectionUtils reflectionUtils, final @Nullable LogNode log) {
         LinkedHashSet<ClassLoader> classLoadersUnique;
-        LogNode classLoadersFoundLog;
+        @Nullable LogNode classLoadersFoundLog;
         if (scanSpec.overrideClassLoaders == null) {
             // ClassLoaders were not overridden
 

@@ -48,16 +48,17 @@ import java.util.Map;
 
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.utils.VersionFinder.OperatingSystem;
+import org.jspecify.annotations.Nullable;
 
 /**
  * File utilities.
  */
 public final class FileUtils {
     /** The Unsafe.invokeCleaner() method. */
-    private static Method cleanerCleanMethod;
+    private static @Nullable Method cleanerCleanMethod;
 
     /** The Unsafe object. */
-    private static Object theUnsafe;
+    private static @Nullable Object theUnsafe;
 
     /**
      * True if the reflective handles above have been initialized. Volatile, and
@@ -74,7 +75,7 @@ public final class FileUtils {
      * current directory). Volatile, so that the lazy initialization in
      * {@link #currDirPath()} is not a data race.
      */
-    private static volatile String currDirPath;
+    private static volatile @Nullable String currDirPath;
 
     /**
      * The maximum size of a file buffer array. Eight bytes smaller than
@@ -578,7 +579,7 @@ public final class FileUtils {
      * @param log        the log
      * @return true if successful
      */
-    private static boolean closeDirectByteBufferPrivileged(final ByteBuffer byteBuffer, final LogNode log) {
+    private static boolean closeDirectByteBufferPrivileged(final ByteBuffer byteBuffer, final @Nullable LogNode log) {
         if (!byteBuffer.isDirect()) {
             // Nothing to do
             return true;
@@ -634,7 +635,7 @@ public final class FileUtils {
      * @return True if the byteBuffer was closed/unmapped.
      */
     public static boolean closeDirectByteBuffer(final ByteBuffer byteBuffer, final ReflectionUtils reflectionUtils,
-            final LogNode log) {
+            final @Nullable LogNode log) {
         if (byteBuffer != null && byteBuffer.isDirect()) {
             // Double-checked locking, so that two threads calling this for the first time
             // concurrently cannot
@@ -698,7 +699,7 @@ public final class FileUtils {
      * @return a new shared {@code Arena} instance, or null if the arena API is not
      *         available (JDK older than 22).
      */
-    public static Object openArena(final ReflectionUtils reflectionUtils) {
+    public static @Nullable Object openArena(final ReflectionUtils reflectionUtils) {
         if (VersionFinder.JAVA_MAJOR_VERSION < 22) {
             // The java.lang.foreign API was only finalized in JDK 22 (the preview versions
             // of the API in
@@ -727,7 +728,7 @@ public final class FileUtils {
      * @return the allocated {@link ByteBuffer}, or null if the buffer could not be
      *         allocated.
      */
-    public static ByteBuffer allocateDirectByteBufferUsingArena(final Object arena, final long size,
+    public static @Nullable ByteBuffer allocateDirectByteBufferUsingArena(final Object arena, final long size,
             final ReflectionUtils reflectionUtils) {
         // Invoke arena.allocate(size).asByteBuffer()
         final var memorySegment = reflectionUtils.invokeMethod(/* throwException = */ false, arena, "allocate",
@@ -758,7 +759,7 @@ public final class FileUtils {
      *                     succeed if retried after garbage collection, see
      *                     FileSlice).
      */
-    public static ByteBuffer mapFileUsingArena(final Object arena, final FileChannel fileChannel, final long position,
+    public static @Nullable ByteBuffer mapFileUsingArena(final Object arena, final FileChannel fileChannel, final long position,
             final long size, final ReflectionUtils reflectionUtils) throws IOException {
         final Class<?> arenaClass = reflectionUtils.classForNameOrNull(ARENA_CLASS_NAME);
         if (arenaClass == null) {
@@ -802,7 +803,7 @@ public final class FileUtils {
      * @param log             the log
      * @return true if the arena was successfully closed.
      */
-    public static boolean closeArena(final Object arena, final ReflectionUtils reflectionUtils, final LogNode log) {
+    public static boolean closeArena(final Object arena, final ReflectionUtils reflectionUtils, final @Nullable LogNode log) {
         try {
             reflectionUtils.invokeMethod(/* throwException = */ true, arena, "close");
             return true;

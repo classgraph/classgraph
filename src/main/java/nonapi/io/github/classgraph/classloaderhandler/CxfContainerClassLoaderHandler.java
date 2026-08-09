@@ -33,6 +33,7 @@ import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
+import org.jspecify.annotations.Nullable;
 
 /**
  * ClassLoaderHandler that is able to extract the URLs from a
@@ -40,14 +41,14 @@ import nonapi.io.github.classgraph.utils.LogNode;
  */
 class CxfContainerClassLoaderHandler implements ClassLoaderHandler {
     @Override
-    public boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
+    public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
         return ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass,
                 "org.apache.openejb.server.cxf.transport.util.CxfContainerClassLoader");
     }
 
     @Override
     public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
-            final LogNode log) {
+            final @Nullable LogNode log) {
         try {
             classLoaderOrder.delegateTo(
                     Class.forName("org.apache.openejb.server.cxf.transport.util.CxfUtil").getClassLoader(),
@@ -66,7 +67,7 @@ class CxfContainerClassLoaderHandler implements ClassLoaderHandler {
 
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-            final ScanSpec scanSpec, final LogNode log) {
+            final ScanSpec scanSpec, final @Nullable LogNode log) {
         // Classloader doesn't do any classloading of its own, it only delegates to
         // other classloaders
     }

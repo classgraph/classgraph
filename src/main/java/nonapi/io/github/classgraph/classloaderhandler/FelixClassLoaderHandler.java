@@ -39,6 +39,7 @@ import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Custom Class Loader Handler for OSGi Felix ClassLoader.
@@ -51,7 +52,7 @@ import nonapi.io.github.classgraph.utils.LogNode;
  */
 class FelixClassLoaderHandler implements ClassLoaderHandler {
     @Override
-    public boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
+    public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
         return ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass,
                 "org.apache.felix.framework.BundleWiringImpl$BundleClassLoaderJava5")
                 || ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass,
@@ -60,7 +61,7 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
 
     @Override
     public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
-            final LogNode log) {
+            final @Nullable LogNode log) {
         classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
         classLoaderOrder.add(classLoader, log);
     }
@@ -70,25 +71,25 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
      *
      * @param content         the content object
      * @param reflectionUtils the reflection utils instance
-     * @return the content location
+     * @return the content location, or null if it could not be determined
      */
-    private static File getContentLocation(final Object content, final ReflectionUtils reflectionUtils) {
+    private static @Nullable File getContentLocation(final Object content, final ReflectionUtils reflectionUtils) {
         return (File) reflectionUtils.invokeMethod(false, content, "getFile");
     }
 
     /**
      * Adds the bundle.
      *
-     * @param bundleWiring      the bundle wiring
+     * @param bundleWiring      the bundle wiring, or null
      * @param classLoader       the classloader
      * @param classpathOrderOut the classpath order out
      * @param bundles           the bundles
      * @param scanSpec          the scan spec
      * @param log               the log
      */
-    private static void addBundle(final Object bundleWiring, final ClassLoader classLoader,
-            final ClasspathOrder classpathOrderOut, final Set<Object> bundles, final ScanSpec scanSpec,
-            final LogNode log) {
+    private static void addBundle(final @Nullable Object bundleWiring, final ClassLoader classLoader,
+            final ClasspathOrder classpathOrderOut, final Set<@Nullable Object> bundles, final ScanSpec scanSpec,
+            final @Nullable LogNode log) {
         // Track the bundles we've processed to prevent loops
         bundles.add(bundleWiring);
 
@@ -121,9 +122,9 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
 
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-            final ScanSpec scanSpec, final LogNode log) {
+            final ScanSpec scanSpec, final @Nullable LogNode log) {
         // Get the wiring for the ClassLoader's bundle
-        final Set<Object> bundles = new HashSet<>();
+        final Set<@Nullable Object> bundles = new HashSet<>();
         final var bundleWiring = classpathOrder.reflectionUtils.getFieldVal(false, classLoader, "m_wiring");
         addBundle(bundleWiring, classLoader, classpathOrder, bundles, scanSpec, log);
 

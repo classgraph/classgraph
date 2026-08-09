@@ -36,6 +36,7 @@ import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
+import org.jspecify.annotations.Nullable;
 
 /** The registry for ClassLoaderHandler classes. */
 public final class ClassLoaderHandlerRegistry {
@@ -214,7 +215,7 @@ public final class ClassLoaderHandlerRegistry {
          * @return true, if this {@link ClassLoaderHandler} can handle the
          *         {@link ClassLoader}.
          */
-        public boolean canHandle(final Class<?> classLoader, final LogNode log) {
+        public boolean canHandle(final Class<?> classLoader, final @Nullable LogNode log) {
             return classLoaderHandler.canHandle(classLoader, log);
         }
 
@@ -227,7 +228,7 @@ public final class ClassLoaderHandlerRegistry {
          * @param log              the log
          */
         public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
-                final LogNode log) {
+                final @Nullable LogNode log) {
             classLoaderHandler.findClassLoaderOrder(classLoader, classLoaderOrder, log);
         }
 
@@ -242,7 +243,7 @@ public final class ClassLoaderHandlerRegistry {
          * @param log            the log.
          */
         public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-                final ScanSpec scanSpec, final LogNode log) {
+                final ScanSpec scanSpec, final @Nullable LogNode log) {
             classLoaderHandler.findClasspathOrder(classLoader, classpathOrder, scanSpec, log);
         }
     }

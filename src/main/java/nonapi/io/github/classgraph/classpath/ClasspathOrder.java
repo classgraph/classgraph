@@ -53,6 +53,7 @@ import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
+import org.jspecify.annotations.Nullable;
 
 /** A class to find the unique ordered classpath elements. */
 public class ClasspathOrder {
@@ -124,7 +125,7 @@ public class ClasspathOrder {
         public final Object classpathEntryObj;
 
         /** The classloader the classpath element was obtained from. */
-        public final ClassLoader classLoader;
+        public final @Nullable ClassLoader classLoader;
 
         /**
          * The automatic package root prefixes to look for within this classpath
@@ -142,7 +143,7 @@ public class ClasspathOrder {
          * @param packageRootPrefixes the automatic package root prefixes to look for
          *                            within this classpath element.
          */
-        public ClasspathEntry(final Object classpathEntryObj, final ClassLoader classLoader,
+        public ClasspathEntry(final Object classpathEntryObj, final @Nullable ClassLoader classLoader,
                 final String[] packageRootPrefixes) {
             this.classpathEntryObj = classpathEntryObj;
             this.classLoader = classLoader;
@@ -155,7 +156,7 @@ public class ClasspathOrder {
         }
 
         @Override
-        public boolean equals(final Object obj) {
+        public boolean equals(final @Nullable Object obj) {
             if (obj == this) {
                 return true;
             }
@@ -210,7 +211,7 @@ public class ClasspathOrder {
      * @param packageRootPrefixes the package root prefixes, or null to reset to the
      *                            default prefixes.
      */
-    public void setPackageRootPrefixes(final String[] packageRootPrefixes) {
+    public void setPackageRootPrefixes(final String @Nullable [] packageRootPrefixes) {
         this.currPackageRootPrefixes = packageRootPrefixes == null
                 ? ClassLoaderHandlerRegistry.DEFAULT_PACKAGE_ROOT_PREFIXES
                 : packageRootPrefixes;
@@ -223,7 +224,7 @@ public class ClasspathOrder {
      * @param classpathElementPath the classpath element path
      * @return true, if not filtered out
      */
-    private boolean filter(final URL classpathElementURL, final String classpathElementPath) {
+    private boolean filter(final @Nullable URL classpathElementURL, final @Nullable String classpathElementPath) {
         if (scanSpec.classpathElementFilters != null) {
             for (final Object filterObj : scanSpec.classpathElementFilters) {
                 if ((classpathElementURL != null && filterObj instanceof final ClasspathElementURLFilter urlFilter
@@ -243,10 +244,10 @@ public class ClasspathOrder {
      * @param pathEntry   the system classpath entry -- the path string should
      *                    already have been run through
      *                    FastPathResolver.resolve(FileUtils.currDirPath(), path)
-     * @param classLoader the classloader
+     * @param classLoader the classloader, or null if unknown
      * @return true, if added and unique
      */
-    boolean addSystemClasspathEntry(final String pathEntry, final ClassLoader classLoader) {
+    boolean addSystemClasspathEntry(final String pathEntry, final @Nullable ClassLoader classLoader) {
         if (classpathEntryUniqueResolvedPaths.add(pathEntry)) {
             order.add(new ClasspathEntry(pathEntry, classLoader, currPackageRootPrefixes));
             return true;
@@ -265,7 +266,7 @@ public class ClasspathOrder {
      * @return true, if added and unique
      */
     private boolean addClasspathEntry(final Object pathElement, final String pathElementStr,
-            final ClassLoader classLoader, final ScanSpec scanSpec) {
+            final @Nullable ClassLoader classLoader, final ScanSpec scanSpec) {
         // Check if classpath element path ends with an automatic package root. If so,
         // strip it off to
         // eliminate duplication, since automatic package roots are detected
@@ -345,8 +346,8 @@ public class ClasspathOrder {
      *         empty, nonexistent, or filtered out by user-specified criteria,
      *         otherwise return false.
      */
-    public boolean addClasspathEntry(final Object pathElement, final ClassLoader classLoader, final ScanSpec scanSpec,
-            final LogNode log) {
+    public boolean addClasspathEntry(final @Nullable Object pathElement, final @Nullable ClassLoader classLoader,
+            final ScanSpec scanSpec, final @Nullable LogNode log) {
         if (pathElement == null) {
             return false;
         }
@@ -583,8 +584,8 @@ public class ClasspathOrder {
      * @return true (and add the classpath element) if pathElement is not null or
      *         empty, otherwise return false.
      */
-    public boolean addClasspathEntries(final List<Object> overrideClasspath, final ClassLoader classLoader,
-            final ScanSpec scanSpec, final LogNode log) {
+    public boolean addClasspathEntries(final @Nullable List<Object> overrideClasspath, final @Nullable ClassLoader classLoader,
+            final ScanSpec scanSpec, final @Nullable LogNode log) {
         if (overrideClasspath == null || overrideClasspath.isEmpty()) {
             return false;
         } else {
@@ -605,8 +606,8 @@ public class ClasspathOrder {
      * @return true (and add the classpath element) if pathElement is not null or
      *         empty, otherwise return false.
      */
-    public boolean addClasspathPathStr(final String pathStr, final ClassLoader classLoader, final ScanSpec scanSpec,
-            final LogNode log) {
+    public boolean addClasspathPathStr(final @Nullable String pathStr, final @Nullable ClassLoader classLoader,
+            final ScanSpec scanSpec, final @Nullable LogNode log) {
         if (pathStr == null || pathStr.isEmpty()) {
             return false;
         } else {
@@ -638,8 +639,8 @@ public class ClasspathOrder {
      * @return true (and add the classpath element) if pathElement is not null or
      *         empty, otherwise return false.
      */
-    public boolean addClasspathEntryObject(final Object pathObject, final ClassLoader classLoader,
-            final ScanSpec scanSpec, final LogNode log) {
+    public boolean addClasspathEntryObject(final @Nullable Object pathObject, final @Nullable ClassLoader classLoader,
+            final ScanSpec scanSpec, final @Nullable LogNode log) {
         var valid = false;
         if (pathObject != null) {
             if (pathObject instanceof URL || pathObject instanceof URI || pathObject instanceof Path

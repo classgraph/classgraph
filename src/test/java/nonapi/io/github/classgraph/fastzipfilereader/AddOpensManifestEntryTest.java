@@ -51,7 +51,7 @@ public class AddOpensManifestEntryTest {
         final var nestedJarHandler = new NestedJarHandler(new ScanSpec(), new InterruptionChecker(),
                 new ReflectionUtils());
         try {
-            final var logicalZipFileAndPackageRoot = nestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap
+            final var logicalZipFileAndPackageRoot = nestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap()
                     .get(jarFile.getPath(), /* log = */ null);
             return logicalZipFileAndPackageRoot.getKey();
         } finally {

@@ -36,6 +36,7 @@ import java.util.Collections;
 import java.util.Objects;
 
 import nonapi.io.github.classgraph.utils.Assert;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Information on the parameters of a method.
@@ -46,23 +47,23 @@ public class MethodParameterInfo {
     /** The containing method. */
     private final MethodInfo methodInfo;
 
-    /** The annotation info. */
-    final AnnotationInfo[] annotationInfo;
+    /** The annotation info, or null if the parameter has no annotations. */
+    final AnnotationInfo @Nullable [] annotationInfo;
 
     /** The modifiers. */
     private final int modifiers;
 
-    /** The type descriptor. */
-    private final TypeSignature typeDescriptor;
+    /** The type descriptor, or null if none was found for this parameter. */
+    private final @Nullable TypeSignature typeDescriptor;
 
-    /** The type signature. */
-    private final TypeSignature typeSignature;
+    /** The type signature, or null if none was found for this parameter. */
+    private final @Nullable TypeSignature typeSignature;
 
-    /** The parameter name. */
-    private final String name;
+    /** The parameter name, or null if the parameter is unnamed. */
+    private final @Nullable String name;
 
-    /** The scan result. */
-    private ScanResult scanResult;
+    /** The scan result. Set by {@link #setScanResult(ScanResult)} after construction. */
+    private @Nullable ScanResult scanResult;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -77,8 +78,9 @@ public class MethodParameterInfo {
      * @param typeSignature  The method parameter type signature.
      * @param name           The method parameter name.
      */
-    MethodParameterInfo(final MethodInfo methodInfo, final AnnotationInfo[] annotationInfo, final int modifiers,
-            final TypeSignature typeDescriptor, final TypeSignature typeSignature, final String name) {
+    MethodParameterInfo(final MethodInfo methodInfo, final AnnotationInfo @Nullable [] annotationInfo,
+            final int modifiers, final @Nullable TypeSignature typeDescriptor,
+            final @Nullable TypeSignature typeSignature, final @Nullable String name) {
         this.methodInfo = methodInfo;
         this.name = name;
         this.modifiers = modifiers;
@@ -105,7 +107,7 @@ public class MethodParameterInfo {
      *
      * @return The method parameter name.
      */
-    public String getName() {
+    public @Nullable String getName() {
         return name;
     }
 
@@ -138,7 +140,7 @@ public class MethodParameterInfo {
      *
      * @return The method type signature, if available, else null.
      */
-    public TypeSignature getTypeSignature() {
+    public @Nullable TypeSignature getTypeSignature() {
         return typeSignature;
     }
 
@@ -147,7 +149,7 @@ public class MethodParameterInfo {
      *
      * @return The method type descriptor.
      */
-    public TypeSignature getTypeDescriptor() {
+    public @Nullable TypeSignature getTypeDescriptor() {
         return typeDescriptor;
     }
 
@@ -157,7 +159,7 @@ public class MethodParameterInfo {
      * @return The method type signature, if present, otherwise the method type
      *         descriptor.
      */
-    public TypeSignature getTypeSignatureOrTypeDescriptor() {
+    public @Nullable TypeSignature getTypeSignatureOrTypeDescriptor() {
         return typeSignature != null ? typeSignature : typeDescriptor;
     }
 
@@ -168,7 +170,7 @@ public class MethodParameterInfo {
      *         or the empty list if none.
      */
     public AnnotationInfoList getAnnotationInfo() {
-        if (!scanResult.scanSpec.enableAnnotationInfo) {
+        if (!Objects.requireNonNull(scanResult).scanSpec.enableAnnotationInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableAnnotationInfo() before #scan()");
         }
         if (annotationInfo == null || annotationInfo.length == 0) {
@@ -191,7 +193,7 @@ public class MethodParameterInfo {
      *         method parameter, or null if the method parameter does not have the
      *         annotation.
      */
-    public AnnotationInfo getAnnotationInfo(final Class<? extends Annotation> annotation) {
+    public @Nullable AnnotationInfo getAnnotationInfo(final Class<? extends Annotation> annotation) {
         Assert.isAnnotation(annotation);
         return getAnnotationInfo(annotation.getName());
     }
@@ -207,7 +209,7 @@ public class MethodParameterInfo {
      *         this method parameter, or null if the method parameter does not have
      *         the named annotation.
      */
-    public AnnotationInfo getAnnotationInfo(final String annotationName) {
+    public @Nullable AnnotationInfo getAnnotationInfo(final String annotationName) {
         return getAnnotationInfo().get(annotationName);
     }
 
@@ -266,7 +268,7 @@ public class MethodParameterInfo {
      *
      * @param scanResult the new scan result
      */
-    protected void setScanResult(final ScanResult scanResult) {
+    protected void setScanResult(final @Nullable ScanResult scanResult) {
         this.scanResult = scanResult;
         if (this.annotationInfo != null) {
             for (final AnnotationInfo ai : annotationInfo) {
@@ -316,7 +318,7 @@ public class MethodParameterInfo {
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
-    public boolean equals(final Object obj) {
+    public boolean equals(final @Nullable Object obj) {
         if (obj == this) {
             return true;
         }
@@ -375,7 +377,7 @@ public class MethodParameterInfo {
 
         modifiersToString(modifiers, buf);
 
-        getTypeSignatureOrTypeDescriptor().toString(useSimpleNames, buf);
+        Objects.requireNonNull(getTypeSignatureOrTypeDescriptor()).toString(useSimpleNames, buf);
 
         buf.append(' ');
         buf.append(name == null ? "_unnamed_param" : name);

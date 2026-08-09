@@ -37,6 +37,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
 
 import nonapi.io.github.classgraph.utils.LogNode;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A map from keys to singleton instances. Allows you to create object instance
@@ -107,8 +108,7 @@ public abstract class SingletonMap<K, V, E extends Exception> {
      */
     private static class SingletonHolder<V> {
         /** The singleton. */
-        @SuppressWarnings("null")
-        private volatile V singleton;
+        private volatile @Nullable V singleton;
 
         /**
          * Whether or not the singleton has been initialized (the count will have
@@ -123,7 +123,7 @@ public abstract class SingletonMap<K, V, E extends Exception> {
          * @throws IllegalArgumentException if this method is called more than once
          *                                  (indicating an internal inconsistency).
          */
-        void set(final V singleton) throws IllegalArgumentException {
+        void set(final @Nullable V singleton) throws IllegalArgumentException {
             if (initialized.getCount() < 1) {
                 // Should not happen
                 throw new IllegalArgumentException("Singleton already initialized");
@@ -143,6 +143,7 @@ public abstract class SingletonMap<K, V, E extends Exception> {
          * @throws InterruptedException if the thread was interrupted while waiting for
          *                              the value to be set.
          */
+        @Nullable
         V get() throws InterruptedException {
             initialized.await();
             return singleton;
@@ -161,7 +162,7 @@ public abstract class SingletonMap<K, V, E extends Exception> {
      * @throws InterruptedException if the thread was interrupted while
      *                              instantiating the singleton.
      */
-    public abstract V newInstance(K key, LogNode log) throws E, InterruptedException;
+    public abstract V newInstance(K key, @Nullable LogNode log) throws E, InterruptedException;
 
     /**
      * Create a new instance.
@@ -215,10 +216,11 @@ public abstract class SingletonMap<K, V, E extends Exception> {
      * @throws NewInstanceException   if {@link #newInstance(Object, LogNode)} threw
      *                                an exception.
      */
-    public V get(final K key, final LogNode log, final NewInstanceFactory<V, E> newInstanceFactory)
+    public V get(final K key, final @Nullable LogNode log,
+            final @Nullable NewInstanceFactory<V, E> newInstanceFactory)
             throws E, InterruptedException, NullSingletonException, NewInstanceException {
         final var singletonHolder = map.get(key);
-        @SuppressWarnings("null")
+        @Nullable
         V instance = null;
         if (singletonHolder != null) {
             // There is already a SingletonHolder in the map for this key -- get the value
@@ -300,7 +302,7 @@ public abstract class SingletonMap<K, V, E extends Exception> {
      * @throws NewInstanceException   if {@link #newInstance(Object, LogNode)} threw
      *                                an exception.
      */
-    public V get(final K key, final LogNode log)
+    public V get(final K key, final @Nullable LogNode log)
             throws E, InterruptedException, NullSingletonException, NewInstanceException {
         return get(key, log, null);
     }
@@ -353,8 +355,7 @@ public abstract class SingletonMap<K, V, E extends Exception> {
      * @return the old singleton from the map, if one was present, otherwise null.
      * @throws InterruptedException if interrupted.
      */
-    @SuppressWarnings("null")
-    public V remove(final K key) throws InterruptedException {
+    public @Nullable V remove(final K key) throws InterruptedException {
         final var val = map.remove(key);
         return val == null ? null : val.get();
     }

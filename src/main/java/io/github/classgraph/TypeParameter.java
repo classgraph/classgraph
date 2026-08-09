@@ -38,6 +38,7 @@ import io.github.classgraph.Classfile.TypePathNode;
 import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.Parser;
 import nonapi.io.github.classgraph.types.TypeUtils;
+import org.jspecify.annotations.Nullable;
 
 /** A type parameter. */
 public final class TypeParameter extends HierarchicalTypeSignature {
@@ -45,7 +46,7 @@ public final class TypeParameter extends HierarchicalTypeSignature {
     final String name;
 
     /** Class bound -- may be null. */
-    final ReferenceTypeSignature classBound;
+    final @Nullable ReferenceTypeSignature classBound;
 
     /** Interface bounds -- may be empty. */
     final List<ReferenceTypeSignature> interfaceBounds;
@@ -59,7 +60,7 @@ public final class TypeParameter extends HierarchicalTypeSignature {
      * @param classBound      The type parameter class bound.
      * @param interfaceBounds The type parameter interface bound.
      */
-    protected TypeParameter(final String identifier, final ReferenceTypeSignature classBound,
+    protected TypeParameter(final String identifier, final @Nullable ReferenceTypeSignature classBound,
             final List<ReferenceTypeSignature> interfaceBounds) {
         super();
         this.name = identifier;
@@ -81,7 +82,7 @@ public final class TypeParameter extends HierarchicalTypeSignature {
      * 
      * @return The type parameter class bound. May be null.
      */
-    public ReferenceTypeSignature getClassBound() {
+    public @Nullable ReferenceTypeSignature getClassBound() {
         return classBound;
     }
 
@@ -114,7 +115,8 @@ public final class TypeParameter extends HierarchicalTypeSignature {
      * @return the list of {@link TypeParameter} objects.
      * @throws ParseException if parsing fails
      */
-    static List<TypeParameter> parseList(final Parser parser, final String definingClassName) throws ParseException {
+    static List<TypeParameter> parseList(final Parser parser, final @Nullable String definingClassName)
+            throws ParseException {
         if (parser.peek() != '<') {
             return Collections.emptyList();
         }
@@ -184,10 +186,11 @@ public final class TypeParameter extends HierarchicalTypeSignature {
      * ScanResult)
      */
     @Override
-    void setScanResult(final ScanResult scanResult) {
+    void setScanResult(final @Nullable ScanResult scanResult) {
         super.setScanResult(scanResult);
-        if (this.classBound != null) {
-            this.classBound.setScanResult(scanResult);
+        final var bound = this.classBound;
+        if (bound != null) {
+            bound.setScanResult(scanResult);
         }
         if (interfaceBounds != null) {
             for (final ReferenceTypeSignature referenceTypeSignature : interfaceBounds) {
@@ -202,8 +205,9 @@ public final class TypeParameter extends HierarchicalTypeSignature {
      * @param refdClassNames the referenced class names.
      */
     protected void findReferencedClassNames(final Set<String> refdClassNames) {
-        if (classBound != null) {
-            classBound.findReferencedClassNames(refdClassNames);
+        final var bound = classBound;
+        if (bound != null) {
+            bound.findReferencedClassNames(refdClassNames);
         }
         for (final ReferenceTypeSignature typeSignature : interfaceBounds) {
             typeSignature.findReferencedClassNames(refdClassNames);
@@ -228,7 +232,7 @@ public final class TypeParameter extends HierarchicalTypeSignature {
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
-    public boolean equals(final Object obj) {
+    public boolean equals(final @Nullable Object obj) {
         if (obj == this) {
             return true;
         }
@@ -244,10 +248,12 @@ public final class TypeParameter extends HierarchicalTypeSignature {
     // -------------------------------------------------------------------------------------------------------------
 
     @Override
-    protected void toStringInternal(final boolean useSimpleNames, final AnnotationInfoList annotationsToExclude,
+    protected void toStringInternal(final boolean useSimpleNames,
+            final @Nullable AnnotationInfoList annotationsToExclude,
             final StringBuilder buf) {
-        if (typeAnnotationInfo != null) {
-            for (final AnnotationInfo annotationInfo : typeAnnotationInfo) {
+        final var typeAnnotations = typeAnnotationInfo;
+        if (typeAnnotations != null) {
+            for (final AnnotationInfo annotationInfo : typeAnnotations) {
                 if (annotationsToExclude == null || !annotationsToExclude.contains(annotationInfo)) {
                     annotationInfo.toString(useSimpleNames, buf);
                     buf.append(' ');
@@ -255,17 +261,18 @@ public final class TypeParameter extends HierarchicalTypeSignature {
             }
         }
         buf.append(useSimpleNames ? ClassInfo.getSimpleName(name) : name);
+        final var bound = classBound;
         String classBoundStr;
-        if (classBound == null) {
+        if (bound == null) {
             classBoundStr = null;
         } else {
-            classBoundStr = classBound.toString(useSimpleNames);
+            classBoundStr = bound.toString(useSimpleNames);
             // A type parameter may itself be named "Object", in which case a bound
             // referring to it also renders
             // as "Object" but is a TypeVariableSignature, not java.lang.Object -- so check
             // the type too
             if ("java.lang.Object".equals(classBoundStr) || ("Object".equals(classBoundStr)
-                    && classBound instanceof final ClassRefTypeSignature classRefTypeSignature
+                    && bound instanceof final ClassRefTypeSignature classRefTypeSignature
                     && "java.lang.Object".equals(classRefTypeSignature.className))) {
                 // Don't add "extends java.lang.Object"
                 classBoundStr = null;

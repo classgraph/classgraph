@@ -35,14 +35,16 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.concurrent.Callable;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * Standard reflection driver (uses
  * {@link AccessibleObject#setAccessible(boolean)} to access non-public fields
  * if necessary).
  */
 class StandardReflectionDriver extends ReflectionDriver {
-    private static Class<?> privilegedActionClass;
-    private static Method accessControllerDoPrivileged;
+    private static @Nullable Class<?> privilegedActionClass;
+    private static @Nullable Method accessControllerDoPrivileged;
 
     static {
         // AccessController is deprecated for removal in JDK 17, so it is called
@@ -65,7 +67,7 @@ class StandardReflectionDriver extends ReflectionDriver {
      */
     @SuppressWarnings("unchecked")
     private <T> T doPrivileged(final Callable<T> callable) throws Throwable {
-        if (accessControllerDoPrivileged != null) {
+        if (accessControllerDoPrivileged != null && privilegedActionClass != null) {
             final var privilegedAction = Proxy.newProxyInstance(privilegedActionClass.getClassLoader(),
                     new Class<?>[] { privilegedActionClass }, (proxy, method, args) -> callable.call());
             return (T) accessControllerDoPrivileged.invoke(null, privilegedAction);
@@ -93,7 +95,7 @@ class StandardReflectionDriver extends ReflectionDriver {
     }
 
     @Override
-    public boolean makeAccessible(final Object instance, final AccessibleObject obj) {
+    public boolean makeAccessible(final @Nullable Object instance, final AccessibleObject obj) {
         if (isAccessible(instance, obj)) {
             return true;
         }
@@ -127,37 +129,41 @@ class StandardReflectionDriver extends ReflectionDriver {
     }
 
     @Override
+    @Nullable
     Object getField(final Object object, final Field field) throws Exception {
         makeAccessible(object, field);
         return field.get(object);
     }
 
     @Override
-    void setField(final Object object, final Field field, final Object value) throws Exception {
+    void setField(final Object object, final Field field, final @Nullable Object value) throws Exception {
         makeAccessible(object, field);
         field.set(object, value);
     }
 
     @Override
+    @Nullable
     Object getStaticField(final Field field) throws Exception {
         makeAccessible(null, field);
         return field.get(null);
     }
 
     @Override
-    void setStaticField(final Field field, final Object value) throws Exception {
+    void setStaticField(final Field field, final @Nullable Object value) throws Exception {
         makeAccessible(null, field);
         field.set(null, value);
     }
 
     @Override
-    Object invokeMethod(final Object object, final Method method, final Object... args) throws Exception {
+    @Nullable
+    Object invokeMethod(final Object object, final Method method, final @Nullable Object... args) throws Exception {
         makeAccessible(object, method);
         return method.invoke(object, args);
     }
 
     @Override
-    Object invokeStaticMethod(final Method method, final Object... args) throws Exception {
+    @Nullable
+    Object invokeStaticMethod(final Method method, final @Nullable Object... args) throws Exception {
         makeAccessible(null, method);
         return method.invoke(null, args);
     }

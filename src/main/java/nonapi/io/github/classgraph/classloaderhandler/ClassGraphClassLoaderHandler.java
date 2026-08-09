@@ -36,6 +36,7 @@ import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Allow for overrideClassLoaders to be called with a ClassGraphClassLoader as a
@@ -43,7 +44,7 @@ import nonapi.io.github.classgraph.utils.LogNode;
  */
 class ClassGraphClassLoaderHandler implements ClassLoaderHandler {
     @Override
-    public boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
+    public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
         final var matches = ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass,
                 "io.github.classgraph.ClassGraphClassLoader");
         if (matches && log != null) {
@@ -56,14 +57,14 @@ class ClassGraphClassLoaderHandler implements ClassLoaderHandler {
 
     @Override
     public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
-            final LogNode log) {
+            final @Nullable LogNode log) {
         classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
         classLoaderOrder.add(classLoader, log);
     }
 
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-            final ScanSpec scanSpec, final LogNode log) {
+            final ScanSpec scanSpec, final @Nullable LogNode log) {
         // ClassGraphClassLoader overrides URLClassLoader, so we can get the basic
         // classpath URLs the same
         // way as for URLClassLoader. However, classloading will try to preferentially

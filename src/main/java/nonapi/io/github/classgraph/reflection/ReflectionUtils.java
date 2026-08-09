@@ -35,13 +35,14 @@ import java.util.concurrent.Callable;
 
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassGraph.CircumventEncapsulationMethod;
+import org.jspecify.annotations.Nullable;
 
 /** Reflection utility methods that can be used by ClassLoaderHandlers. */
 public final class ReflectionUtils {
     /** The reflection driver to use. */
     public ReflectionDriver reflectionDriver;
-    private Class<?> privilegedActionClass;
-    private Method accessControllerDoPrivileged;
+    private @Nullable Class<?> privilegedActionClass;
+    private @Nullable Method accessControllerDoPrivileged;
 
     /**
      * Call this if you change the value of
@@ -84,7 +85,8 @@ public final class ReflectionUtils {
      * @return The field value.
      * @throws IllegalArgumentException If the field value could not be read.
      */
-    public Object getFieldVal(final boolean throwException, final Object obj, final Field field)
+    public @Nullable Object getFieldVal(final boolean throwException, final @Nullable Object obj,
+            final @Nullable Field field)
             throws IllegalArgumentException {
         if (reflectionDriver == null) {
             throw new RuntimeException("Cannot use reflection after ScanResult has been closed");
@@ -122,7 +124,8 @@ public final class ReflectionUtils {
      * @return The field value.
      * @throws IllegalArgumentException If the field value could not be read.
      */
-    public Object getFieldVal(final boolean throwException, final Object obj, final String fieldName)
+    public @Nullable Object getFieldVal(final boolean throwException, final @Nullable Object obj,
+            final @Nullable String fieldName)
             throws IllegalArgumentException {
         if (reflectionDriver == null) {
             throw new RuntimeException("Cannot use reflection after ScanResult has been closed");
@@ -160,7 +163,8 @@ public final class ReflectionUtils {
      * @return The field value.
      * @throws IllegalArgumentException If the field value could not be read.
      */
-    public Object getStaticFieldVal(final boolean throwException, final Class<?> cls, final String fieldName)
+    public @Nullable Object getStaticFieldVal(final boolean throwException, final @Nullable Class<?> cls,
+            final @Nullable String fieldName)
             throws IllegalArgumentException {
         if (reflectionDriver == null) {
             throw new RuntimeException("Cannot use reflection after ScanResult has been closed");
@@ -197,8 +201,8 @@ public final class ReflectionUtils {
      * @return The result of the method invocation.
      * @throws IllegalArgumentException If the method could not be invoked.
      */
-    public Object invokeMethod(final boolean throwException, final Object obj, final String methodName)
-            throws IllegalArgumentException {
+    public @Nullable Object invokeMethod(final boolean throwException, final @Nullable Object obj,
+            final @Nullable String methodName) throws IllegalArgumentException {
         if (reflectionDriver == null) {
             throw new RuntimeException("Cannot use reflection after ScanResult has been closed");
         }
@@ -235,8 +239,9 @@ public final class ReflectionUtils {
      * @return The result of the method invocation.
      * @throws IllegalArgumentException If the method could not be invoked.
      */
-    public Object invokeMethod(final boolean throwException, final Object obj, final String methodName,
-            final Class<?> argType, final Object param) throws IllegalArgumentException {
+    public @Nullable Object invokeMethod(final boolean throwException, final @Nullable Object obj,
+            final @Nullable String methodName, final @Nullable Class<?> argType, final @Nullable Object param)
+            throws IllegalArgumentException {
         if (reflectionDriver == null) {
             throw new RuntimeException("Cannot use reflection after ScanResult has been closed");
         }
@@ -274,8 +279,9 @@ public final class ReflectionUtils {
      * @return The result of the method invocation.
      * @throws IllegalArgumentException If the method could not be invoked.
      */
-    public Object invokeMethod(final boolean throwException, final Object obj, final String methodName,
-            final Class<?>[] argTypes, final Object[] params) throws IllegalArgumentException {
+    public @Nullable Object invokeMethod(final boolean throwException, final @Nullable Object obj,
+            final @Nullable String methodName, final Class<?> @Nullable [] argTypes,
+            final @Nullable Object @Nullable [] params) throws IllegalArgumentException {
         if (reflectionDriver == null) {
             throw new RuntimeException("Cannot use reflection after ScanResult has been closed");
         }
@@ -312,8 +318,8 @@ public final class ReflectionUtils {
      * @return The result of the method invocation.
      * @throws IllegalArgumentException If the method could not be invoked.
      */
-    public Object invokeStaticMethod(final boolean throwException, final Class<?> cls, final String methodName)
-            throws IllegalArgumentException {
+    public @Nullable Object invokeStaticMethod(final boolean throwException, final @Nullable Class<?> cls,
+            final @Nullable String methodName) throws IllegalArgumentException {
         if (reflectionDriver == null) {
             throw new RuntimeException("Cannot use reflection after ScanResult has been closed");
         }
@@ -350,8 +356,9 @@ public final class ReflectionUtils {
      * @return The result of the method invocation.
      * @throws IllegalArgumentException If the method could not be invoked.
      */
-    public Object invokeStaticMethod(final boolean throwException, final Class<?> cls, final String methodName,
-            final Class<?> argType, final Object param) throws IllegalArgumentException {
+    public @Nullable Object invokeStaticMethod(final boolean throwException, final @Nullable Class<?> cls,
+            final @Nullable String methodName, final @Nullable Class<?> argType, final @Nullable Object param)
+            throws IllegalArgumentException {
         if (reflectionDriver == null) {
             throw new RuntimeException("Cannot use reflection after ScanResult has been closed");
         }
@@ -380,7 +387,7 @@ public final class ReflectionUtils {
      * @return The class of the requested name, or null if an exception was thrown
      *         while trying to load the class.
      */
-    public Class<?> classForNameOrNull(final String className) {
+    public @Nullable Class<?> classForNameOrNull(final String className) {
         if (reflectionDriver == null) {
             throw new RuntimeException("Cannot use reflection after ScanResult has been closed");
         }
@@ -399,7 +406,7 @@ public final class ReflectionUtils {
      * @return The requested static method, or null if an exception was thrown while
      *         trying to find the class or the method.
      */
-    public Method staticMethodForNameOrNull(final String className, final String staticMethodName) {
+    public @Nullable Method staticMethodForNameOrNull(final String className, final String staticMethodName) {
         if (reflectionDriver == null) {
             throw new RuntimeException("Cannot use reflection after ScanResult has been closed");
         }
@@ -423,7 +430,7 @@ public final class ReflectionUtils {
      */
     @SuppressWarnings("unchecked")
     public <T> T doPrivileged(final Callable<T> callable) throws Throwable {
-        if (accessControllerDoPrivileged != null) {
+        if (accessControllerDoPrivileged != null && privilegedActionClass != null) {
             final var privilegedAction = Proxy.newProxyInstance(privilegedActionClass.getClassLoader(),
                     new Class<?>[] { privilegedActionClass }, (proxy, method, args) -> callable.call());
             return (T) accessControllerDoPrivileged.invoke(null, privilegedAction);

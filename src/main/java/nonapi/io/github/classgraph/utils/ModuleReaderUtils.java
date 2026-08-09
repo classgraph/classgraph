@@ -39,6 +39,8 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * Helper methods for calling {@link ModuleReader}, which convert its
  * {@link Optional} and {@link Stream} return values into plain values, and wrap
@@ -71,7 +73,7 @@ public final class ModuleReaderUtils {
      * @return A list of the paths of resources in the module.
      * @throws SecurityException If the module cannot be accessed.
      */
-    public static List<String> list(final ModuleReader moduleReader, final String moduleName, final LogNode log)
+    public static List<String> list(final ModuleReader moduleReader, final String moduleName, final @Nullable LogNode log)
             throws SecurityException {
         final Stream<String> resourcesStream;
         try {

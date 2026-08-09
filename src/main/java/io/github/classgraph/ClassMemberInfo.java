@@ -33,6 +33,7 @@ import java.lang.annotation.Repeatable;
 import java.lang.reflect.Modifier;
 
 import nonapi.io.github.classgraph.utils.Assert;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Holds metadata about class members of a class encountered during a scan. All
@@ -58,15 +59,20 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
      * The type signature (may have type parameter information included, if present
      * and available). Class member parameter types are unaligned.
      */
-    protected String typeSignatureStr;
+    protected @Nullable String typeSignatureStr;
 
     /** The annotation on the class member, if any. */
-    protected AnnotationInfoList annotationInfo;
+    protected @Nullable AnnotationInfoList annotationInfo;
 
     /** The annotation infos, once they are loaded */
-    private AnnotationInfoList annotationInfoRef;
+    private @Nullable AnnotationInfoList annotationInfoRef;
 
-    /** Default constructor for deserialization. */
+    /**
+     * Default constructor for deserialization. {@code declaringClassName},
+     * {@code name} and {@code typeDescriptorStr} are populated by the deserializer,
+     * so they are not assigned here.
+     */
+    @SuppressWarnings("NullAway.Init")
     ClassMemberInfo() {
         super();
     }
@@ -83,7 +89,8 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
      *                          class member.
      */
     protected ClassMemberInfo(final String definingClassName, final String memberName, final int modifiers,
-            final String typeDescriptorStr, final String typeSignatureStr, final AnnotationInfoList annotationInfo) {
+            final String typeDescriptorStr, final @Nullable String typeSignatureStr,
+            final @Nullable AnnotationInfoList annotationInfo) {
         super();
         this.declaringClassName = definingClassName;
         this.name = memberName;
@@ -104,7 +111,7 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
      * @see #getClassName()
      */
     @Override
-    public ClassInfo getClassInfo() {
+    public @Nullable ClassInfo getClassInfo() {
         return super.getClassInfo();
     }
 
@@ -212,7 +219,7 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
      *
      * @return The parsed type descriptor string for the class member.
      */
-    public abstract HierarchicalTypeSignature getTypeDescriptor();
+    public abstract @Nullable HierarchicalTypeSignature getTypeDescriptor();
 
     /**
      * Returns the type descriptor string for the class member, which will not
@@ -238,7 +245,7 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
      *                                  bug that causes an invalid type signature to
      *                                  be written to the classfile).
      */
-    public abstract HierarchicalTypeSignature getTypeSignature();
+    public abstract @Nullable HierarchicalTypeSignature getTypeSignature();
 
     /**
      * Returns the type signature string for the class member, possibly including
@@ -249,7 +256,7 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
      * @return The type signature string for the class member, or null if not
      *         available.
      */
-    public String getTypeSignatureStr() {
+    public @Nullable String getTypeSignatureStr() {
         return typeSignatureStr;
     }
 
@@ -262,7 +269,7 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
      * @return The parsed type signature for the class member, or if not available,
      *         the parsed type descriptor for the class member.
      */
-    public abstract HierarchicalTypeSignature getTypeSignatureOrTypeDescriptor();
+    public abstract @Nullable HierarchicalTypeSignature getTypeSignatureOrTypeDescriptor();
 
     /**
      * Returns the type signature string for the class member, possibly including
@@ -296,7 +303,7 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
                 return annotationInfoRef;
             }
 
-            if (!scanResult.scanSpec.enableAnnotationInfo) {
+            if (!scanResult().scanSpec.enableAnnotationInfo) {
                 throw new IllegalArgumentException("Please call ClassGraph#enableAnnotationInfo() before #scan()");
             }
 
@@ -317,7 +324,7 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
      *         class member, or null if the class member does not have the
      *         annotation.
      */
-    public AnnotationInfo getAnnotationInfo(final Class<? extends Annotation> annotation) {
+    public @Nullable AnnotationInfo getAnnotationInfo(final Class<? extends Annotation> annotation) {
         Assert.isAnnotation(annotation);
         return getAnnotationInfo(annotation.getName());
     }
@@ -333,7 +340,7 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
      *         this class member, or null if the class member does not have the
      *         named annotation.
      */
-    public AnnotationInfo getAnnotationInfo(final String annotationName) {
+    public @Nullable AnnotationInfo getAnnotationInfo(final String annotationName) {
         return getAnnotationInfo().get(annotationName);
     }
 

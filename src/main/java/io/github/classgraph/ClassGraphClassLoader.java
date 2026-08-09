@@ -46,6 +46,7 @@ import java.util.Set;
 import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.VersionFinder;
 import nonapi.io.github.classgraph.utils.VersionFinder.OperatingSystem;
+import org.jspecify.annotations.Nullable;
 
 /** {@link ClassLoader} for classes found by ClassGraph during scanning. */
 public class ClassGraphClassLoader extends ClassLoader {
@@ -56,17 +57,26 @@ public class ClassGraphClassLoader extends ClassLoader {
     /** Whether or not to initialize loaded classes. */
     private final boolean initializeLoadedClasses;
 
-    /** The ordered set of environment classloaders to try delegating to. */
-    private Set<ClassLoader> environmentClassLoaderDelegationOrder;
+    /**
+     * The ordered set of environment classloaders to try delegating to, or null if
+     * the classpath or the classloaders were overridden.
+     */
+    private @Nullable Set<ClassLoader> environmentClassLoaderDelegationOrder;
 
-    /** Any override classloader(s). */
-    private List<ClassLoader> overrideClassLoaders;
+    /** Any override classloader(s), or null if the classloaders were not overridden. */
+    private @Nullable List<ClassLoader> overrideClassLoaders;
 
-    /** A {@link URLClassLoader} consisting of URLs on the classpath. */
-    private final ClassLoader classpathClassLoader;
+    /**
+     * A {@link URLClassLoader} consisting of URLs on the classpath, or null if the
+     * classpath is empty.
+     */
+    private final @Nullable ClassLoader classpathClassLoader;
 
-    /** The ordered set of overridden or added classloaders to try delegating to. */
-    private Set<ClassLoader> addedClassLoaderDelegationOrder;
+    /**
+     * The ordered set of overridden or added classloaders to try delegating to, or
+     * null if no classloaders were added.
+     */
+    private @Nullable Set<ClassLoader> addedClassLoaderDelegationOrder;
 
     /**
      * Constructor.
@@ -91,14 +101,15 @@ public class ClassGraphClassLoader extends ClassLoader {
         if (!classpathOverridden && !classloadersOverridden) {
             // Try the null classloader first (this will default to the bootstrap class
             // loader)
-            environmentClassLoaderDelegationOrder = new LinkedHashSet<>();
-            environmentClassLoaderDelegationOrder.add(null);
+            final Set<ClassLoader> envDelegationOrder = new LinkedHashSet<>();
+            environmentClassLoaderDelegationOrder = envDelegationOrder;
+            envDelegationOrder.add(null);
 
             // Try environment classloaders
             final var envClassLoaderOrder = scanResult.getClassLoaderOrderRespectingParentDelegation();
             if (envClassLoaderOrder != null) {
                 // Try environment classloaders
-                environmentClassLoaderDelegationOrder.addAll(Arrays.asList(envClassLoaderOrder));
+                envDelegationOrder.addAll(Arrays.asList(envClassLoaderOrder));
             }
         }
 
@@ -142,7 +153,7 @@ public class ClassGraphClassLoader extends ClassLoader {
     protected Class<?> findClass(final String className)
             throws ClassNotFoundException, LinkageError, SecurityException {
         // First delegate to outer nested ClassGraphClassLoader, if any (#485)
-        final var delegateClassGraphClassLoader = scanResult.classpathFinder.getDelegateClassGraphClassLoader();
+        final var delegateClassGraphClassLoader = scanResult.classpathFinder().getDelegateClassGraphClassLoader();
         LinkageError linkageError = null;
         if (delegateClassGraphClassLoader != null) {
             try {
@@ -424,7 +435,7 @@ public class ClassGraphClassLoader extends ClassLoader {
      * @return an {@link InputStream} for the resource, or null if the bootstrap
      *         classloader does not have the resource, or if it could not be opened.
      */
-    private InputStream openBootstrapResource(final String path) {
+    private @Nullable InputStream openBootstrapResource(final String path) {
         final var resource = super.getResource(path);
         if (resource != null) {
             try {
@@ -437,12 +448,12 @@ public class ClassGraphClassLoader extends ClassLoader {
     }
 
     /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.ClassLoader#getResource(java.lang.String)
-     */
+    * (non-Javadoc)
+    *
+    * @see java.lang.ClassLoader#getResource(java.lang.String)
+    */
     @Override
-    public URL getResource(final String path) {
+    public @Nullable URL getResource(final String path) {
         // This order should match the order in findClass(String)
 
         // Try loading resource from the bootstrap classloader
@@ -517,12 +528,12 @@ public class ClassGraphClassLoader extends ClassLoader {
     }
 
     /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.ClassLoader#getResourceAsStream(java.lang.String)
-     */
+    * (non-Javadoc)
+    *
+    * @see java.lang.ClassLoader#getResourceAsStream(java.lang.String)
+    */
     @Override
-    public InputStream getResourceAsStream(final String path) {
+    public @Nullable InputStream getResourceAsStream(final String path) {
         // This order should match the order in findClass(String)
 
         // Try opening resource from the bootstrap classloader

@@ -39,6 +39,7 @@ import io.github.classgraph.Classfile.TypePathNode;
 import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.Parser;
 import nonapi.io.github.classgraph.types.TypeUtils;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A class reference type signature (called "ClassTypeSignature" in the
@@ -58,7 +59,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
     private final List<List<TypeArgument>> suffixTypeArguments;
 
     /** The suffix type annotations. */
-    private List<AnnotationInfoList> suffixTypeAnnotations;
+    private @Nullable List<AnnotationInfoList> suffixTypeAnnotations;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -178,18 +179,19 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
      * @return The list of lists of type annotations for the suffixes (nested inner
      *         classes), one list per suffix, or null if none.
      */
-    public List<AnnotationInfoList> getSuffixTypeAnnotationInfo() {
+    public @Nullable List<AnnotationInfoList> getSuffixTypeAnnotationInfo() {
         return suffixTypeAnnotations;
     }
 
     private void addSuffixTypeAnnotation(final int suffixIdx, final AnnotationInfo annotationInfo) {
-        if (suffixTypeAnnotations == null) {
-            suffixTypeAnnotations = new ArrayList<>(suffixes.size());
+        var typeAnnotations = suffixTypeAnnotations;
+        if (typeAnnotations == null) {
+            suffixTypeAnnotations = typeAnnotations = new ArrayList<>(suffixes.size());
             for (var i = 0; i < suffixes.size(); i++) {
-                suffixTypeAnnotations.add(new AnnotationInfoList(1));
+                typeAnnotations.add(new AnnotationInfoList(1));
             }
         }
-        suffixTypeAnnotations.get(suffixIdx).add(annotationInfo);
+        typeAnnotations.get(suffixIdx).add(annotationInfo);
     }
 
     @Override
@@ -232,9 +234,9 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
                 skipSuffix = false;
             } else {
                 // For suffix path X.Y, classes are not nested if Y is static
-                final var outerClassInfo = scanResult.getClassInfo(typePrefix);
+                final var outerClassInfo = scanResult().getClassInfo(typePrefix);
                 typePrefix = typePrefix + '$' + suffixes.get(suffixIdx + 1);
-                final var innerClassInfo = scanResult.getClassInfo(typePrefix);
+                final var innerClassInfo = scanResult().getClassInfo(typePrefix);
                 skipSuffix = outerClassInfo == null || innerClassInfo == null
                         || outerClassInfo.isInterfaceOrAnnotation() //
                         || innerClassInfo.isInterfaceOrAnnotation() //
@@ -292,7 +294,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
      *                                  ignoreExceptions was false.
      */
     @Override
-    public Class<?> loadClass(final boolean ignoreExceptions) {
+    public @Nullable Class<?> loadClass(final boolean ignoreExceptions) {
         return super.loadClass(ignoreExceptions);
     }
 
@@ -305,7 +307,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
      * @throws IllegalArgumentException if the class could not be loaded.
      */
     @Override
-    public Class<?> loadClass() {
+    public @Nullable Class<?> loadClass() {
         return super.loadClass();
     }
 
@@ -327,7 +329,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
      *         load the referenced class by name.
      */
     @Override
-    public ClassInfo getClassInfo() {
+    public @Nullable ClassInfo getClassInfo() {
         return super.getClassInfo();
     }
 
@@ -339,7 +341,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
      * ScanResult)
      */
     @Override
-    void setScanResult(final ScanResult scanResult) {
+    void setScanResult(final @Nullable ScanResult scanResult) {
         super.setScanResult(scanResult);
         for (final TypeArgument typeArgument : typeArguments) {
             typeArgument.setScanResult(scanResult);
@@ -395,7 +397,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
-    public boolean equals(final Object obj) {
+    public boolean equals(final @Nullable Object obj) {
         if (obj == this) {
             return true;
         }
@@ -429,14 +431,16 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
     // -------------------------------------------------------------------------------------------------------------
 
     @Override
-    protected void toStringInternal(final boolean useSimpleNames, final AnnotationInfoList annotationsToExclude,
+    protected void toStringInternal(final boolean useSimpleNames,
+            final @Nullable AnnotationInfoList annotationsToExclude,
             final StringBuilder buf) {
         // Only render the base class if not using simple names, or if there are no
         // suffixes
         if (!useSimpleNames || suffixes.isEmpty()) {
             // Append type annotations
-            if (typeAnnotationInfo != null) {
-                for (final AnnotationInfo annotationInfo : typeAnnotationInfo) {
+            final var typeAnnotations = typeAnnotationInfo;
+            if (typeAnnotations != null) {
+                for (final AnnotationInfo annotationInfo : typeAnnotations) {
                     if (annotationsToExclude == null || !annotationsToExclude.contains(annotationInfo)) {
                         annotationInfo.toString(useSimpleNames, buf);
                         buf.append(' ');
@@ -503,7 +507,8 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
      * @return The class type signature.
      * @throws ParseException If the type signature could not be parsed.
      */
-    static ClassRefTypeSignature parse(final Parser parser, final String definingClassName) throws ParseException {
+    static @Nullable ClassRefTypeSignature parse(final Parser parser, final @Nullable String definingClassName)
+            throws ParseException {
         if (parser.peek() == 'L') {
             parser.next();
             final var startParserPosition = parser.getPosition();

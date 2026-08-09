@@ -36,6 +36,7 @@ import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.ReadOnlyBufferException;
 import java.util.Arrays;
+import java.util.Objects;
 
 import io.github.classgraph.Resource;
 import nonapi.io.github.classgraph.fileslice.ArraySlice;
@@ -43,6 +44,7 @@ import nonapi.io.github.classgraph.fileslice.FileSlice;
 import nonapi.io.github.classgraph.fileslice.Slice;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.StringUtils;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A {@link Slice} reader that works as either a {@link RandomAccessReader} or a
@@ -55,19 +57,19 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
      * The underlying resource to close when {@link ClassfileReader#close()} is
      * called.
      */
-    private Resource resourceToClose;
+    private @Nullable Resource resourceToClose;
 
     /**
      * If slice is deflated, a wrapper for
      * {@link java.util.zip.InflaterInputStream}.
      */
-    private InputStream inflaterInputStream;
+    private @Nullable InputStream inflaterInputStream;
 
     /**
      * If slice is not deflated, a {@link RandomAccessReader} for either the
      * {@link ArraySlice} or {@link FileSlice} concrete subclass.
      */
-    private RandomAccessReader randomAccessReader;
+    private @Nullable RandomAccessReader randomAccessReader;
 
     /** Buffer. */
     private byte[] arr;
@@ -109,7 +111,7 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
      *                        {@link ClassfileReader#close()} is called, or null.
      * @throws IOException If an inflater cannot be opened on the {@link Slice}.
      */
-    public ClassfileReader(final Slice slice, final Resource resourceToClose) throws IOException {
+    public ClassfileReader(final Slice slice, final @Nullable Resource resourceToClose) throws IOException {
         this.classfileLengthHint = (int) slice.sliceLength;
         this.resourceToClose = resourceToClose;
         if (slice.isDeflatedZipEntry) {
@@ -153,7 +155,8 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
      *                        {@link ClassfileReader#close()} is called, or null.
      * @throws IOException If an inflater cannot be opened on the {@link Slice}.
      */
-    public ClassfileReader(final InputStream inputStream, final Resource resourceToClose) throws IOException {
+    public ClassfileReader(final InputStream inputStream, final @Nullable Resource resourceToClose)
+            throws IOException {
         inflaterInputStream = inputStream;
         arr = new byte[INITIAL_BUF_SIZE];
         this.resourceToClose = resourceToClose;
@@ -192,6 +195,8 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
         // is an underestimate, classfile will be truncated). If -1, assume 2GB is the
         // max size.
         final var maxArrLen = classfileLengthHint == -1 ? FileUtils.MAX_BUFFER_SIZE : classfileLengthHint;
+        final var inflaterInputStream = this.inflaterInputStream;
+        final var randomAccessReader = this.randomAccessReader;
         if (inflaterInputStream == null && randomAccessReader == null) {
             // If neither inflaterInputStream nor randomAccessReader is set, then slice is
             // an ArraySlice,
@@ -231,7 +236,8 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
             // Don't read past end of slice
             final var bytesToRead = Math.min(maxBytesToRead, maxArrLen - arrUsed);
             // Read bytes from FileSlice into arr
-            final var numBytesRead = randomAccessReader.read(/* srcOffset = */ arrUsed, /* dstArr = */ arr,
+            // randomAccessReader is non-null if inflaterInputStream is null (see above)
+            final var numBytesRead = Objects.requireNonNull(randomAccessReader).read(/* srcOffset = */ arrUsed, /* dstArr = */ arr,
                     /* dstArrStart = */ arrUsed, /* numBytes = */ bytesToRead);
             if (numBytesRead > 0) {
                 arrUsed += numBytesRead;
@@ -466,13 +472,15 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
     @Override
     public void close() {
         try {
+            final var inflaterInputStream = this.inflaterInputStream;
             if (inflaterInputStream != null) {
                 inflaterInputStream.close();
-                inflaterInputStream = null;
+                this.inflaterInputStream = null;
             }
+            final var resourceToClose = this.resourceToClose;
             if (resourceToClose != null) {
                 resourceToClose.close();
-                resourceToClose = null;
+                this.resourceToClose = null;
             }
         } catch (final Exception e) {
             // Ignore

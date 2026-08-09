@@ -37,6 +37,7 @@ import java.util.regex.Pattern;
 
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Jarfile utilities.
@@ -113,11 +114,11 @@ public final class JarUtils {
      * allow for the use of URLs with protocol specifiers, e.g.
      * "http://domain/jar1.jar:http://domain/jar2.jar".
      *
-     * @param pathStr  The path to split.
-     * @param scanSpec the scan spec
+     * @param pathStr  The path to split, or null.
+     * @param scanSpec the scan spec, or null
      * @return The path element substrings.
      */
-    public static String[] smartPathSplit(final String pathStr, final ScanSpec scanSpec) {
+    public static String[] smartPathSplit(final @Nullable String pathStr, final @Nullable ScanSpec scanSpec) {
         return smartPathSplit(pathStr, File.pathSeparatorChar, scanSpec);
     }
 
@@ -126,12 +127,13 @@ public final class JarUtils {
      * allow for the use of URLs with protocol specifiers, e.g.
      * "http://domain/jar1.jar:http://domain/jar2.jar".
      *
-     * @param pathStr       The path to split.
+     * @param pathStr       The path to split, or null.
      * @param separatorChar The separator char to use.
-     * @param scanSpec      the scan spec
+     * @param scanSpec      the scan spec, or null
      * @return The path element substrings.
      */
-    public static String[] smartPathSplit(final String pathStr, final char separatorChar, final ScanSpec scanSpec) {
+    public static String[] smartPathSplit(final @Nullable String pathStr, final char separatorChar,
+            final @Nullable ScanSpec scanSpec) {
         if (pathStr == null || pathStr.isEmpty()) {
             return new String[0];
         }

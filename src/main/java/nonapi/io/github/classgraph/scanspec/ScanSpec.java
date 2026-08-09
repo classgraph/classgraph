@@ -51,6 +51,7 @@ import nonapi.io.github.classgraph.scanspec.AcceptReject.AcceptRejectLeafname;
 import nonapi.io.github.classgraph.scanspec.AcceptReject.AcceptRejectPrefix;
 import nonapi.io.github.classgraph.scanspec.AcceptReject.AcceptRejectWholeString;
 import nonapi.io.github.classgraph.utils.LogNode;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The scanning specification.
@@ -203,7 +204,7 @@ public class ScanSpec {
      * URL schemes that are allowed in classpath elements (not counting the optional
      * "jar:" prefix and/or "file:", which are automatically allowed).
      */
-    public Set<String> allowedURLSchemes;
+    public @Nullable Set<String> allowedURLSchemes;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -211,35 +212,35 @@ public class ScanSpec {
      * If non-null, specifies manually-added classloaders that should be searched
      * after the context classloader(s).
      */
-    public transient List<ClassLoader> addedClassLoaders;
+    public transient @Nullable List<ClassLoader> addedClassLoaders;
 
     /**
      * If non-null, this list of ClassLoaders will be searched instead of the
      * visible/context ClassLoader(s). In particular, this causes ClassGraph to
      * ignore the java.class.path system property.
      */
-    public transient List<ClassLoader> overrideClassLoaders;
+    public transient @Nullable List<ClassLoader> overrideClassLoaders;
 
     /**
      * If non-null, specifies manually-added ModuleLayers that should be searched
      * after the visible ModuleLayers.
      */
-    public transient List<ModuleLayer> addedModuleLayers;
+    public transient @Nullable List<ModuleLayer> addedModuleLayers;
 
     /**
      * If non-null, this list of ModuleLayers will be searched instead of the
      * visible ModuleLayers.
      */
-    public transient List<ModuleLayer> overrideModuleLayers;
+    public transient @Nullable List<ModuleLayer> overrideModuleLayers;
 
     /**
      * If non-null, specifies a list of classpath elements (String, {@link URL} or
      * {@link URI} to use to override the default classpath.
      */
-    public List<Object> overrideClasspath;
+    public @Nullable List<Object> overrideClasspath;
 
     /** If non-null, a list of filter operations to apply to classpath elements. */
-    public transient List<Object> classpathElementFilters;
+    public transient @Nullable List<Object> classpathElementFilters;
 
     /** Whether to initialize classes when loading them. */
     public boolean initializeLoadedClasses;
@@ -575,7 +576,7 @@ public class ScanSpec {
      *
      * @param log The {@link LogNode} to log to.
      */
-    public void log(final LogNode log) {
+    public void log(final @Nullable LogNode log) {
         if (log != null) {
             final var scanSpecLog = log.log("ScanSpec:");
             for (final Field field : ScanSpec.class.getDeclaredFields()) {

@@ -35,12 +35,14 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 import io.github.classgraph.ClassInfo.RelType;
 import nonapi.io.github.classgraph.utils.Assert;
 import nonapi.io.github.classgraph.utils.CollectionUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
+import org.jspecify.annotations.Nullable;
 
 /** A list of {@link AnnotationInfo} objects. */
 public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
@@ -49,7 +51,7 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
      * inherited through a meta-annotated annotation. This field is nullable, as the
      * annotation info list is incrementally built. See {@link #directOnly()}.
      */
-    private AnnotationInfoList directlyRelatedAnnotations;
+    private @Nullable AnnotationInfoList directlyRelatedAnnotations;
 
     /** serialVersionUID */
     @Serial
@@ -105,7 +107,7 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
      * @param directlyRelatedAnnotations the directly related annotations
      */
     AnnotationInfoList(final AnnotationInfoList reachableAnnotations,
-            final AnnotationInfoList directlyRelatedAnnotations) {
+            final @Nullable AnnotationInfoList directlyRelatedAnnotations) {
         super(reachableAnnotations);
         this.directlyRelatedAnnotations = directlyRelatedAnnotations;
     }
@@ -159,7 +161,7 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
      * @param log                  the log
      */
     void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
-            final Set<ClassInfo> refdClassInfo, final LogNode log) {
+            final Set<ClassInfo> refdClassInfo, final @Nullable LogNode log) {
         for (final AnnotationInfo ai : this) {
             ai.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
         }
@@ -180,8 +182,9 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
      *                                     linking (or null for none)
      */
     void handleRepeatableAnnotations(final Set<String> allRepeatableAnnotationNames,
-            final ClassInfo containingClassInfo, final RelType forwardRelType, final RelType reverseRelType0,
-            final RelType reverseRelType1) {
+            final @Nullable ClassInfo containingClassInfo, final RelType forwardRelType,
+            final RelType reverseRelType0,
+            final @Nullable RelType reverseRelType1) {
         List<AnnotationInfo> repeatableAnnotations = null;
         for (var i = size() - 1; i >= 0; --i) {
             final var ai = get(i);
@@ -213,12 +216,13 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
                                             && (reverseRelType0 != null || reverseRelType1 != null)) {
                                         final var annotationClass = ai.getClassInfo();
                                         if (annotationClass != null) {
-                                            containingClassInfo.addRelatedClass(forwardRelType, annotationClass);
+                                            final var containingClass = Objects.requireNonNull(containingClassInfo);
+                                            containingClass.addRelatedClass(forwardRelType, annotationClass);
                                             if (reverseRelType0 != null) {
-                                                annotationClass.addRelatedClass(reverseRelType0, containingClassInfo);
+                                                annotationClass.addRelatedClass(reverseRelType0, containingClass);
                                             }
                                             if (reverseRelType1 != null) {
-                                                annotationClass.addRelatedClass(reverseRelType1, containingClassInfo);
+                                                annotationClass.addRelatedClass(reverseRelType1, containingClass);
                                             }
                                         }
                                     }
@@ -273,8 +277,8 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
      *                             class, else null.
      * @return the indirect annotations
      */
-    static AnnotationInfoList getIndirectAnnotations(final AnnotationInfoList directAnnotationInfo,
-            final ClassInfo annotatedClass) {
+    static AnnotationInfoList getIndirectAnnotations(final @Nullable AnnotationInfoList directAnnotationInfo,
+            final @Nullable ClassInfo annotatedClass) {
         // Add direct annotations
         final Set<ClassInfo> directOrInheritedAnnotationClasses = new HashSet<>();
         final Set<ClassInfo> reachedAnnotationClasses = new HashSet<>();
@@ -392,7 +396,7 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
      * @see java.util.ArrayList#equals(java.lang.Object)
      */
     @Override
-    public boolean equals(final Object obj) {
+    public boolean equals(final @Nullable Object obj) {
         if (this == obj) {
             return true;
         }

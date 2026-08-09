@@ -27,12 +27,19 @@
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+import org.jspecify.annotations.NullMarked;
+
 /**
  * <a href="https://github.com/classgraph/classgraph">ClassGraph</a>: the
  * uber-fast, ultra-lightweight classpath and module scanner for JVM languages.
  *
+ * <p>
+ * This module is {@link org.jspecify.annotations.NullMarked}: unless a type is
+ * annotated {@link org.jspecify.annotations.Nullable}, it is never null.
+ *
  * @author Luke Hutchison
  */
+@NullMarked
 module io.github.classgraph {
     exports io.github.classgraph;
 
@@ -49,4 +56,8 @@ module io.github.classgraph {
 
     // ReflectionUtils may use Narcissus, if it is available
     requires static io.github.toolfactory.narcissus;
+
+    // JSpecify nullability annotations are only needed at compile time, but they appear in
+    // exported signatures, so the requirement has to be transitive
+    requires static transitive org.jspecify;
 }

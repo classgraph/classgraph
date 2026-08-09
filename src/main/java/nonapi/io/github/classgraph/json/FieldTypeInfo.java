@@ -36,6 +36,9 @@ import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.util.Collection;
 import java.util.Map;
+import java.util.Objects;
+
+import org.jspecify.annotations.Nullable;
 
 /**
  * Information on the type of a field.
@@ -71,13 +74,13 @@ class FieldTypeInfo {
      * The constructor with int-valued size hint for the type of the field, or null
      * if this is not a Collection or Map.
      */
-    private Constructor<?> constructorForFieldTypeWithSizeHint;
+    private @Nullable Constructor<?> constructorForFieldTypeWithSizeHint;
 
     /**
      * The default (no-arg) constructor for the type of the field, or null if this
      * is a primitive field, or if intConstructorForFieldType is non-null.
      */
-    private Constructor<?> defaultConstructorForFieldType;
+    private @Nullable Constructor<?> defaultConstructorForFieldType;
 
     /**
      * The Enum PrimitiveType.
@@ -190,7 +193,7 @@ class FieldTypeInfo {
      * @param classFieldCache        the class field cache
      * @return the constructor with size hint for the field type
      */
-    public Constructor<?> getConstructorForFieldTypeWithSizeHint(final Type fieldTypeFullyResolved,
+    public @Nullable Constructor<?> getConstructorForFieldTypeWithSizeHint(final Type fieldTypeFullyResolved,
             final ClassFieldCache classFieldCache) {
         if (!isTypeVariable) {
             return constructorForFieldTypeWithSizeHint;
@@ -212,11 +215,15 @@ class FieldTypeInfo {
      * @param fieldTypeFullyResolved the field type
      * @param classFieldCache        the class field cache
      * @return the default constructor for the field type
+     * @throws NullPointerException if the field type has no default constructor
+     *                              (i.e. if the field is of primitive or array type,
+     *                              or is a collection or map with a size-hint
+     *                              constructor)
      */
     public Constructor<?> getDefaultConstructorForFieldType(final Type fieldTypeFullyResolved,
             final ClassFieldCache classFieldCache) {
         if (!isTypeVariable) {
-            return defaultConstructorForFieldType;
+            return Objects.requireNonNull(defaultConstructorForFieldType);
         } else {
             final Class<?> fieldRawTypeFullyResolved = JSONUtils.getRawType(fieldTypeFullyResolved);
             return classFieldCache.getDefaultConstructorForConcreteTypeOf(fieldRawTypeFullyResolved);
@@ -229,7 +236,7 @@ class FieldTypeInfo {
      * @param typeResolutions the type resolutions
      * @return the fully resolved field type
      */
-    public Type getFullyResolvedFieldType(final TypeResolutions typeResolutions) {
+    public Type getFullyResolvedFieldType(final @Nullable TypeResolutions typeResolutions) {
         if (!hasUnresolvedTypeVariables) {
             // Fast path -- don't try to resolve type variables if there aren't any to
             // resolve
@@ -240,7 +247,7 @@ class FieldTypeInfo {
         // was a bit slower
         // than this uncached version, because type resolution is relatively fast in
         // most cases.)
-        return typeResolutions.resolveTypeVariables(fieldTypePartiallyResolved);
+        return Objects.requireNonNull(typeResolutions).resolveTypeVariables(fieldTypePartiallyResolved);
     }
 
     /**
@@ -249,7 +256,7 @@ class FieldTypeInfo {
      * @param containingObj the containing object
      * @param value         the field value
      */
-    void setFieldValue(final Object containingObj, final Object value) {
+    void setFieldValue(final Object containingObj, final @Nullable Object value) {
         try {
             if (value == null) {
                 // CLASS_REF is a reference type, not a primitive type -- it is only listed in

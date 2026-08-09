@@ -36,6 +36,7 @@ import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Handle the Plexus ClassWorlds ClassRealm ClassLoader.
@@ -44,7 +45,7 @@ import nonapi.io.github.classgraph.utils.LogNode;
  */
 class PlexusClassWorldsClassRealmClassLoaderHandler extends URLClassLoaderHandler {
     @Override
-    public boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
+    public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
         return ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass,
                 "org.codehaus.plexus.classworlds.realm.ClassRealm");
     }
@@ -74,7 +75,7 @@ class PlexusClassWorldsClassRealmClassLoaderHandler extends URLClassLoaderHandle
 
     @Override
     public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
-            final LogNode log) {
+            final @Nullable LogNode log) {
         // From ClassRealm#loadClassFromImport(String) -> getImportClassLoader(String)
         final var foreignImports = classLoaderOrder.reflectionUtils.getFieldVal(false, classLoader, "foreignImports");
         if (foreignImports != null) {
@@ -119,7 +120,7 @@ class PlexusClassWorldsClassRealmClassLoaderHandler extends URLClassLoaderHandle
 
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-            final ScanSpec scanSpec, final LogNode log) {
+            final ScanSpec scanSpec, final @Nullable LogNode log) {
         // ClassRealm extends URLClassLoader
         super.findClasspathOrder(classLoader, classpathOrder, scanSpec, log);
     }

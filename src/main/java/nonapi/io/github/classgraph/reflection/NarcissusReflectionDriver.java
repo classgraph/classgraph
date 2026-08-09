@@ -33,6 +33,8 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * Narcissus reflection driver (uses the
  * <a href="https://github.com/toolfactory/narcissus">Narcissus</a> library, if
@@ -55,7 +57,7 @@ class NarcissusReflectionDriver extends ReflectionDriver {
         // Load Narcissus class via reflection, so that there is no runtime dependency
         final StandardReflectionDriver drv = new StandardReflectionDriver();
         final Class<?> narcissusClass = drv.findClass("io.github.toolfactory.narcissus.Narcissus");
-        if (!(Boolean) drv.getStaticField(drv.findStaticField(narcissusClass, "libraryLoaded"))) {
+        if (!Boolean.TRUE.equals(drv.getStaticField(drv.findStaticField(narcissusClass, "libraryLoaded")))) {
             throw new IllegalArgumentException("Could not load Narcissus native library");
         }
 
@@ -73,12 +75,12 @@ class NarcissusReflectionDriver extends ReflectionDriver {
     }
 
     @Override
-    public boolean isAccessible(final Object instance, final AccessibleObject obj) {
+    public boolean isAccessible(final @Nullable Object instance, final AccessibleObject obj) {
         return true;
     }
 
     @Override
-    public boolean makeAccessible(final Object instance, final AccessibleObject accessibleObject) {
+    public boolean makeAccessible(final @Nullable Object instance, final AccessibleObject accessibleObject) {
         return true;
     }
 
@@ -104,32 +106,37 @@ class NarcissusReflectionDriver extends ReflectionDriver {
     }
 
     @Override
+    @Nullable
     Object getField(final Object object, final Field field) throws Exception {
         return getField.invoke(null, object, field);
     }
 
     @Override
-    void setField(final Object object, final Field field, final Object value) throws Exception {
+    void setField(final Object object, final Field field, final @Nullable Object value) throws Exception {
         setField.invoke(null, object, field, value);
     }
 
     @Override
+    @Nullable
     Object getStaticField(final Field field) throws Exception {
         return getStaticField.invoke(null, field);
     }
 
     @Override
-    void setStaticField(final Field field, final Object value) throws Exception {
+    void setStaticField(final Field field, final @Nullable Object value) throws Exception {
         setStaticField.invoke(null, field, value);
     }
 
     @Override
-    Object invokeMethod(final Object object, final Method method, final Object... args) throws Exception {
+    @Nullable
+    Object invokeMethod(final Object object, final Method method, final @Nullable Object... args)
+            throws Exception {
         return invokeMethod.invoke(null, object, method, args);
     }
 
     @Override
-    Object invokeStaticMethod(final Method method, final Object... args) throws Exception {
+    @Nullable
+    Object invokeStaticMethod(final Method method, final @Nullable Object... args) throws Exception {
         return invokeStaticMethod.invoke(null, method, args);
     }
 }

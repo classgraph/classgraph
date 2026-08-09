@@ -30,6 +30,7 @@ package io.github.classgraph;
 
 import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.Parser;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A type signature for a reference type. Subclasses are
@@ -50,8 +51,8 @@ public abstract class ReferenceTypeSignature extends TypeSignature {
      * @return The parsed type reference type signature.
      * @throws ParseException If the type signature could not be parsed.
      */
-    static ReferenceTypeSignature parseReferenceTypeSignature(final Parser parser, final String definingClassName)
-            throws ParseException {
+    static @Nullable ReferenceTypeSignature parseReferenceTypeSignature(final Parser parser,
+            final @Nullable String definingClassName) throws ParseException {
         final var classTypeSignature = ClassRefTypeSignature.parse(parser, definingClassName);
         if (classTypeSignature != null) {
             return classTypeSignature;
@@ -75,8 +76,8 @@ public abstract class ReferenceTypeSignature extends TypeSignature {
      * @return The parsed class bound.
      * @throws ParseException If the type signature could not be parsed.
      */
-    static ReferenceTypeSignature parseClassBound(final Parser parser, final String definingClassName)
-            throws ParseException {
+    static @Nullable ReferenceTypeSignature parseClassBound(final Parser parser,
+            final @Nullable String definingClassName) throws ParseException {
         parser.expect(':');
         // May return null if there is no signature after ':' (class bound signature may
         // be empty)

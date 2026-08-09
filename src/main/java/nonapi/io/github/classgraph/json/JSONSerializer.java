@@ -39,8 +39,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import org.jspecify.annotations.Nullable;
 
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.utils.CollectionUtils;
@@ -68,17 +71,17 @@ public final class JSONSerializer {
      * @param objId                     the object id
      * @param onlySerializePublicFields whether to only serialize public fields
      */
-    private static void assignObjectIds(final Object jsonVal,
+    private static void assignObjectIds(final @Nullable Object jsonVal,
             final Map<ReferenceEqualityKey<Object>, JSONObject> objToJSONVal, final ClassFieldCache classFieldCache,
             final Map<ReferenceEqualityKey<JSONReference>, CharSequence> jsonReferenceToId, final AtomicInteger objId,
             final boolean onlySerializePublicFields) {
         if (jsonVal instanceof final JSONObject jsonObject) {
-            for (final Entry<String, Object> item : jsonObject.items) {
+            for (final Entry<String, @Nullable Object> item : jsonObject.items) {
                 assignObjectIds(item.getValue(), objToJSONVal, classFieldCache, jsonReferenceToId, objId,
                         onlySerializePublicFields);
             }
         } else if (jsonVal instanceof final JSONArray jsonArray) {
-            for (final Object item : jsonArray.items) {
+            for (final @Nullable Object item : jsonArray.items) {
                 assignObjectIds(item, objToJSONVal, classFieldCache, jsonReferenceToId, objId,
                         onlySerializePublicFields);
             }
@@ -143,7 +146,8 @@ public final class JSONSerializer {
      * @param objToJSONVal              a map from obj to JSON val
      * @param onlySerializePublicFields whether to only serialize public fields
      */
-    private static void convertVals(final Object[] convertedVals, final Set<ReferenceEqualityKey<Object>> visitedOnPath,
+    private static void convertVals(final @Nullable Object[] convertedVals,
+            final Set<ReferenceEqualityKey<Object>> visitedOnPath,
             final Set<ReferenceEqualityKey<Object>> standardObjectVisited, final ClassFieldCache classFieldCache,
             final Map<ReferenceEqualityKey<Object>, JSONObject> objToJSONVal, final boolean onlySerializePublicFields) {
         // Pass 1: find standard objects (objects that are not of basic value type or
@@ -159,6 +163,10 @@ public final class JSONSerializer {
         final var needToConvert = new boolean[convertedVals.length];
         for (var i = 0; i < convertedVals.length; i++) {
             final var val = convertedVals[i];
+            if (val == null) {
+                // Null is a basic value type, so needToConvert[i] stays false
+                continue;
+            }
             // By default (for basic value types), don't convert vals
             needToConvert[i] = !JSONUtils.isBasicValueType(val);
             if (needToConvert[i] && !JSONUtils.isCollectionOrArray(val)) {
@@ -187,16 +195,18 @@ public final class JSONSerializer {
                 // Recursively convert standard objects (if it is the first time they have been
                 // visited)
                 // and maps to JSON objects, and convert collections and arrays to JSON arrays.
-                final var val = convertedVals[i];
-                convertedVals[i] = toJSONGraph(val, visitedOnPath, standardObjectVisited, classFieldCache, objToJSONVal,
-                        onlySerializePublicFields);
+                // needToConvert[i] is only set for non-null vals in pass 1
+                final var val = Objects.requireNonNull(convertedVals[i]);
+                final var jsonVal = toJSONGraph(val, visitedOnPath, standardObjectVisited, classFieldCache,
+                        objToJSONVal, onlySerializePublicFields);
+                convertedVals[i] = jsonVal;
                 if (!JSONUtils.isCollectionOrArray(val)) {
                     // If this object is a standard object or map, then it has not been visited
                     // before,
                     // so save the mapping between original object and converted object
                     @SuppressWarnings("unchecked")
                     final var valKey = (ReferenceEqualityKey<Object>) valKeys[i];
-                    objToJSONVal.put(valKey, (JSONObject) convertedVals[i]);
+                    objToJSONVal.put(valKey, (JSONObject) jsonVal);
                 }
             }
         }
@@ -206,7 +216,7 @@ public final class JSONSerializer {
      * Comparator for set elements, to sort them into some sort of consistent order,
      * so that JSON ordering is deterministic.
      */
-    private static final Comparator<Object> SET_COMPARATOR = (o1, o2) -> {
+    private static final Comparator<@Nullable Object> SET_COMPARATOR = (o1, o2) -> {
         if (o1 == null || o2 == null) {
             return (o1 == null ? 0 : 1) - (o2 == null ? 0 : 1);
         }
@@ -226,7 +236,8 @@ public final class JSONSerializer {
      * to string form (i.e. keys that are not {@link Comparable}), so that JSON
      * ordering is deterministic.
      */
-    private static final Comparator<Entry<String, Object>> ENTRY_KEY_COMPARATOR = Comparator.comparing(Entry::getKey);
+    private static final Comparator<Entry<String, @Nullable Object>> ENTRY_KEY_COMPARATOR = Comparator
+            .comparing(Entry::getKey);
 
     /**
      * Turn an object graph into a graph of JSON objects, arrays, and values.
@@ -309,7 +320,7 @@ public final class JSONSerializer {
             }
 
             // Convert map values to JSON values
-            final var convertedVals = new Object[n];
+            final @Nullable Object[] convertedVals = new @Nullable Object[n];
             for (var i = 0; i < n; i++) {
                 convertedVals[i] = map.get(keys.get(i));
             }
@@ -317,7 +328,7 @@ public final class JSONSerializer {
                     onlySerializePublicFields);
 
             // Create new JSON object representing the map
-            final List<Entry<String, Object>> convertedKeyValPairs = new ArrayList<>(n);
+            final List<Entry<String, @Nullable Object>> convertedKeyValPairs = new ArrayList<>(n);
             for (var i = 0; i < n; i++) {
                 convertedKeyValPairs.add(new SimpleEntry<>(convertedKeys[i], convertedVals[i]));
             }
@@ -340,7 +351,7 @@ public final class JSONSerializer {
             final var n = list != null ? list.size() : isArray ? Array.getLength(obj) : 0;
 
             // Convert list items to JSON values
-            final var convertedVals = new Object[n];
+            final @Nullable Object[] convertedVals = new @Nullable Object[n];
             for (var i = 0; i < n; i++) {
                 convertedVals[i] = list != null ? list.get(i) : isArray ? Array.get(obj, i) : 0;
             }
@@ -355,13 +366,13 @@ public final class JSONSerializer {
 
             // If collection is a set, need to sort values into some sort of consistent
             // order
-            final List<Object> convertedValsList = new ArrayList<>(collection);
+            final List<@Nullable Object> convertedValsList = new ArrayList<>(collection);
             if (Set.class.isAssignableFrom(cls)) {
-                CollectionUtils.sortIfNotEmpty(convertedValsList, SET_COMPARATOR);
+                CollectionUtils.<@Nullable Object> sortIfNotEmpty(convertedValsList, SET_COMPARATOR);
             }
 
             // Convert items to JSON values
-            final var convertedVals = convertedValsList.toArray();
+            final @Nullable Object[] convertedVals = convertedValsList.toArray();
             convertVals(convertedVals, visitedOnPath, standardObjectVisited, classFieldCache, objToJSONVal,
                     onlySerializePublicFields);
 
@@ -378,7 +389,7 @@ public final class JSONSerializer {
 
             // Convert field values to JSON values
             final var fieldNames = new String[n];
-            final var convertedVals = new Object[n];
+            final @Nullable Object[] convertedVals = new @Nullable Object[n];
             for (var i = 0; i < n; i++) {
                 final var fieldTypeInfo = fieldOrder.get(i);
                 final var field = fieldTypeInfo.field;
@@ -394,7 +405,7 @@ public final class JSONSerializer {
                     onlySerializePublicFields);
 
             // Create new JSON object representing the standard object
-            final List<Entry<String, Object>> convertedKeyValPairs = new ArrayList<>(n);
+            final List<Entry<String, @Nullable Object>> convertedKeyValPairs = new ArrayList<>(n);
             for (var i = 0; i < n; i++) {
                 convertedKeyValPairs.add(new SimpleEntry<>(fieldNames[i], convertedVals[i]));
             }
@@ -423,7 +434,7 @@ public final class JSONSerializer {
      * @param indentWidth             the indent width
      * @param buf                     the buf
      */
-    static void jsonValToJSONString(final Object jsonVal,
+    static void jsonValToJSONString(final @Nullable Object jsonVal,
             final Map<ReferenceEqualityKey<JSONReference>, CharSequence> jsonReferenceToId,
             final boolean includeNullValuedFields, final int depth, final int indentWidth, final StringBuilder buf) {
 

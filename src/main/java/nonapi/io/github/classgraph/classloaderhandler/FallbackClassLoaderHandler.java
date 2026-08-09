@@ -36,6 +36,7 @@ import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Fallback ClassLoaderHandler. Tries to get classpath from a range of possible
@@ -43,21 +44,21 @@ import nonapi.io.github.classgraph.utils.LogNode;
  */
 class FallbackClassLoaderHandler implements ClassLoaderHandler {
     @Override
-    public boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
+    public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
         // This is the fallback handler, it handles anything
         return true;
     }
 
     @Override
     public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
-            final LogNode log) {
+            final @Nullable LogNode log) {
         classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
         classLoaderOrder.add(classLoader, log);
     }
 
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-            final ScanSpec scanSpec, final LogNode log) {
+            final ScanSpec scanSpec, final @Nullable LogNode log) {
         var valid = false;
         valid |= classpathOrder.addClasspathEntryObject(
                 classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getClassPath"), classLoader, scanSpec,
@@ -187,7 +188,7 @@ class FallbackClassLoaderHandler implements ClassLoaderHandler {
      * @return true if any classpath entries were found.
      */
     private static boolean findClasspathOrderByProbingForResources(final ClassLoader classLoader,
-            final ClasspathOrder classpathOrder, final ScanSpec scanSpec, final LogNode log) {
+            final ClasspathOrder classpathOrder, final ScanSpec scanSpec, final @Nullable LogNode log) {
         final var probeLog = log == null ? null
                 : log.log("Probing for classpath elements using " + classLoader.getClass().getName()
                         + "#getResources(String)");
@@ -244,7 +245,7 @@ class FallbackClassLoaderHandler implements ClassLoaderHandler {
      *         of the URL (which happens for URLs that do not name a resource within
      *         a classpath element, e.g. {@code "jrt:/java.base"}).
      */
-    private static String stripResourcePath(final String resourceURL, final String resourcePath) {
+    private static @Nullable String stripResourcePath(final String resourceURL, final String resourcePath) {
         if (!resourceURL.endsWith(resourcePath)) {
             return null;
         }

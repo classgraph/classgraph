@@ -39,6 +39,7 @@ import io.github.classgraph.Classfile.TypePathNode;
 import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.Parser;
 import nonapi.io.github.classgraph.utils.LogNode;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A method type signature (called "MethodSignature" in the classfile
@@ -58,7 +59,7 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
     private final List<ClassRefOrTypeVariableSignature> throwsSignatures;
 
     /** Any type annotation(s) on an explicit receiver parameter. */
-    private AnnotationInfoList receiverTypeAnnotationInfo;
+    private @Nullable AnnotationInfoList receiverTypeAnnotationInfo;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -139,10 +140,11 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
      * @param annotationInfo the receiver type annotation
      */
     void addReceiverTypeAnnotation(final AnnotationInfo annotationInfo) {
-        if (receiverTypeAnnotationInfo == null) {
-            receiverTypeAnnotationInfo = new AnnotationInfoList(1);
+        var receiverTypeAnnotations = receiverTypeAnnotationInfo;
+        if (receiverTypeAnnotations == null) {
+            receiverTypeAnnotationInfo = receiverTypeAnnotations = new AnnotationInfoList(1);
         }
-        receiverTypeAnnotationInfo.add(annotationInfo);
+        receiverTypeAnnotations.add(annotationInfo);
     }
 
     /**
@@ -150,7 +152,7 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
      * 
      * @return type annotations on the explicit receiver parameter, or null if none.
      */
-    public AnnotationInfoList getReceiverTypeAnnotationInfo() {
+    public @Nullable AnnotationInfoList getReceiverTypeAnnotationInfo() {
         return receiverTypeAnnotationInfo;
     }
 
@@ -186,7 +188,7 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
      * ScanResult)
      */
     @Override
-    void setScanResult(final ScanResult scanResult) {
+    void setScanResult(final @Nullable ScanResult scanResult) {
         super.setScanResult(scanResult);
         if (typeParameters != null) {
             for (final TypeParameter typeParameter : typeParameters) {
@@ -242,7 +244,7 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
      */
     @Override
     void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
-            final Set<ClassInfo> refdClassInfo, final LogNode log) {
+            final Set<ClassInfo> refdClassInfo, final @Nullable LogNode log) {
         final Set<String> refdClassNames = new HashSet<>();
         findReferencedClassNames(refdClassNames);
         for (final String refdClassName : refdClassNames) {
@@ -271,7 +273,7 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
-    public boolean equals(final Object obj) {
+    public boolean equals(final @Nullable Object obj) {
         if (obj == this) {
             return true;
         }
@@ -286,7 +288,8 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
     // -------------------------------------------------------------------------------------------------------------
 
     @Override
-    protected void toStringInternal(final boolean useSimpleNames, final AnnotationInfoList annotationsToExclude,
+    protected void toStringInternal(final boolean useSimpleNames,
+            final @Nullable AnnotationInfoList annotationsToExclude,
             final StringBuilder buf) {
         if (!typeParameters.isEmpty()) {
             buf.append('<');
@@ -331,11 +334,12 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
      * 
      * @param typeDescriptor    The type descriptor of the method.
      * @param definingClassName The name of the defining class (for resolving type
-     *                          variables).
+     *                          variables), or null if the defining class is not
+     *                          known.
      * @return The parsed method type signature.
      * @throws ParseException If method type signature could not be parsed.
      */
-    static MethodTypeSignature parse(final String typeDescriptor, final String definingClassName)
+    static MethodTypeSignature parse(final String typeDescriptor, final @Nullable String definingClassName)
             throws ParseException {
         if ("<init>".equals(typeDescriptor)) {
             // Special case for instance initialization method signatures in a

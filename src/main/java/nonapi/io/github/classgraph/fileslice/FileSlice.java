@@ -35,6 +35,7 @@ import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileChannel.MapMode;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.github.classgraph.ClassGraph;
@@ -45,23 +46,24 @@ import nonapi.io.github.classgraph.fileslice.reader.RandomAccessReader;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.VersionFinder;
+import org.jspecify.annotations.Nullable;
 
 /** A {@link File} slice. */
 public class FileSlice extends Slice {
     /** The {@link File}. */
     public final File file;
 
-    /** The {@link RandomAccessFile} opened on the {@link File}. */
-    public RandomAccessFile raf;
+    /** The {@link RandomAccessFile} opened on the {@link File}, or null once closed. */
+    public @Nullable RandomAccessFile raf;
 
     /** The file length. */
     private final long fileLength;
 
-    /** The file channel. */
-    private FileChannel fileChannel;
+    /** The file channel, or null once closed. */
+    private @Nullable FileChannel fileChannel;
 
     /** The backing byte buffer, if any. */
-    private ByteBuffer backingByteBuffer;
+    private @Nullable ByteBuffer backingByteBuffer;
 
     /**
      * The {@code java.lang.foreign.Arena} (JDK 22+) used to memory-map the file, if
@@ -71,7 +73,7 @@ public class FileSlice extends Slice {
      * (#939). Only set for toplevel file slices, which own the mapping (sub slices
      * just duplicate the backing byte buffer).
      */
-    private Object arena;
+    private @Nullable Object arena;
 
     /** True if this is a top level file slice. */
     private final boolean isTopLevelFileSlice;
@@ -126,7 +128,7 @@ public class FileSlice extends Slice {
      * @throws IOException if the file cannot be opened.
      */
     public FileSlice(final File file, final boolean isDeflatedZipEntry, final long inflatedLengthHint,
-            final NestedJarHandler nestedJarHandler, final LogNode log) throws IOException {
+            final NestedJarHandler nestedJarHandler, final @Nullable LogNode log) throws IOException {
         super(file.length(), isDeflatedZipEntry, inflatedLengthHint, nestedJarHandler);
         // Make sure the File is readable and is a regular file
         FileUtils.checkCanReadAndIsFile(file);
@@ -187,9 +189,11 @@ public class FileSlice extends Slice {
      *                     (mapping may succeed if retried after garbage
      *                     collection).
      */
-    private ByteBuffer mapFile() throws IOException {
+    private @Nullable ByteBuffer mapFile() throws IOException {
+        final var openFileChannel = Objects.requireNonNull(fileChannel);
         if (arena != null) {
-            return FileUtils.mapFileUsingArena(arena, fileChannel, 0L, fileLength, nestedJarHandler.reflectionUtils);
+            return FileUtils.mapFileUsingArena(arena, openFileChannel, 0L, fileLength,
+                    nestedJarHandler.reflectionUtils);
         }
         if (VersionFinder.JAVA_MAJOR_VERSION >= 22) {
             // An arena could not be opened, even though the arena API should be available
@@ -201,7 +205,7 @@ public class FileSlice extends Slice {
             // RandomAccessFile API instead
             return null;
         }
-        return fileChannel.map(MapMode.READ_ONLY, 0L, fileLength);
+        return openFileChannel.map(MapMode.READ_ONLY, 0L, fileLength);
     }
 
     /**
@@ -212,7 +216,7 @@ public class FileSlice extends Slice {
      * @param log              the log
      * @throws IOException if the file cannot be opened.
      */
-    public FileSlice(final File file, final NestedJarHandler nestedJarHandler, final LogNode log) throws IOException {
+    public FileSlice(final File file, final NestedJarHandler nestedJarHandler, final @Nullable LogNode log) throws IOException {
         this(file, /* isDeflatedZipEntry = */ false, /* inflatedSizeHint = */ 0L, nestedJarHandler, log);
     }
 
@@ -245,7 +249,8 @@ public class FileSlice extends Slice {
     public RandomAccessReader randomAccessReader() {
         if (backingByteBuffer == null) {
             // If file was not mmap'd, return a RandomAccessReader that uses the FileChannel
-            return new RandomAccessFileChannelReader(fileChannel, sliceStartPos, sliceLength);
+            return new RandomAccessFileChannelReader(Objects.requireNonNull(fileChannel), sliceStartPos,
+                    sliceLength);
         } else {
             // If file was mmap'd, return a RandomAccessReader that uses the ByteBuffer
             return new RandomAccessByteBufferReader(backingByteBuffer, sliceStartPos, sliceLength);
@@ -316,7 +321,7 @@ public class FileSlice extends Slice {
     }
 
     @Override
-    public boolean equals(final Object o) {
+    public boolean equals(final @Nullable Object o) {
         return super.equals(o);
     }
 
@@ -347,7 +352,7 @@ public class FileSlice extends Slice {
             fileChannel = null;
             try {
                 // Closing raf will also close the associated FileChannel
-                raf.close();
+                Objects.requireNonNull(raf).close();
             } catch (final IOException e) {
                 // Ignore
             }

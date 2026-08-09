@@ -28,6 +28,8 @@
  */
 package nonapi.io.github.classgraph.json;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * An object for wrapping a HashMap key so that the hashmap performs reference
  * equality on the keys, not equals() equality.
@@ -88,7 +90,7 @@ public class ReferenceEqualityKey<K> {
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
-    public boolean equals(final Object obj) {
+    public boolean equals(final @Nullable Object obj) {
         if (obj == this) {
             return true;
         }

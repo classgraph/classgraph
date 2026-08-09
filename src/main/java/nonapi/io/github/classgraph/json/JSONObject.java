@@ -33,16 +33,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * An intermediate object in the (de)serialization process, representing a JSON
  * Object.
  */
 class JSONObject {
-    /** Key/value mappings, in display order. */
-    List<Entry<String, Object>> items;
+    /** Key/value mappings, in display order (a JSON null value is stored as a null value). */
+    List<Entry<String, @Nullable Object>> items;
 
-    /** Object id for cross-references, if known. */
-    CharSequence objectId;
+    /** Object id for cross-references, or null if not known. */
+    @Nullable CharSequence objectId;
 
     /**
      * Constructor.
@@ -58,7 +60,7 @@ class JSONObject {
      *
      * @param items the items
      */
-    public JSONObject(final List<Entry<String, Object>> items) {
+    public JSONObject(final List<Entry<String, @Nullable Object>> items) {
         this.items = items;
     }
 
@@ -80,7 +82,7 @@ class JSONObject {
             numDisplayedFields = n;
         } else {
             numDisplayedFields = 0;
-            for (final Entry<String, Object> item : items) {
+            for (final Entry<String, @Nullable Object> item : items) {
                 if (item.getValue() != null) {
                     numDisplayedFields++;
                 }

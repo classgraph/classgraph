@@ -43,6 +43,7 @@ import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Extract classpath entries from the JBoss ClassLoader. See:
@@ -52,13 +53,13 @@ import nonapi.io.github.classgraph.utils.LogNode;
  */
 class JBossClassLoaderHandler implements ClassLoaderHandler {
     @Override
-    public boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
+    public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
         return ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass, "org.jboss.modules.ModuleClassLoader");
     }
 
     @Override
     public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
-            final LogNode log) {
+            final @Nullable LogNode log) {
         classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
         classLoaderOrder.add(classLoader, log);
     }
@@ -66,14 +67,14 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
     /**
      * Handle a resource loader.
      *
-     * @param resourceLoader    the resource loader
+     * @param resourceLoader    the resource loader, or null (ignored)
      * @param classLoader       the classloader
      * @param classpathOrderOut the classpath order
      * @param scanSpec          the scan spec
      * @param log               the log
      */
-    private static void handleResourceLoader(final Object resourceLoader, final ClassLoader classLoader,
-            final ClasspathOrder classpathOrderOut, final ScanSpec scanSpec, final LogNode log) {
+    private static void handleResourceLoader(final @Nullable Object resourceLoader, final ClassLoader classLoader,
+            final ClasspathOrder classpathOrderOut, final ScanSpec scanSpec, final @Nullable LogNode log) {
         if (resourceLoader == null) {
             return;
         }
@@ -96,13 +97,14 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
      * <a href="https://issues.redhat.com/browse/JBEAP-25879">JBEAP-25879</a>
      * <a href="https://issues.redhat.com/browse/JBEAP-25677">JBEAP-25677</a>
      * 
-     * @param root              The root object to get the JAR path from.
+     * @param root              The root object to get the JAR path from, or null.
      * @param classpathOrderOut The ClasspathOrder object for updating the classpath
      *                          order.
      * @return The {@link File} of the JAR file, or null if the path couldn't be
      *         found.
      */
-    private static File loadJarPathFromNewVFS(final Object root, final ClasspathOrder classpathOrderOut) {
+    private static @Nullable File loadJarPathFromNewVFS(final @Nullable Object root,
+            final ClasspathOrder classpathOrderOut) {
         if (root == null) {
             return null;
         }
@@ -147,7 +149,7 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
      * @return The Class object representing the JBoss VFS class, or null if it
      *         couldn't be found.
      */
-    private static Class<?> getJBossVFSAccess(final Object root) {
+    private static @Nullable Class<?> getJBossVFSAccess(final Object root) {
         Class<?> jbossVFS = null;
         // we need access to the class 'VFS' of org.jboss.vfs
         try {
@@ -196,13 +198,14 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
      * <a href="https://issues.redhat.com/browse/JBEAP-25879">JBEAP-25879</a>
      * <a href="https://issues.redhat.com/browse/JBEAP-25677">JBEAP-25677</a>
      * 
-     * @param root              The root object to get the JAR path from.
+     * @param root              The root object to get the JAR path from, or null.
      * @param classpathOrderOut The ClasspathOrder object for updating the classpath
      *                          order.
      * @return The {@link File} or {@link Path} of the JAR file, or null if the VFS
      *         path couldn't be found.
      */
-    private static Object loadJarPathFromClassicVFS(final Object root, final ClasspathOrder classpathOrderOut) {
+    private static @Nullable Object loadJarPathFromClassicVFS(final @Nullable Object root,
+            final ClasspathOrder classpathOrderOut) {
         if (root == null) {
             return null;
         }
@@ -234,16 +237,16 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
     /**
      * Handle a module.
      *
-     * @param module            the module
+     * @param module            the module, or null
      * @param visitedModules    visited modules
      * @param classLoader       the classloader
      * @param classpathOrderOut the classpath order
      * @param scanSpec          the scan spec
      * @param log               the log
      */
-    private static void handleRealModule(final Object module, final Set<Object> visitedModules,
+    private static void handleRealModule(final @Nullable Object module, final Set<@Nullable Object> visitedModules,
             final ClassLoader classLoader, final ClasspathOrder classpathOrderOut, final ScanSpec scanSpec,
-            final LogNode log) {
+            final @Nullable LogNode log) {
         if (!visitedModules.add(module)) {
             // Avoid extracting paths from the same module more than once
             return;
@@ -279,11 +282,11 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
 
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-            final ScanSpec scanSpec, final LogNode log) {
+            final ScanSpec scanSpec, final @Nullable LogNode log) {
         final var module = classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getModule");
         final var callerModuleLoader = classpathOrder.reflectionUtils.invokeMethod(false, module,
                 "getCallerModuleLoader");
-        final Set<Object> visitedModules = new HashSet<>();
+        final Set<@Nullable Object> visitedModules = new HashSet<>();
         @SuppressWarnings("unchecked")
         final var moduleMap = (Map<Object, Object>) classpathOrder.reflectionUtils.getFieldVal(false,
                 callerModuleLoader, "moduleMap");

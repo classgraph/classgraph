@@ -33,12 +33,14 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.fileslice.reader.RandomAccessFileChannelReader;
 import nonapi.io.github.classgraph.fileslice.reader.RandomAccessReader;
 import nonapi.io.github.classgraph.utils.FileUtils;
+import org.jspecify.annotations.Nullable;
 
 /** A {@link Path} slice. */
 public class PathSlice extends Slice {
@@ -48,8 +50,21 @@ public class PathSlice extends Slice {
     /** The file length. */
     private final long fileLength;
 
-    /** The {@link FileChannel} opened on the {@link Path}. */
-    private FileChannel fileChannel;
+    /**
+     * The {@link FileChannel} opened on the {@link Path}. Set to null by
+     * {@link #close()}.
+     */
+    private @Nullable FileChannel fileChannel;
+
+    /**
+     * Get the {@link FileChannel} opened on the {@link Path}.
+     *
+     * @return the {@link FileChannel}
+     * @throws NullPointerException if {@link #close()} has been called
+     */
+    private FileChannel fileChannel() {
+        return Objects.requireNonNull(fileChannel);
+    }
 
     /** True if this is a top level file slice. */
     private final boolean isTopLevelFileSlice;
@@ -123,8 +138,9 @@ public class PathSlice extends Slice {
         }
 
         this.path = path;
-        this.fileChannel = FileChannel.open(path, StandardOpenOption.READ);
-        this.fileLength = fileChannel.size();
+        final var fileChannelOpened = FileChannel.open(path, StandardOpenOption.READ);
+        this.fileChannel = fileChannelOpened;
+        this.fileLength = fileChannelOpened.size();
         this.isTopLevelFileSlice = true;
 
         // Had to use 0L for sliceLength in call to super, since FileChannel wasn't open
@@ -175,7 +191,7 @@ public class PathSlice extends Slice {
     @Override
     public RandomAccessReader randomAccessReader() {
         // Return a RandomAccessReader that uses the FileChannel
-        return new RandomAccessFileChannelReader(fileChannel, sliceStartPos, sliceLength);
+        return new RandomAccessFileChannelReader(fileChannel(), sliceStartPos, sliceLength);
     }
 
     /**
@@ -237,7 +253,7 @@ public class PathSlice extends Slice {
     }
 
     @Override
-    public boolean equals(final Object o) {
+    public boolean equals(final @Nullable Object o) {
         return super.equals(o);
     }
 
@@ -253,12 +269,13 @@ public class PathSlice extends Slice {
     @Override
     public void close() {
         if (!isClosed.getAndSet(true)) {
-            if (isTopLevelFileSlice && fileChannel != null) {
+            final var fileChannelCurr = fileChannel;
+            if (isTopLevelFileSlice && fileChannelCurr != null) {
                 // Only close the FileChannel in the toplevel file slice, so that it is only
                 // closed once
                 // (sub slices just copy the reference to the toplevel slice's FileChannel)
                 try {
-                    fileChannel.close();
+                    fileChannelCurr.close();
                 } catch (final IOException e) {
                     // Ignore
                 }

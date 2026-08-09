@@ -41,6 +41,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 
 import io.github.classgraph.ClassGraph;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A tree-structured threadsafe log that allows you to add log entries in
@@ -74,11 +75,11 @@ public final class LogNode {
     /** The timestamp at which the log node was created, in epoch millis. */
     private final long timeStampMillis = System.currentTimeMillis();
 
-    /** The log message. */
-    private final String msg;
+    /** The log message, or null if there is no message for this log node. */
+    private final @Nullable String msg;
 
     /** The stacktrace, if this log entry was due to an exception. */
-    private String stackTrace;
+    private @Nullable String stackTrace;
 
     /**
      * The time between when this log entry was created and addElapsedTime() was
@@ -87,7 +88,7 @@ public final class LogNode {
     private long elapsedTimeNanos;
 
     /** The parent LogNode. */
-    private LogNode parent;
+    private @Nullable LogNode parent;
 
     /** The child nodes of this log node. */
     private final Map<String, LogNode> children = new ConcurrentSkipListMap<>();
@@ -132,7 +133,8 @@ public final class LogNode {
      * @param elapsedTimeNanos the elapsed time in nanos
      * @param exception        the exception that was thrown
      */
-    private LogNode(final String sortKey, final String msg, final long elapsedTimeNanos, final Throwable exception) {
+    private LogNode(final String sortKey, final @Nullable String msg, final long elapsedTimeNanos,
+            final @Nullable Throwable exception) {
         this.sortKeyPrefix = sortKey;
         this.msg = msg;
         this.elapsedTimeNanos = elapsedTimeNanos;
@@ -257,8 +259,8 @@ public final class LogNode {
      * @param exception        the exception that was thrown
      * @return the log node
      */
-    private LogNode addChild(final String sortKey, final String msg, final long elapsedTimeNanos,
-            final Throwable exception) {
+    private LogNode addChild(final String sortKey, final @Nullable String msg, final long elapsedTimeNanos,
+            final @Nullable Throwable exception) {
         final var newSortKey = sortKeyPrefix + "\t" + (sortKey == null ? "" : sortKey) + "\t"
                 + String.format("%09d", sortKeyUniqueSuffix.getAndIncrement());
         final LogNode newChild = new LogNode(newSortKey, msg, elapsedTimeNanos, exception);
@@ -279,7 +281,7 @@ public final class LogNode {
      * @param elapsedTimeNanos the elapsed time in nanos
      * @return the log node
      */
-    private LogNode addChild(final String sortKey, final String msg, final long elapsedTimeNanos) {
+    private LogNode addChild(final String sortKey, final @Nullable String msg, final long elapsedTimeNanos) {
         return addChild(sortKey, msg, elapsedTimeNanos, null);
     }
 
@@ -302,7 +304,8 @@ public final class LogNode {
      * @param e                The {@link Throwable} that was thrown.
      * @return a child log node, which can be used to add sub-entries.
      */
-    public LogNode log(final String sortKey, final String msg, final long elapsedTimeNanos, final Throwable e) {
+    public LogNode log(final String sortKey, final @Nullable String msg, final long elapsedTimeNanos,
+            final Throwable e) {
         return addChild(sortKey, msg, elapsedTimeNanos).addChild(e);
     }
 
@@ -314,7 +317,7 @@ public final class LogNode {
      * @param elapsedTimeNanos The elapsed time.
      * @return a child log node, which can be used to add sub-entries.
      */
-    public LogNode log(final String sortKey, final String msg, final long elapsedTimeNanos) {
+    public LogNode log(final String sortKey, final @Nullable String msg, final long elapsedTimeNanos) {
         return addChild(sortKey, msg, elapsedTimeNanos);
     }
 
@@ -326,7 +329,7 @@ public final class LogNode {
      * @param e       The {@link Throwable} that was thrown.
      * @return a child log node, which can be used to add sub-entries.
      */
-    public LogNode log(final String sortKey, final String msg, final Throwable e) {
+    public LogNode log(final String sortKey, final @Nullable String msg, final Throwable e) {
         return addChild(sortKey, msg, -1L).addChild(e);
     }
 
@@ -337,7 +340,7 @@ public final class LogNode {
      * @param msg     The message.
      * @return a child log node, which can be used to add sub-entries.
      */
-    public LogNode log(final String sortKey, final String msg) {
+    public LogNode log(final String sortKey, final @Nullable String msg) {
         return addChild(sortKey, msg, -1L);
     }
 
@@ -349,7 +352,7 @@ public final class LogNode {
      * @param e                The {@link Throwable} that was thrown.
      * @return a child log node, which can be used to add sub-entries.
      */
-    public LogNode log(final String msg, final long elapsedTimeNanos, final Throwable e) {
+    public LogNode log(final @Nullable String msg, final long elapsedTimeNanos, final Throwable e) {
         return addChild("", msg, elapsedTimeNanos).addChild(e);
     }
 
@@ -360,7 +363,7 @@ public final class LogNode {
      * @param elapsedTimeNanos The elapsed time.
      * @return a child log node, which can be used to add sub-entries.
      */
-    public LogNode log(final String msg, final long elapsedTimeNanos) {
+    public LogNode log(final @Nullable String msg, final long elapsedTimeNanos) {
         return addChild("", msg, elapsedTimeNanos);
     }
 
@@ -371,7 +374,7 @@ public final class LogNode {
      * @param e   The {@link Throwable} that was thrown.
      * @return a child log node, which can be used to add sub-entries.
      */
-    public LogNode log(final String msg, final Throwable e) {
+    public LogNode log(final @Nullable String msg, final Throwable e) {
         return addChild("", msg, -1L).addChild(e);
     }
 
@@ -381,7 +384,7 @@ public final class LogNode {
      * @param msg The message.
      * @return a child log node, which can be used to add sub-entries.
      */
-    public LogNode log(final String msg) {
+    public LogNode log(final @Nullable String msg) {
         return addChild("", msg, -1L);
     }
 
@@ -389,9 +392,10 @@ public final class LogNode {
      * Add a series of log entries. Returns the last LogNode created.
      * 
      * @param msgs The messages.
-     * @return the last log node created, which can be used to add sub-entries.
+     * @return the last log node created, which can be used to add sub-entries, or
+     *         null if {@code msgs} was empty.
      */
-    public LogNode log(final Collection<String> msgs) {
+    public @Nullable LogNode log(final Collection<String> msgs) {
         LogNode last = null;
         for (final String m : msgs) {
             last = log(m);

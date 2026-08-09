@@ -34,11 +34,13 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.Assert;
 import nonapi.io.github.classgraph.utils.CollectionUtils;
+import org.jspecify.annotations.Nullable;
 
 /** Holds metadata about a package encountered during a scan. */
 public class PackageInfo implements Comparable<PackageInfo>, HasName {
@@ -49,26 +51,30 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
      * Unique {@link AnnotationInfo} objects for any annotations on the
      * package-info.class file, if present, else null.
      */
-    private Set<AnnotationInfo> annotationInfoSet;
+    private @Nullable Set<AnnotationInfo> annotationInfoSet;
 
     /**
      * {@link AnnotationInfo} for any annotations on the package-info.class file, if
      * present, else null.
      */
-    private AnnotationInfoList annotationInfo;
+    private @Nullable AnnotationInfoList annotationInfo;
 
-    /** The parent package of this package. */
-    private PackageInfo parent;
+    /** The parent package of this package, or null if this is the root package. */
+    private @Nullable PackageInfo parent;
 
-    /** The child packages of this package. */
-    private Set<PackageInfo> children;
+    /** The child packages of this package, or null if none. */
+    private @Nullable Set<PackageInfo> children;
 
-    /** Set of classes in the package. */
-    private Map<String, ClassInfo> memberClassNameToClassInfo;
+    /** Set of classes in the package, or null if none. */
+    private @Nullable Map<String, ClassInfo> memberClassNameToClassInfo;
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Deserialization constructor. */
+    /**
+     * Deserialization constructor. {@code name} is populated by the deserializer, so
+     * it is not assigned here.
+     */
+    @SuppressWarnings("NullAway.Init")
     PackageInfo() {
         // Empty
     }
@@ -99,13 +105,14 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
      *
      * @param packageAnnotations the package annotations
      */
-    void addAnnotations(final AnnotationInfoList packageAnnotations) {
+    void addAnnotations(final @Nullable AnnotationInfoList packageAnnotations) {
         // Add class annotations from the package-info.class file
         if (packageAnnotations != null && !packageAnnotations.isEmpty()) {
-            if (annotationInfoSet == null) {
-                annotationInfoSet = new LinkedHashSet<>();
+            var annotations = annotationInfoSet;
+            if (annotations == null) {
+                annotationInfoSet = annotations = new LinkedHashSet<>();
             }
-            annotationInfoSet.addAll(packageAnnotations);
+            annotations.addAll(packageAnnotations);
         }
     }
 
@@ -117,17 +124,19 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
      * @param classInfo the {@link ClassInfo} object to add to the package.
      */
     void addClassInfo(final ClassInfo classInfo) {
-        if (memberClassNameToClassInfo == null) {
-            memberClassNameToClassInfo = new HashMap<>();
+        var memberClasses = memberClassNameToClassInfo;
+        if (memberClasses == null) {
+            memberClassNameToClassInfo = memberClasses = new HashMap<>();
         }
-        memberClassNameToClassInfo.put(classInfo.getName(), classInfo);
+        memberClasses.put(classInfo.getName(), classInfo);
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
     void setScanResult(final ScanResult scanResult) {
-        if (annotationInfoSet != null) {
-            for (final AnnotationInfo ai : annotationInfoSet) {
+        final var annotations = annotationInfoSet;
+        if (annotations != null) {
+            for (final AnnotationInfo ai : annotations) {
                 ai.setScanResult(scanResult);
             }
         }
@@ -141,7 +150,7 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
      * @return An {@link AnnotationInfo} object representing the annotation on this
      *         package, or null if the package does not have the annotation.
      */
-    public AnnotationInfo getAnnotationInfo(final Class<? extends Annotation> annotation) {
+    public @Nullable AnnotationInfo getAnnotationInfo(final Class<? extends Annotation> annotation) {
         Assert.isAnnotation(annotation);
         return getAnnotationInfo(annotation.getName());
     }
@@ -155,7 +164,7 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
      *         this package, or null if the package does not have the named
      *         annotation.
      */
-    public AnnotationInfo getAnnotationInfo(final String annotationName) {
+    public @Nullable AnnotationInfo getAnnotationInfo(final String annotationName) {
         return getAnnotationInfo().get(annotationName);
     }
 
@@ -165,15 +174,18 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
      * @return the annotations on the {@code package-info.class} file.
      */
     public AnnotationInfoList getAnnotationInfo() {
-        if (annotationInfo == null) {
-            if (annotationInfoSet == null) {
-                annotationInfo = AnnotationInfoList.EMPTY_LIST;
+        var annotations = annotationInfo;
+        if (annotations == null) {
+            final var annotationSet = annotationInfoSet;
+            if (annotationSet == null) {
+                annotations = AnnotationInfoList.EMPTY_LIST;
             } else {
-                annotationInfo = new AnnotationInfoList();
-                annotationInfo.addAll(annotationInfoSet);
+                annotations = new AnnotationInfoList();
+                annotations.addAll(annotationSet);
             }
+            annotationInfo = annotations;
         }
-        return annotationInfo;
+        return annotations;
     }
 
     /**
@@ -204,7 +216,7 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
      *
      * @return the parent package, or null if this is the root package.
      */
-    public PackageInfo getParent() {
+    public @Nullable PackageInfo getParent() {
         return parent;
     }
 
@@ -214,10 +226,11 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
      * @return the child packages, or the empty list if none.
      */
     public PackageInfoList getChildren() {
-        if (children == null) {
+        final var childPackages = children;
+        if (childPackages == null) {
             return PackageInfoList.EMPTY_LIST;
         }
-        final PackageInfoList childrenSorted = new PackageInfoList(children);
+        final PackageInfoList childrenSorted = new PackageInfoList(childPackages);
         // Ensure children are sorted
         CollectionUtils.sortIfNotEmpty(childrenSorted, Comparator.comparing(o1 -> o1.name));
         return childrenSorted;
@@ -233,8 +246,9 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
      * @return the {@link ClassInfo} object for the named class in this package, or
      *         null if the class was not found in this package.
      */
-    public ClassInfo getClassInfo(final String className) {
-        return memberClassNameToClassInfo == null ? null : memberClassNameToClassInfo.get(className);
+    public @Nullable ClassInfo getClassInfo(final String className) {
+        final var memberClasses = memberClassNameToClassInfo;
+        return memberClasses == null ? null : memberClasses.get(className);
     }
 
     /**
@@ -245,8 +259,9 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
      *         this package.
      */
     public ClassInfoList getClassInfo() {
-        return memberClassNameToClassInfo == null ? ClassInfoList.EMPTY_LIST
-                : new ClassInfoList(new HashSet<>(memberClassNameToClassInfo.values()), /* sortByName = */ true);
+        final var memberClasses = memberClassNameToClassInfo;
+        return memberClasses == null ? ClassInfoList.EMPTY_LIST
+                : new ClassInfoList(new HashSet<>(memberClasses.values()), /* sortByName = */ true);
     }
 
     /**
@@ -255,8 +270,9 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
      * @param reachableClassInfo the reachable class info
      */
     private void obtainClassInfoRecursive(final Set<ClassInfo> reachableClassInfo) {
-        if (memberClassNameToClassInfo != null) {
-            reachableClassInfo.addAll(memberClassNameToClassInfo.values());
+        final var memberClasses = memberClassNameToClassInfo;
+        if (memberClasses != null) {
+            reachableClassInfo.addAll(memberClasses.values());
         }
         for (final PackageInfo subPackageInfo : getChildren()) {
             subPackageInfo.obtainClassInfoRecursive(reachableClassInfo);
@@ -286,7 +302,7 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
      * @return the parent package, or the package of the named class, or null if
      *         packageOrClassName is the root package ("").
      */
-    static String getParentPackageName(final String packageOrClassName) {
+    static @Nullable String getParentPackageName(final String packageOrClassName) {
         if (packageOrClassName.isEmpty()) {
             return null;
         }
@@ -322,18 +338,18 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
             // package that already
             // exists or that is not accepted is reached), and connect each ancestral
             // package to its parent
-            final var parentPackageName = getParentPackageName(packageInfo.name);
+            // packageName is non-empty here, so getParentPackageName cannot return null
+            final var parentPackageName = Objects.requireNonNull(getParentPackageName(packageInfo.name));
             if (scanSpec.packageAcceptReject.isAcceptedAndNotRejected(parentPackageName)
                     || scanSpec.packagePrefixAcceptReject.isAcceptedAndNotRejected(parentPackageName)) {
                 final var parentPackageInfo = getOrCreatePackage(parentPackageName, packageNameToPackageInfo, scanSpec);
-                if (parentPackageInfo != null) {
-                    // Link package to parent
-                    if (parentPackageInfo.children == null) {
-                        parentPackageInfo.children = new HashSet<>();
-                    }
-                    parentPackageInfo.children.add(packageInfo);
-                    packageInfo.parent = parentPackageInfo;
+                // Link package to parent
+                var parentChildren = parentPackageInfo.children;
+                if (parentChildren == null) {
+                    parentPackageInfo.children = parentChildren = new HashSet<>();
                 }
+                parentChildren.add(packageInfo);
+                packageInfo.parent = parentPackageInfo;
             }
         }
 
@@ -369,7 +385,7 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
-    public boolean equals(final Object obj) {
+    public boolean equals(final @Nullable Object obj) {
         if (obj == this) {
             return true;
         }

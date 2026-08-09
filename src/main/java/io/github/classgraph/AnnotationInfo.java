@@ -38,9 +38,11 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Set;
 
 import nonapi.io.github.classgraph.utils.LogNode;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Holds metadata about a specific annotation instance on a class, method,
@@ -50,8 +52,8 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     /** The name. */
     private String name;
 
-    /** The annotation param values. */
-    private AnnotationParameterValueList annotationParamValues;
+    /** The annotation param values, or null if none. */
+    private @Nullable AnnotationParameterValueList annotationParamValues;
 
     /**
      * Set to true once any Object[] arrays of boxed types in annotationParamValues
@@ -60,9 +62,13 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     private transient boolean annotationParamValuesHasBeenConvertedToPrimitive;
 
     /** The annotation param values with defaults. */
-    private transient AnnotationParameterValueList annotationParamValuesWithDefaults;
+    private transient @Nullable AnnotationParameterValueList annotationParamValuesWithDefaults;
 
-    /** Default constructor for deserialization. */
+    /**
+     * Default constructor for deserialization. {@code name} is populated by the
+     * deserializer, so it is not assigned here.
+     */
+    @SuppressWarnings("NullAway.Init")
     AnnotationInfo() {
         super();
     }
@@ -76,7 +82,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      * @param annotationParamValues The annotation parameter values, or null if
      *                              none.
      */
-    AnnotationInfo(final String name, final AnnotationParameterValueList annotationParamValues) {
+    AnnotationInfo(final String name, final @Nullable AnnotationParameterValueList annotationParamValues) {
         super();
         this.name = name;
         this.annotationParamValues = annotationParamValues;
@@ -100,7 +106,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      * @return true if this annotation is meta-annotated with {@link Inherited}.
      */
     public boolean isInherited() {
-        return getClassInfo().isInherited;
+        return Objects.requireNonNull(getClassInfo()).isInherited;
     }
 
     /**
@@ -110,7 +116,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      *         empty list if none.
      */
     public AnnotationParameterValueList getDefaultParameterValues() {
-        return getClassInfo().getAnnotationDefaultParameterValues();
+        return Objects.requireNonNull(getClassInfo()).getAnnotationDefaultParameterValues();
     }
 
     /**
@@ -123,21 +129,22 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      *         requested), or the empty list if none.
      */
     public AnnotationParameterValueList getParameterValues(final boolean includeDefaultValues) {
+        final var paramValues = annotationParamValues;
         final var classInfo = getClassInfo();
         if (classInfo == null) {
             // ClassInfo has not yet been set, just return values without defaults
             // (happens when trying to log AnnotationInfo during scanning, before ScanResult
             // is available)
-            return annotationParamValues == null ? AnnotationParameterValueList.EMPTY_LIST : annotationParamValues;
+            return paramValues == null ? AnnotationParameterValueList.EMPTY_LIST : paramValues;
         }
         // Lazily convert any Object[] arrays of boxed types to primitive arrays
-        if (annotationParamValues != null && !annotationParamValuesHasBeenConvertedToPrimitive) {
-            annotationParamValues.convertWrapperArraysToPrimitiveArrays(classInfo);
+        if (paramValues != null && !annotationParamValuesHasBeenConvertedToPrimitive) {
+            paramValues.convertWrapperArraysToPrimitiveArrays(classInfo);
             annotationParamValuesHasBeenConvertedToPrimitive = true;
         }
         if (!includeDefaultValues) {
             // Don't include defaults
-            return annotationParamValues == null ? AnnotationParameterValueList.EMPTY_LIST : annotationParamValues;
+            return paramValues == null ? AnnotationParameterValueList.EMPTY_LIST : paramValues;
         }
         if (annotationParamValuesWithDefaults == null) {
             if (classInfo.annotationDefaultParamValues != null
@@ -149,11 +156,9 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
             // Check if one or both of the defaults and the values in this annotation
             // instance are null (empty)
             final var defaultParamValues = classInfo.annotationDefaultParamValues;
-            if (defaultParamValues == null && annotationParamValues == null) {
-                return AnnotationParameterValueList.EMPTY_LIST;
-            } else if (defaultParamValues == null) {
-                return annotationParamValues;
-            } else if (annotationParamValues == null) {
+            if (defaultParamValues == null) {
+                return paramValues == null ? AnnotationParameterValueList.EMPTY_LIST : paramValues;
+            } else if (paramValues == null) {
                 return defaultParamValues;
             }
 
@@ -162,7 +167,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
             for (final AnnotationParameterValue defaultParamValue : defaultParamValues) {
                 allParamValues.put(defaultParamValue.getName(), defaultParamValue.getValue());
             }
-            for (final AnnotationParameterValue annotationParamValue : this.annotationParamValues) {
+            for (final AnnotationParameterValue annotationParamValue : paramValues) {
                 allParamValues.put(annotationParamValue.getName(), annotationParamValue.getValue());
             }
 
@@ -175,7 +180,8 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
                 // scanSpec.enableMethodInfo is true)
                 throw new IllegalArgumentException("Could not find methods for annotation " + classInfo.getName());
             }
-            annotationParamValuesWithDefaults = new AnnotationParameterValueList();
+            final var withDefaults = new AnnotationParameterValueList();
+            annotationParamValuesWithDefaults = withDefaults;
             for (final MethodInfo mi : classInfo.methodInfo) {
                 final var paramName = mi.getName();
                 switch (paramName) {
@@ -193,13 +199,13 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
                     // Annotation values cannot be null (or absent, from either defaults or
                     // annotation instance)
                     if (paramValue != null) {
-                        annotationParamValuesWithDefaults.add(new AnnotationParameterValue(paramName, paramValue));
+                        withDefaults.add(new AnnotationParameterValue(paramName, paramValue));
                     }
                 }
                 }
             }
         }
-        return annotationParamValuesWithDefaults;
+        return Objects.requireNonNull(annotationParamValuesWithDefaults);
     }
 
     /**
@@ -233,10 +239,11 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      * ScanResult)
      */
     @Override
-    void setScanResult(final ScanResult scanResult) {
+    void setScanResult(final @Nullable ScanResult scanResult) {
         super.setScanResult(scanResult);
-        if (annotationParamValues != null) {
-            for (final AnnotationParameterValue a : annotationParamValues) {
+        final var paramValues = annotationParamValues;
+        if (paramValues != null) {
+            for (final AnnotationParameterValue a : paramValues) {
                 a.setScanResult(scanResult);
             }
         }
@@ -251,10 +258,11 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      */
     @Override
     void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
-            final Set<ClassInfo> refdClassInfo, final LogNode log) {
+            final Set<ClassInfo> refdClassInfo, final @Nullable LogNode log) {
         super.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
-        if (annotationParamValues != null) {
-            for (final AnnotationParameterValue annotationParamValue : annotationParamValues) {
+        final var paramValues = annotationParamValues;
+        if (paramValues != null) {
+            for (final AnnotationParameterValue annotationParamValue : paramValues) {
                 annotationParamValue.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
             }
         }
@@ -262,9 +270,12 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Return the {@link ClassInfo} object for the annotation class. */
+    /**
+     * Return the {@link ClassInfo} object for the annotation class, or null if the
+     * annotation class was not encountered during scanning.
+     */
     @Override
-    public ClassInfo getClassInfo() {
+    public @Nullable ClassInfo getClassInfo() {
         return super.getClassInfo();
     }
 
@@ -302,7 +313,8 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      *         can be cast to the expected annotation type.
      */
     public Annotation loadClassAndInstantiate() {
-        final Class<? extends Annotation> annotationClass = getClassInfo().loadClass(Annotation.class);
+        final Class<? extends Annotation> annotationClass = Objects
+                .requireNonNull(Objects.requireNonNull(getClassInfo()).loadClass(Annotation.class));
         return (Annotation) Proxy.newProxyInstance(annotationClass.getClassLoader(), new Class<?>[] { annotationClass },
                 new AnnotationInvocationHandler(annotationClass, this));
     }
@@ -354,7 +366,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
          * java.lang.reflect.Method, java.lang.Object[])
          */
         @Override
-        public Object invoke(final Object proxy, final Method method, final Object[] args) {
+        public Object invoke(final Object proxy, final Method method, final Object @Nullable [] args) {
             final var methodName = method.getName();
             final var paramTypes = method.getParameterTypes();
             if ((args == null ? 0 : args.length) != paramTypes.length) {
@@ -501,8 +513,9 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      * Convert wrapper arrays to primitive arrays.
      */
     void convertWrapperArraysToPrimitiveArrays() {
-        if (annotationParamValues != null) {
-            annotationParamValues.convertWrapperArraysToPrimitiveArrays(getClassInfo());
+        final var paramValues = annotationParamValues;
+        if (paramValues != null) {
+            paramValues.convertWrapperArraysToPrimitiveArrays(getClassInfo());
         }
     }
 
@@ -519,21 +532,22 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
         if (diff != 0) {
             return diff;
         }
-        if (annotationParamValues == null && o.annotationParamValues == null) {
+        final var paramValues = annotationParamValues;
+        final var oParamValues = o.annotationParamValues;
+        if (paramValues == null && oParamValues == null) {
             return 0;
-        } else if (annotationParamValues == null) {
+        } else if (paramValues == null) {
             return -1;
-        } else if (o.annotationParamValues == null) {
+        } else if (oParamValues == null) {
             return 1;
         } else {
-            for (int i = 0,
-                    max = Math.max(annotationParamValues.size(), o.annotationParamValues.size()); i < max; i++) {
-                if (i >= annotationParamValues.size()) {
+            for (int i = 0, max = Math.max(paramValues.size(), oParamValues.size()); i < max; i++) {
+                if (i >= paramValues.size()) {
                     return -1;
-                } else if (i >= o.annotationParamValues.size()) {
+                } else if (i >= oParamValues.size()) {
                     return 1;
                 } else {
-                    final var diff2 = annotationParamValues.get(i).compareTo(o.annotationParamValues.get(i));
+                    final var diff2 = paramValues.get(i).compareTo(oParamValues.get(i));
                     if (diff2 != 0) {
                         return diff2;
                     }
@@ -549,7 +563,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      * @see java.lang.Object#equals(java.lang.Object)
      */
     @Override
-    public boolean equals(final Object obj) {
+    public boolean equals(final @Nullable Object obj) {
         if (obj == this) {
             return true;
         }
@@ -567,9 +581,10 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     @Override
     public int hashCode() {
         var h = name.hashCode();
-        if (annotationParamValues != null) {
-            for (final AnnotationParameterValue e : annotationParamValues) {
-                h = h * 7 + e.getName().hashCode() * 3 + e.getValue().hashCode();
+        final var paramValues = annotationParamValues;
+        if (paramValues != null) {
+            for (final AnnotationParameterValue e : paramValues) {
+                h = h * 7 + e.getName().hashCode() * 3 + Objects.requireNonNull(e.getValue()).hashCode();
             }
         }
         return h;

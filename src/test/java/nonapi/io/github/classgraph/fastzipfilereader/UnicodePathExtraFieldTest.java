@@ -79,7 +79,7 @@ public class UnicodePathExtraFieldTest {
                 new ReflectionUtils());
         final List<String> entryNames = new ArrayList<>();
         try {
-            final var logicalZipFileAndPackageRoot = nestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap
+            final var logicalZipFileAndPackageRoot = nestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap()
                     .get(jarFile.getPath(), /* log = */ null);
             for (final FastZipEntry zipEntry : logicalZipFileAndPackageRoot.getKey().entries) {
                 entryNames.add(zipEntry.entryName);

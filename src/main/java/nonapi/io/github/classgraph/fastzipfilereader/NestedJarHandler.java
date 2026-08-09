@@ -53,6 +53,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -76,6 +77,7 @@ import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
+import org.jspecify.annotations.Nullable;
 
 /** Open and read jarfiles, which may be nested within other jarfiles. */
 public class NestedJarHandler {
@@ -88,26 +90,38 @@ public class NestedJarHandler {
     /**
      * A singleton map from a zipfile's {@link File} to the {@link PhysicalZipFile}
      * for that file, used to ensure that the {@link RandomAccessFile} and
-     * {@link FileChannel} for any given zipfile is opened only once.
+     * {@link FileChannel} for any given zipfile is opened only once. Set to null by
+     * {@link #close(LogNode)}.
      */
-    private SingletonMap<File, PhysicalZipFile, IOException> //
+    private @Nullable SingletonMap<File, PhysicalZipFile, IOException> //
     canonicalFileToPhysicalZipFileMap = new SingletonMap<>() {
         @Override
-        public PhysicalZipFile newInstance(final File canonicalFile, final LogNode log) throws IOException {
+        public PhysicalZipFile newInstance(final File canonicalFile, final @Nullable LogNode log) throws IOException {
             return new PhysicalZipFile(canonicalFile, NestedJarHandler.this, log);
         }
     };
 
     /**
+     * Get the map from canonical {@link File} to {@link PhysicalZipFile}.
+     *
+     * @return the map
+     * @throws NullPointerException if {@link #close(LogNode)} has been called
+     */
+    private SingletonMap<File, PhysicalZipFile, IOException> canonicalFileToPhysicalZipFileMap() {
+        return Objects.requireNonNull(canonicalFileToPhysicalZipFileMap);
+    }
+
+    /**
      * A singleton map from a {@link FastZipEntry} to the {@link ZipFileSlice}
      * wrapping either the zip entry data, if the entry is stored, or a ByteBuffer,
      * if the zip entry was inflated to memory, or a physical file on disk if the
-     * zip entry was inflated to a temporary file.
+     * zip entry was inflated to a temporary file. Set to null by
+     * {@link #close(LogNode)}.
      */
-    private SingletonMap<FastZipEntry, ZipFileSlice, IOException> //
+    private @Nullable SingletonMap<FastZipEntry, ZipFileSlice, IOException> //
     fastZipEntryToZipFileSliceMap = new SingletonMap<>() {
         @Override
-        public ZipFileSlice newInstance(final FastZipEntry childZipEntry, final LogNode log)
+        public ZipFileSlice newInstance(final FastZipEntry childZipEntry, final @Nullable LogNode log)
                 throws IOException, InterruptedException {
             ZipFileSlice childZipEntrySlice;
             if (!childZipEntry.isDeflated) {
@@ -142,13 +156,23 @@ public class NestedJarHandler {
     };
 
     /**
-     * A singleton map from a {@link ZipFileSlice} to the {@link LogicalZipFile} for
-     * that slice.
+     * Get the map from {@link FastZipEntry} to {@link ZipFileSlice}.
+     *
+     * @return the map
+     * @throws NullPointerException if {@link #close(LogNode)} has been called
      */
-    private SingletonMap<ZipFileSlice, LogicalZipFile, IOException> //
+    private SingletonMap<FastZipEntry, ZipFileSlice, IOException> fastZipEntryToZipFileSliceMap() {
+        return Objects.requireNonNull(fastZipEntryToZipFileSliceMap);
+    }
+
+    /**
+     * A singleton map from a {@link ZipFileSlice} to the {@link LogicalZipFile} for
+     * that slice. Set to null by {@link #close(LogNode)}.
+     */
+    private @Nullable SingletonMap<ZipFileSlice, LogicalZipFile, IOException> //
     zipFileSliceToLogicalZipFileMap = new SingletonMap<>() {
         @Override
-        public LogicalZipFile newInstance(final ZipFileSlice zipFileSlice, final LogNode log)
+        public LogicalZipFile newInstance(final ZipFileSlice zipFileSlice, final @Nullable LogNode log)
                 throws IOException, InterruptedException {
             // Read the central directory for the zipfile
             return new LogicalZipFile(zipFileSlice, NestedJarHandler.this, log, scanSpec.enableMultiReleaseVersions);
@@ -156,14 +180,25 @@ public class NestedJarHandler {
     };
 
     /**
-     * A singleton map from nested jarfile path to a tuple of the logical zipfile
-     * for the path, and the package root within the logical zipfile.
+     * Get the map from {@link ZipFileSlice} to {@link LogicalZipFile}.
+     *
+     * @return the map
+     * @throws NullPointerException if {@link #close(LogNode)} has been called
      */
-    public SingletonMap<String, Entry<LogicalZipFile, String>, IOException> //
+    private SingletonMap<ZipFileSlice, LogicalZipFile, IOException> zipFileSliceToLogicalZipFileMap() {
+        return Objects.requireNonNull(zipFileSliceToLogicalZipFileMap);
+    }
+
+    /**
+     * A singleton map from nested jarfile path to a tuple of the logical zipfile
+     * for the path, and the package root within the logical zipfile. Set to null by
+     * {@link #close(LogNode)}.
+     */
+    private @Nullable SingletonMap<String, Entry<LogicalZipFile, String>, IOException> //
     nestedPathToLogicalZipFileAndPackageRootMap = //
             new SingletonMap<>() {
                 @Override
-                public Entry<LogicalZipFile, String> newInstance(final String nestedJarPathRaw, final LogNode log)
+                public Entry<LogicalZipFile, String> newInstance(final String nestedJarPathRaw, final @Nullable LogNode log)
                         throws IOException, InterruptedException {
                     final var nestedJarPath = FastPathResolver.resolve(nestedJarPathRaw);
                     // A '!' is only a nested jar separator if the outermost path component names an
@@ -200,7 +235,7 @@ public class NestedJarHandler {
                                 // Get canonical file
                                 final var canonicalFile = new File(nestedJarPath).getCanonicalFile();
                                 // Get or create a PhysicalZipFile instance for the canonical file
-                                physicalZipFile = canonicalFileToPhysicalZipFileMap.get(canonicalFile, log);
+                                physicalZipFile = canonicalFileToPhysicalZipFileMap().get(canonicalFile, log);
                             } catch (final NullSingletonException | NewInstanceException e) {
                                 // If getting PhysicalZipFile failed, re-wrap in IOException
                                 throw new IOException("Could not get PhysicalZipFile for path " + nestedJarPath + " : "
@@ -216,7 +251,7 @@ public class NestedJarHandler {
                         final ZipFileSlice topLevelSlice = new ZipFileSlice(physicalZipFile);
                         LogicalZipFile logicalZipFile;
                         try {
-                            logicalZipFile = zipFileSliceToLogicalZipFileMap.get(topLevelSlice, log);
+                            logicalZipFile = zipFileSliceToLogicalZipFileMap().get(topLevelSlice, log);
                         } catch (final NullSingletonException e) {
                             throw new IOException("Could not get toplevel slice " + topLevelSlice + " : " + e);
                         } catch (final NewInstanceException e) {
@@ -243,7 +278,7 @@ public class NestedJarHandler {
                         // '!'-section shorter with each recursion frame.
                         Entry<LogicalZipFile, String> parentLogicalZipFileAndPackageRoot;
                         try {
-                            parentLogicalZipFileAndPackageRoot = nestedPathToLogicalZipFileAndPackageRootMap
+                            parentLogicalZipFileAndPackageRoot = nestedPathToLogicalZipFileAndPackageRootMap()
                                     .get(parentPath, log);
                         } catch (final NullSingletonException e) {
                             throw new IOException("Could not get parent logical zipfile " + parentPath + " : " + e);
@@ -338,7 +373,7 @@ public class NestedJarHandler {
 
                         final ZipFileSlice childZipEntrySlice;
                         try {
-                            childZipEntrySlice = fastZipEntryToZipFileSliceMap.get(childZipEntry, log);
+                            childZipEntrySlice = fastZipEntryToZipFileSliceMap().get(childZipEntry, log);
                         } catch (final NullSingletonException e) {
                             throw new IOException("Could not get child zip entry slice " + childZipEntry + " : " + e);
                         } catch (final NewInstanceException e) {
@@ -352,7 +387,7 @@ public class NestedJarHandler {
                         // Get or create a new LogicalZipFile for the child zipfile
                         LogicalZipFile childLogicalZipFile;
                         try {
-                            childLogicalZipFile = zipFileSliceToLogicalZipFileMap.get(childZipEntrySlice, zipSliceLog);
+                            childLogicalZipFile = zipFileSliceToLogicalZipFileMap().get(childZipEntrySlice, zipSliceLog);
                         } catch (final NullSingletonException e) {
                             throw new IOException(
                                     "Could not get child logical zipfile " + childZipEntrySlice + " : " + e);
@@ -367,15 +402,27 @@ public class NestedJarHandler {
             };
 
     /**
-     * A singleton map from a {@link ModuleRef} to a {@link ModuleReader} recycler
-     * for the module.
+     * Get the map from nested jarfile path to the logical zipfile for the path and
+     * the package root within that zipfile.
+     *
+     * @return the map
+     * @throws NullPointerException if {@link #close(LogNode)} has been called
      */
-    public SingletonMap<ModuleRef, Recycler<ModuleReader, IOException>, IOException> //
+    public SingletonMap<String, Entry<LogicalZipFile, String>, IOException> //
+    nestedPathToLogicalZipFileAndPackageRootMap() {
+        return Objects.requireNonNull(nestedPathToLogicalZipFileAndPackageRootMap);
+    }
+
+    /**
+     * A singleton map from a {@link ModuleRef} to a {@link ModuleReader} recycler
+     * for the module. Set to null by {@link #close(LogNode)}.
+     */
+    private @Nullable SingletonMap<ModuleRef, Recycler<ModuleReader, IOException>, IOException> //
     moduleRefToModuleReaderRecyclerMap = //
             new SingletonMap<>() {
                 @Override
                 public Recycler<ModuleReader, IOException> newInstance(final ModuleRef moduleRef,
-                        final LogNode ignored) {
+                        final @Nullable LogNode ignored) {
                     return new Recycler<>() {
                         @Override
                         public ModuleReader newInstance() throws IOException {
@@ -384,6 +431,17 @@ public class NestedJarHandler {
                     };
                 }
             };
+
+    /**
+     * Get the map from {@link ModuleRef} to {@link ModuleReader} recycler.
+     *
+     * @return the map
+     * @throws NullPointerException if {@link #close(LogNode)} has been called
+     */
+    public SingletonMap<ModuleRef, Recycler<ModuleReader, IOException>, IOException> //
+    moduleRefToModuleReaderRecyclerMap() {
+        return Objects.requireNonNull(moduleRefToModuleReaderRecyclerMap);
+    }
 
     /** A recycler for {@link Inflater} instances. */
     private final Recycler<RecyclableInflater, RuntimeException> //
@@ -394,11 +452,17 @@ public class NestedJarHandler {
         }
     };
 
-    /** {@link FileSlice} instances that are currently open. */
-    private Set<Slice> openSlices = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    /**
+     * {@link FileSlice} instances that are currently open. Set to null by
+     * {@link #close(LogNode)}.
+     */
+    private @Nullable Set<Slice> openSlices = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
-    /** Any temporary files created while scanning. */
-    private Set<File> tempFiles = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    /**
+     * Any temporary files created while scanning. Set to null by
+     * {@link #close(LogNode)}.
+     */
+    private @Nullable Set<File> tempFiles = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /** The separator between random temp filename part and leafname. */
     public static final String TEMP_FILENAME_LEAF_SEPARATOR = "---";
@@ -470,7 +534,7 @@ public class NestedJarHandler {
         final var tempFile = File.createTempFile("ClassGraph--", TEMP_FILENAME_LEAF_SEPARATOR
                 + sanitizeFilename(onlyUseLeafname ? leafname(filePathBase) : filePathBase));
         tempFile.deleteOnExit();
-        tempFiles.add(tempFile);
+        Objects.requireNonNull(tempFiles).add(tempFile);
         return tempFile;
     }
 
@@ -498,7 +562,7 @@ public class NestedJarHandler {
      * @return true if the handler was closed (i.e. if temporary files existed and
      *         had to be removed)
      */
-    public boolean removeTemporaryFiles(final LogNode log) {
+    public boolean removeTemporaryFiles(final @Nullable LogNode log) {
         final var tempFilesCurr = tempFiles;
         if (tempFilesCurr == null || tempFilesCurr.isEmpty()) {
             // No temp files were created, so there is nothing to remove, and no need to
@@ -517,7 +581,7 @@ public class NestedJarHandler {
      * @throws SecurityException If the temporary file is inaccessible.
      */
     void removeTempFile(final File tempFile) throws IOException, SecurityException {
-        if (tempFiles.remove(tempFile)) {
+        if (Objects.requireNonNull(tempFiles).remove(tempFile)) {
             Files.delete(tempFile.toPath());
         } else {
             throw new IOException("Not a temp file: " + tempFile);
@@ -532,7 +596,7 @@ public class NestedJarHandler {
      * @throws IOException Signals that an I/O exception has occurred.
      */
     public void markSliceAsOpen(final Slice slice) throws IOException {
-        openSlices.add(slice);
+        Objects.requireNonNull(openSlices).add(slice);
     }
 
     /**
@@ -541,7 +605,7 @@ public class NestedJarHandler {
      * @param slice the {@link Slice} to close.
      */
     public void markSliceAsClosed(final Slice slice) {
-        openSlices.remove(slice);
+        Objects.requireNonNull(openSlices).remove(slice);
     }
 
     /**
@@ -564,7 +628,7 @@ public class NestedJarHandler {
      *                                  separately, by downloading the jar to a
      *                                  ByteBuffer in RAM.)
      */
-    private PhysicalZipFile downloadJarFromURL(final String jarURL, final LogNode log)
+    private PhysicalZipFile downloadJarFromURL(final String jarURL, final @Nullable LogNode log)
             throws IOException, InterruptedException {
         URL url = null;
         try {
@@ -651,7 +715,7 @@ public class NestedJarHandler {
 
     private static class CloseableUrlConnection implements AutoCloseable {
         public final URLConnection conn;
-        public final HttpURLConnection httpConn;
+        public final @Nullable HttpURLConnection httpConn;
 
         public CloseableUrlConnection(final URL url) throws IOException {
             conn = url.openConnection();
@@ -893,7 +957,7 @@ public class NestedJarHandler {
      * @throws IOException If the contents could not be read.
      */
     public Slice readAllBytesWithSpilloverToDisk(final InputStream inputStream, final String tempFileBaseName,
-            final long inputStreamLengthHint, final LogNode log) throws IOException {
+            final long inputStreamLengthHint, final @Nullable LogNode log) throws IOException {
         // Open an InflaterInputStream on the slice
         try (inputStream) {
             if (inputStreamLengthHint <= scanSpec.maxBufferedJarRAMSize) {
@@ -968,8 +1032,9 @@ public class NestedJarHandler {
      * @throws IOException If anything went wrong creating or writing to the temp
      *                     file.
      */
-    private FileSlice spillToDisk(final InputStream inputStream, final String tempFileBaseName, final byte[] buf,
-            final byte[] overflowBuf, final LogNode log) throws IOException {
+    private FileSlice spillToDisk(final InputStream inputStream, final String tempFileBaseName,
+            final byte @Nullable [] buf, final byte @Nullable [] overflowBuf, final @Nullable LogNode log)
+            throws IOException {
         // Create temp file
         File tempFile;
         try {
@@ -986,7 +1051,8 @@ public class NestedJarHandler {
         // file
         try (OutputStream outputStream = new BufferedOutputStream(new FileOutputStream(tempFile))) {
             // Write already-read buffered bytes to temp file, if anything was read
-            if (buf != null) {
+            // (buf and overflowBuf always have the same nullity)
+            if (buf != null && overflowBuf != null) {
                 outputStream.write(buf);
                 outputStream.write(overflowBuf);
             }
@@ -1068,15 +1134,16 @@ public class NestedJarHandler {
      * 
      * @param log The log.
      */
-    public void close(final LogNode log) {
+    public void close(final @Nullable LogNode log) {
         if (!closed.getAndSet(true)) {
             var interrupted = false;
-            if (moduleRefToModuleReaderRecyclerMap != null) {
+            final var moduleReaderRecyclerMap = moduleRefToModuleReaderRecyclerMap;
+            if (moduleReaderRecyclerMap != null) {
                 var completedWithoutInterruption = false;
                 while (!completedWithoutInterruption) {
                     try {
                         for (final Recycler<ModuleReader, IOException> recycler : //
-                        moduleRefToModuleReaderRecyclerMap.values()) {
+                        moduleReaderRecyclerMap.values()) {
                             recycler.forceClose();
                         }
                         completedWithoutInterruption = true;
@@ -1085,28 +1152,33 @@ public class NestedJarHandler {
                         interrupted = true;
                     }
                 }
-                moduleRefToModuleReaderRecyclerMap.clear();
+                moduleReaderRecyclerMap.clear();
                 moduleRefToModuleReaderRecyclerMap = null;
             }
-            if (zipFileSliceToLogicalZipFileMap != null) {
-                zipFileSliceToLogicalZipFileMap.clear();
+            final var logicalZipFileMap = zipFileSliceToLogicalZipFileMap;
+            if (logicalZipFileMap != null) {
+                logicalZipFileMap.clear();
                 zipFileSliceToLogicalZipFileMap = null;
             }
-            if (nestedPathToLogicalZipFileAndPackageRootMap != null) {
-                nestedPathToLogicalZipFileAndPackageRootMap.clear();
+            final var nestedPathMap = nestedPathToLogicalZipFileAndPackageRootMap;
+            if (nestedPathMap != null) {
+                nestedPathMap.clear();
                 nestedPathToLogicalZipFileAndPackageRootMap = null;
             }
-            if (canonicalFileToPhysicalZipFileMap != null) {
-                canonicalFileToPhysicalZipFileMap.clear();
+            final var physicalZipFileMap = canonicalFileToPhysicalZipFileMap;
+            if (physicalZipFileMap != null) {
+                physicalZipFileMap.clear();
                 canonicalFileToPhysicalZipFileMap = null;
             }
-            if (fastZipEntryToZipFileSliceMap != null) {
-                fastZipEntryToZipFileSliceMap.clear();
+            final var zipFileSliceMap = fastZipEntryToZipFileSliceMap;
+            if (zipFileSliceMap != null) {
+                zipFileSliceMap.clear();
                 fastZipEntryToZipFileSliceMap = null;
             }
-            if (openSlices != null) {
-                while (!openSlices.isEmpty()) {
-                    for (final Slice slice : new ArrayList<>(openSlices)) {
+            final var openSlicesCurr = openSlices;
+            if (openSlicesCurr != null) {
+                while (!openSlicesCurr.isEmpty()) {
+                    for (final Slice slice : new ArrayList<>(openSlicesCurr)) {
                         try {
                             slice.close();
                         } catch (final IOException e) {
@@ -1115,18 +1187,18 @@ public class NestedJarHandler {
                         markSliceAsClosed(slice);
                     }
                 }
-                openSlices.clear();
+                openSlicesCurr.clear();
                 openSlices = null;
             }
-            if (inflaterRecycler != null) {
-                inflaterRecycler.forceClose();
-            }
+            inflaterRecycler.forceClose();
             // Temp files have to be deleted last, after all PhysicalZipFiles are closed and
             // files are unmapped
-            if (tempFiles != null) {
-                final var rmLog = tempFiles.isEmpty() || log == null ? null : log.log("Removing temporary files");
-                while (!tempFiles.isEmpty()) {
-                    for (final File tempFile : new ArrayList<>(tempFiles)) {
+            final var tempFilesCurr = tempFiles;
+            if (tempFilesCurr != null) {
+                final var rmLog = tempFilesCurr.isEmpty() || log == null ? null
+                        : log.log("Removing temporary files");
+                while (!tempFilesCurr.isEmpty()) {
+                    for (final File tempFile : new ArrayList<>(tempFilesCurr)) {
                         try {
                             removeTempFile(tempFile);
                         } catch (IOException | SecurityException e) {
@@ -1147,7 +1219,7 @@ public class NestedJarHandler {
     /**
      * System.runFinalization() -- deprecated in JDK 18, so accessed by reflection.
      */
-    private static volatile Method runFinalizationMethod;
+    private static volatile @Nullable Method runFinalizationMethod;
 
     /** Call {@code System.runFinalization()}, if it is available in this JDK. */
     public void runFinalizationMethod() {

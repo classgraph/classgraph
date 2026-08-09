@@ -38,6 +38,9 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+
+import org.jspecify.annotations.Nullable;
 
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.types.ParseException;
@@ -63,8 +66,8 @@ public final class JSONDeserializer {
      * @param convertStringToNumber if true, convert strings to numbers
      * @return the object
      */
-    private static Object jsonBasicValueToObject(final Object jsonVal, final Type expectedType,
-            final boolean convertStringToNumber) {
+    private static @Nullable Object jsonBasicValueToObject(final @Nullable Object jsonVal,
+            final @Nullable Type expectedType, final boolean convertStringToNumber) {
         if (jsonVal == null) {
             return null;
         } else if (jsonVal instanceof JSONArray || jsonVal instanceof JSONObject) {
@@ -215,7 +218,7 @@ public final class JSONDeserializer {
      * @param type           the resolved type of the object instance
      * @param jsonVal        the JSONObject or JSONArray to recurse into
      */
-    private record ObjectInstantiation(Object objectInstance, Type type, Object jsonVal) {
+    private record ObjectInstantiation(Object objectInstance, @Nullable Type type, Object jsonVal) {
     }
 
     /**
@@ -228,8 +231,9 @@ public final class JSONDeserializer {
      * @param idToObjectInstance      a map from id to object instance
      * @param collectionElementAdders the collection element adders
      */
-    private static void populateObjectFromJsonObject(final Object objectInstance, final Type objectResolvedType,
-            final Object jsonVal, final ClassFieldCache classFieldCache,
+    private static void populateObjectFromJsonObject(final Object objectInstance,
+            final @Nullable Type objectResolvedType, final @Nullable Object jsonVal,
+            final ClassFieldCache classFieldCache,
             final Map<CharSequence, Object> idToObjectInstance, final List<Runnable> collectionElementAdders) {
 
         // Leave objectInstance empty (or leave fields null) if jsonVal is null
@@ -251,10 +255,10 @@ public final class JSONDeserializer {
         final Class<?> rawType = objectInstance.getClass();
         final var isMap = Map.class.isAssignableFrom(rawType);
         @SuppressWarnings("unchecked")
-        final var mapInstance = isMap ? (Map<Object, Object>) objectInstance : null;
+        final var mapInstance = isMap ? (Map<@Nullable Object, @Nullable Object>) objectInstance : null;
         final var isCollection = Collection.class.isAssignableFrom(rawType);
         @SuppressWarnings("unchecked")
-        final var collectionInstance = isCollection ? (Collection<Object>) objectInstance : null;
+        final var collectionInstance = isCollection ? (Collection<@Nullable Object>) objectInstance : null;
         final var isArray = rawType.isArray();
         final var isObj = !(isMap || isCollection || isArray);
         if ((isMap || isObj) != isJsonObject || (isCollection || isArray) != isJsonArray) {
@@ -331,17 +335,20 @@ public final class JSONDeserializer {
         // Look up the constructor for the value type just once for speed.
         Constructor<?> commonValueConstructorWithSizeHint;
         Constructor<?> commonValueDefaultConstructor;
-        if (isMap || isCollection || (is1DArray && !JSONUtils.isBasicValueType(arrayComponentType))) {
+        // (arrayComponentType is non-null whenever is1DArray is true)
+        if (isMap || isCollection
+                || (is1DArray && !JSONUtils.isBasicValueType(Objects.requireNonNull(arrayComponentType)))) {
             // Get value type constructor for Collection, Map or 1D array
+            final var commonValueType = Objects.requireNonNull(is1DArray ? arrayComponentType : commonValueRawType);
             commonValueConstructorWithSizeHint = classFieldCache
-                    .getConstructorWithSizeHintForConcreteTypeOf(is1DArray ? arrayComponentType : commonValueRawType);
+                    .getConstructorWithSizeHintForConcreteTypeOf(commonValueType);
             if (commonValueConstructorWithSizeHint != null) {
                 // No need for a default constructor if there is a constructor that takes a size
                 // hint
                 commonValueDefaultConstructor = null;
             } else {
                 commonValueDefaultConstructor = classFieldCache
-                        .getDefaultConstructorForConcreteTypeOf(is1DArray ? arrayComponentType : commonValueRawType);
+                        .getDefaultConstructorForConcreteTypeOf(commonValueType);
             }
         } else {
             // There is no single constructor for the fields of objects, and arrays and
@@ -366,8 +373,8 @@ public final class JSONDeserializer {
                 : jsonArray != null ? jsonArray.items.size() : /* can't happen */ 0;
         for (var i = 0; i < numItems; i++) {
             // Iterate through items of JSONObject or JSONArray (key is null for JSONArray)
-            final String itemJsonKey;
-            final Object itemJsonValue;
+            final @Nullable String itemJsonKey;
+            final @Nullable Object itemJsonValue;
             if (jsonObject != null) {
                 final var jsonObjectItem = jsonObject.items.get(i);
                 itemJsonKey = jsonObjectItem.getKey();
@@ -417,7 +424,7 @@ public final class JSONDeserializer {
                                     : commonResolvedValueType;
 
             // Construct an object of the type needed to hold the value
-            final Object instantiatedItemObject;
+            final @Nullable Object instantiatedItemObject;
             if (itemJsonValue == null) {
                 // If JSON value is null, no need to recurse to deserialize the value
                 instantiatedItemObject = null;
@@ -509,19 +516,20 @@ public final class JSONDeserializer {
                                         // Instantiate collection or map with size hint
                                         ? commonValueConstructorWithSizeHint.newInstance(numSubItems)
                                         // Instantiate other object types
-                                        : commonValueDefaultConstructor != null
-                                                ? commonValueDefaultConstructor.newInstance()
-                                                : /* can't happen */ null;
+                                        : Objects.requireNonNull(commonValueDefaultConstructor).newInstance();
                             } else if (fieldTypeInfo != null) {
                                 // For object types, each field has its own constructor, and the constructor can
                                 // vary if the field type is completely generic (e.g. "T field").
-                                final Constructor<?> valueConstructorWithSizeHint = fieldTypeInfo
-                                        .getConstructorForFieldTypeWithSizeHint(resolvedItemValueType, classFieldCache);
+                                // (resolvedItemValueType is the fully resolved field type, so it is
+                                // non-null whenever fieldTypeInfo is non-null)
+                                final var fieldType = Objects.requireNonNull(resolvedItemValueType);
+                                final var valueConstructorWithSizeHint = fieldTypeInfo
+                                        .getConstructorForFieldTypeWithSizeHint(fieldType, classFieldCache);
                                 if (valueConstructorWithSizeHint != null) {
                                     instantiatedItemObject = valueConstructorWithSizeHint.newInstance(numSubItems);
                                 } else {
                                     instantiatedItemObject = fieldTypeInfo
-                                            .getDefaultConstructorForFieldType(resolvedItemValueType, classFieldCache)
+                                            .getDefaultConstructorForFieldType(fieldType, classFieldCache)
                                             .newInstance();
                                 }
                             } else if (isArray && !is1DArray) {
@@ -594,14 +602,13 @@ public final class JSONDeserializer {
      * @return the initial id to object map
      */
     private static Map<CharSequence, Object> getInitialIdToObjectMap(final Object objectInstance,
-            final Object parsedJSON) {
+            final @Nullable Object parsedJSON) {
         final Map<CharSequence, Object> idToObjectInstance = new HashMap<>();
         if ((parsedJSON instanceof final JSONObject itemJsonObject) && !itemJsonObject.items.isEmpty()) {
             final var firstItem = itemJsonObject.items.get(0);
             if (JSONUtils.ID_KEY.equals(firstItem.getKey())) {
-                final var firstItemValue = firstItem.getValue();
-                if (firstItemValue == null || !CharSequence.class.isAssignableFrom(firstItemValue.getClass())) {
-                    idToObjectInstance.put((CharSequence) firstItemValue, objectInstance);
+                if (firstItem.getValue() instanceof final CharSequence firstItemValue) {
+                    idToObjectInstance.put(firstItemValue, objectInstance);
                 }
             }
         }

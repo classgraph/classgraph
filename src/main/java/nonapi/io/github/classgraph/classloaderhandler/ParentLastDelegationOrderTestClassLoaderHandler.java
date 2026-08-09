@@ -33,18 +33,19 @@ import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
+import org.jspecify.annotations.Nullable;
 
 /** ClassLoaderHandler that is used to test PARENT_LAST delegation order. */
 class ParentLastDelegationOrderTestClassLoaderHandler implements ClassLoaderHandler {
     @Override
-    public boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
+    public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
         return ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass,
                 "io.github.classgraph.issues.issue267.FakeRestartClassLoader");
     }
 
     @Override
     public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
-            final LogNode log) {
+            final @Nullable LogNode log) {
         // Add self first, then delegate to parent
         classLoaderOrder.add(classLoader, log);
         classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
@@ -52,7 +53,7 @@ class ParentLastDelegationOrderTestClassLoaderHandler implements ClassLoaderHand
 
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-            final ScanSpec scanSpec, final LogNode log) {
+            final ScanSpec scanSpec, final @Nullable LogNode log) {
         final var classpath = (String) classpathOrder.reflectionUtils.invokeMethod(/* throwException = */ true,
                 classLoader, "getClasspath");
         classpathOrder.addClasspathEntry(classpath, classLoader, scanSpec, log);

@@ -35,6 +35,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 
 import nonapi.io.github.classgraph.utils.StringUtils;
+import org.jspecify.annotations.Nullable;
 
 /**
  * {@link RandomAccessReader} for a {@link File}. Reads in <b>little endian</b>
@@ -51,8 +52,8 @@ public class RandomAccessFileChannelReader implements RandomAccessReader {
     /** The slice length. */
     private final long sliceLength;
 
-    /** The reusable byte buffer. */
-    private ByteBuffer reusableByteBuffer;
+    /** The reusable byte buffer, or null until the first array read. */
+    private @Nullable ByteBuffer reusableByteBuffer;
 
     /** The scratch arr. */
     private final byte[] scratchArr = new byte[8];
@@ -60,8 +61,8 @@ public class RandomAccessFileChannelReader implements RandomAccessReader {
     /** The scratch byte buf. */
     private final ByteBuffer scratchByteBuf = ByteBuffer.wrap(scratchArr);
 
-    /** The utf 8 bytes. */
-    private byte[] utf8Bytes;
+    /** The utf 8 bytes, or null until the first string read. */
+    private byte @Nullable [] utf8Bytes;
 
     /**
      * Constructor.
@@ -108,14 +109,15 @@ public class RandomAccessFileChannelReader implements RandomAccessReader {
             if (srcOffset < 0L || numBytes < 0 || numBytes > sliceLength - srcOffset) {
                 throw new IOException("Read index out of bounds");
             }
-            if (reusableByteBuffer == null || reusableByteBuffer.array() != dstArr) {
+            var byteBuffer = reusableByteBuffer;
+            if (byteBuffer == null || byteBuffer.array() != dstArr) {
                 // If reusableByteBuffer is not set, or wraps a different array from a previous
                 // operation,
                 // wrap dstArr with a new ByteBuffer
-                reusableByteBuffer = ByteBuffer.wrap(dstArr);
+                reusableByteBuffer = byteBuffer = ByteBuffer.wrap(dstArr);
             }
             // Read into reusableByteBuffer, which is backed with dstArr
-            return read(srcOffset, reusableByteBuffer, dstArrStart, numBytes);
+            return read(srcOffset, byteBuffer, dstArrStart, numBytes);
 
         } catch (BufferUnderflowException | IndexOutOfBoundsException e) {
             throw new IOException("Read index out of bounds");
@@ -188,13 +190,14 @@ public class RandomAccessFileChannelReader implements RandomAccessReader {
             final boolean stripLSemicolon) throws IOException {
         // Reuse UTF8 buffer array if it's non-null from a previous call, and if it's
         // big enough
-        if (utf8Bytes == null || utf8Bytes.length < numBytes) {
-            utf8Bytes = new byte[numBytes];
+        var utf8BytesBuf = utf8Bytes;
+        if (utf8BytesBuf == null || utf8BytesBuf.length < numBytes) {
+            utf8Bytes = utf8BytesBuf = new byte[numBytes];
         }
-        if (read(offset, utf8Bytes, 0, numBytes) < numBytes) {
+        if (read(offset, utf8BytesBuf, 0, numBytes) < numBytes) {
             throw new IOException("Premature EOF");
         }
-        return StringUtils.readString(utf8Bytes, 0, numBytes, replaceSlashWithDot, stripLSemicolon);
+        return StringUtils.readString(utf8BytesBuf, 0, numBytes, replaceSlashWithDot, stripLSemicolon);
     }
 
     @Override
