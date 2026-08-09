@@ -106,7 +106,12 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
         if (locationURI == null) {
             locationURI = moduleRef != null ? moduleRef.getLocation() : null;
             if (locationURI == null) {
-                locationURI = classpathElement.getURI();
+                try {
+                    locationURI = classpathElement.getURI();
+                } catch (final IllegalArgumentException e) {
+                    // The classpath element has no known URI either, so the location is unknown
+                    return null;
+                }
             }
         }
         return locationURI;
