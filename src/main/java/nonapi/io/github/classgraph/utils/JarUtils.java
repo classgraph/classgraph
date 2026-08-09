@@ -224,7 +224,7 @@ public final class JarUtils {
      * Append a path element to a buffer.
      *
      * @param pathElt the path element
-     * @param buf     the buf
+     * @param buf     the buffer to append to
      */
     private static void appendPathElt(final Object pathElt, final StringBuilder buf) {
         if (!buf.isEmpty()) {

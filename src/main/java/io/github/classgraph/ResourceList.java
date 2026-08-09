@@ -79,7 +79,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      * Create a new modifiable empty list of {@link Resource} objects, given a size
      * hint.
      *
-     * @param sizeHint the size hint
+     * @param sizeHint the expected number of elements
      */
     public ResourceList(final int sizeHint) {
         super(sizeHint);

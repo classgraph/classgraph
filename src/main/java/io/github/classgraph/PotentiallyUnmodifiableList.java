@@ -57,7 +57,7 @@ class PotentiallyUnmodifiableList<T> extends ArrayList<T> {
     /**
      * Constructor.
      *
-     * @param sizeHint the size hint
+     * @param sizeHint the expected number of elements
      */
     PotentiallyUnmodifiableList(final int sizeHint) {
         super(sizeHint);

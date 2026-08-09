@@ -557,7 +557,7 @@ public class NestedJarHandler {
      * extracted nested jars, so they cannot be deleted without closing those slices
      * first -- the whole handler is still torn down in that case.
      *
-     * @param log the log
+     * @param log the log node, or null to skip logging
      * @return true if the handler was closed (i.e. if temporary files existed and
      *         had to be removed)
      */
@@ -614,7 +614,7 @@ public class NestedJarHandler {
      * wrapped in a {@link PhysicalZipFile} instance.
      *
      * @param jarURL the jar URL
-     * @param log    the log
+     * @param log    the log node, or null to skip logging
      * @return the temporary file or {@link ByteBuffer} the jar was downloaded to,
      *         wrapped in a {@link PhysicalZipFile} instance.
      * @throws IOException              If the jar could not be downloaded, or the
@@ -966,7 +966,7 @@ public class NestedJarHandler {
      *                              opened from (used to name temporary file, if
      *                              needed).
      * @param inputStreamLengthHint the length of inputStream if known, else -1L.
-     * @param log                   the log.
+     * @param log                   the log node, or null to skip logging
      * @return if the {@link InputStream} could be read into a byte array, an
      *         {@link ArraySlice} will be returned. If this fails and the
      *         {@link InputStream} is spilled over to disk, a {@link FileSlice} will

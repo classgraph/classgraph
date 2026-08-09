@@ -286,7 +286,7 @@ class Classfile {
      *
      * @param className    the class name
      * @param relationship the relationship type
-     * @param log          the log
+     * @param log          the log node, or null to skip logging
      * @throws InterruptedException if the thread was interrupted
      */
     private void scheduleScanningIfExternalClass(final @Nullable String className, final String relationship,
@@ -378,7 +378,7 @@ class Classfile {
      * @param annotationParamVal the {@link AnnotationInfo} object for an
      *                           annotation, or for an annotation parameter value,
      *                           or null.
-     * @param log                the log
+     * @param log                the log node, or null to skip logging
      * @throws InterruptedException if the thread was interrupted
      */
     private void extendScanningUpwardsFromAnnotationParameterValues(final @Nullable Object annotationParamVal,
@@ -407,7 +407,7 @@ class Classfile {
      * Check if scanning needs to be extended upwards to an external superclass,
      * interface or annotation.
      *
-     * @param log the log
+     * @param log the log node, or null to skip logging
      * @throws InterruptedException if the thread was interrupted
      */
     private void extendScanningUpwards(final @Nullable LogNode log) throws InterruptedException {
@@ -2156,7 +2156,8 @@ class Classfile {
      * @param stringInternMap                        the string intern map
      * @param workQueue                              the work queue
      * @param scanSpec                               the scan spec
-     * @param log                                    the log
+     * @param log                                    the log node, or null to skip
+     *                                               logging
      * @throws IOException              If an IO exception occurs.
      * @throws ClassfileFormatException If a problem occurs while parsing the
      *                                  classfile.

@@ -73,7 +73,7 @@ public final class FastPathResolver {
      * @param startIdx            the start index
      * @param endIdx              the end index
      * @param stripFinalSeparator if true, strip the final separator
-     * @param buf                 the buf
+     * @param buf                 the buffer to append to
      */
     private static void translateSeparator(final String path, final int startIdx, final int endIdx,
             final boolean stripFinalSeparator, final StringBuilder buf) {
@@ -112,7 +112,7 @@ public final class FastPathResolver {
      * @param path     the path
      * @param startIdx the start index
      * @param endIdx   the end index
-     * @param buf      the buf
+     * @param buf      the buffer to append to
      */
     private static void unescapePercentEncoding(final String path, final int startIdx, final int endIdx,
             final StringBuilder buf) {

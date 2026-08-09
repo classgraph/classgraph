@@ -265,7 +265,7 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
      * Get the annotation on this module, or null if the module does not have the
      * annotation.
      *
-     * @param annotation The annotation.
+     * @param annotation the annotation class
      * @return An {@link AnnotationInfo} object representing the annotation on this
      *         module, or null if the module does not have the annotation.
      */
@@ -279,7 +279,7 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
      * Get the named annotation on this module, or null if the module does not have
      * the named annotation.
      *
-     * @param annotationName The annotation name.
+     * @param annotationName the name of the annotation class
      * @return An {@link AnnotationInfo} object representing the named annotation on
      *         this module, or null if the module does not have the named
      *         annotation.
@@ -313,7 +313,7 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     /**
      * Check if this module has the annotation.
      *
-     * @param annotation The annotation.
+     * @param annotation the annotation class
      * @return true if this module has the annotation.
      */
     public boolean hasAnnotation(final Class<? extends Annotation> annotation) {
@@ -325,7 +325,7 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     /**
      * Check if this module has the named annotation.
      *
-     * @param annotationName The name of an annotation.
+     * @param annotationName the name of the annotation class
      * @return true if this module has the named annotation.
      */
     public boolean hasAnnotation(final String annotationName) {

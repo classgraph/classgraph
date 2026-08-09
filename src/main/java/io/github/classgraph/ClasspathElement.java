@@ -276,7 +276,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      * Check relativePath against classpathElementResourcePathAcceptReject.
      *
      * @param relativePath the relative path
-     * @param log          the log
+     * @param log          the log node, or null to skip logging
      * @return true if path should be scanned
      */
     protected boolean checkResourcePathAcceptReject(final String relativePath, final @Nullable LogNode log) {
@@ -450,7 +450,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      *                              far (see {@link #getFileIdentityKey(URI, Map)})
      * @param canonicalDirPathCache a cache of canonical directory paths, shared
      *                              between classpath elements
-     * @param log                   the log
+     * @param log                   the log node, or null to skip logging
      */
     // #704
     void maskDuplicateResources(final int classpathIdx, final Set<String> collidingPaths,
@@ -515,7 +515,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      *
      * @param classpathIdx                the classpath index
      * @param classpathRelativePathsFound the classpath relative paths found
-     * @param log                         the log
+     * @param log                         the log node, or null to skip logging
      */
     void maskClassfiles(final int classpathIdx, final Set<String> classpathRelativePathsFound, final @Nullable LogNode log) {
         // Find relative paths that occur more than once in the classpath / module path.
@@ -573,7 +573,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      * @param isClassfileOnly   if true, only add the resource to the list of
      *                          classfile resources, not to the list of
      *                          non-classfile resources
-     * @param log               the log
+     * @param log               the log node, or null to skip logging
      */
     protected void addAcceptedResource(final Resource resource, final ScanSpecPathMatch parentMatchStatus,
             final boolean isClassfileOnly, final @Nullable LogNode log) {
@@ -624,7 +624,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
     /**
      * Called by scanPaths() after scan completion.
      *
-     * @param log the log
+     * @param log the log node, or null to skip logging
      */
     protected void finishScanPaths(final @Nullable LogNode log) {
         if (log != null) {
@@ -647,9 +647,9 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
     /**
      * Write entries to log in classpath / module path order.
      *
-     * @param classpathElementIdx the classpath element idx
+     * @param classpathElementIdx the index of this element in classpath / module path order
      * @param msg                 the log message
-     * @param log                 the log
+     * @param log                 the log node to write to
      * @return the new {@link LogNode}
      */
     protected LogNode log(final int classpathElementIdx, final String msg, final LogNode log) {
@@ -659,10 +659,10 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
     /**
      * Write entries to log in classpath / module path order.
      *
-     * @param classpathElementIdx the classpath element idx
+     * @param classpathElementIdx the index of this element in classpath / module path order
      * @param msg                 the log message
-     * @param t                   The exception that was thrown
-     * @param log                 the log
+     * @param t                   the exception that was thrown
+     * @param log                 the log node to write to
      * @return the new {@link LogNode}
      */
     protected LogNode log(final int classpathElementIdx, final String msg, final Throwable t, final LogNode log) {
@@ -680,7 +680,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      * from a single thread.
      *
      * @param workQueue the work queue
-     * @param log       the log
+     * @param log       the log node, or null to skip logging
      * @throws InterruptedException if the thread was interrupted while trying to
      *                              open the classpath element.
      */
@@ -691,7 +691,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      * Scan paths in the classpath element for accept/reject criteria, creating
      * Resource objects for accepted and non-rejected resources and classfiles.
      *
-     * @param log the log
+     * @param log the log node, or null to skip logging
      */
     abstract void scanPaths(final @Nullable LogNode log);
 

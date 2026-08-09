@@ -112,7 +112,7 @@ final class GraphvizDotfileGenerator {
      * @param unsafeStr            The string to escape to make HTML-safe.
      * @param turnNewlineIntoBreak If true, turn '\n' into a break element in the
      *                             output.
-     * @param buf                  the buf
+     * @param buf                  the buffer to append to
      */
     private static void htmlEncode(final CharSequence unsafeStr, final boolean turnNewlineIntoBreak,
             final StringBuilder buf) {
@@ -162,7 +162,7 @@ final class GraphvizDotfileGenerator {
      * Encode HTML-unsafe characters as HTML entities.
      *
      * @param unsafeStr The string to escape to make HTML-safe.
-     * @param buf       the buf
+     * @param buf       the buffer to append to
      */
     private static void htmlEncode(final CharSequence unsafeStr, final StringBuilder buf) {
         htmlEncode(unsafeStr, /* turnNewlineIntoBreak = */ false, buf);
@@ -176,10 +176,10 @@ final class GraphvizDotfileGenerator {
      * @param boxBgColor     the box background color
      * @param showFields     whether to show fields
      * @param showMethods    whether to show methods
-     * @param useSimpleNames whether to use simple names for classes in type
-     *                       signatures
+     * @param useSimpleNames if true, strip package and outer class names from class
+     *                       names
      * @param scanSpec       the scan spec
-     * @param buf            the buf
+     * @param buf            the buffer to append to
      */
     private static void labelClassNodeHTML(final ClassInfo ci, final String shape, final String boxBgColor,
             final boolean showFields, final boolean showMethods, final boolean useSimpleNames, final ScanSpec scanSpec,
@@ -443,7 +443,8 @@ final class GraphvizDotfileGenerator {
      * @param showMethodTypeDependencyEdges whether to show method type dependency
      *                                      edges
      * @param showAnnotations               whether to show annotations
-     * @param useSimpleNames                whether to use simple names for classes
+     * @param useSimpleNames                if true, strip package and outer class
+     *                                      names from class names
      * @param scanSpec                      the scan spec
      * @return the string
      */

@@ -148,7 +148,7 @@ public final class WorkQueue<T> implements AutoCloseable {
      * @param workUnitProcessor   the work unit processor
      * @param numWorkers          the number of workers
      * @param interruptionChecker the interruption checker
-     * @param log                 the log
+     * @param log                 the log node, or null to skip logging
      */
     private WorkQueue(final Collection<T> initialWorkUnits, final WorkUnitProcessor<T> workUnitProcessor,
             final int numWorkers, final InterruptionChecker interruptionChecker, final @Nullable LogNode log) {

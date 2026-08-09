@@ -49,7 +49,7 @@ public class PackageInfoList extends MappableInfoList<PackageInfo> {
     /**
      * Constructor.
      *
-     * @param sizeHint the size hint
+     * @param sizeHint the expected number of elements
      */
     PackageInfoList(final int sizeHint) {
         super(sizeHint);

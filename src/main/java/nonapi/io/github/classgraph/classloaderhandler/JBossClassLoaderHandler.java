@@ -74,7 +74,7 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
      * @param classLoader       the classloader
      * @param classpathOrderOut the classpath order
      * @param scanSpec          the scan spec
-     * @param log               the log
+     * @param log               the log node, or null to skip logging
      */
     private static void handleResourceLoader(final @Nullable Object resourceLoader, final ClassLoader classLoader,
             final ClasspathOrder classpathOrderOut, final ScanSpec scanSpec, final @Nullable LogNode log) {
@@ -245,7 +245,7 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
      * @param classLoader       the classloader
      * @param classpathOrderOut the classpath order
      * @param scanSpec          the scan spec
-     * @param log               the log
+     * @param log               the log node, or null to skip logging
      */
     private static void handleRealModule(final @Nullable Object module, final Set<@Nullable Object> visitedModules,
             final ClassLoader classLoader, final ClasspathOrder classpathOrderOut, final ScanSpec scanSpec,

@@ -200,7 +200,7 @@ public class MethodParameterInfo {
      * annotations, or {@link #getDirectAnnotationInfo(Class)} to ignore
      * meta-annotations.)
      *
-     * @param annotation The annotation.
+     * @param annotation the annotation class
      * @return An {@link AnnotationInfo} object representing the annotation on this
      *         method parameter, or null if the method parameter does not have the
      *         annotation.
@@ -225,7 +225,7 @@ public class MethodParameterInfo {
      * directly is returned. Call {@link #getDirectAnnotationInfo(String)} if you want
      * only the annotation present on the method parameter itself.
      *
-     * @param annotationName The annotation name.
+     * @param annotationName the name of the annotation class
      * @return An {@link AnnotationInfo} object representing the named annotation on
      *         this method parameter, or null if the method parameter does not have
      *         the named annotation.
@@ -242,7 +242,7 @@ public class MethodParameterInfo {
      * {@link #getDirectAnnotationInfoRepeatable(Class)} for {@link Repeatable}
      * annotations.)
      *
-     * @param annotation The annotation.
+     * @param annotation the annotation class
      * @return An {@link AnnotationInfo} object representing the annotation directly
      *         present on this method parameter, or null if it is not directly
      *         present.
@@ -260,7 +260,7 @@ public class MethodParameterInfo {
      * {@link #getDirectAnnotationInfoRepeatable(String)} for {@link Repeatable}
      * annotations.)
      *
-     * @param annotationName The annotation name.
+     * @param annotationName the name of the annotation class
      * @return An {@link AnnotationInfo} object representing the named annotation
      *         directly present on this method parameter, or null if it is not
      *         directly present.
@@ -275,7 +275,7 @@ public class MethodParameterInfo {
      * parameter, or the empty list if the method parameter does not have the
      * annotation.
      *
-     * @param annotation The annotation.
+     * @param annotation the annotation class
      * @return An {@link AnnotationInfoList} containing all instances of the
      *         annotation on this method parameter, or the empty list if the method
      *         parameter does not have the annotation.
@@ -291,7 +291,7 @@ public class MethodParameterInfo {
      * parameter, or the empty list if the method parameter does not have the named
      * annotation.
      *
-     * @param annotationName The annotation name.
+     * @param annotationName the name of the annotation class
      * @return An {@link AnnotationInfoList} containing all instances of the named
      *         annotation on this method parameter, or the empty list if the method
      *         parameter does not have the named annotation.
@@ -306,7 +306,7 @@ public class MethodParameterInfo {
      * parameter, or the empty list if it is not directly present. Meta-annotations
      * are ignored.
      *
-     * @param annotation The annotation.
+     * @param annotation the annotation class
      * @return An {@link AnnotationInfoList} containing all instances of the
      *         annotation directly present on this method parameter, or the empty
      *         list if it is not directly present.
@@ -322,7 +322,7 @@ public class MethodParameterInfo {
      * parameter, or the empty list if it is not directly present. Meta-annotations
      * are ignored.
      *
-     * @param annotationName The annotation name.
+     * @param annotationName the name of the annotation class
      * @return An {@link AnnotationInfoList} containing all instances of the named
      *         annotation directly present on this method parameter, or the empty
      *         list if it is not directly present.
@@ -335,7 +335,7 @@ public class MethodParameterInfo {
     /**
      * Check whether this method parameter has the annotation.
      *
-     * @param annotation The annotation.
+     * @param annotation the annotation class
      * @return true if this method parameter has the annotation.
      */
     public boolean hasAnnotation(final Class<? extends Annotation> annotation) {
@@ -347,7 +347,7 @@ public class MethodParameterInfo {
     /**
      * Check whether this method parameter has the named annotation.
      *
-     * @param annotationName The name of an annotation.
+     * @param annotationName the name of the annotation class
      * @return true if this method parameter has the named annotation.
      */
     public boolean hasAnnotation(final String annotationName) {
@@ -439,7 +439,7 @@ public class MethodParameterInfo {
      * Convert modifiers into a string representation, e.g. "public static final".
      *
      * @param modifiers The field or method modifiers.
-     * @param buf       The buffer to write the result into.
+     * @param buf       the buffer to append to
      */
     static void modifiersToString(final int modifiers, final StringBuilder buf) {
         if ((modifiers & Modifier.FINAL) != 0) {
@@ -458,8 +458,9 @@ public class MethodParameterInfo {
     /**
      * Render to string.
      *
-     * @param useSimpleNames if true, use just the simple name of each class.
-     * @param buf            the buf
+     * @param useSimpleNames if true, strip package and outer class names from class
+     *                       names
+     * @param buf            the buffer to append to
      */
     protected void toString(final boolean useSimpleNames, final StringBuilder buf) {
         if (annotationInfo != null) {

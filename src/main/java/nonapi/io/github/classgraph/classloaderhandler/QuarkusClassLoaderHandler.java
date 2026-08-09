@@ -100,7 +100,7 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
      * @param classLoader    the classloader
      * @param classpathOrder the classpath order to add to
      * @param scanSpec       the scan spec
-     * @param log            the log
+     * @param log            the log node, or null to skip logging
      */
     private static void findClasspathOrderForQuarkusClassloader(final ClassLoader classLoader,
             final ClasspathOrder classpathOrder, final ScanSpec scanSpec, final @Nullable LogNode log) {
@@ -158,7 +158,7 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
      * @param classLoader    the classloader
      * @param classpathOrder the classpath order to add to
      * @param scanSpec       the scan spec
-     * @param log            the log
+     * @param log            the log node, or null to skip logging
      */
     @SuppressWarnings("unchecked")
     private static void findClasspathOrderForRuntimeClassloader(final ClassLoader classLoader,
@@ -186,7 +186,7 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
      * @param classLoader    the classloader
      * @param classpathOrder the classpath order to add to
      * @param scanSpec       the scan spec
-     * @param log            the log
+     * @param log            the log node, or null to skip logging
      */
     @SuppressWarnings("unchecked")
     private static void findClasspathOrderForRunnerClassloader(final ClassLoader classLoader,

@@ -493,7 +493,7 @@ class ClasspathElementZip extends ClasspathElement {
      * that has no {@code classes/} package root.
      *
      * @param logicalZipFile the logical zipfile
-     * @param log            the log
+     * @param log            the log node, or null to skip logging
      * @return the package root prefixes that were not disproved
      */
     // #929
@@ -546,7 +546,7 @@ class ClasspathElementZip extends ClasspathElement {
      * Scan for path matches within jarfile, and record ZipEntry objects of matching
      * files.
      *
-     * @param log the log
+     * @param log the log node, or null to skip logging
      */
     @Override
     void scanPaths(final @Nullable LogNode log) {

@@ -83,7 +83,7 @@ class SpringBootRestartClassLoaderHandler implements ClassLoaderHandler {
      *                       order for.
      * @param classpathOrder a {@link ClasspathOrder} object to update.
      * @param scanSpec       the {@link ScanSpec}.
-     * @param log            the log.
+     * @param log            the log node, or null to skip logging
      */
     // #267, #268
     @Override

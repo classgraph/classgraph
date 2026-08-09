@@ -92,12 +92,13 @@ public abstract class HierarchicalTypeSignature extends ScanResultObject {
     /**
      * Render type signature to string.
      *
-     * @param useSimpleNames       whether to use simple names for classes.
+     * @param useSimpleNames       if true, strip package and outer class names from
+     *                             class names
      * @param annotationsToExclude toplevel annotations to exclude, to eliminate
      *                             duplication (toplevel annotations are both
      *                             class/field/method annotations and type
      *                             annotations).
-     * @param buf                  the {@link StringBuilder} to write to.
+     * @param buf                  the buffer to append to
      */
     protected abstract void toStringInternal(final boolean useSimpleNames,
             @Nullable AnnotationInfoList annotationsToExclude,
@@ -106,8 +107,9 @@ public abstract class HierarchicalTypeSignature extends ScanResultObject {
     /**
      * Render type signature to string.
      *
-     * @param useSimpleNames whether to use simple names for classes.
-     * @param buf            the {@link StringBuilder} to write to.
+     * @param useSimpleNames if true, strip package and outer class names from class
+     *                       names
+     * @param buf            the buffer to append to
      */
     @Override
     protected void toString(final boolean useSimpleNames, final StringBuilder buf) {

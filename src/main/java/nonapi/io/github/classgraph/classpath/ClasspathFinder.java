@@ -126,7 +126,7 @@ public class ClasspathFinder {
      * @param scanSpec    the {@link ScanSpec}
      * @param methodName  the name of the API method the classloader was passed to,
      *                    for logging
-     * @param log         the log
+     * @param log         the log node, or null to skip logging
      */
     // #639, #795
     private static void mapSystemClassLoaderToScanningMechanism(final ClassLoader classLoader,

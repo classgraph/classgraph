@@ -185,7 +185,7 @@ public class AnnotationParameterValue extends ScanResultObject
      * @param value                the annotation parameter value
      * @param classNameToClassInfo the map from class name to {@link ClassInfo}.
      * @param refdClassInfo        the referenced class info
-     * @param log                  the log
+     * @param log                  the log node, or null to skip logging
      */
     private static void findReferencedClassInfo(final @Nullable Object value,
             final Map<String, ClassInfo> classNameToClassInfo, final Set<ClassInfo> refdClassInfo,
@@ -399,8 +399,9 @@ public class AnnotationParameterValue extends ScanResultObject
      * Write an annotation parameter value's string representation to the buffer.
      *
      * @param val            the value
-     * @param useSimpleNames the use simple names
-     * @param buf            the buffer
+     * @param useSimpleNames if true, strip package and outer class names from class
+     *                       names
+     * @param buf            the buffer to append to
      */
     private static void toString(final @Nullable Object val, final boolean useSimpleNames, final StringBuilder buf) {
         if (val == null) {
@@ -415,8 +416,9 @@ public class AnnotationParameterValue extends ScanResultObject
     /**
      * To string, param value only.
      *
-     * @param useSimpleNames whether to use simple names for classes
-     * @param buf            the buf
+     * @param useSimpleNames if true, strip package and outer class names from class
+     *                       names
+     * @param buf            the buffer to append to
      */
     void toStringParamValueOnly(final boolean useSimpleNames, final StringBuilder buf) {
         final var paramVal = value;

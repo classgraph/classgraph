@@ -109,7 +109,7 @@ public class ClassLoaderOrder {
      * Get the ClassLoaderHandler(s) that can handle a given ClassLoader.
      *
      * @param classLoader the class loader
-     * @param log         the log
+     * @param log         the log node, or null to skip logging
      * @return the registry entries that can handle the classloader, or a singleton
      *         list containing the fallback handler if none can.
      */
@@ -135,7 +135,7 @@ public class ClassLoaderOrder {
      * Add a {@link ClassLoader} to the ClassLoader order at the current position.
      *
      * @param classLoader the class loader, or null (ignored)
-     * @param log         the log
+     * @param log         the log node, or null to skip logging
      */
     public void add(final @Nullable ClassLoader classLoader, final @Nullable LogNode log) {
         if (classLoader == null) {
@@ -151,7 +151,7 @@ public class ClassLoaderOrder {
      *
      * @param classLoader the class loader, or null (ignored)
      * @param isParent    true if this is a parent of another classloader
-     * @param log         the log
+     * @param log         the log node, or null to skip logging
      */
     public void delegateTo(final @Nullable ClassLoader classLoader, final boolean isParent,
             final @Nullable LogNode log) {

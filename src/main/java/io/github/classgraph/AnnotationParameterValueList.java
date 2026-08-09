@@ -71,7 +71,7 @@ public class AnnotationParameterValueList extends MappableInfoList<AnnotationPar
      * Construct a new modifiable empty list of {@link AnnotationParameterValue}
      * objects, given a size hint.
      *
-     * @param sizeHint the size hint
+     * @param sizeHint the expected number of elements
      */
     public AnnotationParameterValueList(final int sizeHint) {
         super(sizeHint);
@@ -98,7 +98,7 @@ public class AnnotationParameterValueList extends MappableInfoList<AnnotationPar
      *
      * @param classNameToClassInfo the map from class name to {@link ClassInfo}.
      * @param refdClassInfo        the referenced class info
-     * @param log                  the log
+     * @param log                  the log node, or null to skip logging
      */
     void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
             final Set<ClassInfo> refdClassInfo, final @Nullable LogNode log) {

@@ -143,7 +143,7 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
      * Get the annotation on this package, or null if the package does not have the
      * annotation.
      * 
-     * @param annotation The annotation.
+     * @param annotation the annotation class
      * @return An {@link AnnotationInfo} object representing the annotation on this
      *         package, or null if the package does not have the annotation.
      */
@@ -157,7 +157,7 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
      * Get the named annotation on this package, or null if the package does not
      * have the named annotation.
      *
-     * @param annotationName The annotation name.
+     * @param annotationName the name of the annotation class
      * @return An {@link AnnotationInfo} object representing the named annotation on
      *         this package, or null if the package does not have the named
      *         annotation.
@@ -190,7 +190,7 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
     /**
      * Check if the package has the annotation.
      *
-     * @param annotation The annotation.
+     * @param annotation the annotation class
      * @return true if this package has the annotation.
      */
     public boolean hasAnnotation(final Class<? extends Annotation> annotation) {
@@ -202,7 +202,7 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
     /**
      * Check if the package has the named annotation.
      *
-     * @param annotationName The name of an annotation.
+     * @param annotationName the name of the annotation class
      * @return true if this package has the named annotation.
      */
     public boolean hasAnnotation(final String annotationName) {

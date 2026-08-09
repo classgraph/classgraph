@@ -70,7 +70,7 @@ public class FieldInfoList extends MappableInfoList<FieldInfo> {
      * Construct a new modifiable empty list of {@link FieldInfo} objects, given a
      * size hint.
      *
-     * @param sizeHint the size hint
+     * @param sizeHint the expected number of elements
      */
     public FieldInfoList(final int sizeHint) {
         super(sizeHint);
@@ -93,7 +93,7 @@ public class FieldInfoList extends MappableInfoList<FieldInfo> {
      *
      * @param classNameToClassInfo the map from class name to {@link ClassInfo}.
      * @param refdClassInfo        the referenced class info
-     * @param log                  the log
+     * @param log                  the log node, or null to skip logging
      */
     void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
             final Set<ClassInfo> refdClassInfo, final @Nullable LogNode log) {

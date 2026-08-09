@@ -314,11 +314,12 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
      * Render into String form.
      *
      * @param className      The class name
-     * @param useSimpleNames the use simple names
+     * @param useSimpleNames if true, strip package and outer class names from class
+     *                       names
      * @param modifiers      The class modifiers.
      * @param isAnnotation   True if the class is an annotation.
      * @param isInterface    True if the class is an interface.
-     * @param buf            the buf
+     * @param buf            the buffer to append to
      */
     void toStringInternal(final String className, final boolean useSimpleNames, final int modifiers,
             final boolean isAnnotation, final boolean isInterface, final StringBuilder buf) {
@@ -380,9 +381,10 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
     /**
      * To string internal.
      *
-     * @param useSimpleNames       the use simple names
+     * @param useSimpleNames       if true, strip package and outer class names from
+     *                             class names
      * @param annotationsToExclude the annotations to exclude
-     * @param buf                  the buf
+     * @param buf                  the buffer to append to
      */
     @Override
     protected void toStringInternal(final boolean useSimpleNames,

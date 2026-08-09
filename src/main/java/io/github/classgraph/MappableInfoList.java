@@ -56,7 +56,7 @@ public class MappableInfoList<T extends HasName> extends InfoList<T> {
     /**
      * Constructor.
      *
-     * @param sizeHint the size hint
+     * @param sizeHint the expected number of elements
      */
     MappableInfoList(final int sizeHint) {
         super(sizeHint);

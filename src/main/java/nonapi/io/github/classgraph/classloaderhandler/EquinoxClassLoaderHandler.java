@@ -70,7 +70,7 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
      * @param classLoader       the classloader
      * @param classpathOrderOut the classpath order
      * @param scanSpec          the scan spec
-     * @param log               the log
+     * @param log               the log node, or null to skip logging
      */
     private static void addBundleFile(final @Nullable Object bundlefile, final Set<Object> path,
             final ClassLoader classLoader,
@@ -124,7 +124,7 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
      * @param classLoader       the class loader
      * @param classpathOrderOut the classpath order out
      * @param scanSpec          the scan spec
-     * @param log               the log
+     * @param log               the log node, or null to skip logging
      */
     private static void addClasspathEntries(final @Nullable Object owner, final ClassLoader classLoader,
             final ClasspathOrder classpathOrderOut, final ScanSpec scanSpec, final @Nullable LogNode log) {

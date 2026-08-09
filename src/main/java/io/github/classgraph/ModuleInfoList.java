@@ -49,7 +49,7 @@ public class ModuleInfoList extends MappableInfoList<ModuleInfo> {
     /**
      * Constructor.
      *
-     * @param sizeHint the size hint
+     * @param sizeHint the expected number of elements
      */
     ModuleInfoList(final int sizeHint) {
         super(sizeHint);

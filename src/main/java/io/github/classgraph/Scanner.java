@@ -729,7 +729,7 @@ class Scanner implements Callable<ScanResult> {
          *
          * @param workUnit  the work unit
          * @param workQueue the work queue
-         * @param log       the log
+         * @param log       the log node, or null to skip logging
          * @throws InterruptedException the interrupted exception
          */
         /*
@@ -800,7 +800,7 @@ class Scanner implements Callable<ScanResult> {
      * and record the nesting.
      *
      * @param classpathElts the classpath elements
-     * @param log           the log
+     * @param log           the log node, or null to skip logging
      */
     private void findNestedClasspathElements(final List<SimpleEntry<String, ClasspathElement>> classpathElts,
             final @Nullable LogNode log) {

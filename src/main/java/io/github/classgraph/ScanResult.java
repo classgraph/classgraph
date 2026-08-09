@@ -297,7 +297,7 @@ public final class ScanResult implements Closeable {
     /**
      * Index {@link Resource} and {@link ClassInfo} objects.
      *
-     * @param log the log
+     * @param log the log node, or null to skip logging
      */
     private void indexResourcesAndClassInfo(final @Nullable LogNode log) {
         // Add backrefs from Info objects back to this ScanResult

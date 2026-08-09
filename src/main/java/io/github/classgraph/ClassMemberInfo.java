@@ -324,7 +324,7 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
      * annotations, or {@link #getDirectAnnotationInfo(Class)} to ignore
      * meta-annotations.)
      *
-     * @param annotation The annotation.
+     * @param annotation the annotation class
      * @return An {@link AnnotationInfo} object representing the annotation on this
      *         class member, or null if the class member does not have the
      *         annotation.
@@ -349,7 +349,7 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
      * directly is returned. Call {@link #getDirectAnnotationInfo(String)} if you want
      * only the annotation present on the class member itself.
      *
-     * @param annotationName The annotation name.
+     * @param annotationName the name of the annotation class
      * @return An {@link AnnotationInfo} object representing the named annotation on
      *         this class member, or null if the class member does not have the
      *         named annotation.
@@ -365,7 +365,7 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
      * are ignored. (Use {@link #getDirectAnnotationInfoRepeatable(Class)} for
      * {@link Repeatable} annotations.)
      *
-     * @param annotation The annotation.
+     * @param annotation the annotation class
      * @return An {@link AnnotationInfo} object representing the annotation directly
      *         present on this class member, or null if it is not directly present.
      */
@@ -382,7 +382,7 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
      * {@link #getDirectAnnotationInfoRepeatable(String)} for {@link Repeatable}
      * annotations.)
      *
-     * @param annotationName The annotation name.
+     * @param annotationName the name of the annotation class
      * @return An {@link AnnotationInfo} object representing the named annotation
      *         directly present on this class member, or null if it is not directly
      *         present.
@@ -396,7 +396,7 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
      * Get the {@link Repeatable} annotation or meta-annotation on this class
      * member, or the empty list if the class member does not have the annotation.
      *
-     * @param annotation The annotation.
+     * @param annotation the annotation class
      * @return An {@link AnnotationInfoList} of all instances of the annotation on
      *         this class member, or the empty list if the class member does not
      *         have the annotation.
@@ -412,7 +412,7 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
      * member, or the empty list if the class member does not have the named
      * annotation.
      *
-     * @param annotationName The annotation name.
+     * @param annotationName the name of the annotation class
      * @return An {@link AnnotationInfoList} of all instances of the named
      *         annotation on this class member, or the empty list if the class
      *         member does not have the named annotation.
@@ -427,7 +427,7 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
      * or the empty list if it is not directly present. Meta-annotations are
      * ignored.
      *
-     * @param annotation The annotation.
+     * @param annotation the annotation class
      * @return An {@link AnnotationInfoList} of all instances of the annotation
      *         directly present on this class member, or the empty list if it is not
      *         directly present.
@@ -443,7 +443,7 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
      * member, or the empty list if it is not directly present. Meta-annotations are
      * ignored.
      *
-     * @param annotationName The annotation name.
+     * @param annotationName the name of the annotation class
      * @return An {@link AnnotationInfoList} of all instances of the named
      *         annotation directly present on this class member, or the empty list
      *         if it is not directly present.
@@ -456,7 +456,7 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
     /**
      * Check if the class member has a given annotation.
      *
-     * @param annotation The annotation.
+     * @param annotation the annotation class
      * @return true if this class member has the annotation.
      */
     public boolean hasAnnotation(final Class<? extends Annotation> annotation) {
@@ -468,7 +468,7 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
     /**
      * Check if the class member has a given named annotation.
      *
-     * @param annotationName The name of an annotation.
+     * @param annotationName the name of the annotation class
      * @return true if this class member has the named annotation.
      */
     public boolean hasAnnotation(final String annotationName) {

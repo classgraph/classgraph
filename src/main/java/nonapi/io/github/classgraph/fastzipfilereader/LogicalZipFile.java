@@ -157,7 +157,7 @@ public class LogicalZipFile extends ZipFileSlice {
      *
      * @param zipFileSlice               the zipfile slice
      * @param nestedJarHandler           the nested jar handler
-     * @param log                        the log
+     * @param log                        the log node, or null to skip logging
      * @param enableMultiReleaseVersions if true, multi-release versions should not
      *                                   be stripped from resource names
      * @throws IOException          If an I/O exception occurs.
@@ -280,7 +280,7 @@ public class LogicalZipFile extends ZipFileSlice {
      * Parse the manifest entry of a zipfile.
      *
      * @param manifestZipEntry the manifest zip entry
-     * @param log              the log
+     * @param log              the log node, or null to skip logging
      * @throws IOException          If an I/O exception occurs.
      * @throws InterruptedException If the thread was interrupted.
      */
@@ -419,7 +419,7 @@ public class LogicalZipFile extends ZipFileSlice {
      * Read the central directory of the zipfile.
      * 
      * @param nestedJarHandler the nested jar handler
-     * @param log              the log
+     * @param log              the log node, or null to skip logging
      * @throws IOException          If an I/O exception occurs.
      * @throws InterruptedException if the thread was interrupted.
      */

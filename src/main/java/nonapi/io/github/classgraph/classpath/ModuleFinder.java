@@ -126,7 +126,7 @@ public class ModuleFinder {
      *
      * @param layers   the layers
      * @param scanSpec the scan spec
-     * @param log      the log
+     * @param log      the log node, or null to skip logging
      * @return the list
      */
     private static List<ModuleRef> findModuleRefs(final LinkedHashSet<ModuleLayer> layers, final ScanSpec scanSpec,
@@ -203,7 +203,7 @@ public class ModuleFinder {
      * @param callStack            the call stack
      * @param scanSpec             the scan spec
      * @param scanNonSystemModules whether to include unnamed and non-system modules
-     * @param log                  the log
+     * @param log                  the log node, or null to skip logging
      * @return the list
      */
     private List<ModuleRef> findModuleRefsFromCallstack(final Class<?>[] callStack, final ScanSpec scanSpec,

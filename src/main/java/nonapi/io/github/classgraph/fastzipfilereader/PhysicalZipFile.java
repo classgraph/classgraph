@@ -69,7 +69,7 @@ class PhysicalZipFile {
      *
      * @param file             the file
      * @param nestedJarHandler the nested jar handler
-     * @param log              the log
+     * @param log              the log node, or null to skip logging
      * @throws IOException if an I/O exception occurs.
      */
     PhysicalZipFile(final File file, final NestedJarHandler nestedJarHandler, final @Nullable LogNode log) throws IOException {
@@ -84,7 +84,7 @@ class PhysicalZipFile {
      *
      * @param path             the path
      * @param nestedJarHandler the nested jar handler
-     * @param log              the log
+     * @param log              the log node, or null to skip logging
      * @throws IOException if an I/O exception occurs.
      */
     PhysicalZipFile(final Path path, final NestedJarHandler nestedJarHandler, final @Nullable LogNode log) throws IOException {
@@ -123,7 +123,7 @@ class PhysicalZipFile {
      *                              or the zip entry path of this entry in the
      *                              parent zipfile
      * @param nestedJarHandler      the nested jar handler
-     * @param log                   the log
+     * @param log                   the log node, or null to skip logging
      * @throws IOException if an I/O exception occurs.
      */
     PhysicalZipFile(final InputStream inputStream, final long inputStreamLengthHint, final String pathStr,

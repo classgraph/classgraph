@@ -204,7 +204,7 @@ public final class ClassLoaderHandlerRegistry {
          * {@link ClassLoaderHandler}.
          *
          * @param classLoader the {@link ClassLoader}.
-         * @param log         the log.
+         * @param log         the log node, or null to skip logging
          * @return true, if this {@link ClassLoaderHandler} can handle the
          *         {@link ClassLoader}.
          */
@@ -218,7 +218,7 @@ public final class ClassLoaderHandlerRegistry {
          *
          * @param classLoader      the {@link ClassLoader}.
          * @param classLoaderOrder a {@link ClassLoaderOrder} object.
-         * @param log              the log
+         * @param log              the log node, or null to skip logging
          */
         public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
                 final @Nullable LogNode log) {
@@ -233,7 +233,7 @@ public final class ClassLoaderHandlerRegistry {
          * @param classLoader    the {@link ClassLoader}.
          * @param classpathOrder a {@link ClasspathOrder} object.
          * @param scanSpec       the {@link ScanSpec}.
-         * @param log            the log.
+         * @param log            the log node, or null to skip logging
          */
         public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
                 final ScanSpec scanSpec, final @Nullable LogNode log) {

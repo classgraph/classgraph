@@ -88,7 +88,7 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
      * @param classpathOrderOut the classpath order out
      * @param bundles           the bundles
      * @param scanSpec          the scan spec
-     * @param log               the log
+     * @param log               the log node, or null to skip logging
      */
     private static void addBundle(final @Nullable Object bundleWiring, final ClassLoader classLoader,
             final ClasspathOrder classpathOrderOut, final Set<@Nullable Object> bundles, final ScanSpec scanSpec,

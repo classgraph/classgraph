@@ -112,7 +112,7 @@ class UnscannedModules {
      *
      * @param className     the name of the class
      * @param classfilePath the path of the class' classfile within a module
-     * @param log           the log
+     * @param log           the log node, or null to skip logging
      * @return a work unit for scanning the classfile, or null if the class is not
      *         in any of the modules that are not being scanned
      * @throws InterruptedException if the thread was interrupted while opening a
@@ -175,7 +175,7 @@ class UnscannedModules {
      * module if this is the first time it has been looked in.
      *
      * @param moduleRef the module
-     * @param log       the log
+     * @param log       the log node, or null to skip logging
      * @return the classpath element for the module
      * @throws InterruptedException if the thread was interrupted while opening the
      *                              module

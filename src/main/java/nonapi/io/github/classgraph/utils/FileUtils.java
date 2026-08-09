@@ -576,7 +576,7 @@ public final class FileUtils {
      * Close a direct byte buffer (run in doPrivileged).
      *
      * @param byteBuffer the byte buffer
-     * @param log        the log
+     * @param log        the log node, or null to skip logging
      * @return true if successful
      */
     private static boolean closeDirectByteBufferPrivileged(final ByteBuffer byteBuffer, final @Nullable LogNode log) {
@@ -801,7 +801,7 @@ public final class FileUtils {
      *
      * @param arena           the arena to close.
      * @param reflectionUtils the reflection utils
-     * @param log             the log
+     * @param log             the log node, or null to skip logging
      * @return true if the arena was successfully closed.
      */
     public static boolean closeArena(final Object arena, final ReflectionUtils reflectionUtils, final @Nullable LogNode log) {

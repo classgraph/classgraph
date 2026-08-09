@@ -1127,9 +1127,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get the simple name of the class. Returns everything after the last '.' in
-     * the class name, or the whole string if the class is in the root package.
-     * (Note that this is not the same as the result of
+     * Get the simple name of the class. Returns everything after the last '.' or
+     * the last '$' in the class name, so that the package name and any enclosing
+     * class names are stripped, or the whole string if the class is in the root
+     * package and is not nested. (Note that this is not the same as the result of
      * {@link Class#getSimpleName()}, which returns "" for anonymous classes.)
      *
      * @return The simple name of the class.
@@ -1480,7 +1481,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Checks whether this class has the annotation.
      *
-     * @param annotation An annotation.
+     * @param annotation the annotation class
      * @return true if this class has the annotation.
      */
     public boolean hasAnnotation(final Class<? extends Annotation> annotation) {
@@ -1492,7 +1493,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Checks whether this class has the named annotation.
      *
-     * @param annotationName The name of an annotation.
+     * @param annotationName the name of the annotation class
      * @return true if this class has the named annotation.
      */
     public boolean hasAnnotation(final String annotationName) {
@@ -2295,7 +2296,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * returned {@link AnnotationInfoList}, so that the returned list doesn't have
      * to be built multiple times.
      *
-     * @param annotation The annotation.
+     * @param annotation the annotation class
      * @return An {@link AnnotationInfo} object representing the annotation on this
      *         class, or null if the class does not have the annotation.
      */
@@ -2331,7 +2332,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * returned {@link AnnotationInfoList}, so that the returned list doesn't have
      * to be built multiple times.
      *
-     * @param annotationName The annotation name.
+     * @param annotationName the name of the annotation class
      * @return An {@link AnnotationInfo} object representing the named annotation on
      *         this class, or null if the class does not have the named annotation.
      */
@@ -2347,7 +2348,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * {@link #getDirectAnnotationInfoRepeatable(Class)} for {@link Repeatable}
      * annotations.)
      *
-     * @param annotation The annotation.
+     * @param annotation the annotation class
      * @return An {@link AnnotationInfo} object representing the annotation directly
      *         present on this class, or null if it is not directly present.
      */
@@ -2364,7 +2365,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * ignored. (Use {@link #getDirectAnnotationInfoRepeatable(String)} for
      * {@link Repeatable} annotations.)
      *
-     * @param annotationName The annotation name.
+     * @param annotationName the name of the annotation class
      * @return An {@link AnnotationInfo} object representing the named annotation
      *         directly present on this class, or null if it is not directly
      *         present.
@@ -2388,7 +2389,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * returned {@link AnnotationInfoList}, so that the returned list doesn't have
      * to be built multiple times.
      *
-     * @param annotation The annotation.
+     * @param annotation the annotation class
      * @return An {@link AnnotationInfoList} of all instances of the annotation on
      *         this class, or the empty list if the class does not have the
      *         annotation.
@@ -2413,7 +2414,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * returned {@link AnnotationInfoList}, so that the returned list doesn't have
      * to be built multiple times.
      *
-     * @param annotationName The annotation name.
+     * @param annotationName the name of the annotation class
      * @return An {@link AnnotationInfoList} of all instances of the named
      *         annotation on this class, or the empty list if the class does not
      *         have the named annotation.
@@ -2428,7 +2429,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * empty list if it is not directly present. Meta-annotations, and the
      * {@link Inherited} annotations of superclasses, are ignored.
      *
-     * @param annotation The annotation.
+     * @param annotation the annotation class
      * @return An {@link AnnotationInfoList} of all instances of the annotation
      *         directly present on this class, or the empty list if it is not
      *         directly present.
@@ -2444,7 +2445,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * or the empty list if it is not directly present. Meta-annotations, and the
      * {@link Inherited} annotations of superclasses, are ignored.
      *
-     * @param annotationName The annotation name.
+     * @param annotationName the name of the annotation class
      * @return An {@link AnnotationInfoList} of all instances of the named
      *         annotation directly present on this class, or the empty list if it is
      *         not directly present.
@@ -3876,7 +3877,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * @param classNameToClassInfo the map from class name to {@link ClassInfo}.
      * @param refdClassInfo        the referenced class info
-     * @param log                  the log
+     * @param log                  the log node, or null to skip logging
      */
     @Override
     void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
@@ -3982,8 +3983,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * To string.
      *
-     * @param useSimpleNames use simple names
-     * @param buf            the buf
+     * @param useSimpleNames if true, strip package and outer class names from class
+     *                       names
+     * @param buf            the buffer to append to
      */
     @Override
     protected void toString(final boolean useSimpleNames, final StringBuilder buf) {

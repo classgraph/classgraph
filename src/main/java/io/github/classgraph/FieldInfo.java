@@ -302,7 +302,7 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
      *
      * @param classNameToClassInfo the map from class name to {@link ClassInfo}.
      * @param refdClassInfo        the referenced class info
-     * @param log                  the log
+     * @param log                  the log node, or null to skip logging
      */
     @Override
     void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,

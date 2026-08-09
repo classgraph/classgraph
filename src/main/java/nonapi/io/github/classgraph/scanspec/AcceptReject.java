@@ -796,7 +796,7 @@ public abstract class AcceptReject {
      * Quote list.
      *
      * @param coll the coll
-     * @param buf  the buf
+     * @param buf  the buffer to append to
      */
     private static void quoteList(final Collection<String> coll, final StringBuilder buf) {
         buf.append('[');

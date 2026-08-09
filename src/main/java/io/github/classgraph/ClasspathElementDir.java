@@ -427,7 +427,7 @@ class ClasspathElementDir extends ClasspathElement {
      * Recursively scan a {@link Path} for sub-path patterns matching the scan spec.
      *
      * @param path the {@link Path}
-     * @param log  the log
+     * @param log  the log node, or null to skip logging
      */
     private void scanPathRecursively(final Path path, final @Nullable LogNode log) {
         // See if this canonical path has been scanned before, so that recursive
@@ -622,7 +622,7 @@ class ClasspathElementDir extends ClasspathElement {
     /**
      * Hierarchically scan directory structure for classfiles and matching files.
      *
-     * @param log the log
+     * @param log the log node, or null to skip logging
      */
     @Override
     void scanPaths(final @Nullable LogNode log) {

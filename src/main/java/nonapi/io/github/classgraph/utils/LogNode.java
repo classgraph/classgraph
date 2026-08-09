@@ -176,7 +176,7 @@ public final class LogNode {
      * @param timeStampStr the timestamp string
      * @param indentLevel  the indent level
      * @param line         the line to log
-     * @param buf          the buf
+     * @param buf          the buffer to append to
      */
     private void appendLine(final String timeStampStr, final int indentLevel, final String line,
             final StringBuilder buf) {
@@ -199,7 +199,7 @@ public final class LogNode {
      * Recursively build the log output.
      *
      * @param indentLevel the indent level
-     * @param buf         the buf
+     * @param buf         the buffer to append to
      */
     private void toString(final int indentLevel, final StringBuilder buf) {
         final var cal = Calendar.getInstance();

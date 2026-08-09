@@ -188,7 +188,7 @@ class FallbackClassLoaderHandler implements ClassLoaderHandler {
      * @param classLoader    the {@link ClassLoader} to probe.
      * @param classpathOrder a {@link ClasspathOrder} object to update.
      * @param scanSpec       the {@link ScanSpec}.
-     * @param log            the log.
+     * @param log            the log node, or null to skip logging
      * @return true if any classpath entries were found.
      */
     private static boolean findClasspathOrderByProbingForResources(final ClassLoader classLoader,

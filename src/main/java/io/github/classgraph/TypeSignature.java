@@ -274,7 +274,7 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
      * needed for this one purpose.
      *
      * @param typeSignature the type signature to render.
-     * @param buf           the buffer to append to.
+     * @param buf           the buffer to append to
      */
     private static void toTypeSignatureStr(final HierarchicalTypeSignature typeSignature, final StringBuilder buf) {
         if (typeSignature instanceof final BaseTypeSignature baseTypeSignature) {
@@ -316,7 +316,7 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
      * the list is non-empty.
      *
      * @param typeArguments the type arguments.
-     * @param buf           the buffer to append to.
+     * @param buf           the buffer to append to
      */
     private static void toTypeArgumentsStr(final List<TypeArgument> typeArguments, final StringBuilder buf) {
         if (!typeArguments.isEmpty()) {
@@ -360,7 +360,7 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
      *
      * @param classNameToClassInfo the map from class name to {@link ClassInfo}.
      * @param refdClassInfo        the referenced class info.
-     * @param log                  the log.
+     * @param log                  the log node, or null to skip logging
      */
     @Override
     final void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,

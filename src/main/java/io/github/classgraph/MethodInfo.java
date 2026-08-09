@@ -812,7 +812,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
      *
      * @param classNameToClassInfo the map from class name to {@link ClassInfo}.
      * @param refdClassInfo        the referenced class info
-     * @param log                  the log
+     * @param log                  the log node, or null to skip logging
      */
     @Override
     void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
@@ -920,8 +920,9 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
      * {@code "<init>"}, and private static class initializer blocks are named
      * {@code "<clinit>"}.
      *
-     * @param useSimpleNames the use simple names
-     * @param buf            the buf
+     * @param useSimpleNames if true, strip package and outer class names from class
+     *                       names
+     * @param buf            the buffer to append to
      */
     @Override
     protected void toString(final boolean useSimpleNames, final StringBuilder buf) {

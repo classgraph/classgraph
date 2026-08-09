@@ -125,7 +125,7 @@ public class FileSlice extends Slice {
      *                           -1 if unknown, or 0 of this is not a deflated zip
      *                           entry.
      * @param nestedJarHandler   the nested jar handler
-     * @param log                the log
+     * @param log                the log node, or null to skip logging
      * @throws IOException if the file cannot be opened.
      */
     public FileSlice(final File file, final boolean isDeflatedZipEntry, final long inflatedLengthHint,
@@ -214,7 +214,7 @@ public class FileSlice extends Slice {
      *
      * @param file             the file
      * @param nestedJarHandler the nested jar handler
-     * @param log              the log
+     * @param log              the log node, or null to skip logging
      * @throws IOException if the file cannot be opened.
      */
     public FileSlice(final File file, final NestedJarHandler nestedJarHandler, final @Nullable LogNode log) throws IOException {

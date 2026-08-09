@@ -79,7 +79,7 @@ abstract class ScanResultObject {
     /**
      * Get {@link ClassInfo} objects for any classes referenced by this object.
      *
-     * @param log the log
+     * @param log the log node, or null to skip logging
      * @return the referenced class info.
      */
     final Set<ClassInfo> findReferencedClassInfo(final @Nullable LogNode log) {
@@ -95,7 +95,7 @@ abstract class ScanResultObject {
      *
      * @param classNameToClassInfo the map from class name to {@link ClassInfo}.
      * @param refdClassInfo        the referenced class info
-     * @param log                  the log
+     * @param log                  the log node, or null to skip logging
      */
     void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
             final Set<ClassInfo> refdClassInfo, final @Nullable LogNode log) {
@@ -142,15 +142,17 @@ abstract class ScanResultObject {
     /**
      * Render to string.
      *
-     * @param useSimpleNames if true, use just the simple name of each class.
-     * @param buf            the buf
+     * @param useSimpleNames if true, strip package and outer class names from class
+     *                       names
+     * @param buf            the buffer to append to
      */
     protected abstract void toString(final boolean useSimpleNames, StringBuilder buf);
 
     /**
      * Render to string, with simple names for classes if useSimpleNames is true.
      *
-     * @param useSimpleNames if true, use just the simple name of each class.
+     * @param useSimpleNames if true, strip package and outer class names from class
+     *                       names
      * @return the string representation.
      */
     String toString(final boolean useSimpleNames) {

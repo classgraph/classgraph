@@ -55,7 +55,7 @@ interface ClassLoaderHandler {
      *
      * @param classLoaderClass the {@link ClassLoader} class or one of its
      *                         superclasses.
-     * @param log              the log
+     * @param log              the log node, or null to skip logging
      * @return true if this {@link ClassLoaderHandler} can handle the
      *         {@link ClassLoader}.
      */
@@ -90,7 +90,7 @@ interface ClassLoaderHandler {
      *
      * @param classLoader      the {@link ClassLoader} to find the order for.
      * @param classLoaderOrder a {@link ClassLoaderOrder} object to update.
-     * @param log              the log
+     * @param log              the log node, or null to skip logging
      */
     void findClassLoaderOrder(ClassLoader classLoader, ClassLoaderOrder classLoaderOrder, @Nullable LogNode log);
 
@@ -101,7 +101,7 @@ interface ClassLoaderHandler {
      *                       order for.
      * @param classpathOrder a {@link ClasspathOrder} object to update.
      * @param scanSpec       the {@link ScanSpec}.
-     * @param log            the log.
+     * @param log            the log node, or null to skip logging
      */
     void findClasspathOrder(ClassLoader classLoader, ClasspathOrder classpathOrder, ScanSpec scanSpec, @Nullable LogNode log);
 

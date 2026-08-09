@@ -53,7 +53,7 @@ public class InfoList<T extends HasName> extends PotentiallyUnmodifiableList<T> 
     /**
      * Constructor.
      *
-     * @param sizeHint the size hint
+     * @param sizeHint the expected number of elements
      */
     InfoList(final int sizeHint) {
         super(sizeHint);

@@ -338,7 +338,7 @@ class ClasspathElementModule extends ClasspathElement {
     /**
      * Scan for package matches within module.
      *
-     * @param log the log
+     * @param log the log node, or null to skip logging
      */
     @Override
     void scanPaths(final @Nullable LogNode log) {

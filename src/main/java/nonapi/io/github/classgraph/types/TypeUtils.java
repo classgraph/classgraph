@@ -88,7 +88,7 @@ public final class TypeUtils {
      * Append a space if necessary (if not at the beginning of the buffer, and the
      * last character is not already a space), then append a modifier keyword.
      *
-     * @param buf             the buf
+     * @param buf             the buffer to append to
      * @param modifierKeyword the modifier keyword
      */
     private static void appendModifierKeyword(final StringBuilder buf, final String modifierKeyword) {
@@ -105,7 +105,7 @@ public final class TypeUtils {
      * @param modifierType The {@link ModifierType} these modifiers apply to.
      * @param isDefault    for methods, true if this is a default method (else
      *                     ignored).
-     * @param buf          The buffer to write the result into.
+     * @param buf          the buffer to append to
      */
     public static void modifiersToString(final int modifiers, final ModifierType modifierType, final boolean isDefault,
             final StringBuilder buf) {
