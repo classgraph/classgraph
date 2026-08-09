@@ -625,6 +625,39 @@ as described above.
   * In 4.x, `addClassLoader()` did neither of these, so adding one of the two
     classloaders had no effect on what was scanned.
 
+* **The class hierarchy above an accepted class is now completed through modules that are
+  not being scanned (#902).** When ClassGraph reaches a superclass, interface or
+  annotation of an accepted class, it extends the scan upwards to that class so that the
+  accepted class' own declarations can be reported in full. In 4.x that search could only
+  look in the classpath elements and modules that were being scanned, and system modules
+  are not scanned unless they are asked for, so a hierarchy stopped as soon as it reached
+  a JDK class: a class extending `java.util.TimerTask` did not report `Runnable` among
+  its interfaces, and its superclass chain ended at `TimerTask` instead of reaching
+  `java.lang.Object`. In 5.x, the classfile of such a class is read from its module even
+  though that module is not being scanned.
+
+  * Only *reject* criteria block this. A module excluded with `rejectModules()` is never
+    read from, but a module that simply wasn't accepted can still have individual
+    classfiles read out of it. This is the rule that already applied to classes:
+    extending the scan upwards has always consulted the reject list only, since an
+    accepted class' superclass is usually outside the accepted packages.
+  * The classes read this way are external classes, so they do not appear in
+    `getAllClasses()`, and their packages and modules do not appear in
+    `getPackageInfo()` or `getModuleInfo()`, unless `enableExternalClasses()` is called.
+    No JDK class, package or module is added to the scan result by this change.
+  * `java.lang.Object` is still never read, so its methods and fields are never reported.
+  * With `enableMethodInfo()`, `enableFieldInfo()` or `enableAnnotationInfo()`, the
+    queries that include inherited members — `getMethodInfo()`, `getFieldInfo()`,
+    `getAnnotationInfo()` and their variants — now report the members a class inherits
+    from JDK supertypes, since those supertypes are now in the class graph. For example,
+    an annotation type now reports `annotationType()`, `equals()`, `hashCode()` and
+    `toString()`, inherited from `java.lang.annotation.Annotation`. The `getDeclared...`
+    queries are unaffected.
+  * Nothing changes when ClassGraph does not enumerate modules at all: after
+    `disableModuleScanning()`, and after `overrideClasspath()` or `overrideClassLoaders()`
+    without the application classloader, unless a module is also asked for by name or
+    `enableSystemJarsAndModules()` is called.
+
 ## Bug fixes
 
 Bugs found during the port. Each of these is a pre-existing bug in ClassGraph 4.x, and

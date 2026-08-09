@@ -92,20 +92,33 @@ class ClasspathElementModule extends ClasspathElement {
     private final Set<String> allResourcePaths = new HashSet<>();
 
     /**
+     * True if this module is not being scanned, and was only opened so that the
+     * classfiles of individual classes can be read from it (see
+     * {@link UnscannedModules}).
+     */
+    private final boolean isLookupOnly;
+
+    /**
      * A zip/jarfile classpath element.
      *
      * @param moduleRef                          the module ref
      * @param workUnit                           the work unit
      * @param moduleRefToModuleReaderRecyclerMap the module ref to module reader
      *                                           recycler map
+     * @param isLookupOnly                       true if the module is not being
+     *                                           scanned, and was only opened so
+     *                                           that the classfiles of individual
+     *                                           classes can be read from it
      * @param scanSpec                           the scan spec
      */
     ClasspathElementModule(final ModuleRef moduleRef,
             final SingletonMap<ModuleRef, Recycler<ModuleReader, IOException>, IOException> //
-            moduleRefToModuleReaderRecyclerMap, final ClasspathEntryWorkUnit workUnit, final ScanSpec scanSpec) {
+            moduleRefToModuleReaderRecyclerMap, final ClasspathEntryWorkUnit workUnit, final boolean isLookupOnly,
+            final ScanSpec scanSpec) {
         super(workUnit, scanSpec);
         this.moduleRefToModuleReaderRecyclerMap = moduleRefToModuleReaderRecyclerMap;
         this.moduleRef = moduleRef;
+        this.isLookupOnly = isLookupOnly;
     }
 
     /*
@@ -302,6 +315,23 @@ class ClasspathElementModule extends ClasspathElement {
     @Override
     @Nullable
     Resource getResource(final String relativePath) {
+        if (isLookupOnly) {
+            // The paths of the resources in a module that is not being scanned were never
+            // listed, so ask the module reader whether the module contains this one
+            if (skipClasspathElement) {
+                return null;
+            }
+            try {
+                final var moduleReader = moduleReaderRecycler().acquire();
+                try {
+                    return ModuleReaderUtils.contains(moduleReader, relativePath) ? newResource(relativePath) : null;
+                } finally {
+                    moduleReaderRecycler().recycle(moduleReader);
+                }
+            } catch (final IOException | SecurityException | IllegalArgumentException e) {
+                return null;
+            }
+        }
         return allResourcePaths.contains(relativePath) ? newResource(relativePath) : null;
     }
 

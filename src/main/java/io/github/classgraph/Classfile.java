@@ -75,6 +75,12 @@ class Classfile {
     /** The classpath order. */
     private final List<ClasspathElement> classpathOrder;
 
+    /**
+     * The modules that are not being scanned, but whose classfiles may still be read
+     * in order to complete the class graph above an accepted class.
+     */
+    private final UnscannedModules unscannedModules;
+
     /** The relative path to the classfile (should correspond to className). */
     private final String relativePath;
 
@@ -281,9 +287,10 @@ class Classfile {
      * @param className    the class name
      * @param relationship the relationship type
      * @param log          the log
+     * @throws InterruptedException if the thread was interrupted
      */
     private void scheduleScanningIfExternalClass(final @Nullable String className, final String relationship,
-            final @Nullable LogNode log) {
+            final @Nullable LogNode log) throws InterruptedException {
         // Don't extend scanning upwards to Object -- it has no superclass, interfaces
         // or annotations, so scanning it adds nothing to the class graph (the
         // superclass link to Object is recorded from the class name alone, without
@@ -324,6 +331,17 @@ class Classfile {
                         }
                     }
                 }
+                if (classResource == null) {
+                    // The classfile is not in any classpath element that is being scanned. Look in
+                    // the modules that are not being scanned, so that the class graph above an
+                    // accepted class is still completed through classes in system modules, which
+                    // are not scanned unless they are asked for (#902)
+                    final var workUnit = unscannedModules.findClassfile(className, classfilePath, log);
+                    if (workUnit != null) {
+                        classResource = workUnit.classfileResource();
+                        foundInClasspathElt = workUnit.classpathElement();
+                    }
+                }
                 if (classResource != null) {
                     // Found class resource
                     if (log != null) {
@@ -361,9 +379,10 @@ class Classfile {
      *                           annotation, or for an annotation parameter value,
      *                           or null.
      * @param log                the log
+     * @throws InterruptedException if the thread was interrupted
      */
     private void extendScanningUpwardsFromAnnotationParameterValues(final @Nullable Object annotationParamVal,
-            final @Nullable LogNode log) {
+            final @Nullable LogNode log) throws InterruptedException {
         if (annotationParamVal == null) {
             // Should not be possible -- ignore
         } else if (annotationParamVal instanceof final AnnotationInfo annotationInfo) {
@@ -389,8 +408,9 @@ class Classfile {
      * interface or annotation.
      *
      * @param log the log
+     * @throws InterruptedException if the thread was interrupted
      */
-    private void extendScanningUpwards(final @Nullable LogNode log) {
+    private void extendScanningUpwards(final @Nullable LogNode log) throws InterruptedException {
         // Check superclass
         if (superclassName != null) {
             scheduleScanningIfExternalClass(superclassName, "superclass", log);
@@ -2069,6 +2089,11 @@ class Classfile {
      *
      * @param classpathElement                       the classpath element
      * @param classpathOrder                         the classpath order
+     * @param unscannedModules                       the modules that are not being
+     *                                               scanned, but whose classfiles
+     *                                               may still be read in order to
+     *                                               complete the class graph above
+     *                                               an accepted class
      * @param acceptedClassNamesFound                the names of accepted classes
      *                                               found in the classpath while
      *                                               scanning paths within classpath
@@ -2092,15 +2117,18 @@ class Classfile {
      * @throws SkipClassException       if the classfile needs to be skipped (e.g.
      *                                  the class is non-public, and
      *                                  ignoreClassVisibility is false)
+     * @throws InterruptedException     if the thread was interrupted
      */
     Classfile(final ClasspathElement classpathElement, final List<ClasspathElement> classpathOrder,
-            final Set<String> acceptedClassNamesFound, final Set<String> classNamesScheduledForExtendedScanning,
-            final String relativePath, final Resource classfileResource, final boolean isExternalClass,
+            final UnscannedModules unscannedModules, final Set<String> acceptedClassNamesFound,
+            final Set<String> classNamesScheduledForExtendedScanning, final String relativePath,
+            final Resource classfileResource, final boolean isExternalClass,
             final ConcurrentHashMap<String, String> stringInternMap, final WorkQueue<ClassfileScanWorkUnit> workQueue,
             final ScanSpec scanSpec, final @Nullable LogNode log)
-            throws IOException, ClassfileFormatException, SkipClassException {
+            throws IOException, ClassfileFormatException, SkipClassException, InterruptedException {
         this.classpathElement = classpathElement;
         this.classpathOrder = classpathOrder;
+        this.unscannedModules = unscannedModules;
         this.relativePath = relativePath;
         this.acceptedClassNamesFound = acceptedClassNamesFound;
         this.classNamesScheduledForExtendedScanning = classNamesScheduledForExtendedScanning;

@@ -163,6 +163,25 @@ public final class ModuleReaderUtils {
     }
 
     /**
+     * Use a {@link ModuleReader} to test whether the module contains the named
+     * resource, without listing the contents of the module.
+     *
+     * @param moduleReader the module reader.
+     * @param path         The path to the resource to look for.
+     * @return true if the module contains the named resource.
+     * @throws SecurityException If the module cannot be accessed.
+     */
+    public static boolean contains(final ModuleReader moduleReader, final String path) throws SecurityException {
+        final Optional<URI> optionalURI;
+        try {
+            optionalURI = moduleReader.find(path);
+        } catch (final IOException e) {
+            throw new IllegalArgumentException("Could not call ModuleReader#find(String) for path " + path, e);
+        }
+        return optionalURI != null && optionalURI.isPresent();
+    }
+
+    /**
      * Use a {@link ModuleReader} to find the named resource as a {@link URI}.
      *
      * @param moduleReader the module reader.

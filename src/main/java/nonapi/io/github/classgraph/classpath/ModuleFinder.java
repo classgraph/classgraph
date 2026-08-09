@@ -61,7 +61,8 @@ public class ModuleFinder {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the system modules as {@link ModuleRef} wrappers.
+     * Get the system modules as {@link ModuleRef} wrappers. All visible system
+     * modules are listed, whether or not they are going to be scanned.
      *
      * @return The system modules as {@link ModuleRef} wrappers, or null if no
      *         modules were found.
@@ -235,7 +236,9 @@ public class ModuleFinder {
      * @param callStack            the callstack.
      * @param scanSpec             The scan spec.
      * @param scanNonSystemModules whether to scan unnamed and non-system modules
-     * @param scanSystemModules    whether to scan system modules
+     * @param scanSystemModules    whether system modules are going to be scanned
+     *                             (system modules are listed either way, see
+     *                             {@link #getSystemModuleRefs()})
      * @param log                  The log.
      */
     public ModuleFinder(final Class<?>[] callStack, final ScanSpec scanSpec, final boolean scanNonSystemModules,
@@ -262,10 +265,13 @@ public class ModuleFinder {
             nonSystemModuleRefs = new ArrayList<>();
             for (final ModuleRef moduleRef : allModuleRefsList) {
                 if (moduleRef != null) {
-                    final var isSystemModule = moduleRef.isSystemModule();
-                    if (isSystemModule && scanSystemModules) {
+                    if (moduleRef.isSystemModule()) {
+                        // System modules are listed whether or not they are going to be scanned,
+                        // since the classfile of a class in a system module that is not being
+                        // scanned may still be read, in order to complete the class graph above an
+                        // accepted class (#902)
                         systemModuleRefs.add(moduleRef);
-                    } else if (!isSystemModule && scanNonSystemModules) {
+                    } else if (scanNonSystemModules) {
                         nonSystemModuleRefs.add(moduleRef);
                     }
                 }

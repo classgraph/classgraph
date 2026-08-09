@@ -115,6 +115,12 @@ class Scanner implements Callable<ScanResult> {
     /** The module order. */
     private final List<ClasspathElementModule> moduleOrder;
 
+    /**
+     * The modules that are not being scanned, but whose classfiles may still be read
+     * in order to complete the class graph above an accepted class.
+     */
+    private final UnscannedModules unscannedModules;
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -165,6 +171,7 @@ class Scanner implements Callable<ScanResult> {
 
         try {
             this.moduleOrder = new ArrayList<>();
+            final List<ModuleRef> unscannedModuleRefs = new ArrayList<>();
 
             // Check if modules should be scanned
             final var moduleFinder = classpathFinder.getModuleFinder();
@@ -192,11 +199,17 @@ class Scanner implements Callable<ScanResult> {
                                     nestedJarHandler.moduleRefToModuleReaderRecyclerMap(),
                                     new ClasspathEntryWorkUnit(null, defaultClassLoader, null, moduleOrder.size(), "",
                                             ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES),
-                                    scanSpec);
+                                    /* isLookupOnly = */ false, scanSpec);
                             moduleOrder.add(classpathElementModule);
                             // Open the ClasspathElementModule
                             classpathElementModule.open(/* ignored */ null, classpathFinderLog);
                         } else {
+                            // A module that is not being scanned can still have the classfiles of
+                            // individual classes read from it, in order to complete the class graph
+                            // above an accepted class -- but not if the module was rejected (#902)
+                            if (!scanSpec.moduleAcceptReject.isRejected(moduleName)) {
+                                unscannedModuleRefs.add(systemModuleRef);
+                            }
                             if (classpathFinderLog != null) {
                                 classpathFinderLog
                                         .log("Skipping non-accepted or rejected system module: " + moduleName);
@@ -217,11 +230,17 @@ class Scanner implements Callable<ScanResult> {
                                     nestedJarHandler.moduleRefToModuleReaderRecyclerMap(),
                                     new ClasspathEntryWorkUnit(null, defaultClassLoader, null, moduleOrder.size(), "",
                                             ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES),
-                                    scanSpec);
+                                    /* isLookupOnly = */ false, scanSpec);
                             moduleOrder.add(classpathElementModule);
                             // Open the ClasspathElementModule
                             classpathElementModule.open(/* ignored */ null, classpathFinderLog);
                         } else {
+                            // A module that is not being scanned can still have the classfiles of
+                            // individual classes read from it, in order to complete the class graph
+                            // above an accepted class -- but not if the module was rejected (#902)
+                            if (!scanSpec.moduleAcceptReject.isRejected(moduleName)) {
+                                unscannedModuleRefs.add(nonSystemModuleRef);
+                            }
                             if (classpathFinderLog != null) {
                                 classpathFinderLog.log("Skipping non-accepted or rejected module: " + moduleName);
                             }
@@ -229,6 +248,8 @@ class Scanner implements Callable<ScanResult> {
                     }
                 }
             }
+            this.unscannedModules = new UnscannedModules(unscannedModuleRefs,
+                    nestedJarHandler.moduleRefToModuleReaderRecyclerMap(), scanSpec);
         } catch (final InterruptedException e) {
             nestedJarHandler.close(/* log = */ null);
             throw e;
@@ -655,6 +676,12 @@ class Scanner implements Callable<ScanResult> {
         private final List<ClasspathElement> classpathOrder;
 
         /**
+         * The modules that are not being scanned, but whose classfiles may still be
+         * read in order to complete the class graph above an accepted class.
+         */
+        private final UnscannedModules unscannedModules;
+
+        /**
          * The names of accepted classes found in the classpath while scanning paths
          * within classpath elements.
          */
@@ -679,6 +706,10 @@ class Scanner implements Callable<ScanResult> {
          *
          * @param scanSpec                the scan spec
          * @param classpathOrder          the classpath order
+         * @param unscannedModules        the modules that are not being scanned, but
+         *                                whose classfiles may still be read in order to
+         *                                complete the class graph above an accepted
+         *                                class
          * @param acceptedClassNamesFound the names of accepted classes found in the
          *                                classpath while scanning paths within
          *                                classpath elements.
@@ -686,9 +717,11 @@ class Scanner implements Callable<ScanResult> {
          *                                scanning classfiles
          */
         public ClassfileScannerWorkUnitProcessor(final ScanSpec scanSpec, final List<ClasspathElement> classpathOrder,
-                final Set<String> acceptedClassNamesFound, final Queue<Classfile> scannedClassfiles) {
+                final UnscannedModules unscannedModules, final Set<String> acceptedClassNamesFound,
+                final Queue<Classfile> scannedClassfiles) {
             this.scanSpec = scanSpec;
             this.classpathOrder = classpathOrder;
+            this.unscannedModules = unscannedModules;
             this.acceptedClassNamesFound = acceptedClassNamesFound;
             this.scannedClassfiles = scannedClassfiles;
         }
@@ -725,7 +758,7 @@ class Scanner implements Callable<ScanResult> {
 
             try {
                 // Parse classfile binary format, creating a Classfile object
-                final var classfile = new Classfile(workUnit.classpathElement(), classpathOrder,
+                final var classfile = new Classfile(workUnit.classpathElement(), classpathOrder, unscannedModules,
                         acceptedClassNamesFound, classNamesScheduledForExtendedScanning, classfileResource.getPath(),
                         classfileResource, workUnit.isExternalClass(), stringInternMap, workQueue, scanSpec, subLog);
 
@@ -735,6 +768,9 @@ class Scanner implements Callable<ScanResult> {
                 if (subLog != null) {
                     subLog.addElapsedTime();
                 }
+            } catch (final InterruptedException e) {
+                // Don't swallow interruption in the catch-all handler below
+                throw e;
             } catch (final SkipClassException e) {
                 if (subLog != null) {
                     subLog.log(classfileResource.getPath(), "Skipping classfile: " + e.getMessage());
@@ -1009,7 +1045,8 @@ class Scanner implements Callable<ScanResult> {
             // Scan classfiles in parallel
             final Queue<Classfile> scannedClassfiles = new ConcurrentLinkedQueue<>();
             final var classfileWorkUnitProcessor = new ClassfileScannerWorkUnitProcessor(scanSpec,
-                    finalClasspathEltOrder, Collections.unmodifiableSet(acceptedClassNamesFound), scannedClassfiles);
+                    finalClasspathEltOrder, unscannedModules, Collections.unmodifiableSet(acceptedClassNamesFound),
+                    scannedClassfiles);
             processWorkUnits(classfileScanWorkItems,
                     topLevelLog == null ? null : topLevelLog.log("Scanning classfiles"), classfileWorkUnitProcessor);
 
@@ -1021,37 +1058,17 @@ class Scanner implements Callable<ScanResult> {
                 c.link(classNameToClassInfo, packageNameToPackageInfo, moduleNameToModuleInfo);
             }
 
-            // Uncomment the following code to create placeholder external classes for any
-            // classes
-            // referenced in type descriptors or type signatures, so that a ClassInfo object
-            // can be
-            // obtained for those class references. This will cause all type descriptors and
-            // type
-            // signatures to be parsed, and class names extracted from them. This will add
-            // some
-            // overhead to the scanning time, and the only benefit is that
-            // ClassRefTypeSignature.getClassInfo() and AnnotationClassRef.getClassInfo()
-            // will never
-            // return null, since all external classes found in annotation class refs will
-            // have a
-            // placeholder ClassInfo object created for them. This is obscure enough that it
-            // is
-            // probably not worth slowing down scanning for all other usecases, by forcibly
-            // parsing
-            // all type descriptors and type signatures before returning the ScanResult.
-            // With this code commented out, type signatures and type descriptors are only
-            // parsed
-            // lazily, on demand.
-
-            // final Set<String> referencedClassNames = new HashSet<>();
-            // for (final ClassInfo classInfo : classNameToClassInfo.values()) {
-            // classInfo.findReferencedClassNames(referencedClassNames);
-            // }
-            // for (final String referencedClass : referencedClassNames) {
-            // ClassInfo.getOrCreateClassInfo(referencedClass, /* modifiers = */ 0,
-            // scanSpec,
-            // classNameToClassInfo);
-            // }
+            // A ClassInfo object is created for every class named as a superclass,
+            // interface or annotation of a scanned class, and scanning is extended upwards
+            // to those classes, so the class graph above a scanned class is complete. A
+            // ClassInfo object is deliberately not created for every class named in a type
+            // descriptor or type signature, since that would require every type descriptor
+            // and type signature to be parsed before the ScanResult can be returned, rather
+            // than lazily on demand, which would slow down every scan. The consequence is
+            // that ClassRefTypeSignature#getClassInfo() and AnnotationClassRef#getClassInfo()
+            // return null for a class that was not scanned. Call
+            // ClassGraph#enableInterClassDependencies() to get the classes referenced by a
+            // scanned class. (#902)
 
             if (linkLog != null) {
                 linkLog.addElapsedTime();
@@ -1071,6 +1088,12 @@ class Scanner implements Callable<ScanResult> {
         // can determine when the
         // ScanResult is closed
         for (final ClasspathElement classpathElement : finalClasspathEltOrder) {
+            classpathElement.setScanResult(scanResult);
+        }
+        // The modules that were only looked in, to complete the class graph above an
+        // accepted class, are not in the classpath order, but the resources read from
+        // them still need to know when the ScanResult is closed
+        for (final ClasspathElement classpathElement : unscannedModules.getClasspathElements()) {
             classpathElement.setScanResult(scanResult);
         }
 

@@ -61,7 +61,11 @@ public class Issue37Test {
                     methodNames.add(mi.getName());
                 }
             }
-            assertThat(methodNames).containsExactly("<init>", "issue37Test", "unannotatedMethod");
+            // Issue37Annotation declares no methods of its own, but inherits the methods of
+            // java.lang.annotation.Annotation, whose classfile is read from a system module
+            // in order to complete the class hierarchy above the annotation (#902)
+            assertThat(methodNames).containsExactlyInAnyOrder("equals", "hashCode", "toString", "annotationType",
+                    "<init>", "issue37Test", "unannotatedMethod");
         }
     }
 
