@@ -29,6 +29,7 @@
 package io.github.classgraph;
 
 import java.lang.reflect.Array;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -42,23 +43,26 @@ import org.jspecify.annotations.Nullable;
  */
 public class AnnotationParameterValue extends ScanResultObject
         implements HasName, Comparable<AnnotationParameterValue> {
+    /**
+     * The array element types that an {@code Object[]} annotation parameter value
+     * holding boxed values can be converted to.
+     */
+    private static final Map<String, Class<?>> ARRAY_ELEMENT_TYPES = Map.of( //
+            "int", int.class, //
+            "long", long.class, //
+            "short", short.class, //
+            "char", char.class, //
+            "boolean", boolean.class, //
+            "byte", byte.class, //
+            "float", float.class, //
+            "double", double.class, //
+            "java.lang.String", String.class);
+
     /** The parameter name. */
-    private String name;
+    private final String name;
 
-    /**
-     * The parameter value. This is null for an {@link AnnotationParameterValue} that
-     * has been deserialized but not yet populated.
-     */
-    private @Nullable ObjectTypedValueWrapper value;
-
-    /**
-     * Default constructor for deserialization. {@code name} is populated by the
-     * deserializer, so it is not assigned here.
-     */
-    @SuppressWarnings("NullAway.Init")
-    AnnotationParameterValue() {
-        super();
-    }
+    /** The parameter value. */
+    private @Nullable Object value;
 
     /**
      * Constructor.
@@ -69,7 +73,7 @@ public class AnnotationParameterValue extends ScanResultObject
     AnnotationParameterValue(final String name, final @Nullable Object value) {
         super();
         this.name = name;
-        this.value = new ObjectTypedValueWrapper(value);
+        this.value = value;
     }
 
     /**
@@ -104,17 +108,7 @@ public class AnnotationParameterValue extends ScanResultObject
      *         </ul>
      */
     public @Nullable Object getValue() {
-        return value == null ? null : value.get();
-    }
-
-    /**
-     * Set (update) the value of the annotation parameter. Used to replace Object[]
-     * arrays containing boxed types into primitive arrays.
-     *
-     * @param newValue the new value
-     */
-    void setValue(final @Nullable Object newValue) {
-        this.value = new ObjectTypedValueWrapper(newValue);
+        return value;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -151,9 +145,23 @@ public class AnnotationParameterValue extends ScanResultObject
     @Override
     void setScanResult(final @Nullable ScanResult scanResult) {
         super.setScanResult(scanResult);
-        final var val = value;
-        if (val != null) {
-            val.setScanResult(scanResult);
+        setScanResult(value, scanResult);
+    }
+
+    /**
+     * Set the {@link ScanResult} of an annotation parameter value, and of the
+     * elements of an array-typed value.
+     *
+     * @param value      the annotation parameter value
+     * @param scanResult the {@link ScanResult}
+     */
+    private static void setScanResult(final @Nullable Object value, final @Nullable ScanResult scanResult) {
+        if (value instanceof final ScanResultObject scanResultObject) {
+            scanResultObject.setScanResult(scanResult);
+        } else if (value instanceof final Object[] arrayValue) {
+            for (final Object elt : arrayValue) {
+                setScanResult(elt, scanResult);
+            }
         }
     }
 
@@ -167,9 +175,34 @@ public class AnnotationParameterValue extends ScanResultObject
     @Override
     void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
             final Set<ClassInfo> refdClassInfo, final @Nullable LogNode log) {
-        final var val = value;
-        if (val != null) {
-            val.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
+        findReferencedClassInfo(value, classNameToClassInfo, refdClassInfo, log);
+    }
+
+    /**
+     * Get {@link ClassInfo} objects for any classes referenced in an annotation
+     * parameter value, or in the elements of an array-typed value.
+     *
+     * @param value                the annotation parameter value
+     * @param classNameToClassInfo the map from class name to {@link ClassInfo}.
+     * @param refdClassInfo        the referenced class info
+     * @param log                  the log
+     */
+    private static void findReferencedClassInfo(final @Nullable Object value,
+            final Map<String, ClassInfo> classNameToClassInfo, final Set<ClassInfo> refdClassInfo,
+            final @Nullable LogNode log) {
+        if (value instanceof final AnnotationClassRef annotationClassRef) {
+            final var classInfo = annotationClassRef.getClassInfo();
+            if (classInfo != null) {
+                refdClassInfo.add(classInfo);
+            }
+        } else if (value instanceof final AnnotationEnumValue annotationEnumValue) {
+            annotationEnumValue.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
+        } else if (value instanceof final AnnotationInfo annotationInfo) {
+            annotationInfo.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
+        } else if (value instanceof final Object[] arrayValue) {
+            for (final Object elt : arrayValue) {
+                findReferencedClassInfo(elt, classNameToClassInfo, refdClassInfo, log);
+            }
         }
     }
 
@@ -183,9 +216,36 @@ public class AnnotationParameterValue extends ScanResultObject
      * @param annotationClassInfo the annotation class info
      */
     void convertWrapperArraysToPrimitiveArrays(final @Nullable ClassInfo annotationClassInfo) {
-        final var val = value;
-        if (val != null) {
-            val.convertWrapperArraysToPrimitiveArrays(annotationClassInfo, name);
+        if (value instanceof final AnnotationInfo annotationInfo) {
+            // Recursively convert boxed arrays in nested annotations
+            annotationInfo.convertWrapperArraysToPrimitiveArrays();
+        } else if (value != null && value.getClass() == Object[].class) {
+            final var arrayValue = (Object[]) value;
+            for (final Object elt : arrayValue) {
+                if (elt instanceof final AnnotationInfo eltAnnotationInfo) {
+                    // Recurse
+                    eltAnnotationInfo.convertWrapperArraysToPrimitiveArrays();
+                }
+            }
+            final var eltTypeName = (String) getArrayValueClassOrName(arrayValue, annotationClassInfo,
+                    /* getClass = */ false);
+            final var eltType = ARRAY_ELEMENT_TYPES.get(eltTypeName);
+            if (eltType != null) {
+                // The array holds boxed values of a primitive type, or strings -- convert it to
+                // an array of that element type
+                final var typedArray = Array.newInstance(eltType, arrayValue.length);
+                for (var i = 0; i < arrayValue.length; i++) {
+                    final var elt = arrayValue[i];
+                    if (elt == null && eltType.isPrimitive()) {
+                        throw new IllegalArgumentException("Illegal null value for array of element type "
+                                + eltTypeName + " in parameter " + name + " of annotation class "
+                                + (annotationClassInfo == null ? "<class outside accept>"
+                                        : annotationClassInfo.getName()));
+                    }
+                    Array.set(typedArray, i, elt);
+                }
+                value = typedArray;
+            }
         }
     }
 
@@ -197,7 +257,124 @@ public class AnnotationParameterValue extends ScanResultObject
      */
     @Nullable
     Object instantiate(final @Nullable ClassInfo annotationClassInfo) {
-        return Objects.requireNonNull(value).instantiateOrGet(annotationClassInfo, name);
+        return instantiate(value, annotationClassInfo);
+    }
+
+    /**
+     * Instantiate an annotation parameter value, or an element of an array-typed
+     * annotation parameter value.
+     *
+     * @param value               the annotation parameter value
+     * @param annotationClassInfo the annotation class info
+     * @return the instance
+     */
+    private @Nullable Object instantiate(final @Nullable Object value,
+            final @Nullable ClassInfo annotationClassInfo) {
+        if (value instanceof final AnnotationEnumValue annotationEnumValue) {
+            return annotationEnumValue.loadClassAndReturnEnumValue();
+        } else if (value instanceof final AnnotationClassRef annotationClassRef) {
+            return annotationClassRef.loadClass();
+        } else if (value instanceof final AnnotationInfo annotationInfo) {
+            return annotationInfo.loadClassAndInstantiate();
+        } else if (value != null && value.getClass() == Object[].class) {
+            final var arrayValue = (Object[]) value;
+            // Allocate the array with the element type of the annotation parameter, if the
+            // element type can be determined, otherwise as an Object[] array
+            final var eltType = (Class<?>) getArrayValueClassOrName(arrayValue, annotationClassInfo,
+                    /* getClass = */ true);
+            final var instantiatedArray = Array.newInstance(eltType, arrayValue.length);
+            for (var i = 0; i < arrayValue.length; i++) {
+                if (arrayValue[i] != null) {
+                    // Get the element value (may also cause the element to be instantiated)
+                    Array.set(instantiatedArray, i, instantiate(arrayValue[i], annotationClassInfo));
+                }
+            }
+            return instantiatedArray;
+        } else {
+            return value;
+        }
+    }
+
+    /**
+     * Get the element type of an array-typed annotation parameter value.
+     *
+     * @param arrayValue          the array-typed annotation parameter value
+     * @param annotationClassInfo the annotation class, or null if the annotation
+     *                            class was not scanned
+     * @param getClass            If true, return a {@code Class<?>} reference,
+     *                            otherwise return the class name.
+     * @return the array element type as a {@code Class<?>} reference if getClass is
+     *         true, otherwise the element type name as a String.
+     */
+    private Object getArrayValueClassOrName(final Object[] arrayValue,
+            final @Nullable ClassInfo annotationClassInfo, final boolean getClass) {
+        // Find the method in the annotation class with the same name as the annotation
+        // parameter.
+        final var annotationMethodList = annotationClassInfo == null || annotationClassInfo.methodInfo == null ? null
+                : annotationClassInfo.methodInfo.get(name);
+        if (annotationClassInfo != null && annotationMethodList != null && !annotationMethodList.isEmpty()) {
+            if (annotationMethodList.size() > 1) {
+                // There should only be one method with a given name in an annotation
+                throw new IllegalArgumentException("Duplicated annotation parameter method " + name + "()"
+                        + " in annotation class " + annotationClassInfo.getName());
+            }
+            // Get the result type of the method with the same name as the annotation
+            // parameter
+            final var annotationMethodResultTypeSig = annotationMethodList.get(0).getTypeSignatureOrTypeDescriptor()
+                    .getResultType();
+            // The result type has to be an array type
+            if (!(annotationMethodResultTypeSig instanceof final ArrayTypeSignature arrayTypeSig)) {
+                throw new IllegalArgumentException("Annotation parameter " + name + " in annotation class "
+                        + annotationClassInfo.getName() + " holds an array, but does not have an array type signature");
+            }
+            if (arrayTypeSig.getNumDimensions() != 1) {
+                throw new IllegalArgumentException("Annotations only support 1-dimensional arrays");
+            }
+            final var elementTypeSig = arrayTypeSig.getElementTypeSignature();
+            if (elementTypeSig instanceof final ClassRefTypeSignature classRefTypeSignature) {
+                // Look up the name of the element type, for non-primitive arrays
+                return getClass ? Objects.requireNonNull(classRefTypeSignature.loadClass())
+                        : classRefTypeSignature.getClassName();
+            } else if (elementTypeSig instanceof final BaseTypeSignature baseTypeSignature) {
+                // Look up the name of the primitive class, for primitive arrays
+                return getClass ? baseTypeSignature.getType() : baseTypeSignature.getTypeStr();
+            }
+        } else {
+            // Could not find a method with this name -- this is an external class.
+            // Find first non-null element in the array, and use its type as the element type
+            // of the array.
+            for (final Object elt : arrayValue) {
+                if (elt != null) {
+                    // Primitive typed arrays will be turned into arrays of boxed types
+                    if (elt instanceof String) {
+                        return getClass ? String.class : "java.lang.String";
+                    } else if (elt instanceof Integer) {
+                        return getClass ? Integer.class : "int";
+                    } else if (elt instanceof Long) {
+                        return getClass ? Long.class : "long";
+                    } else if (elt instanceof Short) {
+                        return getClass ? Short.class : "short";
+                    } else if (elt instanceof Character) {
+                        return getClass ? Character.class : "char";
+                    } else if (elt instanceof Byte) {
+                        return getClass ? Byte.class : "byte";
+                    } else if (elt instanceof Boolean) {
+                        return getClass ? Boolean.class : "boolean";
+                    } else if (elt instanceof Double) {
+                        return getClass ? Double.class : "double";
+                    } else if (elt instanceof Float) {
+                        return getClass ? Float.class : "float";
+                    } else {
+                        // The element type could not be determined (the element is an enum value, a
+                        // class reference or a nested annotation) -- fall through and use Object as
+                        // the element type
+                        break;
+                    }
+                }
+            }
+        }
+        // Could not determine the element type -- just use Object
+        return getClass ? Object.class : "java.lang.Object";
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -216,17 +393,15 @@ public class AnnotationParameterValue extends ScanResultObject
         if (diff != 0) {
             return diff;
         }
-        // N.B. value is null for an AnnotationParameterValue that has been deserialized
-        // but not yet populated
-        if (value == null ? other.value == null : value.equals(other.value)) {
+        if (Objects.deepEquals(value, other.value)) {
             return 0;
         }
         // Use toString() order (which can be slow) as a last-ditch effort -- only
         // happens
         // if the annotation has multiple parameters of the same name but different
         // value.
-        final var p0 = getValue();
-        final var p1 = other.getValue();
+        final var p0 = value;
+        final var p1 = other.value;
         return p0 == null || p1 == null ? (p0 == null ? 0 : 1) - (p1 == null ? 0 : 1)
                 : toStringParamValueOnly().compareTo(other.toStringParamValueOnly());
     }
@@ -244,8 +419,9 @@ public class AnnotationParameterValue extends ScanResultObject
         if (!(obj instanceof final AnnotationParameterValue other)) {
             return false;
         }
-        return this.name.equals(other.name) && (value == null) == (other.value == null)
-                && (value == null || value.equals(other.value));
+        // N.B. use deepEquals, so that array-valued parameters are compared by their
+        // contents, not by identity
+        return this.name.equals(other.name) && Objects.deepEquals(value, other.value);
     }
 
     /*
@@ -255,7 +431,9 @@ public class AnnotationParameterValue extends ScanResultObject
      */
     @Override
     public int hashCode() {
-        return Objects.hash(name, value);
+        // N.B. wrap the value in an array, so that Arrays#deepHashCode hashes an
+        // array-valued parameter by its contents, matching equals(Object)
+        return name.hashCode() * 31 + Arrays.deepHashCode(new Object[] { value });
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -291,8 +469,7 @@ public class AnnotationParameterValue extends ScanResultObject
      * @param buf            the buf
      */
     void toStringParamValueOnly(final boolean useSimpleNames, final StringBuilder buf) {
-        final var val = value;
-        final var paramVal = val == null ? null : val.get();
+        final var paramVal = value;
         if (paramVal == null) {
             buf.append("null");
         } else {

@@ -21,7 +21,6 @@ public class GenerateClassGraphFigDotFile {
                 .enableAnnotationInfo() //
                 .scan()) {
             System.out.println(scanResult.getAllClasses().generateGraphVizDotFile(9.2f, 8.0f));
-            // System.out.println(scanResult.toJSON(2));
         }
     }
 }

@@ -45,7 +45,7 @@ import org.jspecify.annotations.Nullable;
 /** Holds metadata about a package encountered during a scan. */
 public class PackageInfo implements Comparable<PackageInfo>, HasName {
     /** Name of the package. */
-    private String name;
+    private final String name;
 
     /**
      * Unique {@link AnnotationInfo} objects for any annotations on the
@@ -69,15 +69,6 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
     private @Nullable Map<String, ClassInfo> memberClassNameToClassInfo;
 
     // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Deserialization constructor. {@code name} is populated by the deserializer, so
-     * it is not assigned here.
-     */
-    @SuppressWarnings("NullAway.Init")
-    PackageInfo() {
-        // Empty
-    }
 
     /**
      * Construct a PackageInfo object.

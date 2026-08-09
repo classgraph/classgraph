@@ -53,20 +53,19 @@ public abstract class AcceptReject {
     protected @Nullable List<String> acceptPrefixes;
     /** Rejected items (prefix match). */
     protected @Nullable List<String> rejectPrefixes;
-    /** Accept glob strings. (Serialized to JSON, for logging purposes.) */
+    /** Accept glob strings. (Retained for logging purposes.) */
     protected @Nullable Set<String> acceptGlobs;
-    /** Reject glob strings. (Serialized to JSON, for logging purposes.) */
+    /** Reject glob strings. (Retained for logging purposes.) */
     protected @Nullable Set<String> rejectGlobs;
-    /** Accept regexp patterns. (Not serialized to JSON.) */
-    protected transient @Nullable List<Pattern> acceptPatterns;
+    /** Accept regexp patterns. */
+    protected @Nullable List<Pattern> acceptPatterns;
     /**
      * Regexp patterns matching the wildcard-containing path prefixes of accepted
-     * globs, used by {@link #acceptHasPrefix(String)}. (Not serialized to JSON.)
-     * (#870)
+     * globs, used by {@link #acceptHasPrefix(String)}. (#870)
      */
-    protected transient @Nullable List<Pattern> acceptPrefixPatterns;
-    /** Reject regexp patterns. (Not serialized to JSON.) */
-    protected transient @Nullable List<Pattern> rejectPatterns;
+    protected @Nullable List<Pattern> acceptPrefixPatterns;
+    /** Reject regexp patterns. */
+    protected @Nullable List<Pattern> rejectPatterns;
     /** The separator character. */
     protected char separatorChar;
     /**
@@ -79,12 +78,8 @@ public abstract class AcceptReject {
      */
     protected boolean segmentGlobs;
 
-    /** Deserialization constructor. */
-    protected AcceptReject() {
-    }
-
     /**
-     * Constructor for deserialization.
+     * Instantiate a new accept/reject criterion, with separator-spanning globs.
      *
      * @param separatorChar the separator char
      */
@@ -205,11 +200,6 @@ public abstract class AcceptReject {
 
     /** Accept/reject for prefix strings. */
     public static class AcceptRejectPrefix extends AcceptReject {
-        /** Deserialization constructor. */
-        public AcceptRejectPrefix() {
-            super();
-        }
-
         /**
          * Instantiate a new accept/reject for prefix strings.
          *
@@ -360,11 +350,6 @@ public abstract class AcceptReject {
 
     /** Accept/reject for whole-strings matches. */
     public static class AcceptRejectWholeString extends AcceptReject {
-        /** Deserialization constructor. */
-        public AcceptRejectWholeString() {
-            super();
-        }
-
         /**
          * Instantiate a new accept/reject for whole-string matches.
          *
@@ -557,11 +542,6 @@ public abstract class AcceptReject {
 
     /** Accept/reject for leaf matches. */
     public static class AcceptRejectLeafname extends AcceptRejectWholeString {
-        /** Deserialization constructor. */
-        public AcceptRejectLeafname() {
-            super();
-        }
-
         /**
          * Instantiates a new accept/reject for leaf matches.
          *

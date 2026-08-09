@@ -33,10 +33,79 @@ package nonapi.io.github.classgraph.utils;
  */
 public final class StringUtils {
     /**
+     * Lookup table of escape sequences for characters that cannot appear literally
+     * between double quotes.
+     */
+    private static final String[] CHAR_REPLACEMENTS = new String[256];
+
+    static {
+        for (var c = 0; c < 256; c++) {
+            if (c == 32) {
+                c = 127;
+            }
+            final var nibble1 = c >> 4;
+            final var hexDigit1 = nibble1 <= 9 ? (char) ('0' + nibble1) : (char) ('A' + nibble1 - 10);
+            final var nibble0 = c & 0xf;
+            final var hexDigit0 = nibble0 <= 9 ? (char) ('0' + nibble0) : (char) ('A' + nibble0 - 10);
+            CHAR_REPLACEMENTS[c] = "\\u00" + hexDigit1 + "" + hexDigit0;
+        }
+        CHAR_REPLACEMENTS['"'] = "\\\"";
+        CHAR_REPLACEMENTS['\\'] = "\\\\";
+        CHAR_REPLACEMENTS['\n'] = "\\n";
+        CHAR_REPLACEMENTS['\r'] = "\\r";
+        CHAR_REPLACEMENTS['\t'] = "\\t";
+        CHAR_REPLACEMENTS['\b'] = "\\b";
+        CHAR_REPLACEMENTS['\f'] = "\\f";
+    }
+
+    /**
      * Constructor.
      */
     private StringUtils() {
         // Cannot be constructed
+    }
+
+    /**
+     * Escape a string so that it can be shown surrounded by double quotes, using
+     * Java escape sequences for quotes, backslashes, control characters, and any
+     * character outside the Latin-1 range.
+     *
+     * @param unsafeStr The string to escape.
+     * @return The escaped string.
+     */
+    public static String escapeString(final String unsafeStr) {
+        // Fast path
+        var needsEscaping = false;
+        for (int i = 0, n = unsafeStr.length(); i < n; i++) {
+            final var c = unsafeStr.charAt(i);
+            if (c > 0xff || CHAR_REPLACEMENTS[c] != null) {
+                needsEscaping = true;
+                break;
+            }
+        }
+        if (!needsEscaping) {
+            return unsafeStr;
+        }
+        // Slow path
+        final StringBuilder buf = new StringBuilder(unsafeStr.length() * 2);
+        for (int i = 0, n = unsafeStr.length(); i < n; i++) {
+            final var c = unsafeStr.charAt(i);
+            if (c > 0xff) {
+                buf.append("\\u");
+                final var nibble3 = (c & 0xf000) >> 12;
+                buf.append(nibble3 <= 9 ? (char) ('0' + nibble3) : (char) ('A' + nibble3 - 10));
+                final var nibble2 = (c & 0xf00) >> 8;
+                buf.append(nibble2 <= 9 ? (char) ('0' + nibble2) : (char) ('A' + nibble2 - 10));
+                final var nibble1 = (c & 0xf0) >> 4;
+                buf.append(nibble1 <= 9 ? (char) ('0' + nibble1) : (char) ('A' + nibble1 - 10));
+                final var nibble0 = c & 0xf;
+                buf.append(nibble0 <= 9 ? (char) ('0' + nibble0) : (char) ('A' + nibble0 - 10));
+            } else {
+                final var replacement = CHAR_REPLACEMENTS[c];
+                buf.append(replacement == null ? String.valueOf(c) : replacement);
+            }
+        }
+        return buf.toString();
     }
 
     /**

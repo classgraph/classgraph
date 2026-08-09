@@ -68,16 +68,6 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
     private @Nullable AnnotationInfoList annotationInfoRef;
 
     /**
-     * Default constructor for deserialization. {@code declaringClassName},
-     * {@code name} and {@code typeDescriptorStr} are populated by the deserializer,
-     * so they are not assigned here.
-     */
-    @SuppressWarnings("NullAway.Init")
-    ClassMemberInfo() {
-        super();
-    }
-
-    /**
      * Constructor.
      *
      * @param definingClassName The class the member is defined within.

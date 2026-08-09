@@ -44,19 +44,10 @@ import org.jspecify.annotations.Nullable;
  */
 public class ArrayClassInfo extends ClassInfo {
     /** The array type signature. */
-    private ArrayTypeSignature arrayTypeSignature;
+    private final ArrayTypeSignature arrayTypeSignature;
 
     /** The element class info, or null if the element type is a primitive type. */
     private @Nullable ClassInfo elementClassInfo;
-
-    /**
-     * Default constructor for deserialization. {@code arrayTypeSignature} is
-     * populated by the deserializer, so it is not assigned here.
-     */
-    @SuppressWarnings("NullAway.Init")
-    ArrayClassInfo() {
-        super();
-    }
 
     /**
      * Constructor.

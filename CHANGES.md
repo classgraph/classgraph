@@ -56,6 +56,38 @@ wrapped an `IOException` in an `IllegalArgumentException`, whereas
 `*ThrowsIOException` functional interface and the caller has to handle or declare
 `IOException`.
 
+### The JSON serializer and deserializer have been removed
+
+ClassGraph 4.x could serialize a `ScanResult` to JSON and read it back:
+
+| Removed in 5.x |
+| --- |
+| `ScanResult#toJSON()` |
+| `ScanResult#toJSON(int indentWidth)` |
+| `ScanResult#fromJSON(String json)` |
+| `ScanResult#isObtainedFromDeserialization()` |
+
+The internal package that implemented it, `nonapi.io.github.classgraph.json`, has been
+deleted too. It was a hand-written general-purpose object-to-JSON mapper, complete with
+its own parser, type resolution and object id/reference scheme — a second library living
+inside ClassGraph, an order of magnitude more code than the `ScanResult` serialization it
+supported, and unrelated to scanning the classpath. Its classes (`JSONSerializer`,
+`JSONDeserializer`, `Id` and the rest) were not part of the public API, but were reachable
+by anything that ignored the `nonapi` package naming.
+
+A serialized `ScanResult` was never a stable format: it carried an internal format version
+that changed whenever the fields of the scan result classes changed, and reading a
+`ScanResult` written by a different version of ClassGraph failed. If you need to persist
+scan results, serialize the specific facts your application needs with a real JSON library
+(Jackson, Gson, `jackson-jr`, …), from your own value types.
+
+Removing it also removes the no-argument constructor that every scan result class
+(`ClassInfo`, `FieldInfo`, `MethodInfo`, `AnnotationInfo`, `PackageInfo`, `ModuleInfo` and
+the rest) carried purely for the deserializer to call, which left instances
+half-initialized until the deserializer filled in their fields. Those classes are only
+ever constructed by a scan, so the constructors were not usable from outside ClassGraph
+anyway.
+
 ### Module APIs are now strongly typed
 
 In 4.x, every method that took or returned a module-system object used `Object` as the
@@ -241,6 +273,13 @@ which rejects null rather than answering it.
   `ClassfileFormatException` instead, which the scanner catches per classfile: the
   classfile is logged as invalid and skipped, and the rest of the scan proceeds. Valid
   classfiles are unaffected.
+* **`AnnotationParameterValue#getValue()` returns the stored array itself for every array
+  type.** In 4.x, an array of a reference type (`String[]`, `Class[]`, an array of enum
+  constants or of nested annotations) was rebuilt into a fresh array on every call, while
+  an array of a primitive type was returned by reference. Both are now returned by
+  reference, which is consistent and avoids the repeated copying, but it does mean that
+  writing to the returned array changes what later calls return. Copy the array first if
+  you need to modify it.
 * **Reading from a `Resource`'s `InputStream` after closing it no longer throws
   `NullPointerException`.** The stream wrapper used to null out its reference to the
   wrapped stream on close, so a subsequent read hit a null. It now keeps the reference
@@ -258,11 +297,8 @@ is fixed on the 4.x branch as well.
   in August or later: September to December were read as January to April, and
   August was read as December of the previous year. This affects
   `Resource#getLastModified()`.
-* `AnnotationParameterValue#toString()`, and `AnnotationInfo#toString()` through it,
-  threw `NullPointerException` rather than printing `null` when an annotation parameter
-  value was null. A classfile cannot express a null annotation parameter value, so this
-  was only reachable via a `ScanResult` deserialized from JSON that contained one.
-* When deserializing a `ScanResult` from JSON (`ScanResult#fromJSON(String)`), the
-  test that registers the root object under its JSON id was inverted, so the root
-  object was not registered. A serialized object graph in which a nested object
-  refers back to the root would not have had that reference restored.
+Two further bugs found during the port were only reachable through the JSON
+serialization API, which 5.x removes (`AnnotationParameterValue#toString()` threw
+`NullPointerException` for a null parameter value, and `ScanResult#fromJSON(String)` did
+not register the root object under its JSON id, so a reference back to the root was not
+restored). Both are fixed on the 4.x branch.

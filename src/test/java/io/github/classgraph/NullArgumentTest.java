@@ -118,7 +118,6 @@ class NullArgumentTest {
         rejectsNull(() -> scanResult.getResourcesWithPath(null));
         rejectsNull(() -> scanResult.loadClass(null, false));
         rejectsNull(() -> scanResult.loadClass("java.lang.String", null, false));
-        rejectsNull(() -> ScanResult.fromJSON(null));
     }
 
     /**

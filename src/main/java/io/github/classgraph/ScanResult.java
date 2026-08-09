@@ -51,10 +51,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 
 import nonapi.io.github.classgraph.classpath.ClasspathFinder;
-import nonapi.io.github.classgraph.concurrency.AutoCloseableExecutorService;
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
-import nonapi.io.github.classgraph.json.JSONDeserializer;
-import nonapi.io.github.classgraph.json.JSONSerializer;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.AcceptReject;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
@@ -113,12 +110,6 @@ public final class ScanResult implements Closeable {
      * ClassGraph#getUniqueClasspathElementsAsync().
      */
     private @Nullable Map<File, Long> fileToLastModified;
-
-    /**
-     * If true, this {@link ScanResult} was produced by
-     * {@link ScanResult#fromJSON(String)}.
-     */
-    private boolean isObtainedFromDeserialization;
 
     /** A custom ClassLoader that can load classes found during the scan. */
     private @Nullable ClassGraphClassLoader classGraphClassLoader;
@@ -231,65 +222,6 @@ public final class ScanResult implements Closeable {
 
     /** If true, ScanResult#staticInit() has been run. */
     private static final AtomicBoolean initialized = new AtomicBoolean(false);
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /** The current serialization format. */
-    private static final String CURRENT_SERIALIZATION_FORMAT = "10";
-
-    /**
-     * A class to hold a serialized ScanResult along with the ScanSpec that was used
-     * to scan.
-     */
-    private static class SerializationFormat {
-        /** The serialization format. */
-        public String format;
-
-        /** The scan spec. */
-        public ScanSpec scanSpec;
-
-        /** The classpath, as a list of URL strings. */
-        public List<String> classpath;
-
-        /** The list of all {@link ClassInfo} objects. */
-        public List<ClassInfo> classInfo;
-
-        /** The list of all {@link PackageInfo} objects. */
-        public List<PackageInfo> packageInfo;
-
-        /** The list of all {@link ModuleInfo} objects. */
-        public List<ModuleInfo> moduleInfo;
-
-        /**
-         * Default constructor for deserialization. All fields are populated by the
-         * deserializer, so none are assigned here.
-         */
-        @SuppressWarnings({ "unused", "NullAway.Init" })
-        public SerializationFormat() {
-            // Empty
-        }
-
-        /**
-         * Constructor.
-         *
-         * @param serializationFormatStr the serialization format string
-         * @param scanSpec               the scan spec
-         * @param classInfo              the list of all {@link ClassInfo} objects
-         * @param packageInfo            the list of all {@link PackageInfo} objects
-         * @param moduleInfo             the list of all {@link ModuleInfo} objects
-         * @param classpath              the classpath as a list of URL strings
-         */
-        public SerializationFormat(final String serializationFormatStr, final ScanSpec scanSpec,
-                final List<ClassInfo> classInfo, final List<PackageInfo> packageInfo, final List<ModuleInfo> moduleInfo,
-                final List<String> classpath) {
-            this.format = serializationFormatStr;
-            this.scanSpec = scanSpec;
-            this.classpath = classpath;
-            this.classInfo = classInfo;
-            this.packageInfo = packageInfo;
-            this.moduleInfo = moduleInfo;
-        }
-    }
 
     // -------------------------------------------------------------------------------------------------------------
     // Shutdown hook init code
@@ -1656,120 +1588,6 @@ public final class ScanResult implements Closeable {
         @SuppressWarnings("unchecked")
         final Class<T> castClass = (Class<T>) loadedClass;
         return castClass;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-    // Serialization / deserialization
-
-    /**
-     * Deserialize a ScanResult from previously-serialized JSON.
-     *
-     * @param json The JSON string for the serialized {@link ScanResult}.
-     * @return The deserialized {@link ScanResult}.
-     */
-    public static ScanResult fromJSON(final String json) {
-        Assert.notNull(json, "json");
-        final var matcher = Pattern.compile("\\{[\\n\\r ]*\"format\"[ ]?:[ ]?\"([^\"]+)\"").matcher(json);
-        if (!matcher.find()) {
-            throw new IllegalArgumentException("JSON is not in correct format");
-        }
-        if (!CURRENT_SERIALIZATION_FORMAT.equals(matcher.group(1))) {
-            throw new IllegalArgumentException(
-                    "JSON was serialized in a different format from the format used by the current version of "
-                            + "ClassGraph -- please serialize and deserialize your ScanResult using "
-                            + "the same version of ClassGraph");
-        }
-
-        // Deserialize the JSON
-        final var deserialized = JSONDeserializer.deserializeObject(SerializationFormat.class, json);
-        if (deserialized == null || !CURRENT_SERIALIZATION_FORMAT.equals(deserialized.format)) {
-            // Probably the deserialization failed before now anyway, if fields have
-            // changed, etc.
-            throw new IllegalArgumentException("JSON was serialized by newer version of ClassGraph");
-        }
-
-        // Perform a new "scan" with performScan set to false, which resolves all the
-        // ClasspathElement objects
-        // and scans classpath element paths (needed for classloading), but does not
-        // scan the actual classfiles
-        final var classGraph = new ClassGraph();
-        classGraph.scanSpec = deserialized.scanSpec;
-        final ScanResult scanResult;
-        try (var executorService = new AutoCloseableExecutorService(
-                ClassGraph.DEFAULT_NUM_WORKER_THREADS)) {
-            scanResult = classGraph.getClasspathScanResult(executorService);
-        }
-        scanResult.rawClasspathEltOrderStrs = deserialized.classpath;
-
-        // Set the fields related to ClassInfo in the new ScanResult, based on the
-        // deserialized JSON
-        scanResult.scanSpec = deserialized.scanSpec;
-        scanResult.classNameToClassInfo = new HashMap<>();
-        if (deserialized.classInfo != null) {
-            for (final ClassInfo ci : deserialized.classInfo) {
-                scanResult.classNameToClassInfo.put(ci.getName(), ci);
-                ci.setScanResult(scanResult);
-            }
-        }
-        final Map<String, ModuleInfo> moduleNameToModuleInfo = new HashMap<>();
-        scanResult.moduleNameToModuleInfo = moduleNameToModuleInfo;
-        if (deserialized.moduleInfo != null) {
-            for (final ModuleInfo mi : deserialized.moduleInfo) {
-                moduleNameToModuleInfo.put(mi.getName(), mi);
-            }
-        }
-        final Map<String, PackageInfo> packageNameToPackageInfo = new HashMap<>();
-        scanResult.packageNameToPackageInfo = packageNameToPackageInfo;
-        if (deserialized.packageInfo != null) {
-            for (final PackageInfo pi : deserialized.packageInfo) {
-                packageNameToPackageInfo.put(pi.getName(), pi);
-            }
-        }
-
-        // Index Resource and ClassInfo objects
-        scanResult.indexResourcesAndClassInfo(/* log = */ null);
-
-        scanResult.isObtainedFromDeserialization = true;
-        return scanResult;
-    }
-
-    /**
-     * Serialize a ScanResult to JSON.
-     *
-     * @param indentWidth If greater than 0, JSON will be formatted (indented),
-     *                    otherwise it will be minified (un-indented).
-     * @return This {@link ScanResult}, serialized as a JSON string.
-     */
-    public String toJSON(final int indentWidth) {
-        checkClassInfoEnabled();
-        final List<ClassInfo> allClassInfo = new ArrayList<>(classNameToClassInfo.values());
-        CollectionUtils.sortIfNotEmpty(allClassInfo);
-        final List<PackageInfo> allPackageInfo = new ArrayList<>(packageNameToPackageInfo().values());
-        CollectionUtils.sortIfNotEmpty(allPackageInfo);
-        final List<ModuleInfo> allModuleInfo = new ArrayList<>(moduleNameToModuleInfo().values());
-        CollectionUtils.sortIfNotEmpty(allModuleInfo);
-        return JSONSerializer.serializeObject(new SerializationFormat(CURRENT_SERIALIZATION_FORMAT, scanSpec,
-                allClassInfo, allPackageInfo, allModuleInfo, rawClasspathEltOrderStrs), indentWidth, false);
-    }
-
-    /**
-     * Serialize a ScanResult to minified (un-indented) JSON.
-     *
-     * @return This {@link ScanResult}, serialized as a JSON string.
-     */
-    public String toJSON() {
-        return toJSON(0);
-    }
-
-    /**
-     * Checks if this {@link ScanResult} was obtained from JSON by deserialization,
-     * by calling {@link #fromJSON(String)}.
-     *
-     * @return True if this {@link ScanResult} was obtained from JSON by
-     *         deserialization.
-     */
-    public boolean isObtainedFromDeserialization() {
-        return isObtainedFromDeserialization;
     }
 
     // -------------------------------------------------------------------------------------------------------------

@@ -5,10 +5,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ScanResult;
 
 /**
- * Issue310.
+ * The constant initializer value of a {@code static final double} field is read
+ * exactly, including for the infinities and NaN.
  */
 public class Issue310Test {
     /** The Constant A. */
@@ -26,29 +26,19 @@ public class Issue310Test {
     /** The Constant E. */
     static final double E = Double.NaN;
 
-    /**
-     * Issue 310.
-     */
+    /** Read the constant initializer value of each double constant. */
     @Test
-    public void issue310() {
-        // Get URL base for overriding classpath (otherwise the JSON representation of
-        // the ScanResult won't be
-        // the same after the first and second deserialization, because
-        // overrideClasspath is set by the first
-        // serialization for consistency.)
-        final var classfileURL = getClass().getClassLoader()
-                .getResource(Issue310Test.class.getName().replace('.', '/') + ".class").toString();
-        final var classpathBase = classfileURL.substring(0,
-                classfileURL.length() - (Issue310Test.class.getName().length() + 6));
-        try (var scanResult1 = new ClassGraph().overrideClasspath(classpathBase)
-                .acceptClasses(Issue310Test.class.getName()).enableAllInfo().scan()) {
-            assertThat(scanResult1.getClassInfo(Issue310Test.class.getName()).getFieldInfo("B")).isNotNull();
-            final var json1 = scanResult1.toJSON(2);
-            assertThat(json1).isNotEmpty();
-            try (var scanResult2 = ScanResult.fromJSON(scanResult1.toJSON())) {
-                final var json2 = scanResult2.toJSON(2);
-                assertThat(json1).isEqualTo(json2);
-            }
+    public void doubleConstantInitializerValues() {
+        try (var scanResult = new ClassGraph().acceptClasses(Issue310Test.class.getName()).enableAllInfo().scan()) {
+            final var classInfo = scanResult.getClassInfo(Issue310Test.class.getName());
+            assertThat(classInfo).isNotNull();
+            assertThat(classInfo.getFieldInfo("A").getConstantInitializerValue()).isEqualTo(3.0);
+            assertThat(classInfo.getFieldInfo("B").getConstantInitializerValue()).isEqualTo(-4.0);
+            assertThat(classInfo.getFieldInfo("C").getConstantInitializerValue())
+                    .isEqualTo(Double.NEGATIVE_INFINITY);
+            assertThat(classInfo.getFieldInfo("D").getConstantInitializerValue())
+                    .isEqualTo(Double.POSITIVE_INFINITY);
+            assertThat(classInfo.getFieldInfo("E").getConstantInitializerValue()).isEqualTo(Double.NaN);
         }
     }
 }

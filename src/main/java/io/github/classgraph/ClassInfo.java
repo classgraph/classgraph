@@ -52,7 +52,6 @@ import java.util.Set;
 import io.github.classgraph.Classfile.ClassContainment;
 import io.github.classgraph.Classfile.ClassTypeAnnotationDecorator;
 import io.github.classgraph.MethodInfoList.MethodInfoFilter;
-import nonapi.io.github.classgraph.json.Id;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.Parser;
@@ -65,7 +64,6 @@ import org.jspecify.annotations.Nullable;
 /** Holds metadata about a class encountered during a scan. */
 public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>, HasName {
     /** The name of the class. */
-    @Id
     protected String name;
 
     /** Class modifier flags, e.g. Modifier.PUBLIC */
@@ -91,10 +89,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     protected @Nullable String typeSignatureStr;
 
     /** The class type signature, parsed. */
-    private transient @Nullable ClassTypeSignature typeSignature;
+    private @Nullable ClassTypeSignature typeSignature;
 
     /** The synthetic class type descriptor. */
-    private transient @Nullable ClassTypeSignature typeDescriptor;
+    private @Nullable ClassTypeSignature typeDescriptor;
 
     /** The name of the source file this class has been compiled from */
     private @Nullable String sourceFile;
@@ -120,13 +118,13 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     protected boolean isScannedClass;
 
     /** The classpath element that this class was found within. */
-    transient @Nullable ClasspathElement classpathElement;
+    @Nullable ClasspathElement classpathElement;
 
     /** The {@link Resource} for the classfile of this class. */
-    protected transient @Nullable Resource classfileResource;
+    protected @Nullable Resource classfileResource;
 
     /** The classloader this class was obtained from. */
-    transient @Nullable ClassLoader classLoader;
+    @Nullable ClassLoader classLoader;
 
     /** Info on the class module. */
     @Nullable
@@ -155,7 +153,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * The type annotation decorators for the {@link ClassTypeSignature} instance.
      */
-    transient @Nullable List<ClassTypeAnnotationDecorator> typeAnnotationDecorators;
+    @Nullable List<ClassTypeAnnotationDecorator> typeAnnotationDecorators;
 
     /**
      * Names of classes referenced by this class in class refs and type signatures
@@ -174,7 +172,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * Set to true once any Object[] arrays of boxed types in
      * annotationDefaultParamValues have been lazily converted to primitive arrays.
      */
-    transient boolean annotationDefaultParamValuesHasBeenConvertedToPrimitive;
+    boolean annotationDefaultParamValuesHasBeenConvertedToPrimitive;
 
     /** The set of classes related to this one. */
     private Map<RelType, Set<ClassInfo>> relatedClasses;
@@ -183,13 +181,13 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * The override order for a class' fields or methods (base class, followed by
      * interfaces, followed by superclasses).
      */
-    private transient @Nullable List<ClassInfo> overrideOrder;
+    private @Nullable List<ClassInfo> overrideOrder;
 
     /**
      * The override order for a class' methods (base class, followed by
      * superclasses, followed by interfaces).
      */
-    private transient @Nullable List<ClassInfo> methodOverrideOrder;
+    private @Nullable List<ClassInfo> methodOverrideOrder;
 
     /** The annotations, once they are loaded */
     private @Nullable ClassInfoList annotationsRef;
@@ -216,16 +214,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             new ReachableAndDirectlyRelatedClasses(Set.of(), Set.of());
 
     // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Default constructor for deserialization. {@code name},
-     * {@code classfileResource} and {@code relatedClasses} are populated by the
-     * deserializer, so they are not assigned here.
-     */
-    @SuppressWarnings("NullAway.Init")
-    ClassInfo() {
-        super();
-    }
 
     /**
      * Constructor.

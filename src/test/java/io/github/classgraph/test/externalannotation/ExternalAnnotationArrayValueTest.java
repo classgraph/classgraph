@@ -12,12 +12,13 @@ import io.github.classgraph.ClassGraph;
 
 /**
  * When the classfile of the annotation class is not on the scanned classpath,
- * {@code ObjectTypedValueWrapper} cannot read the element type of an
- * array-typed annotation parameter from the annotation class' methods, and
- * instead infers it from the first non-null array element. That fallback did
- * not handle {@code String} elements, and for anything it did not recognize it
- * returned the type of the wrapper object itself rather than {@code Object}, so
- * instantiating the annotation allocated an array of the wrong element type.
+ * {@link io.github.classgraph.AnnotationParameterValue} cannot read the element
+ * type of an array-typed annotation parameter from the annotation class'
+ * methods, and instead infers it from the first non-null array element. That
+ * fallback did not handle {@code String} elements, and for anything it did not
+ * recognize it returned the type of the value wrapper object itself rather than
+ * {@code Object}, so instantiating the annotation allocated an array of the
+ * wrong element type.
  */
 @ExternalAnnotation({ "one", "two" })
 public class ExternalAnnotationArrayValueTest {

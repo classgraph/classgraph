@@ -213,26 +213,26 @@ public class ScanSpec {
      * If non-null, specifies manually-added classloaders that should be searched
      * after the context classloader(s).
      */
-    public transient @Nullable List<ClassLoader> addedClassLoaders;
+    public @Nullable List<ClassLoader> addedClassLoaders;
 
     /**
      * If non-null, this list of ClassLoaders will be searched instead of the
      * visible/context ClassLoader(s). In particular, this causes ClassGraph to
      * ignore the java.class.path system property.
      */
-    public transient @Nullable List<ClassLoader> overrideClassLoaders;
+    public @Nullable List<ClassLoader> overrideClassLoaders;
 
     /**
      * If non-null, specifies manually-added ModuleLayers that should be searched
      * after the visible ModuleLayers.
      */
-    public transient @Nullable List<ModuleLayer> addedModuleLayers;
+    public @Nullable List<ModuleLayer> addedModuleLayers;
 
     /**
      * If non-null, this list of ModuleLayers will be searched instead of the
      * visible ModuleLayers.
      */
-    public transient @Nullable List<ModuleLayer> overrideModuleLayers;
+    public @Nullable List<ModuleLayer> overrideModuleLayers;
 
     /**
      * If non-null, specifies a list of classpath elements (String, {@link URL} or
@@ -241,7 +241,7 @@ public class ScanSpec {
     public @Nullable List<Object> overrideClasspath;
 
     /** If non-null, a list of filter operations to apply to classpath elements. */
-    public transient @Nullable List<Object> classpathElementFilters;
+    public @Nullable List<Object> classpathElementFilters;
 
     /** Whether to initialize classes when loading them. */
     public boolean initializeLoadedClasses;
@@ -307,7 +307,7 @@ public class ScanSpec {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Constructor for deserialization. */
+    /** Constructor. */
     public ScanSpec() {
         // Intentionally empty
     }

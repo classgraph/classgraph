@@ -50,28 +50,21 @@ import org.jspecify.annotations.Nullable;
  */
 public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> {
     /** The parsed type signature. */
-    private transient @Nullable TypeSignature typeSignature;
+    private @Nullable TypeSignature typeSignature;
 
     /** The parsed type descriptor. */
-    private transient @Nullable TypeSignature typeDescriptor;
+    private @Nullable TypeSignature typeDescriptor;
 
     /** The constant initializer value for the field, if any. */
-    // This is transient because the constant initializer value is final, so the
-    // value doesn't need to be serialized
-    private @Nullable ObjectTypedValueWrapper constantInitializerValue;
+    private final @Nullable Object constantInitializerValue;
 
     /**
      * The type annotation decorators for the {@link TypeSignature} instance of this
      * field.
      */
-    private transient @Nullable List<TypeAnnotationDecorator> typeAnnotationDecorators;
+    private @Nullable List<TypeAnnotationDecorator> typeAnnotationDecorators;
 
     // -------------------------------------------------------------------------------------------------------------
-
-    /** Default constructor for deserialization. */
-    FieldInfo() {
-        super();
-    }
 
     /**
      * Constructor.
@@ -96,8 +89,7 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
         if (fieldName == null) {
             throw new IllegalArgumentException("fieldName must not be null");
         }
-        this.constantInitializerValue = constantInitializerValue == null ? null
-                : new ObjectTypedValueWrapper(constantInitializerValue);
+        this.constantInitializerValue = constantInitializerValue;
         this.typeAnnotationDecorators = typeAnnotationDecorators;
     }
 
@@ -261,7 +253,7 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
             throw new IllegalArgumentException(
                     "Please call ClassGraph#enableStaticFinalFieldConstantInitializerValues() " + "before #scan()");
         }
-        return constantInitializerValue == null ? null : constantInitializerValue.get();
+        return constantInitializerValue;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -442,7 +434,7 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
         buf.append(name);
 
         if (constantInitializerValue != null) {
-            final var val = constantInitializerValue.get();
+            final var val = constantInitializerValue;
             buf.append(" = ");
             if (val instanceof final String str) {
                 buf.append('"').append(str.replace("\\", "\\\\").replace("\"", "\\\"")).append('"');

@@ -50,7 +50,7 @@ import org.jspecify.annotations.Nullable;
  */
 public class AnnotationInfo extends ScanResultObject implements Comparable<AnnotationInfo>, HasName {
     /** The name. */
-    private String name;
+    private final String name;
 
     /** The annotation param values, or null if none. */
     private @Nullable AnnotationParameterValueList annotationParamValues;
@@ -59,19 +59,10 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      * Set to true once any Object[] arrays of boxed types in annotationParamValues
      * have been lazily converted to primitive arrays.
      */
-    private transient boolean annotationParamValuesHasBeenConvertedToPrimitive;
+    private boolean annotationParamValuesHasBeenConvertedToPrimitive;
 
     /** The annotation param values with defaults. */
-    private transient @Nullable AnnotationParameterValueList annotationParamValuesWithDefaults;
-
-    /**
-     * Default constructor for deserialization. {@code name} is populated by the
-     * deserializer, so it is not assigned here.
-     */
-    @SuppressWarnings("NullAway.Init")
-    AnnotationInfo() {
-        super();
-    }
+    private @Nullable AnnotationParameterValueList annotationParamValuesWithDefaults;
 
     // -------------------------------------------------------------------------------------------------------------
 

@@ -55,13 +55,13 @@ import org.jspecify.annotations.Nullable;
  */
 public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo> {
     /** The parsed type descriptor. */
-    private transient @Nullable MethodTypeSignature typeDescriptor;
+    private @Nullable MethodTypeSignature typeDescriptor;
 
     /**
      * The parsed type signature (or null if none). Method parameter types are
      * unaligned.
      */
-    private transient @Nullable MethodTypeSignature typeSignature;
+    private @Nullable MethodTypeSignature typeSignature;
 
     /**
      * Unaligned parameter names. These are only produced in JDK8+, and only if the
@@ -79,7 +79,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
     AnnotationInfo @Nullable [][] parameterAnnotationInfo;
 
     /** Aligned method parameter info. */
-    private transient MethodParameterInfo @Nullable [] parameterInfo;
+    private MethodParameterInfo @Nullable [] parameterInfo;
 
     /** True if this method has a body. */
     private boolean hasBody;
@@ -93,20 +93,15 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
     /**
      * The type annotation decorators for the {@link MethodTypeSignature} instance.
      */
-    private transient @Nullable List<MethodTypeAnnotationDecorator> typeAnnotationDecorators;
+    private @Nullable List<MethodTypeAnnotationDecorator> typeAnnotationDecorators;
 
     /** The names of the exceptions thrown by this method, or null if none. */
     private String @Nullable [] thrownExceptionNames;
 
     /** The exceptions thrown by this method, as a {@link ClassInfoList}. */
-    private transient @Nullable ClassInfoList thrownExceptions;
+    private @Nullable ClassInfoList thrownExceptions;
 
     // -------------------------------------------------------------------------------------------------------------
-
-    /** Default constructor for deserialization. */
-    MethodInfo() {
-        super();
-    }
 
     /**
      * Constructor.

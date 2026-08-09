@@ -64,14 +64,6 @@ public class ClassLoadingWorksWithParentLastLoaders {
 
         // Now use ClassGraph to find everything
         try (var scanResult = classGraph.scan()) {
-            // Skip the rest of the test if scan() round-tripped through JSON serialization
-            // (which is done to test
-            // the correctness of JSON serialization and deserialization), since this
-            // replaces the classloader with
-            // ClassGraphClassLoader.
-            if (scanResult.isObtainedFromDeserialization()) {
-                return;
-            }
             final var classInfo = scanResult.getAllClasses()
                     .filter(classInfo1 -> "A".equals(classInfo1.getSimpleName())).get(0);
 

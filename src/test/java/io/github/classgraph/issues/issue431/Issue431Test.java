@@ -30,16 +30,13 @@ package io.github.classgraph.issues.issue431;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.Objects;
-
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ClassInfo;
-import io.github.classgraph.ScanResult;
 
 /**
- * Issue431Test.
+ * The constant initializer value of a static final field of any primitive type
+ * is read as the corresponding boxed type.
  */
 public class Issue431Test {
     /**
@@ -66,33 +63,22 @@ public class Issue431Test {
         static final double i = 1.0D;
     }
 
-    /**
-     * Test field equality.
-     * 
-     * @param fieldName  The field name
-     * @param classInfo1 The first ClassInfo
-     * @param classInfo2 The second ClassInfo
-     */
-    private void testFieldEquality(final String fieldName, final ClassInfo classInfo1, final ClassInfo classInfo2) {
-        assertThat(Objects.equals(classInfo1.getFieldInfo(fieldName).getConstantInitializerValue(),
-                classInfo2.getFieldInfo(fieldName).getConstantInitializerValue())).isTrue();
-    }
-
-    /** Test serializing and deserializing primitive types. */
+    /** Read the constant initializer value of a field of each primitive type. */
     @Test
-    public void primitiveTypeSerialization() {
-        final var classGraph = new ClassGraph().acceptPackages(Issue431Test.class.getPackage().getName())
-                .enableAllInfo();
-        try (var scanResult1 = classGraph.scan()) {
-            final var classInfo1 = scanResult1.getClassInfo(X.class.getName());
-            assertThat(classInfo1).isNotNull();
-            final var jsonResult = scanResult1.toJSON(2);
-            final var scanResult2 = ScanResult.fromJSON(jsonResult);
-            final var classInfo2 = scanResult2.getClassInfo(X.class.getName());
-            assertThat(classInfo2).isNotNull();
-            for (var fieldName = 'a'; fieldName <= 'i'; fieldName++) {
-                testFieldEquality(String.valueOf(fieldName), classInfo1, classInfo2);
-            }
+    public void primitiveConstantInitializerValues() {
+        try (var scanResult = new ClassGraph().acceptPackages(Issue431Test.class.getPackage().getName())
+                .enableAllInfo().scan()) {
+            final var classInfo = scanResult.getClassInfo(X.class.getName());
+            assertThat(classInfo).isNotNull();
+            assertThat(classInfo.getFieldInfo("a").getConstantInitializerValue()).isEqualTo(Integer.MAX_VALUE);
+            assertThat(classInfo.getFieldInfo("b").getConstantInitializerValue()).isEqualTo(2L);
+            assertThat(classInfo.getFieldInfo("c").getConstantInitializerValue()).isEqualTo((short) 3);
+            assertThat(classInfo.getFieldInfo("d").getConstantInitializerValue()).isEqualTo('d');
+            assertThat(classInfo.getFieldInfo("e").getConstantInitializerValue()).isEqualTo(true);
+            assertThat(classInfo.getFieldInfo("f").getConstantInitializerValue()).isEqualTo((byte) 10);
+            assertThat(classInfo.getFieldInfo("g").getConstantInitializerValue()).isEqualTo(1.0F);
+            assertThat(classInfo.getFieldInfo("h").getConstantInitializerValue()).isEqualTo(0.0F);
+            assertThat(classInfo.getFieldInfo("i").getConstantInitializerValue()).isEqualTo(1.0D);
         }
     }
 }

@@ -38,20 +38,10 @@ import org.jspecify.annotations.Nullable;
  */
 public class AnnotationEnumValue extends ScanResultObject implements Comparable<AnnotationEnumValue> {
     /** The class name. */
-    private String className;
+    private final String className;
 
     /** The value name. */
-    private String valueName;
-
-    /**
-     * Default constructor for deserialization. {@code className} and
-     * {@code valueName} are populated by the deserializer, so they are not assigned
-     * here.
-     */
-    @SuppressWarnings("NullAway.Init")
-    AnnotationEnumValue() {
-        super();
-    }
+    private final String valueName;
 
     /**
      * Constructor.

@@ -37,22 +37,13 @@ import org.jspecify.annotations.Nullable;
  */
 public class AnnotationClassRef extends ScanResultObject {
     /** The type descriptor str. */
-    private String typeDescriptorStr;
+    private final String typeDescriptorStr;
 
     /** The type signature. */
-    private transient @Nullable TypeSignature typeSignature;
+    private @Nullable TypeSignature typeSignature;
 
     /** The class name. */
-    private transient @Nullable String className;
-
-    /**
-     * Default constructor for deserialization. {@code typeDescriptorStr} is
-     * populated by the deserializer, so it is not assigned here.
-     */
-    @SuppressWarnings("NullAway.Init")
-    AnnotationClassRef() {
-        super();
-    }
+    private @Nullable String className;
 
     /**
      * Constructor.

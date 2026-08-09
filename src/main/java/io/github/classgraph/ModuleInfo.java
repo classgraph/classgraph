@@ -41,19 +41,19 @@ import org.jspecify.annotations.Nullable;
 /** Holds metadata about a module encountered during a scan. */
 public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     /** The name of the module. */
-    private String name;
+    private final String name;
 
     /** The classpath element. */
-    private transient ClasspathElement classpathElement;
+    private final ClasspathElement classpathElement;
 
     /**
      * The {@link ModuleRef}, or null if this module was obtained from a classpath
      * element on the traditional classpath.
      */
-    private transient @Nullable ModuleRef moduleRef;
+    private @Nullable ModuleRef moduleRef;
 
     /** The location of the module as a URI, or null if the location is unknown. */
-    private transient @Nullable URI locationURI;
+    private @Nullable URI locationURI;
 
     /**
      * Unique {@link AnnotationInfo} objects for any annotations on the
@@ -77,15 +77,6 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     private @Nullable Set<ClassInfo> classInfoSet;
 
     // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Deserialization constructor. {@code name} and {@code classpathElement} are
-     * populated by the deserializer, so they are not assigned here.
-     */
-    @SuppressWarnings("NullAway.Init")
-    ModuleInfo() {
-        // Empty
-    }
 
     /**
      * Construct a ModuleInfo object.

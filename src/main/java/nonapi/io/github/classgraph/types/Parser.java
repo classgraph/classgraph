@@ -28,7 +28,7 @@
  */
 package nonapi.io.github.classgraph.types;
 
-import nonapi.io.github.classgraph.json.JSONUtils;
+import nonapi.io.github.classgraph.utils.StringUtils;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -74,8 +74,8 @@ public class Parser {
     public String getPositionInfo() {
         final var showStart = Math.max(0, position - SHOW_BEFORE);
         final var showEnd = Math.min(string.length(), position + SHOW_AFTER);
-        return "before: \"" + JSONUtils.escapeJSONString(string.substring(showStart, position)) + "\"; after: \""
-                + JSONUtils.escapeJSONString(string.substring(position, showEnd)) + "\"; position: " + position
+        return "before: \"" + StringUtils.escapeString(string.substring(showStart, position)) + "\"; after: \""
+                + StringUtils.escapeString(string.substring(position, showEnd)) + "\"; position: " + position
                 + "; token: \"" + token + "\"";
     }
 
