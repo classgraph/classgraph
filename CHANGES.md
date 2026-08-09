@@ -465,6 +465,23 @@ queries, and no longer collide in name with anything on `ClassInfo`.
   meta-annotated by the annotation being queried. (4.x could drop these, because it
   filtered partway through the traversal rather than at the end.)
 
+* **External classes are no longer listed as members of their package or module.** An
+  external class was read only so that an accepted class' own declarations could be
+  reported, but 4.x still registered it with its `PackageInfo` and `ModuleInfo`. That
+  disagreed with `getAllClasses()`, which leaves external classes out: scanning a project
+  that uses JUnit, for example, listed `org.junit.jupiter.api` among the packages, with
+  member classes that `getAllClasses()` did not return. In 5.x:
+
+  * `PackageInfo#getClassInfo()`, `PackageInfo#getClassInfoRecursive()` and
+    `ModuleInfo#getClassInfo()` list only the classes that `getAllClasses()` returns.
+  * A package or module that contains nothing but external classes no longer appears in
+    `ScanResult#getPackageInfo()` or `ScanResult#getModuleInfo()`.
+  * `ClassInfo#getPackageInfo()` and `ClassInfo#getModuleInfo()` return null for an
+    external class. (Both were already documented as nullable.)
+
+  Calling `enableExternalClasses()` makes external classes members of their package and
+  module again, as it makes them part of the scan result everywhere else.
+
 ## Bug fixes
 
 Bugs found during the port. Each of these is a pre-existing bug in ClassGraph 4.x, and

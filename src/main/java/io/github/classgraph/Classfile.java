@@ -536,6 +536,12 @@ class Classfile {
             }
         }
 
+        // An external class was only read so that an accepted class' own declarations can
+        // be reported, so it is not listed as a member of its package or module (this
+        // keeps PackageInfo and ModuleInfo in step with ScanResult#getAllClasses(), which
+        // leaves external classes out)
+        final var listAsMember = !isExternalClass || scanSpec.enableExternalClasses;
+
         // Get or create PackageInfo, if this is not a module descriptor (the module
         // descriptor's package is "")
         PackageInfo packageInfo = null;
@@ -543,20 +549,23 @@ class Classfile {
             // Get package for this class or package descriptor
             // A class name is never empty, so getParentPackageName cannot return null
             final var packageName = Objects.requireNonNull(PackageInfo.getParentPackageName(className));
-            packageInfo = PackageInfo.getOrCreatePackage(packageName, packageNameToPackageInfo, scanSpec);
             if (isPackageDescriptor) {
                 // Add any class annotations on the package-info.class file to the ModuleInfo
+                packageInfo = PackageInfo.getOrCreatePackage(packageName, packageNameToPackageInfo, scanSpec);
                 packageInfo.addAnnotations(classAnnotations);
-            } else if (classInfo != null) {
+            } else if (classInfo != null && listAsMember) {
                 // Add ClassInfo to PackageInfo, and vice versa
+                packageInfo = PackageInfo.getOrCreatePackage(packageName, packageNameToPackageInfo, scanSpec);
                 packageInfo.addClassInfo(classInfo);
                 classInfo.packageInfo = packageInfo;
             }
         }
 
-        // Get or create ModuleInfo, if there is a module name
+        // Get or create ModuleInfo, if there is a module name and there is something to
+        // record in it (packageInfo is null above exactly when this is an external class
+        // that is not being listed as a member)
         final var moduleName = classpathElement.getModuleName();
-        if (moduleName != null) {
+        if (moduleName != null && (isModuleDescriptor || packageInfo != null)) {
             // Get or create a ModuleInfo object for this module
             final var moduleInfo = moduleNameToModuleInfo.computeIfAbsent(moduleName,
                     k -> new ModuleInfo(classfileResource.getModuleRef(), classpathElement, moduleName));
@@ -564,7 +573,7 @@ class Classfile {
                 // Add any class annotations on the module-info.class file to the ModuleInfo
                 moduleInfo.addAnnotations(classAnnotations);
             }
-            if (classInfo != null) {
+            if (classInfo != null && listAsMember) {
                 // Add ClassInfo to ModuleInfo, and vice versa
                 moduleInfo.addClassInfo(classInfo);
                 classInfo.moduleInfo = moduleInfo;
