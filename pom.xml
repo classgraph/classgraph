@@ -141,16 +141,6 @@
 			<version>1.0.1</version>
 			<scope>provided</scope>
 		</dependency>
-		<dependency>
-			<!-- Needed for Eclipse nullability analysis to work, but use "provided" as the scope so that we -->
-			<!-- don't add a hard dependency on the JDT annotations, because we don't use the annotations in -->
-			<!-- any of the ClassGraph code, so these annotations are not needed at runtime. -->
-			<!-- See: https://bugs.eclipse.org/bugs/show_bug.cgi?id=552198 -->
-			<groupId>org.eclipse.jdt</groupId>
-			<artifactId>org.eclipse.jdt.annotation</artifactId>
-			<version>2.4.100</version>
-			<scope>provided</scope>
-		</dependency>
 	</dependencies>
 
 	<build>
@@ -361,6 +351,53 @@
 					</configuration>
 					<executions>
 						<execution>
+							<id>default-compile</id>
+							<phase>compile</phase>
+							<goals>
+								<goal>compile</goal>
+							</goals>
+							<configuration>
+								<encoding>UTF-8</encoding>
+								<!-- Error Prone needs javac's own internals opened up to it (the -J flags -->
+								<!-- below), which requires forking the compiler. -->
+								<fork>true</fork>
+								<compilerArgs>
+									<arg>-Xlint:all</arg>             <!-- Max lint -->
+									<arg>-Werror</arg>
+									<!-- Static null analysis, to check the @NullMarked claim made by -->
+									<!-- module-info.java. NullAway runs as an Error Prone plugin, over the -->
+									<!-- main sources only: the test sources are deliberately unannotated. -->
+									<arg>-XDcompilePolicy=simple</arg>
+									<arg>-Xmaxerrs</arg>
+									<arg>10000</arg>
+									<arg>--should-stop=ifError=FLOW</arg>
+									<arg>-Xplugin:ErrorProne -XepDisableAllChecks -Xep:NullAway:ERROR -XepOpt:NullAway:AnnotatedPackages=io.github.classgraph,nonapi.io.github.classgraph -XepOpt:NullAway:JSpecifyMode=true</arg>
+									<arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
+									<arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED</arg>
+									<arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED</arg>
+									<arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED</arg>
+									<arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED</arg>
+									<arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED</arg>
+									<arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED</arg>
+									<arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED</arg>
+									<arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED</arg>
+									<arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED</arg>
+								</compilerArgs>
+								<annotationProcessorPaths>
+									<path>
+										<groupId>com.google.errorprone</groupId>
+										<artifactId>error_prone_core</artifactId>
+										<version>2.50.0</version>
+									</path>
+									<path>
+										<groupId>com.uber.nullaway</groupId>
+										<artifactId>nullaway</artifactId>
+										<version>0.13.8</version>
+									</path>
+								</annotationProcessorPaths>
+							</configuration>
+						</execution>
+						<execution>
 							<id>default-testCompile</id>
 							<phase>test-compile</phase>
 							<goals>
@@ -534,80 +571,6 @@
 	</build>
 
 	<profiles>
-		<!-- Static null analysis, to check the @NullMarked claim made by module-info.java: -->
-		<!--   ./mvnw -o -Pnullcheck clean compile -->
-		<!-- NullAway runs as an Error Prone plugin over the main sources only. It is a separate -->
-		<!-- profile rather than part of the normal build, because Error Prone needs javac's own -->
-		<!-- internals opened up to it (the -J flags below), which requires forking the compiler. -->
-		<profile>
-			<id>nullcheck</id>
-			<build>
-				<plugins>
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-compiler-plugin</artifactId>
-						<configuration>
-							<fork>true</fork>
-							<compilerArgs>
-								<arg>-XDcompilePolicy=simple</arg>
-								<arg>-Xmaxerrs</arg>
-								<arg>10000</arg>
-								<arg>--should-stop=ifError=FLOW</arg>
-								<arg>-Xplugin:ErrorProne -XepDisableAllChecks -Xep:NullAway:ERROR -XepOpt:NullAway:AnnotatedPackages=io.github.classgraph,nonapi.io.github.classgraph -XepOpt:NullAway:JSpecifyMode=true</arg>
-								<arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
-								<arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED</arg>
-								<arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED</arg>
-								<arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED</arg>
-								<arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED</arg>
-								<arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED</arg>
-								<arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED</arg>
-								<arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED</arg>
-								<arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED</arg>
-								<arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED</arg>
-							</compilerArgs>
-							<annotationProcessorPaths>
-								<path>
-									<groupId>com.google.errorprone</groupId>
-									<artifactId>error_prone_core</artifactId>
-									<version>2.50.0</version>
-								</path>
-								<path>
-									<groupId>com.uber.nullaway</groupId>
-									<artifactId>nullaway</artifactId>
-									<version>0.13.8</version>
-								</path>
-							</annotationProcessorPaths>
-						</configuration>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
-
-		<profile>
-			<id>rewrite</id>
-			<build>
-				<plugins>
-					<plugin>
-						<groupId>org.openrewrite.maven</groupId>
-						<artifactId>rewrite-maven-plugin</artifactId>
-						<version>6.45.0</version>
-						<dependencies>
-							<dependency>
-								<groupId>org.openrewrite.recipe</groupId>
-								<artifactId>rewrite-static-analysis</artifactId>
-								<version>2.40.0</version>
-							</dependency>
-							<dependency>
-								<groupId>org.openrewrite.recipe</groupId>
-								<artifactId>rewrite-migrate-java</artifactId>
-								<version>3.41.0</version>
-							</dependency>
-						</dependencies>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
-
 		<!-- Sign jars for release. Activated automatically by maven-release-plugin (via -->
 		<!-- <releaseProfiles>/<arguments> above); pass -Prelease explicitly for a manual deploy. -->
 		<profile>

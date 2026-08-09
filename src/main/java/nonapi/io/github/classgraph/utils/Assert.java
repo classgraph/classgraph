@@ -38,7 +38,11 @@ public final class Assert {
      * @throws NullPointerException if the array or any of its elements is null.
      */
     public static void notNullElements(final @Nullable Object @Nullable [] array, final String paramName) {
-        notNull(array, paramName);
+        // Not a call to notNull(): a null checker cannot see that that would have
+        // thrown, so it would flag the dereference of array below.
+        if (array == null) {
+            throw new NullPointerException(paramName + " must not be null");
+        }
         for (int i = 0; i < array.length; i++) {
             if (array[i] == null) {
                 throw new NullPointerException(paramName + "[" + i + "] must not be null");
