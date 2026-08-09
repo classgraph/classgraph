@@ -71,14 +71,12 @@ class URLClassLoaderHandler implements ClassLoaderHandler {
     }
 
     /**
-     * Get the automatic package root prefixes for classpath elements obtained from
-     * this classloader.
+     * Get the automatic package root prefixes for classpath elements obtained from this classloader.
      *
      * <p>
-     * A URLClassLoader is general-purpose -- it is handed classpath elements in
-     * every layout, including Spring-Boot executable jars and wars directly (the
-     * Spring-Boot launcher's own classloader extends URLClassLoader), and build
-     * tool output dirs with a {@code classes/} package root.
+     * A URLClassLoader is general-purpose -- it is handed classpath elements in every layout, including Spring-Boot
+     * executable jars and wars directly (the Spring-Boot launcher's own classloader extends URLClassLoader), and
+     * build tool output dirs with a {@code classes/} package root.
      *
      * @return the package root prefixes.
      */

@@ -11,22 +11,17 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.FieldInfo;
 
 /**
- * Field hardening: {@code FieldInfo.getTypeDescriptor()} /
- * {@code getTypeSignature()} must not abort when an individual type annotation
- * cannot be matched to the field type. Compilers do not normally emit an
- * impossible field type-annotation path, so this is exercised with a synthetic
- * fixture ({@code fieldcrash/BadFieldTypePath.class}, generated with ASM) that
- * has:
+ * Field hardening: {@code FieldInfo.getTypeDescriptor()} / {@code getTypeSignature()} must not abort when an
+ * individual type annotation cannot be matched to the field type. Compilers do not normally emit an impossible
+ * field type-annotation path, so this is exercised with a synthetic fixture
+ * ({@code fieldcrash/BadFieldTypePath.class}, generated with ASM) that has:
  * <ul>
- * <li>a {@code String} field with a valid (empty-path) type annotation,
- * and</li>
- * <li>a {@code String} field with a bogus {@code [ARRAY]} type-annotation path
- * (invalid on a non-array type, of the same kind javac produces for bridge
- * methods in JDK-8385663).</li>
+ * <li>a {@code String} field with a valid (empty-path) type annotation, and</li>
+ * <li>a {@code String} field with a bogus {@code [ARRAY]} type-annotation path (invalid on a non-array type, of the
+ * same kind javac produces for bridge methods in JDK-8385663).</li>
  * </ul>
- * Before the fix, reading the bogus field threw
- * {@code IllegalArgumentException: Bad typePathKind: 0}; the valid field's
- * annotation must still be applied.
+ * Before the fix, reading the bogus field threw {@code IllegalArgumentException: Bad typePathKind: 0}; the valid
+ * field's annotation must still be applied.
  */
 public class Issue897FieldTypeAnnotationTest {
     private static final String FIXTURE_PKG = //

@@ -52,8 +52,8 @@ public class ClasspathFinder {
     private final @Nullable ModuleFinder moduleFinder;
 
     /**
-     * The default order in which ClassLoaders are called to load classes,
-     * respecting parent-first/parent-last delegation order.
+     * The default order in which ClassLoaders are called to load classes, respecting parent-first/parent-last
+     * delegation order.
      */
     private ClassLoader @Nullable [] classLoaderOrderRespectingParentDelegation;
 
@@ -78,8 +78,7 @@ public class ClasspathFinder {
     }
 
     /**
-     * Get the ClassLoader order, respecting parent-first/parent-last delegation
-     * order.
+     * Get the ClassLoader order, respecting parent-first/parent-last delegation order.
      *
      * @return the class loader order, or null if the classpath was overridden.
      */
@@ -90,11 +89,11 @@ public class ClasspathFinder {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Determine whether a classloader is the JDK's application classloader, which
-     * loads the classes on the {@code java.class.path} classpath, and the
-     * application's own (non-system) modules.
+     * Determine whether a classloader is the JDK's application classloader, which loads the classes on the
+     * {@code java.class.path} classpath, and the application's own (non-system) modules.
      *
-     * @param classLoader the classloader
+     * @param classLoader
+     *            the classloader
      * @return true if the classloader is the application classloader
      */
     private static boolean isApplicationClassLoader(final ClassLoader classLoader) {
@@ -102,10 +101,10 @@ public class ClasspathFinder {
     }
 
     /**
-     * Determine whether a classloader is the JDK's platform classloader, which
-     * loads only system modules.
+     * Determine whether a classloader is the JDK's platform classloader, which loads only system modules.
      *
-     * @param classLoader the classloader
+     * @param classLoader
+     *            the classloader
      * @return true if the classloader is the platform classloader
      */
     private static boolean isPlatformClassLoader(final ClassLoader classLoader) {
@@ -113,20 +112,20 @@ public class ClasspathFinder {
     }
 
     /**
-     * Neither the application classloader nor the platform classloader exposes the
-     * locations it loads classes from, so neither of them can be scanned as a
-     * classloader. If the user names one of them, scan instead using the mechanism
-     * that can reach the classes that classloader loads: for the platform
-     * classloader, that is the system jars and modules, so
-     * {@code enableSystemJarsAndModules()} is applied here; for the application
-     * classloader, it is the {@code java.class.path} classpath and the non-system
-     * modules, which the caller enables.
+     * Neither the application classloader nor the platform classloader exposes the locations it loads classes from,
+     * so neither of them can be scanned as a classloader. If the user names one of them, scan instead using the
+     * mechanism that can reach the classes that classloader loads: for the platform classloader, that is the system
+     * jars and modules, so {@code enableSystemJarsAndModules()} is applied here; for the application classloader,
+     * it is the {@code java.class.path} classpath and the non-system modules, which the caller enables.
      *
-     * @param classLoader the classloader
-     * @param scanSpec    the {@link ScanSpec}
-     * @param methodName  the name of the API method the classloader was passed to,
-     *                    for logging
-     * @param log         the log node, or null to skip logging
+     * @param classLoader
+     *            the classloader
+     * @param scanSpec
+     *            the {@link ScanSpec}
+     * @param methodName
+     *            the name of the API method the classloader was passed to, for logging
+     * @param log
+     *            the log node, or null to skip logging
      */
     // #639, #795
     private static void mapSystemClassLoaderToScanningMechanism(final ClassLoader classLoader,
@@ -155,11 +154,15 @@ public class ClasspathFinder {
     /**
      * A class to find the unique ordered classpath elements.
      *
-     * @param scanSpec        The {@link ScanSpec}.
-     * @param reflectionUtils The reflection utils instance.
-     * @param log             The log.
+     * @param scanSpec
+     *            The {@link ScanSpec}.
+     * @param reflectionUtils
+     *            The reflection utils instance.
+     * @param log
+     *            The log.
      */
-    public ClasspathFinder(final ScanSpec scanSpec, final ReflectionUtils reflectionUtils, final @Nullable LogNode log) {
+    public ClasspathFinder(final ScanSpec scanSpec, final ReflectionUtils reflectionUtils,
+            final @Nullable LogNode log) {
         final var classpathFinderLog = log == null ? null : log.log("Finding classpath and modules");
 
         // Set to true if java.class.path has to be scanned even though it would not
@@ -236,7 +239,8 @@ public class ClasspathFinder {
                     : classpathFinderLog.log("Overriding classpath with: " + scanSpec.overrideClasspath);
             // The classloader is only recorded for each classpath entry, it is not used to
             // find the entries, so just use defaultClassLoader as a placeholder here
-            classpathOrder.addClasspathEntries(scanSpec.overrideClasspath, defaultClassLoader, scanSpec, overrideLog);
+            classpathOrder.addClasspathEntries(scanSpec.overrideClasspath, defaultClassLoader, scanSpec,
+                    overrideLog);
             if (overrideLog != null) {
                 overrideLog.log("WARNING: when the classpath is overridden, there is no guarantee that the classes "
                         + "found by classpath scanning will be the same as the classes loaded by the "
@@ -313,17 +317,18 @@ public class ClasspathFinder {
                         // so that only the package roots that are applicable to each classpath element
                         // are
                         // looked for and stripped when it is scanned (#929)
-                        classpathOrder.setPackageRootPrefixes(classLoaderHandlerRegistryEntry.getPackageRootPrefixes());
+                        classpathOrder
+                                .setPackageRootPrefixes(classLoaderHandlerRegistryEntry.getPackageRootPrefixes());
                         try {
-                            classLoaderHandlerRegistryEntry.findClasspathOrder(classLoader, classpathOrder, scanSpec,
-                                    classloaderHandlerLog);
+                            classLoaderHandlerRegistryEntry.findClasspathOrder(classLoader, classpathOrder,
+                                    scanSpec, classloaderHandlerLog);
                         } finally {
                             classpathOrder.setPackageRootPrefixes(null);
                         }
                         finalClassLoaderOrder.add(classLoader);
                     } else if (classloaderURLLog != null) {
-                        classloaderURLLog.log("Ignoring parent classloader " + classLoader + ", normally handled by "
-                                + classLoaderHandlerRegistryEntry.getHandlerName());
+                        classloaderURLLog.log("Ignoring parent classloader " + classLoader
+                                + ", normally handled by " + classLoaderHandlerRegistryEntry.getHandlerName());
                     }
                 }
             }
@@ -345,7 +350,8 @@ public class ClasspathFinder {
                 || (!scanSpec.ignoreParentClassLoaders && scanSpec.overrideClassLoaders == null
                         && scanSpec.overrideClasspath == null)
                 || (moduleFinder != null && moduleFinder.forceScanJavaClassPath())) {
-            final var pathElements = JarUtils.smartPathSplit(VersionFinder.getProperty("java.class.path"), scanSpec);
+            final var pathElements = JarUtils.smartPathSplit(VersionFinder.getProperty("java.class.path"),
+                    scanSpec);
             if (pathElements.length > 0) {
                 final var sysPropLog = classpathFinderLog == null ? null
                         : classpathFinderLog.log("Getting classpath entries from java.class.path");

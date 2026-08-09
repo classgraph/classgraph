@@ -213,10 +213,12 @@ public class Issue153Test {
             assertThat(classInfo.getAllAnnotationInfo().getAsStrings()) //
                     .containsOnly("@" + StringAnnotation.class.getName() + "(\"classlabel\")", //
                             "@" + TwoParamAnnotation.class.getName() + "(value1='x', value2={1, 2, 3})", //
-                            "@" + EnumAnnotation.class.getName() + "(" + FruitEnum.class.getName() + ".BANANA" + ")", //
+                            "@" + EnumAnnotation.class.getName() + "(" + FruitEnum.class.getName() + ".BANANA"
+                                    + ")", //
                             "@" + NestedAnnotation.class.getName() + "({@" + StringAnnotation.class.getName()
                                     + "(\"one\"), @" + StringAnnotation.class.getName() + "(\"two\")})", //
-                            "@" + ClassRefAnnotation.class.getName() + "(" + Issue153Test.class.getName() + ".class)");
+                            "@" + ClassRefAnnotation.class.getName() + "(" + Issue153Test.class.getName()
+                                    + ".class)");
 
             assertThat(classInfo.getFieldInfo("testField").getAllAnnotationInfo().getAsStrings()) //
                     .containsExactly("@" + StringAnnotation.class.getName() + "(\"fieldlabel\")");
@@ -224,7 +226,8 @@ public class Issue153Test {
             assertThat(classInfo.getMethodInfo("testMethod").get(0).getAllAnnotationInfo().getAsStrings()) //
                     .containsExactly("@" + StringAnnotation.class.getName() + "(\"methodlabel\")");
 
-            assertThat(classInfo.getFieldInfo("testFieldWithAndWitoutDefault").getAllAnnotationInfo().getAsStrings()) //
+            assertThat(
+                    classInfo.getFieldInfo("testFieldWithAndWitoutDefault").getAllAnnotationInfo().getAsStrings()) //
                     .containsExactly("@" + AnnotationWithAndWithoutDefaultValue.class.getName()
                             + "(valueWithoutDefault=\"x\", valueWithDefault=5)");
 

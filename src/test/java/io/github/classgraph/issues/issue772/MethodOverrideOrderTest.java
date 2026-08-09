@@ -29,9 +29,8 @@ public class MethodOverrideOrderTest {
     }
 
     /**
-     * Tests if the correct method is selected if a class implements from two
-     * interfaces that inherit from another. Case of the child class implementing
-     * the inherited interface.
+     * Tests if the correct method is selected if a class implements from two interfaces that inherit from another.
+     * Case of the child class implementing the inherited interface.
      */
     @Test
     public void interfaceMethodOrderingA() {
@@ -44,9 +43,8 @@ public class MethodOverrideOrderTest {
     }
 
     /**
-     * Tests if the correct method is selected if a class implements from two
-     * interfaces that inherit from another. Case of the child class implementing
-     * the inherited interface.
+     * Tests if the correct method is selected if a class implements from two interfaces that inherit from another.
+     * Case of the child class implementing the inherited interface.
      */
     @Test
     public void interfaceMethodOrderingB() {
@@ -59,9 +57,8 @@ public class MethodOverrideOrderTest {
     }
 
     /**
-     * Tests if the correct method is selected if a class implements from two
-     * interfaces that inherit from another. Case of the child class implementing
-     * the inherited interface.
+     * Tests if the correct method is selected if a class implements from two interfaces that inherit from another.
+     * Case of the child class implementing the inherited interface.
      */
     @Test
     public void interfaceMethodOrderingC() {

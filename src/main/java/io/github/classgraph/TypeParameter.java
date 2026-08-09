@@ -55,9 +55,12 @@ public final class TypeParameter extends HierarchicalTypeSignature {
     /**
      * Constructor.
      *
-     * @param identifier      The type parameter identifier.
-     * @param classBound      The type parameter class bound.
-     * @param interfaceBounds The type parameter interface bound.
+     * @param identifier
+     *            The type parameter identifier.
+     * @param classBound
+     *            The type parameter class bound.
+     * @param interfaceBounds
+     *            The type parameter interface bound.
      */
     protected TypeParameter(final String identifier, final @Nullable ReferenceTypeSignature classBound,
             final List<ReferenceTypeSignature> interfaceBounds) {
@@ -69,7 +72,7 @@ public final class TypeParameter extends HierarchicalTypeSignature {
 
     /**
      * Get the type parameter identifier.
-     * 
+     *
      * @return The type parameter identifier.
      */
     public String getName() {
@@ -78,7 +81,7 @@ public final class TypeParameter extends HierarchicalTypeSignature {
 
     /**
      * Get the type parameter class bound.
-     * 
+     *
      * @return The type parameter class bound. May be null.
      */
     public @Nullable ReferenceTypeSignature getClassBound() {
@@ -87,9 +90,8 @@ public final class TypeParameter extends HierarchicalTypeSignature {
 
     /**
      * Get the type parameter interface bound(s).
-     * 
-     * @return Get the type parameter interface bound(s), which may be the empty
-     *         list.
+     *
+     * @return Get the type parameter interface bound(s), which may be the empty list.
      */
     public List<ReferenceTypeSignature> getInterfaceBounds() {
         return interfaceBounds;
@@ -109,10 +111,13 @@ public final class TypeParameter extends HierarchicalTypeSignature {
     /**
      * Parse a list of type parameters into {@link TypeParameter} objects.
      *
-     * @param parser            the parser
-     * @param definingClassName the defining class name
+     * @param parser
+     *            the parser
+     * @param definingClassName
+     *            the defining class name
      * @return the list of {@link TypeParameter} objects.
-     * @throws ParseException if parsing fails
+     * @throws ParseException
+     *             if parsing fails
      */
     static List<TypeParameter> parseList(final Parser parser, final @Nullable String definingClassName)
             throws ParseException {
@@ -201,7 +206,8 @@ public final class TypeParameter extends HierarchicalTypeSignature {
     /**
      * Get the names of any classes referenced in the type signature.
      *
-     * @param refdClassNames the referenced class names.
+     * @param refdClassNames
+     *            the referenced class names.
      */
     protected void findReferencedClassNames(final Set<String> refdClassNames) {
         final var bound = classBound;
@@ -222,7 +228,8 @@ public final class TypeParameter extends HierarchicalTypeSignature {
      */
     @Override
     public int hashCode() {
-        return name.hashCode() + (classBound == null ? 0 : classBound.hashCode() * 7) + interfaceBounds.hashCode() * 15;
+        return name.hashCode() + (classBound == null ? 0 : classBound.hashCode() * 7)
+                + interfaceBounds.hashCode() * 15;
     }
 
     /*
@@ -248,8 +255,7 @@ public final class TypeParameter extends HierarchicalTypeSignature {
 
     @Override
     protected void toStringInternal(final boolean useSimpleNames,
-            final @Nullable AnnotationInfoList annotationsToExclude,
-            final StringBuilder buf) {
+            final @Nullable AnnotationInfoList annotationsToExclude, final StringBuilder buf) {
         final var typeAnnotations = typeAnnotationInfo;
         if (typeAnnotations != null) {
             for (final AnnotationInfo annotationInfo : typeAnnotations) {

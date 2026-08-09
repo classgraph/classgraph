@@ -34,8 +34,7 @@ import io.github.classgraph.Classfile.TypePathNode;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A Java type signature. Subclasses are ClassTypeSignature,
- * MethodTypeSignature, and TypeSignature.
+ * A Java type signature. Subclasses are ClassTypeSignature, MethodTypeSignature, and TypeSignature.
  */
 public abstract class HierarchicalTypeSignature extends ScanResultObject {
     /** The type annotations on this type, or null if none. */
@@ -49,7 +48,8 @@ public abstract class HierarchicalTypeSignature extends ScanResultObject {
     /**
      * Add a type annotation.
      *
-     * @param annotationInfo the annotation
+     * @param annotationInfo
+     *            the annotation
      */
     void addTypeAnnotation(final AnnotationInfo annotationInfo) {
         var typeAnnotations = typeAnnotationInfo;
@@ -71,11 +71,9 @@ public abstract class HierarchicalTypeSignature extends ScanResultObject {
     }
 
     /**
-     * Get a list of {@link AnnotationInfo} objects for any type annotations on this
-     * type, or null if none.
-     * 
-     * @return a list of {@link AnnotationInfo} objects for any type annotations on
-     *         this type, or null if none.
+     * Get a list of {@link AnnotationInfo} objects for any type annotations on this type, or null if none.
+     *
+     * @return a list of {@link AnnotationInfo} objects for any type annotations on this type, or null if none.
      */
     public @Nullable AnnotationInfoList getTypeAnnotationInfo() {
         return typeAnnotationInfo;
@@ -84,32 +82,34 @@ public abstract class HierarchicalTypeSignature extends ScanResultObject {
     /**
      * Add a type annotation.
      *
-     * @param typePath       the type path
-     * @param annotationInfo the annotation
+     * @param typePath
+     *            the type path
+     * @param annotationInfo
+     *            the annotation
      */
     abstract void addTypeAnnotation(List<TypePathNode> typePath, AnnotationInfo annotationInfo);
 
     /**
      * Render type signature to string.
      *
-     * @param useSimpleNames       if true, strip package and outer class names from
-     *                             class names
-     * @param annotationsToExclude toplevel annotations to exclude, to eliminate
-     *                             duplication (toplevel annotations are both
-     *                             class/field/method annotations and type
-     *                             annotations).
-     * @param buf                  the buffer to append to
+     * @param useSimpleNames
+     *            if true, strip package and outer class names from class names
+     * @param annotationsToExclude
+     *            toplevel annotations to exclude, to eliminate duplication (toplevel annotations are both
+     *            class/field/method annotations and type annotations).
+     * @param buf
+     *            the buffer to append to
      */
     protected abstract void toStringInternal(final boolean useSimpleNames,
-            @Nullable AnnotationInfoList annotationsToExclude,
-            StringBuilder buf);
+            @Nullable AnnotationInfoList annotationsToExclude, StringBuilder buf);
 
     /**
      * Render type signature to string.
      *
-     * @param useSimpleNames if true, strip package and outer class names from class
-     *                       names
-     * @param buf            the buffer to append to
+     * @param useSimpleNames
+     *            if true, strip package and outer class names from class names
+     * @param buf
+     *            the buffer to append to
      */
     @Override
     protected void toString(final boolean useSimpleNames, final StringBuilder buf) {

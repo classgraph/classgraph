@@ -44,8 +44,7 @@ class EquinoxContextFinderClassLoaderHandler implements ClassLoaderHandler {
 
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
-        return classIsOrExtendsOrImplements(classLoaderClass,
-                "org.eclipse.osgi.internal.framework.ContextFinder");
+        return classIsOrExtendsOrImplements(classLoaderClass, "org.eclipse.osgi.internal.framework.ContextFinder");
     }
 
     @Override
@@ -64,12 +63,10 @@ class EquinoxContextFinderClassLoaderHandler implements ClassLoaderHandler {
     }
 
     /**
-     * Get the automatic package root prefixes for classpath elements obtained from
-     * this classloader.
+     * Get the automatic package root prefixes for classpath elements obtained from this classloader.
      *
      * <p>
-     * Classpath elements from this classloader may be Spring-Boot executable jars
-     * or wars.
+     * Classpath elements from this classloader may be Spring-Boot executable jars or wars.
      *
      * @return the package root prefixes.
      */

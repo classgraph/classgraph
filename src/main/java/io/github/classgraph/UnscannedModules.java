@@ -45,23 +45,20 @@ import nonapi.io.github.classgraph.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
 /**
- * The modules that are not being scanned, but whose classfiles may still be read
- * in order to complete the class graph above an accepted class.
+ * The modules that are not being scanned, but whose classfiles may still be read in order to complete the class
+ * graph above an accepted class.
  *
  * <p>
- * Scanning is extended upwards from an accepted class to its superclasses,
- * interfaces and annotations, so that the part of the class graph above an
- * accepted class is complete. The classfiles of those classes are looked for in
- * the classpath elements that are being scanned, but system modules are not
- * scanned unless {@link ClassGraph#enableSystemJarsAndModules()} is called, so a
- * class hierarchy that passes through a class in a system module (e.g. through
- * {@code java.util.TimerTask}, which implements {@link Runnable}) would
- * otherwise stop at that class.
+ * Scanning is extended upwards from an accepted class to its superclasses, interfaces and annotations, so that the
+ * part of the class graph above an accepted class is complete. The classfiles of those classes are looked for in
+ * the classpath elements that are being scanned, but system modules are not scanned unless
+ * {@link ClassGraph#enableSystemJarsAndModules()} is called, so a class hierarchy that passes through a class in a
+ * system module (e.g. through {@code java.util.TimerTask}, which implements {@link Runnable}) would otherwise stop
+ * at that class.
  *
  * <p>
- * Only rejecting a module prevents its classfiles from being read this way,
- * matching how accept/reject criteria are applied to classes: scanning is
- * extended upwards to a class in a package that was not accepted, but not to a
+ * Only rejecting a module prevents its classfiles from being read this way, matching how accept/reject criteria are
+ * applied to classes: scanning is extended upwards to a class in a package that was not accepted, but not to a
  * class that was rejected.
  */
 class UnscannedModules {
@@ -69,8 +66,7 @@ class UnscannedModules {
     private final List<ModuleRef> unscannedModuleRefs;
 
     /**
-     * A singleton map from a {@link ModuleRef} to a {@link ModuleReader} recycler
-     * for the module.
+     * A singleton map from a {@link ModuleRef} to a {@link ModuleReader} recycler for the module.
      */
     private final SingletonMap<ModuleRef, Recycler<ModuleReader, IOException>, IOException> //
     moduleRefToModuleReaderRecyclerMap;
@@ -79,25 +75,26 @@ class UnscannedModules {
     private final ScanSpec scanSpec;
 
     /**
-     * A map from the name of a package to the module that contains the package, or
-     * null until the map is built on the first lookup.
+     * A map from the name of a package to the module that contains the package, or null until the map is built on
+     * the first lookup.
      */
     private @Nullable Map<String, ModuleRef> packageNameToModuleRef;
 
     /**
-     * A map from a module to the classpath element that was created for it, for the
-     * modules that have been looked in so far.
+     * A map from a module to the classpath element that was created for it, for the modules that have been looked
+     * in so far.
      */
     private final Map<ModuleRef, ClasspathElementModule> moduleRefToClasspathElement = new HashMap<>();
 
     /**
      * Constructor.
      *
-     * @param unscannedModuleRefs                the modules that are not being
-     *                                           scanned, and that were not rejected
-     * @param moduleRefToModuleReaderRecyclerMap the module ref to module reader
-     *                                           recycler map
-     * @param scanSpec                           the scan spec
+     * @param unscannedModuleRefs
+     *            the modules that are not being scanned, and that were not rejected
+     * @param moduleRefToModuleReaderRecyclerMap
+     *            the module ref to module reader recycler map
+     * @param scanSpec
+     *            the scan spec
      */
     UnscannedModules(final List<ModuleRef> unscannedModuleRefs,
             final SingletonMap<ModuleRef, Recycler<ModuleReader, IOException>, IOException> //
@@ -110,13 +107,16 @@ class UnscannedModules {
     /**
      * Look for the classfile of a class in the modules that are not being scanned.
      *
-     * @param className     the name of the class
-     * @param classfilePath the path of the class' classfile within a module
-     * @param log           the log node, or null to skip logging
-     * @return a work unit for scanning the classfile, or null if the class is not
-     *         in any of the modules that are not being scanned
-     * @throws InterruptedException if the thread was interrupted while opening a
-     *                              module
+     * @param className
+     *            the name of the class
+     * @param classfilePath
+     *            the path of the class' classfile within a module
+     * @param log
+     *            the log node, or null to skip logging
+     * @return a work unit for scanning the classfile, or null if the class is not in any of the modules that are
+     *         not being scanned
+     * @throws InterruptedException
+     *             if the thread was interrupted while opening a module
      */
     synchronized @Nullable ClassfileScanWorkUnit findClassfile(final String className, final String classfilePath,
             final @Nullable LogNode log) throws InterruptedException {
@@ -138,9 +138,8 @@ class UnscannedModules {
     }
 
     /**
-     * Get the classpath elements that were created for the modules that were looked
-     * in, so that {@link ClasspathElement#setScanResult(ScanResult)} can be called
-     * on them.
+     * Get the classpath elements that were created for the modules that were looked in, so that
+     * {@link ClasspathElement#setScanResult(ScanResult)} can be called on them.
      *
      * @return the classpath elements
      */
@@ -149,8 +148,8 @@ class UnscannedModules {
     }
 
     /**
-     * Get the map from the name of a package to the module that contains the
-     * package, building it if this is the first lookup.
+     * Get the map from the name of a package to the module that contains the package, building it if this is the
+     * first lookup.
      *
      * @return the map from package name to module
      */
@@ -171,14 +170,16 @@ class UnscannedModules {
     }
 
     /**
-     * Get the classpath element for a module that is not being scanned, opening the
-     * module if this is the first time it has been looked in.
+     * Get the classpath element for a module that is not being scanned, opening the module if this is the first
+     * time it has been looked in.
      *
-     * @param moduleRef the module
-     * @param log       the log node, or null to skip logging
+     * @param moduleRef
+     *            the module
+     * @param log
+     *            the log node, or null to skip logging
      * @return the classpath element for the module
-     * @throws InterruptedException if the thread was interrupted while opening the
-     *                              module
+     * @throws InterruptedException
+     *             if the thread was interrupted while opening the module
      */
     private ClasspathElementModule classpathElementForModule(final ModuleRef moduleRef, final @Nullable LogNode log)
             throws InterruptedException {

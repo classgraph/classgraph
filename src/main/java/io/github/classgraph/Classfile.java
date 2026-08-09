@@ -52,20 +52,16 @@ import nonapi.io.github.classgraph.utils.StringUtils;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A classfile binary format parser. Implements its own buffering to avoid the
- * overhead of using DataInputStream. This class should only be used by a single
- * thread at a time, but can be re-used to scan multiple classfiles in sequence,
- * to avoid re-allocating buffer memory.
+ * A classfile binary format parser. Implements its own buffering to avoid the overhead of using DataInputStream.
+ * This class should only be used by a single thread at a time, but can be re-used to scan multiple classfiles in
+ * sequence, to avoid re-allocating buffer memory.
  *
  * <p>
- * See
- * <a href="https://docs.oracle.com/javase/specs/jvms/se16/html/jvms-4.html">the
- * class file format spec</a>.
+ * See <a href="https://docs.oracle.com/javase/specs/jvms/se16/html/jvms-4.html">the class file format spec</a>.
  */
 class Classfile {
     /**
-     * The {@link ClassfileReader} for the current classfile, or null once the
-     * classfile has been read.
+     * The {@link ClassfileReader} for the current classfile, or null once the classfile has been read.
      */
     private @Nullable ClassfileReader reader;
 
@@ -76,8 +72,8 @@ class Classfile {
     private final List<ClasspathElement> classpathOrder;
 
     /**
-     * The modules that are not being scanned, but whose classfiles may still be read
-     * in order to complete the class graph above an accepted class.
+     * The modules that are not being scanned, but whose classfiles may still be read in order to complete the class
+     * graph above an accepted class.
      */
     private final UnscannedModules unscannedModules;
 
@@ -115,8 +111,7 @@ class Classfile {
     private boolean isAnnotation;
 
     /**
-     * The superclass name. (can be null if no superclass, or if superclass is
-     * rejected.)
+     * The superclass name. (can be null if no superclass, or if superclass is rejected.)
      */
     private @Nullable String superclassName;
 
@@ -156,15 +151,13 @@ class Classfile {
     private @Nullable List<ClassTypeAnnotationDecorator> classTypeAnnotationDecorators;
 
     /**
-     * The names of accepted classes found in the classpath while scanning paths
-     * within classpath elements.
+     * The names of accepted classes found in the classpath while scanning paths within classpath elements.
      */
     private final Set<String> acceptedClassNamesFound;
 
     /**
-     * The names of external (non-accepted) classes scheduled for extended scanning
-     * (where scanning is extended upwards to superclasses, interfaces and
-     * annotations).
+     * The names of external (non-accepted) classes scheduled for extended scanning (where scanning is extended
+     * upwards to superclasses, interfaces and annotations).
      */
     private final Set<String> classNamesScheduledForExtendedScanning;
 
@@ -194,7 +187,8 @@ class Classfile {
      * Get the {@link ClassfileReader} for the current classfile.
      *
      * @return the reader
-     * @throws NullPointerException if the classfile has already been read.
+     * @throws NullPointerException
+     *             if the classfile has already been read.
      */
     private ClassfileReader reader() {
         return Objects.requireNonNull(reader);
@@ -210,9 +204,12 @@ class Classfile {
     /**
      * Class containment.
      *
-     * @param innerClassName         the inner class name.
-     * @param innerClassModifierBits the inner class modifier bits.
-     * @param outerClassName         the outer class name.
+     * @param innerClassName
+     *            the inner class name.
+     * @param innerClassModifierBits
+     *            the inner class modifier bits.
+     * @param outerClassName
+     *            the outer class name.
      */
     record ClassContainment(String innerClassName, int innerClassModifierBits, String outerClassName) {
     }
@@ -227,7 +224,8 @@ class Classfile {
         /**
          * Constructor.
          *
-         * @param message the message
+         * @param message
+         *            the message
          */
         public ClassfileFormatException(final String message) {
             super(message);
@@ -236,8 +234,10 @@ class Classfile {
         /**
          * Constructor.
          *
-         * @param message the message
-         * @param cause   the cause
+         * @param message
+         *            the message
+         * @param cause
+         *            the cause
          */
         public ClassfileFormatException(final String message, final Throwable cause) {
             super(message, cause);
@@ -262,7 +262,8 @@ class Classfile {
         /**
          * Constructor.
          *
-         * @param message the message
+         * @param message
+         *            the message
          */
         public SkipClassException(final String message) {
             super(message);
@@ -284,10 +285,14 @@ class Classfile {
     /**
      * Extend scanning to a superclass, interface or annotation.
      *
-     * @param className    the class name
-     * @param relationship the relationship type
-     * @param log          the log node, or null to skip logging
-     * @throws InterruptedException if the thread was interrupted
+     * @param className
+     *            the class name
+     * @param relationship
+     *            the relationship type
+     * @param log
+     *            the log node, or null to skip logging
+     * @throws InterruptedException
+     *             if the thread was interrupted
      */
     private void scheduleScanningIfExternalClass(final @Nullable String className, final String relationship,
             final @Nullable LogNode log) throws InterruptedException {
@@ -350,10 +355,11 @@ class Classfile {
                         // external class is not scanned at the regular place in the classpath element
                         // hierarchy
                         // traversal
-                        classResource.scanLog = log.log("Extending scanning to external " + relationship
-                                + (foundInClasspathElt == classpathElement ? " in same classpath element"
-                                        : " in classpath element " + foundInClasspathElt)
-                                + ": " + className);
+                        classResource.scanLog = log
+                                .log("Extending scanning to external " + relationship
+                                        + (foundInClasspathElt == classpathElement ? " in same classpath element"
+                                                : " in classpath element " + foundInClasspathElt)
+                                        + ": " + className);
                     }
                     if (additionalWorkUnits == null) {
                         additionalWorkUnits = new ArrayList<>();
@@ -372,14 +378,15 @@ class Classfile {
     }
 
     /**
-     * Check if scanning needs to be extended upwards from an annotation parameter
-     * value.
+     * Check if scanning needs to be extended upwards from an annotation parameter value.
      *
-     * @param annotationParamVal the {@link AnnotationInfo} object for an
-     *                           annotation, or for an annotation parameter value,
-     *                           or null.
-     * @param log                the log node, or null to skip logging
-     * @throws InterruptedException if the thread was interrupted
+     * @param annotationParamVal
+     *            the {@link AnnotationInfo} object for an annotation, or for an annotation parameter value, or
+     *            null.
+     * @param log
+     *            the log node, or null to skip logging
+     * @throws InterruptedException
+     *             if the thread was interrupted
      */
     private void extendScanningUpwardsFromAnnotationParameterValues(final @Nullable Object annotationParamVal,
             final @Nullable LogNode log) throws InterruptedException {
@@ -404,11 +411,12 @@ class Classfile {
     }
 
     /**
-     * Check if scanning needs to be extended upwards to an external superclass,
-     * interface or annotation.
+     * Check if scanning needs to be extended upwards to an external superclass, interface or annotation.
      *
-     * @param log the log node, or null to skip logging
-     * @throws InterruptedException if the thread was interrupted
+     * @param log
+     *            the log node, or null to skip logging
+     * @throws InterruptedException
+     *             if the thread was interrupted
      */
     private void extendScanningUpwards(final @Nullable LogNode log) throws InterruptedException {
         // Check superclass
@@ -442,7 +450,8 @@ class Classfile {
                         scheduleScanningIfExternalClass(methodAnnotationInfo.getName(), "method annotation", log);
                         extendScanningUpwardsFromAnnotationParameterValues(methodAnnotationInfo, log);
                     }
-                    if (methodInfo.parameterAnnotationInfo != null && methodInfo.parameterAnnotationInfo.length > 0) {
+                    if (methodInfo.parameterAnnotationInfo != null
+                            && methodInfo.parameterAnnotationInfo.length > 0) {
                         for (final AnnotationInfo[] paramAnnInfoArr : methodInfo.parameterAnnotationInfo) {
                             if (paramAnnInfoArr != null && paramAnnInfoArr.length > 0) {
                                 for (final AnnotationInfo paramAnnInfo : paramAnnInfoArr) {
@@ -488,9 +497,12 @@ class Classfile {
     /**
      * Link classes. Not threadsafe, should be run in a single-threaded context.
      *
-     * @param classNameToClassInfo     map from class name to class info
-     * @param packageNameToPackageInfo map from package name to package info
-     * @param moduleNameToModuleInfo   map from module name to module info
+     * @param classNameToClassInfo
+     *            map from class name to class info
+     * @param packageNameToPackageInfo
+     *            map from package name to package info
+     * @param moduleNameToModuleInfo
+     *            map from module name to module info
      */
     void link(final Map<String, ClassInfo> classNameToClassInfo,
             final Map<String, PackageInfo> packageNameToPackageInfo,
@@ -610,7 +622,8 @@ class Classfile {
     /**
      * Intern a string.
      *
-     * @param str the str
+     * @param str
+     *            the str
      * @return the interned string, or null if str is null
      */
     private @Nullable String intern(final @Nullable String str) {
@@ -625,18 +638,19 @@ class Classfile {
     }
 
     /**
-     * Get the byte offset within the buffer of a string from the constant pool, or
-     * 0 for a null string.
+     * Get the byte offset within the buffer of a string from the constant pool, or 0 for a null string.
      *
-     * @param cpIdx       the constant pool index
-     * @param subFieldIdx should be 0 for CONSTANT_Utf8, CONSTANT_Class and
-     *                    CONSTANT_String, and for CONSTANT_NameAndType_info,
-     *                    fetches the name for value 0, or the type descriptor for
-     *                    value 1.
+     * @param cpIdx
+     *            the constant pool index
+     * @param subFieldIdx
+     *            should be 0 for CONSTANT_Utf8, CONSTANT_Class and CONSTANT_String, and for
+     *            CONSTANT_NameAndType_info, fetches the name for value 0, or the type descriptor for value 1.
      * @return the constant pool string offset
-     * @throws ClassfileFormatException If a problem is detected
+     * @throws ClassfileFormatException
+     *             If a problem is detected
      */
-    private int getConstantPoolStringOffset(final int cpIdx, final int subFieldIdx) throws ClassfileFormatException {
+    private int getConstantPoolStringOffset(final int cpIdx, final int subFieldIdx)
+            throws ClassfileFormatException {
         if (cpIdx < 1 || cpIdx >= cpCount) {
             throw new ClassfileFormatException("Constant pool index " + cpIdx + ", should be in range [1, "
                     + (cpCount - 1) + "] -- cannot continue reading class. "
@@ -704,14 +718,18 @@ class Classfile {
     /**
      * Get a string from the constant pool, optionally replacing '/' with '.'.
      *
-     * @param cpIdx               the constant pool index
-     * @param replaceSlashWithDot if true, replace slash with dot in the result.
-     * @param stripLSemicolon     if true, strip 'L' from the beginning and ';' from
-     *                            the end before returning (for class reference
-     *                            constants)
+     * @param cpIdx
+     *            the constant pool index
+     * @param replaceSlashWithDot
+     *            if true, replace slash with dot in the result.
+     * @param stripLSemicolon
+     *            if true, strip 'L' from the beginning and ';' from the end before returning (for class reference
+     *            constants)
      * @return the constant pool string
-     * @throws ClassfileFormatException If a problem occurs.
-     * @throws IOException              If an IO exception occurs.
+     * @throws ClassfileFormatException
+     *             If a problem occurs.
+     * @throws IOException
+     *             If an IO exception occurs.
      */
     private @Nullable String getConstantPoolString(final int cpIdx, final boolean replaceSlashWithDot,
             final boolean stripLSemicolon) throws ClassfileFormatException, IOException {
@@ -723,20 +741,23 @@ class Classfile {
         if (utfLen == 0) {
             return "";
         }
-        return intern(reader().readString(constantPoolStringOffset + 2L, utfLen, replaceSlashWithDot, stripLSemicolon));
+        return intern(
+                reader().readString(constantPoolStringOffset + 2L, utfLen, replaceSlashWithDot, stripLSemicolon));
     }
 
     /**
      * Get a string from the constant pool.
      *
-     * @param cpIdx       the constant pool index
-     * @param subFieldIdx should be 0 for CONSTANT_Utf8, CONSTANT_Class and
-     *                    CONSTANT_String, and for CONSTANT_NameAndType_info,
-     *                    fetches the name for value 0, or the type descriptor for
-     *                    value 1.
+     * @param cpIdx
+     *            the constant pool index
+     * @param subFieldIdx
+     *            should be 0 for CONSTANT_Utf8, CONSTANT_Class and CONSTANT_String, and for
+     *            CONSTANT_NameAndType_info, fetches the name for value 0, or the type descriptor for value 1.
      * @return the constant pool string
-     * @throws ClassfileFormatException If a problem occurs.
-     * @throws IOException              If an IO exception occurs.
+     * @throws ClassfileFormatException
+     *             If a problem occurs.
+     * @throws IOException
+     *             If an IO exception occurs.
      */
     private @Nullable String getConstantPoolString(final int cpIdx, final int subFieldIdx)
             throws ClassfileFormatException, IOException {
@@ -755,26 +776,30 @@ class Classfile {
     /**
      * Get a string from the constant pool.
      *
-     * @param cpIdx the constant pool index
+     * @param cpIdx
+     *            the constant pool index
      * @return the constant pool string
-     * @throws ClassfileFormatException If a problem occurs.
-     * @throws IOException              If an IO exception occurs.
+     * @throws ClassfileFormatException
+     *             If a problem occurs.
+     * @throws IOException
+     *             If an IO exception occurs.
      */
     private @Nullable String getConstantPoolString(final int cpIdx) throws ClassfileFormatException, IOException {
         return getConstantPoolString(cpIdx, /* subFieldIdx = */ 0);
     }
 
     /**
-     * Check that a string read from the constant pool is non-null. The constant
-     * pool string accessors return null only for a null string reference (a zero
-     * index), which cannot occur in a valid classfile in the positions this method
-     * is used to check.
+     * Check that a string read from the constant pool is non-null. The constant pool string accessors return null
+     * only for a null string reference (a zero index), which cannot occur in a valid classfile in the positions
+     * this method is used to check.
      *
-     * @param str         the string that was read from the constant pool
-     * @param description a description of what the string represents, for the
-     *                    exception message
+     * @param str
+     *            the string that was read from the constant pool
+     * @param description
+     *            a description of what the string represents, for the exception message
      * @return the string
-     * @throws ClassfileFormatException If the string is null.
+     * @throws ClassfileFormatException
+     *             If the string is null.
      */
     private String requireConstantPoolString(final @Nullable String str, final String description)
             throws ClassfileFormatException {
@@ -786,13 +811,15 @@ class Classfile {
     }
 
     /**
-     * Get the first UTF8 byte of a string in the constant pool, or '\0' if the
-     * string is null or empty.
+     * Get the first UTF8 byte of a string in the constant pool, or '\0' if the string is null or empty.
      *
-     * @param cpIdx the constant pool index
+     * @param cpIdx
+     *            the constant pool index
      * @return the first byte of the constant pool string
-     * @throws ClassfileFormatException If a problem occurs.
-     * @throws IOException              If an IO exception occurs.
+     * @throws ClassfileFormatException
+     *             If a problem occurs.
+     * @throws IOException
+     *             If an IO exception occurs.
      */
     private byte getConstantPoolStringFirstByte(final int cpIdx) throws ClassfileFormatException, IOException {
         final var constantPoolStringOffset = getConstantPoolStringOffset(cpIdx, /* subFieldIdx = */ 0);
@@ -807,13 +834,15 @@ class Classfile {
     }
 
     /**
-     * Get a string from the constant pool, and interpret it as a class name by
-     * replacing '/' with '.'.
+     * Get a string from the constant pool, and interpret it as a class name by replacing '/' with '.'.
      *
-     * @param cpIdx the constant pool index
+     * @param cpIdx
+     *            the constant pool index
      * @return the constant pool class name
-     * @throws ClassfileFormatException If a problem occurs.
-     * @throws IOException              If an IO exception occurs.
+     * @throws ClassfileFormatException
+     *             If a problem occurs.
+     * @throws IOException
+     *             If an IO exception occurs.
      */
     private @Nullable String getConstantPoolClassName(final int cpIdx)
             throws ClassfileFormatException, IOException {
@@ -821,15 +850,17 @@ class Classfile {
     }
 
     /**
-     * Get a string from the constant pool representing an internal string
-     * descriptor for a class name ("Lcom/xyz/MyClass;"), and interpret it as a
-     * class name by replacing '/' with '.', and removing the leading "L" and the
-     * trailing ";".
+     * Get a string from the constant pool representing an internal string descriptor for a class name
+     * ("Lcom/xyz/MyClass;"), and interpret it as a class name by replacing '/' with '.', and removing the leading
+     * "L" and the trailing ";".
      *
-     * @param cpIdx the constant pool index
+     * @param cpIdx
+     *            the constant pool index
      * @return the constant pool class descriptor
-     * @throws ClassfileFormatException If a problem occurs.
-     * @throws IOException              If an IO exception occurs.
+     * @throws ClassfileFormatException
+     *             If a problem occurs.
+     * @throws IOException
+     *             If an IO exception occurs.
      */
     private @Nullable String getConstantPoolClassDescriptor(final int cpIdx)
             throws ClassfileFormatException, IOException {
@@ -837,14 +868,18 @@ class Classfile {
     }
 
     /**
-     * Compare a string in the constant pool with a given ASCII string, without
-     * constructing the constant pool String object.
+     * Compare a string in the constant pool with a given ASCII string, without constructing the constant pool
+     * String object.
      *
-     * @param cpIdx    the constant pool index
-     * @param asciiStr the ASCII string to compare to
+     * @param cpIdx
+     *            the constant pool index
+     * @param asciiStr
+     *            the ASCII string to compare to
      * @return true, if successful
-     * @throws ClassfileFormatException If a problem occurs.
-     * @throws IOException              If an IO exception occurs.
+     * @throws ClassfileFormatException
+     *             If a problem occurs.
+     * @throws IOException
+     *             If an IO exception occurs.
      */
     private boolean constantPoolStringEquals(final int cpIdx, final @Nullable String asciiStr)
             throws ClassfileFormatException, IOException {
@@ -875,9 +910,11 @@ class Classfile {
     /**
      * Read an int from the constant pool.
      *
-     * @param cpIdx the constant pool index.
+     * @param cpIdx
+     *            the constant pool index.
      * @return the int
-     * @throws IOException If an I/O exception occurred.
+     * @throws IOException
+     *             If an I/O exception occurred.
      */
     private int cpReadInt(final int cpIdx) throws IOException {
         if (cpIdx < 1 || cpIdx >= cpCount) {
@@ -891,9 +928,11 @@ class Classfile {
     /**
      * Read a long from the constant pool.
      *
-     * @param cpIdx the constant pool index.
+     * @param cpIdx
+     *            the constant pool index.
      * @return the long
-     * @throws IOException If an I/O exception occurred.
+     * @throws IOException
+     *             If an I/O exception occurred.
      */
     private long cpReadLong(final int cpIdx) throws IOException {
         if (cpIdx < 1 || cpIdx >= cpCount) {
@@ -909,14 +948,17 @@ class Classfile {
     /**
      * Get a field constant from the constant pool.
      *
-     * @param tag                          the tag
-     * @param fieldTypeDescriptorFirstChar the first char of the field type
-     *                                     descriptor
-     * @param cpIdx                        the constant pool index
-     * @return the field constant pool value, or null if the constant pool entry is
-     *         a null string reference
-     * @throws ClassfileFormatException If a problem occurs.
-     * @throws IOException              If an IO exception occurs.
+     * @param tag
+     *            the tag
+     * @param fieldTypeDescriptorFirstChar
+     *            the first char of the field type descriptor
+     * @param cpIdx
+     *            the constant pool index
+     * @return the field constant pool value, or null if the constant pool entry is a null string reference
+     * @throws ClassfileFormatException
+     *             If a problem occurs.
+     * @throws IOException
+     *             If an IO exception occurs.
      */
     private @Nullable Object getFieldConstantPoolValue(final int tag, final char fieldTypeDescriptorFirstChar,
             final int cpIdx) throws ClassfileFormatException, IOException {
@@ -963,7 +1005,8 @@ class Classfile {
      * Read annotation entry from classfile.
      *
      * @return the annotation, as an {@link AnnotationInfo} object.
-     * @throws IOException If an IO exception occurs.
+     * @throws IOException
+     *             If an IO exception occurs.
      */
     private AnnotationInfo readAnnotation() throws IOException {
         // Lcom/xyz/Annotation; -> Lcom.xyz.Annotation;
@@ -974,8 +1017,8 @@ class Classfile {
         if (numElementValuePairs > 0) {
             paramVals = new AnnotationParameterValueList(numElementValuePairs);
             for (var i = 0; i < numElementValuePairs; i++) {
-                final var paramName = requireConstantPoolString(
-                        getConstantPoolString(reader().readUnsignedShort()), "annotation parameter name");
+                final var paramName = requireConstantPoolString(getConstantPoolString(reader().readUnsignedShort()),
+                        "annotation parameter name");
                 final var paramValue = readAnnotationElementValue();
                 paramVals.add(new AnnotationParameterValue(paramName, paramValue));
             }
@@ -987,7 +1030,8 @@ class Classfile {
      * Read annotation element value from classfile.
      *
      * @return the annotation element value
-     * @throws IOException If an IO exception occurs.
+     * @throws IOException
+     *             If an IO exception occurs.
      */
     private Object readAnnotationElementValue() throws IOException {
         final var tag = reader().readUnsignedByte();
@@ -1040,58 +1084,56 @@ class Classfile {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Adds a type annotation to the part of a class type signature that a type
-     * annotation's target info points at.
+     * Adds a type annotation to the part of a class type signature that a type annotation's target info points at.
      */
     @FunctionalInterface
     interface ClassTypeAnnotationDecorator {
         /**
          * Add the type annotation to the class type signature.
          *
-         * @param classTypeSignature the class type signature to decorate
+         * @param classTypeSignature
+         *            the class type signature to decorate
          */
         void decorate(ClassTypeSignature classTypeSignature);
     }
 
     /**
-     * Adds a type annotation to the part of a method type signature that a type
-     * annotation's target info points at.
+     * Adds a type annotation to the part of a method type signature that a type annotation's target info points at.
      */
     @FunctionalInterface
     interface MethodTypeAnnotationDecorator {
         /**
          * Add the type annotation to the method type signature.
          *
-         * @param methodTypeSignature the method type signature to decorate
+         * @param methodTypeSignature
+         *            the method type signature to decorate
          */
         void decorate(MethodTypeSignature methodTypeSignature);
     }
 
     /**
-     * Adds a type annotation to the part of a type signature that a type
-     * annotation's type path points at.
+     * Adds a type annotation to the part of a type signature that a type annotation's type path points at.
      */
     @FunctionalInterface
     interface TypeAnnotationDecorator {
         /**
          * Add the type annotation to the type signature.
          *
-         * @param typeSignature the type signature to decorate
+         * @param typeSignature
+         *            the type signature to decorate
          */
         void decorate(TypeSignature typeSignature);
     }
 
     /**
-     * One step of a type annotation's {@code type_path}, which navigates from the
-     * type named by the target info to the nested type that the annotation actually
-     * applies to.
+     * One step of a type annotation's {@code type_path}, which navigates from the type named by the target info to
+     * the nested type that the annotation actually applies to.
      *
-     * @param typePathKind    the kind of step to take: 0 to descend into an array
-     *                        type, 1 to descend into the enclosing type of a nested
-     *                        type, 2 to move to the bound of a wildcard type
-     *                        argument, or 3 to move to a type argument
-     * @param typeArgumentIdx the index of the type argument to move to, if
-     *                        {@code typePathKind} is 3, otherwise 0
+     * @param typePathKind
+     *            the kind of step to take: 0 to descend into an array type, 1 to descend into the enclosing type of
+     *            a nested type, 2 to move to the bound of a wildcard type argument, or 3 to move to a type argument
+     * @param typeArgumentIdx
+     *            the index of the type argument to move to, if {@code typePathKind} is 3, otherwise 0
      */
     record TypePathNode(short typePathKind, short typeArgumentIdx) {
         @Override
@@ -1103,9 +1145,10 @@ class Classfile {
     /**
      * Read a type annotation's {@code type_path} structure.
      *
-     * @return the steps of the type path, or the empty list if the annotation
-     *         applies directly to the type named by the target info
-     * @throws IOException if the classfile could not be read
+     * @return the steps of the type path, or the empty list if the annotation applies directly to the type named by
+     *         the target info
+     * @throws IOException
+     *             if the classfile could not be read
      */
     private List<TypePathNode> readTypePath() throws IOException {
         final var typePathLength = reader().readUnsignedByte();
@@ -1125,19 +1168,16 @@ class Classfile {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Read only the name of the class defined by a classfile, skipping everything
-     * else. This is a cut-down version of {@link #readConstantPoolEntries(LogNode)}
-     * followed by {@link #readBasicClassInfo()}, for the case where a classfile has
-     * to be read before scanning has started, so none of the scanning context
-     * needed by the {@link Classfile} constructor is available yet. (Used to check
-     * whether a candidate package root really is a package root -- see
-     * {@link ClasspathElement#getClassNameDisprovingPackageRoot(ClassfileReader, String)}.)
+     * Read only the name of the class defined by a classfile, skipping everything else. This is a cut-down version
+     * of {@link #readConstantPoolEntries(LogNode)} followed by {@link #readBasicClassInfo()}, for the case where a
+     * classfile has to be read before scanning has started, so none of the scanning context needed by the
+     * {@link Classfile} constructor is available yet. (Used to check whether a candidate package root really is a
+     * package root -- see {@link ClasspathElement#getClassNameDisprovingPackageRoot(ClassfileReader, String)}.)
      *
-     * @param reader a reader for the classfile.
-     * @return the name of the class defined by the classfile, in binary form, with
-     *         {@code '/'} as the package separator (e.g.
-     *         {@code "java/lang/String"}), or null if the class name could not be
-     *         read.
+     * @param reader
+     *            a reader for the classfile.
+     * @return the name of the class defined by the classfile, in binary form, with {@code '/'} as the package
+     *         separator (e.g. {@code "java/lang/String"}), or null if the class name could not be read.
      */
     static @Nullable String readClassName(final ClassfileReader reader) {
         try {
@@ -1213,8 +1253,10 @@ class Classfile {
     /**
      * Read constant pool entries.
      *
-     * @param log The log
-     * @throws IOException Signals that an I/O exception has occurred.
+     * @param log
+     *            The log
+     * @throws IOException
+     *             Signals that an I/O exception has occurred.
      */
     private void readConstantPoolEntries(final @Nullable LogNode log) throws IOException {
         // Only record class dependency info if inter-class dependencies are enabled
@@ -1364,7 +1406,8 @@ class Classfile {
                             typeSig.findReferencedClassNames(refdClassNamesSet);
                         } else if (typeSigStr.indexOf('(') >= 0 || "<init>".equals(typeSigStr)) {
                             // Parse the type signature
-                            final var typeSig = MethodTypeSignature.parse(typeSigStr, /* definingClassName = */ null);
+                            final var typeSig = MethodTypeSignature.parse(typeSigStr,
+                                    /* definingClassName = */ null);
                             // Extract class names from type signature
                             typeSig.findReferencedClassNames(refdClassNamesSet);
                         } else {
@@ -1375,8 +1418,8 @@ class Classfile {
                         }
                     } catch (final ParseException e) {
                         if (log != null) {
-                            log.log("Could not extract referenced class names from constant pool string: " + typeSigStr
-                                    + " : " + e);
+                            log.log("Could not extract referenced class names from constant pool string: "
+                                    + typeSigStr + " : " + e);
                         }
                     }
                 }
@@ -1389,11 +1432,13 @@ class Classfile {
     /**
      * Read basic class information.
      *
-     * @throws IOException              if an I/O exception occurs.
-     * @throws ClassfileFormatException if the classfile is incorrectly formatted.
-     * @throws SkipClassException       if the classfile needs to be skipped (e.g.
-     *                                  the class is non-public, and
-     *                                  ignoreClassVisibility is false)
+     * @throws IOException
+     *             if an I/O exception occurs.
+     * @throws ClassfileFormatException
+     *             if the classfile is incorrectly formatted.
+     * @throws SkipClassException
+     *             if the classfile needs to be skipped (e.g. the class is non-public, and ignoreClassVisibility is
+     *             false)
      */
     private void readBasicClassInfo() throws IOException, ClassfileFormatException, SkipClassException {
         // Modifier flags
@@ -1424,7 +1469,8 @@ class Classfile {
         }
         final var len = classNamePath.length();
         if (relativePath.length() != len + 6 || !classNamePath.regionMatches(0, relativePath, 0, len)) {
-            throw new SkipClassException("Relative path " + relativePath + " does not match class name " + className);
+            throw new SkipClassException(
+                    "Relative path " + relativePath + " does not match class name " + className);
         }
 
         // Superclass name, with slashes replaced with dots
@@ -1439,7 +1485,8 @@ class Classfile {
     /**
      * Read the class' interfaces.
      *
-     * @throws IOException if an I/O exception occurs.
+     * @throws IOException
+     *             if an I/O exception occurs.
      */
     private void readInterfaces() throws IOException {
         // Interfaces
@@ -1458,8 +1505,10 @@ class Classfile {
     /**
      * Read the class' fields.
      *
-     * @throws IOException              if an I/O exception occurs.
-     * @throws ClassfileFormatException if the classfile is incorrectly formatted.
+     * @throws IOException
+     *             if an I/O exception occurs.
+     * @throws ClassfileFormatException
+     *             if the classfile is incorrectly formatted.
      */
     private void readFields() throws IOException, ClassfileFormatException {
         // Fields
@@ -1485,7 +1534,8 @@ class Classfile {
                 }
             } else {
                 final var fieldNameCpIdx = reader().readUnsignedShort();
-                final var fieldName = requireConstantPoolString(getConstantPoolString(fieldNameCpIdx), "field name");
+                final var fieldName = requireConstantPoolString(getConstantPoolString(fieldNameCpIdx),
+                        "field name");
                 final var fieldTypeDescriptorCpIdx = reader().readUnsignedShort();
                 final var fieldTypeDescriptorFirstChar = (char) getConstantPoolStringFirstByte(
                         fieldTypeDescriptorCpIdx);
@@ -1506,10 +1556,10 @@ class Classfile {
                         // http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.2
                         final var cpIdx = reader().readUnsignedShort();
                         if (cpIdx < 1 || cpIdx >= cpCount) {
-                            throw new ClassfileFormatException(
-                                    "Constant pool index " + cpIdx + ", should be in range [1, " + (cpCount - 1)
-                                            + "] -- cannot continue reading class. "
-                                            + "Please report this at https://github.com/classgraph/classgraph/issues");
+                            throw new ClassfileFormatException("Constant pool index " + cpIdx
+                                    + ", should be in range [1, " + (cpCount - 1)
+                                    + "] -- cannot continue reading class. "
+                                    + "Please report this at https://github.com/classgraph/classgraph/issues");
                         }
                         fieldConstValue = getFieldConstantPoolValue(entryTag[cpIdx], fieldTypeDescriptorFirstChar,
                                 cpIdx);
@@ -1577,8 +1627,10 @@ class Classfile {
     /**
      * Read the class' methods.
      *
-     * @throws IOException              if an I/O exception occurs.
-     * @throws ClassfileFormatException if the classfile is incorrectly formatted.
+     * @throws IOException
+     *             if an I/O exception occurs.
+     * @throws ClassfileFormatException
+     *             if the classfile is incorrectly formatted.
      */
     private void readMethods() throws IOException, ClassfileFormatException {
         // Methods
@@ -1631,10 +1683,10 @@ class Classfile {
                 for (var j = 0; j < attributesCount; j++) {
                     final var attributeNameCpIdx = reader().readUnsignedShort();
                     final var attributeLength = reader().readInt();
-                    if (scanSpec.enableAnnotationInfo && (constantPoolStringEquals(attributeNameCpIdx,
-                            "RuntimeVisibleAnnotations")
-                            || (!scanSpec.disableRuntimeInvisibleAnnotations
-                                    && constantPoolStringEquals(attributeNameCpIdx, "RuntimeInvisibleAnnotations")))) {
+                    if (scanSpec.enableAnnotationInfo
+                            && (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleAnnotations")
+                                    || (!scanSpec.disableRuntimeInvisibleAnnotations && constantPoolStringEquals(
+                                            attributeNameCpIdx, "RuntimeInvisibleAnnotations")))) {
                         final var methodAnnotationCount = reader().readUnsignedShort();
                         if (methodAnnotationCount > 0) {
                             if (methodAnnotationInfo == null) {
@@ -1672,8 +1724,8 @@ class Classfile {
                                 var annStartIdx = 0;
                                 if (methodParameterAnnotations[paramIdx] != null) {
                                     annStartIdx = methodParameterAnnotations[paramIdx].length;
-                                    methodParameterAnnotations[paramIdx] = Arrays
-                                            .copyOf(methodParameterAnnotations[paramIdx], annStartIdx + numAnnotations);
+                                    methodParameterAnnotations[paramIdx] = Arrays.copyOf(
+                                            methodParameterAnnotations[paramIdx], annStartIdx + numAnnotations);
                                 } else {
                                     methodParameterAnnotations[paramIdx] = new AnnotationInfo[numAnnotations];
                                 }
@@ -1757,11 +1809,12 @@ class Classfile {
                                     formalParameterIndex = -1;
                                     throwsTypeIndex = reader().readUnsignedShort();
                                 }
-                                default -> throw new ClassfileFormatException("Class " + className
-                                        + " has unknown method type annotation target 0x"
-                                        + Integer.toHexString(targetType)
-                                        + ": element size unknown, cannot continue reading class. "
-                                        + "Please report this at " + "https://github.com/classgraph/classgraph/issues");
+                                default -> throw new ClassfileFormatException(
+                                        "Class " + className + " has unknown method type annotation target 0x"
+                                                + Integer.toHexString(targetType)
+                                                + ": element size unknown, cannot continue reading class. "
+                                                + "Please report this at "
+                                                + "https://github.com/classgraph/classgraph/issues");
                                 }
                                 final var typePath = readTypePath();
                                 final var annotationInfo = readAnnotation();
@@ -1803,7 +1856,8 @@ class Classfile {
                                     }
                                     case 0x14 ->
                                         // Return type of method, or type of newly constructed object
-                                        methodTypeSignature.getResultType().addTypeAnnotation(typePath, annotationInfo);
+                                        methodTypeSignature.getResultType().addTypeAnnotation(typePath,
+                                                annotationInfo);
                                     case 0x15 ->
                                         // Receiver type of method or constructor (explicit receiver parameter)
                                         methodTypeSignature.addReceiverTypeAnnotation(annotationInfo);
@@ -1908,10 +1962,10 @@ class Classfile {
                     if (methodInfoList == null) {
                         methodInfoList = new MethodInfoList();
                     }
-                    methodInfoList.add(new MethodInfo(className, methodName, methodAnnotationInfo, methodModifierFlags,
-                            methodTypeDescriptor, methodTypeSignatureStr, methodParameterNames,
-                            methodParameterModifiers, methodParameterAnnotations, methodHasBody, minLineNum, maxLineNum,
-                            methodTypeAnnotationDecorators, thrownExceptionNames));
+                    methodInfoList.add(new MethodInfo(className, methodName, methodAnnotationInfo,
+                            methodModifierFlags, methodTypeDescriptor, methodTypeSignatureStr, methodParameterNames,
+                            methodParameterModifiers, methodParameterAnnotations, methodHasBody, minLineNum,
+                            maxLineNum, methodTypeAnnotationDecorators, thrownExceptionNames));
                 }
             }
         }
@@ -1922,8 +1976,10 @@ class Classfile {
     /**
      * Read class attributes.
      *
-     * @throws IOException              if an I/O exception occurs.
-     * @throws ClassfileFormatException if the classfile is incorrectly formatted.
+     * @throws IOException
+     *             if an I/O exception occurs.
+     * @throws ClassfileFormatException
+     *             if the classfile is incorrectly formatted.
      */
     private void readClassAttributes() throws IOException, ClassfileFormatException {
         // Class attributes (including class annotations, class type variables, module
@@ -1934,8 +1990,8 @@ class Classfile {
             final var attributeLength = reader().readInt();
             if (scanSpec.enableAnnotationInfo //
                     && (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleAnnotations")
-                            || (!scanSpec.disableRuntimeInvisibleAnnotations
-                                    && constantPoolStringEquals(attributeNameCpIdx, "RuntimeInvisibleAnnotations")))) {
+                            || (!scanSpec.disableRuntimeInvisibleAnnotations && constantPoolStringEquals(
+                                    attributeNameCpIdx, "RuntimeInvisibleAnnotations")))) {
                 final var annotationCount = reader().readUnsignedShort();
                 if (annotationCount > 0) {
                     if (classAnnotations == null) {
@@ -1994,7 +2050,8 @@ class Classfile {
                                 // Type parameter declaration of generic class or interface
                                 final var typeParameters = classTypeSignature.getTypeParameters();
                                 if (typeParameters != null && typeParameterIndex < typeParameters.size()) {
-                                    typeParameters.get(typeParameterIndex).addTypeAnnotation(typePath, annotationInfo);
+                                    typeParameters.get(typeParameterIndex).addTypeAnnotation(typePath,
+                                            annotationInfo);
                                 }
                             }
                             case 0x10 -> {
@@ -2075,8 +2132,8 @@ class Classfile {
                             if (classContainmentEntries == null) {
                                 classContainmentEntries = new ArrayList<>();
                             }
-                            classContainmentEntries
-                                    .add(new ClassContainment(innerClassName, innerClassAccessFlags, outerClassName));
+                            classContainmentEntries.add(
+                                    new ClassContainment(innerClassName, innerClassAccessFlags, outerClassName));
                         }
                     }
                 }
@@ -2127,51 +2184,53 @@ class Classfile {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Directly examine contents of classfile binary header to determine
-     * annotations, implemented interfaces, the super-class etc. Creates a new
-     * ClassInfo object, and adds it to classNameToClassInfoOut. Assumes classpath
-     * masking has already been performed, so that only one class of a given name
-     * will be added.
+     * Directly examine contents of classfile binary header to determine annotations, implemented interfaces, the
+     * super-class etc. Creates a new ClassInfo object, and adds it to classNameToClassInfoOut. Assumes classpath
+     * masking has already been performed, so that only one class of a given name will be added.
      *
-     * @param classpathElement                       the classpath element
-     * @param classpathOrder                         the classpath order
-     * @param unscannedModules                       the modules that are not being
-     *                                               scanned, but whose classfiles
-     *                                               may still be read in order to
-     *                                               complete the class graph above
-     *                                               an accepted class
-     * @param acceptedClassNamesFound                the names of accepted classes
-     *                                               found in the classpath while
-     *                                               scanning paths within classpath
-     *                                               elements.
-     * @param classNamesScheduledForExtendedScanning the names of external
-     *                                               (non-accepted) classes
-     *                                               scheduled for extended scanning
-     *                                               (where scanning is extended
-     *                                               upwards to superclasses,
-     *                                               interfaces and annotations).
-     * @param relativePath                           the relative path
-     * @param classfileResource                      the classfile resource
-     * @param isExternalClass                        if this is an external class
-     * @param stringInternMap                        the string intern map
-     * @param workQueue                              the work queue
-     * @param scanSpec                               the scan spec
-     * @param log                                    the log node, or null to skip
-     *                                               logging
-     * @throws IOException              If an IO exception occurs.
-     * @throws ClassfileFormatException If a problem occurs while parsing the
-     *                                  classfile.
-     * @throws SkipClassException       if the classfile needs to be skipped (e.g.
-     *                                  the class is non-public, and
-     *                                  ignoreClassVisibility is false)
-     * @throws InterruptedException     if the thread was interrupted
+     * @param classpathElement
+     *            the classpath element
+     * @param classpathOrder
+     *            the classpath order
+     * @param unscannedModules
+     *            the modules that are not being scanned, but whose classfiles may still be read in order to
+     *            complete the class graph above an accepted class
+     * @param acceptedClassNamesFound
+     *            the names of accepted classes found in the classpath while scanning paths within classpath
+     *            elements.
+     * @param classNamesScheduledForExtendedScanning
+     *            the names of external (non-accepted) classes scheduled for extended scanning (where scanning is
+     *            extended upwards to superclasses, interfaces and annotations).
+     * @param relativePath
+     *            the relative path
+     * @param classfileResource
+     *            the classfile resource
+     * @param isExternalClass
+     *            if this is an external class
+     * @param stringInternMap
+     *            the string intern map
+     * @param workQueue
+     *            the work queue
+     * @param scanSpec
+     *            the scan spec
+     * @param log
+     *            the log node, or null to skip logging
+     * @throws IOException
+     *             If an IO exception occurs.
+     * @throws ClassfileFormatException
+     *             If a problem occurs while parsing the classfile.
+     * @throws SkipClassException
+     *             if the classfile needs to be skipped (e.g. the class is non-public, and ignoreClassVisibility is
+     *             false)
+     * @throws InterruptedException
+     *             if the thread was interrupted
      */
     Classfile(final ClasspathElement classpathElement, final List<ClasspathElement> classpathOrder,
             final UnscannedModules unscannedModules, final Set<String> acceptedClassNamesFound,
             final Set<String> classNamesScheduledForExtendedScanning, final String relativePath,
             final Resource classfileResource, final boolean isExternalClass,
-            final ConcurrentHashMap<String, String> stringInternMap, final WorkQueue<ClassfileScanWorkUnit> workQueue,
-            final ScanSpec scanSpec, final @Nullable LogNode log)
+            final ConcurrentHashMap<String, String> stringInternMap,
+            final WorkQueue<ClassfileScanWorkUnit> workQueue, final ScanSpec scanSpec, final @Nullable LogNode log)
             throws IOException, ClassfileFormatException, SkipClassException, InterruptedException {
         this.classpathElement = classpathElement;
         this.classpathOrder = classpathOrder;
@@ -2225,7 +2284,8 @@ class Classfile {
                         + " " + className);
         if (subLog != null) {
             if (superclassName != null) {
-                subLog.log("Super" + (isInterface && !isAnnotation ? "interface" : "class") + ": " + superclassName);
+                subLog.log(
+                        "Super" + (isInterface && !isAnnotation ? "interface" : "class") + ": " + superclassName);
             }
             if (implementedInterfaces != null) {
                 subLog.log("Interfaces: " + StringUtils.join(", ", implementedInterfaces));
@@ -2247,7 +2307,8 @@ class Classfile {
             if (methodInfoList != null) {
                 for (final MethodInfo methodInfo : methodInfoList) {
                     final var modifierStr = methodInfo.getModifiersString();
-                    subLog.log("Method: " + modifierStr + (modifierStr.isEmpty() ? "" : " ") + methodInfo.getName());
+                    subLog.log(
+                            "Method: " + modifierStr + (modifierStr.isEmpty() ? "" : " ") + methodInfo.getName());
                 }
             }
             if (typeSignatureStr != null) {

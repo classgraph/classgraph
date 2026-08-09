@@ -62,8 +62,7 @@ public class ScanSpec {
     public AcceptRejectWholeString packageAcceptReject = new AcceptRejectWholeString('.');
 
     /**
-     * Package prefix accept/reject criteria, for recursive scanning (with separator
-     * '.', ending in '.').
+     * Package prefix accept/reject criteria, for recursive scanning (with separator '.', ending in '.').
      */
     public AcceptRejectPrefix packagePrefixAcceptReject = new AcceptRejectPrefix('.');
 
@@ -71,20 +70,17 @@ public class ScanSpec {
     public AcceptRejectWholeString pathAcceptReject = new AcceptRejectWholeString('/');
 
     /**
-     * Path prefix accept/reject criteria, for recursive scanning (with separator
-     * '/', ending in '/').
+     * Path prefix accept/reject criteria, for recursive scanning (with separator '/', ending in '/').
      */
     public AcceptRejectPrefix pathPrefixAcceptReject = new AcceptRejectPrefix('/');
 
     /**
-     * Class accept/reject criteria (fully-qualified class names, with separator
-     * '.').
+     * Class accept/reject criteria (fully-qualified class names, with separator '.').
      */
     public AcceptRejectWholeString classAcceptReject = new AcceptRejectWholeString('.');
 
     /**
-     * Classfile accept/reject criteria (path to classfiles, with separator '/',
-     * ending in ".class").
+     * Classfile accept/reject criteria (path to classfiles, with separator '/', ending in ".class").
      */
     public AcceptRejectWholeString classfilePathAcceptReject = new AcceptRejectWholeString('/');
 
@@ -125,30 +121,26 @@ public class ScanSpec {
     public boolean enableClassInfo;
 
     /**
-     * If true, enables the saving of field info during the scan. This information
-     * can be obtained using {@link ClassInfo#getFieldInfo()}. By default, field
-     * info is not scanned, for efficiency.
+     * If true, enables the saving of field info during the scan. This information can be obtained using
+     * {@link ClassInfo#getFieldInfo()}. By default, field info is not scanned, for efficiency.
      */
     public boolean enableFieldInfo;
 
     /**
-     * If true, enables the saving of method info during the scan. This information
-     * can be obtained using {@link ClassInfo#getMethodInfo()}. By default, method
-     * info is not scanned, for efficiency.
+     * If true, enables the saving of method info during the scan. This information can be obtained using
+     * {@link ClassInfo#getMethodInfo()}. By default, method info is not scanned, for efficiency.
      */
     public boolean enableMethodInfo;
 
     /**
-     * If true, enables the saving of annotation info (for class, field, method or
-     * method parameter annotations) during the scan. This information can be
-     * obtained using {@link ClassInfo#getAllAnnotationInfo()} etc. By default,
-     * annotation info is not scanned, for efficiency.
+     * If true, enables the saving of annotation info (for class, field, method or method parameter annotations)
+     * during the scan. This information can be obtained using {@link ClassInfo#getAllAnnotationInfo()} etc. By
+     * default, annotation info is not scanned, for efficiency.
      */
     public boolean enableAnnotationInfo;
 
     /**
-     * Enable the storing of constant initializer values for static final fields in
-     * ClassInfo objects.
+     * Enable the storing of constant initializer values for static final fields in ClassInfo objects.
      */
     public boolean enableStaticFinalFieldConstantInitializerValues;
 
@@ -156,88 +148,78 @@ public class ScanSpec {
     public boolean enableInterClassDependencies;
 
     /**
-     * If true, allow external classes (classes outside of accepted packages) to be
-     * returned in the ScanResult, if they are directly referred to by an accepted
-     * class, as a superclass, implemented interface or annotation. Disabled by
-     * default.
+     * If true, allow external classes (classes outside of accepted packages) to be returned in the ScanResult, if
+     * they are directly referred to by an accepted class, as a superclass, implemented interface or annotation.
+     * Disabled by default.
      */
     public boolean enableExternalClasses;
 
     /**
-     * If true, system jarfiles (JRE lib/ext jars) and system packages and modules
-     * (java.*, jre.*, etc.) should be scanned.
+     * If true, system jarfiles (JRE lib/ext jars) and system packages and modules (java.*, jre.*, etc.) should be
+     * scanned.
      */
     public boolean enableSystemJarsAndModules;
 
     /**
-     * If true, ignore class visibility. If false, classes must be public to be
-     * scanned.
+     * If true, ignore class visibility. If false, classes must be public to be scanned.
      */
     public boolean ignoreClassVisibility;
 
     /**
-     * If true, ignore field visibility. If false, fields must be public to be
-     * scanned.
+     * If true, ignore field visibility. If false, fields must be public to be scanned.
      */
     public boolean ignoreFieldVisibility;
 
     /**
-     * If true, ignore method visibility. If false, methods must be public to be
-     * scanned.
+     * If true, ignore method visibility. If false, methods must be public to be scanned.
      */
     public boolean ignoreMethodVisibility;
 
     /**
-     * If true, don't scan runtime-invisible annotations (only scan annotations with
-     * RetentionPolicy.RUNTIME).
+     * If true, don't scan runtime-invisible annotations (only scan annotations with RetentionPolicy.RUNTIME).
      */
     public boolean disableRuntimeInvisibleAnnotations;
 
     /**
-     * If true, when classes have superclasses, implemented interfaces or
-     * annotations that are external classes, those classes are also scanned. (Even
-     * though this slows down scanning a bit, there is no API for disabling this
-     * currently, since disabling it can lead to problems.)
+     * If true, when classes have superclasses, implemented interfaces or annotations that are external classes,
+     * those classes are also scanned. (Even though this slows down scanning a bit, there is no API for disabling
+     * this currently, since disabling it can lead to problems.)
      */
     // #261
     public boolean extendScanningUpwardsToExternalClasses = true;
 
     /**
-     * URL schemes that are allowed in classpath elements (not counting the optional
-     * "jar:" prefix and/or "file:", which are automatically allowed).
+     * URL schemes that are allowed in classpath elements (not counting the optional "jar:" prefix and/or "file:",
+     * which are automatically allowed).
      */
     public @Nullable Set<String> allowedURLSchemes;
 
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * If non-null, specifies manually-added classloaders that should be searched
-     * after the context classloader(s).
+     * If non-null, specifies manually-added classloaders that should be searched after the context classloader(s).
      */
     public @Nullable List<ClassLoader> addedClassLoaders;
 
     /**
-     * If non-null, this list of ClassLoaders will be searched instead of the
-     * visible/context ClassLoader(s). In particular, this causes ClassGraph to
-     * ignore the java.class.path system property.
+     * If non-null, this list of ClassLoaders will be searched instead of the visible/context ClassLoader(s). In
+     * particular, this causes ClassGraph to ignore the java.class.path system property.
      */
     public @Nullable List<ClassLoader> overrideClassLoaders;
 
     /**
-     * If non-null, specifies manually-added ModuleLayers that should be searched
-     * after the visible ModuleLayers.
+     * If non-null, specifies manually-added ModuleLayers that should be searched after the visible ModuleLayers.
      */
     public @Nullable List<ModuleLayer> addedModuleLayers;
 
     /**
-     * If non-null, this list of ModuleLayers will be searched instead of the
-     * visible ModuleLayers.
+     * If non-null, this list of ModuleLayers will be searched instead of the visible ModuleLayers.
      */
     public @Nullable List<ModuleLayer> overrideModuleLayers;
 
     /**
-     * If non-null, specifies a list of classpath elements (String, {@link URL} or
-     * {@link URI} to use to override the default classpath.
+     * If non-null, specifies a list of classpath elements (String, {@link URL} or {@link URI} to use to override
+     * the default classpath.
      */
     public @Nullable List<Object> overrideClasspath;
 
@@ -245,10 +227,9 @@ public class ScanSpec {
     public @Nullable List<Object> classpathElementFilters;
 
     /**
-     * If true, nested jarfiles (jarfiles within jarfiles) that are extracted during
-     * scanning are removed from their temporary directory (e.g.
-     * /tmp/ClassGraph-8JX2u4w) after the scan has completed. If false, temporary
-     * files are removed by the {@link ScanResult} finalizer, or on JVM exit.
+     * If true, nested jarfiles (jarfiles within jarfiles) that are extracted during scanning are removed from their
+     * temporary directory (e.g. /tmp/ClassGraph-8JX2u4w) after the scan has completed. If false, temporary files
+     * are removed by the {@link ScanResult} finalizer, or on JVM exit.
      */
     public boolean removeTemporaryFilesAfterScan;
 
@@ -256,8 +237,7 @@ public class ScanSpec {
     public boolean ignoreParentClassLoaders;
 
     /**
-     * If true, do not scan module layers that are the parent of other module
-     * layers.
+     * If true, do not scan module layers that are the parent of other module layers.
      */
     public boolean ignoreParentModuleLayers;
 
@@ -267,36 +247,30 @@ public class ScanSpec {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * The maximum size of an inner (nested) jar that has been deflated (i.e.
-     * compressed, not stored) within an outer jar, before it has to be spilled to
-     * disk rather than stored in a RAM-backed {@link ByteBuffer} when it is
-     * deflated, in order for the inner jar's entries to be read. (Note that this
-     * situation of having to deflate a nested jar to RAM or disk in order to read
-     * it is rare, because normally adding a jarfile to another jarfile will store
-     * the inner jar, rather than deflate it, because deflating a jarfile does not
-     * usually produce any further compression gains. If an inner jar is stored, not
-     * deflated, then its zip entries can be read directly using ClassGraph's own
-     * zipfile central directory parser, which can use file slicing to extract
-     * entries directly from stored nested jars.)
-     * 
+     * The maximum size of an inner (nested) jar that has been deflated (i.e. compressed, not stored) within an
+     * outer jar, before it has to be spilled to disk rather than stored in a RAM-backed {@link ByteBuffer} when it
+     * is deflated, in order for the inner jar's entries to be read. (Note that this situation of having to deflate
+     * a nested jar to RAM or disk in order to read it is rare, because normally adding a jarfile to another jarfile
+     * will store the inner jar, rather than deflate it, because deflating a jarfile does not usually produce any
+     * further compression gains. If an inner jar is stored, not deflated, then its zip entries can be read directly
+     * using ClassGraph's own zipfile central directory parser, which can use file slicing to extract entries
+     * directly from stored nested jars.)
+     *
      * <p>
-     * This is also the maximum size of a jar downloaded from an {@code http://} or
-     * {@code https://} classpath {@link URL} to RAM. Once this many bytes have been
-     * read from the {@link URL}'s {@link InputStream}, then the RAM contents are
-     * spilled over to a temporary file on disk, and the rest of the content is
-     * downloaded to the temporary file. (This is also rare, because normally there
-     * are no {@code http://} or {@code https://} classpath entries.)
-     * 
+     * This is also the maximum size of a jar downloaded from an {@code http://} or {@code https://} classpath
+     * {@link URL} to RAM. Once this many bytes have been read from the {@link URL}'s {@link InputStream}, then the
+     * RAM contents are spilled over to a temporary file on disk, and the rest of the content is downloaded to the
+     * temporary file. (This is also rare, because normally there are no {@code http://} or {@code https://}
+     * classpath entries.)
+     *
      * <p>
-     * Default: 64MB (i.e. writing to disk is avoided wherever possible). Setting a
-     * lower max RAM size value will decrease ClassGraph's memory usage if either of
-     * the above rare situations occurs.
+     * Default: 64MB (i.e. writing to disk is avoided wherever possible). Setting a lower max RAM size value will
+     * decrease ClassGraph's memory usage if either of the above rare situations occurs.
      */
     public int maxBufferedJarRAMSize = 64 * 1024 * 1024;
 
     /**
-     * If true, use a {@link MappedByteBuffer} rather than the {@link FileChannel}
-     * API to access file content.
+     * If true, use a {@link MappedByteBuffer} rather than the {@link FileChannel} API to access file content.
      */
     public boolean enableMemoryMapping;
 
@@ -329,14 +303,13 @@ public class ScanSpec {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Override the automatically-detected classpath with a custom path. You can
-     * specify multiple elements in separate calls, and if this method is called
-     * even once, the default classpath will be overridden, such that nothing but
-     * the provided classpath will be scanned, i.e. causes ClassLoaders to be
-     * ignored, as well as the java.class.path system property.
-     * 
-     * @param overrideClasspathElement The classpath element to add as an override
-     *                                 to the default classpath.
+     * Override the automatically-detected classpath with a custom path. You can specify multiple elements in
+     * separate calls, and if this method is called even once, the default classpath will be overridden, such that
+     * nothing but the provided classpath will be scanned, i.e. causes ClassLoaders to be ignored, as well as the
+     * java.class.path system property.
+     *
+     * @param overrideClasspathElement
+     *            The classpath element to add as an override to the default classpath.
      */
     public void addClasspathOverride(final Object overrideClasspathElement) {
         if (this.overrideClasspath == null) {
@@ -346,22 +319,25 @@ public class ScanSpec {
             throw new IllegalArgumentException(
                     "Need to pass ClassLoader instances to overrideClassLoaders, not overrideClasspath");
         }
-        this.overrideClasspath.add(overrideClasspathElement instanceof String || overrideClasspathElement instanceof URL
-                || overrideClasspathElement instanceof URI ? overrideClasspathElement
-                        : overrideClasspathElement.toString());
+        this.overrideClasspath
+                .add(overrideClasspathElement instanceof String || overrideClasspathElement instanceof URL
+                        || overrideClasspathElement instanceof URI ? overrideClasspathElement
+                                : overrideClasspathElement.toString());
     }
 
     /**
-     * Add a classpath element filter. The provided {@link ClasspathElementFilter}
-     * or {@link ClasspathElementURLFilter} should return true if the path string or
-     * {@link URL} passed to it is a path that should be scanned.
-     * 
-     * @param filterLambda The classpath element filter to apply to all discovered
-     *                     classpath elements, to decide which should be scanned.
+     * Add a classpath element filter. The provided {@link ClasspathElementFilter} or
+     * {@link ClasspathElementURLFilter} should return true if the path string or {@link URL} passed to it is a path
+     * that should be scanned.
+     *
+     * @param filterLambda
+     *            The classpath element filter to apply to all discovered classpath elements, to decide which should
+     *            be scanned.
      */
     public void filterClasspathElements(final Object filterLambda) {
         Assert.notNull(filterLambda, "filterLambda");
-        if (!(filterLambda instanceof ClasspathElementFilter || filterLambda instanceof ClasspathElementURLFilter)) {
+        if (!(filterLambda instanceof ClasspathElementFilter
+                || filterLambda instanceof ClasspathElementURLFilter)) {
             throw new IllegalArgumentException("Not a ClasspathElementFilter or ClasspathElementURLFilter: "
                     + filterLambda.getClass().getName());
         }
@@ -372,10 +348,11 @@ public class ScanSpec {
     }
 
     /**
-     * Add a ClassLoader to the list of ClassLoaders to scan. (This only works if
-     * overrideClasspath() is not called.)
-     * 
-     * @param classLoader The classloader to add.
+     * Add a ClassLoader to the list of ClassLoaders to scan. (This only works if overrideClasspath() is not
+     * called.)
+     *
+     * @param classLoader
+     *            The classloader to add.
      */
     public void addClassLoader(final ClassLoader classLoader) {
         Assert.notNull(classLoader, "classLoader");
@@ -388,7 +365,8 @@ public class ScanSpec {
     /**
      * Allow a specified URL scheme in classpath elements.
      *
-     * @param scheme the scheme, e.g. "http".
+     * @param scheme
+     *            the scheme, e.g. "http".
      */
     public void enableURLScheme(final String scheme) {
         Assert.notNull(scheme, "scheme");
@@ -402,12 +380,11 @@ public class ScanSpec {
     }
 
     /**
-     * Completely override the list of ClassLoaders to scan. (This only works if
-     * overrideClasspath() is not called.) Causes the java.class.path system
-     * property to be ignored.
-     * 
-     * @param overrideClassLoaders The classloaders to override the default context
-     *                             classloaders with.
+     * Completely override the list of ClassLoaders to scan. (This only works if overrideClasspath() is not called.)
+     * Causes the java.class.path system property to be ignored.
+     *
+     * @param overrideClassLoaders
+     *            The classloaders to override the default context classloaders with.
      */
     public void overrideClassLoaders(final ClassLoader... overrideClassLoaders) {
         Assert.notNullElements(overrideClassLoaders, "overrideClassLoaders");
@@ -420,15 +397,14 @@ public class ScanSpec {
     }
 
     /**
-     * Add a ModuleLayer to the list of ModuleLayers to scan. Use this method if you
-     * define your own ModuleLayer, but the scanning code is not running within that
-     * custom ModuleLayer.
+     * Add a ModuleLayer to the list of ModuleLayers to scan. Use this method if you define your own ModuleLayer,
+     * but the scanning code is not running within that custom ModuleLayer.
      *
      * <p>
-     * This call is ignored if it is called before
-     * {@link #overrideModuleLayers(ModuleLayer...)}.
+     * This call is ignored if it is called before {@link #overrideModuleLayers(ModuleLayer...)}.
      *
-     * @param moduleLayer The additional ModuleLayer to scan.
+     * @param moduleLayer
+     *            The additional ModuleLayer to scan.
      */
     public void addModuleLayer(final ModuleLayer moduleLayer) {
         Assert.notNull(moduleLayer, "moduleLayer");
@@ -439,14 +415,13 @@ public class ScanSpec {
     }
 
     /**
-     * Completely override (and ignore) the visible ModuleLayers, and instead scan
-     * the requested ModuleLayers.
+     * Completely override (and ignore) the visible ModuleLayers, and instead scan the requested ModuleLayers.
      *
      * <p>
      * This call is ignored if overrideClasspath() is called.
      *
-     * @param overrideModuleLayers The ModuleLayers to scan instead of the
-     *                             automatically-detected ModuleLayers.
+     * @param overrideModuleLayers
+     *            The ModuleLayers to scan instead of the automatically-detected ModuleLayers.
      */
     public void overrideModuleLayers(final ModuleLayer... overrideModuleLayers) {
         Assert.notNullElements(overrideModuleLayers, "overrideModuleLayers");
@@ -461,8 +436,7 @@ public class ScanSpec {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Whether a path is a descendant of a rejected path, or an ancestor or
-     * descendant of an accepted path.
+     * Whether a path is a descendant of a rejected path, or an ancestor or descendant of an accepted path.
      */
     public enum ScanSpecPathMatch {
         /** Path starts with (or is) a rejected path prefix. */
@@ -480,10 +454,11 @@ public class ScanSpec {
     }
 
     /**
-     * Returns true if the given directory path is a descendant of a rejected path,
-     * or an ancestor or descendant of an accepted path. The path should end in "/".
+     * Returns true if the given directory path is a descendant of a rejected path, or an ancestor or descendant of
+     * an accepted path. The path should end in "/".
      *
-     * @param relativePath the relative path
+     * @param relativePath
+     *            the relative path
      * @return the {@link ScanSpecPathMatch}
      */
     public ScanSpecPathMatch dirAcceptMatchStatus(final String relativePath) {
@@ -532,26 +507,24 @@ public class ScanSpec {
     }
 
     /**
-     * Returns true if the given relative path (for a classfile name, including
-     * ".class") matches a specifically-accepted (and non-rejected) classfile's
-     * relative path.
+     * Returns true if the given relative path (for a classfile name, including ".class") matches a
+     * specifically-accepted (and non-rejected) classfile's relative path.
      *
-     * @param relativePath the relative path
-     * @return true if the given relative path (for a classfile name, including
-     *         ".class") matches a specifically-accepted (and non-rejected)
-     *         classfile's relative path.
+     * @param relativePath
+     *            the relative path
+     * @return true if the given relative path (for a classfile name, including ".class") matches a
+     *         specifically-accepted (and non-rejected) classfile's relative path.
      */
     public boolean classfileIsSpecificallyAccepted(final String relativePath) {
         return classfilePathAcceptReject.isSpecificallyAcceptedAndNotRejected(relativePath);
     }
 
     /**
-     * Returns true if the class is specifically rejected, or is within a rejected
-     * package.
+     * Returns true if the class is specifically rejected, or is within a rejected package.
      *
-     * @param className the class name
-     * @return true if the class is specifically rejected, or is within a rejected
-     *         package.
+     * @param className
+     *            the class name
+     * @return true if the class is specifically rejected, or is within a rejected package.
      */
     public boolean classOrPackageIsRejected(final String className) {
         return classAcceptReject.isRejected(className) || packagePrefixAcceptReject.isRejected(className);
@@ -562,7 +535,8 @@ public class ScanSpec {
     /**
      * Write to log.
      *
-     * @param log The {@link LogNode} to log to.
+     * @param log
+     *            The {@link LogNode} to log to.
      */
     public void log(final @Nullable LogNode log) {
         if (log != null) {

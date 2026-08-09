@@ -10,8 +10,8 @@ import org.junit.jupiter.api.Test;
 import io.github.classgraph.ClassGraph;
 
 /**
- * The default values of annotation parameters that are not given an explicit
- * value are read from the annotation class.
+ * The default values of annotation parameters that are not given an explicit value are read from the annotation
+ * class.
  */
 public class AnnotationDefaultValuesTest {
     /** An annotation with a parameter that has a default value. */
@@ -31,8 +31,8 @@ public class AnnotationDefaultValuesTest {
     }
 
     /**
-     * The default parameter values of an annotation are listed for an annotation
-     * instance that does not give the parameter an explicit value.
+     * The default parameter values of an annotation are listed for an annotation instance that does not give the
+     * parameter an explicit value.
      */
     @Test
     public void defaultParameterValues() {

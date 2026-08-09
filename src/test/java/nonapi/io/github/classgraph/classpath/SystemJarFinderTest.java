@@ -17,9 +17,8 @@ import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
 
 /**
- * Test that an application directory containing a bundled JRE is not mistaken
- * for a JDK root, which would cause the application's own jars to be classified
- * as JRE lib jars and silently dropped from the classpath.
+ * Test that an application directory containing a bundled JRE is not mistaken for a JDK root, which would cause the
+ * application's own jars to be classified as JRE lib jars and silently dropped from the classpath.
  */
 // #816
 public class SystemJarFinderTest {
@@ -27,10 +26,12 @@ public class SystemJarFinderTest {
     /**
      * Create an empty file, creating any missing parent directories.
      *
-     * @param dir          the base directory.
-     * @param relativePath the path of the file to create, relative to the base
-     *                     directory.
-     * @throws IOException if the file could not be created.
+     * @param dir
+     *            the base directory.
+     * @param relativePath
+     *            the path of the file to create, relative to the base directory.
+     * @throws IOException
+     *             if the file could not be created.
      */
     private static void touch(final Path dir, final String relativePath) throws IOException {
         final var path = dir.resolve(relativePath);
@@ -39,9 +40,8 @@ public class SystemJarFinderTest {
     }
 
     /**
-     * An application directory with a bundled JRE in {@code jre/} and the
-     * application's own jars in {@code lib/} must not be treated as a JDK root --
-     * this is the layout from the original report.
+     * An application directory with a bundled JRE in {@code jre/} and the application's own jars in {@code lib/}
+     * must not be treated as a JDK root -- this is the layout from the original report.
      */
     // #816
     @Test
@@ -61,8 +61,7 @@ public class SystemJarFinderTest {
     }
 
     /**
-     * A JDK root identified by {@code bin/javac}, on platforms where executables
-     * have no suffix.
+     * A JDK root identified by {@code bin/javac}, on platforms where executables have no suffix.
      */
     @Test
     public void jdkRootWithJavacIsAJDKRoot(@TempDir final Path tmpDir) throws IOException {
@@ -86,9 +85,9 @@ public class SystemJarFinderTest {
     }
 
     /**
-     * A JRE lib jar that is a symlink is reachable both by the symlink path and by
-     * the path it resolves to, so both paths must be recorded -- otherwise a
-     * classpath entry naming the other path is not recognized as a system jar.
+     * A JRE lib jar that is a symlink is reachable both by the symlink path and by the path it resolves to, so both
+     * paths must be recorded -- otherwise a classpath entry naming the other path is not recognized as a system
+     * jar.
      */
     @Test
     public void canonicalPathOfSymlinkedJreLibJarIsAlsoAdded(@TempDir final Path tmpDir) throws IOException {
@@ -117,9 +116,9 @@ public class SystemJarFinderTest {
     }
 
     /**
-     * {@code {java.home}/lib/jrt-fs.jar} is the jrt: filesystem provider, not part
-     * of the class library -- its classes are already in java.base, so scanning it
-     * would duplicate them. It must not be classified as a JRE lib jar.
+     * {@code {java.home}/lib/jrt-fs.jar} is the jrt: filesystem provider, not part of the class library -- its
+     * classes are already in java.base, so scanning it would duplicate them. It must not be classified as a JRE lib
+     * jar.
      */
     @Test
     public void jrtFsJarIsNotAJreLibJar() {

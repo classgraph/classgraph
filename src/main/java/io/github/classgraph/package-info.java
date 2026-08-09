@@ -28,12 +28,12 @@
  */
 
 /**
- * <a href="https://github.com/classgraph/classgraph">ClassGraph</a>: the
- * uber-fast, ultra-lightweight classpath and module scanner for JVM languages.
+ * <a href="https://github.com/classgraph/classgraph">ClassGraph</a>: the uber-fast, ultra-lightweight classpath and
+ * module scanner for JVM languages.
  *
  * <p>
- * This package is {@link org.jspecify.annotations.NullMarked}: unless a type is
- * annotated {@link org.jspecify.annotations.Nullable}, it is never null.
+ * This package is {@link org.jspecify.annotations.NullMarked}: unless a type is annotated
+ * {@link org.jspecify.annotations.Nullable}, it is never null.
  *
  * @author Luke Hutchison
  */

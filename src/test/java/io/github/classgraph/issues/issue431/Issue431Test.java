@@ -35,8 +35,8 @@ import org.junit.jupiter.api.Test;
 import io.github.classgraph.ClassGraph;
 
 /**
- * The constant initializer value of a static final field of any primitive type
- * is read as the corresponding boxed type.
+ * The constant initializer value of a static final field of any primitive type is read as the corresponding boxed
+ * type.
  */
 public class Issue431Test {
     /**

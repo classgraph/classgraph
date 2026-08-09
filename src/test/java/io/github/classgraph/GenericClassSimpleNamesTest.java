@@ -8,17 +8,14 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 /**
- * {@link ClassInfo#toStringWithSimpleNames()} rendered a generic class by
- * delegating to {@link ClassTypeSignature}, passing the already-simplified
- * class name but {@code useSimpleNames = false}, so the type parameter bounds,
- * superclass and superinterfaces were left fully qualified. The non-generic
- * branch of {@link ClassInfo#toString(boolean, StringBuilder)} simplifies all
- * of them.
+ * {@link ClassInfo#toStringWithSimpleNames()} rendered a generic class by delegating to {@link ClassTypeSignature},
+ * passing the already-simplified class name but {@code useSimpleNames = false}, so the type parameter bounds,
+ * superclass and superinterfaces were left fully qualified. The non-generic branch of
+ * {@link ClassInfo#toString(boolean, StringBuilder)} simplifies all of them.
  */
 public class GenericClassSimpleNamesTest {
     /**
-     * A generic class with a bounded type parameter, a superclass and a
-     * superinterface.
+     * A generic class with a bounded type parameter, a superclass and a superinterface.
      */
     public static class Generic<T extends Number> extends ArrayList<String> implements List<String> {
         /** serialVersionUID. */
@@ -34,14 +31,13 @@ public class GenericClassSimpleNamesTest {
     }
 
     /**
-     * Simple names are used throughout the rendering of a generic class, not just
-     * for the class name.
+     * Simple names are used throughout the rendering of a generic class, not just for the class name.
      */
     @Test
     public void genericClassUsesSimpleNamesThroughout() {
         try (var scanResult = new ClassGraph()
-                .acceptPackagesNonRecursive(GenericClassSimpleNamesTest.class.getPackage().getName()).enableAllInfo()
-                .scan()) {
+                .acceptPackagesNonRecursive(GenericClassSimpleNamesTest.class.getPackage().getName())
+                .enableAllInfo().scan()) {
             final var generic = scanResult.getClassInfo(Generic.class.getName());
             assertThat(generic).isNotNull();
             assertThat(generic.toStringWithSimpleNames())

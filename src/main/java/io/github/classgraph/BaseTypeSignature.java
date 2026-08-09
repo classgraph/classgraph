@@ -37,8 +37,7 @@ import nonapi.io.github.classgraph.types.Parser;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A type signature for a base type (byte, char, double, float, int, long,
- * short, boolean, or void).
+ * A type signature for a base type (byte, char, double, float, int, long, short, boolean, or void).
  */
 public class BaseTypeSignature extends TypeSignature {
     /** The type signature character used to represent the base type. */
@@ -49,8 +48,8 @@ public class BaseTypeSignature extends TypeSignature {
     /**
      * Constructor.
      *
-     * @param typeSignatureChar the type signature character used to represent the
-     *                          base type, e.g. 'I' for int.
+     * @param typeSignatureChar
+     *            the type signature character used to represent the base type, e.g. 'I' for int.
      */
     BaseTypeSignature(final char typeSignatureChar) {
         super();
@@ -66,7 +65,8 @@ public class BaseTypeSignature extends TypeSignature {
     /**
      * Get the name of the type as a string.
      *
-     * @param typeChar the type character, e.g. 'I'.
+     * @param typeChar
+     *            the type character, e.g. 'I'.
      * @return The name of the type, e.g. "int", or null if there was no match.
      */
     static @Nullable String typeCharToString(final char typeChar) {
@@ -87,7 +87,8 @@ public class BaseTypeSignature extends TypeSignature {
     /**
      * Get the name of the type as a string.
      *
-     * @param typeStr the type character, e.g. "int".
+     * @param typeStr
+     *            the type character, e.g. "int".
      * @return The type, character, e.g. 'I', or '\0' if there was no match.
      */
     static char getTypeChar(final String typeStr) {
@@ -108,7 +109,8 @@ public class BaseTypeSignature extends TypeSignature {
     /**
      * Get the type for a type character.
      *
-     * @param typeChar the type character, e.g. 'I'.
+     * @param typeChar
+     *            the type character, e.g. 'I'.
      * @return The type class, e.g. int.class, or null if there was no match.
      */
     static @Nullable Class<?> getType(final char typeChar) {
@@ -130,7 +132,7 @@ public class BaseTypeSignature extends TypeSignature {
 
     /**
      * Get the type signature char used to represent the type, e.g. 'I' for int.
-     * 
+     *
      * @return the type signature char.
      */
     public char getTypeSignatureChar() {
@@ -149,8 +151,7 @@ public class BaseTypeSignature extends TypeSignature {
     /**
      * Get the type.
      *
-     * @return The class of the base type, such as int.class, float.class, or
-     *         void.class.
+     * @return The class of the base type, such as int.class, float.class, or void.class.
      */
     public Class<?> getType() {
         return Objects.requireNonNull(getType(typeSignatureChar));
@@ -168,7 +169,8 @@ public class BaseTypeSignature extends TypeSignature {
     /**
      * Parse a base type.
      *
-     * @param parser the parser
+     * @param parser
+     *            the parser
      * @return the base type signature
      */
     static @Nullable BaseTypeSignature parse(final Parser parser) {
@@ -207,7 +209,8 @@ public class BaseTypeSignature extends TypeSignature {
     /**
      * Get the names of any classes referenced in the type signature.
      *
-     * @param refdClassNames the referenced class names.
+     * @param refdClassNames
+     *            the referenced class names.
      */
     @Override
     protected void findReferencedClassNames(final Set<String> refdClassNames) {
@@ -274,8 +277,7 @@ public class BaseTypeSignature extends TypeSignature {
 
     @Override
     protected void toStringInternal(final boolean useSimpleNames,
-            final @Nullable AnnotationInfoList annotationsToExclude,
-            final StringBuilder buf) {
+            final @Nullable AnnotationInfoList annotationsToExclude, final StringBuilder buf) {
         if (typeAnnotationInfo != null) {
             for (final AnnotationInfo annotationInfo : typeAnnotationInfo) {
                 if (annotationsToExclude == null || !annotationsToExclude.contains(annotationInfo)) {

@@ -43,10 +43,9 @@ import nonapi.io.github.classgraph.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A type signature for a reference type or base type. Subclasses are
- * {@link ReferenceTypeSignature} (whose own subclasses are
- * {@link ClassRefTypeSignature}, {@link TypeVariableSignature}, and
- * {@link ArrayTypeSignature}), and {@link BaseTypeSignature}.
+ * A type signature for a reference type or base type. Subclasses are {@link ReferenceTypeSignature} (whose own
+ * subclasses are {@link ClassRefTypeSignature}, {@link TypeVariableSignature}, and {@link ArrayTypeSignature}), and
+ * {@link BaseTypeSignature}.
  */
 public abstract class TypeSignature extends HierarchicalTypeSignature {
     /** Constructor. */
@@ -58,41 +57,36 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
     // Type variable resolution (#735)
 
     /**
-     * Resolve the type variables in this type signature against a context class,
-     * i.e. substitute the type arguments that the context class (or a class between
-     * the context class and the class declaring this type) supplies for them.
+     * Resolve the type variables in this type signature against a context class, i.e. substitute the type arguments
+     * that the context class (or a class between the context class and the class declaring this type) supplies for
+     * them.
      *
      * <p>
-     * For example, given {@code interface Base<T> { T getT(); }} and
-     * {@code abstract class Derived implements Base<String> {}}, the result type of
-     * {@code Base#getT()} is the type variable {@code T}, but calling this method
-     * on that result type with {@code Derived} as the context class returns
-     * {@code java.lang.String}.
+     * For example, given {@code interface Base<T> { T getT(); }} and {@code abstract class Derived implements
+     * Base<String> {}}, the result type of {@code Base#getT()} is the type variable {@code T}, but calling this
+     * method on that result type with {@code Derived} as the context class returns {@code java.lang.String}.
      *
      * <p>
-     * A type variable is left unchanged if it cannot be resolved: if the context
-     * class is not a subclass or subinterface of the class declaring the type
-     * variable, if the supertype is used in raw form, if the type variable is
-     * shadowed by a type parameter of the method that declares this type, or if the
-     * type argument is a wildcard that has no expressible equivalent outside type
-     * argument position ({@code "?"} or {@code "? super X"} -- an upper-bounded
-     * wildcard {@code "? extends X"} is substituted as {@code X}). In type argument
-     * position, wildcards are substituted verbatim, so {@code List<T>} with
+     * A type variable is left unchanged if it cannot be resolved: if the context class is not a subclass or
+     * subinterface of the class declaring the type variable, if the supertype is used in raw form, if the type
+     * variable is shadowed by a type parameter of the method that declares this type, or if the type argument is a
+     * wildcard that has no expressible equivalent outside type argument position ({@code "?"} or
+     * {@code "? super X"} -- an upper-bounded wildcard {@code "? extends X"} is substituted as {@code X}). In type
+     * argument position, wildcards are substituted verbatim, so {@code List<T>} with
      * {@code T := "? extends Number"} resolves to {@code List<? extends Number>}.
      *
      * <p>
-     * Type variables are matched by the class that declares them together with
-     * their name, and bindings are collected by walking up the superclass and
-     * superinterface chain of the context class. A type variable that an inner
-     * class inherits from its enclosing class is therefore not resolved, since the
-     * classfile records it as declared by the inner class, which is not on that
-     * chain.
+     * Type variables are matched by the class that declares them together with their name, and bindings are
+     * collected by walking up the superclass and superinterface chain of the context class. A type variable that an
+     * inner class inherits from its enclosing class is therefore not resolved, since the classfile records it as
+     * declared by the inner class, which is not on that chain.
      *
-     * @param contextClass the class to resolve type variables against.
-     * @return this type signature with any resolvable type variables substituted,
-     *         or this type signature itself if no type variable in it could be
-     *         resolved.
-     * @throws NullPointerException if {@code contextClass} is null.
+     * @param contextClass
+     *            the class to resolve type variables against.
+     * @return this type signature with any resolvable type variables substituted, or this type signature itself if
+     *         no type variable in it could be resolved.
+     * @throws NullPointerException
+     *             if {@code contextClass} is null.
      */
     public TypeSignature resolveTypeVariables(final ClassInfo contextClass) {
         Assert.notNull(contextClass, "contextClass");
@@ -111,12 +105,14 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
     }
 
     /**
-     * Get the key used to look up a type variable in a substitution map. A type
-     * variable is identified by the class that declares it as well as by its name,
-     * since the same name may be declared by several classes in a class hierarchy.
+     * Get the key used to look up a type variable in a substitution map. A type variable is identified by the class
+     * that declares it as well as by its name, since the same name may be declared by several classes in a class
+     * hierarchy.
      *
-     * @param definingClassName the name of the class declaring the type variable.
-     * @param typeVariableName  the name of the type variable.
+     * @param definingClassName
+     *            the name of the class declaring the type variable.
+     * @param typeVariableName
+     *            the name of the type variable.
      * @return the substitution map key.
      */
     static String substitutionKey(final @Nullable String definingClassName, final String typeVariableName) {
@@ -124,18 +120,18 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
     }
 
     /**
-     * Walk from a class up through its superclasses and superinterfaces, recording
-     * the type argument that each level supplies for each type parameter of the
-     * level above it.
+     * Walk from a class up through its superclasses and superinterfaces, recording the type argument that each
+     * level supplies for each type parameter of the level above it.
      *
-     * @param classInfo     the class to walk up from.
-     * @param substitutions the substitution map to add to.
-     * @param visited       the names of the classes already visited, to terminate
-     *                      on cyclic or diamond hierarchies.
+     * @param classInfo
+     *            the class to walk up from.
+     * @param substitutions
+     *            the substitution map to add to.
+     * @param visited
+     *            the names of the classes already visited, to terminate on cyclic or diamond hierarchies.
      */
     private static void addSubstitutions(final @Nullable ClassInfo classInfo,
-            final Map<String, TypeArgument> substitutions,
-            final Set<String> visited) {
+            final Map<String, TypeArgument> substitutions, final Set<String> visited) {
         if (classInfo == null || !visited.add(classInfo.getName())) {
             return;
         }
@@ -161,7 +157,8 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
         if (!ownTypeParameters.isEmpty()) {
             composeWith = new HashMap<>(substitutions);
             for (final TypeParameter ownTypeParameter : ownTypeParameters) {
-                final var binding = substitutions.get(substitutionKey(classInfo.getName(), ownTypeParameter.getName()));
+                final var binding = substitutions
+                        .get(substitutionKey(classInfo.getName(), ownTypeParameter.getName()));
                 if (binding != null) {
                     composeWith.put(substitutionKey(null, ownTypeParameter.getName()), binding);
                 }
@@ -174,16 +171,18 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
     }
 
     /**
-     * Record the type arguments that a class supplies for the type parameters of
-     * one of its direct supertypes, then continue walking up from that supertype.
+     * Record the type arguments that a class supplies for the type parameters of one of its direct supertypes, then
+     * continue walking up from that supertype.
      *
-     * @param supertypeSignature the signature of the supertype, as referenced by
-     *                           the subclass.
-     * @param substitutions      the substitution map to add to.
-     * @param composeWith        the substitution map to compose the supertype's
-     *                           type arguments with, i.e. the bindings that the
-     *                           subclass' own type parameters already have.
-     * @param visited            the names of the classes already visited.
+     * @param supertypeSignature
+     *            the signature of the supertype, as referenced by the subclass.
+     * @param substitutions
+     *            the substitution map to add to.
+     * @param composeWith
+     *            the substitution map to compose the supertype's type arguments with, i.e. the bindings that the
+     *            subclass' own type parameters already have.
+     * @param visited
+     *            the names of the classes already visited.
      */
     private static void addSupertypeSubstitutions(final @Nullable ClassRefTypeSignature supertypeSignature,
             final Map<String, TypeArgument> substitutions, final Map<String, TypeArgument> composeWith,
@@ -198,8 +197,8 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
         // all attached to the last level), so bind the type parameters of each level in
         // turn
         final StringBuilder classNameBuf = new StringBuilder(supertypeSignature.getBaseClassName());
-        addTypeArgumentSubstitutions(supertypeSignature, classNameBuf.toString(), supertypeSignature.getTypeArguments(),
-                substitutions, composeWith);
+        addTypeArgumentSubstitutions(supertypeSignature, classNameBuf.toString(),
+                supertypeSignature.getTypeArguments(), substitutions, composeWith);
         final var suffixes = supertypeSignature.getSuffixes();
         final var suffixTypeArguments = supertypeSignature.getSuffixTypeArguments();
         for (var i = 0; i < suffixes.size(); i++) {
@@ -211,18 +210,18 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
     }
 
     /**
-     * Record the type arguments supplied for the type parameters of one class in a
-     * supertype reference.
+     * Record the type arguments supplied for the type parameters of one class in a supertype reference.
      *
-     * @param supertypeSignature the supertype reference the type arguments came
-     *                           from, used to reach the {@link ScanResult}.
-     * @param className          the name of the class that declares the type
-     *                           parameters.
-     * @param typeArguments      the type arguments supplied for that class' type
-     *                           parameters.
-     * @param substitutions      the substitution map to add to.
-     * @param composeWith        the substitution map to compose the type arguments
-     *                           with.
+     * @param supertypeSignature
+     *            the supertype reference the type arguments came from, used to reach the {@link ScanResult}.
+     * @param className
+     *            the name of the class that declares the type parameters.
+     * @param typeArguments
+     *            the type arguments supplied for that class' type parameters.
+     * @param substitutions
+     *            the substitution map to add to.
+     * @param composeWith
+     *            the substitution map to compose the type arguments with.
      */
     private static void addTypeArgumentSubstitutions(final ClassRefTypeSignature supertypeSignature,
             final String className, final List<TypeArgument> typeArguments,
@@ -253,12 +252,12 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
     }
 
     /**
-     * Substitute type variables in this type signature, using a substitution map
-     * built by {@link #resolveTypeVariables(ClassInfo)}.
+     * Substitute type variables in this type signature, using a substitution map built by
+     * {@link #resolveTypeVariables(ClassInfo)}.
      *
-     * @param substitutions the substitution map.
-     * @return the substituted type signature, or this type signature itself if
-     *         nothing was substituted.
+     * @param substitutions
+     *            the substitution map.
+     * @return the substituted type signature, or this type signature itself if nothing was substituted.
      */
     TypeSignature substituteTypeVariables(final Map<String, TypeArgument> substitutions) {
         // Base types contain no type variables
@@ -266,15 +265,15 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
     }
 
     /**
-     * Render a type signature back into the type signature string format of JVMS
-     * section 4.7.9.1, so that a substituted array type can be given a type
-     * signature string that matches its substituted element type. This is
-     * implemented in one place using {@code instanceof} rather than as an
-     * overridden method in each of the five signature classes, since it is only
-     * needed for this one purpose.
+     * Render a type signature back into the type signature string format of JVMS section 4.7.9.1, so that a
+     * substituted array type can be given a type signature string that matches its substituted element type. This
+     * is implemented in one place using {@code instanceof} rather than as an overridden method in each of the five
+     * signature classes, since it is only needed for this one purpose.
      *
-     * @param typeSignature the type signature to render.
-     * @param buf           the buffer to append to
+     * @param typeSignature
+     *            the type signature to render.
+     * @param buf
+     *            the buffer to append to
      */
     private static void toTypeSignatureStr(final HierarchicalTypeSignature typeSignature, final StringBuilder buf) {
         if (typeSignature instanceof final BaseTypeSignature baseTypeSignature) {
@@ -312,11 +311,12 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
     }
 
     /**
-     * Render a list of type arguments back into type signature string format, if
-     * the list is non-empty.
+     * Render a list of type arguments back into type signature string format, if the list is non-empty.
      *
-     * @param typeArguments the type arguments.
-     * @param buf           the buffer to append to
+     * @param typeArguments
+     *            the type arguments.
+     * @param buf
+     *            the buffer to append to
      */
     private static void toTypeArgumentsStr(final List<TypeArgument> typeArguments, final StringBuilder buf) {
         if (!typeArguments.isEmpty()) {
@@ -331,7 +331,8 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
     /**
      * Render a type signature back into type signature string format.
      *
-     * @param typeSignature the type signature to render.
+     * @param typeSignature
+     *            the type signature to render.
      * @return the type signature string.
      */
     static String toTypeSignatureStr(final TypeSignature typeSignature) {
@@ -345,7 +346,8 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
     /**
      * Get the names of any classes referenced in the type signature.
      *
-     * @param refdClassNames the referenced class names.
+     * @param refdClassNames
+     *            the referenced class names.
      */
     protected void findReferencedClassNames(final Set<String> refdClassNames) {
         final var className = getClassName();
@@ -355,12 +357,14 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
     }
 
     /**
-     * Get {@link ClassInfo} objects for any classes referenced in the type
-     * signature.
+     * Get {@link ClassInfo} objects for any classes referenced in the type signature.
      *
-     * @param classNameToClassInfo the map from class name to {@link ClassInfo}.
-     * @param refdClassInfo        the referenced class info.
-     * @param log                  the log node, or null to skip logging
+     * @param classNameToClassInfo
+     *            the map from class name to {@link ClassInfo}.
+     * @param refdClassInfo
+     *            the referenced class info.
+     * @param log
+     *            the log node, or null to skip logging
      */
     @Override
     final void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
@@ -375,11 +379,9 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
     }
 
     /**
-     * Get a list of {@link AnnotationInfo} objects for any type annotations on this
-     * type, or null if none.
+     * Get a list of {@link AnnotationInfo} objects for any type annotations on this type, or null if none.
      *
-     * @return a list of {@link AnnotationInfo} objects for any type annotations on
-     *         this type, or null if none.
+     * @return a list of {@link AnnotationInfo} objects for any type annotations on this type, or null if none.
      */
     @Override
     public @Nullable AnnotationInfoList getTypeAnnotationInfo() {
@@ -389,24 +391,29 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
     /**
      * Compare base types, ignoring generic type parameters.
      *
-     * @param other the other {@link TypeSignature} to compare to, or null.
-     * @return True if the two {@link TypeSignature} objects are equal, ignoring
-     *         type parameters. As with {@link Object#equals(Object)}, null is not
-     *         equal to anything, so null returns false rather than throwing.
+     * @param other
+     *            the other {@link TypeSignature} to compare to, or null.
+     * @return True if the two {@link TypeSignature} objects are equal, ignoring type parameters. As with
+     *         {@link Object#equals(Object)}, null is not equal to anything, so null returns false rather than
+     *         throwing.
      */
     public abstract boolean equalsIgnoringTypeParams(final @Nullable TypeSignature other);
 
     /**
      * Parse a type signature.
      *
-     * @param parser        The parser
-     * @param definingClass The class containing the type descriptor.
+     * @param parser
+     *            The parser
+     * @param definingClass
+     *            The class containing the type descriptor.
      * @return The parsed type descriptor or type signature.
-     * @throws ParseException If the type signature could not be parsed.
+     * @throws ParseException
+     *             If the type signature could not be parsed.
      */
     static @Nullable TypeSignature parse(final Parser parser, final @Nullable String definingClass)
             throws ParseException {
-        final var referenceTypeSignature = ReferenceTypeSignature.parseReferenceTypeSignature(parser, definingClass);
+        final var referenceTypeSignature = ReferenceTypeSignature.parseReferenceTypeSignature(parser,
+                definingClass);
         if (referenceTypeSignature != null) {
             return referenceTypeSignature;
         }
@@ -420,10 +427,13 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
     /**
      * Parse a type signature.
      *
-     * @param typeDescriptor The type descriptor or type signature to parse.
-     * @param definingClass  The class containing the type descriptor.
+     * @param typeDescriptor
+     *            The type descriptor or type signature to parse.
+     * @param definingClass
+     *            The class containing the type descriptor.
      * @return The parsed type descriptor or type signature.
-     * @throws ParseException If the type signature could not be parsed.
+     * @throws ParseException
+     *             If the type signature could not be parsed.
      */
     static TypeSignature parse(final String typeDescriptor, final @Nullable String definingClass)
             throws ParseException {
@@ -441,8 +451,10 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
     /**
      * Add a type annotation to this type.
      *
-     * @param typePath       The type path.
-     * @param annotationInfo The annotation to add.
+     * @param typePath
+     *            The type path.
+     * @param annotationInfo
+     *            The annotation to add.
      */
     @Override
     abstract void addTypeAnnotation(List<TypePathNode> typePath, AnnotationInfo annotationInfo);

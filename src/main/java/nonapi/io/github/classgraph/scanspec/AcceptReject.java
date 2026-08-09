@@ -60,8 +60,8 @@ public abstract class AcceptReject {
     /** Accept regexp patterns. */
     protected @Nullable List<Pattern> acceptPatterns;
     /**
-     * Regexp patterns matching the wildcard-containing path prefixes of accepted
-     * globs, used by {@link #acceptHasPrefix(String)}.
+     * Regexp patterns matching the wildcard-containing path prefixes of accepted globs, used by
+     * {@link #acceptHasPrefix(String)}.
      */
     // #870
     protected @Nullable List<Pattern> acceptPrefixPatterns;
@@ -73,38 +73,37 @@ public abstract class AcceptReject {
     /**
      * Instantiate a new accept/reject criterion.
      *
-     * @param separatorChar the separator char
+     * @param separatorChar
+     *            the separator char
      */
     protected AcceptReject(final char separatorChar) {
         this.separatorChar = separatorChar;
     }
 
     /**
-     * Convert a glob to a regexp {@link Pattern}, where {@code '*'} matches zero or
-     * more characters within a single package or path segment, i.e. does not span
-     * {@link #separatorChar}, {@code "**"} matches zero or more whole segments, and
-     * {@code '?'} matches exactly one character other than {@link #separatorChar}.
-     * Any number of wildcards may be used in a single glob, and any other character
-     * is matched literally.
+     * Convert a glob to a regexp {@link Pattern}, where {@code '*'} matches zero or more characters within a single
+     * package or path segment, i.e. does not span {@link #separatorChar}, {@code "**"} matches zero or more whole
+     * segments, and {@code '?'} matches exactly one character other than {@link #separatorChar}. Any number of
+     * wildcards may be used in a single glob, and any other character is matched literally.
      *
      * <p>
-     * As the final segment of an accept or reject criterion, {@code "**"} means
-     * "and everything below", which is already the default for
-     * {@link io.github.classgraph.ClassGraph#acceptPackages(String...)} and
-     * friends, so it is stripped by the caller before the glob reaches this method.
-     * In any other position, {@code "**"} must form a complete segment, and matches
-     * zero or more whole segments, e.g. {@code "com.**.impl"} matches
+     * As the final segment of an accept or reject criterion, {@code "**"} means "and everything below", which is
+     * already the default for {@link io.github.classgraph.ClassGraph#acceptPackages(String...)} and friends, so it
+     * is stripped by the caller before the glob reaches this method. In any other position, {@code "**"} must form
+     * a complete segment, and matches zero or more whole segments, e.g. {@code "com.**.impl"} matches
      * {@code com.impl}, {@code com.a.impl} and {@code com.a.b.impl}.
      *
-     * @param glob          the glob
-     * @param separatorChar the package or path separator character
-     * @param prefixMatch   if true, the pattern matches any string <i>starting
-     *                      with</i> a string matching the glob, rather than
-     *                      requiring a whole-string match
+     * @param glob
+     *            the glob
+     * @param separatorChar
+     *            the package or path separator character
+     * @param prefixMatch
+     *            if true, the pattern matches any string <i>starting with</i> a string matching the glob, rather
+     *            than requiring a whole-string match
      * @return the pattern
-     * @throws IllegalArgumentException if {@code "**"} is used without forming a
-     *                                  complete package or path segment, e.g.
-     *                                  {@code "com.a**b.impl"}
+     * @throws IllegalArgumentException
+     *             if {@code "**"} is used without forming a complete package or path segment, e.g.
+     *             {@code "com.a**b.impl"}
      */
     // #643, #870, #940
     public static Pattern globToPattern(final String glob, final char separatorChar, final boolean prefixMatch) {
@@ -161,16 +160,16 @@ public abstract class AcceptReject {
     }
 
     /**
-     * Strip a trailing {@code "**"} segment from a normalized package name or path,
-     * if present. A trailing {@code "**"} means "and everything below", which is
-     * what the recursive accept/reject methods already do, so it can simply be
-     * removed. {@code "**"} in any other position matches zero or more whole
-     * segments (see {@link #globToPattern(String, char, boolean)}).
+     * Strip a trailing {@code "**"} segment from a normalized package name or path, if present. A trailing
+     * {@code "**"} means "and everything below", which is what the recursive accept/reject methods already do, so
+     * it can simply be removed. {@code "**"} in any other position matches zero or more whole segments (see
+     * {@link #globToPattern(String, char, boolean)}).
      *
-     * @param packageOrPath the normalized package name or path
-     * @param separatorChar the package or path separator character
-     * @return the package name or path with any trailing {@code "**"} segment
-     *         removed
+     * @param packageOrPath
+     *            the normalized package name or path
+     * @param separatorChar
+     *            the package or path separator character
+     * @return the package name or path with any trailing {@code "**"} segment removed
      */
     public static String stripTrailingDoubleGlob(final String packageOrPath, final char separatorChar) {
         if ("**".equals(packageOrPath)) {
@@ -185,9 +184,10 @@ public abstract class AcceptReject {
     /**
      * Find the index of the first glob wildcard character in a string.
      *
-     * @param str the string
-     * @return the index of the first {@code '*'} or {@code '?'} in the string, or
-     *         -1 if the string contains no wildcards, and so is matched literally
+     * @param str
+     *            the string
+     * @return the index of the first {@code '*'} or {@code '?'} in the string, or -1 if the string contains no
+     *         wildcards, and so is matched literally
      */
     private static int indexOfWildcard(final String str) {
         for (var i = 0; i < str.length(); i++) {
@@ -200,10 +200,11 @@ public abstract class AcceptReject {
     }
 
     /**
-     * Check whether a string contains a glob wildcard, and so must be compiled to a
-     * {@link Pattern} rather than matched literally.
+     * Check whether a string contains a glob wildcard, and so must be compiled to a {@link Pattern} rather than
+     * matched literally.
      *
-     * @param str the string
+     * @param str
+     *            the string
      * @return true if the string contains {@code '*'} or {@code '?'}
      */
     public static boolean containsWildcard(final String str) {
@@ -215,7 +216,8 @@ public abstract class AcceptReject {
         /**
          * Instantiate a new accept/reject for prefix strings.
          *
-         * @param separatorChar the separator char
+         * @param separatorChar
+         *            the separator char
          */
         public AcceptRejectPrefix(final char separatorChar) {
             super(separatorChar);
@@ -224,7 +226,8 @@ public abstract class AcceptReject {
         /**
          * Add to the accept.
          *
-         * @param str the string to accept
+         * @param str
+         *            the string to accept
          */
         @Override
         public void addToAccept(final String str) {
@@ -250,7 +253,8 @@ public abstract class AcceptReject {
         /**
          * Add to the reject.
          *
-         * @param str the string to reject
+         * @param str
+         *            the string to reject
          */
         @Override
         public void addToReject(final String str) {
@@ -272,7 +276,8 @@ public abstract class AcceptReject {
         /**
          * Check if the requested string has an accepted/non-rejected prefix.
          *
-         * @param str the string to test
+         * @param str
+         *            the string to test
          * @return true if string is accepted and not rejected
          */
         @Override
@@ -305,7 +310,8 @@ public abstract class AcceptReject {
         /**
          * Check if the requested string has an accepted prefix.
          *
-         * @param str the string to test
+         * @param str
+         *            the string to test
          * @return true if string is accepted
          */
         @Override
@@ -325,9 +331,11 @@ public abstract class AcceptReject {
         /**
          * Prefix-of-prefix is invalid -- throws {@link IllegalArgumentException}.
          *
-         * @param str the string to test
+         * @param str
+         *            the string to test
          * @return (does not return, throws exception)
-         * @throws IllegalArgumentException always
+         * @throws IllegalArgumentException
+         *             always
          */
         @Override
         public boolean acceptHasPrefix(final String str) {
@@ -337,7 +345,8 @@ public abstract class AcceptReject {
         /**
          * Check if the requested string has a rejected prefix.
          *
-         * @param str the string to test
+         * @param str
+         *            the string to test
          * @return true if the string has a rejected prefix
          */
         @Override
@@ -365,7 +374,8 @@ public abstract class AcceptReject {
         /**
          * Instantiate a new accept/reject for whole-string matches.
          *
-         * @param separatorChar the separator char
+         * @param separatorChar
+         *            the separator char
          */
         public AcceptRejectWholeString(final char separatorChar) {
             super(separatorChar);
@@ -374,7 +384,8 @@ public abstract class AcceptReject {
         /**
          * Add to the accept.
          *
-         * @param str the string to accept
+         * @param str
+         *            the string to accept
          */
         @Override
         public void addToAccept(final String str) {
@@ -457,7 +468,8 @@ public abstract class AcceptReject {
         /**
          * Add to the reject.
          *
-         * @param str the string to reject
+         * @param str
+         *            the string to reject
          */
         @Override
         public void addToReject(final String str) {
@@ -479,7 +491,8 @@ public abstract class AcceptReject {
         /**
          * Check if the requested string is accepted and not rejected.
          *
-         * @param str the string to test
+         * @param str
+         *            the string to test
          * @return true if the string is accepted and not rejected
          */
         @Override
@@ -490,7 +503,8 @@ public abstract class AcceptReject {
         /**
          * Check if the requested string is accepted.
          *
-         * @param str the string to test
+         * @param str
+         *            the string to test
          * @return true if the string is accepted
          */
         @Override
@@ -502,7 +516,8 @@ public abstract class AcceptReject {
         /**
          * Check if the requested string is a prefix of an accepted string.
          *
-         * @param str the string to test
+         * @param str
+         *            the string to test
          * @return true if the string is a prefix of an accepted string
          */
         @Override
@@ -519,7 +534,8 @@ public abstract class AcceptReject {
         /**
          * Check if the requested string is rejected.
          *
-         * @param str the string to test
+         * @param str
+         *            the string to test
          * @return true if the string is rejected
          */
         @Override
@@ -533,7 +549,8 @@ public abstract class AcceptReject {
         /**
          * Instantiates a new accept/reject for leaf matches.
          *
-         * @param separatorChar the separator char
+         * @param separatorChar
+         *            the separator char
          */
         public AcceptRejectLeafname(final char separatorChar) {
             super(separatorChar);
@@ -542,7 +559,8 @@ public abstract class AcceptReject {
         /**
          * Add to the accept.
          *
-         * @param str the string to accept
+         * @param str
+         *            the string to accept
          */
         @Override
         public void addToAccept(final String str) {
@@ -552,7 +570,8 @@ public abstract class AcceptReject {
         /**
          * Add to the reject.
          *
-         * @param str the string to reject
+         * @param str
+         *            the string to reject
          */
         @Override
         public void addToReject(final String str) {
@@ -562,7 +581,8 @@ public abstract class AcceptReject {
         /**
          * Check if the requested string is accepted and not rejected.
          *
-         * @param str the string to test
+         * @param str
+         *            the string to test
          * @return true if the string is accepted and not rejected
          */
         @Override
@@ -573,7 +593,8 @@ public abstract class AcceptReject {
         /**
          * Check if the requested string is accepted.
          *
-         * @param str the string to test
+         * @param str
+         *            the string to test
          * @return true if the string is accepted
          */
         @Override
@@ -582,12 +603,13 @@ public abstract class AcceptReject {
         }
 
         /**
-         * Prefix tests are invalid for jar leafnames -- throws
-         * {@link IllegalArgumentException}.
+         * Prefix tests are invalid for jar leafnames -- throws {@link IllegalArgumentException}.
          *
-         * @param str the string to test
+         * @param str
+         *            the string to test
          * @return (does not return, throws exception)
-         * @throws IllegalArgumentException always
+         * @throws IllegalArgumentException
+         *             always
          */
         @Override
         public boolean acceptHasPrefix(final String str) {
@@ -597,7 +619,8 @@ public abstract class AcceptReject {
         /**
          * Check if the requested string is rejected.
          *
-         * @param str the string to test
+         * @param str
+         *            the string to test
          * @return true if the string is rejected
          */
         @Override
@@ -609,21 +632,24 @@ public abstract class AcceptReject {
     /**
      * Add to the accept.
      *
-     * @param str The string to accept.
+     * @param str
+     *            The string to accept.
      */
     public abstract void addToAccept(final String str);
 
     /**
      * Add to the reject.
      *
-     * @param str The string to reject.
+     * @param str
+     *            The string to reject.
      */
     public abstract void addToReject(final String str);
 
     /**
      * Check if a string is accepted and not rejected.
      *
-     * @param str The string to test.
+     * @param str
+     *            The string to test.
      * @return true if the string is accepted and not rejected.
      */
     public abstract boolean isAcceptedAndNotRejected(final String str);
@@ -631,7 +657,8 @@ public abstract class AcceptReject {
     /**
      * Check if a string is accepted.
      *
-     * @param str The string to test.
+     * @param str
+     *            The string to test.
      * @return true if the string is accepted.
      */
     public abstract boolean isAccepted(final String str);
@@ -639,7 +666,8 @@ public abstract class AcceptReject {
     /**
      * Check if a string is a prefix of an accepted string.
      *
-     * @param str The string to test.
+     * @param str
+     *            The string to test.
      * @return true if the string is a prefix of an accepted string.
      */
     public abstract boolean acceptHasPrefix(final String str);
@@ -647,15 +675,17 @@ public abstract class AcceptReject {
     /**
      * Check if a string is rejected.
      *
-     * @param str The string to test.
+     * @param str
+     *            The string to test.
      * @return true if the string is rejected.
      */
     public abstract boolean isRejected(final String str);
 
     /**
      * Remove initial and final '/' characters, if any.
-     * 
-     * @param path The path to normalize.
+     *
+     * @param path
+     *            The path to normalize.
      * @return The normalized path.
      */
     public static String normalizePath(final String path) {
@@ -668,8 +698,9 @@ public abstract class AcceptReject {
 
     /**
      * Remove initial and final '.' characters, if any.
-     * 
-     * @param packageOrClassName The package or class name.
+     *
+     * @param packageOrClassName
+     *            The package or class name.
      * @return The normalized package or class name.
      */
     public static String normalizePackageOrClassName(final String packageOrClassName) {
@@ -678,8 +709,9 @@ public abstract class AcceptReject {
 
     /**
      * Convert a path to a package name.
-     * 
-     * @param path The path.
+     *
+     * @param path
+     *            The path.
      * @return The package name.
      */
     public static String pathToPackageName(final String path) {
@@ -688,8 +720,9 @@ public abstract class AcceptReject {
 
     /**
      * Convert a package name to a path.
-     * 
-     * @param packageName The package name.
+     *
+     * @param packageName
+     *            The package name.
      * @return The path.
      */
     public static String packageNameToPath(final String packageName) {
@@ -698,8 +731,9 @@ public abstract class AcceptReject {
 
     /**
      * Convert a class name to a classfile path.
-     * 
-     * @param className The class name.
+     *
+     * @param className
+     *            The class name.
      * @return The classfile path (including a ".class" suffix).
      */
     public static String classNameToClassfilePath(final String className) {
@@ -709,8 +743,10 @@ public abstract class AcceptReject {
     /**
      * Check if a string matches one of the patterns in the provided list.
      *
-     * @param str      the string to test
-     * @param patterns the patterns
+     * @param str
+     *            the string to test
+     * @param patterns
+     *            the patterns
      * @return true, if successful
      */
     private static boolean matchesPatternList(final String str, final @Nullable List<Pattern> patterns) {
@@ -758,10 +794,10 @@ public abstract class AcceptReject {
     /**
      * Check if a string is specifically accepted and not rejected.
      *
-     * @param str The string to test.
-     * @return true if the requested string is <i>specifically</i> accepted and not
-     *         rejected, i.e. will not return true if the accept is empty, or if the
-     *         string is rejected.
+     * @param str
+     *            The string to test.
+     * @return true if the requested string is <i>specifically</i> accepted and not rejected, i.e. will not return
+     *         true if the accept is empty, or if the string is rejected.
      */
     public boolean isSpecificallyAcceptedAndNotRejected(final String str) {
         return !acceptIsEmpty() && isAcceptedAndNotRejected(str);
@@ -770,9 +806,10 @@ public abstract class AcceptReject {
     /**
      * Check if a string is specifically accepted.
      *
-     * @param str The string to test.
-     * @return true if the requested string is <i>specifically</i> accepted, i.e.
-     *         will not return true if the accept is empty.
+     * @param str
+     *            The string to test.
+     * @return true if the requested string is <i>specifically</i> accepted, i.e. will not return true if the accept
+     *         is empty.
      */
     public boolean isSpecificallyAccepted(final String str) {
         return !acceptIsEmpty() && isAccepted(str);
@@ -795,8 +832,10 @@ public abstract class AcceptReject {
     /**
      * Quote list.
      *
-     * @param coll the coll
-     * @param buf  the buffer to append to
+     * @param coll
+     *            the coll
+     * @param buf
+     *            the buffer to append to
      */
     private static void quoteList(final Collection<String> coll, final StringBuilder buf) {
         buf.append('[');

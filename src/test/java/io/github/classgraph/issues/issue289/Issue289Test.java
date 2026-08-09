@@ -12,9 +12,8 @@ import io.github.classgraph.ClassGraph;
 public class Issue289Test {
     @Test
     public void issue289() {
-        try (var scanResult = new ClassGraph()
-                .overrideClassLoaders(
-                        new URLClassLoader(new URL[] { Issue289Test.class.getClassLoader().getResource("zip64.zip") }))
+        try (var scanResult = new ClassGraph().overrideClassLoaders(
+                new URLClassLoader(new URL[] { Issue289Test.class.getClassLoader().getResource("zip64.zip") }))
                 .scan()) {
             for (var i = 0; i < 90000; i++) {
                 final var resources = scanResult.getResourcesWithPath(i + "");

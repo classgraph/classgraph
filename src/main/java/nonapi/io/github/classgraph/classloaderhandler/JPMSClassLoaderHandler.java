@@ -37,9 +37,8 @@ import nonapi.io.github.classgraph.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A placeloader ClassLoaderHandler that matches Java 9+ classloaders, but does
- * not attempt to extract URLs from them (module scanning uses a different
- * mechanism from classpath scanning).
+ * A placeloader ClassLoaderHandler that matches Java 9+ classloaders, but does not attempt to extract URLs from
+ * them (module scanning uses a different mechanism from classpath scanning).
  */
 class JPMSClassLoaderHandler implements ClassLoaderHandler {
     /** Constructor. */
@@ -48,10 +47,8 @@ class JPMSClassLoaderHandler implements ClassLoaderHandler {
 
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
-        return classIsOrExtendsOrImplements(classLoaderClass,
-                "jdk.internal.loader.ClassLoaders$AppClassLoader")
-                || classIsOrExtendsOrImplements(classLoaderClass,
-                        "jdk.internal.loader.BuiltinClassLoader");
+        return classIsOrExtendsOrImplements(classLoaderClass, "jdk.internal.loader.ClassLoaders$AppClassLoader")
+                || classIsOrExtendsOrImplements(classLoaderClass, "jdk.internal.loader.BuiltinClassLoader");
     }
 
     @Override
@@ -81,8 +78,7 @@ class JPMSClassLoaderHandler implements ClassLoaderHandler {
     }
 
     /**
-     * Get the automatic package root prefixes for classpath elements obtained from
-     * this classloader.
+     * Get the automatic package root prefixes for classpath elements obtained from this classloader.
      *
      * <p>
      * Modules always have their classes at the root of the module.

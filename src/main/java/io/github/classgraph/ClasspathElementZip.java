@@ -68,18 +68,18 @@ import org.jspecify.annotations.Nullable;
 /** A zip/jarfile classpath element. */
 class ClasspathElementZip extends ClasspathElement {
     /**
-     * The {@link String} representation of the path string, {@link URL},
-     * {@link URI}, or {@link Path} for this zipfile.
+     * The {@link String} representation of the path string, {@link URL}, {@link URI}, or {@link Path} for this
+     * zipfile.
      */
     private final String rawPath;
     /**
-     * The logical zipfile for this classpath element, or null until {@link #open}
-     * has been called (or if the classpath element could not be opened).
+     * The logical zipfile for this classpath element, or null until {@link #open} has been called (or if the
+     * classpath element could not be opened).
      */
-    @Nullable LogicalZipFile logicalZipFile;
+    @Nullable
+    LogicalZipFile logicalZipFile;
     /**
-     * The normalized path of the jarfile, "!/"-separated if nested, excluding any
-     * package root.
+     * The normalized path of the jarfile, "!/"-separated if nested, excluding any package root.
      */
     private String zipFilePath;
     /**
@@ -87,26 +87,29 @@ class ClasspathElementZip extends ClasspathElement {
      */
     private final ConcurrentHashMap<String, Resource> relativePathToResource = new ConcurrentHashMap<>();
     /**
-     * A list of all automatic package root prefixes found as prefixes of paths
-     * within this zipfile.
+     * A list of all automatic package root prefixes found as prefixes of paths within this zipfile.
      */
     private final Set<String> strippedAutomaticPackageRootPrefixes = new HashSet<>();
     /** The nested jar handler. */
     private final NestedJarHandler nestedJarHandler;
     /**
-     * The name of the module from the {@code Automatic-Module-Name} manifest
-     * attribute, if one is present in the root of the classpath element.
+     * The name of the module from the {@code Automatic-Module-Name} manifest attribute, if one is present in the
+     * root of the classpath element.
      */
-    @Nullable String moduleNameFromManifestFile;
+    @Nullable
+    String moduleNameFromManifestFile;
     /** The automatic module name, derived from the jarfile filename. */
     private @Nullable String derivedAutomaticModuleName;
 
     /**
      * A jarfile classpath element.
      *
-     * @param workUnit         the work unit
-     * @param nestedJarHandler the nested jar handler
-     * @param scanSpec         the scan spec
+     * @param workUnit
+     *            the work unit
+     * @param nestedJarHandler
+     *            the nested jar handler
+     * @param scanSpec
+     *            the scan spec
      */
     ClasspathElementZip(final ClasspathEntryWorkUnit workUnit, final NestedJarHandler nestedJarHandler,
             final ScanSpec scanSpec) {
@@ -141,10 +144,12 @@ class ClasspathElementZip extends ClasspathElement {
      * nonapi.io.github.classgraph.utils.LogNode)
      */
     @Override
-    void open(final WorkQueue<ClasspathEntryWorkUnit> workQueue, final @Nullable LogNode log) throws InterruptedException {
+    void open(final WorkQueue<ClasspathEntryWorkUnit> workQueue, final @Nullable LogNode log)
+            throws InterruptedException {
         if (!scanSpec.scanJars) {
             if (log != null) {
-                log(classpathElementIdx, "Skipping classpath element, since jar scanning is disabled: " + rawPath, log);
+                log(classpathElementIdx, "Skipping classpath element, since jar scanning is disabled: " + rawPath,
+                        log);
             }
             skipClasspathElement = true;
             return;
@@ -166,14 +171,14 @@ class ClasspathElementZip extends ClasspathElement {
             // Get LogicalZipFile for innermost nested jarfile
             final Entry<LogicalZipFile, String> logicalZipFileAndPackageRoot;
             try {
-                logicalZipFileAndPackageRoot = nestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap().get(rawPath,
-                        subLog);
+                logicalZipFileAndPackageRoot = nestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap()
+                        .get(rawPath, subLog);
             } catch (final NullSingletonException | NewInstanceException e) {
                 // Generally thrown on the second and subsequent attempt to call .get(), after
                 // the first failed,
                 // or newInstance() threw an exception
-                throw new IOException(
-                        "Could not get logical zipfile " + rawPath + " : " + (e.getCause() == null ? e : e.getCause()));
+                throw new IOException("Could not get logical zipfile " + rawPath + " : "
+                        + (e.getCause() == null ? e : e.getCause()));
             }
             final var logicalZipFileFromMap = logicalZipFileAndPackageRoot.getKey();
             if (logicalZipFileFromMap == null) {
@@ -233,10 +238,8 @@ class ClasspathElementZip extends ClasspathElement {
                         if (subLog != null) {
                             subLog.log("Found nested lib jar: " + entryPath);
                         }
-                        workQueue.addWorkUnit(new ClasspathEntryWorkUnit(entryPath, getClassLoader(), /*
-                                                                                                       * parentClasspathElement
-                                                                                                       * =
-                                                                                                       */ this,
+                        workQueue.addWorkUnit(new ClasspathEntryWorkUnit(entryPath, getClassLoader(),
+                                /* parentClasspathElement = */ this,
                                 /* orderWithinParentClasspathElement = */
                                 childClasspathEntryIdx++, /* packageRootPrefix = */ "", packageRootPrefixes));
                         break;
@@ -264,7 +267,8 @@ class ClasspathElementZip extends ClasspathElement {
             // Add paths in manifest file's "Class-Path" entry to the classpath, resolving
             // paths relative to
             // the parent directory or jar
-            for (final String childClassPathEltPathRelative : logicalZipFile.classPathManifestEntryValue.split(" ")) {
+            for (final String childClassPathEltPathRelative : logicalZipFile.classPathManifestEntryValue
+                    .split(" ")) {
                 if (!childClassPathEltPathRelative.isEmpty()) {
                     // Resolve Class-Path entry relative to containing dir
                     final var childClassPathEltPath = FastPathResolver.resolve(jarParentDir,
@@ -278,12 +282,11 @@ class ClasspathElementZip extends ClasspathElement {
                     if (scheduledChildClasspathElements.add(childClassPathEltPathWithPrefix)) {
                         // Schedule child classpath element for scanning
                         workQueue.addWorkUnit( //
-                                new ClasspathEntryWorkUnit(childClassPathEltPathWithPrefix, getClassLoader(), /*
-                                                                                                               * parentClasspathElement
-                                                                                                               * =
-                                                                                                               */ this,
+                                new ClasspathEntryWorkUnit(childClassPathEltPathWithPrefix, getClassLoader(),
+                                        /* parentClasspathElement = */ this,
                                         /* orderWithinParentClasspathElement = */
-                                        childClasspathEntryIdx++, /* packageRootPrefix = */ "", packageRootPrefixes));
+                                        childClasspathEntryIdx++, /* packageRootPrefix = */ "",
+                                        packageRootPrefixes));
                     }
                 }
             }
@@ -308,18 +311,15 @@ class ClasspathElementZip extends ClasspathElement {
                 // entry that they were obtained from).
                 if (!childBundlePath.isEmpty() && !".".equals(childBundlePath)) {
                     // Resolve Bundle-ClassPath entry within jar
-                    final var childClassPathEltPath = zipFilePathPrefix + FileUtils.sanitizeEntryPath(childBundlePath,
-                            /* removeInitialSlash = */ true, /* removeFinalSlash = */ true);
+                    final var childClassPathEltPath = zipFilePathPrefix + FileUtils.sanitizeEntryPath(
+                            childBundlePath, /* removeInitialSlash = */ true, /* removeFinalSlash = */ true);
                     // Only add child classpath elements once
                     if (scheduledChildClasspathElements.add(childClassPathEltPath)) {
                         // Schedule child classpath element for scanning
-                        workQueue.addWorkUnit(
-                                new ClasspathEntryWorkUnit(childClassPathEltPath, getClassLoader(), /*
-                                                                                                     * parentClasspathElement
-                                                                                                     * =
-                                                                                                     */ this,
-                                        /* orderWithinParentClasspathElement = */
-                                        childClasspathEntryIdx++, /* packageRootPrefix = */ "", packageRootPrefixes));
+                        workQueue.addWorkUnit(new ClasspathEntryWorkUnit(childClassPathEltPath, getClassLoader(),
+                                /* parentClasspathElement = */ this,
+                                /* orderWithinParentClasspathElement = */
+                                childClasspathEntryIdx++, /* packageRootPrefix = */ "", packageRootPrefixes));
                     }
                 }
             }
@@ -327,11 +327,12 @@ class ClasspathElementZip extends ClasspathElement {
     }
 
     /**
-     * Create a new {@link Resource} object for a resource or classfile discovered
-     * while scanning paths.
+     * Create a new {@link Resource} object for a resource or classfile discovered while scanning paths.
      *
-     * @param zipEntry                  the zip entry
-     * @param pathRelativeToPackageRoot the path relative to package root
+     * @param zipEntry
+     *            the zip entry
+     * @param pathRelativeToPackageRoot
+     *            the path relative to package root
      * @return the resource
      */
     private Resource newResource(final FastZipEntry zipEntry, final String pathRelativeToPackageRoot) {
@@ -340,8 +341,8 @@ class ClasspathElementZip extends ClasspathElement {
             private final AtomicBoolean isOpen = new AtomicBoolean();
 
             /**
-             * Path with package root prefix and/or any Spring Boot prefix
-             * ("BOOT-INF/classes/" or "WEB-INF/classes/") removed.
+             * Path with package root prefix and/or any Spring Boot prefix ("BOOT-INF/classes/" or
+             * "WEB-INF/classes/") removed.
              */
             @Override
             public String getPath() {
@@ -477,9 +478,10 @@ class ClasspathElementZip extends ClasspathElement {
     /**
      * Get the {@link Resource} for a given relative path.
      *
-     * @param relativePath The relative path of the {@link Resource} to return.
-     * @return The {@link Resource} for the given relative path, or null if
-     *         relativePath does not exist in this classpath element.
+     * @param relativePath
+     *            The relative path of the {@link Resource} to return.
+     * @return The {@link Resource} for the given relative path, or null if relativePath does not exist in this
+     *         classpath element.
      */
     @Override
     @Nullable
@@ -488,12 +490,13 @@ class ClasspathElementZip extends ClasspathElement {
     }
 
     /**
-     * Filter out any candidate package root prefix that is really a package with
-     * the same name as the prefix, e.g. a package named {@code classes} in a jar
-     * that has no {@code classes/} package root.
+     * Filter out any candidate package root prefix that is really a package with the same name as the prefix, e.g.
+     * a package named {@code classes} in a jar that has no {@code classes/} package root.
      *
-     * @param logicalZipFile the logical zipfile
-     * @param log            the log node, or null to skip logging
+     * @param logicalZipFile
+     *            the logical zipfile
+     * @param log
+     *            the log node, or null to skip logging
      * @return the package root prefixes that were not disproved
      */
     // #929
@@ -523,8 +526,7 @@ class ClasspathElementZip extends ClasspathElement {
             final var zipEntry = firstClassfileEntry[i];
             String disprovingClassName = null;
             if (zipEntry != null) {
-                try (var classfileReader = new ClassfileReader(zipEntry.getSlice(),
-                        /* resourceToClose = */ null)) {
+                try (var classfileReader = new ClassfileReader(zipEntry.getSlice(), /* resourceToClose = */ null)) {
                     disprovingClassName = getClassNameDisprovingPackageRoot(classfileReader,
                             zipEntry.entryNameUnversioned.substring(prefix.length()));
                 } catch (final IOException e) {
@@ -543,10 +545,10 @@ class ClasspathElementZip extends ClasspathElement {
     }
 
     /**
-     * Scan for path matches within jarfile, and record ZipEntry objects of matching
-     * files.
+     * Scan for path matches within jarfile, and record ZipEntry objects of matching files.
      *
-     * @param log the log node, or null to skip logging
+     * @param log
+     *            the log node, or null to skip logging
      */
     @Override
     void scanPaths(final @Nullable LogNode log) {
@@ -725,8 +727,8 @@ class ClasspathElementZip extends ClasspathElement {
     }
 
     /**
-     * Get module name from module descriptor, or get the automatic module name from
-     * the manifest file, or derive an automatic module name from the jar name.
+     * Get module name from module descriptor, or get the automatic module name from the manifest file, or derive an
+     * automatic module name from the jar name.
      *
      * @return the module name
      */
@@ -770,8 +772,8 @@ class ClasspathElementZip extends ClasspathElement {
     }
 
     /**
-     * Return URI for classpath element, plus URIs for any stripped nested automatic
-     * package root prefixes, e.g. "!/BOOT-INF/classes".
+     * Return URI for classpath element, plus URIs for any stripped nested automatic package root prefixes, e.g.
+     * "!/BOOT-INF/classes".
      */
     @Override
     List<URI> getAllURIs() {
@@ -796,10 +798,9 @@ class ClasspathElementZip extends ClasspathElement {
     /**
      * Get the {@link File} for the outermost zipfile of this classpath element.
      *
-     * @return The {@link File} for the outermost zipfile of this classpath element,
-     *         or null if this file was downloaded from a URL directly to RAM, or if
-     *         the classpath element was backed by a custom filesystem that supports
-     *         the {@link Path} API put not the {@link File} API.
+     * @return The {@link File} for the outermost zipfile of this classpath element, or null if this file was
+     *         downloaded from a URL directly to RAM, or if the classpath element was backed by a custom filesystem
+     *         that supports the {@link Path} API put not the {@link File} API.
      */
     @Override
     @Nullable

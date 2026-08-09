@@ -46,7 +46,8 @@ public class Issue355Test {
         /**
          * method with array-typed param.
          *
-         * @param x the x
+         * @param x
+         *            the x
          */
         public void y(final X[] x) {
         }
@@ -55,7 +56,8 @@ public class Issue355Test {
     /**
      * Test.
      *
-     * @throws IOException Signals that an I/O exception has occurred.
+     * @throws IOException
+     *             Signals that an I/O exception has occurred.
      */
     @Test
     public void test() throws IOException {
@@ -67,7 +69,8 @@ public class Issue355Test {
             assertThat(x).isNotNull();
 
             // Test array-typed annotation parameter
-            final var annParamVal = ((Object[]) y.getAllAnnotationInfo().get(0).getParameterValues().get(0).getValue())[0];
+            final var annParamVal = ((Object[]) y.getAllAnnotationInfo().get(0).getParameterValues().get(0)
+                    .getValue())[0];
             assertThat(annParamVal).isInstanceOf(AnnotationClassRef.class);
             final var annClassRef = (AnnotationClassRef) annParamVal;
             assertThat(annClassRef.getClassInfo().getName()).isEqualTo(X.class.getName());

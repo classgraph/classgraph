@@ -36,7 +36,8 @@ import java.util.List;
 /**
  * A list of named objects.
  *
- * @param <T> the element type
+ * @param <T>
+ *            the element type
  */
 public class InfoList<T extends HasName> extends PotentiallyUnmodifiableList<T> {
     /** serialVersionUID. */
@@ -53,7 +54,8 @@ public class InfoList<T extends HasName> extends PotentiallyUnmodifiableList<T> 
     /**
      * Constructor.
      *
-     * @param sizeHint the expected number of elements
+     * @param sizeHint
+     *            the expected number of elements
      */
     InfoList(final int sizeHint) {
         super(sizeHint);
@@ -62,7 +64,8 @@ public class InfoList<T extends HasName> extends PotentiallyUnmodifiableList<T> 
     /**
      * Constructor.
      *
-     * @param infoCollection the initial elements.
+     * @param infoCollection
+     *            the initial elements.
      */
     InfoList(final Collection<T> infoCollection) {
         super(infoCollection);
@@ -71,11 +74,9 @@ public class InfoList<T extends HasName> extends PotentiallyUnmodifiableList<T> 
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the names of all items in this list, by calling {@code getName()} on each
-     * item in the list.
+     * Get the names of all items in this list, by calling {@code getName()} on each item in the list.
      *
-     * @return The names of all items in this list, by calling {@code getName()} on
-     *         each item in the list.
+     * @return The names of all items in this list, by calling {@code getName()} on each item in the list.
      */
     public List<String> getNames() {
         if (this.isEmpty()) {
@@ -92,11 +93,11 @@ public class InfoList<T extends HasName> extends PotentiallyUnmodifiableList<T> 
     }
 
     /**
-     * Get the String representations of all items in this list, by calling
-     * {@code toString()} on each item in the list.
+     * Get the String representations of all items in this list, by calling {@code toString()} on each item in the
+     * list.
      *
-     * @return The String representations of all items in this list, by calling
-     *         {@code toString()} on each item in the list.
+     * @return The String representations of all items in this list, by calling {@code toString()} on each item in
+     *         the list.
      */
     public List<String> getAsStrings() {
         if (this.isEmpty()) {
@@ -113,14 +114,11 @@ public class InfoList<T extends HasName> extends PotentiallyUnmodifiableList<T> 
     /**
      * Get the String representations of all items in this list, using only <a href=
      * "https://docs.oracle.com/en/java/javase/15/docs/api/java.base/java/lang/Class.html#getSimpleName()">simple
-     * names</a> of any named classes, by calling
-     * {@code ScanResultObject#toStringWithSimpleNames()} if the object is a
-     * subclass of {@code ScanResultObject} (e.g. {@link ClassInfo},
-     * {@link MethodInfo} or {@link FieldInfo} object), otherwise calling
-     * {@code toString()}, for each item in the list.
+     * names</a> of any named classes, by calling {@code ScanResultObject#toStringWithSimpleNames()} if the object
+     * is a subclass of {@code ScanResultObject} (e.g. {@link ClassInfo}, {@link MethodInfo} or {@link FieldInfo}
+     * object), otherwise calling {@code toString()}, for each item in the list.
      *
-     * @return The String representations of all items in this list, using only the
-     *         <a href=
+     * @return The String representations of all items in this list, using only the <a href=
      *         "https://docs.oracle.com/en/java/javase/15/docs/api/java.base/java/lang/Class.html#getSimpleName()">
      *         simple names</a> of any named classes.
      */

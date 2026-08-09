@@ -62,8 +62,8 @@ public final class URLPathEncoder {
     }
 
     /** Hexadecimal digits. */
-    private static final char[] HEXADECIMAL = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd',
-            'e', 'f' };
+    private static final char[] HEXADECIMAL = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c',
+            'd', 'e', 'f' };
 
     /** Valid classpath URL scheme prefixes. */
     private static final String[] SCHEME_PREFIXES = { "jrt:", "file:", "jar:file:", "jar:", "http:", "https:" };
@@ -76,13 +76,14 @@ public final class URLPathEncoder {
     }
 
     /**
-     * Unescape chars in a URL. URLDecoder.decode is broken:
-     * https://bugs.openjdk.java.net/browse/JDK-8179507
+     * Unescape chars in a URL. URLDecoder.decode is broken: https://bugs.openjdk.java.net/browse/JDK-8179507
      *
-     * @param str     the string to unescape
-     * @param isQuery true if the string is a query string, in which case {@code '+'}
-     *                is decoded as a space
-     * @param buf     the buffer to write the decoded bytes to
+     * @param str
+     *            the string to unescape
+     * @param isQuery
+     *            true if the string is a query string, in which case {@code '+'} is decoded as a space
+     * @param buf
+     *            the buffer to write the decoded bytes to
      */
     private static void unescapeChars(final String str, final boolean isQuery, final ByteArrayOutputStream buf) {
         if (str.isEmpty()) {
@@ -96,10 +97,12 @@ public final class URLPathEncoder {
                 if (chrIdx <= len - 3) {
                     final var c1 = str.charAt(++chrIdx);
                     final var digit1 = c1 >= '0' && c1 <= '9' ? (c1 - '0')
-                            : c1 >= 'a' && c1 <= 'f' ? (c1 - 'a' + 10) : c1 >= 'A' && c1 <= 'F' ? (c1 - 'A' + 10) : -1;
+                            : c1 >= 'a' && c1 <= 'f' ? (c1 - 'a' + 10)
+                                    : c1 >= 'A' && c1 <= 'F' ? (c1 - 'A' + 10) : -1;
                     final var c2 = str.charAt(++chrIdx);
                     final var digit2 = c2 >= '0' && c2 <= '9' ? (c2 - '0')
-                            : c2 >= 'a' && c2 <= 'f' ? (c2 - 'a' + 10) : c2 >= 'A' && c2 <= 'F' ? (c2 - 'A' + 10) : -1;
+                            : c2 >= 'a' && c2 <= 'f' ? (c2 - 'a' + 10)
+                                    : c2 >= 'A' && c2 <= 'F' ? (c2 - 'A' + 10) : -1;
                     if (digit1 < 0 || digit2 < 0) {
                         try {
                             buf.write(str.substring(chrIdx - 2, chrIdx + 1).getBytes(StandardCharsets.UTF_8));
@@ -127,7 +130,8 @@ public final class URLPathEncoder {
     /**
      * Unescape a URL segment, and turn it from UTF-8 bytes into a Java string.
      *
-     * @param str the str
+     * @param str
+     *            the str
      * @return the string
      */
     public static String decodePath(final String str) {
@@ -142,8 +146,9 @@ public final class URLPathEncoder {
 
     /**
      * Encode a URL path using percent-encoding. '/' is not encoded.
-     * 
-     * @param path The path to encode.
+     *
+     * @param path
+     *            The path to encode.
      * @return The encoded path.
      */
     public static String encodePath(final String path) {
@@ -186,7 +191,8 @@ public final class URLPathEncoder {
     /**
      * Normalize a URL path, so that it can be fed into the URL or URI constructor.
      *
-     * @param urlPath the URL path
+     * @param urlPath
+     *            the URL path
      * @return the URL string
      */
     public static String normalizeURLPath(final String urlPath) {

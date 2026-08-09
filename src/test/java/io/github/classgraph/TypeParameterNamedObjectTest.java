@@ -7,18 +7,15 @@ import org.junit.jupiter.api.Test;
 import nonapi.io.github.classgraph.types.ParseException;
 
 /**
- * {@code TypeParameter#toStringInternal} suppresses a redundant
- * {@code "extends java.lang.Object"} class bound. It used to detect the
- * simple-name form of that bound by string comparison alone, then cast the
- * class bound to {@link ClassRefTypeSignature} to confirm it. A type parameter
- * may legally be named {@code Object} (shadowing {@code java.lang.Object}), in
- * which case a bound referring to it renders as {@code "Object"} but is a
+ * {@code TypeParameter#toStringInternal} suppresses a redundant {@code "extends java.lang.Object"} class bound. It
+ * used to detect the simple-name form of that bound by string comparison alone, then cast the class bound to
+ * {@link ClassRefTypeSignature} to confirm it. A type parameter may legally be named {@code Object} (shadowing
+ * {@code java.lang.Object}), in which case a bound referring to it renders as {@code "Object"} but is a
  * {@link TypeVariableSignature}, so the cast threw {@link ClassCastException}.
  */
 public class TypeParameterNamedObjectTest {
     /**
-     * {@code class Foo<Object, T extends Object>}, where the bound of {@code T} is
-     * the type parameter.
+     * {@code class Foo<Object, T extends Object>}, where the bound of {@code T} is the type parameter.
      */
     @Test
     public void typeParameterNamedObjectUsedAsClassBound() throws ParseException {

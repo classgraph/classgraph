@@ -56,7 +56,8 @@ public class Issue339Test {
             final var annotationParamVals = classInfo.getMethodInfo("method").get(0).getAllAnnotationInfo().get(0)
                     .getParameterValues();
             assertThat(Math.abs((Double) annotationParamVals.get("points").getValue() - 0.4)).isLessThan(1.0e-12);
-            assertThat(Math.abs((Double) annotationParamVals.get("maxPoints").getValue() - 0.4)).isLessThan(1.0e-12);
+            assertThat(Math.abs((Double) annotationParamVals.get("maxPoints").getValue() - 0.4))
+                    .isLessThan(1.0e-12);
         }
     }
 }

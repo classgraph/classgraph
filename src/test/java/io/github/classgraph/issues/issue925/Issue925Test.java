@@ -18,20 +18,18 @@ import io.github.classgraph.ClassGraph;
 import nonapi.io.github.classgraph.utils.FastPathResolver;
 
 /**
- * Nothing in a webapp deployed to Tomcat as a non-exploded WAR file (i.e. with
- * {@code unpackWARs="false"}) was scanned.
+ * Nothing in a webapp deployed to Tomcat as a non-exploded WAR file (i.e. with {@code unpackWARs="false"}) was
+ * scanned.
  *
  * <p>
- * Tomcat serves a non-exploded WAR through its own {@code "war:"} URL protocol,
- * which separates the path of the WAR file from the path within it using
- * {@code "*&#47;"} rather than {@code "!&#47;"}, e.g.
- * {@code "war:file:/path/to/app.war*&#47;WEB-INF/classes/"}. ClassGraph read
- * the {@code '*'} as a wildcard and rejected the whole classpath element.
+ * Tomcat serves a non-exploded WAR through its own {@code "war:"} URL protocol, which separates the path of the WAR
+ * file from the path within it using {@code "*&#47;"} rather than {@code "!&#47;"}, e.g.
+ * {@code "war:file:/path/to/app.war*&#47;WEB-INF/classes/"}. ClassGraph read the {@code '*'} as a wildcard and
+ * rejected the whole classpath element.
  */
 public class Issue925Test {
     /**
-     * A WAR file containing {@code WEB-INF/classes/} and
-     * {@code WEB-INF/lib/mylib.jar}.
+     * A WAR file containing {@code WEB-INF/classes/} and {@code WEB-INF/lib/mylib.jar}.
      */
     private static File war;
 
@@ -41,8 +39,10 @@ public class Issue925Test {
     /**
      * Build the test WAR file.
      *
-     * @param tempDir a temporary directory to build the WAR file in.
-     * @throws IOException if the WAR file could not be written.
+     * @param tempDir
+     *            a temporary directory to build the WAR file in.
+     * @throws IOException
+     *             if the WAR file could not be written.
      */
     @BeforeAll
     public static void buildWar(@TempDir final File tempDir) throws IOException {
@@ -74,9 +74,12 @@ public class Issue925Test {
     /**
      * Copy a classfile from the test classpath to an output stream.
      *
-     * @param classfilePath the path of the classfile.
-     * @param out           the stream to copy the classfile to.
-     * @throws IOException if the classfile could not be read.
+     * @param classfilePath
+     *            the path of the classfile.
+     * @param out
+     *            the stream to copy the classfile to.
+     * @throws IOException
+     *             if the classfile could not be read.
      */
     private static void copyClassfile(final String classfilePath, final OutputStream out) throws IOException {
         try (var in = Issue925Test.class.getClassLoader().getResourceAsStream(classfilePath)) {
@@ -89,8 +92,8 @@ public class Issue925Test {
     }
 
     /**
-     * A Tomcat {@code "war:"} URL should be resolved to the equivalent path within
-     * a jarfile, whichever of the separators Tomcat may use is present.
+     * A Tomcat {@code "war:"} URL should be resolved to the equivalent path within a jarfile, whichever of the
+     * separators Tomcat may use is present.
      */
     @Test
     public void warUrlsAreResolvedToJarPaths() {
@@ -125,10 +128,9 @@ public class Issue925Test {
     }
 
     /**
-     * Scanning the WAR file itself should find both the classes in
-     * {@code WEB-INF/classes/} and the classes in the jarfiles in
-     * {@code WEB-INF/lib/}, which is the classpath element that Tomcat's main
-     * resource set yields for a non-exploded WAR.
+     * Scanning the WAR file itself should find both the classes in {@code WEB-INF/classes/} and the classes in the
+     * jarfiles in {@code WEB-INF/lib/}, which is the classpath element that Tomcat's main resource set yields for a
+     * non-exploded WAR.
      */
     @Test
     public void warFileClasspathElementIsScanned() {

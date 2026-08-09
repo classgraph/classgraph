@@ -46,7 +46,8 @@ public class Issue407Test {
     /**
      * Test.
      *
-     * @throws IOException Signals that an I/O exception has occurred.
+     * @throws IOException
+     *             Signals that an I/O exception has occurred.
      */
     @Test
     public void issue407Test() throws IOException {

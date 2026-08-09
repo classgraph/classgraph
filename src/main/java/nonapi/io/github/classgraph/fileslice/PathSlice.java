@@ -51,8 +51,7 @@ public class PathSlice extends Slice {
     private final long fileLength;
 
     /**
-     * The {@link FileChannel} opened on the {@link Path}. Set to null by
-     * {@link #close()}.
+     * The {@link FileChannel} opened on the {@link Path}. Set to null by {@link #close()}.
      */
     private @Nullable FileChannel fileChannel;
 
@@ -60,7 +59,8 @@ public class PathSlice extends Slice {
      * Get the {@link FileChannel} opened on the {@link Path}.
      *
      * @return the {@link FileChannel}
-     * @throws NullPointerException if {@link #close()} has been called
+     * @throws NullPointerException
+     *             if {@link #close()} has been called
      */
     private FileChannel fileChannel() {
         return Objects.requireNonNull(fileChannel);
@@ -75,17 +75,23 @@ public class PathSlice extends Slice {
     /**
      * Constructor for treating a range of a file as a slice.
      *
-     * @param parentSlice        the parent slice
-     * @param offset             the offset of the sub-slice within the parent slice
-     * @param length             the length of the sub-slice
-     * @param isDeflatedZipEntry true if this is a deflated zip entry
-     * @param inflatedLengthHint the uncompressed size of a deflated zip entry, or
-     *                           -1 if unknown, or 0 of this is not a deflated zip
-     *                           entry.
-     * @param nestedJarHandler   the nested jar handler
+     * @param parentSlice
+     *            the parent slice
+     * @param offset
+     *            the offset of the sub-slice within the parent slice
+     * @param length
+     *            the length of the sub-slice
+     * @param isDeflatedZipEntry
+     *            true if this is a deflated zip entry
+     * @param inflatedLengthHint
+     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
+     *            zip entry.
+     * @param nestedJarHandler
+     *            the nested jar handler
      */
     private PathSlice(final PathSlice parentSlice, final long offset, final long length,
-            final boolean isDeflatedZipEntry, final long inflatedLengthHint, final NestedJarHandler nestedJarHandler) {
+            final boolean isDeflatedZipEntry, final long inflatedLengthHint,
+            final NestedJarHandler nestedJarHandler) {
         super(parentSlice, offset, length, isDeflatedZipEntry, inflatedLengthHint, nestedJarHandler);
 
         this.path = parentSlice.path;
@@ -102,13 +108,17 @@ public class PathSlice extends Slice {
     /**
      * Constructor for toplevel file slice.
      *
-     * @param path               the path
-     * @param isDeflatedZipEntry true if this is a deflated zip entry
-     * @param inflatedLengthHint the uncompressed size of a deflated zip entry, or
-     *                           -1 if unknown, or 0 of this is not a deflated zip
-     *                           entry.
-     * @param nestedJarHandler   the nested jar handler
-     * @throws IOException if the file cannot be opened.
+     * @param path
+     *            the path
+     * @param isDeflatedZipEntry
+     *            true if this is a deflated zip entry
+     * @param inflatedLengthHint
+     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
+     *            zip entry.
+     * @param nestedJarHandler
+     *            the nested jar handler
+     * @throws IOException
+     *             if the file cannot be opened.
      */
     public PathSlice(final Path path, final boolean isDeflatedZipEntry, final long inflatedLengthHint,
             final NestedJarHandler nestedJarHandler) throws IOException {
@@ -118,15 +128,19 @@ public class PathSlice extends Slice {
     /**
      * Constructor for toplevel file slice.
      *
-     * @param path               the path
-     * @param isDeflatedZipEntry true if this is a deflated zip entry
-     * @param inflatedLengthHint the uncompressed size of a deflated zip entry, or
-     *                           -1 if unknown, or 0 of this is not a deflated zip
-     *                           entry.
-     * @param nestedJarHandler   the nested jar handler
-     * @param checkAccess        whether it is needed to check read access and if it
-     *                           is a file
-     * @throws IOException if the file cannot be opened.
+     * @param path
+     *            the path
+     * @param isDeflatedZipEntry
+     *            true if this is a deflated zip entry
+     * @param inflatedLengthHint
+     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
+     *            zip entry.
+     * @param nestedJarHandler
+     *            the nested jar handler
+     * @param checkAccess
+     *            whether it is needed to check read access and if it is a file
+     * @throws IOException
+     *             if the file cannot be opened.
      */
     public PathSlice(final Path path, final boolean isDeflatedZipEntry, final long inflatedLengthHint,
             final NestedJarHandler nestedJarHandler, final boolean checkAccess) throws IOException {
@@ -155,9 +169,12 @@ public class PathSlice extends Slice {
     /**
      * Constructor for toplevel file slice.
      *
-     * @param path             the path
-     * @param nestedJarHandler the nested jar handler
-     * @throws IOException if the file cannot be opened.
+     * @param path
+     *            the path
+     * @param nestedJarHandler
+     *            the nested jar handler
+     * @throws IOException
+     *             if the file cannot be opened.
      */
     public PathSlice(final Path path, final NestedJarHandler nestedJarHandler) throws IOException {
         this(path, /* isDeflatedZipEntry = */ false, /* inflatedSizeHint = */ 0L, nestedJarHandler);
@@ -166,12 +183,15 @@ public class PathSlice extends Slice {
     /**
      * Slice the file.
      *
-     * @param offset             the offset of the sub-slice within the parent slice
-     * @param length             the length of the sub-slice
-     * @param isDeflatedZipEntry true if this is a deflated zip entry
-     * @param inflatedLengthHint the uncompressed size of a deflated zip entry, or
-     *                           -1 if unknown, or 0 of this is not a deflated zip
-     *                           entry.
+     * @param offset
+     *            the offset of the sub-slice within the parent slice
+     * @param length
+     *            the length of the sub-slice
+     * @param isDeflatedZipEntry
+     *            true if this is a deflated zip entry
+     * @param inflatedLengthHint
+     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
+     *            zip entry.
      * @return the slice
      */
     @Override
@@ -198,7 +218,8 @@ public class PathSlice extends Slice {
      * Load the slice as a byte array.
      *
      * @return the byte[]
-     * @throws IOException Signals that an I/O exception has occurred.
+     * @throws IOException
+     *             Signals that an I/O exception has occurred.
      */
     @Override
     public byte[] load() throws IOException {
@@ -226,12 +247,12 @@ public class PathSlice extends Slice {
     }
 
     /**
-     * Read the slice into a {@link ByteBuffer}. (A {@link PathSlice} is never
-     * memory-mapped, unlike a {@link FileSlice} -- the content is always copied
-     * into a heap {@link ByteBuffer}.)
+     * Read the slice into a {@link ByteBuffer}. (A {@link PathSlice} is never memory-mapped, unlike a
+     * {@link FileSlice} -- the content is always copied into a heap {@link ByteBuffer}.)
      *
      * @return the byte buffer
-     * @throws IOException Signals that an I/O exception has occurred.
+     * @throws IOException
+     *             Signals that an I/O exception has occurred.
      */
     @Override
     public ByteBuffer read() throws IOException {
@@ -253,8 +274,7 @@ public class PathSlice extends Slice {
     }
 
     /**
-     * Close the slice, closing the {@link FileChannel} if this is the toplevel
-     * slice.
+     * Close the slice, closing the {@link FileChannel} if this is the toplevel slice.
      */
     @Override
     public void close() {

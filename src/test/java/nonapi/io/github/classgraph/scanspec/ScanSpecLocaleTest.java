@@ -7,8 +7,7 @@ import java.util.Locale;
 import org.junit.jupiter.api.Test;
 
 /**
- * Regression test: enableURLScheme must lower-case the scheme
- * locale-independently.
+ * Regression test: enableURLScheme must lower-case the scheme locale-independently.
  */
 public class ScanSpecLocaleTest {
     @Test

@@ -38,36 +38,34 @@ import org.jspecify.annotations.Nullable;
  * A ClassLoader handler.
  *
  * <p>
- * Implementations must have a no-argument constructor, and are instantiated
- * once each by
- * {@link ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry}.
- * Implementations must be stateless, since a single instance is shared across
- * all scans.
+ * Implementations must have a no-argument constructor, and are instantiated once each by
+ * {@link ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry}. Implementations must be stateless, since a
+ * single instance is shared across all scans.
  *
  * <p>
- * If you create a custom ClassLoaderHandler, please consider submitting it to
- * the ClassGraph open source project.
+ * If you create a custom ClassLoaderHandler, please consider submitting it to the ClassGraph open source project.
  */
 interface ClassLoaderHandler {
     /**
-     * Check whether this {@link ClassLoaderHandler} can handle a given
-     * {@link ClassLoader}.
+     * Check whether this {@link ClassLoaderHandler} can handle a given {@link ClassLoader}.
      *
-     * @param classLoaderClass the {@link ClassLoader} class or one of its
-     *                         superclasses.
-     * @param log              the log node, or null to skip logging
-     * @return true if this {@link ClassLoaderHandler} can handle the
-     *         {@link ClassLoader}.
+     * @param classLoaderClass
+     *            the {@link ClassLoader} class or one of its superclasses.
+     * @param log
+     *            the log node, or null to skip logging
+     * @return true if this {@link ClassLoaderHandler} can handle the {@link ClassLoader}.
      */
     boolean canHandle(Class<?> classLoaderClass, @Nullable LogNode log);
 
     /**
-     * Return true if the class is, extends, or implements a given named class or
-     * interface. Used by {@link #canHandle(Class, LogNode)} implementations to
-     * recognize a {@link ClassLoader} by name without loading its class.
+     * Return true if the class is, extends, or implements a given named class or interface. Used by
+     * {@link #canHandle(Class, LogNode)} implementations to recognize a {@link ClassLoader} by name without loading
+     * its class.
      *
-     * @param cls       the class to test, or null.
-     * @param className the name of the class or interface to look for.
+     * @param cls
+     *            the class to test, or null.
+     * @param className
+     *            the name of the class or interface to look for.
      * @return true if cls is, extends, or implements the named class or interface.
      */
     default boolean classIsOrExtendsOrImplements(final @Nullable Class<?> cls, final String className) {
@@ -88,34 +86,39 @@ interface ClassLoaderHandler {
     /**
      * Find the {@link ClassLoader} delegation order for a {@link ClassLoader}.
      *
-     * @param classLoader      the {@link ClassLoader} to find the order for.
-     * @param classLoaderOrder a {@link ClassLoaderOrder} object to update.
-     * @param log              the log node, or null to skip logging
+     * @param classLoader
+     *            the {@link ClassLoader} to find the order for.
+     * @param classLoaderOrder
+     *            a {@link ClassLoaderOrder} object to update.
+     * @param log
+     *            the log node, or null to skip logging
      */
     void findClassLoaderOrder(ClassLoader classLoader, ClassLoaderOrder classLoaderOrder, @Nullable LogNode log);
 
     /**
      * Find the classpath entries for the associated {@link ClassLoader}.
      *
-     * @param classLoader    the {@link ClassLoader} to find the classpath entries
-     *                       order for.
-     * @param classpathOrder a {@link ClasspathOrder} object to update.
-     * @param scanSpec       the {@link ScanSpec}.
-     * @param log            the log node, or null to skip logging
+     * @param classLoader
+     *            the {@link ClassLoader} to find the classpath entries order for.
+     * @param classpathOrder
+     *            a {@link ClasspathOrder} object to update.
+     * @param scanSpec
+     *            the {@link ScanSpec}.
+     * @param log
+     *            the log node, or null to skip logging
      */
-    void findClasspathOrder(ClassLoader classLoader, ClasspathOrder classpathOrder, ScanSpec scanSpec, @Nullable LogNode log);
+    void findClasspathOrder(ClassLoader classLoader, ClasspathOrder classpathOrder, ScanSpec scanSpec,
+            @Nullable LogNode log);
 
     /**
-     * The automatic package root prefixes (e.g. {@code "BOOT-INF/classes/"}) to
-     * look for and strip within classpath elements obtained from this classloader,
-     * or {@link ClassLoaderHandlerRegistry#NO_PACKAGE_ROOT_PREFIXES} if this
-     * classloader's classpath elements always have their classes at the root.
+     * The automatic package root prefixes (e.g. {@code "BOOT-INF/classes/"}) to look for and strip within classpath
+     * elements obtained from this classloader, or {@link ClassLoaderHandlerRegistry#NO_PACKAGE_ROOT_PREFIXES} if
+     * this classloader's classpath elements always have their classes at the root.
      *
      * <p>
-     * Package roots must only be declared here if the classloader really can
-     * produce classpath elements in that layout, since a package root prefix that
-     * is also a legal package name (e.g. {@code "classes/"}) will otherwise cause
-     * real packages of that name to be misread as package roots.
+     * Package roots must only be declared here if the classloader really can produce classpath elements in that
+     * layout, since a package root prefix that is also a legal package name (e.g. {@code "classes/"}) will
+     * otherwise cause real packages of that name to be misread as package roots.
      *
      * @return the package root prefixes.
      */

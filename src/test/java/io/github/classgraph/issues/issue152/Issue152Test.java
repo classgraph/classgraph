@@ -45,20 +45,30 @@ public class Issue152Test {
     /**
      * Test method.
      *
-     * @param param0 the param 0
-     * @param param2 the param 2
-     * @param param3 the param 3
-     * @param param4 the param 4
-     * @param param5 the param 5
-     * @param param6 the param 6
-     * @param param7 the param 7
-     * @param param8 the param 8
-     * @param param9 the param 9
+     * @param param0
+     *            the param 0
+     * @param param2
+     *            the param 2
+     * @param param3
+     *            the param 3
+     * @param param4
+     *            the param 4
+     * @param param5
+     *            the param 5
+     * @param param6
+     *            the param 6
+     * @param param7
+     *            the param 7
+     * @param param8
+     *            the param 8
+     * @param param9
+     *            the param 9
      * @return the sets the
      */
     public Set<Integer> testMethod(final List<String[]> param0, final Map<String, Map<Integer, Boolean>> param2,
-            final double[][][] param3, final int param4, final TestType[] param5, final Set<? extends TestType> param6,
-            final List<? super TestType> param7, final Map<Integer, ?> param8, final Set<String>[] param9) {
+            final double[][][] param3, final int param4, final TestType[] param5,
+            final Set<? extends TestType> param6, final List<? super TestType> param7, final Map<Integer, ?> param8,
+            final Set<String>[] param9) {
         return null;
     }
 
@@ -84,9 +94,9 @@ public class Issue152Test {
                             + "final java.util.Map<java.lang.String, "
                             + "java.util.Map<java.lang.Integer, java.lang.Boolean>> param2, "
                             + "final double[][][] param3, final int param4, final " + TestType.class.getName()
-                            + "[] param5, " + "final java.util.Set<? extends " + TestType.class.getName() + "> param6, "
-                            + "final java.util.List<? super " + TestType.class.getName() + "> param7, "
-                            + "final java.util.Map<java.lang.Integer, ?> param8, "
+                            + "[] param5, " + "final java.util.Set<? extends " + TestType.class.getName()
+                            + "> param6, " + "final java.util.List<? super " + TestType.class.getName()
+                            + "> param7, " + "final java.util.Map<java.lang.Integer, ?> param8, "
                             + "final java.util.Set<java.lang.String>[] param9)");
             assertThat(classInfo //
                     .getFieldInfo("testField").toString()) //

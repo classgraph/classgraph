@@ -75,11 +75,10 @@ public class Issue318Test {
                 .enableAnnotationInfo().enableClassInfo().ignoreClassVisibility() //
                 // .verbose() //
                 .scan()) {
-            assertThat(scanResult.getClassesWithAnnotation(MyAnn.class).getNames())
-                    .containsOnly(With1MyAnn.class.getName(), With2MyAnn.class.getName(), With3MyAnn.class.getName());
-            assertThat(
-                    scanResult.getClassInfo(With3MyAnn.class.getName()).getAllAnnotationInfoRepeatable(MyAnn.class).size())
-                    .isEqualTo(3);
+            assertThat(scanResult.getClassesWithAnnotation(MyAnn.class).getNames()).containsOnly(
+                    With1MyAnn.class.getName(), With2MyAnn.class.getName(), With3MyAnn.class.getName());
+            assertThat(scanResult.getClassInfo(With3MyAnn.class.getName())
+                    .getAllAnnotationInfoRepeatable(MyAnn.class).size()).isEqualTo(3);
         }
     }
 }

@@ -67,8 +67,10 @@ public final class TypeArgument extends HierarchicalTypeSignature {
     /**
      * Constructor.
      *
-     * @param wildcard      The wildcard type
-     * @param typeSignature The type signature
+     * @param wildcard
+     *            The wildcard type
+     * @param typeSignature
+     *            The type signature
      */
     private TypeArgument(final Wildcard wildcard, final @Nullable ReferenceTypeSignature typeSignature) {
         super();
@@ -80,7 +82,7 @@ public final class TypeArgument extends HierarchicalTypeSignature {
 
     /**
      * Get the type wildcard, which is one of {NONE, ANY, EXTENDS, SUPER}.
-     * 
+     *
      * @return The type wildcard.
      */
     public Wildcard getWildcard() {
@@ -88,9 +90,8 @@ public final class TypeArgument extends HierarchicalTypeSignature {
     }
 
     /**
-     * Get the type signature associated with the wildcard (or null, if the wildcard
-     * is ANY).
-     * 
+     * Get the type signature associated with the wildcard (or null, if the wildcard is ANY).
+     *
      * @return The type signature.
      */
     public @Nullable ReferenceTypeSignature getTypeSignature() {
@@ -98,12 +99,12 @@ public final class TypeArgument extends HierarchicalTypeSignature {
     }
 
     /**
-     * Substitute type variables in this type argument, using a substitution map
-     * built by {@link TypeSignature#resolveTypeVariables(ClassInfo)}.
+     * Substitute type variables in this type argument, using a substitution map built by
+     * {@link TypeSignature#resolveTypeVariables(ClassInfo)}.
      *
-     * @param substitutions the substitution map.
-     * @return the substituted type argument, or this type argument itself if
-     *         nothing was substituted.
+     * @param substitutions
+     *            the substitution map.
+     * @return the substituted type argument, or this type argument itself if nothing was substituted.
      */
     // #735
     TypeArgument substituteTypeVariables(final Map<String, TypeArgument> substitutions) {
@@ -134,10 +135,11 @@ public final class TypeArgument extends HierarchicalTypeSignature {
     /**
      * Substitute type variables in a list of type arguments.
      *
-     * @param typeArguments the type arguments.
-     * @param substitutions the substitution map.
-     * @return the substituted type arguments, or the same list if nothing was
-     *         substituted.
+     * @param typeArguments
+     *            the type arguments.
+     * @param substitutions
+     *            the substitution map.
+     * @return the substituted type arguments, or the same list if nothing was substituted.
      */
     static List<TypeArgument> substituteTypeVariables(final List<TypeArgument> typeArguments,
             final Map<String, TypeArgument> substitutions) {
@@ -182,12 +184,14 @@ public final class TypeArgument extends HierarchicalTypeSignature {
 
     /**
      * Parse a type argument.
-     * 
-     * @param parser            The parser.
-     * @param definingClassName The name of the defining class (for resolving type
-     *                          variables).
+     *
+     * @param parser
+     *            The parser.
+     * @param definingClassName
+     *            The name of the defining class (for resolving type variables).
      * @return The parsed method type signature.
-     * @throws ParseException If method type signature could not be parsed.
+     * @throws ParseException
+     *             If method type signature could not be parsed.
      */
     private static TypeArgument parse(final Parser parser, final @Nullable String definingClassName)
             throws ParseException {
@@ -220,12 +224,14 @@ public final class TypeArgument extends HierarchicalTypeSignature {
 
     /**
      * Parse a list of type arguments.
-     * 
-     * @param parser            The parser.
-     * @param definingClassName The name of the defining class (for resolving type
-     *                          variables).
+     *
+     * @param parser
+     *            The parser.
+     * @param definingClassName
+     *            The name of the defining class (for resolving type variables).
      * @return The list of type arguments.
-     * @throws ParseException If type signature could not be parsed.
+     * @throws ParseException
+     *             If type signature could not be parsed.
      */
     static List<TypeArgument> parseList(final Parser parser, final @Nullable String definingClassName)
             throws ParseException {
@@ -288,7 +294,8 @@ public final class TypeArgument extends HierarchicalTypeSignature {
     /**
      * Get the names of any classes referenced in the type signature.
      *
-     * @param refdClassNames the referenced class names.
+     * @param refdClassNames
+     *            the referenced class names.
      */
     protected void findReferencedClassNames(final Set<String> refdClassNames) {
         final var typeSig = typeSignature;
@@ -330,8 +337,7 @@ public final class TypeArgument extends HierarchicalTypeSignature {
 
     @Override
     protected void toStringInternal(final boolean useSimpleNames,
-            final @Nullable AnnotationInfoList annotationsToExclude,
-            final StringBuilder buf) {
+            final @Nullable AnnotationInfoList annotationsToExclude, final StringBuilder buf) {
         final var typeAnnotations = typeAnnotationInfo;
         if (typeAnnotations != null) {
             for (final AnnotationInfo annotationInfo : typeAnnotations) {

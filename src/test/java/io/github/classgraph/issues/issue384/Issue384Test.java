@@ -57,7 +57,8 @@ class Issue384Test {
         final var filePath = Issue384Test.class.getClassLoader().getResource("nested-jars-level1.zip").getPath();
         final var customSchemeURL = CustomURLScheme.SCHEME + ":" + filePath;
         final var url = new URL(customSchemeURL);
-        try (var scanResult = new ClassGraph().enableURLScheme(CustomURLScheme.SCHEME).overrideClasspath(url).scan()) {
+        try (var scanResult = new ClassGraph().enableURLScheme(CustomURLScheme.SCHEME).overrideClasspath(url)
+                .scan()) {
             assertThat(scanResult.getAllResources().getPaths()).containsExactly("level2.jar");
             assertThat(CustomURLScheme.remappedURLs.entrySet().iterator().next())
                     .isEqualTo(new SimpleEntry<>(customSchemeURL, "file:" + filePath));

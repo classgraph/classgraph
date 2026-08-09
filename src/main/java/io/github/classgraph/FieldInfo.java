@@ -44,8 +44,8 @@ import nonapi.io.github.classgraph.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Holds metadata about fields of a class encountered during a scan. All values
- * are taken directly out of the classfile for the class.
+ * Holds metadata about fields of a class encountered during a scan. All values are taken directly out of the
+ * classfile for the class.
  */
 public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> {
     /** The parsed type signature. */
@@ -58,8 +58,7 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
     private final @Nullable Object constantInitializerValue;
 
     /**
-     * The type annotation decorators for the {@link TypeSignature} instance of this
-     * field.
+     * The type annotation decorators for the {@link TypeSignature} instance of this field.
      */
     private @Nullable List<TypeAnnotationDecorator> typeAnnotationDecorators;
 
@@ -68,17 +67,22 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
     /**
      * Constructor.
      *
-     * @param definingClassName        The class the field is defined within.
-     * @param fieldName                The name of the field.
-     * @param modifiers                The field modifiers.
-     * @param typeDescriptorStr        The field type descriptor.
-     * @param typeSignatureStr         The field type signature.
-     * @param constantInitializerValue The static constant value the field is
-     *                                 initialized to, if any.
-     * @param annotationInfo           {@link AnnotationInfo} for any annotations on
-     *                                 the field.
-     * @param typeAnnotationDecorators the type annotation decorators to apply to
-     *                                 the parsed field type, or null if none.
+     * @param definingClassName
+     *            The class the field is defined within.
+     * @param fieldName
+     *            The name of the field.
+     * @param modifiers
+     *            The field modifiers.
+     * @param typeDescriptorStr
+     *            The field type descriptor.
+     * @param typeSignatureStr
+     *            The field type signature.
+     * @param constantInitializerValue
+     *            The static constant value the field is initialized to, if any.
+     * @param annotationInfo
+     *            {@link AnnotationInfo} for any annotations on the field.
+     * @param typeAnnotationDecorators
+     *            the type annotation decorators to apply to the parsed field type, or null if none.
      */
     FieldInfo(final String definingClassName, final String fieldName, final int modifiers,
             final String typeDescriptorStr, final @Nullable String typeSignatureStr,
@@ -92,8 +96,7 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the field modifiers as a string, e.g. "public static final". For the
-     * modifier bits, call getModifiers().
+     * Get the field modifiers as a string, e.g. "public static final". For the modifier bits, call getModifiers().
      *
      * @return The field modifiers, as a string.
      */
@@ -123,9 +126,8 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
     }
 
     /**
-     * Returns the parsed type descriptor for the field, which will not include type
-     * parameters. If you need generic type parameters, call
-     * {@link #getTypeSignature()} instead.
+     * Returns the parsed type descriptor for the field, which will not include type parameters. If you need generic
+     * type parameters, call {@link #getTypeSignature()} instead.
      *
      * @return The parsed type descriptor string for the field.
      */
@@ -149,12 +151,12 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
     }
 
     /**
-     * Run the type annotation decorators on the given parsed field type. Any
-     * individual type annotation that cannot be matched to the type (e.g. an
-     * unresolvable nested type, or a compiler bug) is skipped rather than being
+     * Run the type annotation decorators on the given parsed field type. Any individual type annotation that cannot
+     * be matched to the type (e.g. an unresolvable nested type, or a compiler bug) is skipped rather than being
      * allowed to abort parsing of the whole field type.
      *
-     * @param fieldType the parsed field type signature or descriptor to decorate.
+     * @param fieldType
+     *            the parsed field type signature or descriptor to decorate.
      */
     // #897
     private void decorateType(final TypeSignature fieldType) {
@@ -172,17 +174,15 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
     }
 
     /**
-     * Returns the parsed type signature for the field, possibly including type
-     * parameters. If this returns null, indicating that no type signature
-     * information is available for this field, call {@link #getTypeDescriptor()}
+     * Returns the parsed type signature for the field, possibly including type parameters. If this returns null,
+     * indicating that no type signature information is available for this field, call {@link #getTypeDescriptor()}
      * instead.
      *
      * @return The parsed type signature for the field, or null if not available.
-     * @throws IllegalArgumentException if the field type signature cannot be parsed
-     *                                  (this should only be thrown in the case of
-     *                                  classfile corruption, or a compiler bug that
-     *                                  causes an invalid type signature to be
-     *                                  written to the classfile).
+     * @throws IllegalArgumentException
+     *             if the field type signature cannot be parsed (this should only be thrown in the case of classfile
+     *             corruption, or a compiler bug that causes an invalid type signature to be written to the
+     *             classfile).
      */
     @Override
     public @Nullable TypeSignature getTypeSignature() {
@@ -210,12 +210,12 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
     }
 
     /**
-     * Returns the type signature for the field, possibly including type parameters.
-     * If the type signature is null, indicating that no type signature information
-     * is available for this field, returns the type descriptor instead.
+     * Returns the type signature for the field, possibly including type parameters. If the type signature is null,
+     * indicating that no type signature information is available for this field, returns the type descriptor
+     * instead.
      *
-     * @return The parsed type signature for the field, or if not available, the
-     *         parsed type descriptor for the field.
+     * @return The parsed type signature for the field, or if not available, the parsed type descriptor for the
+     *         field.
      */
     @Override
     public @Nullable TypeSignature getTypeSignatureOrTypeDescriptor() {
@@ -233,20 +233,17 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
 
     /**
      * Returns the constant initializer value of a field. Requires
-     * {@link ClassGraph#enableStaticFinalFieldConstantInitializerValues()} to have
-     * been called. Will only return non-null for fields that have constant
-     * initializers, which is usually only fields of primitive type, or String
-     * constants. Also note that it is up to the compiler as to whether or not a
-     * constant-valued field is assigned as a constant in the field definition
-     * itself, or whether it is assigned manually in static or non-static class
-     * initializer blocks or the constructor -- so your mileage may vary in being
-     * able to extract constant initializer values.
+     * {@link ClassGraph#enableStaticFinalFieldConstantInitializerValues()} to have been called. Will only return
+     * non-null for fields that have constant initializers, which is usually only fields of primitive type, or
+     * String constants. Also note that it is up to the compiler as to whether or not a constant-valued field is
+     * assigned as a constant in the field definition itself, or whether it is assigned manually in static or
+     * non-static class initializer blocks or the constructor -- so your mileage may vary in being able to extract
+     * constant initializer values.
      *
-     * @return The initializer value, if this field has a constant initializer
-     *         value, or null if none.
-     * @throws IllegalStateException if
-     *                               {@link ClassGraph#enableStaticFinalFieldConstantInitializerValues()}
-     *                               was not called prior to initiating the scan.
+     * @return The initializer value, if this field has a constant initializer value, or null if none.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableStaticFinalFieldConstantInitializerValues()} was not called prior to
+     *             initiating the scan.
      */
     public @Nullable Object getConstantInitializerValue() {
         if (!scanResult().scanSpec.enableStaticFinalFieldConstantInitializerValues) {
@@ -261,7 +258,8 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
     /**
      * Handle {@link Repeatable} annotations.
      *
-     * @param allRepeatableAnnotationNames the names of all repeatable annotations
+     * @param allRepeatableAnnotationNames
+     *            the names of all repeatable annotations
      */
     void handleRepeatableAnnotations(final Set<String> allRepeatableAnnotationNames) {
         if (annotationInfo != null) {
@@ -297,12 +295,14 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
     }
 
     /**
-     * Get {@link ClassInfo} objects for any classes referenced in the type
-     * descriptor or type signature.
+     * Get {@link ClassInfo} objects for any classes referenced in the type descriptor or type signature.
      *
-     * @param classNameToClassInfo the map from class name to {@link ClassInfo}.
-     * @param refdClassInfo        the referenced class info
-     * @param log                  the log node, or null to skip logging
+     * @param classNameToClassInfo
+     *            the map from class name to {@link ClassInfo}.
+     * @param refdClassInfo
+     *            the referenced class info
+     * @param log
+     *            the log node, or null to skip logging
      */
     @Override
     void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
@@ -341,7 +341,8 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
     /**
      * Use class name and field name for equals().
      *
-     * @param obj the object to compare to
+     * @param obj
+     *            the object to compare to
      * @return true if equal
      */
     @Override
@@ -368,7 +369,8 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
     /**
      * Sort in order of class name then field name.
      *
-     * @param other the other FieldInfo object to compare to.
+     * @param other
+     *            the other FieldInfo object to compare to.
      * @return the result of comparison.
      */
     @Override
@@ -383,13 +385,15 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Append a string representation of the field to a buffer. The modifiers can be
-     * omitted, so that the same code can render a record component, which has the
-     * same shape as a field but no modifiers of its own.
+     * Append a string representation of the field to a buffer. The modifiers can be omitted, so that the same code
+     * can render a record component, which has the same shape as a field but no modifiers of its own.
      *
-     * @param includeModifiers if true, include the field's modifiers
-     * @param useSimpleNames   if true, strip the package name from class names
-     * @param buf              the buffer to append to
+     * @param includeModifiers
+     *            if true, include the field's modifiers
+     * @param useSimpleNames
+     *            if true, strip the package name from class names
+     * @param buf
+     *            the buffer to append to
      */
     void toString(final boolean includeModifiers, final boolean useSimpleNames, final StringBuilder buf) {
         if (annotationInfo != null) {
@@ -414,8 +418,8 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
             buf.append(' ');
         }
         final var typeSig = getTypeSignatureOrTypeDescriptor();
-        Objects.requireNonNull(typeSig).toStringInternal(useSimpleNames, /* annotationsToExclude = */ annotationInfo,
-                buf);
+        Objects.requireNonNull(typeSig).toStringInternal(useSimpleNames,
+                /* annotationsToExclude = */ annotationInfo, buf);
 
         buf.append(' ');
         buf.append(name);

@@ -49,8 +49,10 @@ public class SimpleThreadFactory implements ThreadFactory {
     /**
      * Constructor.
      *
-     * @param threadNamePrefix prefix for created threads.
-     * @param daemon           create daemon threads?
+     * @param threadNamePrefix
+     *            prefix for created threads.
+     * @param daemon
+     *            create daemon threads?
      */
     SimpleThreadFactory(final String threadNamePrefix, final boolean daemon) {
         this.threadNamePrefix = threadNamePrefix;
@@ -60,7 +62,8 @@ public class SimpleThreadFactory implements ThreadFactory {
     /**
      * New thread.
      *
-     * @param runnable the runnable
+     * @param runnable
+     *            the runnable
      * @return the thread
      */
     @Override

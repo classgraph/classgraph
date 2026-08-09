@@ -50,8 +50,7 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
     private @Nullable ArrayClassInfo arrayClassInfo;
 
     /**
-     * The nested type (another {@link ArrayTypeSignature}, or the base element
-     * type).
+     * The nested type (another {@link ArrayTypeSignature}, or the base element type).
      */
     private final TypeSignature nestedType;
 
@@ -60,9 +59,12 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
     /**
      * Constructor.
      *
-     * @param elementTypeSignature The type signature of the array elements.
-     * @param numDims              The number of array dimensions.
-     * @param typeSignatureStr     Raw array type signature string (e.g. "[[I")
+     * @param elementTypeSignature
+     *            The type signature of the array elements.
+     * @param numDims
+     *            The number of array dimensions.
+     * @param typeSignatureStr
+     *            Raw array type signature string (e.g. "[[I")
      */
     ArrayTypeSignature(final TypeSignature elementTypeSignature, final int numDims, final String typeSignatureStr) {
         super();
@@ -136,9 +138,8 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
     }
 
     /**
-     * Get the nested type, which is another {@link ArrayTypeSignature} with one
-     * dimension fewer, if this array has 2 or more dimensions, otherwise this
-     * returns the element type.
+     * Get the nested type, which is another {@link ArrayTypeSignature} with one dimension fewer, if this array has
+     * 2 or more dimensions, otherwise this returns the element type.
      *
      * @return The nested type.
      */
@@ -160,13 +161,12 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
     }
 
     /**
-     * Get a list of {@link AnnotationInfo} objects for the type annotations on this
-     * array type, or null if none.
+     * Get a list of {@link AnnotationInfo} objects for the type annotations on this array type, or null if none.
      *
-     * @see #getNestedType() if you want to read for type annotations on inner
-     *      (nested) dimensions of the array type.
-     * @return a list of {@link AnnotationInfo} objects for the type annotations of
-     *         on this array type, or null if none.
+     * @see #getNestedType() if you want to read for type annotations on inner (nested) dimensions of the array
+     *      type.
+     * @return a list of {@link AnnotationInfo} objects for the type annotations of on this array type, or null if
+     *         none.
      */
     @Override
     public @Nullable AnnotationInfoList getTypeAnnotationInfo() {
@@ -210,8 +210,7 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
     }
 
     /**
-     * Return an {@link ArrayClassInfo} instance for the array class, cast to its
-     * superclass.
+     * Return an {@link ArrayClassInfo} instance for the array class, cast to its superclass.
      *
      * @return the {@link ArrayClassInfo} instance.
      */
@@ -258,7 +257,8 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
     /**
      * Get the names of any classes referenced in the type signature.
      *
-     * @param refdClassNames the referenced class names.
+     * @param refdClassNames
+     *            the referenced class names.
      */
     @Override
     protected void findReferencedClassNames(final Set<String> refdClassNames) {
@@ -315,8 +315,7 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
 
     @Override
     protected void toStringInternal(final boolean useSimpleNames,
-            final @Nullable AnnotationInfoList annotationsToExclude,
-            final StringBuilder buf) {
+            final @Nullable AnnotationInfoList annotationsToExclude, final StringBuilder buf) {
         // Start with innermost array element type
         getElementTypeSignature().toStringInternal(useSimpleNames, annotationsToExclude, buf);
 
@@ -348,10 +347,13 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
     /**
      * Parses the array type signature.
      *
-     * @param parser            the parser
-     * @param definingClassName the defining class name
+     * @param parser
+     *            the parser
+     * @param definingClassName
+     *            the defining class name
      * @return the array type signature
-     * @throws ParseException if parsing fails
+     * @throws ParseException
+     *             if parsing fails
      */
     static @Nullable ArrayTypeSignature parse(final Parser parser, final @Nullable String definingClassName)
             throws ParseException {

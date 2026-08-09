@@ -3,8 +3,7 @@ package io.github.classgraph.issues.issue772;
 import java.io.Closeable;
 
 /**
- * An interface overriding another, its methods should always be 'preferred'
- * before methods from Closeable
+ * An interface overriding another, its methods should always be 'preferred' before methods from Closeable
  */
 public interface MyCloseable extends Closeable {
 

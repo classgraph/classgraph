@@ -35,12 +35,10 @@ import nonapi.io.github.classgraph.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
 /**
- * This handler uses parent-last delegation order (i.e. it adds the classloader
- * itself to the classloader order before delegating to the parent) to support
- * the <code>RestartClassLoader</code> of Spring Boot's devtools.
- * <code>RestartClassLoader</code> provides parent-last loading for specified
- * URLs (those are all that are supposed to be changed during development).
- * Therefore the handler for that class loader also has to delegate in
+ * This handler uses parent-last delegation order (i.e. it adds the classloader itself to the classloader order
+ * before delegating to the parent) to support the <code>RestartClassLoader</code> of Spring Boot's devtools.
+ * <code>RestartClassLoader</code> provides parent-last loading for specified URLs (those are all that are supposed
+ * to be changed during development). Therefore the handler for that class loader also has to delegate in
  * parent-last order.
  */
 class SpringBootRestartClassLoaderHandler implements ClassLoaderHandler {
@@ -68,22 +66,23 @@ class SpringBootRestartClassLoaderHandler implements ClassLoaderHandler {
 
     /**
      * Find the classpath entries for the associated {@link ClassLoader}.
-     * 
-     * Spring Boot's RestartClassLoader sits in front of the parent class loader and
-     * watches a given set of directories for changes. While those classes are
-     * reachable from the parent class loader directly, they should always be loaded
-     * through direct access from the RestartClassLoader until it's completely
-     * turned off by means of Spring Boot Developer tools.
-     * 
-     * The RestartClassLoader shades only the project classes and additional
-     * directories that are configurable, so itself needs access to parent, but
-     * last.
      *
-     * @param classLoader    the {@link ClassLoader} to find the classpath entries
-     *                       order for.
-     * @param classpathOrder a {@link ClasspathOrder} object to update.
-     * @param scanSpec       the {@link ScanSpec}.
-     * @param log            the log node, or null to skip logging
+     * Spring Boot's RestartClassLoader sits in front of the parent class loader and watches a given set of
+     * directories for changes. While those classes are reachable from the parent class loader directly, they should
+     * always be loaded through direct access from the RestartClassLoader until it's completely turned off by means
+     * of Spring Boot Developer tools.
+     *
+     * The RestartClassLoader shades only the project classes and additional directories that are configurable, so
+     * itself needs access to parent, but last.
+     *
+     * @param classLoader
+     *            the {@link ClassLoader} to find the classpath entries order for.
+     * @param classpathOrder
+     *            a {@link ClasspathOrder} object to update.
+     * @param scanSpec
+     *            the {@link ScanSpec}.
+     * @param log
+     *            the log node, or null to skip logging
      */
     // #267, #268
     @Override
@@ -93,12 +92,10 @@ class SpringBootRestartClassLoaderHandler implements ClassLoaderHandler {
     }
 
     /**
-     * Get the automatic package root prefixes for classpath elements obtained from
-     * this classloader.
+     * Get the automatic package root prefixes for classpath elements obtained from this classloader.
      *
      * <p>
-     * Classpath elements from this classloader may be Spring-Boot executable jars
-     * or wars.
+     * Classpath elements from this classloader may be Spring-Boot executable jars or wars.
      *
      * @return the package root prefixes.
      */

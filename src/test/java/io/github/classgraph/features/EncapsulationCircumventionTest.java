@@ -24,10 +24,12 @@ class EncapsulationCircumventionTest {
     void testNarcissus() {
         ClassGraph.CIRCUMVENT_ENCAPSULATION = CircumventEncapsulationMethod.NARCISSUS;
         final var reflectionUtils = new ReflectionUtils();
-        assertThat(reflectionUtils.getFieldVal(true, reflectionUtils, "reflectionDriver").getClass().getSimpleName())
+        assertThat(
+                reflectionUtils.getFieldVal(true, reflectionUtils, "reflectionDriver").getClass().getSimpleName())
                 .isEqualTo("NarcissusReflectionDriver");
         try (var scanResult = new ClassGraph()
-                .acceptPackages(EncapsulationCircumventionTest.class.getPackage().getName()).enableAllInfo().scan()) {
+                .acceptPackages(EncapsulationCircumventionTest.class.getPackage().getName()).enableAllInfo()
+                .scan()) {
             assertThat(scanResult.getAllClasses().getNames()).isNotEmpty();
         }
     }

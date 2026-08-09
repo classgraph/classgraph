@@ -14,8 +14,10 @@ public class GenericInnerClassTypedField {
     /**
      * The Class A.
      *
-     * @param <X> the generic type
-     * @param <Y> the generic type
+     * @param <X>
+     *            the generic type
+     * @param <Y>
+     *            the generic type
      */
     private static class A<X, Y> {
 
@@ -34,8 +36,8 @@ public class GenericInnerClassTypedField {
      */
     @Test
     public void testGenericInnerClassTypedField() {
-        try (var scanResult = new ClassGraph().acceptPackages(GenericInnerClassTypedField.class.getPackage().getName())
-                .enableAllInfo().scan()) {
+        try (var scanResult = new ClassGraph()
+                .acceptPackages(GenericInnerClassTypedField.class.getPackage().getName()).enableAllInfo().scan()) {
             final var fields = scanResult.getClassInfo(GenericInnerClassTypedField.class.getName()).getFieldInfo();
             final var classRefTypeSignature = (ClassRefTypeSignature) fields.get(0).getTypeSignature();
             assertThat(classRefTypeSignature.toString()).isEqualTo(

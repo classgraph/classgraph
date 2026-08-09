@@ -16,27 +16,25 @@ import org.junit.jupiter.api.io.TempDir;
 import io.github.classgraph.ClassGraph;
 
 /**
- * A package named {@code classes} or {@code test-classes} was invisible to
- * scanning, because a directory with that name was assumed to be a package root
- * (as in the Ant layout {@code <root>/classes/com/xyz/Foo.class}), so
- * {@code classes/} was stripped from the relative path of every classfile
- * beneath it, and the resulting relative path then no longer matched the name
- * of the class the classfile declares.
+ * A package named {@code classes} or {@code test-classes} was invisible to scanning, because a directory with that
+ * name was assumed to be a package root (as in the Ant layout {@code <root>/classes/com/xyz/Foo.class}), so
+ * {@code classes/} was stripped from the relative path of every classfile beneath it, and the resulting relative
+ * path then no longer matched the name of the class the classfile declares.
  *
  * <p>
- * The classfiles used by these tests are generated rather than compiled, since
- * the tests are compiled into a fixed package, and the layouts being tested need
- * classes in a package named {@code classes}.
+ * The classfiles used by these tests are generated rather than compiled, since the tests are compiled into a fixed
+ * package, and the layouts being tested need classes in a package named {@code classes}.
  */
 public class Issue929Test {
 
     /**
-     * Generate a minimal classfile for a public class with the given name that
-     * extends {@link Object}.
+     * Generate a minimal classfile for a public class with the given name that extends {@link Object}.
      *
-     * @param className the fully-qualified name of the class.
+     * @param className
+     *            the fully-qualified name of the class.
      * @return the bytes of the classfile.
-     * @throws IOException if the classfile could not be written.
+     * @throws IOException
+     *             if the classfile could not be written.
      */
     private static byte[] classfileBytes(final String className) throws IOException {
         final var byteArrayOutputStream = new ByteArrayOutputStream();
@@ -67,13 +65,15 @@ public class Issue929Test {
     /**
      * Write classfiles into a directory.
      *
-     * @param dir        the directory to write the classfiles into.
-     * @param classfiles the classfiles to write, each given as
-     *                   {@code { relativePath, className }} (the relative path is
-     *                   not always the path that corresponds to the class name --
-     *                   that is the whole point of a package root).
+     * @param dir
+     *            the directory to write the classfiles into.
+     * @param classfiles
+     *            the classfiles to write, each given as {@code { relativePath, className }} (the relative path is
+     *            not always the path that corresponds to the class name -- that is the whole point of a package
+     *            root).
      * @return the directory.
-     * @throws IOException if a classfile could not be written.
+     * @throws IOException
+     *             if a classfile could not be written.
      */
     private static File buildDir(final File dir, final String[]... classfiles) throws IOException {
         for (final String[] classfile : classfiles) {
@@ -87,11 +87,13 @@ public class Issue929Test {
     /**
      * Write a jar containing classfiles.
      *
-     * @param jarFile    the jar to write.
-     * @param classfiles the classfiles to write, each given as
-     *                   {@code { relativePath, className }}.
+     * @param jarFile
+     *            the jar to write.
+     * @param classfiles
+     *            the classfiles to write, each given as {@code { relativePath, className }}.
      * @return the jar.
-     * @throws IOException if the jar could not be written.
+     * @throws IOException
+     *             if the jar could not be written.
      */
     private static File buildJar(final File jarFile, final String[]... classfiles) throws IOException {
         try (var outputStream = Files.newOutputStream(jarFile.toPath());
@@ -106,11 +108,12 @@ public class Issue929Test {
     }
 
     /**
-     * A package named {@code classes} in a directory classpath element must be
-     * scannable.
+     * A package named {@code classes} in a directory classpath element must be scannable.
      *
-     * @param tempDir the temp dir.
-     * @throws IOException if the classfiles could not be written.
+     * @param tempDir
+     *            the temp dir.
+     * @throws IOException
+     *             if the classfiles could not be written.
      */
     @Test
     public void packageNamedClassesInDirIsScannable(@TempDir final File tempDir) throws IOException {
@@ -127,11 +130,12 @@ public class Issue929Test {
     }
 
     /**
-     * A package named {@code classes} in a jarfile classpath element must be
-     * scannable.
+     * A package named {@code classes} in a jarfile classpath element must be scannable.
      *
-     * @param tempDir the temp dir.
-     * @throws IOException if the jar could not be written.
+     * @param tempDir
+     *            the temp dir.
+     * @throws IOException
+     *             if the jar could not be written.
      */
     @Test
     public void packageNamedClassesInJarIsScannable(@TempDir final File tempDir) throws IOException {
@@ -148,12 +152,13 @@ public class Issue929Test {
     }
 
     /**
-     * A directory named {@code classes} that really is a package root (the Ant
-     * layout) must still be treated as a package root, otherwise the classes
-     * beneath it are given an extra {@code classes.} package prefix.
+     * A directory named {@code classes} that really is a package root (the Ant layout) must still be treated as a
+     * package root, otherwise the classes beneath it are given an extra {@code classes.} package prefix.
      *
-     * @param tempDir the temp dir.
-     * @throws IOException if the classfiles could not be written.
+     * @param tempDir
+     *            the temp dir.
+     * @throws IOException
+     *             if the classfiles could not be written.
      */
     @Test
     public void packageRootNamedClassesIsStillAPackageRoot(@TempDir final File tempDir) throws IOException {
@@ -171,11 +176,12 @@ public class Issue929Test {
     }
 
     /**
-     * The same, for a jarfile classpath element with a {@code classes/} package
-     * root.
+     * The same, for a jarfile classpath element with a {@code classes/} package root.
      *
-     * @param tempDir the temp dir.
-     * @throws IOException if the jar could not be written.
+     * @param tempDir
+     *            the temp dir.
+     * @throws IOException
+     *             if the jar could not be written.
      */
     @Test
     public void packageRootNamedClassesInJarIsStillAPackageRoot(@TempDir final File tempDir) throws IOException {

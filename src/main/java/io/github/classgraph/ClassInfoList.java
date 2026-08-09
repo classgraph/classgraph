@@ -46,20 +46,16 @@ import nonapi.io.github.classgraph.utils.CollectionUtils;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A <i>uniquified</i> (deduplicated) list of {@link ClassInfo} objects, which
- * stores both reachable classes (obtained through a given class relationship,
- * either by direct relationship or through an indirect path), and directly
- * related classes (classes reachable through a direct relationship only). (By
- * default, accessing a {@link ClassInfoList} as a {@link List} returns only
- * reachable classes; by calling {@link #directOnly()}, you can get the directly
- * related classes.)
+ * A <i>uniquified</i> (deduplicated) list of {@link ClassInfo} objects, which stores both reachable classes
+ * (obtained through a given class relationship, either by direct relationship or through an indirect path), and
+ * directly related classes (classes reachable through a direct relationship only). (By default, accessing a
+ * {@link ClassInfoList} as a {@link List} returns only reachable classes; by calling {@link #directOnly()}, you can
+ * get the directly related classes.)
  *
  * <p>
- * Most {@link ClassInfoList} objects returned by ClassGraph are sorted into
- * lexicographical order by the value of {@link ClassInfo#getName()}. One
- * exception to this is the classes returned by
- * {@link ClassInfo#getAllSuperclasses()}, which are in ascending order of the
- * class hierarchy.
+ * Most {@link ClassInfoList} objects returned by ClassGraph are sorted into lexicographical order by the value of
+ * {@link ClassInfo#getName()}. One exception to this is the classes returned by
+ * {@link ClassInfo#getAllSuperclasses()}, which are in ascending order of the class hierarchy.
  */
 public class ClassInfoList extends MappableInfoList<ClassInfo> {
     /** Directly related classes. */
@@ -95,16 +91,18 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
     }
 
     /**
-     * Construct a modifiable list of {@link ClassInfo} objects, consisting of
-     * reachable classes (obtained through the transitive closure) and directly
-     * related classes (one step away in the graph).
+     * Construct a modifiable list of {@link ClassInfo} objects, consisting of reachable classes (obtained through
+     * the transitive closure) and directly related classes (one step away in the graph).
      *
-     * @param reachableClasses       reachable classes
-     * @param directlyRelatedClasses directly related classes
-     * @param sortByName             whether to sort by name
+     * @param reachableClasses
+     *            reachable classes
+     * @param directlyRelatedClasses
+     *            directly related classes
+     * @param sortByName
+     *            whether to sort by name
      */
-    ClassInfoList(final Set<ClassInfo> reachableClasses,
-            final @Nullable Set<ClassInfo> directlyRelatedClasses, final boolean sortByName) {
+    ClassInfoList(final Set<ClassInfo> reachableClasses, final @Nullable Set<ClassInfo> directlyRelatedClasses,
+            final boolean sortByName) {
         // Sort a copy of the classes before handing them to the superclass constructor,
         // rather than sorting this
         // list once it has been built, so that a partly-initialized instance is never
@@ -119,9 +117,10 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
     /**
      * Construct a modifiable list of {@link ClassInfo} objects.
      *
-     * @param reachableAndDirectlyRelatedClasses reachable and directly related
-     *                                           classes
-     * @param sortByName                         whether to sort by name
+     * @param reachableAndDirectlyRelatedClasses
+     *            reachable and directly related classes
+     * @param sortByName
+     *            whether to sort by name
      */
     ClassInfoList(final ReachableAndDirectlyRelatedClasses reachableAndDirectlyRelatedClasses,
             final boolean sortByName) {
@@ -130,11 +129,12 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
     }
 
     /**
-     * Construct a modifiable list of {@link ClassInfo} objects, where each class is
-     * directly related.
+     * Construct a modifiable list of {@link ClassInfo} objects, where each class is directly related.
      *
-     * @param reachableClasses reachable classes
-     * @param sortByName       whether to sort by name
+     * @param reachableClasses
+     *            reachable classes
+     * @param sortByName
+     *            whether to sort by name
      */
     ClassInfoList(final Set<ClassInfo> reachableClasses, final boolean sortByName) {
         this(reachableClasses, /* directlyRelatedClasses = */ null, sortByName);
@@ -150,10 +150,10 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
     }
 
     /**
-     * Construct a new empty modifiable list of {@link ClassInfo} objects, given a
-     * size hint.
+     * Construct a new empty modifiable list of {@link ClassInfo} objects, given a size hint.
      *
-     * @param sizeHint the size hint.
+     * @param sizeHint
+     *            the size hint.
      */
     public ClassInfoList(final int sizeHint) {
         super(sizeHint);
@@ -162,34 +162,31 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
     }
 
     /**
-     * Construct a new modifiable empty {@link ClassInfoList}, given an initial list
-     * of {@link ClassInfo} objects.
-     * 
+     * Construct a new modifiable empty {@link ClassInfoList}, given an initial list of {@link ClassInfo} objects.
+     *
      * <p>
-     * If the passed {@link Collection} is not a {@link Set}, then the
-     * {@link ClassInfo} objects will be uniquified (by adding them to a set) before
-     * they are added to the returned list. {@link ClassInfo} objects in the
+     * If the passed {@link Collection} is not a {@link Set}, then the {@link ClassInfo} objects will be uniquified
+     * (by adding them to a set) before they are added to the returned list. {@link ClassInfo} objects in the
      * returned list will be sorted by name.
      *
-     * @param classInfoCollection the initial collection of {@link ClassInfo}
-     *                            objects to add to the {@link ClassInfoList}.
+     * @param classInfoCollection
+     *            the initial collection of {@link ClassInfo} objects to add to the {@link ClassInfoList}.
      */
     public ClassInfoList(final Collection<ClassInfo> classInfoCollection) {
         this(Objects.requireNonNull(classInfoCollection,
                 "classInfoCollection must not be null") instanceof final Set<ClassInfo> classInfoSet //
-                ? classInfoSet
-                : new HashSet<>(classInfoCollection), //
+                        ? classInfoSet
+                        : new HashSet<>(classInfoCollection), //
                 /* directlyRelatedClasses = */ null, /* sortByName = */ true);
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the list of classes that were directly related, as opposed to reachable
-     * through multiple steps. For example, if this {@link ClassInfoList} was
-     * produced by querying for all superclasses of a given class, then
+     * Get the list of classes that were directly related, as opposed to reachable through multiple steps. For
+     * example, if this {@link ClassInfoList} was produced by querying for all superclasses of a given class, then
      * {@link #directOnly()} will return only the direct superclass of this class.
-     * 
+     *
      * @return The list of directly-related classes.
      */
     public ClassInfoList directOnly() {
@@ -201,7 +198,8 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
     /**
      * Find the union of this {@link ClassInfoList} with one or more others.
      *
-     * @param others The other {@link ClassInfoList}s to union with this one.
+     * @param others
+     *            The other {@link ClassInfoList}s to union with this one.
      * @return The union of this {@link ClassInfoList} with the others.
      */
     public ClassInfoList union(final ClassInfoList... others) {
@@ -218,7 +216,8 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
     /**
      * Find the intersection of this {@link ClassInfoList} with one or more others.
      *
-     * @param others The other {@link ClassInfoList}s to intersect with this one.
+     * @param others
+     *            The other {@link ClassInfoList}s to intersect with this one.
      * @return The intersection of this {@link ClassInfoList} with the others.
      */
     public ClassInfoList intersect(final ClassInfoList... others) {
@@ -248,16 +247,17 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
         for (final ClassInfoList other : others) {
             directlyRelatedClassesIntersection.retainAll(other.directlyRelatedClasses);
         }
-        return new ClassInfoList(reachableClassesIntersection, directlyRelatedClassesIntersection, first.sortByName);
+        return new ClassInfoList(reachableClassesIntersection, directlyRelatedClassesIntersection,
+                first.sortByName);
     }
 
     /**
-     * Find the set difference between this {@link ClassInfoList} and another
-     * {@link ClassInfoList}, i.e. (this \ other).
+     * Find the set difference between this {@link ClassInfoList} and another {@link ClassInfoList}, i.e. (this \
+     * other).
      *
-     * @param other The other {@link ClassInfoList} to subtract from this one.
-     * @return The set difference of this {@link ClassInfoList} and other, i.e.
-     *         (this \ other).
+     * @param other
+     *            The other {@link ClassInfoList} to subtract from this one.
+     * @return The set difference of this {@link ClassInfoList} and other, i.e. (this \ other).
      */
     public ClassInfoList exclude(final ClassInfoList other) {
         Assert.notNull(other, "other");
@@ -271,29 +271,28 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Filter a {@link ClassInfoList} using a predicate mapping a {@link ClassInfo}
-     * object to a boolean, producing another {@link ClassInfoList} for all items in
-     * the list for which the predicate is true.
+     * Filter a {@link ClassInfoList} using a predicate mapping a {@link ClassInfo} object to a boolean, producing
+     * another {@link ClassInfoList} for all items in the list for which the predicate is true.
      */
     @FunctionalInterface
     public interface ClassInfoFilter {
         /**
          * Whether or not to allow a {@link ClassInfo} list item through the filter.
          *
-         * @param classInfo The {@link ClassInfo} item to filter.
-         * @return Whether or not to allow the item through the filter. If true, the
-         *         item is copied to the output list; if false, it is excluded.
+         * @param classInfo
+         *            The {@link ClassInfo} item to filter.
+         * @return Whether or not to allow the item through the filter. If true, the item is copied to the output
+         *         list; if false, it is excluded.
          */
         boolean accept(ClassInfo classInfo);
     }
 
     /**
-     * Find the subset of this {@link ClassInfoList} for which the given filter
-     * predicate is true.
+     * Find the subset of this {@link ClassInfoList} for which the given filter predicate is true.
      *
-     * @param filter The {@link ClassInfoFilter} to apply.
-     * @return The subset of this {@link ClassInfoList} for which the given filter
-     *         predicate is true.
+     * @param filter
+     *            The {@link ClassInfoFilter} to apply.
+     * @return The subset of this {@link ClassInfoList} for which the given filter predicate is true.
      */
     public ClassInfoList filter(final ClassInfoFilter filter) {
         Assert.notNull(filter, "filter");
@@ -313,9 +312,9 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Filter this {@link ClassInfoList} to include only standard classes (classes
-     * that are not interfaces or annotations).
-     * 
+     * Filter this {@link ClassInfoList} to include only standard classes (classes that are not interfaces or
+     * annotations).
+     *
      * @return The filtered list, containing only standard classes.
      */
     public ClassInfoList getStandardClasses() {
@@ -323,9 +322,9 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
     }
 
     /**
-     * Filter this {@link ClassInfoList} to include only interfaces that are not
-     * annotations. See also {@link #getInterfacesAndAnnotations()}.
-     * 
+     * Filter this {@link ClassInfoList} to include only interfaces that are not annotations. See also
+     * {@link #getInterfacesAndAnnotations()}.
+     *
      * @return The filtered list, containing only interfaces.
      */
     public ClassInfoList getInterfaces() {
@@ -333,10 +332,9 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
     }
 
     /**
-     * Filter this {@link ClassInfoList} to include only interfaces and annotations
-     * (annotations are interfaces, and can be implemented). See also
-     * {@link #getInterfaces()}.
-     * 
+     * Filter this {@link ClassInfoList} to include only interfaces and annotations (annotations are interfaces, and
+     * can be implemented). See also {@link #getInterfaces()}.
+     *
      * @return The filtered list, containing only interfaces.
      */
     public ClassInfoList getInterfacesAndAnnotations() {
@@ -344,10 +342,9 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
     }
 
     /**
-     * Filter this {@link ClassInfoList} to include only implemented interfaces,
-     * i.e. non-annotation interfaces, or annotations that have been implemented by
-     * a class.
-     * 
+     * Filter this {@link ClassInfoList} to include only implemented interfaces, i.e. non-annotation interfaces, or
+     * annotations that have been implemented by a class.
+     *
      * @return The filtered list, containing only implemented interfaces.
      */
     public ClassInfoList getImplementedInterfaces() {
@@ -356,7 +353,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
 
     /**
      * Filter this {@link ClassInfoList} to include only annotations.
-     * 
+     *
      * @return The filtered list, containing only annotations.
      */
     public ClassInfoList getAnnotations() {
@@ -365,7 +362,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
 
     /**
      * Filter this {@link ClassInfoList} to include only {@link Enum} classes.
-     * 
+     *
      * @return The filtered list, containing only enums.
      */
     public ClassInfoList getEnums() {
@@ -374,7 +371,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
 
     /**
      * Filter this {@link ClassInfoList} to include only {@code record} classes.
-     * 
+     *
      * @return The filtered list, containing only {@code record} classes.
      */
     public ClassInfoList getRecords() {
@@ -382,17 +379,18 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
     }
 
     /**
-     * Filter this {@link ClassInfoList} to include only classes that are assignable
-     * to the requested class, assignableToClass (i.e. where assignableToClass is a
-     * superclass or implemented interface of the list element).
-     * 
-     * @param superclassOrInterface the superclass or interface to filter for.
+     * Filter this {@link ClassInfoList} to include only classes that are assignable to the requested class,
+     * assignableToClass (i.e. where assignableToClass is a superclass or implemented interface of the list
+     * element).
+     *
+     * @param superclassOrInterface
+     *            the superclass or interface to filter for.
      * @return The filtered list, containing only classes for which
-     *         {@code assignableToClassRef.isAssignableFrom(listItemClassRef)} is
-     *         true for the corresponding {@code Class<?>} references for
-     *         assignableToClass and the list items. Returns the empty list if no
+     *         {@code assignableToClassRef.isAssignableFrom(listItemClassRef)} is true for the corresponding
+     *         {@code Class<?>} references for assignableToClass and the list items. Returns the empty list if no
      *         classes were assignable to the requested class.
-     * @throws NullPointerException if superclassOrInterface is null.
+     * @throws NullPointerException
+     *             if superclassOrInterface is null.
      */
     public ClassInfoList getAssignableTo(final ClassInfo superclassOrInterface) {
         Assert.notNull(superclassOrInterface, "superclassOrInterface");
@@ -410,16 +408,15 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
     }
 
     /**
-     * Filter this {@link ClassInfoList} to include only classes that are assignable
-     * to the named class or interface (i.e. where the named class or interface is a
-     * superclass or implemented interface of the list element).
+     * Filter this {@link ClassInfoList} to include only classes that are assignable to the named class or interface
+     * (i.e. where the named class or interface is a superclass or implemented interface of the list element).
      *
-     * @param superclassOrInterfaceName the name of the superclass or interface to
-     *                                  filter for.
-     * @return The filtered list, or the empty list if no classes were assignable to
-     *         the named class or interface, or if the named class or interface was
-     *         not found during the scan.
-     * @throws NullPointerException if superclassOrInterfaceName is null.
+     * @param superclassOrInterfaceName
+     *            the name of the superclass or interface to filter for.
+     * @return The filtered list, or the empty list if no classes were assignable to the named class or interface,
+     *         or if the named class or interface was not found during the scan.
+     * @throws NullPointerException
+     *             if superclassOrInterfaceName is null.
      */
     public ClassInfoList getAssignableTo(final String superclassOrInterfaceName) {
         Assert.notNull(superclassOrInterfaceName, "superclassOrInterfaceName");
@@ -432,15 +429,16 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
     }
 
     /**
-     * Filter this {@link ClassInfoList} to include only classes that are assignable
-     * to the requested class or interface (i.e. where the requested class or
-     * interface is a superclass or implemented interface of the list element).
+     * Filter this {@link ClassInfoList} to include only classes that are assignable to the requested class or
+     * interface (i.e. where the requested class or interface is a superclass or implemented interface of the list
+     * element).
      *
-     * @param superclassOrInterface the superclass or interface to filter for.
-     * @return The filtered list, or the empty list if no classes were assignable to
-     *         the requested class or interface, or if the requested class or
-     *         interface was not found during the scan.
-     * @throws NullPointerException if superclassOrInterface is null.
+     * @param superclassOrInterface
+     *            the superclass or interface to filter for.
+     * @return The filtered list, or the empty list if no classes were assignable to the requested class or
+     *         interface, or if the requested class or interface was not found during the scan.
+     * @throws NullPointerException
+     *             if superclassOrInterface is null.
      */
     public ClassInfoList getAssignableTo(final Class<?> superclassOrInterface) {
         Assert.notNull(superclassOrInterface, "superclassOrInterface");
@@ -450,19 +448,17 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Generate a .dot file which can be fed into GraphViz for layout and
-     * visualization of the class graph. The returned graph shows inter-class
-     * dependencies only. You must have called
-     * {@link ClassGraph#enableInterClassDependencies()} before scanning to use this
-     * method.
+     * Generate a .dot file which can be fed into GraphViz for layout and visualization of the class graph. The
+     * returned graph shows inter-class dependencies only. You must have called
+     * {@link ClassGraph#enableInterClassDependencies()} before scanning to use this method.
      *
-     * @param options the graph options. Only the layout size and the external-class
-     *                setting have any effect on this graph.
+     * @param options
+     *            the graph options. Only the layout size and the external-class setting have any effect on this
+     *            graph.
      * @return the GraphViz file contents.
-     * @throws IllegalStateException if this {@link ClassInfoList} is empty or
-     *                                  {@link ClassGraph#enableInterClassDependencies()}
-     *                                  was not called before scanning (since there
-     *                                  would be nothing to graph).
+     * @throws IllegalStateException
+     *             if this {@link ClassInfoList} is empty or {@link ClassGraph#enableInterClassDependencies()} was
+     *             not called before scanning (since there would be nothing to graph).
      */
     public String generateGraphVizDotFileFromInterClassDependencies(final GraphVizDotFileOptions options) {
         Assert.notNull(options, "options");
@@ -474,46 +470,42 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
             throw new IllegalStateException("Please call ClassGraph#enableInterClassDependencies() before #scan()");
         }
         return GraphvizDotfileGenerator.generateGraphVizDotFileFromInterClassDependencies(this, options.sizeX,
-                options.sizeY,
-                options.includeExternalClasses != null ? options.includeExternalClasses
+                options.sizeY, options.includeExternalClasses != null ? options.includeExternalClasses
                         : scanSpec.enableExternalClasses);
     }
 
     /**
-     * Generate a .dot file which can be fed into GraphViz for layout and
-     * visualization of the class graph, using the default options. The returned graph
-     * shows inter-class dependencies only. You must have called
-     * {@link ClassGraph#enableInterClassDependencies()} before scanning to use this
-     * method.
+     * Generate a .dot file which can be fed into GraphViz for layout and visualization of the class graph, using
+     * the default options. The returned graph shows inter-class dependencies only. You must have called
+     * {@link ClassGraph#enableInterClassDependencies()} before scanning to use this method.
      *
      * @return the GraphViz file contents.
-     * @throws IllegalStateException if this {@link ClassInfoList} is empty or
-     *                                  {@link ClassGraph#enableInterClassDependencies()}
-     *                                  was not called before scanning (since there
-     *                                  would be nothing to graph).
+     * @throws IllegalStateException
+     *             if this {@link ClassInfoList} is empty or {@link ClassGraph#enableInterClassDependencies()} was
+     *             not called before scanning (since there would be nothing to graph).
      */
     public String generateGraphVizDotFileFromInterClassDependencies() {
         return generateGraphVizDotFileFromInterClassDependencies(new GraphVizDotFileOptions());
     }
 
     /**
-     * Generate a .dot file which can be fed into GraphViz for layout and
-     * visualization of the class graph, and save it to a file. The saved graph shows
-     * inter-class dependencies only. You must have called
-     * {@link ClassGraph#enableInterClassDependencies()} before scanning to use this
-     * method.
+     * Generate a .dot file which can be fed into GraphViz for layout and visualization of the class graph, and save
+     * it to a file. The saved graph shows inter-class dependencies only. You must have called
+     * {@link ClassGraph#enableInterClassDependencies()} before scanning to use this method.
      *
-     * @param file    the file to save the GraphViz .dot file to.
-     * @param options the graph options. Only the layout size and the external-class
-     *                setting have any effect on this graph.
-     * @throws IOException              if the file could not be saved.
-     * @throws IllegalStateException if this {@link ClassInfoList} is empty or
-     *                                  {@link ClassGraph#enableInterClassDependencies()}
-     *                                  was not called before scanning (since there
-     *                                  would be nothing to graph).
+     * @param file
+     *            the file to save the GraphViz .dot file to.
+     * @param options
+     *            the graph options. Only the layout size and the external-class setting have any effect on this
+     *            graph.
+     * @throws IOException
+     *             if the file could not be saved.
+     * @throws IllegalStateException
+     *             if this {@link ClassInfoList} is empty or {@link ClassGraph#enableInterClassDependencies()} was
+     *             not called before scanning (since there would be nothing to graph).
      */
-    public void writeGraphVizDotFileFromInterClassDependencies(final File file, final GraphVizDotFileOptions options)
-            throws IOException {
+    public void writeGraphVizDotFileFromInterClassDependencies(final File file,
+            final GraphVizDotFileOptions options) throws IOException {
         Assert.notNull(file, "file");
         try (var writer = new PrintWriter(file)) {
             writer.print(generateGraphVizDotFileFromInterClassDependencies(options));
@@ -521,18 +513,17 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
     }
 
     /**
-     * Generate a .dot file which can be fed into GraphViz for layout and
-     * visualization of the class graph, using the default options, and save it to a
-     * file. The saved graph shows inter-class dependencies only. You must have called
-     * {@link ClassGraph#enableInterClassDependencies()} before scanning to use this
-     * method.
+     * Generate a .dot file which can be fed into GraphViz for layout and visualization of the class graph, using
+     * the default options, and save it to a file. The saved graph shows inter-class dependencies only. You must
+     * have called {@link ClassGraph#enableInterClassDependencies()} before scanning to use this method.
      *
-     * @param file the file to save the GraphViz .dot file to.
-     * @throws IOException              if the file could not be saved.
-     * @throws IllegalStateException if this {@link ClassInfoList} is empty or
-     *                                  {@link ClassGraph#enableInterClassDependencies()}
-     *                                  was not called before scanning (since there
-     *                                  would be nothing to graph).
+     * @param file
+     *            the file to save the GraphViz .dot file to.
+     * @throws IOException
+     *             if the file could not be saved.
+     * @throws IllegalStateException
+     *             if this {@link ClassInfoList} is empty or {@link ClassGraph#enableInterClassDependencies()} was
+     *             not called before scanning (since there would be nothing to graph).
      */
     public void writeGraphVizDotFileFromInterClassDependencies(final File file) throws IOException {
         writeGraphVizDotFileFromInterClassDependencies(file, new GraphVizDotFileOptions());
@@ -541,35 +532,30 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Generate a .dot file which can be fed into GraphViz for layout and
-     * visualization of the class graph.
+     * Generate a .dot file which can be fed into GraphViz for layout and visualization of the class graph.
      *
      * <p>
-     * To show non-public classes, call {@link ClassGraph#ignoreClassVisibility()}
-     * before scanning.
-     * 
-     * <p>
-     * To show fields, call {@link ClassGraph#enableFieldInfo()} before scanning. To
-     * show non-public fields, also call {@link ClassGraph#ignoreFieldVisibility()}
-     * before scanning.
-     * 
-     * <p>
-     * To show methods, call {@link ClassGraph#enableMethodInfo()} before scanning.
-     * To show non-public methods, also call
-     * {@link ClassGraph#ignoreMethodVisibility()} before scanning.
-     * 
-     * <p>
-     * To show annotations, call {@link ClassGraph#enableAnnotationInfo()} before
-     * scanning. To show non-public annotations, also call
-     * {@link ClassGraph#ignoreFieldVisibility()} before scanning (there is no
-     * separate visibility modifier for annotations).
+     * To show non-public classes, call {@link ClassGraph#ignoreClassVisibility()} before scanning.
      *
-     * @param options the graph options.
+     * <p>
+     * To show fields, call {@link ClassGraph#enableFieldInfo()} before scanning. To show non-public fields, also
+     * call {@link ClassGraph#ignoreFieldVisibility()} before scanning.
+     *
+     * <p>
+     * To show methods, call {@link ClassGraph#enableMethodInfo()} before scanning. To show non-public methods, also
+     * call {@link ClassGraph#ignoreMethodVisibility()} before scanning.
+     *
+     * <p>
+     * To show annotations, call {@link ClassGraph#enableAnnotationInfo()} before scanning. To show non-public
+     * annotations, also call {@link ClassGraph#ignoreFieldVisibility()} before scanning (there is no separate
+     * visibility modifier for annotations).
+     *
+     * @param options
+     *            the graph options.
      * @return the GraphViz file contents.
-     * @throws IllegalStateException if this {@link ClassInfoList} is empty or
-     *                                  {@link ClassGraph#enableClassInfo()} was not
-     *                                  called before scanning (since there would be
-     *                                  nothing to graph).
+     * @throws IllegalStateException
+     *             if this {@link ClassInfoList} is empty or {@link ClassGraph#enableClassInfo()} was not called
+     *             before scanning (since there would be nothing to graph).
      */
     public String generateGraphVizDotFile(final GraphVizDotFileOptions options) {
         Assert.notNull(options, "options");
@@ -580,47 +566,46 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
         if (!scanSpec.enableClassInfo) {
             throw new IllegalStateException("Please call ClassGraph#enableClassInfo() before #scan()");
         }
-        return GraphvizDotfileGenerator.generateGraphVizDotFile(this, options.sizeX, options.sizeY, options.showFields,
-                options.showFieldTypeDependencyEdges, options.showMethods, options.showMethodTypeDependencyEdges,
-                options.showAnnotations, options.useSimpleNames, scanSpec);
+        return GraphvizDotfileGenerator.generateGraphVizDotFile(this, options.sizeX, options.sizeY,
+                options.showFields, options.showFieldTypeDependencyEdges, options.showMethods,
+                options.showMethodTypeDependencyEdges, options.showAnnotations, options.useSimpleNames, scanSpec);
     }
 
     /**
-     * Generate a .dot file which can be fed into GraphViz for layout and
-     * visualization of the class graph, using the default options.
+     * Generate a .dot file which can be fed into GraphViz for layout and visualization of the class graph, using
+     * the default options.
      *
      * <p>
-     * Methods, fields and annotations are shown if enabled, via
-     * {@link ClassGraph#enableMethodInfo()}, {@link ClassGraph#enableFieldInfo()}
-     * and {@link ClassGraph#enableAnnotationInfo()}.
+     * Methods, fields and annotations are shown if enabled, via {@link ClassGraph#enableMethodInfo()},
+     * {@link ClassGraph#enableFieldInfo()} and {@link ClassGraph#enableAnnotationInfo()}.
      *
      * <p>
-     * Only public classes, methods, and fields are shown, unless
-     * {@link ClassGraph#ignoreClassVisibility()},
-     * {@link ClassGraph#ignoreMethodVisibility()}, and/or
-     * {@link ClassGraph#ignoreFieldVisibility()} has/have been called.
+     * Only public classes, methods, and fields are shown, unless {@link ClassGraph#ignoreClassVisibility()},
+     * {@link ClassGraph#ignoreMethodVisibility()}, and/or {@link ClassGraph#ignoreFieldVisibility()} has/have been
+     * called.
      *
      * @return the GraphViz file contents.
-     * @throws IllegalStateException if this {@link ClassInfoList} is empty or
-     *                                  {@link ClassGraph#enableClassInfo()} was not
-     *                                  called before scanning (since there would be
-     *                                  nothing to graph).
+     * @throws IllegalStateException
+     *             if this {@link ClassInfoList} is empty or {@link ClassGraph#enableClassInfo()} was not called
+     *             before scanning (since there would be nothing to graph).
      */
     public String generateGraphVizDotFile() {
         return generateGraphVizDotFile(new GraphVizDotFileOptions());
     }
 
     /**
-     * Generate a .dot file which can be fed into GraphViz for layout and
-     * visualization of the class graph, and save it to a file.
+     * Generate a .dot file which can be fed into GraphViz for layout and visualization of the class graph, and save
+     * it to a file.
      *
-     * @param file    the file to save the GraphViz .dot file to.
-     * @param options the graph options.
-     * @throws IOException              if the file could not be saved.
-     * @throws IllegalStateException if this {@link ClassInfoList} is empty or
-     *                                  {@link ClassGraph#enableClassInfo()} was not
-     *                                  called before scanning (since there would be
-     *                                  nothing to graph).
+     * @param file
+     *            the file to save the GraphViz .dot file to.
+     * @param options
+     *            the graph options.
+     * @throws IOException
+     *             if the file could not be saved.
+     * @throws IllegalStateException
+     *             if this {@link ClassInfoList} is empty or {@link ClassGraph#enableClassInfo()} was not called
+     *             before scanning (since there would be nothing to graph).
      */
     public void writeGraphVizDotFile(final File file, final GraphVizDotFileOptions options) throws IOException {
         Assert.notNull(file, "file");
@@ -630,27 +615,25 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
     }
 
     /**
-     * Generate a .dot file which can be fed into GraphViz for layout and
-     * visualization of the class graph, using the default options, and save it to a
-     * file.
+     * Generate a .dot file which can be fed into GraphViz for layout and visualization of the class graph, using
+     * the default options, and save it to a file.
      *
      * <p>
-     * Methods, fields and annotations are shown if enabled, via
-     * {@link ClassGraph#enableMethodInfo()}, {@link ClassGraph#enableFieldInfo()}
-     * and {@link ClassGraph#enableAnnotationInfo()}.
+     * Methods, fields and annotations are shown if enabled, via {@link ClassGraph#enableMethodInfo()},
+     * {@link ClassGraph#enableFieldInfo()} and {@link ClassGraph#enableAnnotationInfo()}.
      *
      * <p>
-     * Only public classes, methods, and fields are shown, unless
-     * {@link ClassGraph#ignoreClassVisibility()},
-     * {@link ClassGraph#ignoreMethodVisibility()}, and/or
-     * {@link ClassGraph#ignoreFieldVisibility()} has/have been called.
+     * Only public classes, methods, and fields are shown, unless {@link ClassGraph#ignoreClassVisibility()},
+     * {@link ClassGraph#ignoreMethodVisibility()}, and/or {@link ClassGraph#ignoreFieldVisibility()} has/have been
+     * called.
      *
-     * @param file the file to save the GraphViz .dot file to.
-     * @throws IOException              if the file could not be saved.
-     * @throws IllegalStateException if this {@link ClassInfoList} is empty or
-     *                                  {@link ClassGraph#enableClassInfo()} was not
-     *                                  called before scanning (since there would be
-     *                                  nothing to graph).
+     * @param file
+     *            the file to save the GraphViz .dot file to.
+     * @throws IOException
+     *             if the file could not be saved.
+     * @throws IllegalStateException
+     *             if this {@link ClassInfoList} is empty or {@link ClassGraph#enableClassInfo()} was not called
+     *             before scanning (since there would be nothing to graph).
      */
     public void writeGraphVizDotFile(final File file) throws IOException {
         writeGraphVizDotFile(file, new GraphVizDotFileOptions());

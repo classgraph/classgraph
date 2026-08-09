@@ -35,10 +35,9 @@ import nonapi.io.github.classgraph.utils.VersionFinder.OperatingSystem;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Resolve relative paths and URLs/URIs against a base path in a way that is
- * faster than Java's URL/URI parser (and much faster than Path), while aiming
- * for cross-platform compatibility, and hopefully in particular being robust to
- * the many forms of Windows path weirdness.
+ * Resolve relative paths and URLs/URIs against a base path in a way that is faster than Java's URL/URI parser (and
+ * much faster than Path), while aiming for cross-platform compatibility, and hopefully in particular being robust
+ * to the many forms of Windows path weirdness.
  */
 public final class FastPathResolver {
     /** Match %-encoded characters in URLs. */
@@ -48,11 +47,10 @@ public final class FastPathResolver {
     private static final Pattern schemeOneOrTwoSlashMatcher = Pattern.compile("^[a-zA-Z+\\-.]+:/{1,2}");
 
     /**
-     * The separator that Tomcat uses in a {@code "war:"} URL between the path of
-     * the WAR file and the path within the WAR file. Tomcat uses {@code "*&#47;"}
-     * by default, or {@code "^&#47;"}, or a custom separator set through this
-     * system property, since a WAR file's path may itself contain {@code '*'} or
-     * {@code '^'}. See {@code org.apache.tomcat.util.buf.UriUtil#warToJar}.
+     * The separator that Tomcat uses in a {@code "war:"} URL between the path of the WAR file and the path within
+     * the WAR file. Tomcat uses {@code "*&#47;"} by default, or {@code "^&#47;"}, or a custom separator set through
+     * this system property, since a WAR file's path may itself contain {@code '*'} or {@code '^'}. See
+     * {@code org.apache.tomcat.util.buf.UriUtil#warToJar}.
      */
     // #925
     private static final @Nullable String customWarSeparator = VersionFinder
@@ -66,14 +64,18 @@ public final class FastPathResolver {
     }
 
     /**
-     * Translate backslashes to forward slashes, optionally removing trailing
-     * separator.
+     * Translate backslashes to forward slashes, optionally removing trailing separator.
      *
-     * @param path                the path
-     * @param startIdx            the start index
-     * @param endIdx              the end index
-     * @param stripFinalSeparator if true, strip the final separator
-     * @param buf                 the buffer to append to
+     * @param path
+     *            the path
+     * @param startIdx
+     *            the start index
+     * @param endIdx
+     *            the end index
+     * @param stripFinalSeparator
+     *            if true, strip the final separator
+     * @param buf
+     *            the buffer to append to
      */
     private static void translateSeparator(final String path, final int startIdx, final int endIdx,
             final boolean stripFinalSeparator, final StringBuilder buf) {
@@ -97,7 +99,8 @@ public final class FastPathResolver {
     /**
      * Hex char to int.
      *
-     * @param c the character
+     * @param c
+     *            the character
      * @return the integer value of the character
      */
     private static int hexCharToInt(final char c) {
@@ -109,10 +112,14 @@ public final class FastPathResolver {
     /**
      * Unescape runs of percent encoding, e.g. "%20%43%20" -> " + "
      *
-     * @param path     the path
-     * @param startIdx the start index
-     * @param endIdx   the end index
-     * @param buf      the buffer to append to
+     * @param path
+     *            the path
+     * @param startIdx
+     *            the start index
+     * @param endIdx
+     *            the end index
+     * @param buf
+     *            the buffer to append to
      */
     private static void unescapePercentEncoding(final String path, final int startIdx, final int endIdx,
             final StringBuilder buf) {
@@ -137,11 +144,13 @@ public final class FastPathResolver {
     }
 
     /**
-     * Parse percent encoding, e.g. "%20" -&gt; " "; convert '/' or '\\' to SEP;
-     * remove trailing separator char if present.
-     * 
-     * @param path           The path to normalize.
-     * @param isFileOrJarURL True if this is a "file:" or "jar:" URL.
+     * Parse percent encoding, e.g. "%20" -&gt; " "; convert '/' or '\\' to SEP; remove trailing separator char if
+     * present.
+     *
+     * @param path
+     *            The path to normalize.
+     * @param isFileOrJarURL
+     *            True if this is a "file:" or "jar:" URL.
      * @return The normalized path.
      */
     public static String normalizePath(final String path, final boolean isFileOrJarURL) {
@@ -159,7 +168,8 @@ public final class FastPathResolver {
                 while (matcher.find()) {
                     final var startMatchIdx = matcher.start();
                     final var endMatchIdx = matcher.end();
-                    translateSeparator(path, prevEndMatchIdx, startMatchIdx, /* stripFinalSeparator = */ false, buf);
+                    translateSeparator(path, prevEndMatchIdx, startMatchIdx, /* stripFinalSeparator = */ false,
+                            buf);
                     unescapePercentEncoding(path, startMatchIdx, endMatchIdx, buf);
                     prevEndMatchIdx = endMatchIdx;
                 }
@@ -178,17 +188,15 @@ public final class FastPathResolver {
      * Convert a Tomcat {@code "war:"} URL into the equivalent {@code "jar:"} URL.
      *
      * <p>
-     * Tomcat serves a non-exploded WAR file (i.e. a webapp deployed with
-     * {@code unpackWARs="false"}) through its own {@code "war:"} URL protocol,
-     * which separates the path of the WAR file from the path within the WAR file
+     * Tomcat serves a non-exploded WAR file (i.e. a webapp deployed with {@code unpackWARs="false"}) through its
+     * own {@code "war:"} URL protocol, which separates the path of the WAR file from the path within the WAR file
      * using {@code "*&#47;"} rather than the standard {@code "!&#47;"}, e.g.
-     * {@code "war:file:/path/to/app.war*&#47;WEB-INF/classes/"}. Without this
-     * conversion, the {@code '*'} was read as a wildcard, and the whole classpath
-     * element was rejected, so nothing in a non-exploded WAR was scanned.
+     * {@code "war:file:/path/to/app.war*&#47;WEB-INF/classes/"}. Without this conversion, the {@code '*'} was read
+     * as a wildcard, and the whole classpath element was rejected, so nothing in a non-exploded WAR was scanned.
      *
-     * @param path The path, which may or may not be a {@code "war:"} URL.
-     * @return The equivalent {@code "jar:"} URL if this is a {@code "war:"} URL,
-     *         otherwise the path, unchanged.
+     * @param path
+     *            The path, which may or may not be a {@code "war:"} URL.
+     * @return The equivalent {@code "jar:"} URL if this is a {@code "war:"} URL, otherwise the path, unchanged.
      */
     // #925
     private static String warUrlToJarUrl(final String path) {
@@ -212,12 +220,13 @@ public final class FastPathResolver {
     }
 
     /**
-     * Strip away any "jar:" prefix from a filename URI, and convert it to a file
-     * path, handling possibly-broken mixes of filesystem and URI conventions;
-     * resolve relative paths relative to resolveBasePath.
+     * Strip away any "jar:" prefix from a filename URI, and convert it to a file path, handling possibly-broken
+     * mixes of filesystem and URI conventions; resolve relative paths relative to resolveBasePath.
      *
-     * @param resolveBasePath The base path, or null to resolve against nothing.
-     * @param relativePathRaw The path to resolve relative to the base path.
+     * @param resolveBasePath
+     *            The base path, or null to resolve against nothing.
+     * @param relativePathRaw
+     *            The path to resolve relative to the base path.
      * @return The resolved path.
      */
     public static String resolve(final @Nullable String resolveBasePath, final String relativePathRaw) {
@@ -317,7 +326,8 @@ public final class FastPathResolver {
         }
 
         // Normalize the path, then add any UNC or URL prefix
-        var pathStr = normalizePath(startIdx == 0 ? relativePath : relativePath.substring(startIdx), isFileOrJarURL);
+        var pathStr = normalizePath(startIdx == 0 ? relativePath : relativePath.substring(startIdx),
+                isFileOrJarURL);
         if (!"/".equals(pathStr)) {
             // Remove any "!/" on end of URL
             if (pathStr.endsWith("/")) {
@@ -365,11 +375,11 @@ public final class FastPathResolver {
     }
 
     /**
-     * Strip away any "jar:" prefix from a filename URI, and convert it to a file
-     * path, handling possibly-broken mixes of filesystem and URI conventions. An
-     * "http(s):" path is returned with its scheme prefix intact.
+     * Strip away any "jar:" prefix from a filename URI, and convert it to a file path, handling possibly-broken
+     * mixes of filesystem and URI conventions. An "http(s):" path is returned with its scheme prefix intact.
      *
-     * @param pathStr The path to resolve.
+     * @param pathStr
+     *            The path to resolve.
      * @return The resolved path.
      */
     public static String resolve(final String pathStr) {

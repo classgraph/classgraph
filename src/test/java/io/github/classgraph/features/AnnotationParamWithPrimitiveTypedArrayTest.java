@@ -93,8 +93,8 @@ public class AnnotationParamWithPrimitiveTypedArrayTest {
     public void primitiveArrayParams() {
         try (var scanResult = new ClassGraph().enableAllInfo()
                 .acceptPackages(AnnotationParamWithPrimitiveTypedArrayTest.class.getPackage().getName()).scan()) {
-            final var annotationInfo = scanResult.getClassInfo(AnnotatedClass.class.getName()).getAllAnnotationInfo()
-                    .get(0);
+            final var annotationInfo = scanResult.getClassInfo(AnnotatedClass.class.getName())
+                    .getAllAnnotationInfo().get(0);
             final var annotationParams = annotationInfo.getParameterValues();
             final var v0 = annotationParams.getValue("v0");
             final var v1 = annotationParams.getValue("v1");

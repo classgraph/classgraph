@@ -57,7 +57,8 @@ public class Issue303Test {
             allClassNamesRecursive = scanResult.getAllClasses().getNames();
         }
         try (var scanResult = new ClassGraph().acceptPackagesNonRecursive(PACKAGE_NAME).enableAllInfo().scan()) {
-            packageClassNamesNonRecursive1 = scanResult.getPackageInfo(PACKAGE_NAME).getClassInfoRecursive().getNames();
+            packageClassNamesNonRecursive1 = scanResult.getPackageInfo(PACKAGE_NAME).getClassInfoRecursive()
+                    .getNames();
             packageClassNamesNonRecursive2 = scanResult.getPackageInfo(PACKAGE_NAME).getClassInfo().getNames();
             allClassNamesNonRecursive = scanResult.getAllClasses().getNames();
         }

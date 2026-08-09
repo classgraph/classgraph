@@ -56,7 +56,8 @@ public class Issue246Test {
     /**
      * Dummy method with parameter.
      *
-     * @param dummyParam the dummy param
+     * @param dummyParam
+     *            the dummy param
      */
     void dummyMethodWithParameter(final int dummyParam) {
     }

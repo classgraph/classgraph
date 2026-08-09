@@ -12,17 +12,15 @@ import org.junit.jupiter.api.Test;
  * Tests the sequential {@link ClassfileReader#readString(int)} overload.
  *
  * <p>
- * A {@link ClassfileReader} built on an {@link java.io.InputStream} starts with
- * an allocated but completely unfilled buffer, so a read that does not first
- * grow the buffer returns the zero bytes the array was allocated with, rather
- * than the stream contents. Every other sequential read method delegates to its
- * random access counterpart, which buffers the requested range first;
- * {@code readString} used to read straight out of the buffer instead.
+ * A {@link ClassfileReader} built on an {@link java.io.InputStream} starts with an allocated but completely
+ * unfilled buffer, so a read that does not first grow the buffer returns the zero bytes the array was allocated
+ * with, rather than the stream contents. Every other sequential read method delegates to its random access
+ * counterpart, which buffers the requested range first; {@code readString} used to read straight out of the buffer
+ * instead.
  */
 public class ClassfileReaderSequentialReadStringTest {
     /**
-     * A sequential readString from an unfilled buffer must return the stream
-     * contents, not NUL bytes.
+     * A sequential readString from an unfilled buffer must return the stream contents, not NUL bytes.
      */
     @Test
     public void sequentialReadStringBuffersBeforeReading() throws IOException {
@@ -33,8 +31,7 @@ public class ClassfileReaderSequentialReadStringTest {
     }
 
     /**
-     * Consecutive sequential reads advance the read position and stay in step with
-     * the buffering.
+     * Consecutive sequential reads advance the read position and stay in step with the buffering.
      */
     @Test
     public void consecutiveSequentialReadStringsAdvancePosition() throws IOException {
@@ -48,8 +45,7 @@ public class ClassfileReaderSequentialReadStringTest {
     }
 
     /**
-     * A sequential readString interleaved with other sequential reads stays
-     * consistent with them.
+     * A sequential readString interleaved with other sequential reads stays consistent with them.
      */
     @Test
     public void sequentialReadStringInterleavesWithOtherReads() throws IOException {

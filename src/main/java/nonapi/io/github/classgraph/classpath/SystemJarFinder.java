@@ -53,7 +53,8 @@ public final class SystemJarFinder {
     /**
      * Add and search a JRE path.
      *
-     * @param dir the JRE directory
+     * @param dir
+     *            the JRE directory
      * @return true if the directory was readable.
      */
     private static boolean addJREPath(final File dir) {
@@ -61,12 +62,13 @@ public final class SystemJarFinder {
     }
 
     /**
-     * Add and search a JRE path, adding any jars found to the given set.
-     * (Package-private, so that this can be tested against a directory other than
-     * the JRE directory of the current JVM.)
+     * Add and search a JRE path, adding any jars found to the given set. (Package-private, so that this can be
+     * tested against a directory other than the JRE directory of the current JVM.)
      *
-     * @param dir             the JRE directory
-     * @param jreLibOrExtJars the set to add any jar paths to
+     * @param dir
+     *            the JRE directory
+     * @param jreLibOrExtJars
+     *            the set to add any jar paths to
      * @return true if the directory was readable.
      */
     static boolean addJREPath(final File dir, final Set<String> jreLibOrExtJars) {
@@ -97,8 +99,8 @@ public final class SystemJarFinder {
                             if (!canonicalFilePath.equals(filePath)) {
                                 // The jar is a symlink (or is otherwise reachable by more than one path), so
                                 // also add the path it resolves to, since a classpath entry may name either
-                                final var canonicalJarPathResolved = FastPathResolver.resolve(FileUtils.currDirPath(),
-                                        canonicalFilePath);
+                                final var canonicalJarPathResolved = FastPathResolver
+                                        .resolve(FileUtils.currDirPath(), canonicalFilePath);
                                 jreLibOrExtJars.add(canonicalJarPathResolved);
                             }
                         } catch (IOException | SecurityException e) {
@@ -113,32 +115,32 @@ public final class SystemJarFinder {
     }
 
     /**
-     * Determine whether a directory is the root of a JDK installation, by looking
-     * for files that are only shipped with a JDK, and never with a JRE.
+     * Determine whether a directory is the root of a JDK installation, by looking for files that are only shipped
+     * with a JDK, and never with a JRE.
      *
      * <p>
-     * This is needed because bundling a JRE into an application directory,
-     * alongside the application's own jars, is a common deployment layout:
+     * This is needed because bundling a JRE into an application directory, alongside the application's own jars, is
+     * a common deployment layout:
      *
      * <pre>
      * myapp/
-     *     jre/     &lt;-- the bundled JRE ({@code java.home} points here)
+     *     jre/     &lt;-- the bundled JRE ({@code
+     * java.home
+     * } points here)
      *     lib/     &lt;-- the application's own jars
      * </pre>
      *
      * <p>
-     * Without this check, {@code myapp/} would be assumed to be a JDK root simply
-     * because {@code java.home} ends in {@code jre}, and every jar in
-     * {@code myapp/lib} would be classified as a JRE lib jar -- which causes those
-     * jars to be silently dropped from the classpath (see
-     * {@code ClasspathOrder#addClasspathEntry}), so none of the application's own
-     * classes are found.
+     * Without this check, {@code myapp/} would be assumed to be a JDK root simply because {@code java.home} ends in
+     * {@code jre}, and every jar in {@code myapp/lib} would be classified as a JRE lib jar -- which causes those
+     * jars to be silently dropped from the classpath (see {@code ClasspathOrder#addClasspathEntry}), so none of the
+     * application's own classes are found.
      *
      * <p>
-     * Only JDK 8 and earlier nest the JRE inside the JDK, so only JDK 8 and earlier
-     * markers need to be tested for.
+     * Only JDK 8 and earlier nest the JRE inside the JDK, so only JDK 8 and earlier markers need to be tested for.
      *
-     * @param dir the candidate JDK root directory.
+     * @param dir
+     *            the candidate JDK root directory.
      * @return true if the directory looks like the root of a JDK installation.
      */
     // #816 (package-private for testing)
@@ -231,8 +233,7 @@ public final class SystemJarFinder {
     /**
      * Get the JRE "lib/" and "ext/" jar paths.
      *
-     * @return The paths for any jarfiles found in JRE/JDK "lib/" or "ext/"
-     *         directories.
+     * @return The paths for any jarfiles found in JRE/JDK "lib/" or "ext/" directories.
      */
     public static Set<String> getJreLibOrExtJars() {
         return JRE_LIB_OR_EXT_JARS;

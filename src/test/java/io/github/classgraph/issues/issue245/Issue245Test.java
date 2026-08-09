@@ -50,7 +50,8 @@ public class Issue245Test {
                 .disableNestedJarScanning() //
                 .scan()) {
             assertThat(scanResult.getAllResources().getPaths()).containsOnly(
-                    "org.springframework/gs-spring-boot/pom.xml", "org.springframework/gs-spring-boot/pom.properties");
+                    "org.springframework/gs-spring-boot/pom.xml",
+                    "org.springframework/gs-spring-boot/pom.properties");
         }
     }
 }

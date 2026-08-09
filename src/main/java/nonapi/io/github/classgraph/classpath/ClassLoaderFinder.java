@@ -45,8 +45,7 @@ public class ClassLoaderFinder {
     /**
      * Get the context class loaders.
      *
-     * @return The context classloader, and any other classloader that is not an
-     *         ancestor of context classloader.
+     * @return The context classloader, and any other classloader that is not an ancestor of context classloader.
      */
     public ClassLoader[] getContextClassLoaders() {
         return contextClassLoaders;
@@ -56,14 +55,18 @@ public class ClassLoaderFinder {
 
     /**
      * A class to find the unique ordered classpath elements.
-     * 
-     * @param scanSpec        The scan spec, or null if none available.
-     * @param reflectionUtils The reflection utils instance.
-     * @param log             The log.
+     *
+     * @param scanSpec
+     *            The scan spec, or null if none available.
+     * @param reflectionUtils
+     *            The reflection utils instance.
+     * @param log
+     *            The log.
      */
     ClassLoaderFinder(final ScanSpec scanSpec, final ReflectionUtils reflectionUtils, final @Nullable LogNode log) {
         LinkedHashSet<ClassLoader> classLoadersUnique;
-        @Nullable LogNode classLoadersFoundLog;
+        @Nullable
+        LogNode classLoadersFoundLog;
         if (scanSpec.overrideClassLoaders == null) {
             // ClassLoaders were not overridden
 

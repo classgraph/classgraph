@@ -88,15 +88,15 @@ public class NestedJarHandler {
     public ReflectionUtils reflectionUtils;
 
     /**
-     * A singleton map from a zipfile's {@link File} to the {@link PhysicalZipFile}
-     * for that file, used to ensure that the {@link RandomAccessFile} and
-     * {@link FileChannel} for any given zipfile is opened only once. Set to null by
-     * {@link #close(LogNode)}.
+     * A singleton map from a zipfile's {@link File} to the {@link PhysicalZipFile} for that file, used to ensure
+     * that the {@link RandomAccessFile} and {@link FileChannel} for any given zipfile is opened only once. Set to
+     * null by {@link #close(LogNode)}.
      */
     private @Nullable SingletonMap<File, PhysicalZipFile, IOException> //
     canonicalFileToPhysicalZipFileMap = new SingletonMap<>() {
         @Override
-        public PhysicalZipFile newInstance(final File canonicalFile, final @Nullable LogNode log) throws IOException {
+        public PhysicalZipFile newInstance(final File canonicalFile, final @Nullable LogNode log)
+                throws IOException {
             return new PhysicalZipFile(canonicalFile, NestedJarHandler.this, log);
         }
     };
@@ -105,18 +105,17 @@ public class NestedJarHandler {
      * Get the map from canonical {@link File} to {@link PhysicalZipFile}.
      *
      * @return the map
-     * @throws NullPointerException if {@link #close(LogNode)} has been called
+     * @throws NullPointerException
+     *             if {@link #close(LogNode)} has been called
      */
     private SingletonMap<File, PhysicalZipFile, IOException> canonicalFileToPhysicalZipFileMap() {
         return Objects.requireNonNull(canonicalFileToPhysicalZipFileMap);
     }
 
     /**
-     * A singleton map from a {@link FastZipEntry} to the {@link ZipFileSlice}
-     * wrapping either the zip entry data, if the entry is stored, or a ByteBuffer,
-     * if the zip entry was inflated to memory, or a physical file on disk if the
-     * zip entry was inflated to a temporary file. Set to null by
-     * {@link #close(LogNode)}.
+     * A singleton map from a {@link FastZipEntry} to the {@link ZipFileSlice} wrapping either the zip entry data,
+     * if the entry is stored, or a ByteBuffer, if the zip entry was inflated to memory, or a physical file on disk
+     * if the zip entry was inflated to a temporary file. Set to null by {@link #close(LogNode)}.
      */
     private @Nullable SingletonMap<FastZipEntry, ZipFileSlice, IOException> //
     fastZipEntryToZipFileSliceMap = new SingletonMap<>() {
@@ -159,15 +158,16 @@ public class NestedJarHandler {
      * Get the map from {@link FastZipEntry} to {@link ZipFileSlice}.
      *
      * @return the map
-     * @throws NullPointerException if {@link #close(LogNode)} has been called
+     * @throws NullPointerException
+     *             if {@link #close(LogNode)} has been called
      */
     private SingletonMap<FastZipEntry, ZipFileSlice, IOException> fastZipEntryToZipFileSliceMap() {
         return Objects.requireNonNull(fastZipEntryToZipFileSliceMap);
     }
 
     /**
-     * A singleton map from a {@link ZipFileSlice} to the {@link LogicalZipFile} for
-     * that slice. Set to null by {@link #close(LogNode)}.
+     * A singleton map from a {@link ZipFileSlice} to the {@link LogicalZipFile} for that slice. Set to null by
+     * {@link #close(LogNode)}.
      */
     private @Nullable SingletonMap<ZipFileSlice, LogicalZipFile, IOException> //
     zipFileSliceToLogicalZipFileMap = new SingletonMap<>() {
@@ -175,7 +175,8 @@ public class NestedJarHandler {
         public LogicalZipFile newInstance(final ZipFileSlice zipFileSlice, final @Nullable LogNode log)
                 throws IOException, InterruptedException {
             // Read the central directory for the zipfile
-            return new LogicalZipFile(zipFileSlice, NestedJarHandler.this, log, scanSpec.enableMultiReleaseVersions);
+            return new LogicalZipFile(zipFileSlice, NestedJarHandler.this, log,
+                    scanSpec.enableMultiReleaseVersions);
         }
     };
 
@@ -183,23 +184,23 @@ public class NestedJarHandler {
      * Get the map from {@link ZipFileSlice} to {@link LogicalZipFile}.
      *
      * @return the map
-     * @throws NullPointerException if {@link #close(LogNode)} has been called
+     * @throws NullPointerException
+     *             if {@link #close(LogNode)} has been called
      */
     private SingletonMap<ZipFileSlice, LogicalZipFile, IOException> zipFileSliceToLogicalZipFileMap() {
         return Objects.requireNonNull(zipFileSliceToLogicalZipFileMap);
     }
 
     /**
-     * A singleton map from nested jarfile path to a tuple of the logical zipfile
-     * for the path, and the package root within the logical zipfile. Set to null by
-     * {@link #close(LogNode)}.
+     * A singleton map from nested jarfile path to a tuple of the logical zipfile for the path, and the package root
+     * within the logical zipfile. Set to null by {@link #close(LogNode)}.
      */
     private @Nullable SingletonMap<String, Entry<LogicalZipFile, String>, IOException> //
     nestedPathToLogicalZipFileAndPackageRootMap = //
             new SingletonMap<>() {
                 @Override
-                public Entry<LogicalZipFile, String> newInstance(final String nestedJarPathRaw, final @Nullable LogNode log)
-                        throws IOException, InterruptedException {
+                public Entry<LogicalZipFile, String> newInstance(final String nestedJarPathRaw,
+                        final @Nullable LogNode log) throws IOException, InterruptedException {
                     final var nestedJarPath = FastPathResolver.resolve(nestedJarPathRaw);
                     // A '!' is only a nested jar separator if the outermost path component names an
                     // existing
@@ -218,12 +219,14 @@ public class NestedJarHandler {
                         PhysicalZipFile physicalZipFile;
                         if (isURL) {
                             final var scheme = nestedJarPath.substring(0, nestedJarPath.indexOf(':'));
-                            if (scanSpec.allowedURLSchemes == null || !scanSpec.allowedURLSchemes.contains(scheme)) {
+                            if (scanSpec.allowedURLSchemes == null
+                                    || !scanSpec.allowedURLSchemes.contains(scheme)) {
                                 // No URL schemes other than "file:" (with optional "jar:" prefix) allowed
                                 // (these
                                 // schemes were already stripped by FastPathResolver.resolve(nestedJarPathRaw))
                                 throw new IOException("Scanning of URL scheme \"" + scheme
-                                        + "\" has not been enabled -- cannot scan classpath element: " + nestedJarPath);
+                                        + "\" has not been enabled -- cannot scan classpath element: "
+                                        + nestedJarPath);
                             }
 
                             // Download jar from URL to a ByteBuffer in RAM, or to a temp file on disk
@@ -238,8 +241,8 @@ public class NestedJarHandler {
                                 physicalZipFile = canonicalFileToPhysicalZipFileMap().get(canonicalFile, log);
                             } catch (final NullSingletonException | NewInstanceException e) {
                                 // If getting PhysicalZipFile failed, re-wrap in IOException
-                                throw new IOException("Could not get PhysicalZipFile for path " + nestedJarPath + " : "
-                                        + (e.getCause() == null ? e : e.getCause()));
+                                throw new IOException("Could not get PhysicalZipFile for path " + nestedJarPath
+                                        + " : " + (e.getCause() == null ? e : e.getCause()));
                             } catch (final SecurityException e) {
                                 // getCanonicalFile() failed (it may have also failed with IOException)
                                 throw new IOException(
@@ -375,7 +378,8 @@ public class NestedJarHandler {
                         try {
                             childZipEntrySlice = fastZipEntryToZipFileSliceMap().get(childZipEntry, log);
                         } catch (final NullSingletonException e) {
-                            throw new IOException("Could not get child zip entry slice " + childZipEntry + " : " + e);
+                            throw new IOException(
+                                    "Could not get child zip entry slice " + childZipEntry + " : " + e);
                         } catch (final NewInstanceException e) {
                             throw new IOException("Could not get child zip entry slice " + childZipEntry, e);
                         }
@@ -387,7 +391,8 @@ public class NestedJarHandler {
                         // Get or create a new LogicalZipFile for the child zipfile
                         LogicalZipFile childLogicalZipFile;
                         try {
-                            childLogicalZipFile = zipFileSliceToLogicalZipFileMap().get(childZipEntrySlice, zipSliceLog);
+                            childLogicalZipFile = zipFileSliceToLogicalZipFileMap().get(childZipEntrySlice,
+                                    zipSliceLog);
                         } catch (final NullSingletonException e) {
                             throw new IOException(
                                     "Could not get child logical zipfile " + childZipEntrySlice + " : " + e);
@@ -402,20 +407,21 @@ public class NestedJarHandler {
             };
 
     /**
-     * Get the map from nested jarfile path to the logical zipfile for the path and
-     * the package root within that zipfile.
+     * Get the map from nested jarfile path to the logical zipfile for the path and the package root within that
+     * zipfile.
      *
      * @return the map
-     * @throws NullPointerException if {@link #close(LogNode)} has been called
+     * @throws NullPointerException
+     *             if {@link #close(LogNode)} has been called
      */
     public SingletonMap<String, Entry<LogicalZipFile, String>, IOException> //
-    nestedPathToLogicalZipFileAndPackageRootMap() {
+            nestedPathToLogicalZipFileAndPackageRootMap() {
         return Objects.requireNonNull(nestedPathToLogicalZipFileAndPackageRootMap);
     }
 
     /**
-     * A singleton map from a {@link ModuleRef} to a {@link ModuleReader} recycler
-     * for the module. Set to null by {@link #close(LogNode)}.
+     * A singleton map from a {@link ModuleRef} to a {@link ModuleReader} recycler for the module. Set to null by
+     * {@link #close(LogNode)}.
      */
     private @Nullable SingletonMap<ModuleRef, Recycler<ModuleReader, IOException>, IOException> //
     moduleRefToModuleReaderRecyclerMap = //
@@ -436,10 +442,11 @@ public class NestedJarHandler {
      * Get the map from {@link ModuleRef} to {@link ModuleReader} recycler.
      *
      * @return the map
-     * @throws NullPointerException if {@link #close(LogNode)} has been called
+     * @throws NullPointerException
+     *             if {@link #close(LogNode)} has been called
      */
     public SingletonMap<ModuleRef, Recycler<ModuleReader, IOException>, IOException> //
-    moduleRefToModuleReaderRecyclerMap() {
+            moduleRefToModuleReaderRecyclerMap() {
         return Objects.requireNonNull(moduleRefToModuleReaderRecyclerMap);
     }
 
@@ -453,14 +460,12 @@ public class NestedJarHandler {
     };
 
     /**
-     * {@link FileSlice} instances that are currently open. Set to null by
-     * {@link #close(LogNode)}.
+     * {@link FileSlice} instances that are currently open. Set to null by {@link #close(LogNode)}.
      */
     private @Nullable Set<Slice> openSlices = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /**
-     * Any temporary files created while scanning. Set to null by
-     * {@link #close(LogNode)}.
+     * Any temporary files created while scanning. Set to null by {@link #close(LogNode)}.
      */
     private @Nullable Set<File> tempFiles = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
@@ -487,9 +492,12 @@ public class NestedJarHandler {
     /**
      * A handler for nested jars.
      *
-     * @param scanSpec            The {@link ScanSpec}.
-     * @param interruptionChecker the interruption checker
-     * @param reflectionUtils     the {@link ReflectionUtils} instance
+     * @param scanSpec
+     *            The {@link ScanSpec}.
+     * @param interruptionChecker
+     *            the interruption checker
+     * @param reflectionUtils
+     *            the {@link ReflectionUtils} instance
      */
     public NestedJarHandler(final ScanSpec scanSpec, final InterruptionChecker interruptionChecker,
             final ReflectionUtils reflectionUtils) {
@@ -503,7 +511,8 @@ public class NestedJarHandler {
     /**
      * Get the leafname of a path.
      *
-     * @param path the path
+     * @param path
+     *            the path
      * @return the string
      */
     private static String leafname(final String path) {
@@ -513,7 +522,8 @@ public class NestedJarHandler {
     /**
      * Sanitize filename.
      *
-     * @param filename the filename
+     * @param filename
+     *            the filename
      * @return the sanitized filename
      */
     private static String sanitizeFilename(final String filename) {
@@ -523,12 +533,14 @@ public class NestedJarHandler {
 
     /**
      * Create a temporary file, and mark it for deletion on exit.
-     * 
-     * @param filePathBase    The path to derive the temporary filename from.
-     * @param onlyUseLeafname If true, only use the leafname of filePath to derive
-     *                        the temporary filename.
+     *
+     * @param filePathBase
+     *            The path to derive the temporary filename from.
+     * @param onlyUseLeafname
+     *            If true, only use the leafname of filePath to derive the temporary filename.
      * @return The temporary {@link File}.
-     * @throws IOException If the temporary file could not be created.
+     * @throws IOException
+     *             If the temporary file could not be created.
      */
     public File makeTempFile(final String filePathBase, final boolean onlyUseLeafname) throws IOException {
         final var tempFile = File.createTempFile("ClassGraph--", TEMP_FILENAME_LEAF_SEPARATOR
@@ -543,23 +555,20 @@ public class NestedJarHandler {
      * {@link io.github.classgraph.ClassGraph#removeTemporaryFilesAfterScan()}.
      *
      * <p>
-     * If no temporary files were created -- which is the case whenever no nested
-     * jars were encountered, i.e. for an ordinary jar or directory classpath --
-     * this does nothing, so that the {@link ScanResult} returned by the scan
-     * remains fully usable. Previously this always called {@link #close(LogNode)},
-     * which closes every open {@link Slice} and the inflater {@link Recycler}, so
-     * calling {@code removeTemporaryFilesAfterScan()} left the returned
-     * {@link ScanResult} unable to read any resource or load any class from a jar,
-     * even though {@link ScanResult#isClosed()} still reported {@code false}.
+     * If no temporary files were created -- which is the case whenever no nested jars were encountered, i.e. for an
+     * ordinary jar or directory classpath -- this does nothing, so that the {@link ScanResult} returned by the scan
+     * remains fully usable. Previously this always called {@link #close(LogNode)}, which closes every open
+     * {@link Slice} and the inflater {@link Recycler}, so calling {@code removeTemporaryFilesAfterScan()} left the
+     * returned {@link ScanResult} unable to read any resource or load any class from a jar, even though
+     * {@link ScanResult#isClosed()} still reported {@code false}.
      *
      * <p>
-     * If temporary files <i>were</i> created, they back memory-mapped slices of the
-     * extracted nested jars, so they cannot be deleted without closing those slices
-     * first -- the whole handler is still torn down in that case.
+     * If temporary files <i>were</i> created, they back memory-mapped slices of the extracted nested jars, so they
+     * cannot be deleted without closing those slices first -- the whole handler is still torn down in that case.
      *
-     * @param log the log node, or null to skip logging
-     * @return true if the handler was closed (i.e. if temporary files existed and
-     *         had to be removed)
+     * @param log
+     *            the log node, or null to skip logging
+     * @return true if the handler was closed (i.e. if temporary files existed and had to be removed)
      */
     // #916
     public boolean removeTemporaryFiles(final @Nullable LogNode log) {
@@ -576,9 +585,12 @@ public class NestedJarHandler {
     /**
      * Attempt to remove a temporary file.
      *
-     * @param tempFile the temp file
-     * @throws IOException       If the temporary file could not be removed.
-     * @throws SecurityException If the temporary file is inaccessible.
+     * @param tempFile
+     *            the temp file
+     * @throws IOException
+     *             If the temporary file could not be removed.
+     * @throws SecurityException
+     *             If the temporary file is inaccessible.
      */
     void removeTempFile(final File tempFile) throws IOException, SecurityException {
         if (Objects.requireNonNull(tempFiles).remove(tempFile)) {
@@ -589,11 +601,12 @@ public class NestedJarHandler {
     }
 
     /**
-     * Mark a {@link Slice} as open, so it can be closed when the {@link ScanResult}
-     * is closed.
+     * Mark a {@link Slice} as open, so it can be closed when the {@link ScanResult} is closed.
      *
-     * @param slice the {@link Slice} that was just opened.
-     * @throws IOException Signals that an I/O exception has occurred.
+     * @param slice
+     *            the {@link Slice} that was just opened.
+     * @throws IOException
+     *             Signals that an I/O exception has occurred.
      */
     public void markSliceAsOpen(final Slice slice) throws IOException {
         Objects.requireNonNull(openSlices).add(slice);
@@ -601,32 +614,32 @@ public class NestedJarHandler {
 
     /**
      * Mark a {@link Slice} as closed.
-     * 
-     * @param slice the {@link Slice} to close.
+     *
+     * @param slice
+     *            the {@link Slice} to close.
      */
     public void markSliceAsClosed(final Slice slice) {
         Objects.requireNonNull(openSlices).remove(slice);
     }
 
     /**
-     * Download a jar from a URL to a temporary file, or to a ByteBuffer if the
-     * temporary directory is not writeable or full. The downloaded jar is returned
-     * wrapped in a {@link PhysicalZipFile} instance.
+     * Download a jar from a URL to a temporary file, or to a ByteBuffer if the temporary directory is not writeable
+     * or full. The downloaded jar is returned wrapped in a {@link PhysicalZipFile} instance.
      *
-     * @param jarURL the jar URL
-     * @param log    the log node, or null to skip logging
-     * @return the temporary file or {@link ByteBuffer} the jar was downloaded to,
-     *         wrapped in a {@link PhysicalZipFile} instance.
-     * @throws IOException              If the jar could not be downloaded, or the
-     *                                  jar URL is malformed.
-     * @throws InterruptedException     if the thread was interrupted
-     * @throws IllegalArgumentException If the temp dir is not writeable, or has
-     *                                  insufficient space to download the jar.
-     *                                  (This is thrown as a separate exception from
-     *                                  IOException, so that the case of an
-     *                                  unwriteable temp dir can be handled
-     *                                  separately, by downloading the jar to a
-     *                                  ByteBuffer in RAM.)
+     * @param jarURL
+     *            the jar URL
+     * @param log
+     *            the log node, or null to skip logging
+     * @return the temporary file or {@link ByteBuffer} the jar was downloaded to, wrapped in a
+     *         {@link PhysicalZipFile} instance.
+     * @throws IOException
+     *             If the jar could not be downloaded, or the jar URL is malformed.
+     * @throws InterruptedException
+     *             if the thread was interrupted
+     * @throws IllegalArgumentException
+     *             If the temp dir is not writeable, or has insufficient space to download the jar. (This is thrown
+     *             as a separate exception from IOException, so that the case of an unwriteable temp dir can be
+     *             handled separately, by downloading the jar to a ByteBuffer in RAM.)
      */
     private PhysicalZipFile downloadJarFromURL(final String jarURL, final @Nullable LogNode log)
             throws IOException, InterruptedException {
@@ -714,9 +727,8 @@ public class NestedJarHandler {
     }
 
     /**
-     * A {@link URLConnection} that can be used in a try-with-resources block, so
-     * that the underlying HTTP connection is disconnected when it goes out of
-     * scope.
+     * A {@link URLConnection} that can be used in a try-with-resources block, so that the underlying HTTP
+     * connection is disconnected when it goes out of scope.
      */
     private static class CloseableUrlConnection implements AutoCloseable {
         /** The connection. */
@@ -728,8 +740,10 @@ public class NestedJarHandler {
         /**
          * Constructor.
          *
-         * @param url the URL to open a connection to
-         * @throws IOException if the connection could not be opened
+         * @param url
+         *            the URL to open a connection to
+         * @throws IOException
+         *             if the connection could not be opened
          */
         public CloseableUrlConnection(final URL url) throws IOException {
             conn = url.openConnection();
@@ -747,13 +761,12 @@ public class NestedJarHandler {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Wrapper class that allows an {@link Inflater} instance to be reset for reuse
-     * and then recycled by a {@link Recycler}.
+     * Wrapper class that allows an {@link Inflater} instance to be reset for reuse and then recycled by a
+     * {@link Recycler}.
      */
     private static class RecyclableInflater implements Resettable, AutoCloseable {
         /**
-         * The {@link Inflater} instance, created with the "nowrap" option, which is
-         * needed for zipfile entries.
+         * The {@link Inflater} instance, created with the "nowrap" option, which is needed for zipfile entries.
          */
         private final Inflater inflater = new Inflater(/* nowrap = */ true);
 
@@ -771,8 +784,7 @@ public class NestedJarHandler {
         }
 
         /**
-         * Called when an {@link Inflater} instance is recycled, to reset the inflater
-         * so it can accept new input.
+         * Called when an {@link Inflater} instance is recycled, to reset the inflater so it can accept new input.
          */
         @Override
         public void reset() {
@@ -780,8 +792,7 @@ public class NestedJarHandler {
         }
 
         /**
-         * Called when the {@link Recycler} instance is closed, to destroy the
-         * {@link Inflater} instance.
+         * Called when the {@link Recycler} instance is closed, to destroy the {@link Inflater} instance.
          */
         @Override
         public void close() {
@@ -790,12 +801,13 @@ public class NestedJarHandler {
     }
 
     /**
-     * Wrap an {@link InputStream} with an {@link InflaterInputStream}, recycling
-     * the {@link Inflater} instance.
+     * Wrap an {@link InputStream} with an {@link InflaterInputStream}, recycling the {@link Inflater} instance.
      *
-     * @param rawInputStream the raw input stream
+     * @param rawInputStream
+     *            the raw input stream
      * @return the inflater input stream
-     * @throws IOException Signals that an I/O exception has occurred.
+     * @throws IOException
+     *             Signals that an I/O exception has occurred.
      */
     public InputStream openInflaterInputStream(final InputStream rawInputStream) throws IOException {
         if (closed.get()) {
@@ -812,11 +824,10 @@ public class NestedJarHandler {
             // Gen Inflater instance with nowrap set to true (needed by zip entries)
             private final AtomicBoolean closed = new AtomicBoolean();
             /**
-             * The staging buffer that deflated bytes are read into from rawInputStream, and
-             * then handed to the inflater as its input. This must never be used as the
-             * destination of an inflate() call: the inflater keeps a reference to its input
-             * array, so inflating into this array would overwrite deflated bytes that the
-             * inflater has not consumed yet.
+             * The staging buffer that deflated bytes are read into from rawInputStream, and then handed to the
+             * inflater as its input. This must never be used as the destination of an inflate() call: the inflater
+             * keeps a reference to its input array, so inflating into this array would overwrite deflated bytes
+             * that the inflater has not consumed yet.
              */
             private final byte[] buf = new byte[INFLATE_BUF_SIZE];
             /** A separate destination buffer for the single-byte read() method. */
@@ -883,7 +894,8 @@ public class NestedJarHandler {
                     return totInflatedBytes;
 
                 } catch (final DataFormatException e) {
-                    throw new ZipException(e.getMessage() != null ? e.getMessage() : "Invalid deflated zip entry data");
+                    throw new ZipException(
+                            e.getMessage() != null ? e.getMessage() : "Invalid deflated zip entry data");
                 }
             }
 
@@ -958,21 +970,24 @@ public class NestedJarHandler {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Read all the bytes in an {@link InputStream}, with spillover to a temporary
-     * file on disk if a maximum buffer size is exceeded.
+     * Read all the bytes in an {@link InputStream}, with spillover to a temporary file on disk if a maximum buffer
+     * size is exceeded.
      *
-     * @param inputStream           the {@link InputStream} to read from.
-     * @param tempFileBaseName      the source URL or zip entry that inputStream was
-     *                              opened from (used to name temporary file, if
-     *                              needed).
-     * @param inputStreamLengthHint the length of inputStream if known, else -1L.
-     * @param log                   the log node, or null to skip logging
-     * @return if the {@link InputStream} could be read into a byte array, an
-     *         {@link ArraySlice} will be returned. If this fails and the
-     *         {@link InputStream} is spilled over to disk, a {@link FileSlice} will
-     *         be returned.
-     * 
-     * @throws IOException If the contents could not be read.
+     * @param inputStream
+     *            the {@link InputStream} to read from.
+     * @param tempFileBaseName
+     *            the source URL or zip entry that inputStream was opened from (used to name temporary file, if
+     *            needed).
+     * @param inputStreamLengthHint
+     *            the length of inputStream if known, else -1L.
+     * @param log
+     *            the log node, or null to skip logging
+     * @return if the {@link InputStream} could be read into a byte array, an {@link ArraySlice} will be returned.
+     *         If this fails and the {@link InputStream} is spilled over to disk, a {@link FileSlice} will be
+     *         returned.
+     *
+     * @throws IOException
+     *             If the contents could not be read.
      */
     public Slice readAllBytesWithSpilloverToDisk(final InputStream inputStream, final String tempFileBaseName,
             final long inputStreamLengthHint, final @Nullable LogNode log) throws IOException {
@@ -1035,20 +1050,22 @@ public class NestedJarHandler {
     }
 
     /**
-     * Spill an {@link InputStream} to disk if the stream is too large to fit in
-     * RAM.
+     * Spill an {@link InputStream} to disk if the stream is too large to fit in RAM.
      *
-     * @param inputStream      The {@link InputStream}.
-     * @param tempFileBaseName The stem to base the temporary filename on.
-     * @param buf              The first buffer to write to the beginning of the
-     *                         file, or null if none.
-     * @param overflowBuf      The second buffer to write to the beginning of the
-     *                         file, or null if none. (Should have same nullity as
-     *                         buf.)
-     * @param log              The log.
+     * @param inputStream
+     *            The {@link InputStream}.
+     * @param tempFileBaseName
+     *            The stem to base the temporary filename on.
+     * @param buf
+     *            The first buffer to write to the beginning of the file, or null if none.
+     * @param overflowBuf
+     *            The second buffer to write to the beginning of the file, or null if none. (Should have same
+     *            nullity as buf.)
+     * @param log
+     *            The log.
      * @return the file slice
-     * @throws IOException If anything went wrong creating or writing to the temp
-     *                     file.
+     * @throws IOException
+     *             If anything went wrong creating or writing to the temp file.
      */
     private FileSlice spillToDisk(final InputStream inputStream, final String tempFileBaseName,
             final byte @Nullable [] buf, final byte @Nullable [] overflowBuf, final @Nullable LogNode log)
@@ -1087,12 +1104,14 @@ public class NestedJarHandler {
 
     /**
      * Read all the bytes in an {@link InputStream}.
-     * 
-     * @param inputStream            The {@link InputStream}.
-     * @param uncompressedLengthHint The length of the data once inflated from the
-     *                               {@link InputStream}, if known, otherwise -1L.
+     *
+     * @param inputStream
+     *            The {@link InputStream}.
+     * @param uncompressedLengthHint
+     *            The length of the data once inflated from the {@link InputStream}, if known, otherwise -1L.
      * @return The contents of the {@link InputStream} as a byte array.
-     * @throws IOException If the contents could not be read.
+     * @throws IOException
+     *             If the contents could not be read.
      */
     public static byte[] readAllBytesAsArray(final InputStream inputStream, final long uncompressedLengthHint)
             throws IOException {
@@ -1147,10 +1166,10 @@ public class NestedJarHandler {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Close zipfiles, modules, and recyclers, and delete temporary files. Called by
-     * {@link ScanResult#close()}.
-     * 
-     * @param log The log.
+     * Close zipfiles, modules, and recyclers, and delete temporary files. Called by {@link ScanResult#close()}.
+     *
+     * @param log
+     *            The log.
      */
     public void close(final @Nullable LogNode log) {
         if (!closed.getAndSet(true)) {
@@ -1261,10 +1280,10 @@ public class NestedJarHandler {
     }
 
     /**
-     * Close a direct {@link ByteBuffer}, so that its memory is unmapped without
-     * waiting for garbage collection.
+     * Close a direct {@link ByteBuffer}, so that its memory is unmapped without waiting for garbage collection.
      *
-     * @param backingByteBuffer the direct {@link ByteBuffer} to close.
+     * @param backingByteBuffer
+     *            the direct {@link ByteBuffer} to close.
      */
     public void closeDirectByteBuffer(final ByteBuffer backingByteBuffer) {
         FileUtils.closeDirectByteBuffer(backingByteBuffer, reflectionUtils, /* log = */ null);

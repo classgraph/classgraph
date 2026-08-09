@@ -32,8 +32,8 @@ public class Issue735Test {
 
     @Test
     void genericSuperclass() {
-        try (var scanResult = new ClassGraph().acceptPackages(Issue735Test.class.getPackage().getName()).enableAllInfo()
-                .ignoreClassVisibility().ignoreMethodVisibility().scan()) {
+        try (var scanResult = new ClassGraph().acceptPackages(Issue735Test.class.getPackage().getName())
+                .enableAllInfo().ignoreClassVisibility().ignoreMethodVisibility().scan()) {
             final var ci1 = scanResult.getClassInfo(Derived1.class.getName());
             assertThat(ci1.getMethodInfo().get(0).getTypeSignatureOrTypeDescriptor().getResultType().toString())
                     .isEqualTo(String.class.getName());
@@ -55,8 +55,7 @@ public class Issue735Test {
         T[] getArrayOfT();
 
         /**
-         * A generic method whose own type parameter T shadows the interface's type
-         * parameter T.
+         * A generic method whose own type parameter T shadows the interface's type parameter T.
          */
         <T> T identity(T t);
 
@@ -77,8 +76,7 @@ public class Issue735Test {
     }
 
     /**
-     * Binds PassesThrough's U to Integer, which must compose into a binding of
-     * Generic's T to Integer.
+     * Binds PassesThrough's U to Integer, which must compose into a binding of Generic's T to Integer.
      */
     abstract static class BoundToIntegerIndirectly extends PassesThrough<Integer> {
     }
@@ -97,8 +95,7 @@ public class Issue735Test {
     }
 
     /**
-     * Binds Generic's T to a class that is itself within the scanned package, so
-     * has a {@link ClassInfo}.
+     * Binds Generic's T to a class that is itself within the scanned package, so has a {@link ClassInfo}.
      */
     abstract static class BoundToScannedClass implements Generic<Derived1> {
     }
@@ -127,23 +124,20 @@ public class Issue735Test {
     }
 
     /**
-     * Binds PairSwapped's X and Y, so Pair's A must compose to Integer and B to
-     * String.
+     * Binds PairSwapped's X and Y, so Pair's A must compose to Integer and B to String.
      */
     abstract static class PairSwappedBound extends PairSwapped<String, Integer> {
     }
 
     /**
-     * Extends one generic class and implements another generic interface, both of
-     * which name their type parameter {@code T}, so the two bindings must not
-     * collide.
+     * Extends one generic class and implements another generic interface, both of which name their type parameter
+     * {@code T}, so the two bindings must not collide.
      */
     abstract static class BoundOnBothBranches extends GenericField<Long> implements Generic<String> {
     }
 
     /**
-     * A self-referential ("f-bounded") type parameter, which must not send
-     * resolution into infinite recursion.
+     * A self-referential ("f-bounded") type parameter, which must not send resolution into infinite recursion.
      */
     interface Recursive<R extends Recursive<R>> {
         R self();
@@ -154,8 +148,7 @@ public class Issue735Test {
     }
 
     /**
-     * A generic class with a generic inner (non-static) class, whose type variable
-     * is the outer class'.
+     * A generic class with a generic inner (non-static) class, whose type variable is the outer class'.
      */
     static class Outer<O> {
         class Inner {
@@ -184,11 +177,12 @@ public class Issue735Test {
     }
 
     /**
-     * Get the declared result type of a method of {@link Generic}, resolved against
-     * a context class.
+     * Get the declared result type of a method of {@link Generic}, resolved against a context class.
      *
-     * @param methodName   the name of the method of {@link Generic}.
-     * @param contextClass the class to resolve type variables against.
+     * @param methodName
+     *            the name of the method of {@link Generic}.
+     * @param contextClass
+     *            the class to resolve type variables against.
      * @return the resolved result type, as a string.
      */
     private static String resolvedResultType(final String methodName, final Class<?> contextClass) {
@@ -201,7 +195,8 @@ public class Issue735Test {
     @Test
     void unresolvedTypesAreTypeVariables() {
         final var generic = scanResult.getClassInfo(Generic.class.getName());
-        assertThat(generic.getMethodInfo("getT").get(0).getTypeSignatureOrTypeDescriptor().getResultType().toString())
+        assertThat(
+                generic.getMethodInfo("getT").get(0).getTypeSignatureOrTypeDescriptor().getResultType().toString())
                 .isEqualTo("T");
         assertThat(generic.getMethodInfo("getListOfT").get(0).getTypeSignatureOrTypeDescriptor().getResultType()
                 .toString()).isEqualTo("java.util.List<T>");
@@ -220,7 +215,8 @@ public class Issue735Test {
     /** A type variable in type argument position. */
     @Test
     void typeVariableIsResolvedInTypeArgumentPosition() {
-        assertThat(resolvedResultType("getListOfT", BoundToString.class)).isEqualTo("java.util.List<java.lang.String>");
+        assertThat(resolvedResultType("getListOfT", BoundToString.class))
+                .isEqualTo("java.util.List<java.lang.String>");
     }
 
     /** A type variable as the element type of an array. */
@@ -238,8 +234,7 @@ public class Issue735Test {
     }
 
     /**
-     * Resolving against the intermediate class itself gives that class' own type
-     * variable.
+     * Resolving against the intermediate class itself gives that class' own type variable.
      */
     @Test
     void typeVariableIsResolvedToAnotherTypeVariable() {
@@ -254,8 +249,7 @@ public class Issue735Test {
     }
 
     /**
-     * A method's own type parameter shadows the interface's type parameter of the
-     * same name, so is not bound.
+     * A method's own type parameter shadows the interface's type parameter of the same name, so is not bound.
      */
     @Test
     void methodTypeParameterShadowsClassTypeParameter() {
@@ -269,8 +263,7 @@ public class Issue735Test {
     }
 
     /**
-     * A context class that is not a subtype of the declaring class supplies no type
-     * argument.
+     * A context class that is not a subtype of the declaring class supplies no type argument.
      */
     @Test
     void unrelatedContextClassLeavesTypeVariableUnresolved() {
@@ -278,9 +271,8 @@ public class Issue735Test {
     }
 
     /**
-     * A resolved type signature is fully wired up to the {@link ScanResult}, so a
-     * substituted node that was built during resolution can still resolve its own
-     * {@link ClassInfo}.
+     * A resolved type signature is fully wired up to the {@link ScanResult}, so a substituted node that was built
+     * during resolution can still resolve its own {@link ClassInfo}.
      */
     @Test
     void resolvedTypeSignatureHasScanResult() {
@@ -288,8 +280,8 @@ public class Issue735Test {
                 .getTypeSignatureOrTypeDescriptor().getResultType()
                 .resolveTypeVariables(scanResult.getClassInfo(BoundToScannedClass.class.getName()));
         assertThat(resolved.toString()).isEqualTo("java.util.List<" + Derived1.class.getName() + ">");
-        final var typeArgument = (ClassRefTypeSignature) ((ClassRefTypeSignature) resolved).getTypeArguments().get(0)
-                .getTypeSignature();
+        final var typeArgument = (ClassRefTypeSignature) ((ClassRefTypeSignature) resolved).getTypeArguments()
+                .get(0).getTypeSignature();
         assertThat(typeArgument.getClassInfo()).isNotNull();
         assertThat(typeArgument.getClassInfo().getName()).isEqualTo(Derived1.class.getName());
     }
@@ -309,16 +301,17 @@ public class Issue735Test {
         final var fieldType = scanResult.getClassInfo(GenericField.class.getName()).getFieldInfo("field")
                 .getTypeSignatureOrTypeDescriptor();
         assertThat(fieldType.toString()).isEqualTo("T");
-        assertThat(fieldType.resolveTypeVariables(scanResult.getClassInfo(FieldBoundToLong.class.getName())).toString())
-                .isEqualTo("java.lang.Long");
+        assertThat(fieldType.resolveTypeVariables(scanResult.getClassInfo(FieldBoundToLong.class.getName()))
+                .toString()).isEqualTo("java.lang.Long");
     }
 
     /**
-     * Get the declared result type of a method of {@link Pair}, resolved against a
-     * context class.
+     * Get the declared result type of a method of {@link Pair}, resolved against a context class.
      *
-     * @param methodName   the name of the method of {@link Pair}.
-     * @param contextClass the class to resolve type variables against.
+     * @param methodName
+     *            the name of the method of {@link Pair}.
+     * @param contextClass
+     *            the class to resolve type variables against.
      * @return the resolved result type, as a string.
      */
     private static String resolvedPairResultType(final String methodName, final Class<?> contextClass) {
@@ -328,8 +321,7 @@ public class Issue735Test {
     }
 
     /**
-     * Several type parameters are mapped to their type arguments by position, not
-     * by name.
+     * Several type parameters are mapped to their type arguments by position, not by name.
      */
     @Test
     void severalTypeParametersAreMappedByPosition() {
@@ -338,8 +330,7 @@ public class Issue735Test {
     }
 
     /**
-     * An intermediate class that swaps its type parameters must produce swapped
-     * bindings.
+     * An intermediate class that swaps its type parameters must produce swapped bindings.
      */
     @Test
     void typeParametersSwappedByAnIntermediateClassAreComposedInTheRightOrder() {
@@ -348,8 +339,7 @@ public class Issue735Test {
     }
 
     /**
-     * Type variables nested inside type arguments of type arguments are
-     * substituted.
+     * Type variables nested inside type arguments of type arguments are substituted.
      */
     @Test
     void typeVariablesAreSubstitutedAtEveryDepth() {
@@ -360,8 +350,7 @@ public class Issue735Test {
     }
 
     /**
-     * A multi-dimensional array's element type is substituted, and the
-     * dimensionality is preserved.
+     * A multi-dimensional array's element type is substituted, and the dimensionality is preserved.
      */
     @Test
     void multiDimensionalArrayElementTypeIsResolved() {
@@ -369,8 +358,7 @@ public class Issue735Test {
     }
 
     /**
-     * A type containing no type variables is returned unchanged, as the very same
-     * object.
+     * A type containing no type variables is returned unchanged, as the very same object.
      */
     @Test
     void typesWithoutTypeVariablesAreReturnedUnchanged() {
@@ -384,8 +372,8 @@ public class Issue735Test {
     }
 
     /**
-     * Two type variables that share the name {@code T} but are declared by
-     * different classes must be resolved independently of each other.
+     * Two type variables that share the name {@code T} but are declared by different classes must be resolved
+     * independently of each other.
      */
     @Test
     void identicallyNamedTypeVariablesOfDifferentClassesDoNotCollide() {
@@ -408,10 +396,9 @@ public class Issue735Test {
     }
 
     /**
-     * A type variable that an inner class inherits from its enclosing class is left
-     * unresolved: the classfile records it as declared by the inner class itself,
-     * and the inner class is not on the supertype chain of a subclass of the
-     * enclosing class, so no type argument is ever supplied for it.
+     * A type variable that an inner class inherits from its enclosing class is left unresolved: the classfile
+     * records it as declared by the inner class itself, and the inner class is not on the supertype chain of a
+     * subclass of the enclosing class, so no type argument is ever supplied for it.
      */
     @Test
     void typeVariableOfEnclosingClassIsNotResolved() {
@@ -423,8 +410,7 @@ public class Issue735Test {
     }
 
     /**
-     * Resolving against the declaring class itself leaves its own type variables
-     * unbound.
+     * Resolving against the declaring class itself leaves its own type variables unbound.
      */
     @Test
     void declaringClassAsContextLeavesTypeVariablesUnresolved() {
@@ -433,8 +419,7 @@ public class Issue735Test {
     }
 
     /**
-     * Resolution is repeatable: it must not mutate the type signature it is called
-     * on.
+     * Resolution is repeatable: it must not mutate the type signature it is called on.
      */
     @Test
     void resolutionDoesNotMutateTheOriginalTypeSignature() {
@@ -444,8 +429,9 @@ public class Issue735Test {
         assertThat(resultType.resolveTypeVariables(contextClass).toString())
                 .isEqualTo("java.util.List<java.lang.String>");
         assertThat(resultType.toString()).isEqualTo("java.util.List<T>");
-        assertThat(resultType.resolveTypeVariables(scanResult.getClassInfo(BoundToIntegerIndirectly.class.getName()))
-                .toString()).isEqualTo("java.util.List<java.lang.Integer>");
+        assertThat(resultType
+                .resolveTypeVariables(scanResult.getClassInfo(BoundToIntegerIndirectly.class.getName())).toString())
+                .isEqualTo("java.util.List<java.lang.Integer>");
         assertThat(resultType.toString()).isEqualTo("java.util.List<T>");
     }
 

@@ -82,13 +82,14 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
      * Get the paths from a containerClassLoader object.
      *
      * <p>
-     * The passed in object should be an instance of
-     * "com.ibm.ws.classloading.internal.ContainerClassLoader".
+     * The passed in object should be an instance of "com.ibm.ws.classloading.internal.ContainerClassLoader".
      * <p>
      * Will attempt to use "getContainerURLs" methods to recap the classpath.
-     * 
-     * @param containerClassLoader the containerClassLoader object
-     * @param reflectionUtils      the reflection utils instance
+     *
+     * @param containerClassLoader
+     *            the containerClassLoader object
+     * @param reflectionUtils
+     *            the reflection utils instance
      * @return Collection of path objects as a {@link URL} or {@link String}.
      */
     private static Collection<Object> getPaths(final Object containerClassLoader,
@@ -145,23 +146,23 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
     }
 
     /**
-     * Utility to call a "getURLs" method, flattening "collections of collections"
-     * and ignoring "UnsupportedOperationException".
-     * 
-     * All of the "getURLs" methods eventually call
-     * "com.ibm.wsspi.adaptable.module.Container#getURLs()".
-     * 
+     * Utility to call a "getURLs" method, flattening "collections of collections" and ignoring
+     * "UnsupportedOperationException".
+     *
+     * All of the "getURLs" methods eventually call "com.ibm.wsspi.adaptable.module.Container#getURLs()".
+     *
      * https://www.ibm.com/support/knowledgecenter/SSEQTP_liberty/com.ibm.websphere.javadoc.liberty.doc
      * /com.ibm.websphere.appserver.spi.artifact_1.2-javadoc
-     * /com/ibm/wsspi/adaptable/module/Container.html?view=embed#getURLs() "A
-     * collection of URLs that represent all of the locations on disk that
-     * contribute to this container"
+     * /com/ibm/wsspi/adaptable/module/Container.html?view=embed#getURLs() "A collection of URLs that represent all
+     * of the locations on disk that contribute to this container"
      *
-     * @param container       the container object to call the method on
-     * @param methodName      the name of the "getURLs"-style method to call
-     * @param reflectionUtils the reflection utils instance
-     * @return the flattened URLs, or an empty collection if the method could not be
-     *         called or returned nothing.
+     * @param container
+     *            the container object to call the method on
+     * @param methodName
+     *            the name of the "getURLs"-style method to call
+     * @param reflectionUtils
+     *            the reflection utils instance
+     * @return the flattened URLs, or an empty collection if the method could not be called or returned nothing.
      */
     @SuppressWarnings("unchecked")
     private static Collection<Object> callGetUrls(final Object container, final String methodName,
@@ -228,12 +229,10 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
     }
 
     /**
-     * Get the automatic package root prefixes for classpath elements obtained from
-     * this classloader.
+     * Get the automatic package root prefixes for classpath elements obtained from this classloader.
      *
      * <p>
-     * Classpath elements from this classloader may be Spring-Boot executable jars
-     * or wars.
+     * Classpath elements from this classloader may be Spring-Boot executable jars or wars.
      *
      * @return the package root prefixes.
      */

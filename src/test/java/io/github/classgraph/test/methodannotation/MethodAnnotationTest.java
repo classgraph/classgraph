@@ -60,7 +60,8 @@ public class MethodAnnotationTest {
     public void testGetNamesOfClassesWithMethodAnnotationIgnoringVisibility() {
         try (var scanResult = new ClassGraph().acceptPackages(MethodAnnotationTest.class.getPackage().getName())
                 .enableClassInfo().enableMethodInfo().enableAnnotationInfo().ignoreMethodVisibility().scan()) {
-            final var classesWithMethodAnnotation = scanResult.getClassesWithMethodAnnotation(ExternalAnnotation.class);
+            final var classesWithMethodAnnotation = scanResult
+                    .getClassesWithMethodAnnotation(ExternalAnnotation.class);
             final var testClasses = classesWithMethodAnnotation.getNames();
             assertThat(testClasses).containsOnly(MethodAnnotationTest.class.getName());
             var found = false;

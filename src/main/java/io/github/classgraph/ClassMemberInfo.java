@@ -36,8 +36,8 @@ import nonapi.io.github.classgraph.utils.Assert;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Holds metadata about class members of a class encountered during a scan. All
- * values are taken directly out of the classfile for the class.
+ * Holds metadata about class members of a class encountered during a scan. All values are taken directly out of the
+ * classfile for the class.
  */
 public abstract class ClassMemberInfo extends ScanResultObject implements HasName {
     /** Defining class name. */
@@ -50,14 +50,14 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
     protected int modifiers;
 
     /**
-     * The JVM-internal type descriptor (missing type parameters, but including
-     * types for synthetic and mandated class member parameters).
+     * The JVM-internal type descriptor (missing type parameters, but including types for synthetic and mandated
+     * class member parameters).
      */
     protected String typeDescriptorStr;
 
     /**
-     * The type signature (may have type parameter information included, if present
-     * and available). Class member parameter types are unaligned.
+     * The type signature (may have type parameter information included, if present and available). Class member
+     * parameter types are unaligned.
      */
     protected @Nullable String typeSignatureStr;
 
@@ -70,13 +70,18 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
     /**
      * Constructor.
      *
-     * @param definingClassName The class the member is defined within.
-     * @param memberName        The name of the class member.
-     * @param modifiers         The class member modifiers.
-     * @param typeDescriptorStr The class member type descriptor.
-     * @param typeSignatureStr  The class member type signature.
-     * @param annotationInfo    {@link AnnotationInfo} for any annotations on the
-     *                          class member.
+     * @param definingClassName
+     *            The class the member is defined within.
+     * @param memberName
+     *            The name of the class member.
+     * @param modifiers
+     *            The class member modifiers.
+     * @param typeDescriptorStr
+     *            The class member type descriptor.
+     * @param typeSignatureStr
+     *            The class member type signature.
+     * @param annotationInfo
+     *            {@link AnnotationInfo} for any annotations on the class member.
      */
     protected ClassMemberInfo(final String definingClassName, final String memberName, final int modifiers,
             final String typeDescriptorStr, final @Nullable String typeSignatureStr,
@@ -93,8 +98,7 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the {@link ClassInfo} object for the class that declares this class
-     * member.
+     * Get the {@link ClassInfo} object for the class that declares this class member.
      *
      * @return The {@link ClassInfo} object for the declaring class.
      *
@@ -139,8 +143,7 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
     }
 
     /**
-     * Get the modifiers as a string, e.g. "public static final". For the modifier
-     * bits, call getModifiers().
+     * Get the modifiers as a string, e.g. "public static final". For the modifier bits, call getModifiers().
      *
      * @return The modifiers modifiers, as a string.
      */
@@ -203,18 +206,16 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Returns the parsed type descriptor for the class member, which will not
-     * include type parameters. If you need generic type parameters, call
-     * {@link #getTypeSignature()} instead.
+     * Returns the parsed type descriptor for the class member, which will not include type parameters. If you need
+     * generic type parameters, call {@link #getTypeSignature()} instead.
      *
      * @return The parsed type descriptor string for the class member.
      */
     public abstract @Nullable HierarchicalTypeSignature getTypeDescriptor();
 
     /**
-     * Returns the type descriptor string for the class member, which will not
-     * include type parameters. If you need generic type parameters, call
-     * {@link #getTypeSignatureString()} instead.
+     * Returns the type descriptor string for the class member, which will not include type parameters. If you need
+     * generic type parameters, call {@link #getTypeSignatureString()} instead.
      *
      * @return The type descriptor string for the class member.
      */
@@ -223,52 +224,46 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
     }
 
     /**
-     * Returns the parsed type signature for the class member, possibly including
-     * type parameters. If this returns null, that no type signature information is
-     * available for this class member, call {@link #getTypeDescriptor()} instead.
+     * Returns the parsed type signature for the class member, possibly including type parameters. If this returns
+     * null, that no type signature information is available for this class member, call
+     * {@link #getTypeDescriptor()} instead.
      *
-     * @return The parsed type signature for the class member, or null if not
-     *         available.
-     * @throws IllegalArgumentException if the class member type signature cannot be
-     *                                  parsed (this should only be thrown in the
-     *                                  case of classfile corruption, or a compiler
-     *                                  bug that causes an invalid type signature to
-     *                                  be written to the classfile).
+     * @return The parsed type signature for the class member, or null if not available.
+     * @throws IllegalArgumentException
+     *             if the class member type signature cannot be parsed (this should only be thrown in the case of
+     *             classfile corruption, or a compiler bug that causes an invalid type signature to be written to
+     *             the classfile).
      */
     public abstract @Nullable HierarchicalTypeSignature getTypeSignature();
 
     /**
-     * Returns the type signature string for the class member, possibly including
-     * type parameters. If this returns null, indicating that no type signature
-     * information is available for this class member, call
+     * Returns the type signature string for the class member, possibly including type parameters. If this returns
+     * null, indicating that no type signature information is available for this class member, call
      * {@link #getTypeDescriptorString()} instead.
      *
-     * @return The type signature string for the class member, or null if not
-     *         available.
+     * @return The type signature string for the class member, or null if not available.
      */
     public @Nullable String getTypeSignatureString() {
         return typeSignatureStr;
     }
 
     /**
-     * Returns the type signature for the class member, possibly including type
-     * parameters. If the type signature is null, indicating that no type signature
-     * information is available for this class member, returns the type descriptor
-     * instead.
+     * Returns the type signature for the class member, possibly including type parameters. If the type signature is
+     * null, indicating that no type signature information is available for this class member, returns the type
+     * descriptor instead.
      *
-     * @return The parsed type signature for the class member, or if not available,
-     *         the parsed type descriptor for the class member.
+     * @return The parsed type signature for the class member, or if not available, the parsed type descriptor for
+     *         the class member.
      */
     public abstract @Nullable HierarchicalTypeSignature getTypeSignatureOrTypeDescriptor();
 
     /**
-     * Returns the type signature string for the class member, possibly including
-     * type parameters. If the type signature string is null, indicating that no
-     * type signature information is available for this class member, returns the
-     * type descriptor string instead.
+     * Returns the type signature string for the class member, possibly including type parameters. If the type
+     * signature string is null, indicating that no type signature information is available for this class member,
+     * returns the type descriptor string instead.
      *
-     * @return The type signature string for the class member, or if not available,
-     *         the type descriptor string for the class member.
+     * @return The type signature string for the class member, or if not available, the type descriptor string for
+     *         the class member.
      */
     public String getTypeSignatureOrTypeDescriptorString() {
         if (typeSignatureStr != null) {
@@ -280,13 +275,11 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get a list of the annotations and meta-annotations on this class member,
-     * along with any annotation parameter values, wrapped in {@link AnnotationInfo}
-     * objects.
+     * Get a list of the annotations and meta-annotations on this class member, along with any annotation parameter
+     * values, wrapped in {@link AnnotationInfo} objects.
      *
-     * @return A list of the annotations and meta-annotations on this class member,
-     *         along with any annotation parameter values, wrapped in
-     *         {@link AnnotationInfo} objects, or the empty list if none.
+     * @return A list of the annotations and meta-annotations on this class member, along with any annotation
+     *         parameter values, wrapped in {@link AnnotationInfo} objects, or the empty list if none.
      */
     public AnnotationInfoList getAllAnnotationInfo() {
         synchronized (this) {
@@ -305,29 +298,25 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
     }
 
     /**
-     * Get a list of only the annotations directly present on this class member, not
-     * the meta-annotations on those annotations, along with any annotation
-     * parameter values, wrapped in {@link AnnotationInfo} objects.
+     * Get a list of only the annotations directly present on this class member, not the meta-annotations on those
+     * annotations, along with any annotation parameter values, wrapped in {@link AnnotationInfo} objects.
      *
-     * @return A list of the annotations directly present on this class member,
-     *         along with any annotation parameter values, wrapped in
-     *         {@link AnnotationInfo} objects, or the empty list if none.
+     * @return A list of the annotations directly present on this class member, along with any annotation parameter
+     *         values, wrapped in {@link AnnotationInfo} objects, or the empty list if none.
      */
     public AnnotationInfoList getDirectAnnotationInfo() {
         return getAllAnnotationInfo().directOnly();
     }
 
     /**
-     * Get the non-{@link Repeatable} annotation or meta-annotation on this class
-     * member, or null if the class member does not have the annotation. (Use
-     * {@link #getAllAnnotationInfoRepeatable(Class)} for {@link Repeatable}
-     * annotations, or {@link #getDirectAnnotationInfo(Class)} to ignore
-     * meta-annotations.)
+     * Get the non-{@link Repeatable} annotation or meta-annotation on this class member, or null if the class
+     * member does not have the annotation. (Use {@link #getAllAnnotationInfoRepeatable(Class)} for
+     * {@link Repeatable} annotations, or {@link #getDirectAnnotationInfo(Class)} to ignore meta-annotations.)
      *
-     * @param annotation the annotation class
-     * @return An {@link AnnotationInfo} object representing the annotation on this
-     *         class member, or null if the class member does not have the
-     *         annotation.
+     * @param annotation
+     *            the annotation class
+     * @return An {@link AnnotationInfo} object representing the annotation on this class member, or null if the
+     *         class member does not have the annotation.
      */
     public @Nullable AnnotationInfo getAllAnnotationInfo(final Class<? extends Annotation> annotation) {
         Assert.notNull(annotation, "annotation");
@@ -336,23 +325,20 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
     }
 
     /**
-     * Get the named non-{@link Repeatable} annotation or meta-annotation on this
-     * class member, or null if the class member does not have the named annotation.
-     * (Use {@link #getAllAnnotationInfoRepeatable(String)} for {@link Repeatable}
-     * annotations, or {@link #getDirectAnnotationInfo(String)} to ignore
-     * meta-annotations.)
+     * Get the named non-{@link Repeatable} annotation or meta-annotation on this class member, or null if the class
+     * member does not have the named annotation. (Use {@link #getAllAnnotationInfoRepeatable(String)} for
+     * {@link Repeatable} annotations, or {@link #getDirectAnnotationInfo(String)} to ignore meta-annotations.)
      *
      * <p>
-     * If the named annotation can be reached in more than one way -- if it is
-     * directly present on the class member and is also a meta-annotation of one of
-     * the member's other annotations, for example -- then the one reached most
-     * directly is returned. Call {@link #getDirectAnnotationInfo(String)} if you want
-     * only the annotation present on the class member itself.
+     * If the named annotation can be reached in more than one way -- if it is directly present on the class member
+     * and is also a meta-annotation of one of the member's other annotations, for example -- then the one reached
+     * most directly is returned. Call {@link #getDirectAnnotationInfo(String)} if you want only the annotation
+     * present on the class member itself.
      *
-     * @param annotationName the name of the annotation class
-     * @return An {@link AnnotationInfo} object representing the named annotation on
-     *         this class member, or null if the class member does not have the
-     *         named annotation.
+     * @param annotationName
+     *            the name of the annotation class
+     * @return An {@link AnnotationInfo} object representing the named annotation on this class member, or null if
+     *         the class member does not have the named annotation.
      */
     public @Nullable AnnotationInfo getAllAnnotationInfo(final String annotationName) {
         Assert.notNull(annotationName, "annotationName");
@@ -360,14 +346,14 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
     }
 
     /**
-     * Get the non-{@link Repeatable} annotation directly present on this class
-     * member, or null if the annotation is not directly present. Meta-annotations
-     * are ignored. (Use {@link #getDirectAnnotationInfoRepeatable(Class)} for
-     * {@link Repeatable} annotations.)
+     * Get the non-{@link Repeatable} annotation directly present on this class member, or null if the annotation is
+     * not directly present. Meta-annotations are ignored. (Use {@link #getDirectAnnotationInfoRepeatable(Class)}
+     * for {@link Repeatable} annotations.)
      *
-     * @param annotation the annotation class
-     * @return An {@link AnnotationInfo} object representing the annotation directly
-     *         present on this class member, or null if it is not directly present.
+     * @param annotation
+     *            the annotation class
+     * @return An {@link AnnotationInfo} object representing the annotation directly present on this class member,
+     *         or null if it is not directly present.
      */
     public @Nullable AnnotationInfo getDirectAnnotationInfo(final Class<? extends Annotation> annotation) {
         Assert.notNull(annotation, "annotation");
@@ -376,16 +362,14 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
     }
 
     /**
-     * Get the named non-{@link Repeatable} annotation directly present on this
-     * class member, or null if the named annotation is not directly present.
-     * Meta-annotations are ignored. (Use
-     * {@link #getDirectAnnotationInfoRepeatable(String)} for {@link Repeatable}
-     * annotations.)
+     * Get the named non-{@link Repeatable} annotation directly present on this class member, or null if the named
+     * annotation is not directly present. Meta-annotations are ignored. (Use
+     * {@link #getDirectAnnotationInfoRepeatable(String)} for {@link Repeatable} annotations.)
      *
-     * @param annotationName the name of the annotation class
-     * @return An {@link AnnotationInfo} object representing the named annotation
-     *         directly present on this class member, or null if it is not directly
-     *         present.
+     * @param annotationName
+     *            the name of the annotation class
+     * @return An {@link AnnotationInfo} object representing the named annotation directly present on this class
+     *         member, or null if it is not directly present.
      */
     public @Nullable AnnotationInfo getDirectAnnotationInfo(final String annotationName) {
         Assert.notNull(annotationName, "annotationName");
@@ -393,13 +377,13 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
     }
 
     /**
-     * Get the {@link Repeatable} annotation or meta-annotation on this class
-     * member, or the empty list if the class member does not have the annotation.
+     * Get the {@link Repeatable} annotation or meta-annotation on this class member, or the empty list if the class
+     * member does not have the annotation.
      *
-     * @param annotation the annotation class
-     * @return An {@link AnnotationInfoList} of all instances of the annotation on
-     *         this class member, or the empty list if the class member does not
-     *         have the annotation.
+     * @param annotation
+     *            the annotation class
+     * @return An {@link AnnotationInfoList} of all instances of the annotation on this class member, or the empty
+     *         list if the class member does not have the annotation.
      */
     public AnnotationInfoList getAllAnnotationInfoRepeatable(final Class<? extends Annotation> annotation) {
         Assert.notNull(annotation, "annotation");
@@ -408,14 +392,13 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
     }
 
     /**
-     * Get the named {@link Repeatable} annotation or meta-annotation on this class
-     * member, or the empty list if the class member does not have the named
-     * annotation.
+     * Get the named {@link Repeatable} annotation or meta-annotation on this class member, or the empty list if the
+     * class member does not have the named annotation.
      *
-     * @param annotationName the name of the annotation class
-     * @return An {@link AnnotationInfoList} of all instances of the named
-     *         annotation on this class member, or the empty list if the class
-     *         member does not have the named annotation.
+     * @param annotationName
+     *            the name of the annotation class
+     * @return An {@link AnnotationInfoList} of all instances of the named annotation on this class member, or the
+     *         empty list if the class member does not have the named annotation.
      */
     public AnnotationInfoList getAllAnnotationInfoRepeatable(final String annotationName) {
         Assert.notNull(annotationName, "annotationName");
@@ -423,14 +406,13 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
     }
 
     /**
-     * Get the {@link Repeatable} annotation directly present on this class member,
-     * or the empty list if it is not directly present. Meta-annotations are
-     * ignored.
+     * Get the {@link Repeatable} annotation directly present on this class member, or the empty list if it is not
+     * directly present. Meta-annotations are ignored.
      *
-     * @param annotation the annotation class
-     * @return An {@link AnnotationInfoList} of all instances of the annotation
-     *         directly present on this class member, or the empty list if it is not
-     *         directly present.
+     * @param annotation
+     *            the annotation class
+     * @return An {@link AnnotationInfoList} of all instances of the annotation directly present on this class
+     *         member, or the empty list if it is not directly present.
      */
     public AnnotationInfoList getDirectAnnotationInfoRepeatable(final Class<? extends Annotation> annotation) {
         Assert.notNull(annotation, "annotation");
@@ -439,14 +421,13 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
     }
 
     /**
-     * Get the named {@link Repeatable} annotation directly present on this class
-     * member, or the empty list if it is not directly present. Meta-annotations are
-     * ignored.
+     * Get the named {@link Repeatable} annotation directly present on this class member, or the empty list if it is
+     * not directly present. Meta-annotations are ignored.
      *
-     * @param annotationName the name of the annotation class
-     * @return An {@link AnnotationInfoList} of all instances of the named
-     *         annotation directly present on this class member, or the empty list
-     *         if it is not directly present.
+     * @param annotationName
+     *            the name of the annotation class
+     * @return An {@link AnnotationInfoList} of all instances of the named annotation directly present on this class
+     *         member, or the empty list if it is not directly present.
      */
     public AnnotationInfoList getDirectAnnotationInfoRepeatable(final String annotationName) {
         Assert.notNull(annotationName, "annotationName");
@@ -456,7 +437,8 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
     /**
      * Check if the class member has a given annotation.
      *
-     * @param annotation the annotation class
+     * @param annotation
+     *            the annotation class
      * @return true if this class member has the annotation.
      */
     public boolean hasAnnotation(final Class<? extends Annotation> annotation) {
@@ -468,7 +450,8 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
     /**
      * Check if the class member has a given named annotation.
      *
-     * @param annotationName the name of the annotation class
+     * @param annotationName
+     *            the name of the annotation class
      * @return true if this class member has the named annotation.
      */
     public boolean hasAnnotation(final String annotationName) {

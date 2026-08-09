@@ -33,8 +33,7 @@ package nonapi.io.github.classgraph.utils;
  */
 public final class StringUtils {
     /**
-     * Lookup table of escape sequences for characters that cannot appear literally
-     * between double quotes.
+     * Lookup table of escape sequences for characters that cannot appear literally between double quotes.
      */
     private static final String[] CHAR_REPLACEMENTS = new String[256];
 
@@ -66,11 +65,11 @@ public final class StringUtils {
     }
 
     /**
-     * Escape a string so that it can be shown surrounded by double quotes, using
-     * Java escape sequences for quotes, backslashes, control characters, and any
-     * character outside the Latin-1 range.
+     * Escape a string so that it can be shown surrounded by double quotes, using Java escape sequences for quotes,
+     * backslashes, control characters, and any character outside the Latin-1 range.
      *
-     * @param unsafeStr The string to escape.
+     * @param unsafeStr
+     *            The string to escape.
      * @return The escaped string.
      */
     public static String escapeString(final String unsafeStr) {
@@ -109,18 +108,22 @@ public final class StringUtils {
     }
 
     /**
-     * Reads the "modified UTF8" format defined in the Java classfile spec,
-     * optionally replacing '/' with '.', and optionally removing the prefix "L" and
-     * the suffix ";".
+     * Reads the "modified UTF8" format defined in the Java classfile spec, optionally replacing '/' with '.', and
+     * optionally removing the prefix "L" and the suffix ";".
      *
-     * @param arr                 the array to read the string from
-     * @param startOffset         The start offset of the string within the array.
-     * @param numBytes            The number of bytes of the UTF8 encoding of the
-     *                            string.
-     * @param replaceSlashWithDot If true, replace '/' with '.'.
-     * @param stripLSemicolon     If true, string final ';' character.
+     * @param arr
+     *            the array to read the string from
+     * @param startOffset
+     *            The start offset of the string within the array.
+     * @param numBytes
+     *            The number of bytes of the UTF8 encoding of the string.
+     * @param replaceSlashWithDot
+     *            If true, replace '/' with '.'.
+     * @param stripLSemicolon
+     *            If true, string final ';' character.
      * @return The string.
-     * @throws IllegalArgumentException If string could not be parsed.
+     * @throws IllegalArgumentException
+     *             If string could not be parsed.
      */
     public static String readString(final byte[] arr, final int startOffset, final int numBytes,
             final boolean replaceSlashWithDot, final boolean stripLSemicolon) throws IllegalArgumentException {
@@ -180,8 +183,8 @@ public final class StringUtils {
         } else {
             if (stripLSemicolon) {
                 if (charIdx < 2 || chars[0] != 'L' || chars[charIdx - 1] != ';') {
-                    throw new IllegalArgumentException(
-                            "Expected string to start with 'L' and end with ';', got \"" + new String(chars) + "\"");
+                    throw new IllegalArgumentException("Expected string to start with 'L' and end with ';', got \""
+                            + new String(chars) + "\"");
                 }
                 return new String(chars, 1, charIdx - 2);
             } else {
@@ -191,15 +194,19 @@ public final class StringUtils {
     }
 
     /**
-     * Append the string representations of the elements of an {@link Iterable} to a
-     * buffer, separated by a separator string. (Unlike {@link String#join}, the
-     * elements may be of any type, and may be null.)
-     * 
-     * @param buf            The buffer to append to.
-     * @param addAtBeginning The token to add at the beginning of the string.
-     * @param sep            The separator string.
-     * @param addAtEnd       The token to add at the end of the string.
-     * @param iterable       The {@link Iterable} to join.
+     * Append the string representations of the elements of an {@link Iterable} to a buffer, separated by a
+     * separator string. (Unlike {@link String#join}, the elements may be of any type, and may be null.)
+     *
+     * @param buf
+     *            The buffer to append to.
+     * @param addAtBeginning
+     *            The token to add at the beginning of the string.
+     * @param sep
+     *            The separator string.
+     * @param addAtEnd
+     *            The token to add at the end of the string.
+     * @param iterable
+     *            The {@link Iterable} to join.
      */
     public static void join(final StringBuilder buf, final String addAtBeginning, final String sep,
             final String addAtEnd, final Iterable<?> iterable) {
@@ -221,12 +228,13 @@ public final class StringUtils {
     }
 
     /**
-     * Join the string representations of the elements of an {@link Iterable},
-     * separated by a separator string. (Unlike {@link String#join}, the elements
-     * may be of any type, and may be null.)
-     * 
-     * @param sep      The separator string.
-     * @param iterable The {@link Iterable} to join.
+     * Join the string representations of the elements of an {@link Iterable}, separated by a separator string.
+     * (Unlike {@link String#join}, the elements may be of any type, and may be null.)
+     *
+     * @param sep
+     *            The separator string.
+     * @param iterable
+     *            The {@link Iterable} to join.
      * @return The string representation of the joined elements.
      */
     public static String join(final String sep, final Iterable<?> iterable) {
@@ -236,11 +244,13 @@ public final class StringUtils {
     }
 
     /**
-     * Join the string representations of the given items, separated by a separator
-     * string. (Unlike {@link String#join}, the items may be of any type.)
-     * 
-     * @param sep   The separator string.
-     * @param items The items to join.
+     * Join the string representations of the given items, separated by a separator string. (Unlike
+     * {@link String#join}, the items may be of any type.)
+     *
+     * @param sep
+     *            The separator string.
+     * @param items
+     *            The items to join.
      * @return The string representation of the joined items.
      */
     public static String join(final String sep, final Object... items) {

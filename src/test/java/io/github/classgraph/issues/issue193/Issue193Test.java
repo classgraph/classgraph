@@ -41,10 +41,11 @@ import io.github.classgraph.ClassGraph;
 
 public class Issue193Test {
     /**
-     * Scala companion objects, whose superclass differs from that of the companion
-     * class, are scanned without throwing.
+     * Scala companion objects, whose superclass differs from that of the companion class, are scanned without
+     * throwing.
      *
-     * @throws IOException Signals that an I/O exception has occurred.
+     * @throws IOException
+     *             Signals that an I/O exception has occurred.
      */
     @Test
     public void issue193Test() throws IOException {

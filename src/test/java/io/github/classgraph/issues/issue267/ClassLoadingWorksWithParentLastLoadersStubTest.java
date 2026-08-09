@@ -44,11 +44,13 @@ public class ClassLoadingWorksWithParentLastLoadersStubTest {
     /**
      * Same class loader that found A class should load it.
      *
-     * @throws Throwable the throwable
+     * @throws Throwable
+     *             the throwable
      */
     @Test
     public void sameClassLoaderThatFoundAClassShouldLoadIt() throws Throwable {
-        final var currentClassLoadersName = Thread.currentThread().getContextClassLoader().getClass().getSimpleName();
+        final var currentClassLoadersName = Thread.currentThread().getContextClassLoader().getClass()
+                .getSimpleName();
 
         new ClassLoadingWorksWithParentLastLoaders().assertCorrectClassLoaders(currentClassLoadersName,
                 currentClassLoadersName);
@@ -79,7 +81,8 @@ class TestLauncher extends Thread {
         try {
             final var mainClass = getContextClassLoader()
                     .loadClass(ClassLoadingWorksWithParentLastLoaders.class.getName());
-            final var mainMethod = mainClass.getDeclaredMethod("assertCorrectClassLoaders", String.class, String.class);
+            final var mainMethod = mainClass.getDeclaredMethod("assertCorrectClassLoaders", String.class,
+                    String.class);
             mainMethod.invoke(mainClass.getDeclaredConstructor().newInstance(), parentClassLoader,
                     "FakeRestartClassLoader");
         } catch (final Throwable t) {

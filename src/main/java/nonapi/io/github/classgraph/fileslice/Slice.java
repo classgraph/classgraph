@@ -44,8 +44,8 @@ import nonapi.io.github.classgraph.utils.FileUtils;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A slice of a {@link File}, {@link ByteBuffer} or {@link InputStream}. A
- * single {@link Slice} instance should only be used by a single thread.
+ * A slice of a {@link File}, {@link ByteBuffer} or {@link InputStream}. A single {@link Slice} instance should only
+ * be used by a single thread.
  */
 public abstract class Slice implements Closeable {
     /** The {@link NestedJarHandler}. */
@@ -61,14 +61,12 @@ public abstract class Slice implements Closeable {
     public long sliceLength;
 
     /**
-     * If true, the slice is a deflated zip entry, and needs to be inflated to
-     * access the content.
+     * If true, the slice is a deflated zip entry, and needs to be inflated to access the content.
      */
     public final boolean isDeflatedZipEntry;
 
     /**
-     * If the slice is a deflated zip entry, this is the expected uncompressed
-     * length, or -1L if unknown.
+     * If the slice is a deflated zip entry, this is the expected uncompressed length, or -1L if unknown.
      */
     public final long inflatedLengthHint;
 
@@ -78,18 +76,23 @@ public abstract class Slice implements Closeable {
     /**
      * Constructor for treating a range of a slice as a sub-slice.
      *
-     * @param parentSlice        the parent slice, or null if this is a toplevel
-     *                           slice
-     * @param offset             the offset of the sub-slice within the parent slice
-     * @param length             the length of the sub-slice
-     * @param isDeflatedZipEntry true if this is a deflated zip entry
-     * @param inflatedLengthHint the uncompressed size of a deflated zip entry, or
-     *                           -1 if unknown, or 0 of this is not a deflated zip
-     *                           entry.
-     * @param nestedJarHandler   the nested jar handler
+     * @param parentSlice
+     *            the parent slice, or null if this is a toplevel slice
+     * @param offset
+     *            the offset of the sub-slice within the parent slice
+     * @param length
+     *            the length of the sub-slice
+     * @param isDeflatedZipEntry
+     *            true if this is a deflated zip entry
+     * @param inflatedLengthHint
+     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
+     *            zip entry.
+     * @param nestedJarHandler
+     *            the nested jar handler
      */
-    protected Slice(final @Nullable Slice parentSlice, final long offset, final long length, final boolean isDeflatedZipEntry,
-            final long inflatedLengthHint, final NestedJarHandler nestedJarHandler) {
+    protected Slice(final @Nullable Slice parentSlice, final long offset, final long length,
+            final boolean isDeflatedZipEntry, final long inflatedLengthHint,
+            final NestedJarHandler nestedJarHandler) {
         this.parentSlice = parentSlice;
         final var parentSliceStartPos = parentSlice == null ? 0L : parentSlice.sliceStartPos;
         this.sliceStartPos = parentSliceStartPos + offset;
@@ -113,12 +116,15 @@ public abstract class Slice implements Closeable {
     /**
      * Constructor.
      *
-     * @param length             the length
-     * @param isDeflatedZipEntry true if this is a deflated zip entry
-     * @param inflatedLengthHint the uncompressed size of a deflated zip entry, or
-     *                           -1 if unknown, or 0 of this is not a deflated zip
-     *                           entry.
-     * @param nestedJarHandler   the nested jar handler
+     * @param length
+     *            the length
+     * @param isDeflatedZipEntry
+     *            true if this is a deflated zip entry
+     * @param inflatedLengthHint
+     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
+     *            zip entry.
+     * @param nestedJarHandler
+     *            the nested jar handler
      */
     protected Slice(final long length, final boolean isDeflatedZipEntry, final long inflatedLengthHint,
             final NestedJarHandler nestedJarHandler) {
@@ -126,25 +132,29 @@ public abstract class Slice implements Closeable {
     }
 
     /**
-     * Get a child {@link Slice} from this parent {@link Slice}. The child slice
-     * must be smaller than the parent slice, and completely contained within it.
-     * 
-     * @param offset             The offset to start slicing from, relative to this
-     *                           parent slice's start position.
-     * @param length             The length of the slice.
-     * @param isDeflatedZipEntry true if this is a deflated zip entry
-     * @param inflatedLengthHint the uncompressed size of a deflated zip entry, or
-     *                           -1 if unknown, or 0 of this is not a deflated zip
-     *                           entry.
+     * Get a child {@link Slice} from this parent {@link Slice}. The child slice must be smaller than the parent
+     * slice, and completely contained within it.
+     *
+     * @param offset
+     *            The offset to start slicing from, relative to this parent slice's start position.
+     * @param length
+     *            The length of the slice.
+     * @param isDeflatedZipEntry
+     *            true if this is a deflated zip entry
+     * @param inflatedLengthHint
+     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
+     *            zip entry.
      * @return The child slice.
      */
-    public abstract Slice slice(long offset, long length, boolean isDeflatedZipEntry, final long inflatedLengthHint);
+    public abstract Slice slice(long offset, long length, boolean isDeflatedZipEntry,
+            final long inflatedLengthHint);
 
     /**
      * Open this {@link Slice} as an {@link InputStream}.
      *
      * @return the input stream
-     * @throws IOException if an inflater cannot be created for this {@link Slice}.
+     * @throws IOException
+     *             if an inflater cannot be created for this {@link Slice}.
      */
     public InputStream open() throws IOException {
         return open(null);
@@ -153,10 +163,11 @@ public abstract class Slice implements Closeable {
     /**
      * Open this {@link Slice} as an {@link InputStream}.
      *
-     * @param resourceToClose the {@link Resource} to close when the returned
-     *                        {@code InputStream} is closed, or null if none.
+     * @param resourceToClose
+     *            the {@link Resource} to close when the returned {@code InputStream} is closed, or null if none.
      * @return the input stream
-     * @throws IOException if an inflater cannot be created for this {@link Slice}.
+     * @throws IOException
+     *             if an inflater cannot be created for this {@link Slice}.
      */
     public InputStream open(final @Nullable Resource resourceToClose) throws IOException {
         final InputStream rawInputStream = new InputStream() {
@@ -261,7 +272,8 @@ public abstract class Slice implements Closeable {
      * Load the slice as a byte array.
      *
      * @return the byte[]
-     * @throws IOException Signals that an I/O exception has occurred.
+     * @throws IOException
+     *             Signals that an I/O exception has occurred.
      */
     public abstract byte[] load() throws IOException;
 
@@ -269,7 +281,8 @@ public abstract class Slice implements Closeable {
      * Load the slice as a string.
      *
      * @return the string
-     * @throws IOException if slice cannot be read.
+     * @throws IOException
+     *             if slice cannot be read.
      */
     public String loadAsString() throws IOException {
         return new String(load(), StandardCharsets.UTF_8);
@@ -279,7 +292,8 @@ public abstract class Slice implements Closeable {
      * Read the slice into a {@link ByteBuffer}.
      *
      * @return the byte buffer
-     * @throws IOException Signals that an I/O exception has occurred.
+     * @throws IOException
+     *             Signals that an I/O exception has occurred.
      */
     public ByteBuffer read() throws IOException {
         return ByteBuffer.wrap(load());

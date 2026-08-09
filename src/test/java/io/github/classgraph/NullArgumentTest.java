@@ -14,17 +14,15 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 /**
- * ClassGraph's public API is {@code @NullMarked}, but that is only a
- * compile-time contract, and it protects only callers that run a null checker of
- * their own. Every public API method therefore also checks its arguments at
- * runtime, so that a null fails at the call that passed it, rather than deeper
- * inside ClassGraph or (worse) silently, as an empty "not found" result.
+ * ClassGraph's public API is {@code @NullMarked}, but that is only a compile-time contract, and it protects only
+ * callers that run a null checker of their own. Every public API method therefore also checks its arguments at
+ * runtime, so that a null fails at the call that passed it, rather than deeper inside ClassGraph or (worse)
+ * silently, as an empty "not found" result.
  *
  * <p>
- * This test covers a representative sample of each kind of entry point: the
- * {@link ClassGraph} builder methods (single-value and varargs), the
- * {@link ScanResult} lookups, the {@link ClassInfo} queries, the list classes,
- * and the type signature API.
+ * This test covers a representative sample of each kind of entry point: the {@link ClassGraph} builder methods
+ * (single-value and varargs), the {@link ScanResult} lookups, the {@link ClassInfo} queries, the list classes, and
+ * the type signature API.
  */
 class NullArgumentTest {
     /** A scan result to run the lookup and query checks against. */
@@ -44,11 +42,11 @@ class NullArgumentTest {
     }
 
     /**
-     * Assert that the call throws {@link NullPointerException} with ClassGraph's own
-     * message, rather than failing later, failing silently, or throwing a
-     * JVM-generated NPE that names some internal variable.
+     * Assert that the call throws {@link NullPointerException} with ClassGraph's own message, rather than failing
+     * later, failing silently, or throwing a JVM-generated NPE that names some internal variable.
      *
-     * @param call the call to make.
+     * @param call
+     *            the call to make.
      */
     private static void rejectsNull(final ThrowingCallable call) {
         assertThatThrownBy(call).isInstanceOf(NullPointerException.class).hasMessageContaining("must not be null");
@@ -70,8 +68,8 @@ class NullArgumentTest {
     }
 
     /**
-     * Both a null varargs array and a null element within one are rejected by the
-     * {@link ClassGraph} accept/reject methods.
+     * Both a null varargs array and a null element within one are rejected by the {@link ClassGraph} accept/reject
+     * methods.
      */
     @Test
     void classGraphVarargsArgs() {
@@ -103,8 +101,7 @@ class NullArgumentTest {
     }
 
     /**
-     * {@link ScanResult} lookups reject null, rather than returning null as if
-     * nothing matched.
+     * {@link ScanResult} lookups reject null, rather than returning null as if nothing matched.
      */
     @Test
     void scanResultLookups() {
@@ -139,8 +136,7 @@ class NullArgumentTest {
     }
 
     /**
-     * {@link ClassInfo} queries reject null, rather than returning false or null as
-     * if nothing matched.
+     * {@link ClassInfo} queries reject null, rather than returning false or null as if nothing matched.
      */
     @Test
     void classInfoQueries() {
@@ -175,8 +171,8 @@ class NullArgumentTest {
         rejectsNull(() -> classInfoList.writeGraphVizDotFile(null));
         rejectsNull(() -> classInfoList.writeGraphVizDotFile(null, new GraphVizDotFileOptions()));
         rejectsNull(() -> classInfoList.writeGraphVizDotFileFromInterClassDependencies(null));
-        rejectsNull(
-                () -> classInfoList.writeGraphVizDotFileFromInterClassDependencies(null, new GraphVizDotFileOptions()));
+        rejectsNull(() -> classInfoList.writeGraphVizDotFileFromInterClassDependencies(null,
+                new GraphVizDotFileOptions()));
 
         final var classInfo = scanResult.getClassInfo(ClassInfoList.class.getName());
         rejectsNull(() -> classInfo.getMethodInfo().get(null));
@@ -189,20 +185,19 @@ class NullArgumentTest {
     /** The type signature API rejects null. */
     @Test
     void typeSignatures() {
-        final var typeSignature = scanResult.getClassInfo(ClassInfoList.class.getName())
-                .getMethodInfo("exclude").get(0).getParameterInfo()[0].getTypeSignatureOrTypeDescriptor();
+        final var typeSignature = scanResult.getClassInfo(ClassInfoList.class.getName()).getMethodInfo("exclude")
+                .get(0).getParameterInfo()[0].getTypeSignatureOrTypeDescriptor();
         rejectsNull(() -> typeSignature.resolveTypeVariables(null));
     }
 
     /**
-     * The exception to the rule: a comparison accepts null and answers it, rather
-     * than throwing, since that is what {@link Object#equals(Object)} does and what
-     * a caller comparing two possibly-absent signatures expects.
+     * The exception to the rule: a comparison accepts null and answers it, rather than throwing, since that is what
+     * {@link Object#equals(Object)} does and what a caller comparing two possibly-absent signatures expects.
      */
     @Test
     void comparisonsAcceptNull() {
-        final var typeSignature = scanResult.getClassInfo(ClassInfoList.class.getName())
-                .getMethodInfo("exclude").get(0).getParameterInfo()[0].getTypeSignatureOrTypeDescriptor();
+        final var typeSignature = scanResult.getClassInfo(ClassInfoList.class.getName()).getMethodInfo("exclude")
+                .get(0).getParameterInfo()[0].getTypeSignatureOrTypeDescriptor();
         assertThat(typeSignature.equalsIgnoringTypeParams(null)).isFalse();
         assertThat(typeSignature.equals(null)).isFalse();
     }

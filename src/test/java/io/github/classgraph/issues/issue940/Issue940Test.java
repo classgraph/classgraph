@@ -11,12 +11,10 @@ import io.github.classgraph.ClassGraph;
 import nonapi.io.github.classgraph.scanspec.AcceptReject;
 
 /**
- * Since 4.8.186, {@code '*'} in an accepted package name matches within a
- * single package segment only, which left no way to match an unknown number of
- * intermediate package segments (before 4.8.186, e.g.
- * {@code "org.creekservice.*.schema"} matched
- * {@code org.creekservice.api.base.schema}). {@code "**"}, used as a complete
- * segment, now matches zero or more package segments.
+ * Since 4.8.186, {@code '*'} in an accepted package name matches within a single package segment only, which left
+ * no way to match an unknown number of intermediate package segments (before 4.8.186, e.g.
+ * {@code "org.creekservice.*.schema"} matched {@code org.creekservice.api.base.schema}). {@code "**"}, used as a
+ * complete segment, now matches zero or more package segments.
  */
 public class Issue940Test {
     /** The package containing the test fixture packages. */
@@ -30,7 +28,8 @@ public class Issue940Test {
     /**
      * Scan with the given accepted package specifiers.
      *
-     * @param acceptedPackages the package specifiers to accept
+     * @param acceptedPackages
+     *            the package specifiers to accept
      * @return the names of all classes found
      */
     private static List<String> scan(final String... acceptedPackages) {
@@ -40,19 +39,18 @@ public class Issue940Test {
     }
 
     /**
-     * {@code "**"} in the middle of a package name matches zero or more package
-     * segments.
+     * {@code "**"} in the middle of a package name matches zero or more package segments.
      */
     @Test
     public void midPackageDoubleGlobSpansSegments() {
-        assertThat(scan(PKG + ".**.schema")).contains(API_BASE_SCHEMA_THING, OTHER_SCHEMA_THING, TOP_LEVEL_SCHEMA_THING)
+        assertThat(scan(PKG + ".**.schema"))
+                .contains(API_BASE_SCHEMA_THING, OTHER_SCHEMA_THING, TOP_LEVEL_SCHEMA_THING)
                 .doesNotContain(NON_SCHEMA_THING);
     }
 
     /**
-     * {@code "**"} matches <i>zero</i> or more segments (just as {@code '*'}
-     * matches zero or more characters), while {@code '*'} still matches exactly one
-     * whole segment.
+     * {@code "**"} matches <i>zero</i> or more segments (just as {@code '*'} matches zero or more characters),
+     * while {@code '*'} still matches exactly one whole segment.
      */
     @Test
     public void doubleGlobMatchesZeroSegments() {
@@ -62,8 +60,7 @@ public class Issue940Test {
     }
 
     /**
-     * A leading {@code "**"} matches zero or more package segments at the start of
-     * a package name.
+     * A leading {@code "**"} matches zero or more package segments at the start of a package name.
      */
     @Test
     public void leadingDoubleGlobSpansSegments() {
@@ -72,8 +69,7 @@ public class Issue940Test {
     }
 
     /**
-     * A {@code "**"} glob accept is recursive into sub-packages, like any other
-     * accept.
+     * A {@code "**"} glob accept is recursive into sub-packages, like any other accept.
      */
     @Test
     public void doubleGlobAcceptIsRecursiveIntoSubPackages() {
@@ -82,21 +78,19 @@ public class Issue940Test {
     }
 
     /**
-     * {@code "**"} works in reject criteria too, and rejects recursively (including
-     * the zero-segment case).
+     * {@code "**"} works in reject criteria too, and rejects recursively (including the zero-segment case).
      */
     @Test
     public void doubleGlobRejectSpansSegments() {
-        try (var scanResult = new ClassGraph().enableClassInfo().acceptPackages(PKG).rejectPackages(PKG + ".**.schema")
-                .scan()) {
+        try (var scanResult = new ClassGraph().enableClassInfo().acceptPackages(PKG)
+                .rejectPackages(PKG + ".**.schema").scan()) {
             assertThat(scanResult.getAllClasses().getNames()).contains(NON_SCHEMA_THING)
                     .doesNotContain(API_BASE_SCHEMA_THING, OTHER_SCHEMA_THING, TOP_LEVEL_SCHEMA_THING);
         }
     }
 
     /**
-     * Pattern-level check of the {@code "**"} glob translation, for both package
-     * and path separators.
+     * Pattern-level check of the {@code "**"} glob translation, for both package and path separators.
      */
     @Test
     public void segmentGlobToPatternHandlesDoubleGlob() {
@@ -122,8 +116,7 @@ public class Issue940Test {
     }
 
     /**
-     * {@code "**"} spans path segments in {@link ClassGraph#acceptPaths}, not just
-     * in accepted package names.
+     * {@code "**"} spans path segments in {@link ClassGraph#acceptPaths}, not just in accepted package names.
      */
     @Test
     public void midPathDoubleGlobSpansSegments() {

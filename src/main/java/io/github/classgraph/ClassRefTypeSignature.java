@@ -41,8 +41,7 @@ import nonapi.io.github.classgraph.types.TypeUtils;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A class reference type signature (called "ClassTypeSignature" in the
- * classfile documentation).
+ * A class reference type signature (called "ClassTypeSignature" in the classfile documentation).
  */
 public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
     /** The class name. */
@@ -65,10 +64,14 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
     /**
      * Constructor.
      *
-     * @param className           The class name.
-     * @param typeArguments       The class type arguments.
-     * @param suffixes            The class suffixes (for inner classes)
-     * @param suffixTypeArguments The suffix type arguments.
+     * @param className
+     *            The class name.
+     * @param typeArguments
+     *            The class type arguments.
+     * @param suffixes
+     *            The class suffixes (for inner classes)
+     * @param suffixTypeArguments
+     *            The suffix type arguments.
      */
     private ClassRefTypeSignature(final String className, final List<TypeArgument> typeArguments,
             final List<String> suffixes, final List<List<TypeArgument>> suffixTypeArguments) {
@@ -92,20 +95,17 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
     }
 
     /**
-     * Get the name of the class, formed from the base name and any suffixes
-     * (suffixes are for inner class nesting, and are separated by '$'), but without
-     * any type arguments. For example, {@code "xyz.Cls<String>.InnerCls<Integer>"}
-     * is returned as {@code "xyz.Cls$InnerCls"}. The intent of this method is that
-     * if you replace '.' with '/', and then add the suffix ".class", you end up
-     * with the path of the classfile relative to the package root.
+     * Get the name of the class, formed from the base name and any suffixes (suffixes are for inner class nesting,
+     * and are separated by '$'), but without any type arguments. For example,
+     * {@code "xyz.Cls<String>.InnerCls<Integer>"} is returned as {@code "xyz.Cls$InnerCls"}. The intent of this
+     * method is that if you replace '.' with '/', and then add the suffix ".class", you end up with the path of the
+     * classfile relative to the package root.
      *
      * <p>
-     * For comparison, {@link #toString()} uses '.' to separate suffixes, and
-     * includes type parameters, whereas this method uses '$' to separate suffixes,
-     * and does not include type parameters.
+     * For comparison, {@link #toString()} uses '.' to separate suffixes, and includes type parameters, whereas this
+     * method uses '$' to separate suffixes, and does not include type parameters.
      *
-     * @return The fully-qualified name of the class, including suffixes but without
-     *         type arguments.
+     * @return The fully-qualified name of the class, including suffixes but without type arguments.
      */
     public String getFullyQualifiedClassName() {
         if (suffixes.isEmpty()) {
@@ -140,11 +140,10 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
     }
 
     /**
-     * Get a list of type arguments for all nested suffixes of the class, one list
-     * per suffix.
+     * Get a list of type arguments for all nested suffixes of the class, one list per suffix.
      *
-     * @return The list of type arguments for the suffixes (nested inner classes),
-     *         one list per suffix, or the empty list if none.
+     * @return The list of type arguments for the suffixes (nested inner classes), one list per suffix, or the empty
+     *         list if none.
      */
     public List<List<TypeArgument>> getSuffixTypeArguments() {
         return suffixTypeArguments;
@@ -156,7 +155,8 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
         List<List<TypeArgument>> substitutedSuffixTypeArguments = null;
         for (var i = 0; i < suffixTypeArguments.size(); i++) {
             final var suffixTypeArgs = suffixTypeArguments.get(i);
-            final var substitutedSuffixTypeArgs = TypeArgument.substituteTypeVariables(suffixTypeArgs, substitutions);
+            final var substitutedSuffixTypeArgs = TypeArgument.substituteTypeVariables(suffixTypeArgs,
+                    substitutions);
             if (substitutedSuffixTypeArgs != suffixTypeArgs && substitutedSuffixTypeArguments == null) {
                 substitutedSuffixTypeArguments = new ArrayList<>(suffixTypeArguments.subList(0, i));
             }
@@ -172,23 +172,23 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
     }
 
     /**
-     * Get a list of lists of type annotations for all nested suffixes of the class,
-     * one list per suffix.
+     * Get a list of lists of type annotations for all nested suffixes of the class, one list per suffix.
      *
-     * @return The list of lists of type annotations for the suffixes (nested inner
-     *         classes), one list per suffix, or null if none.
+     * @return The list of lists of type annotations for the suffixes (nested inner classes), one list per suffix,
+     *         or null if none.
      */
     public @Nullable List<AnnotationInfoList> getSuffixTypeAnnotationInfo() {
         return suffixTypeAnnotations;
     }
 
     /**
-     * Add a type annotation to one of the suffixes (nested inner classes) of this
-     * class reference, allocating the per-suffix annotation lists if this is the
-     * first such annotation.
+     * Add a type annotation to one of the suffixes (nested inner classes) of this class reference, allocating the
+     * per-suffix annotation lists if this is the first such annotation.
      *
-     * @param suffixIdx      the index of the suffix that the annotation applies to
-     * @param annotationInfo the type annotation
+     * @param suffixIdx
+     *            the index of the suffix that the annotation applies to
+     * @param annotationInfo
+     *            the type annotation
      */
     private void addSuffixTypeAnnotation(final int suffixIdx, final AnnotationInfo annotationInfo) {
         var typeAnnotations = suffixTypeAnnotations;
@@ -298,9 +298,8 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
     /**
      * Get the {@link ClassInfo} object for the referenced class.
      *
-     * @return The {@link ClassInfo} object for the referenced class, or null if the
-     *         referenced class was not encountered during scanning (i.e. if no
-     *         ClassInfo object was created for the class during scanning).
+     * @return The {@link ClassInfo} object for the referenced class, or null if the referenced class was not
+     *         encountered during scanning (i.e. if no ClassInfo object was created for the class during scanning).
      */
     @Override
     public @Nullable ClassInfo getClassInfo() {
@@ -330,7 +329,8 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
     /**
      * Get the names of any classes referenced in the type signature.
      *
-     * @param refdClassNames the referenced class names.
+     * @param refdClassNames
+     *            the referenced class names.
      */
     @Override
     protected void findReferencedClassNames(final Set<String> refdClassNames) {
@@ -360,11 +360,13 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
     }
 
     /**
-     * Test whether two class references have the same nested inner class suffixes,
-     * with the same suffix type arguments and suffix type annotations.
+     * Test whether two class references have the same nested inner class suffixes, with the same suffix type
+     * arguments and suffix type annotations.
      *
-     * @param a the first class reference
-     * @param b the second class reference
+     * @param a
+     *            the first class reference
+     * @param b
+     *            the second class reference
      * @return true if the suffixes of the two class references match
      */
     private static boolean suffixesMatch(final ClassRefTypeSignature a, final ClassRefTypeSignature b) {
@@ -414,8 +416,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
 
     @Override
     protected void toStringInternal(final boolean useSimpleNames,
-            final @Nullable AnnotationInfoList annotationsToExclude,
-            final StringBuilder buf) {
+            final @Nullable AnnotationInfoList annotationsToExclude, final StringBuilder buf) {
         // Only render the base class if not using simple names, or if there are no
         // suffixes
         if (!useSimpleNames || suffixes.isEmpty()) {
@@ -483,11 +484,13 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
     /**
      * Parse a class type signature.
      *
-     * @param parser            The parser.
-     * @param definingClassName The name of the defining class (for resolving type
-     *                          variables).
+     * @param parser
+     *            The parser.
+     * @param definingClassName
+     *            The name of the defining class (for resolving type variables).
      * @return The class type signature.
-     * @throws ParseException If the type signature could not be parsed.
+     * @throws ParseException
+     *             If the type signature could not be parsed.
      */
     static @Nullable ClassRefTypeSignature parse(final Parser parser, final @Nullable String definingClassName)
             throws ParseException {
@@ -507,7 +510,8 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
                 suffixTypeArguments = new ArrayList<>();
                 while (parser.peek() == '.' || parser.peek() == '$') {
                     parser.advance(1);
-                    if (!TypeUtils.getIdentifierToken(parser, /* stopAtDollarSign = */ true, /* stopAtDot = */ true)) {
+                    if (!TypeUtils.getIdentifierToken(parser, /* stopAtDollarSign = */ true,
+                            /* stopAtDot = */ true)) {
                         // Got the empty string as the next token after '$', i.e. found an empty suffix.
                         suffixes.add("");
                         suffixTypeArguments.add(List.of());

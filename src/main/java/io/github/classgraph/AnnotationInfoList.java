@@ -50,9 +50,9 @@ import org.jspecify.annotations.Nullable;
 /** A list of {@link AnnotationInfo} objects. */
 public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     /**
-     * The set of annotations directly related to a class or method and not
-     * inherited through a meta-annotated annotation. This field is nullable, as the
-     * annotation info list is incrementally built. See {@link #directOnly()}.
+     * The set of annotations directly related to a class or method and not inherited through a meta-annotated
+     * annotation. This field is nullable, as the annotation info list is incrementally built. See
+     * {@link #directOnly()}.
      */
     private @Nullable AnnotationInfoList directlyRelatedAnnotations;
 
@@ -83,20 +83,21 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     }
 
     /**
-     * Construct a new modifiable empty list of {@link AnnotationInfo} objects,
-     * given a size hint.
+     * Construct a new modifiable empty list of {@link AnnotationInfo} objects, given a size hint.
      *
-     * @param sizeHint the expected number of elements
+     * @param sizeHint
+     *            the expected number of elements
      */
     public AnnotationInfoList(final int sizeHint) {
         super(sizeHint);
     }
 
     /**
-     * Construct a new modifiable empty {@link AnnotationInfoList}, given an initial
-     * list of {@link AnnotationInfo} objects.
+     * Construct a new modifiable empty {@link AnnotationInfoList}, given an initial list of {@link AnnotationInfo}
+     * objects.
      *
-     * @param reachableAnnotations the reachable annotations
+     * @param reachableAnnotations
+     *            the reachable annotations
      */
     public AnnotationInfoList(final AnnotationInfoList reachableAnnotations) {
         // If only reachable annotations are given, treat all of them as direct
@@ -107,8 +108,10 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     /**
      * Constructor.
      *
-     * @param reachableAnnotations       the reachable annotations
-     * @param directlyRelatedAnnotations the directly related annotations
+     * @param reachableAnnotations
+     *            the reachable annotations
+     * @param directlyRelatedAnnotations
+     *            the directly related annotations
      */
     AnnotationInfoList(final AnnotationInfoList reachableAnnotations,
             final @Nullable AnnotationInfoList directlyRelatedAnnotations) {
@@ -119,31 +122,30 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Filter an {@link AnnotationInfoList} using a predicate mapping an
-     * {@link AnnotationInfo} object to a boolean, producing another
-     * {@link AnnotationInfoList} for all items in the list for which the predicate
-     * is true.
+     * Filter an {@link AnnotationInfoList} using a predicate mapping an {@link AnnotationInfo} object to a boolean,
+     * producing another {@link AnnotationInfoList} for all items in the list for which the predicate is true.
      */
     @FunctionalInterface
     public interface AnnotationInfoFilter {
         /**
-         * Whether or not to allow an {@link AnnotationInfo} list item through the
-         * filter.
+         * Whether or not to allow an {@link AnnotationInfo} list item through the filter.
          *
-         * @param annotationInfo The {@link AnnotationInfo} item to filter.
-         * @return Whether or not to allow the item through the filter. If true, the
-         *         item is copied to the output list; if false, it is excluded.
+         * @param annotationInfo
+         *            The {@link AnnotationInfo} item to filter.
+         * @return Whether or not to allow the item through the filter. If true, the item is copied to the output
+         *         list; if false, it is excluded.
          */
         boolean accept(AnnotationInfo annotationInfo);
     }
 
     /**
-     * Find the subset of the {@link AnnotationInfo} objects in this list for which
-     * the given filter predicate is true.
+     * Find the subset of the {@link AnnotationInfo} objects in this list for which the given filter predicate is
+     * true.
      *
-     * @param filter The {@link AnnotationInfoFilter} to apply.
-     * @return The subset of the {@link AnnotationInfo} objects in this list for
-     *         which the given filter predicate is true.
+     * @param filter
+     *            The {@link AnnotationInfoFilter} to apply.
+     * @return The subset of the {@link AnnotationInfo} objects in this list for which the given filter predicate is
+     *         true.
      */
     public AnnotationInfoList filter(final AnnotationInfoFilter filter) {
         Assert.notNull(filter, "filter");
@@ -161,9 +163,12 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     /**
      * Get {@link ClassInfo} objects for any classes referenced in this list.
      *
-     * @param classNameToClassInfo the map from class name to {@link ClassInfo}.
-     * @param refdClassInfo        the referenced class info
-     * @param log                  the log node, or null to skip logging
+     * @param classNameToClassInfo
+     *            the map from class name to {@link ClassInfo}.
+     * @param refdClassInfo
+     *            the referenced class info
+     * @param log
+     *            the log node, or null to skip logging
      */
     void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
             final Set<ClassInfo> refdClassInfo, final @Nullable LogNode log) {
@@ -177,19 +182,20 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     /**
      * Handle {@link Repeatable} annotations.
      *
-     * @param allRepeatableAnnotationNames the names of all repeatable annotations
-     * @param containingClassInfo          the containing class
-     * @param forwardRelType               the forward relationship type for linking
-     *                                     (or null for none)
-     * @param reverseRelType0              the first reverse relationship type for
-     *                                     linking (or null for none)
-     * @param reverseRelType1              the second reverse relationship type for
-     *                                     linking (or null for none)
+     * @param allRepeatableAnnotationNames
+     *            the names of all repeatable annotations
+     * @param containingClassInfo
+     *            the containing class
+     * @param forwardRelType
+     *            the forward relationship type for linking (or null for none)
+     * @param reverseRelType0
+     *            the first reverse relationship type for linking (or null for none)
+     * @param reverseRelType1
+     *            the second reverse relationship type for linking (or null for none)
      */
     void handleRepeatableAnnotations(final Set<String> allRepeatableAnnotationNames,
             final @Nullable ClassInfo containingClassInfo, final RelType forwardRelType,
-            final RelType reverseRelType0,
-            final @Nullable RelType reverseRelType1) {
+            final RelType reverseRelType0, final @Nullable RelType reverseRelType1) {
         List<AnnotationInfo> repeatableAnnotations = null;
         for (var i = size() - 1; i >= 0; --i) {
             final var ai = get(i);
@@ -243,11 +249,10 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * How directly an annotation is related to the annotated class, method, method
-     * parameter or field: it is directly present on it, or it is inherited from a
-     * superclass, or it is a meta-annotation on one of the other two. The same
-     * annotation can be reached in more than one of these ways, and the most direct
-     * of them is the one that should be reported.
+     * How directly an annotation is related to the annotated class, method, method parameter or field: it is
+     * directly present on it, or it is inherited from a superclass, or it is a meta-annotation on one of the other
+     * two. The same annotation can be reached in more than one of these ways, and the most direct of them is the
+     * one that should be reported.
      */
     // #559
     private enum Directness {
@@ -262,20 +267,21 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     }
 
     /**
-     * Add a reachable annotation to a list, unless the same annotation was already
-     * reached by a route at least as direct.
+     * Add a reachable annotation to a list, unless the same annotation was already reached by a route at least as
+     * direct.
      *
-     * @param ai                     the annotation
-     * @param directness             how directly the annotation is related to the
-     *                               annotated element
-     * @param reachableAnnotationOut the list of reachable annotations
-     * @param directnessOut          the map from annotation to how directly it is
-     *                               related to the annotated element
+     * @param ai
+     *            the annotation
+     * @param directness
+     *            how directly the annotation is related to the annotated element
+     * @param reachableAnnotationOut
+     *            the list of reachable annotations
+     * @param directnessOut
+     *            the map from annotation to how directly it is related to the annotated element
      */
     // #559
     private static void addReachableAnnotation(final AnnotationInfo ai, final Directness directness,
-            final AnnotationInfoList reachableAnnotationOut,
-            final Map<AnnotationInfo, Directness> directnessOut) {
+            final AnnotationInfoList reachableAnnotationOut, final Map<AnnotationInfo, Directness> directnessOut) {
         final var prevDirectness = directnessOut.get(ai);
         if (prevDirectness == null) {
             directnessOut.put(ai, directness);
@@ -288,11 +294,14 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     /**
      * Find the transitive closure of meta-annotations.
      *
-     * @param ai                the annotationInfo object
-     * @param allAnnotationsOut annotations out
-     * @param visited           visited
-     * @param directnessOut     the map from annotation to how directly it is related
-     *                          to the annotated element
+     * @param ai
+     *            the annotationInfo object
+     * @param allAnnotationsOut
+     *            annotations out
+     * @param visited
+     *            visited
+     * @param directnessOut
+     *            the map from annotation to how directly it is related to the annotated element
      */
     private static void findMetaAnnotations(final AnnotationInfo ai, final AnnotationInfoList allAnnotationsOut,
             final Set<ClassInfo> visited, final Map<AnnotationInfo, Directness> directnessOut) {
@@ -319,13 +328,12 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     }
 
     /**
-     * Get the indirect annotations on a class (meta-annotations and/or inherited
-     * annotations).
+     * Get the indirect annotations on a class (meta-annotations and/or inherited annotations).
      *
-     * @param directAnnotationInfo the direct annotations on the class, method,
-     *                             method parameter or field.
-     * @param annotatedClass       for class annotations, this is the annotated
-     *                             class, else null.
+     * @param directAnnotationInfo
+     *            the direct annotations on the class, method, method parameter or field.
+     * @param annotatedClass
+     *            for class annotations, this is the annotated class, else null.
      * @return the indirect annotations
      */
     static AnnotationInfoList getIndirectAnnotations(final @Nullable AnnotationInfoList directAnnotationInfo,
@@ -379,9 +387,8 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
         // a name first, so that AnnotationInfoList#get(String) returns the annotation
         // that is directly present on the annotated element, if there is one #559
         CollectionUtils.sortIfNotEmpty(annotationInfoList,
-                Comparator.comparing(AnnotationInfo::getName)
-                        .thenComparing((final AnnotationInfo ai) -> directness.getOrDefault(ai,
-                                Directness.META_ANNOTATION))
+                Comparator.comparing(AnnotationInfo::getName).thenComparing(
+                        (final AnnotationInfo ai) -> directness.getOrDefault(ai, Directness.META_ANNOTATION))
                         .thenComparing(Comparator.naturalOrder()));
         return annotationInfoList;
     }
@@ -389,12 +396,10 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * returns the list of direct annotations, excluding meta-annotations. If this
-     * {@link AnnotationInfoList} consists of class annotations, i.e. if it was
-     * produced using `ClassInfo#getAllAnnotationInfo()`, then the returned list also
-     * excludes annotations inherited from a superclass or implemented interface
-     * that was meta-annotated with
-     * {@link java.lang.annotation.Inherited @Inherited}.
+     * returns the list of direct annotations, excluding meta-annotations. If this {@link AnnotationInfoList}
+     * consists of class annotations, i.e. if it was produced using `ClassInfo#getAllAnnotationInfo()`, then the
+     * returned list also excludes annotations inherited from a superclass or implemented interface that was
+     * meta-annotated with {@link java.lang.annotation.Inherited @Inherited}.
      *
      * @return The list of directly-related annotations.
      */
@@ -412,12 +417,11 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the {@link Repeatable} annotation with the given class, or the empty list
-     * if none found.
+     * Get the {@link Repeatable} annotation with the given class, or the empty list if none found.
      *
-     * @param annotationClass The class to search for.
-     * @return The list of annotations with the given class, or the empty list if
-     *         none found.
+     * @param annotationClass
+     *            The class to search for.
+     * @return The list of annotations with the given class, or the empty list if none found.
      */
     public AnnotationInfoList getRepeatable(final Class<? extends Annotation> annotationClass) {
         Assert.notNull(annotationClass, "annotationClass");
@@ -426,12 +430,11 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     }
 
     /**
-     * Get the {@link Repeatable} annotation with the given name, or the empty list
-     * if none found.
+     * Get the {@link Repeatable} annotation with the given name, or the empty list if none found.
      *
-     * @param name The name to search for.
-     * @return The list of annotations with the given name, or the empty list if
-     *         none found.
+     * @param name
+     *            The name to search for.
+     * @return The list of annotations with the given name, or the empty list if none found.
      */
     public AnnotationInfoList getRepeatable(final String name) {
         Assert.notNull(name, "name");

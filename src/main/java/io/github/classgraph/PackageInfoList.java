@@ -49,7 +49,8 @@ public class PackageInfoList extends MappableInfoList<PackageInfo> {
     /**
      * Constructor.
      *
-     * @param sizeHint the expected number of elements
+     * @param sizeHint
+     *            the expected number of elements
      */
     PackageInfoList(final int sizeHint) {
         super(sizeHint);
@@ -58,7 +59,8 @@ public class PackageInfoList extends MappableInfoList<PackageInfo> {
     /**
      * Constructor.
      *
-     * @param packageInfoCollection the package info collection
+     * @param packageInfoCollection
+     *            the package info collection
      */
     PackageInfoList(final Collection<PackageInfo> packageInfoCollection) {
         super(packageInfoCollection);
@@ -73,30 +75,29 @@ public class PackageInfoList extends MappableInfoList<PackageInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Filter an {@link PackageInfoList} using a predicate mapping an
-     * {@link PackageInfo} object to a boolean, producing another
-     * {@link PackageInfoList} for all items in the list for which the predicate is
-     * true.
+     * Filter an {@link PackageInfoList} using a predicate mapping an {@link PackageInfo} object to a boolean,
+     * producing another {@link PackageInfoList} for all items in the list for which the predicate is true.
      */
     @FunctionalInterface
     public interface PackageInfoFilter {
         /**
          * Whether or not to allow an {@link PackageInfo} list item through the filter.
          *
-         * @param packageInfo The {@link PackageInfo} item to filter.
-         * @return Whether or not to allow the item through the filter. If true, the
-         *         item is copied to the output list; if false, it is excluded.
+         * @param packageInfo
+         *            The {@link PackageInfo} item to filter.
+         * @return Whether or not to allow the item through the filter. If true, the item is copied to the output
+         *         list; if false, it is excluded.
          */
         boolean accept(PackageInfo packageInfo);
     }
 
     /**
-     * Find the subset of the {@link PackageInfo} objects in this list for which the
-     * given filter predicate is true.
+     * Find the subset of the {@link PackageInfo} objects in this list for which the given filter predicate is true.
      *
-     * @param filter The {@link PackageInfoFilter} to apply.
-     * @return The subset of the {@link PackageInfo} objects in this list for which
-     *         the given filter predicate is true.
+     * @param filter
+     *            The {@link PackageInfoFilter} to apply.
+     * @return The subset of the {@link PackageInfo} objects in this list for which the given filter predicate is
+     *         true.
      */
     public PackageInfoList filter(final PackageInfoFilter filter) {
         Assert.notNull(filter, "filter");

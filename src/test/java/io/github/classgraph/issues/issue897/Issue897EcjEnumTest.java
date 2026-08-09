@@ -11,18 +11,15 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.MethodParameterInfo;
 
 /**
- * The enum case from the discussion: for an enum constructor, a TYPE_USE
- * annotation's {@code formal_parameter_index} is counted from the first
- * source-declared parameter, but the descriptor begins with the synthetic
- * {@code (String name, int ordinal)} parameters.
+ * The enum case from the discussion: for an enum constructor, a TYPE_USE annotation's
+ * {@code formal_parameter_index} is counted from the first source-declared parameter, but the descriptor begins
+ * with the synthetic {@code (String name, int ordinal)} parameters.
  *
  * <p>
- * Crucially, this is verified against a constructor compiled by <b>ecj</b>,
- * which (unlike javac) does <b>not</b> emit a {@code Signature} attribute for
- * enum constructors. With no signature to diff against, the implicit prefix
- * count must be determined structurally (via {@code isEnum()}). The fixture
- * {@code ecjenum/EnumWithAnnoCtor.class} is checked in (see the {@code .java}
- * alongside it for how to recompile). Before the fix the annotation was
+ * Crucially, this is verified against a constructor compiled by <b>ecj</b>, which (unlike javac) does <b>not</b>
+ * emit a {@code Signature} attribute for enum constructors. With no signature to diff against, the implicit prefix
+ * count must be determined structurally (via {@code isEnum()}). The fixture {@code ecjenum/EnumWithAnnoCtor.class}
+ * is checked in (see the {@code .java} alongside it for how to recompile). Before the fix the annotation was
  * silently misattached to the synthetic {@code String} parameter.
  */
 public class Issue897EcjEnumTest {
@@ -31,8 +28,7 @@ public class Issue897EcjEnumTest {
     private static final String ANNO = ENUM_CLASS + "$Anno";
 
     /**
-     * Names of the base (non-nested-suffix) type annotations on a type signature,
-     * or empty if none.
+     * Names of the base (non-nested-suffix) type annotations on a type signature, or empty if none.
      */
     private static List<String> baseTypeAnnotationNames(final MethodParameterInfo param) {
         final var annotations = param.getTypeSignatureOrTypeDescriptor().getTypeAnnotationInfo();
@@ -40,9 +36,8 @@ public class Issue897EcjEnumTest {
     }
 
     /**
-     * The annotation must land on the source-declared {@code Object} parameter
-     * (last), not on either of the synthetic {@code (String, int)} parameters
-     * (first two).
+     * The annotation must land on the source-declared {@code Object} parameter (last), not on either of the
+     * synthetic {@code (String, int)} parameters (first two).
      */
     @Test
     public void annotationOnEcjEnumConstructor() {

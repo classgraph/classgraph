@@ -24,8 +24,7 @@ public class Issue345Test {
     }
 
     /**
-     * Test that private superclasses have their {@link Resource} reference set with
-     * .ignoreClassVisibility().
+     * Test that private superclasses have their {@link Resource} reference set with .ignoreClassVisibility().
      */
     @Test
     public void withIgnoreClassVisibility() {
@@ -41,8 +40,8 @@ public class Issue345Test {
     }
 
     /**
-     * Test that private superclasses do not have their {@link Resource} reference
-     * set without .ignoreClassVisibility().
+     * Test that private superclasses do not have their {@link Resource} reference set without
+     * .ignoreClassVisibility().
      */
     @Test
     public void withoutIgnoreClassVisibility() {
@@ -57,8 +56,7 @@ public class Issue345Test {
     }
 
     /**
-     * Test that extending scanning to superclasses causes the {@link Resource}
-     * reference to be set.
+     * Test that extending scanning to superclasses causes the {@link Resource} reference to be set.
      */
     @Test
     public void testExtensionToParent() {
@@ -70,12 +68,12 @@ public class Issue345Test {
     }
 
     /**
-     * Test that extending scanning to outer class causes the {@link Resource}
-     * reference to be set.
+     * Test that extending scanning to outer class causes the {@link Resource} reference to be set.
      */
     @Test
     public void testExtensionToOuterClass() {
-        try (var scanResult = new ClassGraph().acceptClasses(Super.class.getName()).ignoreClassVisibility().scan()) {
+        try (var scanResult = new ClassGraph().acceptClasses(Super.class.getName()).ignoreClassVisibility()
+                .scan()) {
             final var outerClassInfo = scanResult.getClassInfo(Issue345Test.class.getName());
             assertThat(outerClassInfo).isNotNull();
             assertThat(outerClassInfo.getResource()).isNotNull();
@@ -83,8 +81,7 @@ public class Issue345Test {
     }
 
     /**
-     * Test that scanning is not extended to inner class, because the
-     * {@link Resource} reference is not set.
+     * Test that scanning is not extended to inner class, because the {@link Resource} reference is not set.
      */
     @Test
     public void testNonExtensionToInnerClass() {
@@ -97,8 +94,7 @@ public class Issue345Test {
     }
 
     /**
-     * Test that overriding classloaders does not allow other classloaders to be
-     * scanned.
+     * Test that overriding classloaders does not allow other classloaders to be scanned.
      */
     @Test
     public void issue345b() {
@@ -137,8 +133,7 @@ public class Issue345Test {
     }
 
     /**
-     * Test inner class modifiers are picked up from the InnerClasses attribute of
-     * classfiles.
+     * Test inner class modifiers are picked up from the InnerClasses attribute of classfiles.
      */
     @Test
     public void issue345c() {

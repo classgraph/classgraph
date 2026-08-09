@@ -22,9 +22,8 @@ import nonapi.io.github.classgraph.scanspec.ScanSpec;
  * Tests that the month of an MS-DOS timestamp is read from all four of its bits.
  *
  * <p>
- * In an MS-DOS date, bits 0-4 hold the day, bits 5-8 the month, and bits 9-15
- * the year. The month used to be masked with three bits rather than four, so the
- * last five months of the year were read as the first five.
+ * In an MS-DOS date, bits 0-4 hold the day, bits 5-8 the month, and bits 9-15 the year. The month used to be masked
+ * with three bits rather than four, so the last five months of the year were read as the first five.
  */
 public class FastZipEntryMSDOSTimeTest {
     /** The name of the zip entry written by the test. */

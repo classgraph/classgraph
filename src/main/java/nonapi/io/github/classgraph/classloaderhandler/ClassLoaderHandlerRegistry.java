@@ -39,8 +39,7 @@ import org.jspecify.annotations.Nullable;
 /** The registry for ClassLoaderHandler classes. */
 public final class ClassLoaderHandlerRegistry {
     /**
-     * Default ClassLoaderHandlers. If a ClassLoaderHandler is added to ClassGraph,
-     * it should be added to this list.
+     * Default ClassLoaderHandlers. If a ClassLoaderHandler is added to ClassGraph, it should be added to this list.
      */
     public static final List<ClassLoaderHandlerRegistryEntry> CLASS_LOADER_HANDLERS = List.of(
             // ClassLoaderHandlers for other ClassLoaders that are handled by ClassGraph
@@ -71,8 +70,8 @@ public final class ClassLoaderHandlerRegistry {
             // URLClassLoader are handled by more specific handlers above)
             new ClassLoaderHandlerRegistryEntry(new URLClassLoaderHandler())
 
-            // FallbackClassLoaderHandler.class is registered separately below
-            );
+    // FallbackClassLoaderHandler.class is registered separately below
+    );
 
     /** Fallback ClassLoaderHandler. */
     public static final ClassLoaderHandlerRegistryEntry FALLBACK_HANDLER = new ClassLoaderHandlerRegistryEntry(
@@ -81,9 +80,8 @@ public final class ClassLoaderHandlerRegistry {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Lib dirs whose jars should be added to the classpath automatically (to
-     * compensate for some classloaders not explicitly listing these jars as
-     * classpath elements).
+     * Lib dirs whose jars should be added to the classpath automatically (to compensate for some classloaders not
+     * explicitly listing these jars as classpath elements).
      */
     public static final String[] AUTOMATIC_LIB_DIR_PREFIXES = {
             // Spring-Boot
@@ -102,21 +100,18 @@ public final class ClassLoaderHandlerRegistry {
     };
 
     /**
-     * The package root prefixes for classpath elements that have no automatic
-     * package roots at all.
+     * The package root prefixes for classpath elements that have no automatic package roots at all.
      */
     public static final String[] NO_PACKAGE_ROOT_PREFIXES = {};
 
     /**
-     * The package root prefixes of the standard packaged-archive layouts:
-     * Spring-Boot executable jars, and wars.
+     * The package root prefixes of the standard packaged-archive layouts: Spring-Boot executable jars, and wars.
      *
      * <p>
-     * These are safe to look for in any classpath element, whatever classloader it
-     * came from, because neither {@code "BOOT-INF"} nor {@code "WEB-INF"} can ever
-     * be a real package name -- a hyphen is not a legal character in a Java
-     * identifier, so a directory with one of these names is unambiguously a package
-     * root rather than a package.
+     * These are safe to look for in any classpath element, whatever classloader it came from, because neither
+     * {@code "BOOT-INF"} nor {@code "WEB-INF"} can ever be a real package name -- a hyphen is not a legal character
+     * in a Java identifier, so a directory with one of these names is unambiguously a package root rather than a
+     * package.
      */
     public static final String[] ARCHIVE_PACKAGE_ROOT_PREFIXES = {
             // Spring-Boot
@@ -125,20 +120,16 @@ public final class ClassLoaderHandlerRegistry {
             "WEB-INF/classes/" };
 
     /**
-     * The package root prefixes to look for in classpath elements from a
-     * general-purpose classloader, which could have been handed a classpath element
-     * in any of the common build-tool or packaged-archive layouts.
+     * The package root prefixes to look for in classpath elements from a general-purpose classloader, which could
+     * have been handed a classpath element in any of the common build-tool or packaged-archive layouts.
      *
      * <p>
-     * Note that unlike {@link #ARCHIVE_PACKAGE_ROOT_PREFIXES}, {@code "classes"}
-     * and {@code "test-classes"} are both legal Java package names, so treating
-     * them as automatic package roots is a heuristic, not a certainty: a real
-     * package named {@code classes} is misread as a package root, and its classes
-     * are silently dropped. The heuristic is nevertheless relied upon for
-     * general-purpose classloaders -- see {@code Issue420Test} and
-     * {@code Issue766Test} -- so it can only be removed once package roots are
-     * verified against the declared name of a classfile found beneath them, rather
-     * than assumed from the directory name.
+     * Note that unlike {@link #ARCHIVE_PACKAGE_ROOT_PREFIXES}, {@code "classes"} and {@code "test-classes"} are
+     * both legal Java package names, so treating them as automatic package roots is a heuristic, not a certainty: a
+     * real package named {@code classes} is misread as a package root, and its classes are silently dropped. The
+     * heuristic is nevertheless relied upon for general-purpose classloaders -- see {@code Issue420Test} and
+     * {@code Issue766Test} -- so it can only be removed once package roots are verified against the declared name
+     * of a classfile found beneath them, rather than assumed from the directory name.
      */
     // #929
     public static final String[] DEFAULT_PACKAGE_ROOT_PREFIXES = {
@@ -159,8 +150,7 @@ public final class ClassLoaderHandlerRegistry {
     }
 
     /**
-     * A list of fully-qualified ClassLoader class names paired with the
-     * ClassLoaderHandler that can handle them.
+     * A list of fully-qualified ClassLoader class names paired with the ClassLoaderHandler that can handle them.
      */
     public static final class ClassLoaderHandlerRegistryEntry {
         /** The {@link ClassLoaderHandler} instance. */
@@ -172,7 +162,8 @@ public final class ClassLoaderHandlerRegistry {
         /**
          * Constructor.
          *
-         * @param classLoaderHandler The ClassLoaderHandler class.
+         * @param classLoaderHandler
+         *            The ClassLoaderHandler class.
          */
         private ClassLoaderHandlerRegistryEntry(final ClassLoaderHandler classLoaderHandler) {
             this.classLoaderHandler = classLoaderHandler;
@@ -189,9 +180,9 @@ public final class ClassLoaderHandlerRegistry {
         }
 
         /**
-         * The automatic package root prefixes (e.g. {@code "BOOT-INF/classes/"}) that
-         * should be looked for, and stripped from resource paths, in classpath elements
-         * obtained from the associated {@link ClassLoaderHandler}.
+         * The automatic package root prefixes (e.g. {@code "BOOT-INF/classes/"}) that should be looked for, and
+         * stripped from resource paths, in classpath elements obtained from the associated
+         * {@link ClassLoaderHandler}.
          *
          * @return the package root prefixes.
          */
@@ -200,25 +191,28 @@ public final class ClassLoaderHandlerRegistry {
         }
 
         /**
-         * Call {@code canHandle(Class, LogNode)} on the associated
-         * {@link ClassLoaderHandler}.
+         * Call {@code canHandle(Class, LogNode)} on the associated {@link ClassLoaderHandler}.
          *
-         * @param classLoader the {@link ClassLoader}.
-         * @param log         the log node, or null to skip logging
-         * @return true, if this {@link ClassLoaderHandler} can handle the
-         *         {@link ClassLoader}.
+         * @param classLoader
+         *            the {@link ClassLoader}.
+         * @param log
+         *            the log node, or null to skip logging
+         * @return true, if this {@link ClassLoaderHandler} can handle the {@link ClassLoader}.
          */
         public boolean canHandle(final Class<?> classLoader, final @Nullable LogNode log) {
             return classLoaderHandler.canHandle(classLoader, log);
         }
 
         /**
-         * Call {@code findClassLoaderOrder(ClassLoader, ClassLoaderOrder, LogNode)} on
-         * the associated {@link ClassLoaderHandler}.
+         * Call {@code findClassLoaderOrder(ClassLoader, ClassLoaderOrder, LogNode)} on the associated
+         * {@link ClassLoaderHandler}.
          *
-         * @param classLoader      the {@link ClassLoader}.
-         * @param classLoaderOrder a {@link ClassLoaderOrder} object.
-         * @param log              the log node, or null to skip logging
+         * @param classLoader
+         *            the {@link ClassLoader}.
+         * @param classLoaderOrder
+         *            a {@link ClassLoaderOrder} object.
+         * @param log
+         *            the log node, or null to skip logging
          */
         public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
                 final @Nullable LogNode log) {
@@ -226,14 +220,17 @@ public final class ClassLoaderHandlerRegistry {
         }
 
         /**
-         * Call
-         * {@code findClasspathOrder(ClassLoader, ClasspathOrder, ScanSpec, LogNode)} on
-         * the associated {@link ClassLoaderHandler}.
+         * Call {@code findClasspathOrder(ClassLoader, ClasspathOrder, ScanSpec, LogNode)} on the associated
+         * {@link ClassLoaderHandler}.
          *
-         * @param classLoader    the {@link ClassLoader}.
-         * @param classpathOrder a {@link ClasspathOrder} object.
-         * @param scanSpec       the {@link ScanSpec}.
-         * @param log            the log node, or null to skip logging
+         * @param classLoader
+         *            the {@link ClassLoader}.
+         * @param classpathOrder
+         *            a {@link ClasspathOrder} object.
+         * @param scanSpec
+         *            the {@link ScanSpec}.
+         * @param log
+         *            the log node, or null to skip logging
          */
         public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
                 final ScanSpec scanSpec, final @Nullable LogNode log) {

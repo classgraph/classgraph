@@ -46,12 +46,9 @@ class WebsphereTraditionalClassLoaderHandler implements ClassLoaderHandler {
 
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
-        return classIsOrExtendsOrImplements(classLoaderClass,
-                "com.ibm.ws.classloader.CompoundClassLoader")
-                || classIsOrExtendsOrImplements(classLoaderClass,
-                        "com.ibm.ws.classloader.ProtectionClassLoader")
-                || classIsOrExtendsOrImplements(classLoaderClass,
-                        "com.ibm.ws.bootstrap.ExtClassLoader");
+        return classIsOrExtendsOrImplements(classLoaderClass, "com.ibm.ws.classloader.CompoundClassLoader")
+                || classIsOrExtendsOrImplements(classLoaderClass, "com.ibm.ws.classloader.ProtectionClassLoader")
+                || classIsOrExtendsOrImplements(classLoaderClass, "com.ibm.ws.bootstrap.ExtClassLoader");
     }
 
     @Override
@@ -64,17 +61,16 @@ class WebsphereTraditionalClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
             final ScanSpec scanSpec, final @Nullable LogNode log) {
-        final var classpath = (String) classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getClassPath");
+        final var classpath = (String) classpathOrder.reflectionUtils.invokeMethod(false, classLoader,
+                "getClassPath");
         classpathOrder.addClasspathPathStr(classpath, classLoader, scanSpec, log);
     }
 
     /**
-     * Get the automatic package root prefixes for classpath elements obtained from
-     * this classloader.
+     * Get the automatic package root prefixes for classpath elements obtained from this classloader.
      *
      * <p>
-     * Classpath elements from this classloader may be Spring-Boot executable jars
-     * or wars.
+     * Classpath elements from this classloader may be Spring-Boot executable jars or wars.
      *
      * @return the package root prefixes.
      */

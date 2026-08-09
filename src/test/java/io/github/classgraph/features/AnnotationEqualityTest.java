@@ -59,9 +59,8 @@ class AnnotationEqualityTest {
     }
 
     /**
-     * Test that the annotation parameter values read from the classfile match the
-     * values that the JRE reports for the same annotation, including the default
-     * value that the annotation instance does not give explicitly.
+     * Test that the annotation parameter values read from the classfile match the values that the JRE reports for
+     * the same annotation, including the default value that the annotation instance does not give explicitly.
      */
     @Test
     void annotationEquality() {

@@ -10,7 +10,8 @@ public class GenerateClassGraphFigDotFile {
     /**
      * The main method.
      *
-     * @param args the arguments
+     * @param args
+     *            the arguments
      */
     public static void main(final String[] args) {
         try (var scanResult = new ClassGraph() //

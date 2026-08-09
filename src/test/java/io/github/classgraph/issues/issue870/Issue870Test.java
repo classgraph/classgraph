@@ -10,11 +10,10 @@ import org.junit.jupiter.api.Test;
 import io.github.classgraph.ClassGraph;
 
 /**
- * A glob wildcard in the middle of an accepted package name, e.g.
- * {@code "eu.*.domain"}, matched nothing. Recursive scanning stopped one
- * directory above the wildcard, because the set of accepted-path prefixes --
- * which is what tells the scanner that a directory may still lead to an
- * accepted path -- was only populated up to the first wildcard.
+ * A glob wildcard in the middle of an accepted package name, e.g. {@code "eu.*.domain"}, matched nothing. Recursive
+ * scanning stopped one directory above the wildcard, because the set of accepted-path prefixes -- which is what
+ * tells the scanner that a directory may still lead to an accepted path -- was only populated up to the first
+ * wildcard.
  */
 // #643
 public class Issue870Test {
@@ -29,7 +28,8 @@ public class Issue870Test {
     /**
      * Scan with the given accepted package specifiers.
      *
-     * @param acceptedPackages the package specifiers to accept
+     * @param acceptedPackages
+     *            the package specifiers to accept
      * @return the names of all classes found
      */
     private static List<String> scan(final String... acceptedPackages) {
@@ -39,8 +39,7 @@ public class Issue870Test {
     }
 
     /**
-     * A glob in the middle of a package name should match every package it expands
-     * to.
+     * A glob in the middle of a package name should match every package it expands to.
      */
     @Test
     public void midPackageGlobMatches() {
@@ -63,11 +62,10 @@ public class Issue870Test {
     }
 
     /**
-     * A glob accept is now recursive into sub-packages, just like a literal accept,
-     * so {@code *.domain} and the equivalent explicit package list give the same
-     * result (this issue's original question). This is implemented by letting
-     * {@code AcceptRejectPrefix} hold a glob as a regexp prefix pattern, rather
-     * than requiring a literal {@code String#startsWith} prefix.
+     * A glob accept is now recursive into sub-packages, just like a literal accept, so {@code *.domain} and the
+     * equivalent explicit package list give the same result (this issue's original question). This is implemented
+     * by letting {@code AcceptRejectPrefix} hold a glob as a regexp prefix pattern, rather than requiring a literal
+     * {@code String#startsWith} prefix.
      */
     @Test
     public void midPackageGlobIsRecursiveIntoSubPackages() {
@@ -78,9 +76,8 @@ public class Issue870Test {
     }
 
     /**
-     * A trailing glob was never affected by this bug (the wildcard is in the last
-     * segment, so the prefix set was complete), and is recursive because {@code *}
-     * spans package separators.
+     * A trailing glob was never affected by this bug (the wildcard is in the last segment, so the prefix set was
+     * complete), and is recursive because {@code *} spans package separators.
      */
     @Test
     public void trailingGlobStillMatches() {
@@ -96,9 +93,8 @@ public class Issue870Test {
     }
 
     /**
-     * A {@code '*'} matches within a single package segment only, so it does not
-     * span a package separator. Without this, {@code "*.domain"} would also match
-     * {@code alpha.other} via a separator-spanning wildcard.
+     * A {@code '*'} matches within a single package segment only, so it does not span a package separator. Without
+     * this, {@code "*.domain"} would also match {@code alpha.other} via a separator-spanning wildcard.
      */
     @Test
     public void globDoesNotSpanPackageSeparator() {
@@ -111,8 +107,7 @@ public class Issue870Test {
     }
 
     /**
-     * A trailing {@code "**"} means "and everything below", which is what a
-     * recursive accept already does.
+     * A trailing {@code "**"} means "and everything below", which is what a recursive accept already does.
      */
     @Test
     public void trailingDoubleGlobIsAcceptedAndMeansRecursive() {
@@ -122,13 +117,14 @@ public class Issue870Test {
     }
 
     /**
-     * {@code "**"} used as a complete segment matches zero or more whole segments,
-     * but {@code "**"} glued to other characters within a segment is rejected.
+     * {@code "**"} used as a complete segment matches zero or more whole segments, but {@code "**"} glued to other
+     * characters within a segment is rejected.
      */
     // #940
     @Test
     public void doubleGlobMustFormACompleteSegment() {
-        assertThat(scan(PKG + ".**.domain")).contains(ALPHA_THING, BETA_THING, SUB_THING).doesNotContain(OTHER_THING);
+        assertThat(scan(PKG + ".**.domain")).contains(ALPHA_THING, BETA_THING, SUB_THING)
+                .doesNotContain(OTHER_THING);
         assertThat(scan(PKG + ".**.sub")).containsExactly(SUB_THING);
         assertThatThrownBy(() -> scan(PKG + ".al**ha.domain")).isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("**");
@@ -137,8 +133,8 @@ public class Issue870Test {
     /** Reject criteria support globs too, and are likewise recursive. */
     @Test
     public void globRejectIsRecursive() {
-        try (var scanResult = new ClassGraph().enableClassInfo().acceptPackages(PKG).rejectPackages(PKG + ".*.domain")
-                .scan()) {
+        try (var scanResult = new ClassGraph().enableClassInfo().acceptPackages(PKG)
+                .rejectPackages(PKG + ".*.domain").scan()) {
             assertThat(scanResult.getAllClasses().getNames()).contains(OTHER_THING).doesNotContain(ALPHA_THING,
                     BETA_THING, SUB_THING);
         }

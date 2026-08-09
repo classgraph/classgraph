@@ -148,7 +148,8 @@ public final class VersionFinder {
     /**
      * Get a system property (returning null if a SecurityException was thrown).
      *
-     * @param propName the property name
+     * @param propName
+     *            the property name
      * @return the property value
      */
     public static @Nullable String getProperty(final String propName) {
@@ -162,8 +163,10 @@ public final class VersionFinder {
     /**
      * Get a system property (returning null if a SecurityException was thrown).
      *
-     * @param propName   the property name
-     * @param defaultVal the default value for the property
+     * @param propName
+     *            the property name
+     * @param defaultVal
+     *            the default value for the property
      * @return the property value, or the default if the property is not defined.
      */
     public static @Nullable String getProperty(final String propName, final String defaultVal) {
@@ -219,8 +222,8 @@ public final class VersionFinder {
         }
 
         // Try to get version number from maven properties in jar's META-INF directory
-        try (var is = cls
-                .getResourceAsStream("/META-INF/maven/" + MAVEN_PACKAGE + "/" + MAVEN_ARTIFACT + "/pom.properties")) {
+        try (var is = cls.getResourceAsStream(
+                "/META-INF/maven/" + MAVEN_PACKAGE + "/" + MAVEN_ARTIFACT + "/pom.properties")) {
             if (is != null) {
                 final Properties p = new Properties();
                 p.load(is);
@@ -258,14 +261,13 @@ public final class VersionFinder {
     /**
      * Helper method to provide a XXE secured DocumentBuilder Factory.
      *
-     * reference -
-     * https://gist.github.com/AlainODea/1779a7c6a26a5c135280bc9b3b71868f
-     * 
+     * reference - https://gist.github.com/AlainODea/1779a7c6a26a5c135280bc9b3b71868f
+     *
      * reference - https://rules.sonarsource.com/java/tag/owasp/RSPEC-2755
-     * 
+     *
      * @return DocumentBuilderFactory
-     * @throws ParserConfigurationException if a requested feature is not supported
-     *                                      by the XML parser
+     * @throws ParserConfigurationException
+     *             if a requested feature is not supported by the XML parser
      */
     private static DocumentBuilderFactory getSecureDocumentBuilderFactory() throws ParserConfigurationException {
         final var dbf = DocumentBuilderFactory.newInstance();
@@ -286,10 +288,10 @@ public final class VersionFinder {
      * Helper method to provide a XXE secured XPathFactory Factory.
      *
      * reference - https://rules.sonarsource.com/java/tag/owasp/RSPEC-2755
-     * 
+     *
      * @return XPathFactory
-     * @throws XPathFactoryConfigurationException if secure processing could not be
-     *                                            enabled
+     * @throws XPathFactoryConfigurationException
+     *             if secure processing could not be enabled
      */
     private static XPathFactory getSecureXPathFactory() throws XPathFactoryConfigurationException {
         final var xPathFactory = XPathFactory.newInstance();

@@ -64,8 +64,8 @@ public class ClassInfoTest {
     }
 
     /**
-     * The name and class-reference overloads of getAssignableTo agree with the
-     * ClassInfo overload, and an unknown class name yields the empty list.
+     * The name and class-reference overloads of getAssignableTo agree with the ClassInfo overload, and an unknown
+     * class name yields the empty list.
      */
     @Test
     public void getAssignableToOverloads() {
@@ -114,8 +114,9 @@ public class ClassInfoTest {
     @Test
     public void implementsInterface() {
         assertThat(scanResult.getAllClassesImplementing(Iface.class).getNames()).containsOnly(Impl1.class.getName(),
-                Impl1Sub.class.getName(), Impl1SubSub.class.getName(), Impl2.class.getName(), Impl2Sub.class.getName(),
-                Impl2SubSub.class.getName(), IfaceSub.class.getName(), IfaceSubSub.class.getName());
+                Impl1Sub.class.getName(), Impl1SubSub.class.getName(), Impl2.class.getName(),
+                Impl2Sub.class.getName(), Impl2SubSub.class.getName(), IfaceSub.class.getName(),
+                IfaceSubSub.class.getName());
     }
 
     /**
@@ -154,8 +155,8 @@ public class ClassInfoTest {
     public void directVsAllInterfaces() {
         assertThat(scanResult.getDirectSuperinterfaces(Impl2SubSub.class).getNames())
                 .containsOnly(IfaceSubSub.class.getName());
-        assertThat(scanResult.getAllSuperinterfaces(Impl2SubSub.class).getNames()).containsOnly(IfaceSubSub.class.getName(),
-                IfaceSub.class.getName(), Iface.class.getName());
+        assertThat(scanResult.getAllSuperinterfaces(Impl2SubSub.class).getNames())
+                .containsOnly(IfaceSubSub.class.getName(), IfaceSub.class.getName(), Iface.class.getName());
     }
 
     /**
@@ -163,7 +164,8 @@ public class ClassInfoTest {
      */
     @Test
     public void directVsAllSubinterfaces() {
-        assertThat(scanResult.getDirectSubinterfaces(Iface.class).getNames()).containsOnly(IfaceSub.class.getName());
+        assertThat(scanResult.getDirectSubinterfaces(Iface.class).getNames())
+                .containsOnly(IfaceSub.class.getName());
         assertThat(scanResult.getAllSubinterfaces(Iface.class).getNames()).containsOnly(IfaceSub.class.getName(),
                 IfaceSubSub.class.getName());
         assertThat(scanResult.getClassInfo(Iface.class.getName()).getDirectSubinterfaces().getNames())

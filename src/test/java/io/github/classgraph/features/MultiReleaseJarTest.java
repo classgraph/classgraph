@@ -15,12 +15,14 @@ import io.github.classgraph.ClassGraph;
  */
 public class MultiReleaseJarTest {
     /** The jar URL. */
-    private static final URL jarURL = MultiReleaseJarTest.class.getClassLoader().getResource("multi-release-jar.jar");
+    private static final URL jarURL = MultiReleaseJarTest.class.getClassLoader()
+            .getResource("multi-release-jar.jar");
 
     /**
      * Multi release jar.
      *
-     * @throws Exception the exception
+     * @throws Exception
+     *             the exception
      */
     @Test
     public void multiReleaseJar() throws Exception {
@@ -49,7 +51,8 @@ public class MultiReleaseJarTest {
     /**
      * Multi release versioning of resources.
      *
-     * @throws Exception the exception
+     * @throws Exception
+     *             the exception
      */
     @Test
     public void multiReleaseVersioningOfResources() throws Exception {
@@ -62,10 +65,10 @@ public class MultiReleaseJarTest {
     }
 
     /**
-     * Loading all versions of multi release class and text resources with
-     * `enableMultiReleaseVersions`.
+     * Loading all versions of multi release class and text resources with `enableMultiReleaseVersions`.
      *
-     * @throws Exception the exception
+     * @throws Exception
+     *             the exception
      */
     @Test
     public void enableMultiReleaseVersions() throws Exception {
@@ -90,10 +93,10 @@ public class MultiReleaseJarTest {
     }
 
     /**
-     * `enableMultiReleaseVersions` does not make sense with class info and should
-     * disable it.
+     * `enableMultiReleaseVersions` does not make sense with class info and should disable it.
      *
-     * @throws Exception the exception
+     * @throws Exception
+     *             the exception
      */
     @Test
     public void enableMultiReleaseVersionsWithClassInfo() throws Exception {

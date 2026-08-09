@@ -55,7 +55,8 @@ public class Issue128Test {
     /**
      * A jar nested inside a jar that is fetched over HTTP is scanned.
      *
-     * @throws Exception the exception
+     * @throws Exception
+     *             the exception
      */
     @Test
     public void issue128Test() throws Exception {
@@ -74,7 +75,8 @@ public class Issue128Test {
                     connection.connect();
                     final var code = connection.getResponseCode();
                     if (code != 200) {
-                        throw new Exception("Got bad response code " + code + " when trying to fetch URL " + jarURL);
+                        throw new Exception(
+                                "Got bad response code " + code + " when trying to fetch URL " + jarURL);
                     } else {
                         throw new Exception("Able to download remote jar, but could not find files within jar");
                     }
@@ -82,8 +84,8 @@ public class Issue128Test {
                     System.err.println("Timeout while trying to download remote jar, skipping test "
                             + Issue128Test.class.getName() + ": " + e);
                 } catch (final IOException | SecurityException e) {
-                    System.err.println(
-                            "Could not download remote jar, skipping test " + Issue128Test.class.getName() + ": " + e);
+                    System.err.println("Could not download remote jar, skipping test "
+                            + Issue128Test.class.getName() + ": " + e);
                 }
             } else {
                 assertThat(filesInsideLevel3).containsOnly("com/test/Test.java", "com/test/Test.class");

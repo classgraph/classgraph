@@ -42,8 +42,9 @@ public class AutoCloseableExecutorService extends ThreadPoolExecutor implements 
 
     /**
      * A ThreadPoolExecutor that can be used in a try-with-resources block.
-     * 
-     * @param numThreads The number of threads to allocate.
+     *
+     * @param numThreads
+     *            The number of threads to allocate.
      */
     public AutoCloseableExecutorService(final int numThreads) {
         super(numThreads, numThreads, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(),
@@ -51,11 +52,13 @@ public class AutoCloseableExecutorService extends ThreadPoolExecutor implements 
     }
 
     /**
-     * Catch exceptions from both submit() and execute(), and call
-     * {@link InterruptionChecker#interrupt()} to interrupt all threads.
+     * Catch exceptions from both submit() and execute(), and call {@link InterruptionChecker#interrupt()} to
+     * interrupt all threads.
      *
-     * @param runnable  the Runnable
-     * @param throwable the Throwable
+     * @param runnable
+     *            the Runnable
+     * @param throwable
+     *            the Throwable
      */
     @Override
     public void afterExecute(final Runnable runnable, final Throwable throwable) {

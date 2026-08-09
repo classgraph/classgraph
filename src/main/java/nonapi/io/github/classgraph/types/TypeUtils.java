@@ -45,12 +45,14 @@ public final class TypeUtils {
     }
 
     /**
-     * Parse a Java identifier, replacing '/' with '.'. Appends the identifier to
-     * the token buffer in the parser.
-     * 
-     * @param parser           The parser.
-     * @param stopAtDollarSign If true, stop parsing when the first '$' is hit.
-     * @param stopAtDot        If true, stop parsing when the first '.' is hit.
+     * Parse a Java identifier, replacing '/' with '.'. Appends the identifier to the token buffer in the parser.
+     *
+     * @param parser
+     *            The parser.
+     * @param stopAtDollarSign
+     *            If true, stop parsing when the first '$' is hit.
+     * @param stopAtDot
+     *            If true, stop parsing when the first '.' is hit.
      * @return true if at least one identifier character was parsed.
      */
     public static boolean getIdentifierToken(final Parser parser, final boolean stopAtDollarSign,
@@ -85,11 +87,13 @@ public final class TypeUtils {
     }
 
     /**
-     * Append a space if necessary (if not at the beginning of the buffer, and the
-     * last character is not already a space), then append a modifier keyword.
+     * Append a space if necessary (if not at the beginning of the buffer, and the last character is not already a
+     * space), then append a modifier keyword.
      *
-     * @param buf             the buffer to append to
-     * @param modifierKeyword the modifier keyword
+     * @param buf
+     *            the buffer to append to
+     * @param modifierKeyword
+     *            the modifier keyword
      */
     private static void appendModifierKeyword(final StringBuilder buf, final String modifierKeyword) {
         if (!buf.isEmpty() && buf.charAt(buf.length() - 1) != ' ') {
@@ -100,15 +104,18 @@ public final class TypeUtils {
 
     /**
      * Convert modifiers into a string representation, e.g. "public static final".
-     * 
-     * @param modifiers    The field or method modifiers.
-     * @param modifierType The {@link ModifierType} these modifiers apply to.
-     * @param isDefault    for methods, true if this is a default method (else
-     *                     ignored).
-     * @param buf          the buffer to append to
+     *
+     * @param modifiers
+     *            The field or method modifiers.
+     * @param modifierType
+     *            The {@link ModifierType} these modifiers apply to.
+     * @param isDefault
+     *            for methods, true if this is a default method (else ignored).
+     * @param buf
+     *            the buffer to append to
      */
-    public static void modifiersToString(final int modifiers, final ModifierType modifierType, final boolean isDefault,
-            final StringBuilder buf) {
+    public static void modifiersToString(final int modifiers, final ModifierType modifierType,
+            final boolean isDefault, final StringBuilder buf) {
         if ((modifiers & Modifier.PUBLIC) != 0) {
             appendModifierKeyword(buf, "public");
         } else if ((modifiers & Modifier.PRIVATE) != 0) {

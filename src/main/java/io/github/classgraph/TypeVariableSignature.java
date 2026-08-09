@@ -60,8 +60,10 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
     /**
      * Constructor.
      *
-     * @param typeVariableName  The type variable name.
-     * @param definingClassName the defining class name.
+     * @param typeVariableName
+     *            The type variable name.
+     * @param definingClassName
+     *            the defining class name.
      */
     private TypeVariableSignature(final String typeVariableName, final @Nullable String definingClassName) {
         super();
@@ -73,7 +75,7 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
 
     /**
      * Get the name of the type variable.
-     * 
+     *
      * @return The type variable name.
      */
     public String getName() {
@@ -81,17 +83,14 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
     }
 
     /**
-     * Look up a type variable (e.g. "T") in the defining method and/or enclosing
-     * class' type parameters, and return the type parameter with the same name
-     * (e.g. "T extends com.xyz.Cls").
-     * 
-     * @return the type parameter (e.g. "T extends com.xyz.Cls", or simply "T" if
-     *         the type parameter does not have any bounds). If no type parameter of
-     *         the same name is declared by the defining method or the enclosing
-     *         class, an unbounded type parameter with just the type variable's name
-     *         is returned.
-     * @throws IllegalStateException if the enclosing class was not found during
-     *                                  the scan.
+     * Look up a type variable (e.g. "T") in the defining method and/or enclosing class' type parameters, and return
+     * the type parameter with the same name (e.g. "T extends com.xyz.Cls").
+     *
+     * @return the type parameter (e.g. "T extends com.xyz.Cls", or simply "T" if the type parameter does not have
+     *         any bounds). If no type parameter of the same name is declared by the defining method or the
+     *         enclosing class, an unbounded type parameter with just the type variable's name is returned.
+     * @throws IllegalStateException
+     *             if the enclosing class was not found during the scan.
      */
     // #706
     public TypeParameter resolve() {
@@ -145,9 +144,10 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
      * Look this type variable up in a substitution map built by
      * {@link TypeSignature#resolveTypeVariables(ClassInfo)}.
      *
-     * @param substitutions the substitution map.
-     * @return the type argument to substitute for this type variable, or null if
-     *         this type variable is not substitutable.
+     * @param substitutions
+     *            the substitution map.
+     * @return the type argument to substitute for this type variable, or null if this type variable is not
+     *         substitutable.
      */
     // #735
     @Nullable
@@ -197,10 +197,13 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
     /**
      * Parse a TypeVariableSignature.
      *
-     * @param parser            the parser
-     * @param definingClassName the defining class name
+     * @param parser
+     *            the parser
+     * @param definingClassName
+     *            the defining class name
      * @return the type variable signature
-     * @throws ParseException if parsing fails
+     * @throws ParseException
+     *             if parsing fails
      */
     static @Nullable TypeVariableSignature parse(final Parser parser, final @Nullable String definingClassName)
             throws ParseException {
@@ -234,8 +237,8 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Return definingClassName, so that getClassInfo() returns the
-     * {@link ClassInfo} object for the containing class.
+     * Return definingClassName, so that getClassInfo() returns the {@link ClassInfo} object for the containing
+     * class.
      *
      * @return the defining class name.
      */
@@ -247,7 +250,8 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
     /**
      * Get the names of any classes referenced in the type signature.
      *
-     * @param refdClassNames the referenced class names.
+     * @param refdClassNames
+     *            the referenced class names.
      */
     @Override
     protected void findReferencedClassNames(final Set<String> refdClassNames) {
@@ -369,11 +373,10 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
     }
 
     /**
-     * Returns the type variable along with its type bound, if available (e.g. "X
-     * extends xyz.Cls"). You can get this in structured form by calling
-     * {@link #resolve()}. Returns just the type variable if there is no type bound,
-     * or if no type bound is known (i.e. if {@link #resolve()} throws).
-     * 
+     * Returns the type variable along with its type bound, if available (e.g. "X extends xyz.Cls"). You can get
+     * this in structured form by calling {@link #resolve()}. Returns just the type variable if there is no type
+     * bound, or if no type bound is known (i.e. if {@link #resolve()} throws).
+     *
      * @return The string representation.
      */
     public String toStringWithTypeBound() {
@@ -387,8 +390,7 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
 
     @Override
     protected void toStringInternal(final boolean useSimpleNames,
-            final @Nullable AnnotationInfoList annotationsToExclude,
-            final StringBuilder buf) {
+            final @Nullable AnnotationInfoList annotationsToExclude, final StringBuilder buf) {
         if (typeAnnotationInfo != null) {
             for (final AnnotationInfo annotationInfo : typeAnnotationInfo) {
                 if (annotationsToExclude == null || !annotationsToExclude.contains(annotationInfo)) {

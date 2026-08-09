@@ -67,20 +67,20 @@ public class FieldInfoList extends MappableInfoList<FieldInfo> {
     }
 
     /**
-     * Construct a new modifiable empty list of {@link FieldInfo} objects, given a
-     * size hint.
+     * Construct a new modifiable empty list of {@link FieldInfo} objects, given a size hint.
      *
-     * @param sizeHint the expected number of elements
+     * @param sizeHint
+     *            the expected number of elements
      */
     public FieldInfoList(final int sizeHint) {
         super(sizeHint);
     }
 
     /**
-     * Construct a new modifiable empty {@link FieldInfoList}, given an initial list
-     * of {@link FieldInfo} objects.
+     * Construct a new modifiable empty {@link FieldInfoList}, given an initial list of {@link FieldInfo} objects.
      *
-     * @param fieldInfoCollection the collection of {@link FieldInfo} objects.
+     * @param fieldInfoCollection
+     *            the collection of {@link FieldInfo} objects.
      */
     public FieldInfoList(final Collection<FieldInfo> fieldInfoCollection) {
         super(Objects.requireNonNull(fieldInfoCollection, "fieldInfoCollection must not be null"));
@@ -91,9 +91,12 @@ public class FieldInfoList extends MappableInfoList<FieldInfo> {
     /**
      * Get {@link ClassInfo} objects for any classes referenced in the list.
      *
-     * @param classNameToClassInfo the map from class name to {@link ClassInfo}.
-     * @param refdClassInfo        the referenced class info
-     * @param log                  the log node, or null to skip logging
+     * @param classNameToClassInfo
+     *            the map from class name to {@link ClassInfo}.
+     * @param refdClassInfo
+     *            the referenced class info
+     * @param log
+     *            the log node, or null to skip logging
      */
     void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
             final Set<ClassInfo> refdClassInfo, final @Nullable LogNode log) {
@@ -105,30 +108,29 @@ public class FieldInfoList extends MappableInfoList<FieldInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Filter an {@link FieldInfoList} using a predicate mapping an
-     * {@link FieldInfo} object to a boolean, producing another
-     * {@link FieldInfoList} for all items in the list for which the predicate is
-     * true.
+     * Filter an {@link FieldInfoList} using a predicate mapping an {@link FieldInfo} object to a boolean, producing
+     * another {@link FieldInfoList} for all items in the list for which the predicate is true.
      */
     @FunctionalInterface
     public interface FieldInfoFilter {
         /**
          * Whether or not to allow an {@link FieldInfo} list item through the filter.
          *
-         * @param fieldInfo The {@link FieldInfo} item to filter.
-         * @return Whether or not to allow the item through the filter. If true, the
-         *         item is copied to the output list; if false, it is excluded.
+         * @param fieldInfo
+         *            The {@link FieldInfo} item to filter.
+         * @return Whether or not to allow the item through the filter. If true, the item is copied to the output
+         *         list; if false, it is excluded.
          */
         boolean accept(FieldInfo fieldInfo);
     }
 
     /**
-     * Find the subset of the {@link FieldInfo} objects in this list for which the
-     * given filter predicate is true.
+     * Find the subset of the {@link FieldInfo} objects in this list for which the given filter predicate is true.
      *
-     * @param filter The {@link FieldInfoFilter} to apply.
-     * @return The subset of the {@link FieldInfo} objects in this list for which
-     *         the given filter predicate is true.
+     * @param filter
+     *            The {@link FieldInfoFilter} to apply.
+     * @return The subset of the {@link FieldInfo} objects in this list for which the given filter predicate is
+     *         true.
      */
     public FieldInfoList filter(final FieldInfoFilter filter) {
         Assert.notNull(filter, "filter");

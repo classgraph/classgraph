@@ -45,15 +45,13 @@ public final class ReflectionUtils {
     private @Nullable Class<?> privilegedActionClass;
 
     /**
-     * {@code AccessController#doPrivileged(PrivilegedAction)}, or null if it is not
-     * available.
+     * {@code AccessController#doPrivileged(PrivilegedAction)}, or null if it is not available.
      */
     private @Nullable Method accessControllerDoPrivileged;
 
     /**
      * Constructor. Chooses the reflection driver according to the current value of
-     * {@link ClassGraph#CIRCUMVENT_ENCAPSULATION}, so a new instance must be
-     * created after changing that value.
+     * {@link ClassGraph#CIRCUMVENT_ENCAPSULATION}, so a new instance must be created after changing that value.
      */
     public ReflectionUtils() {
         if (ClassGraph.CIRCUMVENT_ENCAPSULATION == CircumventEncapsulationMethod.NARCISSUS) {
@@ -78,23 +76,24 @@ public final class ReflectionUtils {
     }
 
     /**
-     * Get the value of the field in the class of the given object or any of its
-     * superclasses. If an exception is thrown while trying to read the field, and
-     * throwException is true, then IllegalArgumentException is thrown wrapping the
-     * cause, otherwise this will return null. If passed a null object, returns null
-     * unless throwException is true, then throws IllegalArgumentException.
-     * 
-     * @param throwException If true, throw an exception if the field value could
-     *                       not be read.
-     * @param obj            The object.
-     * @param field          The field.
-     * 
+     * Get the value of the field in the class of the given object or any of its superclasses. If an exception is
+     * thrown while trying to read the field, and throwException is true, then IllegalArgumentException is thrown
+     * wrapping the cause, otherwise this will return null. If passed a null object, returns null unless
+     * throwException is true, then throws IllegalArgumentException.
+     *
+     * @param throwException
+     *            If true, throw an exception if the field value could not be read.
+     * @param obj
+     *            The object.
+     * @param field
+     *            The field.
+     *
      * @return The field value.
-     * @throws IllegalArgumentException If the field value could not be read.
+     * @throws IllegalArgumentException
+     *             If the field value could not be read.
      */
     public @Nullable Object getFieldVal(final boolean throwException, final @Nullable Object obj,
-            final @Nullable Field field)
-            throws IllegalArgumentException {
+            final @Nullable Field field) throws IllegalArgumentException {
         if (reflectionDriver == null) {
             throw new RuntimeException("Cannot use reflection after ScanResult has been closed");
         }
@@ -117,23 +116,24 @@ public final class ReflectionUtils {
     }
 
     /**
-     * Get the value of the named field in the class of the given object or any of
-     * its superclasses. If an exception is thrown while trying to read the field,
-     * and throwException is true, then IllegalArgumentException is thrown wrapping
-     * the cause, otherwise this will return null. If passed a null object, returns
-     * null unless throwException is true, then throws IllegalArgumentException.
-     * 
-     * @param throwException If true, throw an exception if the field value could
-     *                       not be read.
-     * @param obj            The object.
-     * @param fieldName      The field name.
-     * 
+     * Get the value of the named field in the class of the given object or any of its superclasses. If an exception
+     * is thrown while trying to read the field, and throwException is true, then IllegalArgumentException is thrown
+     * wrapping the cause, otherwise this will return null. If passed a null object, returns null unless
+     * throwException is true, then throws IllegalArgumentException.
+     *
+     * @param throwException
+     *            If true, throw an exception if the field value could not be read.
+     * @param obj
+     *            The object.
+     * @param fieldName
+     *            The field name.
+     *
      * @return The field value.
-     * @throws IllegalArgumentException If the field value could not be read.
+     * @throws IllegalArgumentException
+     *             If the field value could not be read.
      */
     public @Nullable Object getFieldVal(final boolean throwException, final @Nullable Object obj,
-            final @Nullable String fieldName)
-            throws IllegalArgumentException {
+            final @Nullable String fieldName) throws IllegalArgumentException {
         if (reflectionDriver == null) {
             throw new RuntimeException("Cannot use reflection after ScanResult has been closed");
         }
@@ -148,31 +148,32 @@ public final class ReflectionUtils {
             return reflectionDriver.getField(obj, reflectionDriver.findInstanceField(obj, fieldName));
         } catch (final Throwable e) {
             if (throwException) {
-                throw new IllegalArgumentException("Can't read field " + obj.getClass().getName() + "." + fieldName, e);
+                throw new IllegalArgumentException("Can't read field " + obj.getClass().getName() + "." + fieldName,
+                        e);
             }
         }
         return null;
     }
 
     /**
-     * Get the value of the named field in the given class or any of its
-     * superclasses. If an exception is thrown while trying to read the field value,
-     * and throwException is true, then IllegalArgumentException is thrown wrapping
-     * the cause, otherwise this will return null. If passed a null class reference,
-     * returns null unless throwException is true, then throws
-     * IllegalArgumentException.
-     * 
-     * @param throwException If true, throw an exception if the field value could
-     *                       not be read.
-     * @param cls            The class.
-     * @param fieldName      The field name.
-     * 
+     * Get the value of the named field in the given class or any of its superclasses. If an exception is thrown
+     * while trying to read the field value, and throwException is true, then IllegalArgumentException is thrown
+     * wrapping the cause, otherwise this will return null. If passed a null class reference, returns null unless
+     * throwException is true, then throws IllegalArgumentException.
+     *
+     * @param throwException
+     *            If true, throw an exception if the field value could not be read.
+     * @param cls
+     *            The class.
+     * @param fieldName
+     *            The field name.
+     *
      * @return The field value.
-     * @throws IllegalArgumentException If the field value could not be read.
+     * @throws IllegalArgumentException
+     *             If the field value could not be read.
      */
     public @Nullable Object getStaticFieldVal(final boolean throwException, final @Nullable Class<?> cls,
-            final @Nullable String fieldName)
-            throws IllegalArgumentException {
+            final @Nullable String fieldName) throws IllegalArgumentException {
         if (reflectionDriver == null) {
             throw new RuntimeException("Cannot use reflection after ScanResult has been closed");
         }
@@ -194,19 +195,21 @@ public final class ReflectionUtils {
     }
 
     /**
-     * Invoke the named method in the given object or its superclasses. If an
-     * exception is thrown while trying to call the method, and throwException is
-     * true, then IllegalArgumentException is thrown wrapping the cause, otherwise
-     * this will return null. If passed a null object, returns null unless
-     * throwException is true, then throws IllegalArgumentException.
-     * 
-     * @param throwException If true, throw an exception if the field value could
-     *                       not be read.
-     * @param obj            The object.
-     * @param methodName     The method name.
-     * 
+     * Invoke the named method in the given object or its superclasses. If an exception is thrown while trying to
+     * call the method, and throwException is true, then IllegalArgumentException is thrown wrapping the cause,
+     * otherwise this will return null. If passed a null object, returns null unless throwException is true, then
+     * throws IllegalArgumentException.
+     *
+     * @param throwException
+     *            If true, throw an exception if the field value could not be read.
+     * @param obj
+     *            The object.
+     * @param methodName
+     *            The method name.
+     *
      * @return The result of the method invocation.
-     * @throws IllegalArgumentException If the method could not be invoked.
+     * @throws IllegalArgumentException
+     *             If the method could not be invoked.
      */
     public @Nullable Object invokeMethod(final boolean throwException, final @Nullable Object obj,
             final @Nullable String methodName) throws IllegalArgumentException {
@@ -231,20 +234,25 @@ public final class ReflectionUtils {
     }
 
     /**
-     * Invoke the named method in the given object or its superclasses. If an
-     * exception is thrown while trying to call the method, and throwException is
-     * true, then IllegalArgumentException is thrown wrapping the cause, otherwise
-     * this will return null. If passed a null object, returns null unless
-     * throwException is true, then throws IllegalArgumentException.
-     * 
-     * @param throwException Whether to throw an exception on failure.
-     * @param obj            The object.
-     * @param methodName     The method name.
-     * @param argType        The type of the method argument.
-     * @param param          The parameter value to use when invoking the method.
-     * 
+     * Invoke the named method in the given object or its superclasses. If an exception is thrown while trying to
+     * call the method, and throwException is true, then IllegalArgumentException is thrown wrapping the cause,
+     * otherwise this will return null. If passed a null object, returns null unless throwException is true, then
+     * throws IllegalArgumentException.
+     *
+     * @param throwException
+     *            Whether to throw an exception on failure.
+     * @param obj
+     *            The object.
+     * @param methodName
+     *            The method name.
+     * @param argType
+     *            The type of the method argument.
+     * @param param
+     *            The parameter value to use when invoking the method.
+     *
      * @return The result of the method invocation.
-     * @throws IllegalArgumentException If the method could not be invoked.
+     * @throws IllegalArgumentException
+     *             If the method could not be invoked.
      */
     public @Nullable Object invokeMethod(final boolean throwException, final @Nullable Object obj,
             final @Nullable String methodName, final @Nullable Class<?> argType, final @Nullable Object param)
@@ -271,20 +279,25 @@ public final class ReflectionUtils {
     }
 
     /**
-     * Invoke the named method in the given object or its superclasses. If an
-     * exception is thrown while trying to call the method, and throwException is
-     * true, then IllegalArgumentException is thrown wrapping the cause, otherwise
-     * this will return null. If passed a null object, returns null unless
-     * throwException is true, then throws IllegalArgumentException.
+     * Invoke the named method in the given object or its superclasses. If an exception is thrown while trying to
+     * call the method, and throwException is true, then IllegalArgumentException is thrown wrapping the cause,
+     * otherwise this will return null. If passed a null object, returns null unless throwException is true, then
+     * throws IllegalArgumentException.
      *
-     * @param throwException Whether to throw an exception on failure.
-     * @param obj            The object.
-     * @param methodName     The method name.
-     * @param argTypes       The types of the method arguments.
-     * @param params         The parameter values to use when invoking the method.
+     * @param throwException
+     *            Whether to throw an exception on failure.
+     * @param obj
+     *            The object.
+     * @param methodName
+     *            The method name.
+     * @param argTypes
+     *            The types of the method arguments.
+     * @param params
+     *            The parameter values to use when invoking the method.
      *
      * @return The result of the method invocation.
-     * @throws IllegalArgumentException If the method could not be invoked.
+     * @throws IllegalArgumentException
+     *             If the method could not be invoked.
      */
     public @Nullable Object invokeMethod(final boolean throwException, final @Nullable Object obj,
             final @Nullable String methodName, final Class<?> @Nullable [] argTypes,
@@ -301,8 +314,8 @@ public final class ReflectionUtils {
             }
         }
         try {
-            return reflectionDriver.invokeMethod(obj, reflectionDriver.findInstanceMethod(obj, methodName, argTypes),
-                    params);
+            return reflectionDriver.invokeMethod(obj,
+                    reflectionDriver.findInstanceMethod(obj, methodName, argTypes), params);
         } catch (final Throwable e) {
             if (throwException) {
                 throw new IllegalArgumentException("Method \"" + methodName + "\" could not be invoked", e);
@@ -312,18 +325,20 @@ public final class ReflectionUtils {
     }
 
     /**
-     * Invoke the named method. If an exception is thrown while trying to call the
-     * method, and throwException is true, then IllegalArgumentException is thrown
-     * wrapping the cause, otherwise this will return null. If passed a null class
-     * reference, returns null unless throwException is true, then throws
-     * IllegalArgumentException.
-     * 
-     * @param throwException Whether to throw an exception on failure.
-     * @param cls            The class.
-     * @param methodName     The method name.
-     * 
+     * Invoke the named method. If an exception is thrown while trying to call the method, and throwException is
+     * true, then IllegalArgumentException is thrown wrapping the cause, otherwise this will return null. If passed
+     * a null class reference, returns null unless throwException is true, then throws IllegalArgumentException.
+     *
+     * @param throwException
+     *            Whether to throw an exception on failure.
+     * @param cls
+     *            The class.
+     * @param methodName
+     *            The method name.
+     *
      * @return The result of the method invocation.
-     * @throws IllegalArgumentException If the method could not be invoked.
+     * @throws IllegalArgumentException
+     *             If the method could not be invoked.
      */
     public @Nullable Object invokeStaticMethod(final boolean throwException, final @Nullable Class<?> cls,
             final @Nullable String methodName) throws IllegalArgumentException {
@@ -348,20 +363,24 @@ public final class ReflectionUtils {
     }
 
     /**
-     * Invoke the named method. If an exception is thrown while trying to call the
-     * method, and throwException is true, then IllegalArgumentException is thrown
-     * wrapping the cause, otherwise this will return null. If passed a null class
-     * reference, returns null unless throwException is true, then throws
-     * IllegalArgumentException.
-     * 
-     * @param throwException Whether to throw an exception on failure.
-     * @param cls            The class.
-     * @param methodName     The method name.
-     * @param argType        The type of the method argument.
-     * @param param          The parameter value to use when invoking the method.
-     * 
+     * Invoke the named method. If an exception is thrown while trying to call the method, and throwException is
+     * true, then IllegalArgumentException is thrown wrapping the cause, otherwise this will return null. If passed
+     * a null class reference, returns null unless throwException is true, then throws IllegalArgumentException.
+     *
+     * @param throwException
+     *            Whether to throw an exception on failure.
+     * @param cls
+     *            The class.
+     * @param methodName
+     *            The method name.
+     * @param argType
+     *            The type of the method argument.
+     * @param param
+     *            The parameter value to use when invoking the method.
+     *
      * @return The result of the method invocation.
-     * @throws IllegalArgumentException If the method could not be invoked.
+     * @throws IllegalArgumentException
+     *             If the method could not be invoked.
      */
     public @Nullable Object invokeStaticMethod(final boolean throwException, final @Nullable Class<?> cls,
             final @Nullable String methodName, final @Nullable Class<?> argType, final @Nullable Object param)
@@ -389,10 +408,10 @@ public final class ReflectionUtils {
 
     /**
      * Call Class.forName(className), but return null if any exception is thrown.
-     * 
-     * @param className The class name to load.
-     * @return The class of the requested name, or null if an exception was thrown
-     *         while trying to load the class.
+     *
+     * @param className
+     *            The class name to load.
+     * @return The class of the requested name, or null if an exception was thrown while trying to load the class.
      */
     public @Nullable Class<?> classForNameOrNull(final String className) {
         if (reflectionDriver == null) {
@@ -408,10 +427,12 @@ public final class ReflectionUtils {
     /**
      * Get a static method by name, but return null if any exception is thrown.
      *
-     * @param className        The name of the class declaring the method.
-     * @param staticMethodName The name of the static method.
-     * @return The requested static method, or null if an exception was thrown while
-     *         trying to find the class or the method.
+     * @param className
+     *            The name of the class declaring the method.
+     * @param staticMethodName
+     *            The name of the static method.
+     * @return The requested static method, or null if an exception was thrown while trying to find the class or the
+     *         method.
      */
     public @Nullable Method staticMethodForNameOrNull(final String className, final String staticMethodName) {
         if (reflectionDriver == null) {
@@ -427,13 +448,16 @@ public final class ReflectionUtils {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Call a method in the AccessController.doPrivileged(PrivilegedAction) context,
-     * using reflection, if possible (AccessController is deprecated in JDK 17).
+     * Call a method in the AccessController.doPrivileged(PrivilegedAction) context, using reflection, if possible
+     * (AccessController is deprecated in JDK 17).
      *
-     * @param <T>      the return type of the callable
-     * @param callable the callable to invoke
+     * @param <T>
+     *            the return type of the callable
+     * @param callable
+     *            the callable to invoke
      * @return the value returned by the callable
-     * @throws Throwable if the callable throws.
+     * @throws Throwable
+     *             if the callable throws.
      */
     @SuppressWarnings("unchecked")
     public <T> T doPrivileged(final Callable<T> callable) throws Throwable {

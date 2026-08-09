@@ -38,14 +38,13 @@ import nonapi.io.github.classgraph.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A wrapper used to pair annotation parameter names with annotation parameter
- * values.
+ * A wrapper used to pair annotation parameter names with annotation parameter values.
  */
 public class AnnotationParameterValue extends ScanResultObject
         implements HasName, Comparable<AnnotationParameterValue> {
     /**
-     * The array element types that an {@code Object[]} annotation parameter value
-     * holding boxed values can be converted to.
+     * The array element types that an {@code Object[]} annotation parameter value holding boxed values can be
+     * converted to.
      */
     private static final Map<String, Class<?>> ARRAY_ELEMENT_TYPES = Map.of( //
             "int", int.class, //
@@ -67,8 +66,10 @@ public class AnnotationParameterValue extends ScanResultObject
     /**
      * Constructor.
      *
-     * @param name  The annotation parameter name.
-     * @param value The annotation parameter value.
+     * @param name
+     *            The annotation parameter name.
+     * @param value
+     *            The annotation parameter value.
      */
     AnnotationParameterValue(final String name, final @Nullable Object value) {
         super();
@@ -93,17 +94,15 @@ public class AnnotationParameterValue extends ScanResultObject
      *         <ul>
      *         <li>String for string constants
      *         <li>String[] for arrays of strings
-     *         <li>A boxed type, e.g. Integer or Character, for primitive-typed
-     *         constants
-     *         <li>A 1-dimensional primitive-typed array (i.e. int[], long[],
-     *         short[], char[], byte[], boolean[], float[], or double[]), for arrays
-     *         of primitives
-     *         <li>A 1-dimensional {@link Object}[] array for array types (and then
-     *         the array element type may be one of the types in this list)
-     *         <li>{@link AnnotationEnumValue}, for enum constants (this wraps the
-     *         enum class and the string name of the constant)
-     *         <li>{@link AnnotationClassRef}, for Class references within
-     *         annotations (this wraps the name of the referenced class)
+     *         <li>A boxed type, e.g. Integer or Character, for primitive-typed constants
+     *         <li>A 1-dimensional primitive-typed array (i.e. int[], long[], short[], char[], byte[], boolean[],
+     *         float[], or double[]), for arrays of primitives
+     *         <li>A 1-dimensional {@link Object}[] array for array types (and then the array element type may be
+     *         one of the types in this list)
+     *         <li>{@link AnnotationEnumValue}, for enum constants (this wraps the enum class and the string name of
+     *         the constant)
+     *         <li>{@link AnnotationClassRef}, for Class references within annotations (this wraps the name of the
+     *         referenced class)
      *         <li>{@link AnnotationInfo}, for nested annotations
      *         </ul>
      */
@@ -149,11 +148,12 @@ public class AnnotationParameterValue extends ScanResultObject
     }
 
     /**
-     * Set the {@link ScanResult} of an annotation parameter value, and of the
-     * elements of an array-typed value.
+     * Set the {@link ScanResult} of an annotation parameter value, and of the elements of an array-typed value.
      *
-     * @param value      the annotation parameter value
-     * @param scanResult the {@link ScanResult}
+     * @param value
+     *            the annotation parameter value
+     * @param scanResult
+     *            the {@link ScanResult}
      */
     private static void setScanResult(final @Nullable Object value, final @Nullable ScanResult scanResult) {
         if (value instanceof final ScanResultObject scanResultObject) {
@@ -166,11 +166,12 @@ public class AnnotationParameterValue extends ScanResultObject
     }
 
     /**
-     * Get {@link ClassInfo} objects for any classes referenced in the annotation
-     * parameters.
+     * Get {@link ClassInfo} objects for any classes referenced in the annotation parameters.
      *
-     * @param classNameToClassInfo the map from class name to {@link ClassInfo}.
-     * @param refdClassInfo        the referenced class info
+     * @param classNameToClassInfo
+     *            the map from class name to {@link ClassInfo}.
+     * @param refdClassInfo
+     *            the referenced class info
      */
     @Override
     void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
@@ -179,13 +180,17 @@ public class AnnotationParameterValue extends ScanResultObject
     }
 
     /**
-     * Get {@link ClassInfo} objects for any classes referenced in an annotation
-     * parameter value, or in the elements of an array-typed value.
+     * Get {@link ClassInfo} objects for any classes referenced in an annotation parameter value, or in the elements
+     * of an array-typed value.
      *
-     * @param value                the annotation parameter value
-     * @param classNameToClassInfo the map from class name to {@link ClassInfo}.
-     * @param refdClassInfo        the referenced class info
-     * @param log                  the log node, or null to skip logging
+     * @param value
+     *            the annotation parameter value
+     * @param classNameToClassInfo
+     *            the map from class name to {@link ClassInfo}.
+     * @param refdClassInfo
+     *            the referenced class info
+     * @param log
+     *            the log node, or null to skip logging
      */
     private static void findReferencedClassInfo(final @Nullable Object value,
             final Map<String, ClassInfo> classNameToClassInfo, final Set<ClassInfo> refdClassInfo,
@@ -209,11 +214,11 @@ public class AnnotationParameterValue extends ScanResultObject
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * For primitive array type params, replace Object[] arrays containing boxed
-     * types with primitive arrays (need to check the type of each method of the
-     * annotation class to determine if it is a primitive array type).
+     * For primitive array type params, replace Object[] arrays containing boxed types with primitive arrays (need
+     * to check the type of each method of the annotation class to determine if it is a primitive array type).
      *
-     * @param annotationClassInfo the annotation class info
+     * @param annotationClassInfo
+     *            the annotation class info
      */
     void convertWrapperArraysToPrimitiveArrays(final @Nullable ClassInfo annotationClassInfo) {
         if (value instanceof final AnnotationInfo annotationInfo) {
@@ -249,19 +254,19 @@ public class AnnotationParameterValue extends ScanResultObject
     }
 
     /**
-     * Get the name of the element type of an array-typed annotation parameter
-     * value.
+     * Get the name of the element type of an array-typed annotation parameter value.
      *
-     * @param arrayValue          the array-typed annotation parameter value
-     * @param annotationClassInfo the annotation class, or null if the annotation
-     *                            class was not scanned
+     * @param arrayValue
+     *            the array-typed annotation parameter value
+     * @param annotationClassInfo
+     *            the annotation class, or null if the annotation class was not scanned
      * @return the name of the array element type.
      */
-    private String getArrayValueTypeName(final Object[] arrayValue,
-            final @Nullable ClassInfo annotationClassInfo) {
+    private String getArrayValueTypeName(final Object[] arrayValue, final @Nullable ClassInfo annotationClassInfo) {
         // Find the method in the annotation class with the same name as the annotation
         // parameter.
-        final var annotationMethodList = annotationClassInfo == null || annotationClassInfo.methodInfo == null ? null
+        final var annotationMethodList = annotationClassInfo == null || annotationClassInfo.methodInfo == null
+                ? null
                 : annotationClassInfo.methodInfo.get(name);
         if (annotationClassInfo != null && annotationMethodList != null && !annotationMethodList.isEmpty()) {
             if (annotationMethodList.size() > 1) {
@@ -275,8 +280,9 @@ public class AnnotationParameterValue extends ScanResultObject
                     .getResultType();
             // The result type has to be an array type
             if (!(annotationMethodResultTypeSig instanceof final ArrayTypeSignature arrayTypeSig)) {
-                throw new IllegalArgumentException("Annotation parameter " + name + " in annotation class "
-                        + annotationClassInfo.getName() + " holds an array, but does not have an array type signature");
+                throw new IllegalArgumentException(
+                        "Annotation parameter " + name + " in annotation class " + annotationClassInfo.getName()
+                                + " holds an array, but does not have an array type signature");
             }
             if (arrayTypeSig.getNumDimensions() != 1) {
                 throw new IllegalArgumentException("Annotations only support 1-dimensional arrays");
@@ -398,12 +404,15 @@ public class AnnotationParameterValue extends ScanResultObject
     /**
      * Write an annotation parameter value's string representation to the buffer.
      *
-     * @param val            the value
-     * @param useSimpleNames if true, strip package and outer class names from class
-     *                       names
-     * @param buf            the buffer to append to
+     * @param val
+     *            the value
+     * @param useSimpleNames
+     *            if true, strip package and outer class names from class names
+     * @param buf
+     *            the buffer to append to
      */
-    private static void toString(final @Nullable Object val, final boolean useSimpleNames, final StringBuilder buf) {
+    private static void toString(final @Nullable Object val, final boolean useSimpleNames,
+            final StringBuilder buf) {
         if (val == null) {
             buf.append("null");
         } else if (val instanceof final ScanResultObject scanResultObject) {
@@ -416,9 +425,10 @@ public class AnnotationParameterValue extends ScanResultObject
     /**
      * To string, param value only.
      *
-     * @param useSimpleNames if true, strip package and outer class names from class
-     *                       names
-     * @param buf            the buffer to append to
+     * @param useSimpleNames
+     *            if true, strip package and outer class names from class names
+     * @param buf
+     *            the buffer to append to
      */
     void toStringParamValueOnly(final boolean useSimpleNames, final StringBuilder buf) {
         final var paramVal = value;
@@ -452,7 +462,7 @@ public class AnnotationParameterValue extends ScanResultObject
 
     /**
      * To string, param value only.
-     * 
+     *
      * @return the string.
      */
     private String toStringParamValueOnly() {

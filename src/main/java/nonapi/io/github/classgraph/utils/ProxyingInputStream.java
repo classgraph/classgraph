@@ -33,25 +33,24 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 /**
- * An {@link InputStream} that delegates every method to a wrapped
- * {@link InputStream}.
+ * An {@link InputStream} that delegates every method to a wrapped {@link InputStream}.
  */
 public class ProxyingInputStream extends InputStream {
     /** The wrapped {@link InputStream}. */
     private final InputStream inputStream;
 
     /**
-     * True once {@link #close()} has been called. Guards against closing the
-     * wrapped {@link InputStream} more than once, including re-entrantly, if a
-     * subclass' {@link #close()} method closes a resource that in turn closes this
-     * stream.
+     * True once {@link #close()} has been called. Guards against closing the wrapped {@link InputStream} more than
+     * once, including re-entrantly, if a subclass' {@link #close()} method closes a resource that in turn closes
+     * this stream.
      */
     private boolean closed;
 
     /**
      * Constructor.
      *
-     * @param inputStream the {@link InputStream} to wrap.
+     * @param inputStream
+     *            the {@link InputStream} to wrap.
      */
     public ProxyingInputStream(final InputStream inputStream) {
         this.inputStream = inputStream;

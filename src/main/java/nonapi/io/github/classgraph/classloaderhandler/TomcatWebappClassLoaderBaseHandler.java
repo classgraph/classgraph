@@ -46,15 +46,16 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
 
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
-        return classIsOrExtendsOrImplements(classLoaderClass,
-                "org.apache.catalina.loader.WebappClassLoaderBase");
+        return classIsOrExtendsOrImplements(classLoaderClass, "org.apache.catalina.loader.WebappClassLoaderBase");
     }
 
     /**
      * Return true if this classloader delegates to its parent.
-     * 
-     * @param classLoader     the {@link ClassLoader}.
-     * @param reflectionUtils the reflection utils instance.
+     *
+     * @param classLoader
+     *            the {@link ClassLoader}.
+     * @param reflectionUtils
+     *            the reflection utils instance.
      * @return true if this classloader delegates to its parent.
      */
     private static boolean isParentFirst(final ClassLoader classLoader, final ReflectionUtils reflectionUtils) {
@@ -163,9 +164,8 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
                             final var internalPath = (String) classpathOrder.reflectionUtils.invokeMethod(false,
                                     webResourceSet, "getInternalPath");
                             if (internalPath != null && !internalPath.isEmpty() && !"/".equals(internalPath)) {
-                                classpathOrder.addClasspathEntryObject(
-                                        base + (isJar ? "!" : "")
-                                                + (internalPath.startsWith("/") ? internalPath : "/" + internalPath),
+                                classpathOrder.addClasspathEntryObject(base + (isJar ? "!" : "")
+                                        + (internalPath.startsWith("/") ? internalPath : "/" + internalPath),
                                         classLoader, scanSpec, log);
                             } else {
                                 classpathOrder.addClasspathEntryObject(base, classLoader, scanSpec, log);
@@ -181,13 +181,11 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
     }
 
     /**
-     * Get the automatic package root prefixes for classpath elements obtained from
-     * this classloader.
+     * Get the automatic package root prefixes for classpath elements obtained from this classloader.
      *
      * <p>
-     * Tomcat serves classes from "WEB-INF/classes/" within a webapp, and from a
-     * "classes/" dir within $CATALINA_BASE, and does not always list these dirs as
-     * classpath elements.
+     * Tomcat serves classes from "WEB-INF/classes/" within a webapp, and from a "classes/" dir within
+     * $CATALINA_BASE, and does not always list these dirs as classpath elements.
      *
      * @return the package root prefixes.
      */

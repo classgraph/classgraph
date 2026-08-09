@@ -11,9 +11,8 @@ import org.junit.jupiter.api.Test;
 import io.github.classgraph.ClassGraph;
 
 /**
- * Test that queries that look "downwards" through the class hierarchy return
- * only accepted classes, whether or not the class the query starts from is
- * itself an external class.
+ * Test that queries that look "downwards" through the class hierarchy return only accepted classes, whether or not
+ * the class the query starts from is itself an external class.
  */
 public class Issue463Test {
     /** An annotation. */
@@ -60,8 +59,8 @@ public class Issue463Test {
     }
 
     /**
-     * Only {@code Leaf} is accepted, so {@code Mid}, {@code Base}, {@code Iface} and
-     * {@code Ann} are all external classes, reached by extending scanning upwards.
+     * Only {@code Leaf} is accepted, so {@code Mid}, {@code Base}, {@code Iface} and {@code Ann} are all external
+     * classes, reached by extending scanning upwards.
      */
     @Test
     public void downwardQueriesReturnOnlyAcceptedClasses() {
@@ -81,8 +80,7 @@ public class Issue463Test {
     }
 
     /**
-     * With external classes enabled, the same downward queries return the external
-     * classes too.
+     * With external classes enabled, the same downward queries return the external classes too.
      */
     @Test
     public void downwardQueriesReturnExternalClassesIfEnabled() {
@@ -98,10 +96,9 @@ public class Issue463Test {
     }
 
     /**
-     * An accepted class must still be found when the only path to it runs through an
-     * external class: {@code Leaf} inherits {@code @InheritedAnn} from the external
-     * class {@code Base}, and its field is annotated by the external annotation
-     * {@code FieldAnn}, which is meta-annotated by {@code MetaAnn}.
+     * An accepted class must still be found when the only path to it runs through an external class: {@code Leaf}
+     * inherits {@code @InheritedAnn} from the external class {@code Base}, and its field is annotated by the
+     * external annotation {@code FieldAnn}, which is meta-annotated by {@code MetaAnn}.
      */
     @Test
     public void acceptedClassesReachableOnlyThroughExternalClassesAreFound() {

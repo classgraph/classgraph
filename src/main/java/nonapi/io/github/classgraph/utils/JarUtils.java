@@ -44,9 +44,8 @@ import org.jspecify.annotations.Nullable;
  */
 public final class JarUtils {
     /**
-     * Check if a path has a URL scheme at the beginning. Require at least 2 chars
-     * in a URL scheme, so that Windows drive designations don't get treated as URL
-     * schemes.
+     * Check if a path has a URL scheme at the beginning. Require at least 2 chars in a URL scheme, so that Windows
+     * drive designations don't get treated as URL schemes.
      */
     public static final Pattern URL_SCHEME_PATTERN = Pattern.compile("[a-zA-Z][a-zA-Z0-9+\\-.]+[:].*");
 
@@ -69,9 +68,8 @@ public final class JarUtils {
     private static final Pattern DOUBLE_BACKSHLASH_WITH_COLON = Pattern.compile("\\\\:");
 
     /**
-     * On everything but Windows, where the path separator is ':', need to treat the
-     * colon in these substrings as non-separators, when at the beginning of the
-     * string or following a ':'.
+     * On everything but Windows, where the path separator is ':', need to treat the colon in these substrings as
+     * non-separators, when at the beginning of the string or following a ':'.
      */
     private static final String[] UNIX_NON_PATH_SEPARATORS = { //
             "jar:", "file:", "http://", "https://", //
@@ -87,8 +85,7 @@ public final class JarUtils {
     };
 
     /**
-     * The position of the colon characters in the corresponding
-     * UNIX_NON_PATH_SEPARATORS array entry.
+     * The position of the colon characters in the corresponding UNIX_NON_PATH_SEPARATORS array entry.
      */
     private static final int[] UNIX_NON_PATH_SEPARATOR_COLON_POSITIONS;
 
@@ -110,12 +107,13 @@ public final class JarUtils {
     }
 
     /**
-     * Split a path on File.pathSeparator (':' on Linux, ';' on Windows), but also
-     * allow for the use of URLs with protocol specifiers, e.g.
-     * "http://domain/jar1.jar:http://domain/jar2.jar".
+     * Split a path on File.pathSeparator (':' on Linux, ';' on Windows), but also allow for the use of URLs with
+     * protocol specifiers, e.g. "http://domain/jar1.jar:http://domain/jar2.jar".
      *
-     * @param pathStr  The path to split, or null.
-     * @param scanSpec the scan spec, or null
+     * @param pathStr
+     *            The path to split, or null.
+     * @param scanSpec
+     *            the scan spec, or null
      * @return The path element substrings.
      */
     public static String[] smartPathSplit(final @Nullable String pathStr, final @Nullable ScanSpec scanSpec) {
@@ -123,13 +121,15 @@ public final class JarUtils {
     }
 
     /**
-     * Split a path on the given separator char. If the separator char is ':', also
-     * allow for the use of URLs with protocol specifiers, e.g.
-     * "http://domain/jar1.jar:http://domain/jar2.jar".
+     * Split a path on the given separator char. If the separator char is ':', also allow for the use of URLs with
+     * protocol specifiers, e.g. "http://domain/jar1.jar:http://domain/jar2.jar".
      *
-     * @param pathStr       The path to split, or null.
-     * @param separatorChar The separator char to use.
-     * @param scanSpec      the scan spec, or null
+     * @param pathStr
+     *            The path to split, or null.
+     * @param separatorChar
+     *            The separator char to use.
+     * @param scanSpec
+     *            the scan spec, or null
      * @return The path element substrings.
      */
     public static String[] smartPathSplit(final @Nullable String pathStr, final char separatorChar,
@@ -223,8 +223,10 @@ public final class JarUtils {
     /**
      * Append a path element to a buffer.
      *
-     * @param pathElt the path element
-     * @param buf     the buffer to append to
+     * @param pathElt
+     *            the path element
+     * @param buf
+     *            the buffer to append to
      */
     private static void appendPathElt(final Object pathElt, final StringBuilder buf) {
         if (!buf.isEmpty()) {
@@ -246,12 +248,12 @@ public final class JarUtils {
     }
 
     /**
-     * Get a set of path elements as a string, from an array of objects (e.g. of
-     * String, File or URL type, whose toString() method will be called to get the
-     * path component), and return the path as a single string delineated with the
-     * standard path separator character.
-     * 
-     * @param pathElts The path elements.
+     * Get a set of path elements as a string, from an array of objects (e.g. of String, File or URL type, whose
+     * toString() method will be called to get the path component), and return the path as a single string
+     * delineated with the standard path separator character.
+     *
+     * @param pathElts
+     *            The path elements.
      * @return The delimited path formed out of the path elements.
      */
     public static String pathElementsToPathStr(final Object... pathElts) {
@@ -263,14 +265,13 @@ public final class JarUtils {
     }
 
     /**
-     * Get a set of path elements as a string, from an array of objects (e.g. of
-     * String, File or URL type, whose toString() method will be called to get the
-     * path component), and return the path as a single string delineated with the
-     * standard path separator character.
-     * 
-     * @param pathElts The path elements.
-     * @return The delimited path formed out of the path elements, after calling
-     *         each of their toString() methods.
+     * Get a set of path elements as a string, from an array of objects (e.g. of String, File or URL type, whose
+     * toString() method will be called to get the path component), and return the path as a single string
+     * delineated with the standard path separator character.
+     *
+     * @param pathElts
+     *            The path elements.
+     * @return The delimited path formed out of the path elements, after calling each of their toString() methods.
      */
     public static String pathElementsToPathStr(final Iterable<?> pathElts) {
         final StringBuilder buf = new StringBuilder();
@@ -283,37 +284,31 @@ public final class JarUtils {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Find the index of the outermost nested jar separator ('!') in a path, i.e.
-     * the '!' that separates the outermost jarfile from a path nested within it, or
-     * -1 if the path contains no nested jar separator.
+     * Find the index of the outermost nested jar separator ('!') in a path, i.e. the '!' that separates the
+     * outermost jarfile from a path nested within it, or -1 if the path contains no nested jar separator.
      *
      * <p>
-     * A '!' is not necessarily a separator -- it is a legal character in a file or
-     * directory name on every platform ClassGraph supports, and users do put it in
-     * their directory names. The {@link java.net.JarURLConnection} spec
-     * defines the separator as {@code "!/"}, and gives no way of escaping a literal
-     * '!' other than percent-encoding it as {@code %21} within the inner URL, so
-     * the separator cannot be identified by syntax alone: {@code /dir!/x.jar} is
-     * ambiguous between a jar {@code x.jar} in a directory named {@code dir!}, and
-     * an entry {@code x.jar} within a jarfile named {@code dir}.
+     * A '!' is not necessarily a separator -- it is a legal character in a file or directory name on every platform
+     * ClassGraph supports, and users do put it in their directory names. The {@link java.net.JarURLConnection} spec
+     * defines the separator as {@code "!/"}, and gives no way of escaping a literal '!' other than percent-encoding
+     * it as {@code %21} within the inner URL, so the separator cannot be identified by syntax alone:
+     * {@code /dir!/x.jar} is ambiguous between a jar {@code x.jar} in a directory named {@code dir!}, and an entry
+     * {@code x.jar} within a jarfile named {@code dir}.
      *
      * <p>
-     * That ambiguity is resolved here by testing the filesystem: the outermost '!'
-     * separator is the first '!' whose preceding path names an existing regular
-     * file (which must be the outermost jarfile). Every subsequent '!' is then a
-     * separator too, since only the last element of a '!'-delimited path may be a
-     * non-jar path. If no '!' is preceded by an existing file, the path contains no
-     * separator, and any '!' in it is a literal filename character.
+     * That ambiguity is resolved here by testing the filesystem: the outermost '!' separator is the first '!' whose
+     * preceding path names an existing regular file (which must be the outermost jarfile). Every subsequent '!' is
+     * then a separator too, since only the last element of a '!'-delimited path may be a non-jar path. If no '!' is
+     * preceded by an existing file, the path contains no separator, and any '!' in it is a literal filename
+     * character.
      *
      * <p>
-     * The filesystem cannot be consulted for non-{@code file:} URLs (e.g.
-     * {@code http:} jar URLs), so for those the old syntactic rule is retained, and
-     * the first '!' is taken to be the separator.
+     * The filesystem cannot be consulted for non-{@code file:} URLs (e.g. {@code http:} jar URLs), so for those the
+     * old syntactic rule is retained, and the first '!' is taken to be the separator.
      *
-     * @param path the path, with any {@code "jar:"} and {@code "file:"} scheme
-     *             prefixes already stripped.
-     * @return the index of the outermost nested jar separator, or -1 if there is
-     *         none.
+     * @param path
+     *            the path, with any {@code "jar:"} and {@code "file:"} scheme prefixes already stripped.
+     * @return the index of the outermost nested jar separator, or -1 if there is none.
      */
     // #903
     public static int indexOfNestedJarSeparator(final String path) {
@@ -343,15 +338,13 @@ public final class JarUtils {
     }
 
     /**
-     * Find the index of the innermost nested jar separator ('!') in a path, or -1
-     * if the path contains no nested jar separator. See
-     * {@link #indexOfNestedJarSeparator(String)} for how separators are
-     * distinguished from literal '!' characters in filenames.
+     * Find the index of the innermost nested jar separator ('!') in a path, or -1 if the path contains no nested
+     * jar separator. See {@link #indexOfNestedJarSeparator(String)} for how separators are distinguished from
+     * literal '!' characters in filenames.
      *
-     * @param path the path, with any {@code "jar:"} and {@code "file:"} scheme
-     *             prefixes already stripped.
-     * @return the index of the innermost nested jar separator, or -1 if there is
-     *         none.
+     * @param path
+     *            the path, with any {@code "jar:"} and {@code "file:"} scheme prefixes already stripped.
+     * @return the index of the innermost nested jar separator, or -1 if there is none.
      */
     // #903
     public static int lastIndexOfNestedJarSeparator(final String path) {
@@ -364,10 +357,10 @@ public final class JarUtils {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Returns the leafname of a path, after first stripping off everything after
-     * the first '!', if present.
-     * 
-     * @param path A file path.
+     * Returns the leafname of a path, after first stripping off everything after the first '!', if present.
+     *
+     * @param path
+     *            A file path.
      * @return The leafname of the path.
      */
     public static String leafName(final String path) {
@@ -392,7 +385,8 @@ public final class JarUtils {
     /**
      * Convert a classfile path to the corresponding class name.
      *
-     * @param classfilePath the classfile path
+     * @param classfilePath
+     *            the classfile path
      * @return the class name
      */
     public static String classfilePathToClassName(final String classfilePath) {
@@ -405,7 +399,8 @@ public final class JarUtils {
     /**
      * Convert a class name to the corresponding classfile path.
      *
-     * @param className the class name
+     * @param className
+     *            the class name
      * @return the classfile path
      */
     public static String classNameToClassfilePath(final String className) {
@@ -418,8 +413,9 @@ public final class JarUtils {
      * Derive automatic module name from jar name, using <a href=
      * "https://docs.oracle.com/javase/9/docs/api/java/lang/module/ModuleFinder.html#of-java.nio.file.Path...-">this
      * algorithm</a>.
-     * 
-     * @param jarPath The jar path.
+     *
+     * @param jarPath
+     *            The jar path.
      * @return The automatic module name.
      */
     public static String derivedAutomaticModuleName(final String jarPath) {

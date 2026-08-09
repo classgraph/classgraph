@@ -8,11 +8,10 @@ import org.junit.jupiter.api.Test;
 import io.github.classgraph.ClassGraph;
 
 /**
- * All accept/reject criteria and {@code getResourcesMatchingWildcard()} share a
- * single glob syntax: {@code '*'} matches zero or more characters within one
- * package or path segment, {@code "**"} (forming a complete segment) matches
- * zero or more whole segments, {@code '?'} matches exactly one character other
- * than the separator, and every other character is matched literally.
+ * All accept/reject criteria and {@code getResourcesMatchingWildcard()} share a single glob syntax: {@code '*'}
+ * matches zero or more characters within one package or path segment, {@code "**"} (forming a complete segment)
+ * matches zero or more whole segments, {@code '?'} matches exactly one character other than the separator, and
+ * every other character is matched literally.
  */
 public class GlobTest {
     /** The package containing the class name glob fixtures. */
@@ -54,10 +53,9 @@ public class GlobTest {
     }
 
     /**
-     * A character that is a regexp metacharacter but not a glob wildcard is matched
-     * literally. {@code '$'} occurs in the binary name of every inner class, and
-     * was previously copied into the regexp unescaped, where it acted as an
-     * end-of-input anchor and matched nothing.
+     * A character that is a regexp metacharacter but not a glob wildcard is matched literally. {@code '$'} occurs
+     * in the binary name of every inner class, and was previously copied into the regexp unescaped, where it acted
+     * as an end-of-input anchor and matched nothing.
      */
     @Test
     public void regexpMetacharactersInAClassNameGlobAreMatchedLiterally() {
@@ -71,9 +69,8 @@ public class GlobTest {
     }
 
     /**
-     * In a resource wildcard, {@code "**"} matches zero or more whole path
-     * segments -- including zero, so {@code "globtest/**&#47;a.txt"} matches
-     * {@code globtest/a.txt}.
+     * In a resource wildcard, {@code "**"} matches zero or more whole path segments -- including zero, so
+     * {@code "globtest/**&#47;a.txt"} matches {@code globtest/a.txt}.
      */
     @Test
     public void doubleAsteriskMatchesAnyNumberOfPathSegments() {

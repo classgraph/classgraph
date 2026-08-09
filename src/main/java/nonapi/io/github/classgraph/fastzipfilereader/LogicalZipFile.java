@@ -52,8 +52,7 @@ import nonapi.io.github.classgraph.utils.StringUtils;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A logical zipfile, which represents a zipfile contained within a ZipFileSlice
- * of a PhysicalZipFile.
+ * A logical zipfile, which represents a zipfile contained within a ZipFileSlice of a PhysicalZipFile.
  */
 public class LogicalZipFile extends ZipFileSlice {
     /** The zipfile entries. */
@@ -66,32 +65,27 @@ public class LogicalZipFile extends ZipFileSlice {
     Set<String> classpathRoots = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /**
-     * The value of the "Class-Path" manifest entry, if present in the manifest,
-     * else null.
+     * The value of the "Class-Path" manifest entry, if present in the manifest, else null.
      */
     public @Nullable String classPathManifestEntryValue;
 
     /**
-     * The value of the "Bundle-ClassPath" manifest entry, if present in the
-     * manifest, else null.
+     * The value of the "Bundle-ClassPath" manifest entry, if present in the manifest, else null.
      */
     public @Nullable String bundleClassPathManifestEntryValue;
 
     /**
-     * The value of the "Add-Exports" manifest entry, if present in the manifest,
-     * else null.
+     * The value of the "Add-Exports" manifest entry, if present in the manifest, else null.
      */
     public @Nullable String addExportsManifestEntryValue;
 
     /**
-     * The value of the "Add-Opens" manifest entry, if present in the manifest, else
-     * null.
+     * The value of the "Add-Opens" manifest entry, if present in the manifest, else null.
      */
     public @Nullable String addOpensManifestEntryValue;
 
     /**
-     * The value of the "Automatic-Module-Name" manifest entry, if present in the
-     * manifest, else null.
+     * The value of the "Automatic-Module-Name" manifest entry, if present in the manifest, else null.
      */
     public @Nullable String automaticModuleNameManifestEntryValue;
 
@@ -155,16 +149,22 @@ public class LogicalZipFile extends ZipFileSlice {
     /**
      * Construct a logical zipfile from a slice of a physical zipfile.
      *
-     * @param zipFileSlice               the zipfile slice
-     * @param nestedJarHandler           the nested jar handler
-     * @param log                        the log node, or null to skip logging
-     * @param enableMultiReleaseVersions if true, multi-release versions should not
-     *                                   be stripped from resource names
-     * @throws IOException          If an I/O exception occurs.
-     * @throws InterruptedException if the thread was interrupted.
+     * @param zipFileSlice
+     *            the zipfile slice
+     * @param nestedJarHandler
+     *            the nested jar handler
+     * @param log
+     *            the log node, or null to skip logging
+     * @param enableMultiReleaseVersions
+     *            if true, multi-release versions should not be stripped from resource names
+     * @throws IOException
+     *             If an I/O exception occurs.
+     * @throws InterruptedException
+     *             if the thread was interrupted.
      */
-    LogicalZipFile(final ZipFileSlice zipFileSlice, final NestedJarHandler nestedJarHandler, final @Nullable LogNode log,
-            final boolean enableMultiReleaseVersions) throws IOException, InterruptedException {
+    LogicalZipFile(final ZipFileSlice zipFileSlice, final NestedJarHandler nestedJarHandler,
+            final @Nullable LogNode log, final boolean enableMultiReleaseVersions)
+            throws IOException, InterruptedException {
         super(zipFileSlice);
         this.enableMultiReleaseVersions = enableMultiReleaseVersions;
         readCentralDirectory(nestedJarHandler, log);
@@ -173,13 +173,14 @@ public class LogicalZipFile extends ZipFileSlice {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Extract a value from the manifest, and return the value as a string, along
-     * with the index after the terminating newline. Manifest files support three
-     * different line terminator types, and entries can be split across lines with a
-     * line terminator followed by a space.
+     * Extract a value from the manifest, and return the value as a string, along with the index after the
+     * terminating newline. Manifest files support three different line terminator types, and entries can be split
+     * across lines with a line terminator followed by a space.
      *
-     * @param manifest the manifest bytes
-     * @param startIdx the start index of the manifest value
+     * @param manifest
+     *            the manifest bytes
+     * @param startIdx
+     *            the start index of the manifest value
      * @return the manifest value
      */
     private static Entry<String, Integer> getManifestValue(final byte[] manifest, final int startIdx) {
@@ -244,7 +245,8 @@ public class LogicalZipFile extends ZipFileSlice {
     /**
      * Manifest key to bytes.
      *
-     * @param key the manifest key
+     * @param key
+     *            the manifest key
      * @return the manifest key bytes, lowercased.
      */
     private static byte[] manifestKeyToBytes(final String key) {
@@ -258,9 +260,12 @@ public class LogicalZipFile extends ZipFileSlice {
     /**
      * Key matches at position.
      *
-     * @param manifest the manifest
-     * @param key      the key
-     * @param pos      the position to try matching
+     * @param manifest
+     *            the manifest
+     * @param key
+     *            the key
+     * @param pos
+     *            the position to try matching
      * @return true if the key matches at this position
      */
     private static boolean keyMatchesAtPosition(final byte[] manifest, final byte[] key, final int pos) {
@@ -279,10 +284,14 @@ public class LogicalZipFile extends ZipFileSlice {
     /**
      * Parse the manifest entry of a zipfile.
      *
-     * @param manifestZipEntry the manifest zip entry
-     * @param log              the log node, or null to skip logging
-     * @throws IOException          If an I/O exception occurs.
-     * @throws InterruptedException If the thread was interrupted.
+     * @param manifestZipEntry
+     *            the manifest zip entry
+     * @param log
+     *            the log node, or null to skip logging
+     * @throws IOException
+     *             If an I/O exception occurs.
+     * @throws InterruptedException
+     *             If the thread was interrupted.
      */
     private void parseManifest(final FastZipEntry manifestZipEntry, final @Nullable LogNode log)
             throws IOException, InterruptedException {
@@ -299,14 +308,16 @@ public class LogicalZipFile extends ZipFileSlice {
                 skip = true;
 
             } else if (keyMatchesAtPosition(manifest, IMPLEMENTATION_TITLE_KEY, i)) {
-                final var manifestValueAndEndIdx = getManifestValue(manifest, i + IMPLEMENTATION_TITLE_KEY.length + 1);
+                final var manifestValueAndEndIdx = getManifestValue(manifest,
+                        i + IMPLEMENTATION_TITLE_KEY.length + 1);
                 if ("Java Runtime Environment".equalsIgnoreCase(manifestValueAndEndIdx.getKey())) {
                     isJREJar = true;
                 }
                 i = manifestValueAndEndIdx.getValue();
 
             } else if (keyMatchesAtPosition(manifest, SPECIFICATION_TITLE_KEY, i)) {
-                final var manifestValueAndEndIdx = getManifestValue(manifest, i + SPECIFICATION_TITLE_KEY.length + 1);
+                final var manifestValueAndEndIdx = getManifestValue(manifest,
+                        i + SPECIFICATION_TITLE_KEY.length + 1);
                 if ("Java Platform API Specification".equalsIgnoreCase(manifestValueAndEndIdx.getKey())) {
                     isJREJar = true;
                 }
@@ -331,7 +342,8 @@ public class LogicalZipFile extends ZipFileSlice {
                 i = manifestValueAndEndIdx.getValue();
 
             } else if (keyMatchesAtPosition(manifest, SPRING_BOOT_CLASSES_KEY, i)) {
-                final var manifestValueAndEndIdx = getManifestValue(manifest, i + SPRING_BOOT_CLASSES_KEY.length + 1);
+                final var manifestValueAndEndIdx = getManifestValue(manifest,
+                        i + SPRING_BOOT_CLASSES_KEY.length + 1);
                 final var springBootClassesFieldVal = manifestValueAndEndIdx.getKey();
                 if (!"BOOT-INF/classes".equals(springBootClassesFieldVal)
                         && !"BOOT-INF/classes/".equals(springBootClassesFieldVal)
@@ -379,7 +391,8 @@ public class LogicalZipFile extends ZipFileSlice {
                 i = manifestValueAndEndIdx.getValue();
 
             } else if (keyMatchesAtPosition(manifest, AUTOMATIC_MODULE_NAME_KEY, i)) {
-                final var manifestValueAndEndIdx = getManifestValue(manifest, i + AUTOMATIC_MODULE_NAME_KEY.length + 1);
+                final var manifestValueAndEndIdx = getManifestValue(manifest,
+                        i + AUTOMATIC_MODULE_NAME_KEY.length + 1);
                 automaticModuleNameManifestEntryValue = manifestValueAndEndIdx.getKey();
                 if (log != null) {
                     log.log("Found Automatic-Module-Name entry in manifest file: "
@@ -397,7 +410,8 @@ public class LogicalZipFile extends ZipFileSlice {
                 // Field key didn't match -- skip to next key (after next newline that is not
                 // followed by a space)
                 for (; i < manifest.length - 2; i++) {
-                    if (manifest[i] == (byte) '\r' && manifest[i + 1] == (byte) '\n' && manifest[i + 2] != (byte) ' ') {
+                    if (manifest[i] == (byte) '\r' && manifest[i + 1] == (byte) '\n'
+                            && manifest[i + 2] != (byte) ' ') {
                         i += 2;
                         break;
                     } else if ((manifest[i] == (byte) '\r' || manifest[i] == (byte) '\n')
@@ -417,11 +431,15 @@ public class LogicalZipFile extends ZipFileSlice {
 
     /**
      * Read the central directory of the zipfile.
-     * 
-     * @param nestedJarHandler the nested jar handler
-     * @param log              the log node, or null to skip logging
-     * @throws IOException          If an I/O exception occurs.
-     * @throws InterruptedException if the thread was interrupted.
+     *
+     * @param nestedJarHandler
+     *            the nested jar handler
+     * @param log
+     *            the log node, or null to skip logging
+     * @throws IOException
+     *             If an I/O exception occurs.
+     * @throws InterruptedException
+     *             if the thread was interrupted.
      */
     @SuppressWarnings("resource")
     private void readCentralDirectory(final NestedJarHandler nestedJarHandler, final @Nullable LogNode log)
@@ -568,8 +586,8 @@ public class LogicalZipFile extends ZipFileSlice {
             for (var entOff = 0L; entOff + 46 <= cenSize;) {
                 final var sig = cenReader.readUnsignedInt(entOff);
                 if (sig != 0x02014b50L) {
-                    throw new IOException("Invalid central directory signature: 0x" + Integer.toString((int) sig, 16)
-                            + ": " + getPath());
+                    throw new IOException("Invalid central directory signature: 0x"
+                            + Integer.toString((int) sig, 16) + ": " + getPath());
                 }
                 final var filenameLen = cenReader.readUnsignedShort(entOff + 28);
                 final var extraFieldLen = cenReader.readUnsignedShort(entOff + 30);
@@ -602,8 +620,8 @@ public class LogicalZipFile extends ZipFileSlice {
             for (var entOff = 0L; entOff + 46 <= cenSize; entOff += entSize) {
                 final var sig = cenReader.readUnsignedInt(entOff);
                 if (sig != 0x02014b50L) {
-                    throw new IOException("Invalid central directory signature: 0x" + Integer.toString((int) sig, 16)
-                            + ": " + getPath());
+                    throw new IOException("Invalid central directory signature: 0x"
+                            + Integer.toString((int) sig, 16) + ": " + getPath());
                 }
                 final var filenameLen = cenReader.readUnsignedShort(entOff + 28);
                 final var extraFieldLen = cenReader.readUnsignedShort(entOff + 30);
@@ -731,8 +749,8 @@ public class LogicalZipFile extends ZipFileSlice {
                                 try {
                                     entryNameSanitized = cenReader.readString(tagOff + 9, size - 5);
                                 } catch (final IllegalArgumentException e) {
-                                    throw new IOException(
-                                            "Malformed extended Unicode entry name for entry: " + entryNameSanitized);
+                                    throw new IOException("Malformed extended Unicode entry name for entry: "
+                                            + entryNameSanitized);
                                 }
                             }
                         }
@@ -823,7 +841,8 @@ public class LogicalZipFile extends ZipFileSlice {
                 }
                 final List<Integer> versionsFoundSorted = new ArrayList<>(versionsFound);
                 CollectionUtils.sortIfNotEmpty(versionsFoundSorted);
-                log.log("This is a multi-release jar, with versions: " + StringUtils.join(", ", versionsFoundSorted));
+                log.log("This is a multi-release jar, with versions: "
+                        + StringUtils.join(", ", versionsFoundSorted));
             }
 
             // Sort in decreasing order of version in preparation for version masking

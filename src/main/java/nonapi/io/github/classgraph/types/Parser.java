@@ -55,9 +55,11 @@ public class Parser {
 
     /**
      * Construct a parser.
-     * 
-     * @param string The string to parse.
-     * @throws ParseException If the string was null.
+     *
+     * @param string
+     *            The string to parse.
+     * @throws ParseException
+     *             If the string was null.
      */
     public Parser(final String string) throws ParseException {
         if (string == null) {
@@ -80,10 +82,10 @@ public class Parser {
     }
 
     /**
-     * Set the "state object" from the parser (can be used to parse state between
-     * parser functions).
-     * 
-     * @param state The state object.
+     * Set the "state object" from the parser (can be used to parse state between parser functions).
+     *
+     * @param state
+     *            The state object.
      * @return The old value of the state object.
      */
     public @Nullable Object setState(final @Nullable Object state) {
@@ -93,9 +95,8 @@ public class Parser {
     }
 
     /**
-     * Get the "state object" from the parser (can be used to parse state between
-     * parser functions).
-     * 
+     * Get the "state object" from the parser (can be used to parse state between parser functions).
+     *
      * @return The current value of the state object.
      */
     public @Nullable Object getState() {
@@ -104,9 +105,10 @@ public class Parser {
 
     /**
      * Get the next character.
-     * 
+     *
      * @return The next character.
-     * @throws ParseException If there were no more characters in the string.
+     * @throws ParseException
+     *             If there were no more characters in the string.
      */
     public char getc() throws ParseException {
         if (position >= string.length()) {
@@ -117,9 +119,11 @@ public class Parser {
 
     /**
      * Expect the next character.
-     * 
-     * @param expectedChar The expected character.
-     * @throws ParseException If the next character was not the expected character.
+     *
+     * @param expectedChar
+     *            The expected character.
+     * @throws ParseException
+     *             If the next character was not the expected character.
      */
     public void expect(final char expectedChar) throws ParseException {
         final int next = getc();
@@ -138,12 +142,13 @@ public class Parser {
     }
 
     /**
-     * Get the next character, throwing a {@link ParseException} if the next
-     * character is not the expected character.
-     * 
-     * @param expectedChar The expected next character.
-     * @throws ParseException If the next character is not the expected next
-     *                        character.
+     * Get the next character, throwing a {@link ParseException} if the next character is not the expected
+     * character.
+     *
+     * @param expectedChar
+     *            The expected next character.
+     * @throws ParseException
+     *             If the next character is not the expected next character.
      */
     public void peekExpect(final char expectedChar) throws ParseException {
         if (position == string.length()) {
@@ -157,11 +162,10 @@ public class Parser {
 
     /**
      * Peek operator that can look ahead several characters.
-     * 
-     * @param strMatch The string to compare, starting at the current position, as a
-     *                 "peek" operation.
-     * @return True if the strMatch matches a substring of the remaining string
-     *         starting at the current position.
+     *
+     * @param strMatch
+     *            The string to compare, starting at the current position, as a "peek" operation.
+     * @return True if the strMatch matches a substring of the remaining string starting at the current position.
      */
     public boolean peekMatches(final String strMatch) {
         return string.regionMatches(position, strMatch, 0, strMatch.length());
@@ -176,10 +180,11 @@ public class Parser {
 
     /**
      * Advance numChars character positions.
-     * 
-     * @param numChars The number of character positions to advance.
-     * @throws IllegalArgumentException If there are insufficient characters
-     *                                  remaining in the string.
+     *
+     * @param numChars
+     *            The number of character positions to advance.
+     * @throws IllegalArgumentException
+     *             If there are insufficient characters remaining in the string.
      */
     public void advance(final int numChars) {
         // Advancing to exactly the end of the string is valid -- peek() and hasMore()
@@ -213,9 +218,11 @@ public class Parser {
 
     /**
      * Set the position of the parser within the string.
-     * 
-     * @param position The position to move to.
-     * @throws IllegalArgumentException If the position is out of range.
+     *
+     * @param position
+     *            The position to move to.
+     * @throws IllegalArgumentException
+     *             If the position is out of range.
      */
     public void setPosition(final int position) {
         // The end-of-string position is valid, since that is the position getPosition()
@@ -231,9 +238,11 @@ public class Parser {
 
     /**
      * Return a subsequence of the input string.
-     * 
-     * @param startPosition The start position.
-     * @param endPosition   The end position.
+     *
+     * @param startPosition
+     *            The start position.
+     * @param endPosition
+     *            The end position.
      * @return The subsequence.
      */
     public CharSequence getSubsequence(final int startPosition, final int endPosition) {
@@ -242,9 +251,11 @@ public class Parser {
 
     /**
      * Return a substring of the input string.
-     * 
-     * @param startPosition The start position.
-     * @param endPosition   The end position.
+     *
+     * @param startPosition
+     *            The start position.
+     * @param endPosition
+     *            The end position.
      * @return The substring.
      */
     public String getSubstring(final int startPosition, final int endPosition) {
@@ -253,8 +264,9 @@ public class Parser {
 
     /**
      * Append the given string to the token buffer.
-     * 
-     * @param str The string to append.
+     *
+     * @param str
+     *            The string to append.
      */
     public void appendToToken(final String str) {
         token.append(str);
@@ -262,8 +274,9 @@ public class Parser {
 
     /**
      * Append the given character to the token buffer.
-     * 
-     * @param c The character to append.
+     *
+     * @param c
+     *            The character to append.
      */
     public void appendToToken(final char c) {
         token.append(c);
@@ -285,7 +298,7 @@ public class Parser {
 
     /**
      * Get the current token, and reset the token to empty.
-     * 
+     *
      * @return The current token. Resets the current token to empty.
      */
     public String currToken() {

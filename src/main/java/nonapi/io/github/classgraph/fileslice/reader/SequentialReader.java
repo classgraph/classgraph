@@ -36,7 +36,8 @@ public interface SequentialReader {
      * Read a byte at the current cursor position.
      *
      * @return The byte at the current cursor position.
-     * @throws IOException If there was an exception while reading.
+     * @throws IOException
+     *             If there was an exception while reading.
      */
     byte readByte() throws IOException;
 
@@ -44,7 +45,8 @@ public interface SequentialReader {
      * Read an unsigned byte at the current cursor position.
      *
      * @return The unsigned byte at the current cursor position.
-     * @throws IOException If there was an exception while reading.
+     * @throws IOException
+     *             If there was an exception while reading.
      */
     int readUnsignedByte() throws IOException;
 
@@ -52,7 +54,8 @@ public interface SequentialReader {
      * Read a short at the current cursor position.
      *
      * @return The short at the current cursor position.
-     * @throws IOException If there was an exception while reading.
+     * @throws IOException
+     *             If there was an exception while reading.
      */
     short readShort() throws IOException;
 
@@ -60,7 +63,8 @@ public interface SequentialReader {
      * Read a unsigned short at the current cursor position.
      *
      * @return The unsigned short at the current cursor position.
-     * @throws IOException If there was an exception while reading.
+     * @throws IOException
+     *             If there was an exception while reading.
      */
     int readUnsignedShort() throws IOException;
 
@@ -68,7 +72,8 @@ public interface SequentialReader {
      * Read a int at the current cursor position.
      *
      * @return The int at the current cursor position.
-     * @throws IOException If there was an exception while reading.
+     * @throws IOException
+     *             If there was an exception while reading.
      */
     int readInt() throws IOException;
 
@@ -76,38 +81,43 @@ public interface SequentialReader {
      * Read a unsigned int at the current cursor position.
      *
      * @return The int at the current cursor position, as a long.
-     * @throws IOException If there was an exception while reading.
+     * @throws IOException
+     *             If there was an exception while reading.
      */
     long readUnsignedInt() throws IOException;
 
     /**
      * Read a long at the current cursor position.
-     * 
+     *
      * @return The long at the current cursor position.
-     * @throws IOException If there was an exception while reading.
+     * @throws IOException
+     *             If there was an exception while reading.
      */
     long readLong() throws IOException;
 
     /**
      * Skip the given number of bytes.
-     * 
-     * @param bytesToSkip The number of bytes to skip.
-     * @throws IOException If there was an exception while reading.
+     *
+     * @param bytesToSkip
+     *            The number of bytes to skip.
+     * @throws IOException
+     *             If there was an exception while reading.
      */
     void skip(final int bytesToSkip) throws IOException;
 
     /**
-     * Reads the "modified UTF8" format defined in the Java classfile spec,
-     * optionally replacing '/' with '.', and optionally removing the prefix "L" and
-     * the suffix ";".
+     * Reads the "modified UTF8" format defined in the Java classfile spec, optionally replacing '/' with '.', and
+     * optionally removing the prefix "L" and the suffix ";".
      *
-     * @param numBytes            The number of bytes of the UTF8 encoding of the
-     *                            string.
-     * @param replaceSlashWithDot If true, replace '/' with '.'.
-     * @param stripLSemicolon     If true, strip the leading 'L' and the final ';'
-     *                            character.
+     * @param numBytes
+     *            The number of bytes of the UTF8 encoding of the string.
+     * @param replaceSlashWithDot
+     *            If true, replace '/' with '.'.
+     * @param stripLSemicolon
+     *            If true, strip the leading 'L' and the final ';' character.
      * @return The string.
-     * @throws IOException If an I/O exception occurs.
+     * @throws IOException
+     *             If an I/O exception occurs.
      */
     String readString(final int numBytes, final boolean replaceSlashWithDot, final boolean stripLSemicolon)
             throws IOException;
@@ -115,9 +125,11 @@ public interface SequentialReader {
     /**
      * Reads the "modified UTF8" format defined in the Java classfile spec.
      *
-     * @param numBytes The number of bytes of the UTF8 encoding of the string.
+     * @param numBytes
+     *            The number of bytes of the UTF8 encoding of the string.
      * @return The string.
-     * @throws IOException If an I/O exception occurs.
+     * @throws IOException
+     *             If an I/O exception occurs.
      */
     String readString(final int numBytes) throws IOException;
 }

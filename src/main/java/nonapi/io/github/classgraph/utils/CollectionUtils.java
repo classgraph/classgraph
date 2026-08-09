@@ -47,13 +47,14 @@ public final class CollectionUtils {
     }
 
     /**
-     * Sort a collection if it is not empty (to prevent
-     * {@link ConcurrentModificationException} if an immutable empty list that has
-     * been returned more than once is being sorted in one thread and iterated
-     * through in another thread).
+     * Sort a collection if it is not empty (to prevent {@link ConcurrentModificationException} if an immutable
+     * empty list that has been returned more than once is being sorted in one thread and iterated through in
+     * another thread).
      *
-     * @param <T>  the element type
-     * @param list the list
+     * @param <T>
+     *            the element type
+     * @param list
+     *            the list
      */
     // #334
     public static <T extends Comparable<? super T>> void sortIfNotEmpty(final List<T> list) {
@@ -63,14 +64,16 @@ public final class CollectionUtils {
     }
 
     /**
-     * Sort a collection if it is not empty (to prevent
-     * {@link ConcurrentModificationException} if an immutable empty list that has
-     * been returned more than once is being sorted in one thread and iterated
-     * through in another thread).
+     * Sort a collection if it is not empty (to prevent {@link ConcurrentModificationException} if an immutable
+     * empty list that has been returned more than once is being sorted in one thread and iterated through in
+     * another thread).
      *
-     * @param <T>        the element type (which may be a nullable type)
-     * @param list       the list
-     * @param comparator the comparator
+     * @param <T>
+     *            the element type (which may be a nullable type)
+     * @param list
+     *            the list
+     * @param comparator
+     *            the comparator
      */
     // #334
     public static <T extends @Nullable Object> void sortIfNotEmpty(final List<T> list,
@@ -83,8 +86,10 @@ public final class CollectionUtils {
     /**
      * Copy and sort a collection.
      *
-     * @param <T>  the element type
-     * @param elts the collection to copy and sort
+     * @param <T>
+     *            the element type
+     * @param elts
+     *            the collection to copy and sort
      * @return a sorted copy of the collection
      */
     public static <T extends Comparable<T>> List<T> sortCopy(final Collection<T> elts) {

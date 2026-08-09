@@ -17,23 +17,19 @@ import io.github.classgraph.MethodInfo;
 import io.github.classgraph.TypeSignature;
 
 /**
- * A type annotation on a parameter of a non-static inner class
- * constructor must be attached to the source-declared parameter, not to the
- * compiler-generated leading enclosing-instance parameter -- and must not throw
- * "Ran out of nested types while trying to add type annotation".
+ * A type annotation on a parameter of a non-static inner class constructor must be attached to the source-declared
+ * parameter, not to the compiler-generated leading enclosing-instance parameter -- and must not throw "Ran out of
+ * nested types while trying to add type annotation".
  *
  * <p>
- * The {@code formal_parameter_index} of a type annotation is counted from the
- * first parameter declared in source code, but the constructor's type
- * descriptor has an extra leading parameter for the enclosing instance. Since
- * the annotated parameter type ({@code Inner2}) is itself an inner class, the
- * (mis-)applied annotation used to overflow the nesting of the unrelated
- * enclosing-instance parameter type.
+ * The {@code formal_parameter_index} of a type annotation is counted from the first parameter declared in source
+ * code, but the constructor's type descriptor has an extra leading parameter for the enclosing instance. Since the
+ * annotated parameter type ({@code Inner2}) is itself an inner class, the (mis-)applied annotation used to overflow
+ * the nesting of the unrelated enclosing-instance parameter type.
  */
 public class Issue897Test {
     /**
-     * Inner class whose constructor has an annotated parameter that is itself an
-     * inner class.
+     * Inner class whose constructor has an annotated parameter that is itself an inner class.
      */
     private class Inner1 {
         @SuppressWarnings("unused")
@@ -46,12 +42,10 @@ public class Issue897Test {
     }
 
     /**
-     * Generic inner class: its constructor has a generic {@code Signature}, so the
-     * implicit enclosing-instance parameter is detected by comparing the descriptor
-     * and signature parameter counts. This exercises the implicit-prefix
-     * strip/restore path, which previously threw
-     * {@link java.util.ConcurrentModificationException} on a direct
-     * {@link MethodInfo#getTypeDescriptor()} call.
+     * Generic inner class: its constructor has a generic {@code Signature}, so the implicit enclosing-instance
+     * parameter is detected by comparing the descriptor and signature parameter counts. This exercises the
+     * implicit-prefix strip/restore path, which previously threw {@link java.util.ConcurrentModificationException}
+     * on a direct {@link MethodInfo#getTypeDescriptor()} call.
      */
     private class Inner3<T> {
         @SuppressWarnings("unused")
@@ -65,8 +59,7 @@ public class Issue897Test {
     }
 
     /**
-     * Collect the names of all type annotations on a type signature, including
-     * those on nested suffixes.
+     * Collect the names of all type annotations on a type signature, including those on nested suffixes.
      */
     private static List<String> typeAnnotationNames(final TypeSignature typeSignature) {
         final List<String> names = new ArrayList<>();
@@ -94,9 +87,8 @@ public class Issue897Test {
     }
 
     /**
-     * Test that the type annotation is attached to the source-declared parameter of
-     * the {@code Inner1} constructor, rather than crashing or being misattached to
-     * the compiler-generated enclosing-instance parameter.
+     * Test that the type annotation is attached to the source-declared parameter of the {@code Inner1} constructor,
+     * rather than crashing or being misattached to the compiler-generated enclosing-instance parameter.
      */
     @Test
     public void annotationOnInnerClassConstructor() {
@@ -133,13 +125,11 @@ public class Issue897Test {
     }
 
     /**
-     * Test that a constructor of a <i>generic</i> inner class can be decorated
-     * without throwing. The implicit enclosing-instance parameter is detected here
-     * via the descriptor/signature parameter-count difference, and a direct
-     * {@link MethodInfo#getTypeDescriptor()} call previously threw
-     * {@link java.util.ConcurrentModificationException} because the implicit-prefix
-     * strip/restore used a {@link java.util.List#subList} view that was invalidated
-     * by mutation of the backing list.
+     * Test that a constructor of a <i>generic</i> inner class can be decorated without throwing. The implicit
+     * enclosing-instance parameter is detected here via the descriptor/signature parameter-count difference, and a
+     * direct {@link MethodInfo#getTypeDescriptor()} call previously threw
+     * {@link java.util.ConcurrentModificationException} because the implicit-prefix strip/restore used a
+     * {@link java.util.List#subList} view that was invalidated by mutation of the backing list.
      */
     @Test
     public void annotationOnGenericInnerClassConstructor() {

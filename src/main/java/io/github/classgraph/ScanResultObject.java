@@ -37,8 +37,7 @@ import nonapi.io.github.classgraph.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A superclass of objects accessible from a {@link ScanResult} that are
- * associated with a {@link ClassInfo} object.
+ * A superclass of objects accessible from a {@link ScanResult} that are associated with a {@link ClassInfo} object.
  */
 abstract class ScanResultObject {
     /** The scan result. */
@@ -58,19 +57,20 @@ abstract class ScanResultObject {
     /**
      * Set ScanResult backreferences in info objects after scan has completed.
      *
-     * @param scanResult the scan result
+     * @param scanResult
+     *            the scan result
      */
     void setScanResult(final @Nullable ScanResult scanResult) {
         this.scanResult = scanResult;
     }
 
     /**
-     * Get the {@link ScanResult} this object was obtained from, for use in code
-     * paths that can only be reached through a completed scan.
+     * Get the {@link ScanResult} this object was obtained from, for use in code paths that can only be reached
+     * through a completed scan.
      *
      * @return the scan result
-     * @throws NullPointerException if the scan result has not been set (i.e. if
-     *                              this object was created outside a scan).
+     * @throws NullPointerException
+     *             if the scan result has not been set (i.e. if this object was created outside a scan).
      */
     final ScanResult scanResult() {
         return Objects.requireNonNull(scanResult);
@@ -79,7 +79,8 @@ abstract class ScanResultObject {
     /**
      * Get {@link ClassInfo} objects for any classes referenced by this object.
      *
-     * @param log the log node, or null to skip logging
+     * @param log
+     *            the log node, or null to skip logging
      * @return the referenced class info.
      */
     final Set<ClassInfo> findReferencedClassInfo(final @Nullable LogNode log) {
@@ -93,9 +94,12 @@ abstract class ScanResultObject {
     /**
      * Get {@link ClassInfo} objects for any classes referenced by this object.
      *
-     * @param classNameToClassInfo the map from class name to {@link ClassInfo}.
-     * @param refdClassInfo        the referenced class info
-     * @param log                  the log node, or null to skip logging
+     * @param classNameToClassInfo
+     *            the map from class name to {@link ClassInfo}.
+     * @param refdClassInfo
+     *            the referenced class info
+     * @param log
+     *            the log node, or null to skip logging
      */
     void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
             final Set<ClassInfo> refdClassInfo, final @Nullable LogNode log) {
@@ -108,17 +112,15 @@ abstract class ScanResultObject {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * The name of the class (used by {@code getClassInfo()} to fetch the
-     * {@link ClassInfo} object for the class).
-     * 
+     * The name of the class (used by {@code getClassInfo()} to fetch the {@link ClassInfo} object for the class).
+     *
      * @return The class name.
      */
     protected abstract @Nullable String getClassName();
 
     /**
-     * Get the {@link ClassInfo} object for the referenced class, or null if the
-     * referenced class was not encountered during scanning (i.e. no ClassInfo
-     * object was created for the class during scanning).
+     * Get the {@link ClassInfo} object for the referenced class, or null if the referenced class was not
+     * encountered during scanning (i.e. no ClassInfo object was created for the class during scanning).
      *
      * @return The {@link ClassInfo} object for the referenced class.
      */
@@ -142,17 +144,18 @@ abstract class ScanResultObject {
     /**
      * Render to string.
      *
-     * @param useSimpleNames if true, strip package and outer class names from class
-     *                       names
-     * @param buf            the buffer to append to
+     * @param useSimpleNames
+     *            if true, strip package and outer class names from class names
+     * @param buf
+     *            the buffer to append to
      */
     protected abstract void toString(final boolean useSimpleNames, StringBuilder buf);
 
     /**
      * Render to string, with simple names for classes if useSimpleNames is true.
      *
-     * @param useSimpleNames if true, strip package and outer class names from class
-     *                       names
+     * @param useSimpleNames
+     *            if true, strip package and outer class names from class names
      * @return the string representation.
      */
     String toString(final boolean useSimpleNames) {

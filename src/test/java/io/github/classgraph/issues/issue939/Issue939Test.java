@@ -20,17 +20,14 @@ import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /**
- * {@code Unsafe::invokeCleaner}, which was used to unmap
- * {@code MappedByteBuffer}s, is terminally deprecated (JDK 24+ warns when it is
- * called, and it will be removed in a future JDK release). On JDK 22+,
- * ClassGraph now allocates and memory-maps {@code ByteBuffer}s using the
- * {@code java.lang.foreign.Arena} API, and frees/unmaps them by closing the
- * arena that created them.
+ * {@code Unsafe::invokeCleaner}, which was used to unmap {@code MappedByteBuffer}s, is terminally deprecated (JDK
+ * 24+ warns when it is called, and it will be removed in a future JDK release). On JDK 22+, ClassGraph now
+ * allocates and memory-maps {@code ByteBuffer}s using the {@code java.lang.foreign.Arena} API, and frees/unmaps
+ * them by closing the arena that created them.
  */
 public class Issue939Test {
     /**
-     * Scanning a jar with memory mapping enabled works on all JDK versions (via an
-     * arena on JDK 22+).
+     * Scanning a jar with memory mapping enabled works on all JDK versions (via an arena on JDK 22+).
      */
     @Test
     public void scanJarWithMemoryMappingEnabled() {
@@ -43,8 +40,7 @@ public class Issue939Test {
     }
 
     /**
-     * On JDK 22+, a direct {@link ByteBuffer} can be allocated from an arena and
-     * freed by closing the arena.
+     * On JDK 22+, a direct {@link ByteBuffer} can be allocated from an arena and freed by closing the arena.
      */
     @Test
     public void arenaAllocateAndFree() {
@@ -65,8 +61,7 @@ public class Issue939Test {
     }
 
     /**
-     * On JDK 22+, a file can be memory-mapped using an arena and unmapped by
-     * closing the arena.
+     * On JDK 22+, a file can be memory-mapped using an arena and unmapped by closing the arena.
      */
     @Test
     public void arenaMapAndUnmapFile(@TempDir final Path tempDir) throws IOException {

@@ -5,12 +5,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.Test;
 
 /**
- * {@link FieldInfo#toString()} escaped a single quote in a {@code char}
- * constant initializer value with {@code replaceAll("'", "\\'")}. In a
- * {@code replaceAll} replacement string, a backslash escapes the character that
- * follows it, so that replaced a single quote with a single quote, i.e. it did
- * nothing. The {@code String} branch alongside it correctly uses
- * {@link String#replace(CharSequence, CharSequence)}, which is literal.
+ * {@link FieldInfo#toString()} escaped a single quote in a {@code char} constant initializer value with
+ * {@code replaceAll("'", "\\'")}. In a {@code replaceAll} replacement string, a backslash escapes the character
+ * that follows it, so that replaced a single quote with a single quote, i.e. it did nothing. The {@code String}
+ * branch alongside it correctly uses {@link String#replace(CharSequence, CharSequence)}, which is literal.
  */
 public class FieldConstantCharEscapingTest {
     /** Constants whose values need escaping when rendered as Java char literals. */
@@ -23,8 +21,7 @@ public class FieldConstantCharEscapingTest {
     }
 
     /**
-     * Single quotes and backslashes in char constant initializer values are
-     * escaped.
+     * Single quotes and backslashes in char constant initializer values are escaped.
      */
     @Test
     public void charConstantsAreEscaped() {

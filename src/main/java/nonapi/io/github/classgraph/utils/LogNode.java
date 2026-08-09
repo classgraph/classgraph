@@ -44,9 +44,8 @@ import io.github.classgraph.ClassGraph;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A tree-structured threadsafe log that allows you to add log entries in
- * arbitrary order, and have the output retain a sane order. The order may also
- * be made deterministic by specifying a sort key for log entries.
+ * A tree-structured threadsafe log that allows you to add log entries in arbitrary order, and have the output
+ * retain a sane order. The order may also be made deterministic by specifying a sort key for log entries.
  */
 public final class LogNode {
     // Mitigate log4j2 vulnerability (CVE-2021-44228), in case log4j is added to the
@@ -67,8 +66,7 @@ public final class LogNode {
     private static final Logger log = Logger.getLogger(ClassGraph.class.getName());
 
     /**
-     * The timestamp at which the log node was created (relative to some arbitrary
-     * system timepoint).
+     * The timestamp at which the log node was created (relative to some arbitrary system timepoint).
      */
     private final long timeStampNano = System.nanoTime();
 
@@ -82,8 +80,7 @@ public final class LogNode {
     private @Nullable String stackTrace;
 
     /**
-     * The time between when this log entry was created and addElapsedTime() was
-     * called.
+     * The time between when this log entry was created and addElapsedTime() was called.
      */
     private long elapsedTimeNanos;
 
@@ -107,31 +104,34 @@ public final class LogNode {
     private static final DecimalFormat nanoFormatter = new DecimalFormat("0.000000");
 
     /**
-     * If true, log entries are output in realtime, as well as added to the LogNode
-     * tree.
+     * If true, log entries are output in realtime, as well as added to the LogNode tree.
      */
     private static boolean logInRealtime;
 
     /**
-     * If logInRealtime is true, log entries are output in realtime, as well as
-     * added to the LogNode tree. This can help debug situations where log info is
-     * never shown, e.g. deadlocks, or where you need to show the log info right up
-     * to the point where you hit a breakpoint.
+     * If logInRealtime is true, log entries are output in realtime, as well as added to the LogNode tree. This can
+     * help debug situations where log info is never shown, e.g. deadlocks, or where you need to show the log info
+     * right up to the point where you hit a breakpoint.
      *
-     * @param logInRealtime whether to log in realtime
+     * @param logInRealtime
+     *            whether to log in realtime
      */
     public static void logInRealtime(final boolean logInRealtime) {
         LogNode.logInRealtime = logInRealtime;
     }
 
     /**
-     * Create a non-toplevel log node. The order may also be made deterministic by
-     * specifying a sort key for log entries.
+     * Create a non-toplevel log node. The order may also be made deterministic by specifying a sort key for log
+     * entries.
      *
-     * @param sortKey          the sort key
-     * @param msg              the log message
-     * @param elapsedTimeNanos the elapsed time in nanos
-     * @param exception        the exception that was thrown
+     * @param sortKey
+     *            the sort key
+     * @param msg
+     *            the log message
+     * @param elapsedTimeNanos
+     *            the elapsed time in nanos
+     * @param exception
+     *            the exception that was thrown
      */
     private LogNode(final String sortKey, final @Nullable String msg, final long elapsedTimeNanos,
             final @Nullable Throwable exception) {
@@ -161,22 +161,25 @@ public final class LogNode {
      * Log the Java version and the Java home directory.
      */
     private void logJavaInfo() {
-        log("Operating system: " + VersionFinder.getProperty("os.name") + " " + VersionFinder.getProperty("os.version")
-                + " " + VersionFinder.getProperty("os.arch"));
+        log("Operating system: " + VersionFinder.getProperty("os.name") + " "
+                + VersionFinder.getProperty("os.version") + " " + VersionFinder.getProperty("os.arch"));
         log("Java version: " + VersionFinder.getProperty("java.version") + " / "
-                + VersionFinder.getProperty("java.runtime.version") + " (" + VersionFinder.getProperty("java.vendor")
-                + ")");
+                + VersionFinder.getProperty("java.runtime.version") + " ("
+                + VersionFinder.getProperty("java.vendor") + ")");
         log("Java home: " + VersionFinder.getProperty("java.home"));
     }
 
     /**
-     * Append a line to the log output, indenting this log entry according to tree
-     * structure.
+     * Append a line to the log output, indenting this log entry according to tree structure.
      *
-     * @param timeStampStr the timestamp string
-     * @param indentLevel  the indent level
-     * @param line         the line to log
-     * @param buf          the buffer to append to
+     * @param timeStampStr
+     *            the timestamp string
+     * @param indentLevel
+     *            the indent level
+     * @param line
+     *            the line to log
+     * @param buf
+     *            the buffer to append to
      */
     private void appendLine(final String timeStampStr, final int indentLevel, final String line,
             final StringBuilder buf) {
@@ -198,8 +201,10 @@ public final class LogNode {
     /**
      * Recursively build the log output.
      *
-     * @param indentLevel the indent level
-     * @param buf         the buffer to append to
+     * @param indentLevel
+     *            the indent level
+     * @param buf
+     *            the buffer to append to
      */
     private void toString(final int indentLevel, final StringBuilder buf) {
         final var cal = Calendar.getInstance();
@@ -211,7 +216,8 @@ public final class LogNode {
 
         if (msg != null && !msg.isEmpty()) {
             appendLine(timeStampStr, indentLevel,
-                    elapsedTimeNanos > 0L ? msg + " (took " + nanoFormatter.format(elapsedTimeNanos * 1e-9) + " sec)" //
+                    elapsedTimeNanos > 0L
+                            ? msg + " (took " + nanoFormatter.format(elapsedTimeNanos * 1e-9) + " sec)" //
                             : msg,
                     buf);
         }
@@ -243,8 +249,8 @@ public final class LogNode {
     }
 
     /**
-     * Call this once the work corresponding with a given log entry has completed if
-     * you want to show the time taken after the log entry.
+     * Call this once the work corresponding with a given log entry has completed if you want to show the time taken
+     * after the log entry.
      */
     public void addElapsedTime() {
         elapsedTimeNanos = System.nanoTime() - timeStampNano;
@@ -253,10 +259,14 @@ public final class LogNode {
     /**
      * Add a child log node.
      *
-     * @param sortKey          the sort key
-     * @param msg              the log message
-     * @param elapsedTimeNanos the elapsed time in nanos
-     * @param exception        the exception that was thrown
+     * @param sortKey
+     *            the sort key
+     * @param msg
+     *            the log message
+     * @param elapsedTimeNanos
+     *            the elapsed time in nanos
+     * @param exception
+     *            the exception that was thrown
      * @return the log node
      */
     private LogNode addChild(final String sortKey, final @Nullable String msg, final long elapsedTimeNanos,
@@ -276,9 +286,12 @@ public final class LogNode {
     /**
      * Add a child log node for a message.
      *
-     * @param sortKey          the sort key
-     * @param msg              the log message
-     * @param elapsedTimeNanos the elapsed time in nanos
+     * @param sortKey
+     *            the sort key
+     * @param msg
+     *            the log message
+     * @param elapsedTimeNanos
+     *            the elapsed time in nanos
      * @return the log node
      */
     private LogNode addChild(final String sortKey, final @Nullable String msg, final long elapsedTimeNanos) {
@@ -288,7 +301,8 @@ public final class LogNode {
     /**
      * Add a child log node for an exception.
      *
-     * @param exception the exception that was thrown
+     * @param exception
+     *            the exception that was thrown
      * @return the log node
      */
     private LogNode addChild(final Throwable exception) {
@@ -297,11 +311,15 @@ public final class LogNode {
 
     /**
      * Add a log entry with sort key for deterministic ordering.
-     * 
-     * @param sortKey          The sort key for the log entry.
-     * @param msg              The message.
-     * @param elapsedTimeNanos The elapsed time.
-     * @param e                The {@link Throwable} that was thrown.
+     *
+     * @param sortKey
+     *            The sort key for the log entry.
+     * @param msg
+     *            The message.
+     * @param elapsedTimeNanos
+     *            The elapsed time.
+     * @param e
+     *            The {@link Throwable} that was thrown.
      * @return a child log node, which can be used to add sub-entries.
      */
     public LogNode log(final String sortKey, final @Nullable String msg, final long elapsedTimeNanos,
@@ -311,10 +329,13 @@ public final class LogNode {
 
     /**
      * Add a log entry with sort key for deterministic ordering.
-     * 
-     * @param sortKey          The sort key for the log entry.
-     * @param msg              The message.
-     * @param elapsedTimeNanos The elapsed time.
+     *
+     * @param sortKey
+     *            The sort key for the log entry.
+     * @param msg
+     *            The message.
+     * @param elapsedTimeNanos
+     *            The elapsed time.
      * @return a child log node, which can be used to add sub-entries.
      */
     public LogNode log(final String sortKey, final @Nullable String msg, final long elapsedTimeNanos) {
@@ -323,10 +344,13 @@ public final class LogNode {
 
     /**
      * Add a log entry with sort key for deterministic ordering.
-     * 
-     * @param sortKey The sort key for the log entry.
-     * @param msg     The message.
-     * @param e       The {@link Throwable} that was thrown.
+     *
+     * @param sortKey
+     *            The sort key for the log entry.
+     * @param msg
+     *            The message.
+     * @param e
+     *            The {@link Throwable} that was thrown.
      * @return a child log node, which can be used to add sub-entries.
      */
     public LogNode log(final String sortKey, final @Nullable String msg, final Throwable e) {
@@ -335,9 +359,11 @@ public final class LogNode {
 
     /**
      * Add a log entry with sort key for deterministic ordering.
-     * 
-     * @param sortKey The sort key for the log entry.
-     * @param msg     The message.
+     *
+     * @param sortKey
+     *            The sort key for the log entry.
+     * @param msg
+     *            The message.
      * @return a child log node, which can be used to add sub-entries.
      */
     public LogNode log(final String sortKey, final @Nullable String msg) {
@@ -346,10 +372,13 @@ public final class LogNode {
 
     /**
      * Add a log entry.
-     * 
-     * @param msg              The message.
-     * @param elapsedTimeNanos The elapsed time.
-     * @param e                The {@link Throwable} that was thrown.
+     *
+     * @param msg
+     *            The message.
+     * @param elapsedTimeNanos
+     *            The elapsed time.
+     * @param e
+     *            The {@link Throwable} that was thrown.
      * @return a child log node, which can be used to add sub-entries.
      */
     public LogNode log(final @Nullable String msg, final long elapsedTimeNanos, final Throwable e) {
@@ -359,8 +388,10 @@ public final class LogNode {
     /**
      * Add a log entry.
      *
-     * @param msg              The message.
-     * @param elapsedTimeNanos The elapsed time.
+     * @param msg
+     *            The message.
+     * @param elapsedTimeNanos
+     *            The elapsed time.
      * @return a child log node, which can be used to add sub-entries.
      */
     public LogNode log(final @Nullable String msg, final long elapsedTimeNanos) {
@@ -369,9 +400,11 @@ public final class LogNode {
 
     /**
      * Add a log entry.
-     * 
-     * @param msg The message.
-     * @param e   The {@link Throwable} that was thrown.
+     *
+     * @param msg
+     *            The message.
+     * @param e
+     *            The {@link Throwable} that was thrown.
      * @return a child log node, which can be used to add sub-entries.
      */
     public LogNode log(final @Nullable String msg, final Throwable e) {
@@ -380,8 +413,9 @@ public final class LogNode {
 
     /**
      * Add a log entry.
-     * 
-     * @param msg The message.
+     *
+     * @param msg
+     *            The message.
      * @return a child log node, which can be used to add sub-entries.
      */
     public LogNode log(final @Nullable String msg) {
@@ -390,10 +424,10 @@ public final class LogNode {
 
     /**
      * Add a series of log entries. Returns the last LogNode created.
-     * 
-     * @param msgs The messages.
-     * @return the last log node created, which can be used to add sub-entries, or
-     *         null if {@code msgs} was empty.
+     *
+     * @param msgs
+     *            The messages.
+     * @return the last log node created, which can be used to add sub-entries, or null if {@code msgs} was empty.
      */
     public @Nullable LogNode log(final Collection<String> msgs) {
         LogNode last = null;
@@ -405,8 +439,9 @@ public final class LogNode {
 
     /**
      * Add a log entry.
-     * 
-     * @param e The {@link Throwable} that was thrown.
+     *
+     * @param e
+     *            The {@link Throwable} that was thrown.
      * @return a child log node, which can be used to add sub-entries.
      */
     public LogNode log(final Throwable e) {
@@ -414,10 +449,9 @@ public final class LogNode {
     }
 
     /**
-     * Flush out the log to stderr, and clear the log contents. Only call this on
-     * the toplevel log node, when threads do not have access to references of
-     * internal log nodes so that they cannot add more log entries inside the tree,
-     * otherwise log entries may be lost.
+     * Flush out the log to stderr, and clear the log contents. Only call this on the toplevel log node, when
+     * threads do not have access to references of internal log nodes so that they cannot add more log entries
+     * inside the tree, otherwise log entries may be lost.
      */
     public void flush() {
         if (parent != null) {

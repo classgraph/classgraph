@@ -10,22 +10,17 @@ import org.junit.jupiter.api.Test;
 import io.github.classgraph.ClassGraph;
 
 /**
- * The first part of {@link io.github.classgraph.issues.issue673.Issue673Test}
- * failed intermittently, because the classpath element for {@code b.zip} could
- * be created either by the work unit for the toplevel classpath entry
- * {@code b.zip}, or by the work unit for the {@code Class-Path} manifest entry
- * of {@code a.zip} that also points at {@code b.zip}, whichever won the race to
- * the classpath element singleton map. Only the winner's position in the
- * classpath order was recorded, so if the manifest entry won, {@code b.zip} was
- * ordered as a child of {@code a.zip} rather than as the first toplevel
- * classpath element.
+ * The first part of {@link io.github.classgraph.issues.issue673.Issue673Test} failed intermittently, because the
+ * classpath element for {@code b.zip} could be created either by the work unit for the toplevel classpath entry
+ * {@code b.zip}, or by the work unit for the {@code Class-Path} manifest entry of {@code a.zip} that also points at
+ * {@code b.zip}, whichever won the race to the classpath element singleton map. Only the winner's position in the
+ * classpath order was recorded, so if the manifest entry won, {@code b.zip} was ordered as a child of {@code a.zip}
+ * rather than as the first toplevel classpath element.
  *
  * <p>
- * The race is timing-dependent (it was reported on Windows and Mac OS X), and
- * cannot be forced, so repeating the scan here does not reliably reproduce the
- * wrong order -- this is an end-to-end smoke test of the classpath order. The
- * precedence rule that the fix depends on is tested directly, and
- * deterministically, in
+ * The race is timing-dependent (it was reported on Windows and Mac OS X), and cannot be forced, so repeating the
+ * scan here does not reliably reproduce the wrong order -- this is an end-to-end smoke test of the classpath order.
+ * The precedence rule that the fix depends on is tested directly, and deterministically, in
  * {@code io.github.classgraph.ClasspathElementReferenceTest}.
  */
 class Issue810Test {

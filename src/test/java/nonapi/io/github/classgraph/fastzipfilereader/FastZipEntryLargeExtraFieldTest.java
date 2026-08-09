@@ -15,15 +15,13 @@ import org.junit.jupiter.api.io.TempDir;
 import io.github.classgraph.ClassGraph;
 
 /**
- * Tests that a zip entry whose local header declares an extra field longer than
- * {@link Short#MAX_VALUE} bytes can still be read.
+ * Tests that a zip entry whose local header declares an extra field longer than {@link Short#MAX_VALUE} bytes can
+ * still be read.
  *
  * <p>
- * The filename length and extra field length in a zip local header are unsigned
- * 16-bit values. They used to be read with {@code readShort()}, which
- * sign-extends, so a length of 32768 or more was read as a negative number, and
- * the computed start position of the entry's data pointed before the local
- * header instead of after it.
+ * The filename length and extra field length in a zip local header are unsigned 16-bit values. They used to be read
+ * with {@code readShort()}, which sign-extends, so a length of 32768 or more was read as a negative number, and the
+ * computed start position of the entry's data pointed before the local header instead of after it.
  */
 public class FastZipEntryLargeExtraFieldTest {
     /** The contents of the test resource. */
@@ -33,8 +31,8 @@ public class FastZipEntryLargeExtraFieldTest {
     private static final int EXTRA_FIELD_LEN = 40000;
 
     /**
-     * Build an extra field with a single unknown-tag header block, which
-     * {@link ZipEntry#setExtra(byte[])} accepts and passes through unchanged.
+     * Build an extra field with a single unknown-tag header block, which {@link ZipEntry#setExtra(byte[])} accepts
+     * and passes through unchanged.
      *
      * @return the extra field bytes
      */

@@ -75,8 +75,8 @@ public class Issue350Test {
                     .containsOnly(Pub.class.getName(), PubSub.class.getName());
         }
         try (var scanResult = new ClassGraph().acceptPackages(Issue350Test.class.getPackage().getName())
-                .enableClassInfo().enableFieldInfo().enableMethodInfo().enableAnnotationInfo().ignoreFieldVisibility()
-                .ignoreMethodVisibility().scan()) {
+                .enableClassInfo().enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .ignoreFieldVisibility().ignoreMethodVisibility().scan()) {
             assertThat(scanResult.getClassesWithFieldAnnotation(SuperclassAnnotation.class).getNames())
                     .containsOnly(Pub.class.getName(), PubSub.class.getName(), Priv.class.getName());
             assertThat(scanResult.getClassesWithMethodAnnotation(SuperclassAnnotation.class).getNames())

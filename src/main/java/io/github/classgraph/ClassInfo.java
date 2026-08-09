@@ -73,9 +73,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     private boolean isRecord;
 
     /**
-     * This annotation has the {@link Inherited} meta-annotation, which means that
-     * any class that this annotation is applied to also implicitly causes the
-     * annotation to annotate all subclasses too.
+     * This annotation has the {@link Inherited} meta-annotation, which means that any class that this annotation is
+     * applied to also implicitly causes the annotation to annotate all subclasses too.
      */
     boolean isInherited;
 
@@ -101,30 +100,31 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     private @Nullable String fullyQualifiedDefiningMethodName;
 
     /**
-     * If true, this class is only being referenced by another class' classfile as a
-     * superclass / implemented interface / annotation, but this class is not itself
-     * an accepted (non-rejected) class, or in a accepted (non-rejected) package.
+     * If true, this class is only being referenced by another class' classfile as a superclass / implemented
+     * interface / annotation, but this class is not itself an accepted (non-rejected) class, or in a accepted
+     * (non-rejected) package.
      *
-     * If false, this classfile was matched during scanning (i.e. its classfile
-     * contents read), i.e. this class is a accepted (and non-rejected) class in an
-     * accepted (and non-rejected) package.
+     * If false, this classfile was matched during scanning (i.e. its classfile contents read), i.e. this class is a
+     * accepted (and non-rejected) class in an accepted (and non-rejected) package.
      */
     protected boolean isExternalClass = true;
 
     /**
-     * Set to true when the class is actually scanned (as opposed to just referenced
-     * as a superclass, interface or annotation of a scanned class).
+     * Set to true when the class is actually scanned (as opposed to just referenced as a superclass, interface or
+     * annotation of a scanned class).
      */
     protected boolean isScannedClass;
 
     /** The classpath element that this class was found within. */
-    @Nullable ClasspathElement classpathElement;
+    @Nullable
+    ClasspathElement classpathElement;
 
     /** The {@link Resource} for the classfile of this class. */
     protected @Nullable Resource classfileResource;
 
     /** The classloader this class was obtained from. */
-    @Nullable ClassLoader classLoader;
+    @Nullable
+    ClassLoader classLoader;
 
     /** Info on the class module. */
     @Nullable
@@ -153,24 +153,24 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * The type annotation decorators for the {@link ClassTypeSignature} instance.
      */
-    @Nullable List<ClassTypeAnnotationDecorator> typeAnnotationDecorators;
+    @Nullable
+    List<ClassTypeAnnotationDecorator> typeAnnotationDecorators;
 
     /**
-     * Names of classes referenced by this class in class refs and type signatures
-     * in the constant pool of the classfile.
+     * Names of classes referenced by this class in class refs and type signatures in the constant pool of the
+     * classfile.
      */
     private @Nullable Set<String> referencedClassNames;
 
     /**
-     * A list of ClassInfo objects for classes referenced by this class. Derived
-     * from {@link #referencedClassNames} when the relevant {@link ClassInfo}
-     * objects are created.
+     * A list of ClassInfo objects for classes referenced by this class. Derived from {@link #referencedClassNames}
+     * when the relevant {@link ClassInfo} objects are created.
      */
     private @Nullable ClassInfoList referencedClasses;
 
     /**
-     * Set to true once any Object[] arrays of boxed types in
-     * annotationDefaultParamValues have been lazily converted to primitive arrays.
+     * Set to true once any Object[] arrays of boxed types in annotationDefaultParamValues have been lazily
+     * converted to primitive arrays.
      */
     boolean annotationDefaultParamValuesHasBeenConvertedToPrimitive;
 
@@ -178,14 +178,13 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     private Map<RelType, Set<ClassInfo>> relatedClasses;
 
     /**
-     * The override order for a class' fields or methods (base class, followed by
-     * interfaces, followed by superclasses).
+     * The override order for a class' fields or methods (base class, followed by interfaces, followed by
+     * superclasses).
      */
     private @Nullable List<ClassInfo> overrideOrder;
 
     /**
-     * The override order for a class' methods (base class, followed by
-     * superclasses, followed by interfaces).
+     * The override order for a class' methods (base class, followed by superclasses, followed by interfaces).
      */
     private @Nullable List<ClassInfo> methodOverrideOrder;
 
@@ -201,11 +200,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     private static final int ANNOTATION_CLASS_MODIFIER = 0x2000;
 
     /**
-     * The {@code ACC_SUPER} bit of a classfile's {@code access_flags} field. This
-     * selects the JVM's treatment of the {@code invokespecial} instruction, and has
-     * no counterpart in {@link Modifier} -- the same bit value is
-     * {@link Modifier#SYNCHRONIZED}, which is not a legal class modifier. It is
-     * masked out of the value returned by {@link #getModifiers()}.
+     * The {@code ACC_SUPER} bit of a classfile's {@code access_flags} field. This selects the JVM's treatment of
+     * the {@code invokespecial} instruction, and has no counterpart in {@link Modifier} -- the same bit value is
+     * {@link Modifier#SYNCHRONIZED}, which is not a legal class modifier. It is masked out of the value returned by
+     * {@link #getModifiers()}.
      */
     // #791
     private static final int ACC_SUPER = 0x0020;
@@ -219,12 +217,14 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Constructor.
      *
-     * @param name              the name
-     * @param classModifiers    the class modifiers
-     * @param classfileResource the classfile resource
+     * @param name
+     *            the name
+     * @param classModifiers
+     *            the class modifiers
+     * @param classfileResource
+     *            the classfile resource
      */
-    protected ClassInfo(final String name, final int classModifiers,
-            final @Nullable Resource classfileResource) {
+    protected ClassInfo(final String name, final int classModifiers, final @Nullable Resource classfileResource) {
         super();
         this.name = name;
         if (name.endsWith(";")) {
@@ -252,8 +252,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
          * Superclasses of this class, if this is a regular class.
          *
          * <p>
-         * (Should consist of only one entry, or be empty if this is an interface, or is
-         * {@code java.lang.Object} itself.)
+         * (Should consist of only one entry, or be empty if this is an interface, or is {@code java.lang.Object}
+         * itself.)
          */
         SUPERCLASSES,
 
@@ -264,34 +264,31 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         CONTAINS_INNER_CLASS,
 
         /**
-         * Indicates that an outer class contains this one. (Should only have zero or
-         * one entries.)
+         * Indicates that an outer class contains this one. (Should only have zero or one entries.)
          */
         CONTAINED_WITHIN_OUTER_CLASS,
 
         // Interfaces:
 
         /**
-         * Interfaces that this class implements, if this is a regular class, or
-         * superinterfaces, if this is an interface.
+         * Interfaces that this class implements, if this is a regular class, or superinterfaces, if this is an
+         * interface.
          *
          * <p>
-         * (May also include annotations, since annotations are interfaces, so you can
-         * implement an annotation.)
+         * (May also include annotations, since annotations are interfaces, so you can implement an annotation.)
          */
         IMPLEMENTED_INTERFACES,
 
         /**
-         * Classes that implement this interface (including sub-interfaces), if this is
-         * an interface.
+         * Classes that implement this interface (including sub-interfaces), if this is an interface.
          */
         CLASSES_IMPLEMENTING,
 
         // Class annotations:
 
         /**
-         * Annotations on this class, if this is a regular class, or meta-annotations on
-         * this annotation, if this is an annotation.
+         * Annotations on this class, if this is a regular class, or meta-annotations on this annotation, if this is
+         * an annotation.
          */
         CLASS_ANNOTATIONS,
 
@@ -304,14 +301,13 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         METHOD_ANNOTATIONS,
 
         /**
-         * Classes that have one or more methods annotated with this annotation, if this
-         * is an annotation.
+         * Classes that have one or more methods annotated with this annotation, if this is an annotation.
          */
         CLASSES_WITH_METHOD_ANNOTATION,
 
         /**
-         * Classes that have one or more non-private (inherited) methods annotated with
-         * this annotation, if this is an annotation.
+         * Classes that have one or more non-private (inherited) methods annotated with this annotation, if this is
+         * an annotation.
          */
         CLASSES_WITH_NONPRIVATE_METHOD_ANNOTATION,
 
@@ -319,14 +315,14 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         METHOD_PARAMETER_ANNOTATIONS,
 
         /**
-         * Classes that have one or more methods that have one or more parameters
-         * annotated with this annotation, if this is an annotation.
+         * Classes that have one or more methods that have one or more parameters annotated with this annotation, if
+         * this is an annotation.
          */
         CLASSES_WITH_METHOD_PARAMETER_ANNOTATION,
 
         /**
-         * Classes that have one or more non-private (inherited) methods that have one
-         * or more parameters annotated with this annotation, if this is an annotation.
+         * Classes that have one or more non-private (inherited) methods that have one or more parameters annotated
+         * with this annotation, if this is an annotation.
          */
         CLASSES_WITH_NONPRIVATE_METHOD_PARAMETER_ANNOTATION,
 
@@ -336,24 +332,24 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         FIELD_ANNOTATIONS,
 
         /**
-         * Classes that have one or more fields annotated with this annotation, if this
-         * is an annotation.
+         * Classes that have one or more fields annotated with this annotation, if this is an annotation.
          */
         CLASSES_WITH_FIELD_ANNOTATION,
 
         /**
-         * Classes that have one or more non-private (inherited) fields annotated with
-         * this annotation, if this is an annotation.
+         * Classes that have one or more non-private (inherited) fields annotated with this annotation, if this is
+         * an annotation.
          */
         CLASSES_WITH_NONPRIVATE_FIELD_ANNOTATION,
     }
 
     /**
-     * Add a class with a given relationship type. Return whether the collection
-     * changed as a result of the call.
+     * Add a class with a given relationship type. Return whether the collection changed as a result of the call.
      *
-     * @param relType   the {@link RelType}
-     * @param classInfo the {@link ClassInfo}
+     * @param relType
+     *            the {@link RelType}
+     * @param classInfo
+     *            the {@link ClassInfo}
      * @return true, if successful
      */
     boolean addRelatedClass(final RelType relType, final ClassInfo classInfo) {
@@ -363,15 +359,17 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get a ClassInfo object, or create it if it doesn't exist. N.B. not
-     * threadsafe, so ClassInfo objects should only ever be constructed by a single
-     * thread.
+     * Get a ClassInfo object, or create it if it doesn't exist. N.B. not threadsafe, so ClassInfo objects should
+     * only ever be constructed by a single thread.
      *
-     * @param className            the class name
-     * @param classNameToClassInfo the map from class name to class info
+     * @param className
+     *            the class name
+     * @param classNameToClassInfo
+     *            the map from class name to class info
      * @return the {@link ClassInfo} object.
      */
-    static ClassInfo getOrCreateClassInfo(final String className, final Map<String, ClassInfo> classNameToClassInfo) {
+    static ClassInfo getOrCreateClassInfo(final String className,
+            final Map<String, ClassInfo> classNameToClassInfo) {
         // Look for array class names
         var numArrayDims = 0;
         var baseClassName = className;
@@ -436,10 +434,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Set classfile version.
      *
-     * @param minorVersion the minor version of the classfile format for this class'
-     *                     classfile.
-     * @param majorVersion the major version of the classfile format for this class'
-     *                     classfile.
+     * @param minorVersion
+     *            the minor version of the classfile format for this class' classfile.
+     * @param majorVersion
+     *            the major version of the classfile format for this class' classfile.
      */
     void setClassfileVersion(final int minorVersion, final int majorVersion) {
         this.classfileMinorVersion = minorVersion;
@@ -449,38 +447,34 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Set class modifiers.
      *
-     * @param modifiers the class modifiers
+     * @param modifiers
+     *            the class modifiers
      */
     void setModifiers(final int modifiers) {
         this.modifiers |= modifiers;
     }
 
     /**
-     * The access level modifier bits: {@code public}, {@code private} and
-     * {@code protected}.
+     * The access level modifier bits: {@code public}, {@code private} and {@code protected}.
      */
     private static final int ACCESS_LEVEL_MODIFIERS = Modifier.PUBLIC | Modifier.PRIVATE | Modifier.PROTECTED;
 
     /**
-     * Set the modifiers of a nested class from the {@code InnerClasses} attribute
-     * of its enclosing class.
+     * Set the modifiers of a nested class from the {@code InnerClasses} attribute of its enclosing class.
      *
      * <p>
-     * For a nested class, the {@code access_flags} field in the class's own
-     * classfile cannot express the source-level access level: the JVM requires a
-     * nested class to be reachable from its enclosing class, so javac emits
-     * {@code ACC_PUBLIC} (or package-private) there, and records the real access
-     * level only in the {@code InnerClasses} attribute of the enclosing class. The
-     * {@code InnerClasses} bits are therefore authoritative for the access level,
-     * so they replace the access level bits read from the classfile rather than
-     * being OR'd into them -- OR-ing left a {@code protected} nested class with
-     * both {@code ACC_PUBLIC} and {@code ACC_PROTECTED} set, so that both
-     * {@link #isPublic()} and {@link #isProtected()} returned true. The remaining
-     * bits (e.g. {@code ACC_STATIC}, which only appears in the {@code InnerClasses}
-     * attribute) are OR'd in as before.
+     * For a nested class, the {@code access_flags} field in the class's own classfile cannot express the
+     * source-level access level: the JVM requires a nested class to be reachable from its enclosing class, so javac
+     * emits {@code ACC_PUBLIC} (or package-private) there, and records the real access level only in the
+     * {@code InnerClasses} attribute of the enclosing class. The {@code InnerClasses} bits are therefore
+     * authoritative for the access level, so they replace the access level bits read from the classfile rather than
+     * being OR'd into them -- OR-ing left a {@code protected} nested class with both {@code ACC_PUBLIC} and
+     * {@code ACC_PROTECTED} set, so that both {@link #isPublic()} and {@link #isProtected()} returned true. The
+     * remaining bits (e.g. {@code ACC_STATIC}, which only appears in the {@code InnerClasses} attribute) are OR'd
+     * in as before.
      *
-     * @param innerClassModifierBits the modifier bits from the {@code InnerClasses}
-     *                               attribute entry for this class
+     * @param innerClassModifierBits
+     *            the modifier bits from the {@code InnerClasses} attribute entry for this class
      */
     // #791
     void setNestedClassModifiers(final int innerClassModifierBits) {
@@ -490,7 +484,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Set isInterface status.
      *
-     * @param isInterface true if this is an interface
+     * @param isInterface
+     *            true if this is an interface
      */
     void setIsInterface(final boolean isInterface) {
         if (isInterface) {
@@ -501,7 +496,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Set isAnnotation status.
      *
-     * @param isAnnotation true if this is an annotation
+     * @param isAnnotation
+     *            true if this is an annotation
      */
     void setIsAnnotation(final boolean isAnnotation) {
         if (isAnnotation) {
@@ -512,7 +508,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Set isRecord status.
      *
-     * @param isRecord true if this is a record
+     * @param isRecord
+     *            true if this is a record
      */
     void setIsRecord(final boolean isRecord) {
         if (isRecord) {
@@ -523,8 +520,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Set source file.
      *
-     * @param sourceFile the source file, or null if the classfile has no
-     *                   {@code SourceFile} attribute
+     * @param sourceFile
+     *            the source file, or null if the classfile has no {@code SourceFile} attribute
      */
     void setSourceFile(final @Nullable String sourceFile) {
         this.sourceFile = sourceFile;
@@ -533,8 +530,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Add {@link ClassTypeAnnotationDecorator} instances.
      *
-     * @param classTypeAnnotationDecorators {@link ClassTypeAnnotationDecorator}
-     *                                      instances.
+     * @param classTypeAnnotationDecorators
+     *            {@link ClassTypeAnnotationDecorator} instances.
      */
     void addTypeDecorators(final List<ClassTypeAnnotationDecorator> classTypeAnnotationDecorators) {
         if (typeAnnotationDecorators == null) {
@@ -548,8 +545,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Add a superclass to this class.
      *
-     * @param superclassName       the superclass name
-     * @param classNameToClassInfo the map from class name to class info
+     * @param superclassName
+     *            the superclass name
+     * @param classNameToClassInfo
+     *            the map from class name to class info
      */
     void addSuperclass(final String superclassName, final Map<String, ClassInfo> classNameToClassInfo) {
         final var superclassClassInfo = getOrCreateClassInfo(superclassName, classNameToClassInfo);
@@ -560,8 +559,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Add an implemented interface to this class.
      *
-     * @param interfaceName        the interface name
-     * @param classNameToClassInfo the map from class name to class info
+     * @param interfaceName
+     *            the interface name
+     * @param classNameToClassInfo
+     *            the map from class name to class info
      */
     void addImplementedInterface(final String interfaceName, final Map<String, ClassInfo> classNameToClassInfo) {
         final var interfaceClassInfo = getOrCreateClassInfo(interfaceName, classNameToClassInfo);
@@ -573,8 +574,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Add class containment info.
      *
-     * @param classContainmentEntries the class containment entries
-     * @param classNameToClassInfo    the map from class name to class info
+     * @param classContainmentEntries
+     *            the class containment entries
+     * @param classNameToClassInfo
+     *            the map from class name to class info
      */
     static void addClassContainment(final List<ClassContainment> classContainmentEntries,
             final Map<String, ClassInfo> classNameToClassInfo) {
@@ -592,8 +595,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Add containing method name, for anonymous inner classes.
      *
-     * @param fullyQualifiedDefiningMethodName the fully qualified defining method
-     *                                         name
+     * @param fullyQualifiedDefiningMethodName
+     *            the fully qualified defining method name
      */
     void addFullyQualifiedDefiningMethodName(final String fullyQualifiedDefiningMethodName) {
         this.fullyQualifiedDefiningMethodName = fullyQualifiedDefiningMethodName;
@@ -602,8 +605,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Add an annotation to this class.
      *
-     * @param classAnnotationInfo  the class annotation info
-     * @param classNameToClassInfo the map from class name to class info
+     * @param classAnnotationInfo
+     *            the class annotation info
+     * @param classNameToClassInfo
+     *            the map from class name to class info
      */
     void addClassAnnotation(final AnnotationInfo classAnnotationInfo,
             final Map<String, ClassInfo> classNameToClassInfo) {
@@ -626,10 +631,14 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Add field or method annotation cross-links.
      *
-     * @param annotationInfoList   the annotation info list
-     * @param isField              the is field
-     * @param modifiers            the field or method modifiers
-     * @param classNameToClassInfo the map from class name to class info
+     * @param annotationInfoList
+     *            the annotation info list
+     * @param isField
+     *            the is field
+     * @param modifiers
+     *            the field or method modifiers
+     * @param classNameToClassInfo
+     *            the map from class name to class info
      */
     private void addFieldOrMethodAnnotationInfo(final @Nullable AnnotationInfoList annotationInfoList,
             final boolean isField, final int modifiers, final Map<String, ClassInfo> classNameToClassInfo) {
@@ -642,7 +651,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 this.addRelatedClass(isField ? RelType.FIELD_ANNOTATIONS : RelType.METHOD_ANNOTATIONS,
                         annotationClassInfo);
                 annotationClassInfo.addRelatedClass(
-                        isField ? RelType.CLASSES_WITH_FIELD_ANNOTATION : RelType.CLASSES_WITH_METHOD_ANNOTATION, this);
+                        isField ? RelType.CLASSES_WITH_FIELD_ANNOTATION : RelType.CLASSES_WITH_METHOD_ANNOTATION,
+                        this);
                 // For non-private methods/fields, also add to nonprivate (inherited) mapping
                 if (!Modifier.isPrivate(modifiers)) {
                     annotationClassInfo.addRelatedClass(isField ? RelType.CLASSES_WITH_NONPRIVATE_FIELD_ANNOTATION
@@ -655,8 +665,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Add field info.
      *
-     * @param fieldInfoList        the field info list
-     * @param classNameToClassInfo the map from class name to class info
+     * @param fieldInfoList
+     *            the field info list
+     * @param classNameToClassInfo
+     *            the map from class name to class info
      */
     void addFieldInfo(final FieldInfoList fieldInfoList, final Map<String, ClassInfo> classNameToClassInfo) {
         for (final FieldInfo fi : fieldInfoList) {
@@ -674,8 +686,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Add method info.
      *
-     * @param methodInfoList       the method info list
-     * @param classNameToClassInfo the map from class name to class info
+     * @param methodInfoList
+     *            the method info list
+     * @param classNameToClassInfo
+     *            the map from class name to class info
      */
     void addMethodInfo(final MethodInfoList methodInfoList, final Map<String, ClassInfo> classNameToClassInfo) {
         for (final MethodInfo mi : methodInfoList) {
@@ -688,11 +702,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 for (final AnnotationInfo[] paramAnnotationInfoArr : mi.parameterAnnotationInfo) {
                     if (paramAnnotationInfoArr != null) {
                         for (final AnnotationInfo methodParamAnnotationInfo : paramAnnotationInfoArr) {
-                            final var annotationClassInfo = getOrCreateClassInfo(methodParamAnnotationInfo.getName(),
-                                    classNameToClassInfo);
+                            final var annotationClassInfo = getOrCreateClassInfo(
+                                    methodParamAnnotationInfo.getName(), classNameToClassInfo);
                             annotationClassInfo.setModifiers(ANNOTATION_CLASS_MODIFIER);
                             this.addRelatedClass(RelType.METHOD_PARAMETER_ANNOTATIONS, annotationClassInfo);
-                            annotationClassInfo.addRelatedClass(RelType.CLASSES_WITH_METHOD_PARAMETER_ANNOTATION, this);
+                            annotationClassInfo.addRelatedClass(RelType.CLASSES_WITH_METHOD_PARAMETER_ANNOTATION,
+                                    this);
                             // For non-private methods/fields, also add to nonprivate (inherited) mapping
                             if (!Modifier.isPrivate(mi.getModifiers())) {
                                 annotationClassInfo.addRelatedClass(
@@ -713,18 +728,19 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Set the class type signature, including any type params.
      *
-     * @param typeSignatureStr the type signature str
+     * @param typeSignatureStr
+     *            the type signature str
      */
     void setTypeSignature(final String typeSignatureStr) {
         this.typeSignatureStr = typeSignatureStr;
     }
 
     /**
-     * Add annotation default values. (Only called in the case of annotation class
-     * definitions, when the annotation has default parameter values.)
+     * Add annotation default values. (Only called in the case of annotation class definitions, when the annotation
+     * has default parameter values.)
      *
-     * @param paramNamesAndValues the default param names and values, if this is an
-     *                            annotation
+     * @param paramNamesAndValues
+     *            the default param names and values, if this is an annotation
      */
     void addAnnotationParamDefaultValues(final AnnotationParameterValueList paramNamesAndValues) {
         setIsAnnotation(true);
@@ -738,20 +754,26 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Add a class that has just been scanned (as opposed to just referenced by a
-     * scanned class). Not threadsafe, should be run in single threaded context.
+     * Add a class that has just been scanned (as opposed to just referenced by a scanned class). Not threadsafe,
+     * should be run in single threaded context.
      *
-     * @param className            the class name
-     * @param classModifiers       the class modifiers
-     * @param isExternalClass      true if this is an external class
-     * @param classNameToClassInfo the map from class name to class info
-     * @param classpathElement     the classpath element
-     * @param classfileResource    the classfile resource
+     * @param className
+     *            the class name
+     * @param classModifiers
+     *            the class modifiers
+     * @param isExternalClass
+     *            true if this is an external class
+     * @param classNameToClassInfo
+     *            the map from class name to class info
+     * @param classpathElement
+     *            the classpath element
+     * @param classfileResource
+     *            the classfile resource
      * @return the class info
      */
-    static ClassInfo addScannedClass(final String className, final int classModifiers, final boolean isExternalClass,
-            final Map<String, ClassInfo> classNameToClassInfo, final ClasspathElement classpathElement,
-            final Resource classfileResource) {
+    static ClassInfo addScannedClass(final String className, final int classModifiers,
+            final boolean isExternalClass, final Map<String, ClassInfo> classNameToClassInfo,
+            final ClasspathElement classpathElement, final Resource classfileResource) {
         var classInfo = classNameToClassInfo.get(className);
         if (classInfo == null) {
             // This is the first time this class has been seen, add it
@@ -803,15 +825,14 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         /** A standard class (not an interface or annotation). */
         STANDARD_CLASS,
         /**
-         * An interface (this is named "implemented interface" rather than just
-         * "interface" to distinguish it from an annotation.)
+         * An interface (this is named "implemented interface" rather than just "interface" to distinguish it from
+         * an annotation.)
          */
         IMPLEMENTED_INTERFACE,
         /** An annotation. */
         ANNOTATION,
         /**
-         * An interface or annotation (used since you can actually implement an
-         * annotation).
+         * An interface or annotation (used since you can actually implement an annotation).
          */
         INTERFACE_OR_ANNOTATION,
         /** An enum. */
@@ -824,19 +845,20 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * Filter classes according to scan spec and class type.
      *
      * <p>
-     * The rule for {@code strictAccept}: a query that looks "upwards" in the class
-     * hierarchy -- for the superclasses, interfaces, annotations or outer classes of
-     * a class -- passes false, since it is reporting what an accepted classfile
-     * itself declares, and the answer would be misleading if part of it were left
-     * out. A query that looks "downwards" -- for the subclasses of a class, the
-     * classes implementing an interface, or the classes annotated with an annotation
-     * -- passes true, since it can only ever report what was scanned.
+     * The rule for {@code strictAccept}: a query that looks "upwards" in the class hierarchy -- for the
+     * superclasses, interfaces, annotations or outer classes of a class -- passes false, since it is reporting what
+     * an accepted classfile itself declares, and the answer would be misleading if part of it were left out. A
+     * query that looks "downwards" -- for the subclasses of a class, the classes implementing an interface, or the
+     * classes annotated with an annotation -- passes true, since it can only ever report what was scanned.
      *
-     * @param classes      the classes
-     * @param scanSpec     the scan spec
-     * @param strictAccept If true, exclude class if it is external, if external
-     *                     classes are not enabled
-     * @param classTypes   the class types
+     * @param classes
+     *            the classes
+     * @param scanSpec
+     *            the scan spec
+     * @param strictAccept
+     *            If true, exclude class if it is external, if external classes are not enabled
+     * @param classTypes
+     *            the class types
      * @return the filtered classes.
      */
     private static Set<ClassInfo> filterClassInfo(final Collection<ClassInfo> classes, final ScanSpec scanSpec,
@@ -888,25 +910,28 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * A set of classes that indirectly reachable through a directed path, for a
-     * given relationship type, and a set of classes that is directly related (only
-     * one relationship step away).
+     * A set of classes that indirectly reachable through a directed path, for a given relationship type, and a set
+     * of classes that is directly related (only one relationship step away).
      *
-     * @param reachableClasses       the reachable classes
-     * @param directlyRelatedClasses the directly related classes
+     * @param reachableClasses
+     *            the reachable classes
+     * @param directlyRelatedClasses
+     *            the directly related classes
      */
     record ReachableAndDirectlyRelatedClasses(Set<ClassInfo> reachableClasses,
             Set<ClassInfo> directlyRelatedClasses) {
     }
 
     /**
-     * Get the classes related to this one (the transitive closure) for the given
-     * relationship type, and those directly related.
+     * Get the classes related to this one (the transitive closure) for the given relationship type, and those
+     * directly related.
      *
-     * @param relType      the relationship type
-     * @param strictAccept If true, exclude class if it is external, if external
-     *                     classes are not enabled
-     * @param classTypes   the class types to accept
+     * @param relType
+     *            the relationship type
+     * @param strictAccept
+     *            If true, exclude class if it is external, if external classes are not enabled
+     * @param classTypes
+     *            the class types to accept
      * @return the reachable and directly related classes
      */
     private ReachableAndDirectlyRelatedClasses filterClassInfo(final RelType relType, final boolean strictAccept,
@@ -1003,23 +1028,26 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Get all classes found during the scan.
      *
-     * @param classes  the classes
-     * @param scanSpec the scan spec
-     * @return A list of all classes found during the scan, or the empty list if
-     *         none.
+     * @param classes
+     *            the classes
+     * @param scanSpec
+     *            the scan spec
+     * @return A list of all classes found during the scan, or the empty list if none.
      */
     static ClassInfoList getAllClasses(final Collection<ClassInfo> classes, final ScanSpec scanSpec) {
-        return new ClassInfoList(ClassInfo.filterClassInfo(classes, scanSpec, /* strictAccept = */ true, ClassType.ALL),
+        return new ClassInfoList(
+                ClassInfo.filterClassInfo(classes, scanSpec, /* strictAccept = */ true, ClassType.ALL),
                 /* sortByName = */ true);
     }
 
     /**
      * Get all {@link Enum} classes found during the scan.
      *
-     * @param classes  the classes
-     * @param scanSpec the scan spec
-     * @return A list of all {@link Enum} classes found during the scan, or the
-     *         empty list if none.
+     * @param classes
+     *            the classes
+     * @param scanSpec
+     *            the scan spec
+     * @return A list of all {@link Enum} classes found during the scan, or the empty list if none.
      */
     static ClassInfoList getAllEnums(final Collection<ClassInfo> classes, final ScanSpec scanSpec) {
         return new ClassInfoList(
@@ -1030,10 +1058,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Get all {@code record} classes found during the scan.
      *
-     * @param classes  the classes
-     * @param scanSpec the scan spec
-     * @return A list of all {@code record} classes found during the scan, or the
-     *         empty list if none.
+     * @param classes
+     *            the classes
+     * @param scanSpec
+     *            the scan spec
+     * @return A list of all {@code record} classes found during the scan, or the empty list if none.
      */
     static ClassInfoList getAllRecords(final Collection<ClassInfo> classes, final ScanSpec scanSpec) {
         return new ClassInfoList(
@@ -1044,10 +1073,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Get all standard classes found during the scan.
      *
-     * @param classes  the classes
-     * @param scanSpec the scan spec
-     * @return A list of all standard classes found during the scan, or the empty
-     *         list if none.
+     * @param classes
+     *            the classes
+     * @param scanSpec
+     *            the scan spec
+     * @return A list of all standard classes found during the scan, or the empty list if none.
      */
     static ClassInfoList getAllStandardClasses(final Collection<ClassInfo> classes, final ScanSpec scanSpec) {
         return new ClassInfoList(
@@ -1056,13 +1086,13 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get all implemented interface (non-annotation interface) classes found during
-     * the scan.
+     * Get all implemented interface (non-annotation interface) classes found during the scan.
      *
-     * @param classes  the classes
-     * @param scanSpec the scan spec
-     * @return A list of all annotation classes found during the scan, or the empty
-     *         list if none.
+     * @param classes
+     *            the classes
+     * @param scanSpec
+     *            the scan spec
+     * @return A list of all annotation classes found during the scan, or the empty list if none.
      */
     static ClassInfoList getAllImplementedInterfaceClasses(final Collection<ClassInfo> classes,
             final ScanSpec scanSpec) {
@@ -1074,10 +1104,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * Get all annotation classes found during the scan. See also
      * {@link #getAllInterfacesOrAnnotationClasses(Collection, ScanSpec)}.
      *
-     * @param classes  the classes
-     * @param scanSpec the scan spec
-     * @return A list of all annotation classes found during the scan, or the empty
-     *         list if none.
+     * @param classes
+     *            the classes
+     * @param scanSpec
+     *            the scan spec
+     * @return A list of all annotation classes found during the scan, or the empty list if none.
      */
     static ClassInfoList getAllAnnotationClasses(final Collection<ClassInfo> classes, final ScanSpec scanSpec) {
         return new ClassInfoList(
@@ -1086,13 +1117,14 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get all interface or annotation classes found during the scan. (Annotations
-     * are technically interfaces, and they can be implemented.)
+     * Get all interface or annotation classes found during the scan. (Annotations are technically interfaces, and
+     * they can be implemented.)
      *
-     * @param classes  the classes
-     * @param scanSpec the scan spec
-     * @return A list of all accepted interfaces found during the scan, or the empty
-     *         list if none.
+     * @param classes
+     *            the classes
+     * @param scanSpec
+     *            the scan spec
+     * @return A list of all accepted interfaces found during the scan, or the empty list if none.
      */
     static ClassInfoList getAllInterfacesOrAnnotationClasses(final Collection<ClassInfo> classes,
             final ScanSpec scanSpec) {
@@ -1114,12 +1146,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get simple name from fully-qualified class name. Returns everything after the
-     * last '.' or the last '$' in the class name, or the whole string if the class
-     * is in the root package. (Note that this is not the same as the result of
-     * {@link Class#getSimpleName()}, which returns "" for anonymous classes.)
+     * Get simple name from fully-qualified class name. Returns everything after the last '.' or the last '$' in the
+     * class name, or the whole string if the class is in the root package. (Note that this is not the same as the
+     * result of {@link Class#getSimpleName()}, which returns "" for anonymous classes.)
      *
-     * @param className the class name
+     * @param className
+     *            the class name
      * @return The simple name of the class.
      */
     static String getSimpleName(final String className) {
@@ -1127,10 +1159,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get the simple name of the class. Returns everything after the last '.' or
-     * the last '$' in the class name, so that the package name and any enclosing
-     * class names are stripped, or the whole string if the class is in the root
-     * package and is not nested. (Note that this is not the same as the result of
+     * Get the simple name of the class. Returns everything after the last '.' or the last '$' in the class name, so
+     * that the package name and any enclosing class names are stripped, or the whole string if the class is in the
+     * root package and is not nested. (Note that this is not the same as the result of
      * {@link Class#getSimpleName()}, which returns "" for anonymous classes.)
      *
      * @return The simple name of the class.
@@ -1142,8 +1173,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Get the {@link ModuleInfo} object for the class.
      *
-     * @return the {@link ModuleInfo} object for the class, or null if the class is
-     *         not part of a named module.
+     * @return the {@link ModuleInfo} object for the class, or null if the class is not part of a named module.
      */
     public @Nullable ModuleInfo getModuleInfo() {
         return moduleInfo;
@@ -1152,8 +1182,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Get the {@link PackageInfo} object for the class.
      *
-     * @return the {@link PackageInfo} object for the package that contains the
-     *         class.
+     * @return the {@link PackageInfo} object for the package that contains the class.
      */
     public @Nullable PackageInfo getPackageInfo() {
         return packageInfo;
@@ -1172,9 +1201,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Checks if this is an external class.
      *
-     * @return true if this class is an external class, i.e. was referenced by an
-     *         accepted class as a superclass, interface, or annotation, but is not
-     *         itself an accepted class.
+     * @return true if this class is an external class, i.e. was referenced by an accepted class as a superclass,
+     *         interface, or annotation, but is not itself an accepted class.
      */
     public boolean isExternalClass() {
         return isExternalClass;
@@ -1183,9 +1211,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Get the minor version of the classfile format for this class' classfile.
      *
-     * @return The minor version of the classfile format for this class' classfile,
-     *         or 0 if this {@link ClassInfo} object is a placeholder for a
-     *         referenced class that was not found or not accepted during the scan.
+     * @return The minor version of the classfile format for this class' classfile, or 0 if this {@link ClassInfo}
+     *         object is a placeholder for a referenced class that was not found or not accepted during the scan.
      */
     public int getClassfileMinorVersion() {
         return classfileMinorVersion;
@@ -1194,36 +1221,29 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Get the major version of the classfile format for this class' classfile.
      *
-     * @return The major version of the classfile format for this class' classfile,
-     *         or 0 if this {@link ClassInfo} object is a placeholder for a
-     *         referenced class that was not found or not accepted during the scan.
+     * @return The major version of the classfile format for this class' classfile, or 0 if this {@link ClassInfo}
+     *         object is a placeholder for a referenced class that was not found or not accepted during the scan.
      */
     public int getClassfileMajorVersion() {
         return classfileMajorVersion;
     }
 
     /**
-     * Get the class modifier bits, in the same form as
-     * {@link Class#getModifiers()}.
+     * Get the class modifier bits, in the same form as {@link Class#getModifiers()}.
      *
      * <p>
-     * The {@code ACC_SUPER} bit (0x0020) of the classfile's {@code access_flags}
-     * field is masked out, because it is not a modifier: it selects the JVM's
-     * treatment of the {@code invokespecial} instruction, javac sets it on almost
-     * every class, and the same bit value in {@link Modifier} is
-     * {@link Modifier#SYNCHRONIZED}, which is not a legal class modifier.
-     * {@link Class#getModifiers()} masks it out for the same reason.
+     * The {@code ACC_SUPER} bit (0x0020) of the classfile's {@code access_flags} field is masked out, because it is
+     * not a modifier: it selects the JVM's treatment of the {@code invokespecial} instruction, javac sets it on
+     * almost every class, and the same bit value in {@link Modifier} is {@link Modifier#SYNCHRONIZED}, which is not
+     * a legal class modifier. {@link Class#getModifiers()} masks it out for the same reason.
      *
      * <p>
-     * <b>Note:</b> comparing the returned value against a hardcoded integer is
-     * fragile, and the value of that bit changed in version 4.8.186: a
-     * {@code protected static} nested class previously returned 0x002C, and now
-     * returns 0x000C. Prefer the named accessors ({@link #isPublic()},
-     * {@link #isProtected()}, {@link #isPrivate()}, {@link #isStatic()},
-     * {@link #isFinal()}, {@link #isAbstract()}, {@link #isInterface()},
-     * {@link #isAnnotation()}, {@link #isEnum()}, {@link #isSynthetic()}), or test
-     * individual bits with the {@link Modifier} predicates, rather than comparing
-     * the whole value.
+     * <b>Note:</b> comparing the returned value against a hardcoded integer is fragile, and the value of that bit
+     * changed in version 4.8.186: a {@code protected static} nested class previously returned 0x002C, and now
+     * returns 0x000C. Prefer the named accessors ({@link #isPublic()}, {@link #isProtected()},
+     * {@link #isPrivate()}, {@link #isStatic()}, {@link #isFinal()}, {@link #isAbstract()}, {@link #isInterface()},
+     * {@link #isAnnotation()}, {@link #isEnum()}, {@link #isSynthetic()}), or test individual bits with the
+     * {@link Modifier} predicates, rather than comparing the whole value.
      *
      * @return The class modifier bits, e.g. {@link Modifier#PUBLIC}.
      */
@@ -1235,8 +1255,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Get the class modifiers as a String.
      *
-     * @return The field modifiers as a string, e.g. "public static final". For the
-     *         modifier bits, call {@link #getModifiers()}.
+     * @return The field modifiers as a string, e.g. "public static final". For the modifier bits, call
+     *         {@link #getModifiers()}.
      */
     public String getModifiersString() {
         final StringBuilder buf = new StringBuilder();
@@ -1328,8 +1348,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Checks if is the class an interface and is not an annotation.
      *
-     * @return true if this class is an interface and is not an annotation
-     *         (annotations are interfaces, and can be implemented).
+     * @return true if this class is an interface and is not an annotation (annotations are interfaces, and can be
+     *         implemented).
      */
     public boolean isInterface() {
         return isInterfaceOrAnnotation() && !isAnnotation();
@@ -1338,8 +1358,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Checks if is an interface or an annotation.
      *
-     * @return true if this class is an interface or an annotation (annotations are
-     *         interfaces, and can be implemented).
+     * @return true if this class is an interface or an annotation (annotations are interfaces, and can be
+     *         implemented).
      */
     public boolean isInterfaceOrAnnotation() {
         return (modifiers & Modifier.INTERFACE) != 0;
@@ -1366,16 +1386,15 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Checks if this class is a standard class.
      *
-     * @return true if this class is a standard class (i.e. is not an annotation or
-     *         interface).
+     * @return true if this class is a standard class (i.e. is not an annotation or interface).
      */
     public boolean isStandardClass() {
         return !(isAnnotation() || isInterface());
     }
 
     /**
-     * Checks if this class is an array class. Returns false unless this
-     * {@link ClassInfo} is an instance of {@link ArrayClassInfo}.
+     * Checks if this class is an array class. Returns false unless this {@link ClassInfo} is an instance of
+     * {@link ArrayClassInfo}.
      *
      * @return true if this is an array class.
      */
@@ -1386,7 +1405,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Checks if this class extends the superclass.
      *
-     * @param superclass A superclass.
+     * @param superclass
+     *            A superclass.
      * @return true if this class extends the superclass.
      */
     public boolean extendsSuperclass(final Class<?> superclass) {
@@ -1397,7 +1417,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Checks if this class extends the named superclass.
      *
-     * @param superclassName The name of a superclass.
+     * @param superclassName
+     *            The name of a superclass.
      * @return true if this class extends the named superclass.
      */
     public boolean extendsSuperclass(final String superclassName) {
@@ -1409,9 +1430,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Checks if this class is an inner class.
      *
-     * @return true if this is an inner class (call {@link #isAnonymousInnerClass()}
-     *         to test if this is an anonymous inner class). If true, the containing
-     *         class can be determined by calling {@link #getOuterClasses()}.
+     * @return true if this is an inner class (call {@link #isAnonymousInnerClass()} to test if this is an anonymous
+     *         inner class). If true, the containing class can be determined by calling {@link #getOuterClasses()}.
      */
     public boolean isInnerClass() {
         return !getOuterClasses().isEmpty();
@@ -1420,8 +1440,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Checks if this class is an outer class.
      *
-     * @return true if this class contains inner classes. If true, the inner classes
-     *         can be determined by calling {@link #getInnerClasses()}.
+     * @return true if this class contains inner classes. If true, the inner classes can be determined by calling
+     *         {@link #getInnerClasses()}.
      */
     public boolean isOuterClass() {
         return !getInnerClasses().isEmpty();
@@ -1430,24 +1450,21 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Checks if this class is an anonymous inner class.
      *
-     * @return true if this is an anonymous inner class. If true, the name of the
-     *         containing method can be obtained by calling
-     *         {@link #getFullyQualifiedDefiningMethodName()}.
+     * @return true if this is an anonymous inner class. If true, the name of the containing method can be obtained
+     *         by calling {@link #getFullyQualifiedDefiningMethodName()}.
      */
     public boolean isAnonymousInnerClass() {
         return fullyQualifiedDefiningMethodName != null;
     }
 
     /**
-     * Checks whether this class is an implemented interface (meaning a standard,
-     * non-annotation interface, or an annotation that has also been implemented as
-     * an interface by some class).
+     * Checks whether this class is an implemented interface (meaning a standard, non-annotation interface, or an
+     * annotation that has also been implemented as an interface by some class).
      *
      * <p>
-     * Annotations are interfaces, but you can also implement an annotation, so to
-     * we return whether an interface (even an annotation) is implemented by a class
-     * or extended by a subinterface, or (failing that) if it is not an interface
-     * but not an annotation.
+     * Annotations are interfaces, but you can also implement an annotation, so to we return whether an interface
+     * (even an annotation) is implemented by a class or extended by a subinterface, or (failing that) if it is not
+     * an interface but not an annotation.
      *
      * @return true if this class is an implemented interface.
      */
@@ -1458,7 +1475,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Checks whether this class implements the interface.
      *
-     * @param interfaceClazz An interface.
+     * @param interfaceClazz
+     *            An interface.
      * @return true if this class implements the interface.
      */
     public boolean implementsInterface(final Class<?> interfaceClazz) {
@@ -1470,7 +1488,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Checks whether this class implements the named interface.
      *
-     * @param interfaceName The name of an interface.
+     * @param interfaceName
+     *            The name of an interface.
      * @return true if this class implements the named interface.
      */
     public boolean implementsInterface(final String interfaceName) {
@@ -1481,7 +1500,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Checks whether this class has the annotation.
      *
-     * @param annotation the annotation class
+     * @param annotation
+     *            the annotation class
      * @return true if this class has the annotation.
      */
     public boolean hasAnnotation(final Class<? extends Annotation> annotation) {
@@ -1493,7 +1513,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Checks whether this class has the named annotation.
      *
-     * @param annotationName the name of the annotation class
+     * @param annotationName
+     *            the name of the annotation class
      * @return true if this class has the named annotation.
      */
     public boolean hasAnnotation(final String annotationName) {
@@ -1504,7 +1525,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Checks whether this class has the named declared field.
      *
-     * @param fieldName The name of a field.
+     * @param fieldName
+     *            The name of a field.
      * @return true if this class declares a field of the given name.
      */
     public boolean hasDeclaredField(final String fieldName) {
@@ -1515,9 +1537,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Checks whether this class or one of its superclasses has the named field.
      *
-     * @param fieldName The name of a field.
-     * @return true if this class or one of its superclasses declares a field of the
-     *         given name.
+     * @param fieldName
+     *            The name of a field.
+     * @return true if this class or one of its superclasses declares a field of the given name.
      */
     public boolean hasField(final String fieldName) {
         Assert.notNull(fieldName, "fieldName");
@@ -1532,7 +1554,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Checks whether this class declares a field with the annotation.
      *
-     * @param annotation A field annotation.
+     * @param annotation
+     *            A field annotation.
      * @return true if this class declares a field with the annotation.
      */
     public boolean hasDeclaredFieldAnnotation(final Class<? extends Annotation> annotation) {
@@ -1544,7 +1567,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Checks whether this class declares a field with the named annotation.
      *
-     * @param fieldAnnotationName The name of a field annotation.
+     * @param fieldAnnotationName
+     *            The name of a field annotation.
      * @return true if this class declares a field with the named annotation.
      */
     public boolean hasDeclaredFieldAnnotation(final String fieldAnnotationName) {
@@ -1558,12 +1582,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Checks whether this class or one of its superclasses declares a field with
-     * the annotation.
+     * Checks whether this class or one of its superclasses declares a field with the annotation.
      *
-     * @param fieldAnnotation A field annotation.
-     * @return true if this class or one of its superclasses declares a field with
-     *         the annotation.
+     * @param fieldAnnotation
+     *            A field annotation.
+     * @return true if this class or one of its superclasses declares a field with the annotation.
      */
     public boolean hasFieldAnnotation(final Class<? extends Annotation> fieldAnnotation) {
         Assert.notNull(fieldAnnotation, "fieldAnnotation");
@@ -1572,12 +1595,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Checks whether this class or one of its superclasses declares a field with
-     * the named annotation.
+     * Checks whether this class or one of its superclasses declares a field with the named annotation.
      *
-     * @param fieldAnnotationName The name of a field annotation.
-     * @return true if this class or one of its superclasses declares a field with
-     *         the named annotation.
+     * @param fieldAnnotationName
+     *            The name of a field annotation.
+     * @return true if this class or one of its superclasses declares a field with the named annotation.
      */
     public boolean hasFieldAnnotation(final String fieldAnnotationName) {
         Assert.notNull(fieldAnnotationName, "fieldAnnotationName");
@@ -1592,7 +1614,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Checks whether this class declares a method of the given name.
      *
-     * @param methodName The name of a method.
+     * @param methodName
+     *            The name of a method.
      * @return true if this class declares a method of the given name.
      */
     public boolean hasDeclaredMethod(final String methodName) {
@@ -1601,12 +1624,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Checks whether this class or one of its superclasses or interfaces declares a
-     * method of the given name.
+     * Checks whether this class or one of its superclasses or interfaces declares a method of the given name.
      *
-     * @param methodName The name of a method.
-     * @return true if this class or one of its superclasses or interfaces declares
-     *         a method of the given name.
+     * @param methodName
+     *            The name of a method.
+     * @return true if this class or one of its superclasses or interfaces declares a method of the given name.
      */
     public boolean hasMethod(final String methodName) {
         Assert.notNull(methodName, "methodName");
@@ -1621,7 +1643,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Checks whether this class declares a method with the annotation.
      *
-     * @param methodAnnotation A method annotation.
+     * @param methodAnnotation
+     *            A method annotation.
      * @return true if this class declares a method with the annotation.
      */
     public boolean hasDeclaredMethodAnnotation(final Class<? extends Annotation> methodAnnotation) {
@@ -1633,7 +1656,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Checks whether this class declares a method with the named annotation.
      *
-     * @param methodAnnotationName The name of a method annotation.
+     * @param methodAnnotationName
+     *            The name of a method annotation.
      * @return true if this class declares a method with the named annotation.
      */
     public boolean hasDeclaredMethodAnnotation(final String methodAnnotationName) {
@@ -1647,12 +1671,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Checks whether this class or one of its superclasses or interfaces declares a
-     * method with the annotation.
+     * Checks whether this class or one of its superclasses or interfaces declares a method with the annotation.
      *
-     * @param methodAnnotation A method annotation.
-     * @return true if this class or one of its superclasses or interfaces declares
-     *         a method with the annotation.
+     * @param methodAnnotation
+     *            A method annotation.
+     * @return true if this class or one of its superclasses or interfaces declares a method with the annotation.
      */
     public boolean hasMethodAnnotation(final Class<? extends Annotation> methodAnnotation) {
         Assert.notNull(methodAnnotation, "methodAnnotation");
@@ -1661,12 +1684,13 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Checks whether this class or one of its superclasses or interfaces declares a
-     * method with the named annotation.
+     * Checks whether this class or one of its superclasses or interfaces declares a method with the named
+     * annotation.
      *
-     * @param methodAnnotationName The name of a method annotation.
-     * @return true if this class or one of its superclasses or interfaces declares
-     *         a method with the named annotation.
+     * @param methodAnnotationName
+     *            The name of a method annotation.
+     * @return true if this class or one of its superclasses or interfaces declares a method with the named
+     *         annotation.
      */
     public boolean hasMethodAnnotation(final String methodAnnotationName) {
         Assert.notNull(methodAnnotationName, "methodAnnotationName");
@@ -1681,10 +1705,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Checks whether this class declares a method with the annotation.
      *
-     * @param methodParameterAnnotation A method annotation.
+     * @param methodParameterAnnotation
+     *            A method annotation.
      * @return true if this class declares a method with the annotation.
      */
-    public boolean hasDeclaredMethodParameterAnnotation(final Class<? extends Annotation> methodParameterAnnotation) {
+    public boolean hasDeclaredMethodParameterAnnotation(
+            final Class<? extends Annotation> methodParameterAnnotation) {
         Assert.notNull(methodParameterAnnotation, "methodParameterAnnotation");
         Assert.isAnnotation(methodParameterAnnotation);
         return hasDeclaredMethodParameterAnnotation(methodParameterAnnotation.getName());
@@ -1693,7 +1719,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Checks whether this class declares a method with the named annotation.
      *
-     * @param methodParameterAnnotationName The name of a method annotation.
+     * @param methodParameterAnnotationName
+     *            The name of a method annotation.
      * @return true if this class declares a method with the named annotation.
      */
     public boolean hasDeclaredMethodParameterAnnotation(final String methodParameterAnnotationName) {
@@ -1707,12 +1734,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Checks whether this class or one of its superclasses or interfaces has a
-     * method with the annotation.
+     * Checks whether this class or one of its superclasses or interfaces has a method with the annotation.
      *
-     * @param methodParameterAnnotation A method annotation.
-     * @return true if this class or one of its superclasses or interfaces has a
-     *         method with the annotation.
+     * @param methodParameterAnnotation
+     *            A method annotation.
+     * @return true if this class or one of its superclasses or interfaces has a method with the annotation.
      */
     public boolean hasMethodParameterAnnotation(final Class<? extends Annotation> methodParameterAnnotation) {
         Assert.notNull(methodParameterAnnotation, "methodParameterAnnotation");
@@ -1721,12 +1747,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Checks whether this class or one of its superclasses or interfaces has a
-     * method with the named annotation.
+     * Checks whether this class or one of its superclasses or interfaces has a method with the named annotation.
      *
-     * @param methodParameterAnnotationName The name of a method annotation.
-     * @return true if this class or one of its superclasses or interfaces has a
-     *         method with the named annotation.
+     * @param methodParameterAnnotationName
+     *            The name of a method annotation.
+     * @return true if this class or one of its superclasses or interfaces has a method with the named annotation.
      */
     public boolean hasMethodParameterAnnotation(final String methodParameterAnnotationName) {
         Assert.notNull(methodParameterAnnotationName, "methodParameterAnnotationName");
@@ -1741,11 +1766,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Recurse to interfaces and superclasses to get the order that fields are
-     * overridden in.
+     * Recurse to interfaces and superclasses to get the order that fields are overridden in.
      *
-     * @param visited          visited
-     * @param overrideOrderOut the override order
+     * @param visited
+     *            visited
+     * @param overrideOrderOut
+     *            the override order
      * @return the override order
      */
     private List<ClassInfo> getFieldOverrideOrder(final Set<ClassInfo> visited,
@@ -1776,19 +1802,18 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Recurse to collect classes and interfaces in the order of overridden methods,
-     * in descending priority.
+     * Recurse to collect classes and interfaces in the order of overridden methods, in descending priority.
      * <p>
-     * First collects all direct super classes, as their methods always have a
-     * higher priority than any method declared by an interface. Iterates over
-     * interfaces and inserts those extending already found interfaces before them
-     * in the output. The order of unrelated interfaces is unspecified.
+     * First collects all direct super classes, as their methods always have a higher priority than any method
+     * declared by an interface. Iterates over interfaces and inserts those extending already found interfaces
+     * before them in the output. The order of unrelated interfaces is unspecified.
      * <p>
      * See Java Language Specification 8.4.8 for details.
      *
-     * @param visited          non-null set of already visited ClassInfos
-     * @param overrideOrderOut non-null outgoing list of ClassInfos in descending
-     *                         override order.
+     * @param visited
+     *            non-null set of already visited ClassInfos
+     * @param overrideOrderOut
+     *            non-null outgoing list of ClassInfos in descending override order.
      * @return the overrideOrderOut instance
      */
     private List<ClassInfo> getMethodOverrideOrder(final Set<ClassInfo> visited,
@@ -1858,12 +1883,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     // Standard classes
 
     /**
-     * Get all subclasses of this class, i.e. the classes that extend this class,
-     * and the classes that extend those, transitively, sorted in order of name.
+     * Get all subclasses of this class, i.e. the classes that extend this class, and the classes that extend those,
+     * transitively, sorted in order of name.
      *
-     * If this class represents {@link Object}, then returns every standard class in
-     * the scan result, but no interfaces, since interfaces don't extend
-     * {@link Object}.
+     * If this class represents {@link Object}, then returns every standard class in the scan result, but no
+     * interfaces, since interfaces don't extend {@link Object}.
      *
      * @return the list of all subclasses of this class, or the empty list if none.
      */
@@ -1880,11 +1904,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get the direct subclasses of this class, i.e. only the classes that name this
-     * class as their superclass, sorted in order of name.
+     * Get the direct subclasses of this class, i.e. only the classes that name this class as their superclass,
+     * sorted in order of name.
      *
-     * @return the list of direct subclasses of this class, or the empty list if
-     *         none.
+     * @return the list of direct subclasses of this class, or the empty list if none.
      */
     public ClassInfoList getDirectSubclasses() {
         return new ClassInfoList(this.filterClassInfo(RelType.SUBCLASSES, /* strictAccept = */ true),
@@ -1892,15 +1915,13 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get all superclasses of this class, in ascending order in the class
-     * hierarchy, ending with {@link Object} if the whole superclass chain was
-     * scanned. Call {@link #getSuperclass()} to get only the direct superclass.
+     * Get all superclasses of this class, in ascending order in the class hierarchy, ending with {@link Object} if
+     * the whole superclass chain was scanned. Call {@link #getSuperclass()} to get only the direct superclass.
      *
-     * Also does not include superinterfaces, if this is an interface (use
-     * {@link #getAllSuperinterfaces()} to get superinterfaces of an interface).
+     * Also does not include superinterfaces, if this is an interface (use {@link #getAllSuperinterfaces()} to get
+     * superinterfaces of an interface).
      *
-     * @return the list of all superclasses of this class, or the empty list if
-     *         none.
+     * @return the list of all superclasses of this class, or the empty list if none.
      */
     public ClassInfoList getAllSuperclasses() {
         return new ClassInfoList(this.filterClassInfo(RelType.SUPERCLASSES, /* strictAccept = */ false),
@@ -1908,15 +1929,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get the single direct superclass of this class, or null if none. Does not
-     * return the superinterfaces, if this is an interface (use
-     * {@link #getDirectSuperinterfaces()} to get the direct superinterfaces of an
-     * interface).
+     * Get the single direct superclass of this class, or null if none. Does not return the superinterfaces, if this
+     * is an interface (use {@link #getDirectSuperinterfaces()} to get the direct superinterfaces of an interface).
      *
      * <p>
-     * As with {@link Class#getSuperclass()}, the superclass of a class that extends
-     * no other class is {@link Object}, and null is returned only for
-     * {@link Object} itself and for interfaces.
+     * As with {@link Class#getSuperclass()}, the superclass of a class that extends no other class is
+     * {@link Object}, and null is returned only for {@link Object} itself and for interfaces.
      *
      * @return the superclass of this class, or null if none.
      */
@@ -1934,20 +1952,20 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Get the containing outer classes, if this is an inner class.
      *
-     * @return A list of the containing outer classes, if this is an inner class,
-     *         otherwise the empty list. Note that all containing outer classes are
-     *         returned, not just the innermost of the containing outer classes.
+     * @return A list of the containing outer classes, if this is an inner class, otherwise the empty list. Note
+     *         that all containing outer classes are returned, not just the innermost of the containing outer
+     *         classes.
      */
     public ClassInfoList getOuterClasses() {
-        return new ClassInfoList(this.filterClassInfo(RelType.CONTAINED_WITHIN_OUTER_CLASS, /* strictAccept = */ false),
+        return new ClassInfoList(
+                this.filterClassInfo(RelType.CONTAINED_WITHIN_OUTER_CLASS, /* strictAccept = */ false),
                 /* sortByName = */ false);
     }
 
     /**
      * Get the inner classes contained within this class, if this is an outer class.
      *
-     * @return A list of the inner classes contained within this class, or the empty
-     *         list if none.
+     * @return A list of the inner classes contained within this class, or the empty list if none.
      */
     public ClassInfoList getInnerClasses() {
         return new ClassInfoList(this.filterClassInfo(RelType.CONTAINS_INNER_CLASS, /* strictAccept = */ false),
@@ -1955,13 +1973,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Gets fully-qualified method name (i.e. fully qualified classname, followed by
-     * dot, followed by method name) for the defining method, if this is an
-     * anonymous inner class.
+     * Gets fully-qualified method name (i.e. fully qualified classname, followed by dot, followed by method name)
+     * for the defining method, if this is an anonymous inner class.
      *
-     * @return The fully-qualified method name (i.e. fully qualified classname,
-     *         followed by dot, followed by method name) for the defining method, if
-     *         this is an anonymous inner class, or null if not.
+     * @return The fully-qualified method name (i.e. fully qualified classname, followed by dot, followed by method
+     *         name) for the defining method, if this is an anonymous inner class, or null if not.
      */
     public @Nullable String getFullyQualifiedDefiningMethodName() {
         return fullyQualifiedDefiningMethodName;
@@ -1971,60 +1987,53 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     // Interfaces
 
     /**
-     * Get all superinterfaces of this class or interface: all interfaces
-     * implemented by this class or by one of its superclasses, if this is a
-     * standard class, or all interfaces extended by this interface, directly or
+     * Get all superinterfaces of this class or interface: all interfaces implemented by this class or by one of its
+     * superclasses, if this is a standard class, or all interfaces extended by this interface, directly or
      * indirectly, if this is an interface.
      *
-     * @return The list of all superinterfaces of this class or interface, or the
-     *         empty list if none.
+     * @return The list of all superinterfaces of this class or interface, or the empty list if none.
      */
     public ClassInfoList getAllSuperinterfaces() {
         // Classes also implement the interfaces of their superclasses
         final var implementedInterfaces = this.filterClassInfo(RelType.IMPLEMENTED_INTERFACES,
                 /* strictAccept = */ false);
         final Set<ClassInfo> allInterfaces = new LinkedHashSet<>(implementedInterfaces.reachableClasses());
-        for (final ClassInfo superclass : this.filterClassInfo(RelType.SUPERCLASSES,
-                /* strictAccept = */ false).reachableClasses()) {
-            final var superclassImplementedInterfaces = superclass.filterClassInfo(RelType.IMPLEMENTED_INTERFACES,
-                    /* strictAccept = */ false).reachableClasses();
+        for (final ClassInfo superclass : this.filterClassInfo(RelType.SUPERCLASSES, /* strictAccept = */ false)
+                .reachableClasses()) {
+            final var superclassImplementedInterfaces = superclass
+                    .filterClassInfo(RelType.IMPLEMENTED_INTERFACES, /* strictAccept = */ false).reachableClasses();
             allInterfaces.addAll(superclassImplementedInterfaces);
         }
         // Can't sort interfaces by name, since their order is significant in the
         // definition of inheritance
-        return new ClassInfoList(allInterfaces, implementedInterfaces.directlyRelatedClasses(), /* sortByName = */ false);
+        return new ClassInfoList(allInterfaces, implementedInterfaces.directlyRelatedClasses(),
+                /* sortByName = */ false);
     }
 
     /**
-     * Get the direct superinterfaces of this class or interface: the interfaces
-     * directly implemented by this class, if this is a standard class, or the
-     * interfaces directly extended by this interface, if this is an interface.
-     * Does not include the interfaces implemented by superclasses, or the
-     * superinterfaces of the returned interfaces.
+     * Get the direct superinterfaces of this class or interface: the interfaces directly implemented by this class,
+     * if this is a standard class, or the interfaces directly extended by this interface, if this is an interface.
+     * Does not include the interfaces implemented by superclasses, or the superinterfaces of the returned
+     * interfaces.
      *
-     * @return The list of direct superinterfaces of this class or interface, or
-     *         the empty list if none.
+     * @return The list of direct superinterfaces of this class or interface, or the empty list if none.
      */
     public ClassInfoList getDirectSuperinterfaces() {
         return getAllSuperinterfaces().directOnly();
     }
 
     /**
-     * Get all the classes (and their subclasses) that implement this interface, if
-     * this is an interface.
+     * Get all the classes (and their subclasses) that implement this interface, if this is an interface.
      *
      * <p>
-     * The returned list also contains the transitive subinterfaces of this
-     * interface, since an interface that extends this interface is a subtype of it.
-     * To separate the two, call {@link ClassInfoList#getInterfaces()} for just the
-     * subinterfaces, or {@link ClassInfoList#getStandardClasses()} for just the
-     * implementing classes. (Note that {@link #getAllSubclasses()} does not
-     * traverse the interface hierarchy -- use this method instead to find the
-     * subinterfaces of an interface.)
+     * The returned list also contains the transitive subinterfaces of this interface, since an interface that
+     * extends this interface is a subtype of it. To separate the two, call {@link ClassInfoList#getInterfaces()}
+     * for just the subinterfaces, or {@link ClassInfoList#getStandardClasses()} for just the implementing classes.
+     * (Note that {@link #getAllSubclasses()} does not traverse the interface hierarchy -- use this method instead
+     * to find the subinterfaces of an interface.)
      *
-     * @return the list of all the classes (and their subclasses) that implement
-     *         this interface, and the transitive subinterfaces of this interface,
-     *         if this is an interface, otherwise returns the empty list.
+     * @return the list of all the classes (and their subclasses) that implement this interface, and the transitive
+     *         subinterfaces of this interface, if this is an interface, otherwise returns the empty list.
      */
     public ClassInfoList getAllClassesImplementing() {
         // Subclasses of implementing classes also implement the interface. Don't filter
@@ -2035,8 +2044,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 /* strictAccept = */ false);
         final Set<ClassInfo> allImplementingClasses = new LinkedHashSet<>(implementingClasses.reachableClasses());
         for (final ClassInfo implementingClass : implementingClasses.reachableClasses()) {
-            final var implementingSubclasses = implementingClass.filterClassInfo(RelType.SUBCLASSES,
-                    /* strictAccept = */ false).reachableClasses();
+            final var implementingSubclasses = implementingClass
+                    .filterClassInfo(RelType.SUBCLASSES, /* strictAccept = */ false).reachableClasses();
             allImplementingClasses.addAll(implementingSubclasses);
         }
         final var scanSpec = scanResult().scanSpec;
@@ -2048,29 +2057,28 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get the classes that directly implement this interface, i.e. that name this
-     * interface in their {@code implements} clause, and the interfaces that name it
-     * in their {@code extends} clause, if this is an interface.
+     * Get the classes that directly implement this interface, i.e. that name this interface in their
+     * {@code implements} clause, and the interfaces that name it in their {@code extends} clause, if this is an
+     * interface.
      *
-     * @return the list of the classes and interfaces that directly implement or
-     *         extend this interface, if this is an interface, otherwise returns the
-     *         empty list.
+     * @return the list of the classes and interfaces that directly implement or extend this interface, if this is
+     *         an interface, otherwise returns the empty list.
      */
     public ClassInfoList getDirectClassesImplementing() {
         return getAllClassesImplementing().directOnly();
     }
 
     /**
-     * Get all subinterfaces of this interface, i.e. the interfaces that extend this
-     * interface, and the interfaces that extend those, if this is an interface.
+     * Get all subinterfaces of this interface, i.e. the interfaces that extend this interface, and the interfaces
+     * that extend those, if this is an interface.
      *
      * <p>
-     * This is the interface-hierarchy equivalent of {@link #getAllSubclasses()},
-     * which only traverses the superclass hierarchy. (It is equivalent to filtering
-     * {@link #getAllClassesImplementing()} down to just the interfaces.)
+     * This is the interface-hierarchy equivalent of {@link #getAllSubclasses()}, which only traverses the
+     * superclass hierarchy. (It is equivalent to filtering {@link #getAllClassesImplementing()} down to just the
+     * interfaces.)
      *
-     * @return the list of all subinterfaces of this interface, if this is an
-     *         interface, otherwise returns the empty list.
+     * @return the list of all subinterfaces of this interface, if this is an interface, otherwise returns the empty
+     *         list.
      */
     public ClassInfoList getAllSubinterfaces() {
         if (!isInterfaceOrAnnotation()) {
@@ -2080,11 +2088,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get the direct subinterfaces of this interface, i.e. only the interfaces that
-     * name this interface in their {@code extends} clause, if this is an interface.
+     * Get the direct subinterfaces of this interface, i.e. only the interfaces that name this interface in their
+     * {@code extends} clause, if this is an interface.
      *
-     * @return the list of the direct subinterfaces of this interface, if this is an
-     *         interface, otherwise returns the empty list.
+     * @return the list of the direct subinterfaces of this interface, if this is an interface, otherwise returns
+     *         the empty list.
      */
     public ClassInfoList getDirectSubinterfaces() {
         if (!isInterfaceOrAnnotation()) {
@@ -2097,13 +2105,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     // Annotations
 
     /**
-     * Get the annotations and meta-annotations on this class. (Call
-     * {@link #getAllAnnotationInfo()} instead, if you need the parameter values of
-     * annotations, rather than just the annotation classes.)
+     * Get the annotations and meta-annotations on this class. (Call {@link #getAllAnnotationInfo()} instead, if you
+     * need the parameter values of annotations, rather than just the annotation classes.)
      *
      * <p>
-     * Also handles the {@link Inherited} meta-annotation, which causes an
-     * annotation to annotate a class and all of its subclasses.
+     * Also handles the {@link Inherited} meta-annotation, which causes an annotation to annotate a class and all of
+     * its subclasses.
      *
      * <p>
      * Filters out meta-annotations in the {@code java.lang.annotation} package.
@@ -2121,12 +2128,14 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             }
 
             // Get all annotations on this class
-            final var annotationClasses = this.filterClassInfo(RelType.CLASS_ANNOTATIONS, /* strictAccept = */ false);
+            final var annotationClasses = this.filterClassInfo(RelType.CLASS_ANNOTATIONS,
+                    /* strictAccept = */ false);
             // Check for any @Inherited annotations on superclasses
             Set<ClassInfo> inheritedSuperclassAnnotations = null;
             for (final ClassInfo superclass : getAllSuperclasses()) {
-                for (final ClassInfo superclassAnnotation : superclass.filterClassInfo(RelType.CLASS_ANNOTATIONS,
-                        /* strictAccept = */ false).reachableClasses()) {
+                for (final ClassInfo superclassAnnotation : superclass
+                        .filterClassInfo(RelType.CLASS_ANNOTATIONS, /* strictAccept = */ false)
+                        .reachableClasses()) {
                     // Check if any of the meta-annotations on this annotation are @Inherited,
                     // which causes an annotation to annotate a class and all of its subclasses.
                     if (superclassAnnotation != null && superclassAnnotation.isInherited) {
@@ -2153,11 +2162,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get only the annotations directly present on this class, not the
-     * meta-annotations on those annotations, and not the {@link Inherited}
-     * annotations of superclasses. (Call {@link #getDirectAnnotationInfo()}
-     * instead, if you need the parameter values of annotations, rather than just
-     * the annotation classes.)
+     * Get only the annotations directly present on this class, not the meta-annotations on those annotations, and
+     * not the {@link Inherited} annotations of superclasses. (Call {@link #getDirectAnnotationInfo()} instead, if
+     * you need the parameter values of annotations, rather than just the annotation classes.)
      *
      * @return the list of annotations directly present on this class.
      */
@@ -2166,16 +2173,14 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get the annotations or meta-annotations on fields, methods or method
-     * parameters declared by the class, (not including fields, methods or method
-     * parameters declared by the interfaces or superclasses of this class).
+     * Get the annotations or meta-annotations on fields, methods or method parameters declared by the class, (not
+     * including fields, methods or method parameters declared by the interfaces or superclasses of this class).
      *
-     * @param relType One of {@link RelType#FIELD_ANNOTATIONS},
-     *                {@link RelType#METHOD_ANNOTATIONS} or
-     *                {@link RelType#METHOD_PARAMETER_ANNOTATIONS}.
-     * @return A list of annotations or meta-annotations on fields or methods
-     *         declared by the class, (not including fields or methods declared by
-     *         the interfaces or superclasses of this class), as a list of
+     * @param relType
+     *            One of {@link RelType#FIELD_ANNOTATIONS}, {@link RelType#METHOD_ANNOTATIONS} or
+     *            {@link RelType#METHOD_PARAMETER_ANNOTATIONS}.
+     * @return A list of annotations or meta-annotations on fields or methods declared by the class, (not including
+     *         fields or methods declared by the interfaces or superclasses of this class), as a list of
      *         {@link ClassInfo} objects, or the empty list if none.
      */
     private ClassInfoList getFieldOrMethodAnnotations(final RelType relType) {
@@ -2194,17 +2199,17 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get the classes that have this class as a field, method or method parameter
-     * annotation.
+     * Get the classes that have this class as a field, method or method parameter annotation.
      *
-     * @param relType One of {@link RelType#CLASSES_WITH_FIELD_ANNOTATION},
-     *                {@link RelType#CLASSES_WITH_NONPRIVATE_FIELD_ANNOTATION},
-     *                {@link RelType#CLASSES_WITH_METHOD_ANNOTATION},
-     *                {@link RelType#CLASSES_WITH_NONPRIVATE_METHOD_ANNOTATION},
-     *                {@link RelType#CLASSES_WITH_METHOD_PARAMETER_ANNOTATION}, or
-     *                {@link RelType#CLASSES_WITH_NONPRIVATE_METHOD_PARAMETER_ANNOTATION}.
-     * @return A list of classes that have a declared method with this annotation or
-     *         meta-annotation, or the empty list if none.
+     * @param relType
+     *            One of {@link RelType#CLASSES_WITH_FIELD_ANNOTATION},
+     *            {@link RelType#CLASSES_WITH_NONPRIVATE_FIELD_ANNOTATION},
+     *            {@link RelType#CLASSES_WITH_METHOD_ANNOTATION},
+     *            {@link RelType#CLASSES_WITH_NONPRIVATE_METHOD_ANNOTATION},
+     *            {@link RelType#CLASSES_WITH_METHOD_PARAMETER_ANNOTATION}, or
+     *            {@link RelType#CLASSES_WITH_NONPRIVATE_METHOD_PARAMETER_ANNOTATION}.
+     * @return A list of classes that have a declared method with this annotation or meta-annotation, or the empty
+     *         list if none.
      */
     private ClassInfoList getClassesWithFieldOrMethodAnnotation(final RelType relType) {
         final var isField = relType == RelType.CLASSES_WITH_FIELD_ANNOTATION
@@ -2232,9 +2237,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             final Set<ClassInfo> allClassesWithAnnotatedOrMetaAnnotatedFieldsOrMethods = new LinkedHashSet<>(
                     classesWithDirectlyAnnotatedFieldsOrMethods.reachableClasses());
             for (final ClassInfo metaAnnotatedAnnotation : annotationsWithThisMetaAnnotation.reachableClasses()) {
-                allClassesWithAnnotatedOrMetaAnnotatedFieldsOrMethods
-                        .addAll(metaAnnotatedAnnotation.filterClassInfo(relType, /* strictAccept = */ true)
-                                .reachableClasses());
+                allClassesWithAnnotatedOrMetaAnnotatedFieldsOrMethods.addAll(metaAnnotatedAnnotation
+                        .filterClassInfo(relType, /* strictAccept = */ true).reachableClasses());
             }
             return new ClassInfoList(allClassesWithAnnotatedOrMetaAnnotatedFieldsOrMethods,
                     classesWithDirectlyAnnotatedFieldsOrMethods.directlyRelatedClasses(), /* sortByName = */ true);
@@ -2242,15 +2246,14 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get a list of the annotations and meta-annotations on this class, or the
-     * empty list if none.
+     * Get a list of the annotations and meta-annotations on this class, or the empty list if none.
      *
      * <p>
-     * Also handles the {@link Inherited} meta-annotation, which causes an
-     * annotation to annotate a class and all of its subclasses.
+     * Also handles the {@link Inherited} meta-annotation, which causes an annotation to annotate a class and all of
+     * its subclasses.
      *
-     * @return A list of {@link AnnotationInfo} objects for the annotations and
-     *         meta-annotations on this class, or the empty list if none.
+     * @return A list of {@link AnnotationInfo} objects for the annotations and meta-annotations on this class, or
+     *         the empty list if none.
      */
     public AnnotationInfoList getAllAnnotationInfo() {
         synchronized (this) {
@@ -2268,37 +2271,34 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get a list of only the annotations directly present on this class, not the
-     * meta-annotations on those annotations, and not the {@link Inherited}
-     * annotations of superclasses, or the empty list if none.
+     * Get a list of only the annotations directly present on this class, not the meta-annotations on those
+     * annotations, and not the {@link Inherited} annotations of superclasses, or the empty list if none.
      *
-     * @return A list of {@link AnnotationInfo} objects for the annotations directly
-     *         present on this class, or the empty list if none.
+     * @return A list of {@link AnnotationInfo} objects for the annotations directly present on this class, or the
+     *         empty list if none.
      */
     public AnnotationInfoList getDirectAnnotationInfo() {
         return getAllAnnotationInfo().directOnly();
     }
 
     /**
-     * Get the non-{@link Repeatable} annotation or meta-annotation on this class,
-     * or null if the class does not have the annotation. (Use
-     * {@link #getAllAnnotationInfoRepeatable(Class)} for {@link Repeatable}
-     * annotations, or {@link #getDirectAnnotationInfo(Class)} to ignore
-     * meta-annotations.)
+     * Get the non-{@link Repeatable} annotation or meta-annotation on this class, or null if the class does not
+     * have the annotation. (Use {@link #getAllAnnotationInfoRepeatable(Class)} for {@link Repeatable} annotations,
+     * or {@link #getDirectAnnotationInfo(Class)} to ignore meta-annotations.)
      *
      * <p>
-     * Also handles the {@link Inherited} meta-annotation, which causes an
-     * annotation to annotate a class and all of its subclasses.
+     * Also handles the {@link Inherited} meta-annotation, which causes an annotation to annotate a class and all of
+     * its subclasses.
      *
      * <p>
-     * Note that if you need to get multiple annotations, it is faster to call
-     * {@link #getAllAnnotationInfo()}, and then get the annotations from the
-     * returned {@link AnnotationInfoList}, so that the returned list doesn't have
+     * Note that if you need to get multiple annotations, it is faster to call {@link #getAllAnnotationInfo()}, and
+     * then get the annotations from the returned {@link AnnotationInfoList}, so that the returned list doesn't have
      * to be built multiple times.
      *
-     * @param annotation the annotation class
-     * @return An {@link AnnotationInfo} object representing the annotation on this
-     *         class, or null if the class does not have the annotation.
+     * @param annotation
+     *            the annotation class
+     * @return An {@link AnnotationInfo} object representing the annotation on this class, or null if the class does
+     *         not have the annotation.
      */
     public @Nullable AnnotationInfo getAllAnnotationInfo(final Class<? extends Annotation> annotation) {
         Assert.notNull(annotation, "annotation");
@@ -2307,34 +2307,30 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get the named non-{@link Repeatable} annotation or meta-annotation on this
-     * class, or null if the class does not have the named annotation. (Use
-     * {@link #getAllAnnotationInfoRepeatable(String)} for {@link Repeatable}
-     * annotations, or {@link #getDirectAnnotationInfo(String)} to ignore
-     * meta-annotations.)
+     * Get the named non-{@link Repeatable} annotation or meta-annotation on this class, or null if the class does
+     * not have the named annotation. (Use {@link #getAllAnnotationInfoRepeatable(String)} for {@link Repeatable}
+     * annotations, or {@link #getDirectAnnotationInfo(String)} to ignore meta-annotations.)
      *
      * <p>
-     * Also handles the {@link Inherited} meta-annotation, which causes an
-     * annotation to annotate a class and all of its subclasses.
+     * Also handles the {@link Inherited} meta-annotation, which causes an annotation to annotate a class and all of
+     * its subclasses.
      *
      * <p>
-     * If the named annotation can be reached in more than one way -- if it is
-     * directly present on the class and is also a meta-annotation of one of the
-     * class' other annotations, for example -- then the one reached most directly is
-     * returned: an annotation directly present on the class, if there is one,
-     * otherwise an annotation inherited from a superclass, otherwise a
-     * meta-annotation. Call {@link #getDirectAnnotationInfo(String)} if you want only
-     * the annotation present on the class itself.
+     * If the named annotation can be reached in more than one way -- if it is directly present on the class and is
+     * also a meta-annotation of one of the class' other annotations, for example -- then the one reached most
+     * directly is returned: an annotation directly present on the class, if there is one, otherwise an annotation
+     * inherited from a superclass, otherwise a meta-annotation. Call {@link #getDirectAnnotationInfo(String)} if
+     * you want only the annotation present on the class itself.
      *
      * <p>
      * Note that if you need to get multiple named annotations, it is faster to call
-     * {@link #getAllAnnotationInfo()}, and then get the named annotations from the
-     * returned {@link AnnotationInfoList}, so that the returned list doesn't have
-     * to be built multiple times.
+     * {@link #getAllAnnotationInfo()}, and then get the named annotations from the returned
+     * {@link AnnotationInfoList}, so that the returned list doesn't have to be built multiple times.
      *
-     * @param annotationName the name of the annotation class
-     * @return An {@link AnnotationInfo} object representing the named annotation on
-     *         this class, or null if the class does not have the named annotation.
+     * @param annotationName
+     *            the name of the annotation class
+     * @return An {@link AnnotationInfo} object representing the named annotation on this class, or null if the
+     *         class does not have the named annotation.
      */
     public @Nullable AnnotationInfo getAllAnnotationInfo(final String annotationName) {
         Assert.notNull(annotationName, "annotationName");
@@ -2342,15 +2338,14 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get the non-{@link Repeatable} annotation directly present on this class, or
-     * null if the annotation is not directly present. Meta-annotations, and the
-     * {@link Inherited} annotations of superclasses, are ignored. (Use
-     * {@link #getDirectAnnotationInfoRepeatable(Class)} for {@link Repeatable}
-     * annotations.)
+     * Get the non-{@link Repeatable} annotation directly present on this class, or null if the annotation is not
+     * directly present. Meta-annotations, and the {@link Inherited} annotations of superclasses, are ignored. (Use
+     * {@link #getDirectAnnotationInfoRepeatable(Class)} for {@link Repeatable} annotations.)
      *
-     * @param annotation the annotation class
-     * @return An {@link AnnotationInfo} object representing the annotation directly
-     *         present on this class, or null if it is not directly present.
+     * @param annotation
+     *            the annotation class
+     * @return An {@link AnnotationInfo} object representing the annotation directly present on this class, or null
+     *         if it is not directly present.
      */
     public @Nullable AnnotationInfo getDirectAnnotationInfo(final Class<? extends Annotation> annotation) {
         Assert.notNull(annotation, "annotation");
@@ -2359,16 +2354,14 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get the named non-{@link Repeatable} annotation directly present on this
-     * class, or null if the named annotation is not directly present.
-     * Meta-annotations, and the {@link Inherited} annotations of superclasses, are
-     * ignored. (Use {@link #getDirectAnnotationInfoRepeatable(String)} for
-     * {@link Repeatable} annotations.)
+     * Get the named non-{@link Repeatable} annotation directly present on this class, or null if the named
+     * annotation is not directly present. Meta-annotations, and the {@link Inherited} annotations of superclasses,
+     * are ignored. (Use {@link #getDirectAnnotationInfoRepeatable(String)} for {@link Repeatable} annotations.)
      *
-     * @param annotationName the name of the annotation class
-     * @return An {@link AnnotationInfo} object representing the named annotation
-     *         directly present on this class, or null if it is not directly
-     *         present.
+     * @param annotationName
+     *            the name of the annotation class
+     * @return An {@link AnnotationInfo} object representing the named annotation directly present on this class, or
+     *         null if it is not directly present.
      */
     public @Nullable AnnotationInfo getDirectAnnotationInfo(final String annotationName) {
         Assert.notNull(annotationName, "annotationName");
@@ -2376,23 +2369,22 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get the {@link Repeatable} annotation or meta-annotation on this class, or
-     * the empty list if the class does not have the annotation.
+     * Get the {@link Repeatable} annotation or meta-annotation on this class, or the empty list if the class does
+     * not have the annotation.
      *
      * <p>
-     * Also handles the {@link Inherited} meta-annotation, which causes an
-     * annotation to annotate a class and all of its subclasses.
+     * Also handles the {@link Inherited} meta-annotation, which causes an annotation to annotate a class and all of
+     * its subclasses.
      *
      * <p>
-     * Note that if you need to get multiple annotations, it is faster to call
-     * {@link #getAllAnnotationInfo()}, and then get the annotations from the
-     * returned {@link AnnotationInfoList}, so that the returned list doesn't have
+     * Note that if you need to get multiple annotations, it is faster to call {@link #getAllAnnotationInfo()}, and
+     * then get the annotations from the returned {@link AnnotationInfoList}, so that the returned list doesn't have
      * to be built multiple times.
      *
-     * @param annotation the annotation class
-     * @return An {@link AnnotationInfoList} of all instances of the annotation on
-     *         this class, or the empty list if the class does not have the
-     *         annotation.
+     * @param annotation
+     *            the annotation class
+     * @return An {@link AnnotationInfoList} of all instances of the annotation on this class, or the empty list if
+     *         the class does not have the annotation.
      */
     public AnnotationInfoList getAllAnnotationInfoRepeatable(final Class<? extends Annotation> annotation) {
         Assert.notNull(annotation, "annotation");
@@ -2401,23 +2393,22 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get the named {@link Repeatable} annotation or meta-annotation on this class,
-     * or the empty list if the class does not have the named annotation.
+     * Get the named {@link Repeatable} annotation or meta-annotation on this class, or the empty list if the class
+     * does not have the named annotation.
      *
      * <p>
-     * Also handles the {@link Inherited} meta-annotation, which causes an
-     * annotation to annotate a class and all of its subclasses.
+     * Also handles the {@link Inherited} meta-annotation, which causes an annotation to annotate a class and all of
+     * its subclasses.
      *
      * <p>
      * Note that if you need to get multiple named annotations, it is faster to call
-     * {@link #getAllAnnotationInfo()}, and then get the named annotations from the
-     * returned {@link AnnotationInfoList}, so that the returned list doesn't have
-     * to be built multiple times.
+     * {@link #getAllAnnotationInfo()}, and then get the named annotations from the returned
+     * {@link AnnotationInfoList}, so that the returned list doesn't have to be built multiple times.
      *
-     * @param annotationName the name of the annotation class
-     * @return An {@link AnnotationInfoList} of all instances of the named
-     *         annotation on this class, or the empty list if the class does not
-     *         have the named annotation.
+     * @param annotationName
+     *            the name of the annotation class
+     * @return An {@link AnnotationInfoList} of all instances of the named annotation on this class, or the empty
+     *         list if the class does not have the named annotation.
      */
     public AnnotationInfoList getAllAnnotationInfoRepeatable(final String annotationName) {
         Assert.notNull(annotationName, "annotationName");
@@ -2425,14 +2416,13 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get the {@link Repeatable} annotation directly present on this class, or the
-     * empty list if it is not directly present. Meta-annotations, and the
-     * {@link Inherited} annotations of superclasses, are ignored.
+     * Get the {@link Repeatable} annotation directly present on this class, or the empty list if it is not directly
+     * present. Meta-annotations, and the {@link Inherited} annotations of superclasses, are ignored.
      *
-     * @param annotation the annotation class
-     * @return An {@link AnnotationInfoList} of all instances of the annotation
-     *         directly present on this class, or the empty list if it is not
-     *         directly present.
+     * @param annotation
+     *            the annotation class
+     * @return An {@link AnnotationInfoList} of all instances of the annotation directly present on this class, or
+     *         the empty list if it is not directly present.
      */
     public AnnotationInfoList getDirectAnnotationInfoRepeatable(final Class<? extends Annotation> annotation) {
         Assert.notNull(annotation, "annotation");
@@ -2441,14 +2431,13 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get the named {@link Repeatable} annotation directly present on this class,
-     * or the empty list if it is not directly present. Meta-annotations, and the
-     * {@link Inherited} annotations of superclasses, are ignored.
+     * Get the named {@link Repeatable} annotation directly present on this class, or the empty list if it is not
+     * directly present. Meta-annotations, and the {@link Inherited} annotations of superclasses, are ignored.
      *
-     * @param annotationName the name of the annotation class
-     * @return An {@link AnnotationInfoList} of all instances of the named
-     *         annotation directly present on this class, or the empty list if it is
-     *         not directly present.
+     * @param annotationName
+     *            the name of the annotation class
+     * @return An {@link AnnotationInfoList} of all instances of the named annotation directly present on this
+     *         class, or the empty list if it is not directly present.
      */
     public AnnotationInfoList getDirectAnnotationInfoRepeatable(final String annotationName) {
         Assert.notNull(annotationName, "annotationName");
@@ -2456,13 +2445,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get the default parameter values for this annotation, if this is an
-     * annotation class.
+     * Get the default parameter values for this annotation, if this is an annotation class.
      *
-     * @return A list of {@link AnnotationParameterValue} objects for each of the
-     *         default parameter values for this annotation, if this is an
-     *         annotation class with default parameter values, otherwise the empty
-     *         list.
+     * @return A list of {@link AnnotationParameterValue} objects for each of the default parameter values for this
+     *         annotation, if this is an annotation class with default parameter values, otherwise the empty list.
      */
     public AnnotationParameterValueList getAnnotationDefaultParameterValues() {
         if (!scanResult().scanSpec.enableAnnotationInfo) {
@@ -2486,11 +2472,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Get the classes that have this class as an annotation.
      *
-     * @return A list of standard classes and non-annotation interfaces that are
-     *         annotated by this class, if this is an annotation class, or the empty
-     *         list if none. Also handles the {@link Inherited} meta-annotation,
-     *         which causes an annotation on a class to be inherited by all of its
-     *         subclasses.
+     * @return A list of standard classes and non-annotation interfaces that are annotated by this class, if this is
+     *         an annotation class, or the empty list if none. Also handles the {@link Inherited} meta-annotation,
+     *         which causes an annotation on a class to be inherited by all of its subclasses.
      */
     public ClassInfoList getClassesWithAnnotation() {
         if (!scanResult().scanSpec.enableAnnotationInfo) {
@@ -2528,12 +2512,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Get the classes that have this class as a direct annotation.
      *
-     * @return The list of classes that are directly (i.e. are not meta-annotated)
-     *         annotated with the requested annotation, or the empty list if none.
+     * @return The list of classes that are directly (i.e. are not meta-annotated) annotated with the requested
+     *         annotation, or the empty list if none.
      */
     ClassInfoList getClassesWithAnnotationDirectOnly() {
-        return new ClassInfoList(
-                this.filterClassInfo(RelType.CLASSES_WITH_ANNOTATION, /* strictAccept = */ true),
+        return new ClassInfoList(this.filterClassInfo(RelType.CLASSES_WITH_ANNOTATION, /* strictAccept = */ true),
                 /* sortByName = */ true);
     }
 
@@ -2541,13 +2524,16 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     // Methods
 
     /**
-     * Get the declared methods, constructors, and/or static initializer methods of
-     * the class.
+     * Get the declared methods, constructors, and/or static initializer methods of the class.
      *
-     * @param methodName                  the method name
-     * @param getNormalMethods            whether to get normal methods
-     * @param getConstructorMethods       whether to get constructor methods
-     * @param getStaticInitializerMethods whether to get static initializer methods
+     * @param methodName
+     *            the method name
+     * @param getNormalMethods
+     *            whether to get normal methods
+     * @param getConstructorMethods
+     *            whether to get constructor methods
+     * @param getStaticInitializerMethods
+     *            whether to get static initializer methods
      * @return the declared method info
      */
     private MethodInfoList getDeclaredMethodInfo(final @Nullable String methodName, final boolean getNormalMethods,
@@ -2598,13 +2584,16 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get the methods, constructors, and/or static initializer methods of the
-     * class.
+     * Get the methods, constructors, and/or static initializer methods of the class.
      *
-     * @param methodName                  the method name
-     * @param getNormalMethods            whether to get normal methods
-     * @param getConstructorMethods       whether to get constructor methods
-     * @param getStaticInitializerMethods whether to get static initializer methods
+     * @param methodName
+     *            the method name
+     * @param getNormalMethods
+     *            whether to get normal methods
+     * @param getConstructorMethods
+     *            whether to get constructor methods
+     * @param getStaticInitializerMethods
+     *            whether to get static initializer methods
      * @return the method info
      */
     private MethodInfoList getMethodInfo(final @Nullable String methodName, final boolean getNormalMethods,
@@ -2631,8 +2620,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Returns information on visible methods declared by this class, but not by its
-     * interfaces or superclasses, that are not constructors. See also:
+     * Returns information on visible methods declared by this class, but not by its interfaces or superclasses,
+     * that are not constructors. See also:
      *
      * <ul>
      * <li>{@link #getMethodInfo(String)}
@@ -2645,21 +2634,20 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * </ul>
      *
      * <p>
-     * There may be more than one method of a given name with different type
-     * signatures, due to overloading.
+     * There may be more than one method of a given name with different type signatures, due to overloading.
      *
      * <p>
-     * Requires that {@link ClassGraph#enableMethodInfo()} be called before
-     * scanning, otherwise throws {@link IllegalStateException}.
+     * Requires that {@link ClassGraph#enableMethodInfo()} be called before scanning, otherwise throws
+     * {@link IllegalStateException}.
      *
      * <p>
-     * By default only returns information for public methods, unless
-     * {@link ClassGraph#ignoreMethodVisibility()} was called before the scan.
+     * By default only returns information for public methods, unless {@link ClassGraph#ignoreMethodVisibility()}
+     * was called before the scan.
      *
-     * @return the list of {@link MethodInfo} objects for visible methods declared
-     *         by this class, or the empty list if no methods were found.
-     * @throws IllegalStateException if {@link ClassGraph#enableMethodInfo()} was
-     *                                  not called prior to initiating the scan.
+     * @return the list of {@link MethodInfo} objects for visible methods declared by this class, or the empty list
+     *         if no methods were found.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableMethodInfo()} was not called prior to initiating the scan.
      */
     public MethodInfoList getDeclaredMethodInfo() {
         return getDeclaredMethodInfo(/* methodName = */ null, /* getNormalMethods = */ true,
@@ -2667,8 +2655,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Returns information on visible methods declared by this class, or by its
-     * interfaces or superclasses, that are not constructors. See also:
+     * Returns information on visible methods declared by this class, or by its interfaces or superclasses, that are
+     * not constructors. See also:
      *
      * <ul>
      * <li>{@link #getMethodInfo(String)}
@@ -2681,22 +2669,20 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * </ul>
      *
      * <p>
-     * There may be more than one method of a given name with different type
-     * signatures, due to overloading.
+     * There may be more than one method of a given name with different type signatures, due to overloading.
      *
      * <p>
-     * Requires that {@link ClassGraph#enableMethodInfo()} be called before
-     * scanning, otherwise throws {@link IllegalStateException}.
+     * Requires that {@link ClassGraph#enableMethodInfo()} be called before scanning, otherwise throws
+     * {@link IllegalStateException}.
      *
      * <p>
-     * By default only returns information for public methods, unless
-     * {@link ClassGraph#ignoreMethodVisibility()} was called before the scan.
+     * By default only returns information for public methods, unless {@link ClassGraph#ignoreMethodVisibility()}
+     * was called before the scan.
      *
-     * @return the list of {@link MethodInfo} objects for visible methods of this
-     *         class, its interfaces and superclasses, or the empty list if no
-     *         methods were found.
-     * @throws IllegalStateException if {@link ClassGraph#enableMethodInfo()} was
-     *                                  not called prior to initiating the scan.
+     * @return the list of {@link MethodInfo} objects for visible methods of this class, its interfaces and
+     *         superclasses, or the empty list if no methods were found.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableMethodInfo()} was not called prior to initiating the scan.
      */
     public MethodInfoList getMethodInfo() {
         return getMethodInfo(/* methodName = */ null, /* getNormalMethods = */ true,
@@ -2704,9 +2690,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Returns information on visible constructors declared by this class, but not
-     * by its interfaces or superclasses. Constructors have the method name of
-     * {@code "<init>"}. See also:
+     * Returns information on visible constructors declared by this class, but not by its interfaces or
+     * superclasses. Constructors have the method name of {@code "<init>"}. See also:
      *
      * <ul>
      * <li>{@link #getMethodInfo(String)}
@@ -2719,22 +2704,20 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * </ul>
      *
      * <p>
-     * There may be more than one constructor of a given name with different type
-     * signatures, due to overloading.
+     * There may be more than one constructor of a given name with different type signatures, due to overloading.
      *
      * <p>
-     * Requires that {@link ClassGraph#enableMethodInfo()} be called before
-     * scanning, otherwise throws {@link IllegalStateException}.
+     * Requires that {@link ClassGraph#enableMethodInfo()} be called before scanning, otherwise throws
+     * {@link IllegalStateException}.
      *
      * <p>
      * By default only returns information for public constructors, unless
      * {@link ClassGraph#ignoreMethodVisibility()} was called before the scan.
      *
-     * @return the list of {@link MethodInfo} objects for visible constructors
-     *         declared by this class, or the empty list if no constructors were
-     *         found or visible.
-     * @throws IllegalStateException if {@link ClassGraph#enableMethodInfo()} was
-     *                                  not called prior to initiating the scan.
+     * @return the list of {@link MethodInfo} objects for visible constructors declared by this class, or the empty
+     *         list if no constructors were found or visible.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableMethodInfo()} was not called prior to initiating the scan.
      */
     public MethodInfoList getDeclaredConstructorInfo() {
         return getDeclaredMethodInfo(/* methodName = */ null, /* getNormalMethods = */ false,
@@ -2742,9 +2725,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Returns information on visible constructors declared by this class, or by its
-     * interfaces or superclasses. Constructors have the method name of
-     * {@code "<init>"}. See also:
+     * Returns information on visible constructors declared by this class, or by its interfaces or superclasses.
+     * Constructors have the method name of {@code "<init>"}. See also:
      *
      * <ul>
      * <li>{@link #getMethodInfo(String)}
@@ -2757,22 +2739,20 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * </ul>
      *
      * <p>
-     * There may be more than one method of a given name with different type
-     * signatures, due to overloading.
+     * There may be more than one method of a given name with different type signatures, due to overloading.
      *
      * <p>
-     * Requires that {@link ClassGraph#enableMethodInfo()} be called before
-     * scanning, otherwise throws {@link IllegalStateException}.
+     * Requires that {@link ClassGraph#enableMethodInfo()} be called before scanning, otherwise throws
+     * {@link IllegalStateException}.
      *
      * <p>
-     * By default only returns information for public methods, unless
-     * {@link ClassGraph#ignoreMethodVisibility()} was called before the scan.
+     * By default only returns information for public methods, unless {@link ClassGraph#ignoreMethodVisibility()}
+     * was called before the scan.
      *
-     * @return the list of {@link MethodInfo} objects for visible constructors of
-     *         this class and its superclasses, or the empty list if no methods were
-     *         found.
-     * @throws IllegalStateException if {@link ClassGraph#enableMethodInfo()} was
-     *                                  not called prior to initiating the scan.
+     * @return the list of {@link MethodInfo} objects for visible constructors of this class and its superclasses,
+     *         or the empty list if no methods were found.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableMethodInfo()} was not called prior to initiating the scan.
      */
     public MethodInfoList getConstructorInfo() {
         return getMethodInfo(/* methodName = */ null, /* getNormalMethods = */ false,
@@ -2780,10 +2760,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Returns information on visible methods and constructors declared by this
-     * class, but not by its interfaces or superclasses. Constructors have the
-     * method name of {@code "<init>"} and static initializer blocks have the name
-     * of {@code "<clinit>"}. See also:
+     * Returns information on visible methods and constructors declared by this class, but not by its interfaces or
+     * superclasses. Constructors have the method name of {@code "<init>"} and static initializer blocks have the
+     * name of {@code "<clinit>"}. See also:
      *
      * <ul>
      * <li>{@link #getMethodInfo(String)}
@@ -2796,25 +2775,23 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * </ul>
      *
      * <p>
-     * There may be more than one method or constructor or method of a given name
-     * with different type signatures, due to overloading.
+     * There may be more than one method or constructor or method of a given name with different type signatures,
+     * due to overloading.
      *
      * <p>
-     * Requires that {@link ClassGraph#enableMethodInfo()} be called before
-     * scanning, otherwise throws {@link IllegalStateException}.
+     * Requires that {@link ClassGraph#enableMethodInfo()} be called before scanning, otherwise throws
+     * {@link IllegalStateException}.
      *
      * <p>
-     * By default only returns information for public methods and constructors,
-     * unless {@link ClassGraph#ignoreMethodVisibility()} was called before the
-     * scan. If method visibility is ignored, the result may include a reference to
-     * a private static class initializer block, with a method name of
+     * By default only returns information for public methods and constructors, unless
+     * {@link ClassGraph#ignoreMethodVisibility()} was called before the scan. If method visibility is ignored, the
+     * result may include a reference to a private static class initializer block, with a method name of
      * {@code "<clinit>"}.
      *
-     * @return the list of {@link MethodInfo} objects for visible methods and
-     *         constructors of this class, or the empty list if no methods or
-     *         constructors were found or visible.
-     * @throws IllegalStateException if {@link ClassGraph#enableMethodInfo()} was
-     *                                  not called prior to initiating the scan.
+     * @return the list of {@link MethodInfo} objects for visible methods and constructors of this class, or the
+     *         empty list if no methods or constructors were found or visible.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableMethodInfo()} was not called prior to initiating the scan.
      */
     public MethodInfoList getDeclaredMethodAndConstructorInfo() {
         return getDeclaredMethodInfo(/* methodName = */ null, /* getNormalMethods = */ true,
@@ -2822,9 +2799,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Returns information on visible constructors declared by this class, or by its
-     * interfaces or superclasses. Constructors have the method name of
-     * {@code "<init>"} and static initializer blocks have the name of
+     * Returns information on visible constructors declared by this class, or by its interfaces or superclasses.
+     * Constructors have the method name of {@code "<init>"} and static initializer blocks have the name of
      * {@code "<clinit>"}. See also:
      *
      * <ul>
@@ -2838,32 +2814,29 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * </ul>
      *
      * <p>
-     * There may be more than one method of a given name with different type
-     * signatures, due to overloading.
+     * There may be more than one method of a given name with different type signatures, due to overloading.
      *
      * <p>
-     * Requires that {@link ClassGraph#enableMethodInfo()} be called before
-     * scanning, otherwise throws {@link IllegalStateException}.
+     * Requires that {@link ClassGraph#enableMethodInfo()} be called before scanning, otherwise throws
+     * {@link IllegalStateException}.
      *
      * <p>
-     * By default only returns information for public methods, unless
-     * {@link ClassGraph#ignoreMethodVisibility()} was called before the scan.
+     * By default only returns information for public methods, unless {@link ClassGraph#ignoreMethodVisibility()}
+     * was called before the scan.
      *
-     * @return the list of {@link MethodInfo} objects for visible methods and
-     *         constructors of this class, its interfaces and superclasses, or the
-     *         empty list if no methods were found.
-     * @throws IllegalStateException if {@link ClassGraph#enableMethodInfo()} was
-     *                                  not called prior to initiating the scan.
+     * @return the list of {@link MethodInfo} objects for visible methods and constructors of this class, its
+     *         interfaces and superclasses, or the empty list if no methods were found.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableMethodInfo()} was not called prior to initiating the scan.
      */
     public MethodInfoList getMethodAndConstructorInfo() {
-        return getMethodInfo(/* methodName = */ null, /* getNormalMethods = */ true, /* getConstructorMethods = */ true,
-                /* getStaticInitializerMethods = */ false);
+        return getMethodInfo(/* methodName = */ null, /* getNormalMethods = */ true,
+                /* getConstructorMethods = */ true, /* getStaticInitializerMethods = */ false);
     }
 
     /**
-     * Returns information on the method(s) or constructor(s) of the given name
-     * declared by this class, but not by its interfaces or superclasses.
-     * Constructors have the method name of {@code "<init>"}. See also:
+     * Returns information on the method(s) or constructor(s) of the given name declared by this class, but not by
+     * its interfaces or superclasses. Constructors have the method name of {@code "<init>"}. See also:
      *
      * <ul>
      * <li>{@link #getMethodInfo(String)}
@@ -2876,23 +2849,22 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * </ul>
      *
      * <p>
-     * Requires that {@link ClassGraph#enableMethodInfo()} be called before
-     * scanning, otherwise throws {@link IllegalStateException}.
+     * Requires that {@link ClassGraph#enableMethodInfo()} be called before scanning, otherwise throws
+     * {@link IllegalStateException}.
      *
      * <p>
-     * By default only returns information for public methods, unless
-     * {@link ClassGraph#ignoreMethodVisibility()} was called before the scan.
+     * By default only returns information for public methods, unless {@link ClassGraph#ignoreMethodVisibility()}
+     * was called before the scan.
      *
      * <p>
-     * May return info for multiple methods with the same name (with different type
-     * signatures).
+     * May return info for multiple methods with the same name (with different type signatures).
      *
-     * @param methodName The method name to query.
-     * @return a list of {@link MethodInfo} objects for the method(s) with the given
-     *         name, or the empty list if the method was not found in this class (or
-     *         is not visible).
-     * @throws IllegalStateException if {@link ClassGraph#enableMethodInfo()} was
-     *                                  not called prior to initiating the scan.
+     * @param methodName
+     *            The method name to query.
+     * @return a list of {@link MethodInfo} objects for the method(s) with the given name, or the empty list if the
+     *         method was not found in this class (or is not visible).
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableMethodInfo()} was not called prior to initiating the scan.
      */
     public MethodInfoList getDeclaredMethodInfo(final String methodName) {
         Assert.notNull(methodName, "methodName");
@@ -2900,9 +2872,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Returns information on the method(s) or constructor(s) of the given name
-     * declared by this class, but not by its interfaces or superclasses.
-     * Constructors have the method name of {@code "<init>"}. See also:
+     * Returns information on the method(s) or constructor(s) of the given name declared by this class, but not by
+     * its interfaces or superclasses. Constructors have the method name of {@code "<init>"}. See also:
      *
      * <ul>
      * <li>{@link #getDeclaredMethodInfo(String)}
@@ -2915,23 +2886,22 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * </ul>
      *
      * <p>
-     * Requires that {@link ClassGraph#enableMethodInfo()} be called before
-     * scanning, otherwise throws {@link IllegalStateException}.
+     * Requires that {@link ClassGraph#enableMethodInfo()} be called before scanning, otherwise throws
+     * {@link IllegalStateException}.
      *
      * <p>
-     * By default only returns information for public methods, unless
-     * {@link ClassGraph#ignoreMethodVisibility()} was called before the scan.
+     * By default only returns information for public methods, unless {@link ClassGraph#ignoreMethodVisibility()}
+     * was called before the scan.
      *
      * <p>
-     * May return info for multiple methods with the same name (with different type
-     * signatures).
+     * May return info for multiple methods with the same name (with different type signatures).
      *
-     * @param methodName The method name to query.
-     * @return a list of {@link MethodInfo} objects for the method(s) with the given
-     *         name, or the empty list if the method was not found in this class (or
-     *         is not visible).
-     * @throws IllegalStateException if {@link ClassGraph#enableMethodInfo()} was
-     *                                  not called prior to initiating the scan.
+     * @param methodName
+     *            The method name to query.
+     * @return a list of {@link MethodInfo} objects for the method(s) with the given name, or the empty list if the
+     *         method was not found in this class (or is not visible).
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableMethodInfo()} was not called prior to initiating the scan.
      */
     public MethodInfoList getMethodInfo(final String methodName) {
         Assert.notNull(methodName, "methodName");
@@ -2939,9 +2909,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Returns information on visible methods declared by this class that are not
-     * constructors, and that have the named annotation or meta-annotation. See
-     * also:
+     * Returns information on visible methods declared by this class that are not constructors, and that have the
+     * named annotation or meta-annotation. See also:
      *
      * <ul>
      * <li>{@link #getMethodInfoWithAnnotation(String)}
@@ -2950,25 +2919,23 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * <p>
      * Constructors are not included -- to find annotated constructors, filter
-     * {@link #getDeclaredMethodAndConstructorInfo()} using
-     * {@link MethodInfoList#filter(MethodInfoFilter)}.
+     * {@link #getDeclaredMethodAndConstructorInfo()} using {@link MethodInfoList#filter(MethodInfoFilter)}.
      *
      * <p>
-     * Requires that {@link ClassGraph#enableMethodInfo()} and
-     * {@link ClassGraph#enableAnnotationInfo()} be called before scanning,
-     * otherwise throws {@link IllegalStateException}.
+     * Requires that {@link ClassGraph#enableMethodInfo()} and {@link ClassGraph#enableAnnotationInfo()} be called
+     * before scanning, otherwise throws {@link IllegalStateException}.
      *
      * <p>
-     * By default only returns information for public methods, unless
-     * {@link ClassGraph#ignoreMethodVisibility()} was called before the scan.
+     * By default only returns information for public methods, unless {@link ClassGraph#ignoreMethodVisibility()}
+     * was called before the scan.
      *
-     * @param methodAnnotationName The name of the method annotation.
-     * @return the list of {@link MethodInfo} objects for visible methods declared
-     *         by this class that have the named annotation or meta-annotation, or
-     *         the empty list if none.
-     * @throws IllegalStateException if {@link ClassGraph#enableMethodInfo()} or
-     *                                  {@link ClassGraph#enableAnnotationInfo()}
-     *                                  was not called prior to initiating the scan.
+     * @param methodAnnotationName
+     *            The name of the method annotation.
+     * @return the list of {@link MethodInfo} objects for visible methods declared by this class that have the named
+     *         annotation or meta-annotation, or the empty list if none.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableMethodInfo()} or {@link ClassGraph#enableAnnotationInfo()} was not
+     *             called prior to initiating the scan.
      */
     public MethodInfoList getDeclaredMethodInfoWithAnnotation(final String methodAnnotationName) {
         Assert.notNull(methodAnnotationName, "methodAnnotationName");
@@ -2976,9 +2943,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Returns information on visible methods declared by this class that are not
-     * constructors, and that have the given annotation or meta-annotation. See
-     * also:
+     * Returns information on visible methods declared by this class that are not constructors, and that have the
+     * given annotation or meta-annotation. See also:
      *
      * <ul>
      * <li>{@link #getMethodInfoWithAnnotation(Class)}
@@ -2987,25 +2953,23 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * <p>
      * Constructors are not included -- to find annotated constructors, filter
-     * {@link #getDeclaredMethodAndConstructorInfo()} using
-     * {@link MethodInfoList#filter(MethodInfoFilter)}.
+     * {@link #getDeclaredMethodAndConstructorInfo()} using {@link MethodInfoList#filter(MethodInfoFilter)}.
      *
      * <p>
-     * Requires that {@link ClassGraph#enableMethodInfo()} and
-     * {@link ClassGraph#enableAnnotationInfo()} be called before scanning,
-     * otherwise throws {@link IllegalStateException}.
+     * Requires that {@link ClassGraph#enableMethodInfo()} and {@link ClassGraph#enableAnnotationInfo()} be called
+     * before scanning, otherwise throws {@link IllegalStateException}.
      *
      * <p>
-     * By default only returns information for public methods, unless
-     * {@link ClassGraph#ignoreMethodVisibility()} was called before the scan.
+     * By default only returns information for public methods, unless {@link ClassGraph#ignoreMethodVisibility()}
+     * was called before the scan.
      *
-     * @param methodAnnotation The method annotation.
-     * @return the list of {@link MethodInfo} objects for visible methods declared
-     *         by this class that have the given annotation or meta-annotation, or
-     *         the empty list if none.
-     * @throws IllegalStateException if {@link ClassGraph#enableMethodInfo()} or
-     *                                  {@link ClassGraph#enableAnnotationInfo()}
-     *                                  was not called prior to initiating the scan.
+     * @param methodAnnotation
+     *            The method annotation.
+     * @return the list of {@link MethodInfo} objects for visible methods declared by this class that have the given
+     *         annotation or meta-annotation, or the empty list if none.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableMethodInfo()} or {@link ClassGraph#enableAnnotationInfo()} was not
+     *             called prior to initiating the scan.
      */
     public MethodInfoList getDeclaredMethodInfoWithAnnotation(final Class<? extends Annotation> methodAnnotation) {
         Assert.notNull(methodAnnotation, "methodAnnotation");
@@ -3014,9 +2978,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Returns information on visible methods declared by this class, or by its
-     * interfaces or superclasses, that are not constructors, and that have the
-     * named annotation or meta-annotation. See also:
+     * Returns information on visible methods declared by this class, or by its interfaces or superclasses, that are
+     * not constructors, and that have the named annotation or meta-annotation. See also:
      *
      * <ul>
      * <li>{@link #getDeclaredMethodInfoWithAnnotation(String)}
@@ -3025,25 +2988,23 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * <p>
      * Constructors are not included -- to find annotated constructors, filter
-     * {@link #getMethodAndConstructorInfo()} using
-     * {@link MethodInfoList#filter(MethodInfoFilter)}.
+     * {@link #getMethodAndConstructorInfo()} using {@link MethodInfoList#filter(MethodInfoFilter)}.
      *
      * <p>
-     * Requires that {@link ClassGraph#enableMethodInfo()} and
-     * {@link ClassGraph#enableAnnotationInfo()} be called before scanning,
-     * otherwise throws {@link IllegalStateException}.
+     * Requires that {@link ClassGraph#enableMethodInfo()} and {@link ClassGraph#enableAnnotationInfo()} be called
+     * before scanning, otherwise throws {@link IllegalStateException}.
      *
      * <p>
-     * By default only returns information for public methods, unless
-     * {@link ClassGraph#ignoreMethodVisibility()} was called before the scan.
+     * By default only returns information for public methods, unless {@link ClassGraph#ignoreMethodVisibility()}
+     * was called before the scan.
      *
-     * @param methodAnnotationName The name of the method annotation.
-     * @return the list of {@link MethodInfo} objects for visible methods of this
-     *         class, its interfaces and superclasses that have the named annotation
-     *         or meta-annotation, or the empty list if none.
-     * @throws IllegalStateException if {@link ClassGraph#enableMethodInfo()} or
-     *                                  {@link ClassGraph#enableAnnotationInfo()}
-     *                                  was not called prior to initiating the scan.
+     * @param methodAnnotationName
+     *            The name of the method annotation.
+     * @return the list of {@link MethodInfo} objects for visible methods of this class, its interfaces and
+     *         superclasses that have the named annotation or meta-annotation, or the empty list if none.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableMethodInfo()} or {@link ClassGraph#enableAnnotationInfo()} was not
+     *             called prior to initiating the scan.
      */
     public MethodInfoList getMethodInfoWithAnnotation(final String methodAnnotationName) {
         Assert.notNull(methodAnnotationName, "methodAnnotationName");
@@ -3051,9 +3012,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Returns information on visible methods declared by this class, or by its
-     * interfaces or superclasses, that are not constructors, and that have the
-     * given annotation or meta-annotation. See also:
+     * Returns information on visible methods declared by this class, or by its interfaces or superclasses, that are
+     * not constructors, and that have the given annotation or meta-annotation. See also:
      *
      * <ul>
      * <li>{@link #getDeclaredMethodInfoWithAnnotation(Class)}
@@ -3062,25 +3022,23 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * <p>
      * Constructors are not included -- to find annotated constructors, filter
-     * {@link #getMethodAndConstructorInfo()} using
-     * {@link MethodInfoList#filter(MethodInfoFilter)}.
+     * {@link #getMethodAndConstructorInfo()} using {@link MethodInfoList#filter(MethodInfoFilter)}.
      *
      * <p>
-     * Requires that {@link ClassGraph#enableMethodInfo()} and
-     * {@link ClassGraph#enableAnnotationInfo()} be called before scanning,
-     * otherwise throws {@link IllegalStateException}.
+     * Requires that {@link ClassGraph#enableMethodInfo()} and {@link ClassGraph#enableAnnotationInfo()} be called
+     * before scanning, otherwise throws {@link IllegalStateException}.
      *
      * <p>
-     * By default only returns information for public methods, unless
-     * {@link ClassGraph#ignoreMethodVisibility()} was called before the scan.
+     * By default only returns information for public methods, unless {@link ClassGraph#ignoreMethodVisibility()}
+     * was called before the scan.
      *
-     * @param methodAnnotation The method annotation.
-     * @return the list of {@link MethodInfo} objects for visible methods of this
-     *         class, its interfaces and superclasses that have the given annotation
-     *         or meta-annotation, or the empty list if none.
-     * @throws IllegalStateException if {@link ClassGraph#enableMethodInfo()} or
-     *                                  {@link ClassGraph#enableAnnotationInfo()}
-     *                                  was not called prior to initiating the scan.
+     * @param methodAnnotation
+     *            The method annotation.
+     * @return the list of {@link MethodInfo} objects for visible methods of this class, its interfaces and
+     *         superclasses that have the given annotation or meta-annotation, or the empty list if none.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableMethodInfo()} or {@link ClassGraph#enableAnnotationInfo()} was not
+     *             called prior to initiating the scan.
      */
     public MethodInfoList getMethodInfoWithAnnotation(final Class<? extends Annotation> methodAnnotation) {
         Assert.notNull(methodAnnotation, "methodAnnotation");
@@ -3089,11 +3047,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Filter a {@link MethodInfoList} down to the methods that have a given
-     * annotation or meta-annotation.
+     * Filter a {@link MethodInfoList} down to the methods that have a given annotation or meta-annotation.
      *
-     * @param methodInfoList       the methods to filter.
-     * @param methodAnnotationName the name of the method annotation.
+     * @param methodInfoList
+     *            the methods to filter.
+     * @param methodAnnotationName
+     *            the name of the method annotation.
      * @return the filtered list.
      */
     private static MethodInfoList filterByAnnotation(final MethodInfoList methodInfoList,
@@ -3104,13 +3063,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Get all method annotations.
      *
-     * @return A list of all annotations or meta-annotations on methods declared by
-     *         the class, (not including methods declared by the interfaces or
-     *         superclasses of this class), as a list of {@link ClassInfo} objects,
-     *         or the empty list if none. N.B. these annotations do not contain
-     *         specific annotation parameters -- call
-     *         {@link MethodInfo#getAllAnnotationInfo()} to get details on specific
-     *         method annotation instances.
+     * @return A list of all annotations or meta-annotations on methods declared by the class, (not including
+     *         methods declared by the interfaces or superclasses of this class), as a list of {@link ClassInfo}
+     *         objects, or the empty list if none. N.B. these annotations do not contain specific annotation
+     *         parameters -- call {@link MethodInfo#getAllAnnotationInfo()} to get details on specific method
+     *         annotation instances.
      */
     public ClassInfoList getMethodAnnotations() {
         return getFieldOrMethodAnnotations(RelType.METHOD_ANNOTATIONS);
@@ -3119,24 +3076,22 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Get all method parameter annotations.
      *
-     * @return A list of all annotations or meta-annotations on methods declared by
-     *         the class, (not including methods declared by the interfaces or
-     *         superclasses of this class), as a list of {@link ClassInfo} objects,
-     *         or the empty list if none. N.B. these annotations do not contain
-     *         specific annotation parameters -- call
-     *         {@link MethodInfo#getAllAnnotationInfo()} to get details on specific
-     *         method annotation instances.
+     * @return A list of all annotations or meta-annotations on methods declared by the class, (not including
+     *         methods declared by the interfaces or superclasses of this class), as a list of {@link ClassInfo}
+     *         objects, or the empty list if none. N.B. these annotations do not contain specific annotation
+     *         parameters -- call {@link MethodInfo#getAllAnnotationInfo()} to get details on specific method
+     *         annotation instances.
      */
     public ClassInfoList getMethodParameterAnnotations() {
         return getFieldOrMethodAnnotations(RelType.METHOD_PARAMETER_ANNOTATIONS);
     }
 
     /**
-     * Get all classes that have this class as a method annotation, and their
-     * subclasses, if the method is non-private.
+     * Get all classes that have this class as a method annotation, and their subclasses, if the method is
+     * non-private.
      *
-     * @return A list of classes that have a declared method with this annotation or
-     *         meta-annotation, or the empty list if none.
+     * @return A list of classes that have a declared method with this annotation or meta-annotation, or the empty
+     *         list if none.
      */
     public ClassInfoList getClassesWithMethodAnnotation() {
         // Get all classes that have a method annotated or meta-annotated with this
@@ -3148,19 +3103,19 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         // this annotation (non-private methods are inherited)
         for (final ClassInfo classWithNonprivateMethodAnnotationOrMetaAnnotation : //
         getClassesWithFieldOrMethodAnnotation(RelType.CLASSES_WITH_NONPRIVATE_METHOD_ANNOTATION)) {
-            classesWithMethodAnnotation.addAll(classWithNonprivateMethodAnnotationOrMetaAnnotation.getAllSubclasses());
+            classesWithMethodAnnotation
+                    .addAll(classWithNonprivateMethodAnnotationOrMetaAnnotation.getAllSubclasses());
         }
-        return new ClassInfoList(classesWithMethodAnnotation, new HashSet<>(getClassesWithMethodAnnotationDirectOnly()),
-                /* sortByName = */ true);
+        return new ClassInfoList(classesWithMethodAnnotation,
+                new HashSet<>(getClassesWithMethodAnnotationDirectOnly()), /* sortByName = */ true);
     }
 
     /**
-     * Get all classes that have this class as a method parameter annotation, and
-     * their subclasses, if the method is non-private.
+     * Get all classes that have this class as a method parameter annotation, and their subclasses, if the method is
+     * non-private.
      *
-     * @return A list of classes that have a declared method with a parameter that
-     *         is annotated with this annotation or meta-annotation, or the empty
-     *         list if none.
+     * @return A list of classes that have a declared method with a parameter that is annotated with this annotation
+     *         or meta-annotation, or the empty list if none.
      */
     public ClassInfoList getClassesWithMethodParameterAnnotation() {
         // Get all classes that have a method annotated or meta-annotated with this
@@ -3182,9 +3137,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Get the classes that have this class as a direct method annotation.
      *
-     * @return A list of classes that declare methods that are directly annotated
-     *         (i.e. are not meta-annotated) with the requested method annotation,
-     *         or the empty list if none.
+     * @return A list of classes that declare methods that are directly annotated (i.e. are not meta-annotated) with
+     *         the requested method annotation, or the empty list if none.
      */
     ClassInfoList getClassesWithMethodAnnotationDirectOnly() {
         return new ClassInfoList(
@@ -3195,21 +3149,20 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Get the classes that have this class as a direct method parameter annotation.
      *
-     * @return A list of classes that declare methods with parameters that are
-     *         directly annotated (i.e. are not meta-annotated) with the requested
-     *         method annotation, or the empty list if none.
+     * @return A list of classes that declare methods with parameters that are directly annotated (i.e. are not
+     *         meta-annotated) with the requested method annotation, or the empty list if none.
      */
     ClassInfoList getClassesWithMethodParameterAnnotationDirectOnly() {
-        return new ClassInfoList(this.filterClassInfo(RelType.CLASSES_WITH_METHOD_PARAMETER_ANNOTATION,
-                /* strictAccept = */ true), /* sortByName = */ true);
+        return new ClassInfoList(
+                this.filterClassInfo(RelType.CLASSES_WITH_METHOD_PARAMETER_ANNOTATION, /* strictAccept = */ true),
+                /* sortByName = */ true);
     }
 
     // -------------------------------------------------------------------------------------------------------------
     // Fields
 
     /**
-     * Returns information on all visible fields declared by this class, but not by
-     * its superclasses. See also:
+     * Returns information on all visible fields declared by this class, but not by its superclasses. See also:
      *
      * <ul>
      * <li>{@link #getFieldInfo(String)}
@@ -3218,17 +3171,17 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * </ul>
      *
      * <p>
-     * Requires that {@link ClassGraph#enableFieldInfo()} be called before scanning,
-     * otherwise throws {@link IllegalStateException}.
+     * Requires that {@link ClassGraph#enableFieldInfo()} be called before scanning, otherwise throws
+     * {@link IllegalStateException}.
      *
      * <p>
-     * By default only returns information for public fields, unless
-     * {@link ClassGraph#ignoreFieldVisibility()} was called before the scan.
+     * By default only returns information for public fields, unless {@link ClassGraph#ignoreFieldVisibility()} was
+     * called before the scan.
      *
-     * @return the list of FieldInfo objects for visible fields declared by this
-     *         class, or the empty list if no fields were found or visible.
-     * @throws IllegalStateException if {@link ClassGraph#enableFieldInfo()} was
-     *                                  not called prior to initiating the scan.
+     * @return the list of FieldInfo objects for visible fields declared by this class, or the empty list if no
+     *         fields were found or visible.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableFieldInfo()} was not called prior to initiating the scan.
      */
     public FieldInfoList getDeclaredFieldInfo() {
         if (!scanResult().scanSpec.enableFieldInfo) {
@@ -3238,8 +3191,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Returns information on all visible fields declared by this class, or by its
-     * superclasses. See also:
+     * Returns information on all visible fields declared by this class, or by its superclasses. See also:
      *
      * <ul>
      * <li>{@link #getFieldInfo(String)}
@@ -3248,17 +3200,17 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * </ul>
      *
      * <p>
-     * Requires that {@link ClassGraph#enableFieldInfo()} be called before scanning,
-     * otherwise throws {@link IllegalStateException}.
+     * Requires that {@link ClassGraph#enableFieldInfo()} be called before scanning, otherwise throws
+     * {@link IllegalStateException}.
      *
      * <p>
-     * By default only returns information for public fields, unless
-     * {@link ClassGraph#ignoreFieldVisibility()} was called before the scan.
+     * By default only returns information for public fields, unless {@link ClassGraph#ignoreFieldVisibility()} was
+     * called before the scan.
      *
-     * @return the list of FieldInfo objects for visible fields of this class or its
-     *         superclasses, or the empty list if no fields were found or visible.
-     * @throws IllegalStateException if {@link ClassGraph#enableFieldInfo()} was
-     *                                  not called prior to initiating the scan.
+     * @return the list of FieldInfo objects for visible fields of this class or its superclasses, or the empty list
+     *         if no fields were found or visible.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableFieldInfo()} was not called prior to initiating the scan.
      */
     public FieldInfoList getFieldInfo() {
         if (!scanResult().scanSpec.enableFieldInfo) {
@@ -3282,8 +3234,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Get the enum constants of an enum class.
      *
-     * @return All enum constants of an enum class as a list of {@link FieldInfo}
-     *         objects (enum constants are stored as fields in Java classes).
+     * @return All enum constants of an enum class as a list of {@link FieldInfo} objects (enum constants are stored
+     *         as fields in Java classes).
      */
     public FieldInfoList getEnumConstants() {
         if (!isEnum()) {
@@ -3293,8 +3245,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Returns information on the named field declared by the class, but not by its
-     * superclasses. See also:
+     * Returns information on the named field declared by the class, but not by its superclasses. See also:
      *
      * <ul>
      * <li>{@link #getFieldInfo(String)}
@@ -3303,19 +3254,19 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * </ul>
      *
      * <p>
-     * Requires that {@link ClassGraph#enableFieldInfo()} be called before scanning,
-     * otherwise throws {@link IllegalStateException}.
+     * Requires that {@link ClassGraph#enableFieldInfo()} be called before scanning, otherwise throws
+     * {@link IllegalStateException}.
      *
      * <p>
-     * By default only returns information for public fields, unless
-     * {@link ClassGraph#ignoreFieldVisibility()} was called before the scan.
+     * By default only returns information for public fields, unless {@link ClassGraph#ignoreFieldVisibility()} was
+     * called before the scan.
      *
-     * @param fieldName The field name.
-     * @return the {@link FieldInfo} object for the named field declared by this
-     *         class, or null if the field was not found in this class (or is not
-     *         visible).
-     * @throws IllegalStateException if {@link ClassGraph#enableFieldInfo()} was
-     *                                  not called prior to initiating the scan.
+     * @param fieldName
+     *            The field name.
+     * @return the {@link FieldInfo} object for the named field declared by this class, or null if the field was not
+     *         found in this class (or is not visible).
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableFieldInfo()} was not called prior to initiating the scan.
      */
     public @Nullable FieldInfo getDeclaredFieldInfo(final String fieldName) {
         Assert.notNull(fieldName, "fieldName");
@@ -3334,8 +3285,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Returns information on the named field declared by this class, or by its
-     * superclasses. See also:
+     * Returns information on the named field declared by this class, or by its superclasses. See also:
      *
      * <ul>
      * <li>{@link #getDeclaredFieldInfo(String)}
@@ -3344,18 +3294,19 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * </ul>
      *
      * <p>
-     * Requires that {@link ClassGraph#enableFieldInfo()} be called before scanning,
-     * otherwise throws {@link IllegalStateException}.
+     * Requires that {@link ClassGraph#enableFieldInfo()} be called before scanning, otherwise throws
+     * {@link IllegalStateException}.
      *
      * <p>
-     * By default only returns information for public fields, unless
-     * {@link ClassGraph#ignoreFieldVisibility()} was called before the scan.
+     * By default only returns information for public fields, unless {@link ClassGraph#ignoreFieldVisibility()} was
+     * called before the scan.
      *
-     * @param fieldName The field name.
-     * @return the {@link FieldInfo} object for the named field of this class or its
-     *         superclasses, or the empty list if no fields were found or visible.
-     * @throws IllegalStateException if {@link ClassGraph#enableFieldInfo()} was
-     *                                  not called prior to initiating the scan.
+     * @param fieldName
+     *            The field name.
+     * @return the {@link FieldInfo} object for the named field of this class or its superclasses, or the empty list
+     *         if no fields were found or visible.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableFieldInfo()} was not called prior to initiating the scan.
      */
     public @Nullable FieldInfo getFieldInfo(final String fieldName) {
         Assert.notNull(fieldName, "fieldName");
@@ -3373,8 +3324,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Returns information on visible fields declared by this class that have the
-     * named annotation or meta-annotation. See also:
+     * Returns information on visible fields declared by this class that have the named annotation or
+     * meta-annotation. See also:
      *
      * <ul>
      * <li>{@link #getFieldInfoWithAnnotation(String)}
@@ -3382,21 +3333,20 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * </ul>
      *
      * <p>
-     * Requires that {@link ClassGraph#enableFieldInfo()} and
-     * {@link ClassGraph#enableAnnotationInfo()} be called before scanning,
-     * otherwise throws {@link IllegalStateException}.
+     * Requires that {@link ClassGraph#enableFieldInfo()} and {@link ClassGraph#enableAnnotationInfo()} be called
+     * before scanning, otherwise throws {@link IllegalStateException}.
      *
      * <p>
-     * By default only returns information for public fields, unless
-     * {@link ClassGraph#ignoreFieldVisibility()} was called before the scan.
+     * By default only returns information for public fields, unless {@link ClassGraph#ignoreFieldVisibility()} was
+     * called before the scan.
      *
-     * @param fieldAnnotationName The name of the field annotation.
-     * @return the list of {@link FieldInfo} objects for visible fields declared by
-     *         this class that have the named annotation or meta-annotation, or the
-     *         empty list if none.
-     * @throws IllegalStateException if {@link ClassGraph#enableFieldInfo()} or
-     *                                  {@link ClassGraph#enableAnnotationInfo()}
-     *                                  was not called prior to initiating the scan.
+     * @param fieldAnnotationName
+     *            The name of the field annotation.
+     * @return the list of {@link FieldInfo} objects for visible fields declared by this class that have the named
+     *         annotation or meta-annotation, or the empty list if none.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableFieldInfo()} or {@link ClassGraph#enableAnnotationInfo()} was not
+     *             called prior to initiating the scan.
      */
     public FieldInfoList getDeclaredFieldInfoWithAnnotation(final String fieldAnnotationName) {
         Assert.notNull(fieldAnnotationName, "fieldAnnotationName");
@@ -3404,8 +3354,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Returns information on visible fields declared by this class that have the
-     * given annotation or meta-annotation. See also:
+     * Returns information on visible fields declared by this class that have the given annotation or
+     * meta-annotation. See also:
      *
      * <ul>
      * <li>{@link #getFieldInfoWithAnnotation(Class)}
@@ -3413,21 +3363,20 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * </ul>
      *
      * <p>
-     * Requires that {@link ClassGraph#enableFieldInfo()} and
-     * {@link ClassGraph#enableAnnotationInfo()} be called before scanning,
-     * otherwise throws {@link IllegalStateException}.
+     * Requires that {@link ClassGraph#enableFieldInfo()} and {@link ClassGraph#enableAnnotationInfo()} be called
+     * before scanning, otherwise throws {@link IllegalStateException}.
      *
      * <p>
-     * By default only returns information for public fields, unless
-     * {@link ClassGraph#ignoreFieldVisibility()} was called before the scan.
+     * By default only returns information for public fields, unless {@link ClassGraph#ignoreFieldVisibility()} was
+     * called before the scan.
      *
-     * @param fieldAnnotation The field annotation.
-     * @return the list of {@link FieldInfo} objects for visible fields declared by
-     *         this class that have the given annotation or meta-annotation, or the
-     *         empty list if none.
-     * @throws IllegalStateException if {@link ClassGraph#enableFieldInfo()} or
-     *                                  {@link ClassGraph#enableAnnotationInfo()}
-     *                                  was not called prior to initiating the scan.
+     * @param fieldAnnotation
+     *            The field annotation.
+     * @return the list of {@link FieldInfo} objects for visible fields declared by this class that have the given
+     *         annotation or meta-annotation, or the empty list if none.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableFieldInfo()} or {@link ClassGraph#enableAnnotationInfo()} was not
+     *             called prior to initiating the scan.
      */
     public FieldInfoList getDeclaredFieldInfoWithAnnotation(final Class<? extends Annotation> fieldAnnotation) {
         Assert.notNull(fieldAnnotation, "fieldAnnotation");
@@ -3436,9 +3385,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Returns information on visible fields declared by this class, or by its
-     * interfaces or superclasses, that have the named annotation or
-     * meta-annotation. See also:
+     * Returns information on visible fields declared by this class, or by its interfaces or superclasses, that have
+     * the named annotation or meta-annotation. See also:
      *
      * <ul>
      * <li>{@link #getDeclaredFieldInfoWithAnnotation(String)}
@@ -3446,21 +3394,20 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * </ul>
      *
      * <p>
-     * Requires that {@link ClassGraph#enableFieldInfo()} and
-     * {@link ClassGraph#enableAnnotationInfo()} be called before scanning,
-     * otherwise throws {@link IllegalStateException}.
+     * Requires that {@link ClassGraph#enableFieldInfo()} and {@link ClassGraph#enableAnnotationInfo()} be called
+     * before scanning, otherwise throws {@link IllegalStateException}.
      *
      * <p>
-     * By default only returns information for public fields, unless
-     * {@link ClassGraph#ignoreFieldVisibility()} was called before the scan.
+     * By default only returns information for public fields, unless {@link ClassGraph#ignoreFieldVisibility()} was
+     * called before the scan.
      *
-     * @param fieldAnnotationName The name of the field annotation.
-     * @return the list of {@link FieldInfo} objects for visible fields of this
-     *         class, its interfaces and superclasses that have the named annotation
-     *         or meta-annotation, or the empty list if none.
-     * @throws IllegalStateException if {@link ClassGraph#enableFieldInfo()} or
-     *                                  {@link ClassGraph#enableAnnotationInfo()}
-     *                                  was not called prior to initiating the scan.
+     * @param fieldAnnotationName
+     *            The name of the field annotation.
+     * @return the list of {@link FieldInfo} objects for visible fields of this class, its interfaces and
+     *         superclasses that have the named annotation or meta-annotation, or the empty list if none.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableFieldInfo()} or {@link ClassGraph#enableAnnotationInfo()} was not
+     *             called prior to initiating the scan.
      */
     public FieldInfoList getFieldInfoWithAnnotation(final String fieldAnnotationName) {
         Assert.notNull(fieldAnnotationName, "fieldAnnotationName");
@@ -3468,9 +3415,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Returns information on visible fields declared by this class, or by its
-     * interfaces or superclasses, that have the given annotation or
-     * meta-annotation. See also:
+     * Returns information on visible fields declared by this class, or by its interfaces or superclasses, that have
+     * the given annotation or meta-annotation. See also:
      *
      * <ul>
      * <li>{@link #getDeclaredFieldInfoWithAnnotation(Class)}
@@ -3478,21 +3424,20 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * </ul>
      *
      * <p>
-     * Requires that {@link ClassGraph#enableFieldInfo()} and
-     * {@link ClassGraph#enableAnnotationInfo()} be called before scanning,
-     * otherwise throws {@link IllegalStateException}.
+     * Requires that {@link ClassGraph#enableFieldInfo()} and {@link ClassGraph#enableAnnotationInfo()} be called
+     * before scanning, otherwise throws {@link IllegalStateException}.
      *
      * <p>
-     * By default only returns information for public fields, unless
-     * {@link ClassGraph#ignoreFieldVisibility()} was called before the scan.
+     * By default only returns information for public fields, unless {@link ClassGraph#ignoreFieldVisibility()} was
+     * called before the scan.
      *
-     * @param fieldAnnotation The field annotation.
-     * @return the list of {@link FieldInfo} objects for visible fields of this
-     *         class, its interfaces and superclasses that have the given annotation
-     *         or meta-annotation, or the empty list if none.
-     * @throws IllegalStateException if {@link ClassGraph#enableFieldInfo()} or
-     *                                  {@link ClassGraph#enableAnnotationInfo()}
-     *                                  was not called prior to initiating the scan.
+     * @param fieldAnnotation
+     *            The field annotation.
+     * @return the list of {@link FieldInfo} objects for visible fields of this class, its interfaces and
+     *         superclasses that have the given annotation or meta-annotation, or the empty list if none.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableFieldInfo()} or {@link ClassGraph#enableAnnotationInfo()} was not
+     *             called prior to initiating the scan.
      */
     public FieldInfoList getFieldInfoWithAnnotation(final Class<? extends Annotation> fieldAnnotation) {
         Assert.notNull(fieldAnnotation, "fieldAnnotation");
@@ -3501,11 +3446,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Filter a {@link FieldInfoList} down to the fields that have a given
-     * annotation or meta-annotation.
+     * Filter a {@link FieldInfoList} down to the fields that have a given annotation or meta-annotation.
      *
-     * @param fieldInfoList       the fields to filter.
-     * @param fieldAnnotationName the name of the field annotation.
+     * @param fieldInfoList
+     *            the fields to filter.
+     * @param fieldAnnotationName
+     *            the name of the field annotation.
      * @return the filtered list.
      */
     private static FieldInfoList filterByAnnotation(final FieldInfoList fieldInfoList,
@@ -3516,9 +3462,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Get all field annotations.
      *
-     * @return A list of all annotations on fields of this class, or the empty list
-     *         if none. N.B. these annotations do not contain specific annotation
-     *         parameters -- call {@link FieldInfo#getAllAnnotationInfo()} to get
+     * @return A list of all annotations on fields of this class, or the empty list if none. N.B. these annotations
+     *         do not contain specific annotation parameters -- call {@link FieldInfo#getAllAnnotationInfo()} to get
      *         details on specific field annotation instances.
      */
     public ClassInfoList getFieldAnnotations() {
@@ -3526,11 +3471,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get the classes that have this class as a field annotation or
-     * meta-annotation.
+     * Get the classes that have this class as a field annotation or meta-annotation.
      *
-     * @return A list of classes that have a field with this annotation or
-     *         meta-annotation, or the empty list if none.
+     * @return A list of classes that have a field with this annotation or meta-annotation, or the empty list if
+     *         none.
      */
     public ClassInfoList getClassesWithFieldAnnotation() {
         // Get all classes that have a field annotated or meta-annotated with this
@@ -3542,18 +3486,18 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         // this annotation (non-private fields are inherited)
         for (final ClassInfo classWithNonprivateFieldAnnotationOrMetaAnnotation : //
         getClassesWithFieldOrMethodAnnotation(RelType.CLASSES_WITH_NONPRIVATE_FIELD_ANNOTATION)) {
-            classesWithFieldAnnotation.addAll(classWithNonprivateFieldAnnotationOrMetaAnnotation.getAllSubclasses());
+            classesWithFieldAnnotation
+                    .addAll(classWithNonprivateFieldAnnotationOrMetaAnnotation.getAllSubclasses());
         }
-        return new ClassInfoList(classesWithFieldAnnotation, new HashSet<>(getClassesWithFieldAnnotationDirectOnly()),
-                /* sortByName = */ true);
+        return new ClassInfoList(classesWithFieldAnnotation,
+                new HashSet<>(getClassesWithFieldAnnotationDirectOnly()), /* sortByName = */ true);
     }
 
     /**
      * Get the classes that have this class as a direct field annotation.
      *
-     * @return A list of classes that declare fields that are directly annotated
-     *         (i.e. are not meta-annotated) with the requested field annotation, or
-     *         the empty list if none.
+     * @return A list of classes that declare fields that are directly annotated (i.e. are not meta-annotated) with
+     *         the requested field annotation, or the empty list if none.
      */
     ClassInfoList getClassesWithFieldAnnotationDirectOnly() {
         return new ClassInfoList(
@@ -3566,14 +3510,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Get the parsed type signature for the class.
      *
-     * @return The parsed type signature for the class, including any generic type
-     *         parameters, or null if not available (probably indicating the class
-     *         is not generic).
-     * @throws IllegalArgumentException if the class type signature cannot be parsed
-     *                                  (this should only be thrown in the case of
-     *                                  classfile corruption, or a compiler bug that
-     *                                  causes an invalid type signature to be
-     *                                  written to the classfile).
+     * @return The parsed type signature for the class, including any generic type parameters, or null if not
+     *         available (probably indicating the class is not generic).
+     * @throws IllegalArgumentException
+     *             if the class type signature cannot be parsed (this should only be thrown in the case of classfile
+     *             corruption, or a compiler bug that causes an invalid type signature to be written to the
+     *             classfile).
      */
     public @Nullable ClassTypeSignature getTypeSignature() {
         synchronized (this) {
@@ -3601,24 +3543,21 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Get the type signature string for the class.
      *
-     * @return The type signature string for the class, including any generic type
-     *         parameters, or null if not available (probably indicating the class
-     *         is not generic).
+     * @return The type signature string for the class, including any generic type parameters, or null if not
+     *         available (probably indicating the class is not generic).
      */
     public @Nullable String getTypeSignatureString() {
         return typeSignatureStr;
     }
 
     /**
-     * Returns the parsed type signature for this class, possibly including type
-     * parameters. If the type signature is not present for this class, indicating
-     * that this is not a generic class, then a type descriptor will be synthesized
-     * and returned, as if there were a type descriptor (classfiles may have a type
-     * signature but do not contain a type descriptor). May include type annotations
-     * on the superclass or interface(s).
+     * Returns the parsed type signature for this class, possibly including type parameters. If the type signature
+     * is not present for this class, indicating that this is not a generic class, then a type descriptor will be
+     * synthesized and returned, as if there were a type descriptor (classfiles may have a type signature but do not
+     * contain a type descriptor). May include type annotations on the superclass or interface(s).
      *
-     * @return The parsed generic type signature for the class, or if not available,
-     *         the synthetic type descriptor for the class.
+     * @return The parsed generic type signature for the class, or if not available, the synthetic type descriptor
+     *         for the class.
      */
     public ClassTypeSignature getTypeSignatureOrTypeDescriptor() {
         ClassTypeSignature typeSig = null;
@@ -3634,9 +3573,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Returns a synthetic type descriptor for the method, created from the class
-     * name, superclass name, and implemented interfaces. May include type
-     * annotations on the superclass or interface(s).
+     * Returns a synthetic type descriptor for the method, created from the class name, superclass name, and
+     * implemented interfaces. May include type annotations on the superclass or interface(s).
      *
      * @return The synthetic type descriptor for the class.
      */
@@ -3660,14 +3598,13 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Returns the name of the source file this class has been compiled from, such
-     * as {@code ClassInfo.java} or {@code KClass.kt}.
+     * Returns the name of the source file this class has been compiled from, such as {@code ClassInfo.java} or
+     * {@code KClass.kt}.
      *
      * <p>
      * This field may be {@code null}.
      *
-     * @return The name of the source file of this class, or {@code null} if not
-     *         available
+     * @return The name of the source file of this class, or {@code null} if not available
      */
     public @Nullable String getSourceFile() {
         return sourceFile;
@@ -3676,14 +3613,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the {@link URI} of the classpath element that this class was found
-     * within.
+     * Get the {@link URI} of the classpath element that this class was found within.
      *
-     * @return The {@link URI} of the classpath element that this class was found
-     *         within.
-     * @throws IllegalStateException if the classpath element does not have a valid
-     *                               URI (e.g. for modules whose location URI is
-     *                               null).
+     * @return The {@link URI} of the classpath element that this class was found within.
+     * @throws IllegalStateException
+     *             if the classpath element does not have a valid URI (e.g. for modules whose location URI is null).
      */
     public URI getClasspathElementURI() {
         // Calling classfileResource.getClasspathElementURI() rather than
@@ -3693,18 +3627,15 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get the {@link URL} of the classpath element or module that this class was
-     * found within. Use {@link #getClasspathElementURI()} instead if the resource
-     * may have come from a system module, or if this is a jlink'd runtime image,
-     * since "jrt:" URI schemes used by system modules and jlink'd runtime images
-     * are not supported by {@link URL}, and this will cause
-     * {@link IllegalStateException} to be thrown.
+     * Get the {@link URL} of the classpath element or module that this class was found within. Use
+     * {@link #getClasspathElementURI()} instead if the resource may have come from a system module, or if this is a
+     * jlink'd runtime image, since "jrt:" URI schemes used by system modules and jlink'd runtime images are not
+     * supported by {@link URL}, and this will cause {@link IllegalStateException} to be thrown.
      *
-     * @return The {@link URL} of the classpath element that this class was found
-     *         within.
-     * @throws IllegalStateException if the classpath element URI cannot be
-     *                               converted to a {@link URL} (in particular, if
-     *                               the URI has a {@code jrt:/} scheme).
+     * @return The {@link URL} of the classpath element that this class was found within.
+     * @throws IllegalStateException
+     *             if the classpath element URI cannot be converted to a {@link URL} (in particular, if the URI has
+     *             a {@code jrt:/} scheme).
      */
     public URL getClasspathElementURL() {
         try {
@@ -3715,16 +3646,13 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get the {@link File} for the classpath element package root dir or jar that
-     * this class was found within, or null if this class was found in a module.
-     * (See also {@link #getModuleRef}.)
+     * Get the {@link File} for the classpath element package root dir or jar that this class was found within, or
+     * null if this class was found in a module. (See also {@link #getModuleRef}.)
      *
-     * @return The {@link File} for the classpath element package root dir or jar
-     *         that this class was found within, or null if this class was found in
-     *         a module (see {@link #getModuleRef}). May also return null if the
-     *         classpath element was an http/https URL, and the jar was downloaded
-     *         directly to RAM, rather than to a temp file on disk (e.g. if the temp
-     *         dir is not writeable).
+     * @return The {@link File} for the classpath element package root dir or jar that this class was found within,
+     *         or null if this class was found in a module (see {@link #getModuleRef}). May also return null if the
+     *         classpath element was an http/https URL, and the jar was downloaded directly to RAM, rather than to a
+     *         temp file on disk (e.g. if the temp dir is not writeable).
      */
     public @Nullable File getClasspathElementFile() {
         if (classpathElement == null) {
@@ -3734,13 +3662,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get the module that this class was found within, as a {@link ModuleRef}, or
-     * null if this class was found in a directory or jar in the classpath. (See
-     * also {@link #getClasspathElementFile()}.)
+     * Get the module that this class was found within, as a {@link ModuleRef}, or null if this class was found in a
+     * directory or jar in the classpath. (See also {@link #getClasspathElementFile()}.)
      *
-     * @return The module that this class was found within, as a {@link ModuleRef},
-     *         or null if this class was found in a directory or jar in the
-     *         classpath. (See also {@link #getClasspathElementFile()}.)
+     * @return The module that this class was found within, as a {@link ModuleRef}, or null if this class was found
+     *         in a directory or jar in the classpath. (See also {@link #getClasspathElementFile()}.)
      */
     public @Nullable ModuleRef getModuleRef() {
         if (classpathElement == null) {
@@ -3752,24 +3678,21 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * The {@link Resource} for the classfile of this class.
      *
-     * @return The {@link Resource} for the classfile of this class. Returns null if
-     *         the classfile for this class was not actually read during the scan,
-     *         e.g. because this class was not itself accepted, but was referenced
-     *         by an accepted class.
+     * @return The {@link Resource} for the classfile of this class. Returns null if the classfile for this class
+     *         was not actually read during the scan, e.g. because this class was not itself accepted, but was
+     *         referenced by an accepted class.
      */
     public @Nullable Resource getResource() {
         return classfileResource;
     }
 
     /**
-     * The classloader that this class was found under. ClassGraph does not load
-     * classes itself, so if you need a {@link Class} reference for this class, load
-     * it yourself with this classloader, e.g.
+     * The classloader that this class was found under. ClassGraph does not load classes itself, so if you need a
+     * {@link Class} reference for this class, load it yourself with this classloader, e.g.
      * {@code Class.forName(classInfo.getName(), false, classInfo.getClassLoader())}.
      *
-     * @return The classloader that this class was found under. Returns null if the
-     *         classloader is not known, e.g. because this class was not itself
-     *         accepted, but was referenced by an accepted class.
+     * @return The classloader that this class was found under. Returns null if the classloader is not known, e.g.
+     *         because this class was not itself accepted, but was referenced by an accepted class.
      */
     public @Nullable ClassLoader getClassLoader() {
         return classLoader;
@@ -3837,12 +3760,13 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Handle {@link Repeatable} annotations.
      *
-     * @param allRepeatableAnnotationNames the names of all repeatable annotations
+     * @param allRepeatableAnnotationNames
+     *            the names of all repeatable annotations
      */
     void handleRepeatableAnnotations(final Set<String> allRepeatableAnnotationNames) {
         if (annotationInfo != null) {
-            annotationInfo.handleRepeatableAnnotations(allRepeatableAnnotationNames, this, RelType.CLASS_ANNOTATIONS,
-                    RelType.CLASSES_WITH_ANNOTATION, null);
+            annotationInfo.handleRepeatableAnnotations(allRepeatableAnnotationNames, this,
+                    RelType.CLASS_ANNOTATIONS, RelType.CLASSES_WITH_ANNOTATION, null);
         }
         if (fieldInfo != null) {
             for (final FieldInfo fi : fieldInfo) {
@@ -3861,7 +3785,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Add names of classes referenced by this class.
      *
-     * @param refdClassNames the referenced class names
+     * @param refdClassNames
+     *            the referenced class names
      */
     void addReferencedClassNames(final Set<String> refdClassNames) {
         if (this.referencedClassNames == null) {
@@ -3872,12 +3797,15 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get {@link ClassInfo} objects for any classes referenced in this class' type
-     * descriptor, or the type descriptors of fields, methods or annotations.
+     * Get {@link ClassInfo} objects for any classes referenced in this class' type descriptor, or the type
+     * descriptors of fields, methods or annotations.
      *
-     * @param classNameToClassInfo the map from class name to {@link ClassInfo}.
-     * @param refdClassInfo        the referenced class info
-     * @param log                  the log node, or null to skip logging
+     * @param classNameToClassInfo
+     *            the map from class name to {@link ClassInfo}.
+     * @param refdClassInfo
+     *            the referenced class info
+     * @param log
+     *            the log node, or null to skip logging
      */
     @Override
     void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
@@ -3914,7 +3842,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Set the list of ClassInfo objects for classes referenced by this class.
      *
-     * @param refdClasses the referenced classes
+     * @param refdClasses
+     *            the referenced classes
      */
     void setReferencedClasses(final ClassInfoList refdClasses) {
         this.referencedClasses = refdClasses;
@@ -3923,13 +3852,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Get the class dependencies.
      *
-     * @return A {@link ClassInfoList} of {@link ClassInfo} objects for all classes
-     *         referenced by this class. Note that you need to call
-     *         {@link ClassGraph#enableInterClassDependencies()} before
-     *         {@link ClassGraph#scan()} for this method to work. You should also
-     *         call {@link ClassGraph#enableExternalClasses()} before
-     *         {@link ClassGraph#scan()} if you want non-accepted classes to appear
-     *         in the result.
+     * @return A {@link ClassInfoList} of {@link ClassInfo} objects for all classes referenced by this class. Note
+     *         that you need to call {@link ClassGraph#enableInterClassDependencies()} before
+     *         {@link ClassGraph#scan()} for this method to work. You should also call
+     *         {@link ClassGraph#enableExternalClasses()} before {@link ClassGraph#scan()} if you want non-accepted
+     *         classes to appear in the result.
      */
     public ClassInfoList getClassDependencies() {
         if (!scanResult().scanSpec.enableInterClassDependencies) {
@@ -3943,7 +3870,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Compare based on class name.
      *
-     * @param o the other object
+     * @param o
+     *            the other object
      * @return the comparison result
      */
     @Override
@@ -3954,7 +3882,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Use class name for equals().
      *
-     * @param obj the other object
+     * @param obj
+     *            the other object
      * @return Whether the objects were equal.
      */
     @Override
@@ -3983,16 +3912,18 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * To string.
      *
-     * @param useSimpleNames if true, strip package and outer class names from class
-     *                       names
-     * @param buf            the buffer to append to
+     * @param useSimpleNames
+     *            if true, strip package and outer class names from class names
+     * @param buf
+     *            the buffer to append to
      */
     @Override
     protected void toString(final boolean useSimpleNames, final StringBuilder buf) {
         final var initialBufEmpty = buf.length() == 0;
         if (annotationInfo != null) {
             for (final AnnotationInfo annotation : annotationInfo) {
-                if (buf.length() > 0 && buf.charAt(buf.length() - 1) != ' ' && buf.charAt(buf.length() - 1) != '(') {
+                if (buf.length() > 0 && buf.charAt(buf.length() - 1) != ' '
+                        && buf.charAt(buf.length() - 1) != '(') {
                     buf.append(' ');
                 }
                 annotation.toString(useSimpleNames, buf);
@@ -4046,8 +3977,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 buf.append(" extends ");
                 superclass.toString(useSimpleNames, buf);
             }
-            final var interfaces = this.filterClassInfo(RelType.IMPLEMENTED_INTERFACES,
-                    /* strictAccept = */ false).directlyRelatedClasses();
+            final var interfaces = this.filterClassInfo(RelType.IMPLEMENTED_INTERFACES, /* strictAccept = */ false)
+                    .directlyRelatedClasses();
             if (!interfaces.isEmpty()) {
                 buf.append(isInterface() ? " extends " : " implements ");
                 var first = true;

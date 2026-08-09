@@ -11,11 +11,9 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 /**
- * {@link ArrayTypeSignature#getClassName()} used to be implemented as
- * {@code toString()}, so the name of the array class included any type
- * annotations and type arguments rendered by {@code toString()}, e.g.
- * {@code "java.lang.String @Ann []"} or
- * {@code "java.util.List<java.lang.String>[]"}. Neither is a class name, and
+ * {@link ArrayTypeSignature#getClassName()} used to be implemented as {@code toString()}, so the name of the array
+ * class included any type annotations and type arguments rendered by {@code toString()}, e.g.
+ * {@code "java.lang.String @Ann []"} or {@code "java.util.List<java.lang.String>[]"}. Neither is a class name, and
  * the name is used as the cache key for {@link ArrayClassInfo}.
  */
 public class ArrayClassNameTest {
@@ -26,8 +24,7 @@ public class ArrayClassNameTest {
     }
 
     /**
-     * Fields whose array types carry a type annotation and a type argument
-     * respectively.
+     * Fields whose array types carry a type annotation and a type argument respectively.
      */
     public static class Holder {
         /** An array type with a type annotation on the array dimension. */
@@ -41,7 +38,8 @@ public class ArrayClassNameTest {
     @Test
     public void arrayClassNameIsAClassName() {
         try (var scanResult = new ClassGraph()
-                .acceptPackagesNonRecursive(ArrayClassNameTest.class.getPackage().getName()).enableAllInfo().scan()) {
+                .acceptPackagesNonRecursive(ArrayClassNameTest.class.getPackage().getName()).enableAllInfo()
+                .scan()) {
             final var holder = scanResult.getClassInfo(Holder.class.getName());
             assertThat(holder).isNotNull();
 

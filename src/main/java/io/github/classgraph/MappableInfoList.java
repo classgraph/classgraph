@@ -39,7 +39,8 @@ import org.jspecify.annotations.Nullable;
 /**
  * A list of named objects that can be indexed by name.
  *
- * @param <T> the element type
+ * @param <T>
+ *            the element type
  */
 public class MappableInfoList<T extends HasName> extends InfoList<T> {
     /** serialVersionUID */
@@ -56,7 +57,8 @@ public class MappableInfoList<T extends HasName> extends InfoList<T> {
     /**
      * Constructor.
      *
-     * @param sizeHint the expected number of elements
+     * @param sizeHint
+     *            the expected number of elements
      */
     MappableInfoList(final int sizeHint) {
         super(sizeHint);
@@ -65,19 +67,19 @@ public class MappableInfoList<T extends HasName> extends InfoList<T> {
     /**
      * Constructor.
      *
-     * @param infoCollection the initial elements
+     * @param infoCollection
+     *            the initial elements
      */
     MappableInfoList(final Collection<T> infoCollection) {
         super(infoCollection);
     }
 
     /**
-     * Get an index for this list, as a map from the name of each list item
-     * (obtained by calling {@code getName()} on each list item) to the list item.
+     * Get an index for this list, as a map from the name of each list item (obtained by calling {@code getName()}
+     * on each list item) to the list item.
      *
-     * @return An index for this list, as a map from the name of each list item
-     *         (obtained by calling {@code getName()} on each list item) to the list
-     *         item.
+     * @return An index for this list, as a map from the name of each list item (obtained by calling
+     *         {@code getName()} on each list item) to the list item.
      */
     public Map<String, T> asMap() {
         final Map<String, T> nameToInfoObject = new HashMap<>();
@@ -92,7 +94,8 @@ public class MappableInfoList<T extends HasName> extends InfoList<T> {
     /**
      * Check if this list contains an item with the given name.
      *
-     * @param name The name to search for.
+     * @param name
+     *            The name to search for.
      * @return true if this list contains an item with the given name.
      */
     public boolean containsName(final String name) {
@@ -108,7 +111,8 @@ public class MappableInfoList<T extends HasName> extends InfoList<T> {
     /**
      * Get the list item with the given name, or null if not found.
      *
-     * @param name The name to search for.
+     * @param name
+     *            The name to search for.
      * @return The list item with the given name, or null if not found.
      */
     public @Nullable T get(final String name) {

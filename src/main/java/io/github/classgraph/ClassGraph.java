@@ -59,30 +59,24 @@ import nonapi.io.github.classgraph.utils.VersionFinder;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Uber-fast, ultra-lightweight Java classpath and module path scanner. Scans
- * classfiles in the classpath and/or module path by parsing the classfile
- * binary format directly rather than by using reflection.
+ * Uber-fast, ultra-lightweight Java classpath and module path scanner. Scans classfiles in the classpath and/or
+ * module path by parsing the classfile binary format directly rather than by using reflection.
  *
  * <p>
- * By default, ClassGraph scans the classpath and module path of the current
- * runtime environment: the classpath elements it can obtain from the visible
- * {@link ClassLoader} instances and from {@code java.class.path}, together with
- * the non-system modules in the visible {@link ModuleLayer} instances. The JDK's
- * own system jars and modules are not scanned unless
- * {@link #enableSystemJarsAndModules()} is called, or the platform classloader
- * is named explicitly via {@link #overrideClassLoaders(ClassLoader...)} or
- * {@link #addClassLoader(ClassLoader)}.
+ * By default, ClassGraph scans the classpath and module path of the current runtime environment: the classpath
+ * elements it can obtain from the visible {@link ClassLoader} instances and from {@code java.class.path}, together
+ * with the non-system modules in the visible {@link ModuleLayer} instances. The JDK's own system jars and modules
+ * are not scanned unless {@link #enableSystemJarsAndModules()} is called, or the platform classloader is named
+ * explicitly via {@link #overrideClassLoaders(ClassLoader...)} or {@link #addClassLoader(ClassLoader)}.
  *
  * <p>
- * To scan something other than the current environment, replace what is scanned
- * with {@link #overrideClasspath(Object...)},
- * {@link #overrideClassLoaders(ClassLoader...)} or
- * {@link #overrideModuleLayers(ModuleLayer...)}, and narrow which mechanisms
- * contribute classpath elements with {@link #ignoreParentClassLoaders()},
- * {@link #ignoreParentModuleLayers()}, {@link #disableModuleScanning()},
+ * To scan something other than the current environment, replace what is scanned with
+ * {@link #overrideClasspath(Object...)}, {@link #overrideClassLoaders(ClassLoader...)} or
+ * {@link #overrideModuleLayers(ModuleLayer...)}, and narrow which mechanisms contribute classpath elements with
+ * {@link #ignoreParentClassLoaders()}, {@link #ignoreParentModuleLayers()}, {@link #disableModuleScanning()},
  * {@link #disableJarScanning()} and {@link #disableDirScanning()}. After a scan,
- * {@link ScanResult#getClasspathURIs()} and {@link ScanResult#getModules()}
- * report exactly which classpath elements and modules were scanned.
+ * {@link ScanResult#getClasspathURIs()} and {@link ScanResult#getModules()} report exactly which classpath elements
+ * and modules were scanned.
  *
  * <p>
  * Documentation: <a href= "https://github.com/classgraph/classgraph/wiki">
@@ -93,9 +87,8 @@ public class ClassGraph {
     ScanSpec scanSpec = new ScanSpec();
 
     /**
-     * The default number of worker threads to use while scanning. This number gave
-     * the best results on a relatively modern laptop with SSD, while scanning a
-     * large classpath.
+     * The default number of worker threads to use while scanning. This number gave the best results on a relatively
+     * modern laptop with SSD, while scanning a large classpath.
      */
     static final int DEFAULT_NUM_WORKER_THREADS = Math.max(
             // Always scan with at least 2 threads
@@ -110,48 +103,41 @@ public class ClassGraph {
     );
 
     /**
-     * Method to use to attempt to circumvent encapsulation in JDK 16+, in order to
-     * get access to a classloader's private classpath.
+     * Method to use to attempt to circumvent encapsulation in JDK 16+, in order to get access to a classloader's
+     * private classpath.
      */
     public enum CircumventEncapsulationMethod {
         /**
-         * Use the reflection API and {@link AccessibleObject#setAccessible(boolean)} to
-         * try to gain access to private classpath fields or methods in order to
-         * determine the classpath.
+         * Use the reflection API and {@link AccessibleObject#setAccessible(boolean)} to try to gain access to
+         * private classpath fields or methods in order to determine the classpath.
          */
         NONE,
 
         /**
-         * Use the <a href="https://github.com/toolfactory/narcissus">Narcissus</a>
-         * library to try to gain access to private classloader fields or methods in
-         * order to determine the classpath.
+         * Use the <a href="https://github.com/toolfactory/narcissus">Narcissus</a> library to try to gain access to
+         * private classloader fields or methods in order to determine the classpath.
          */
         NARCISSUS,
     }
 
     /**
-     * If you are running on JDK 16+, the JDK enforces strong encapsulation, and
-     * ClassGraph may be unable to read the classpath from your classloader if the
-     * classloader does not make the classpath available via a public method or
-     * field.
+     * If you are running on JDK 16+, the JDK enforces strong encapsulation, and ClassGraph may be unable to read
+     * the classpath from your classloader if the classloader does not make the classpath available via a public
+     * method or field.
      *
      * <p>
-     * To enable a workaround to this, set this static field to
-     * {@link CircumventEncapsulationMethod#NARCISSUS} before interacting with
-     * ClassGraph in any other way, and also include the
-     * <a href="https://github.com/toolfactory/narcissus">Narcissus</a> library on
-     * the classpath or module path.
+     * To enable a workaround to this, set this static field to {@link CircumventEncapsulationMethod#NARCISSUS}
+     * before interacting with ClassGraph in any other way, and also include the
+     * <a href="https://github.com/toolfactory/narcissus">Narcissus</a> library on the classpath or module path.
      *
      * <p>
-     * Narcissus uses JNI to circumvent encapsulation and field/method access
-     * controls. Narcissus employs a native code library, and is currently only
-     * compiled for Linux x86/x64, Windows x86/x64, and Mac OS X x64 bit.
+     * Narcissus uses JNI to circumvent encapsulation and field/method access controls. Narcissus employs a native
+     * code library, and is currently only compiled for Linux x86/x64, Windows x86/x64, and Mac OS X x64 bit.
      */
     public static CircumventEncapsulationMethod CIRCUMVENT_ENCAPSULATION = CircumventEncapsulationMethod.NONE;
 
     /**
-     * The {@link ReflectionUtils} instance to use for reflective calls during
-     * scanning.
+     * The {@link ReflectionUtils} instance to use for reflective calls during scanning.
      */
     private final ReflectionUtils reflectionUtils;
 
@@ -195,7 +181,8 @@ public class ClassGraph {
     /**
      * Switches on verbose logging to System.err if verbose is true.
      *
-     * @param verbose if true, enable verbose logging.
+     * @param verbose
+     *            if true, enable verbose logging.
      * @return this (for method chaining).
      */
     public ClassGraph verbose(final boolean verbose) {
@@ -208,17 +195,14 @@ public class ClassGraph {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Enables the scanning of all classes, fields, methods, annotations, and static
-     * final field constant initializer values, and ignores all visibility
-     * modifiers, so that both public and non-public classes, fields and methods are
-     * all scanned.
+     * Enables the scanning of all classes, fields, methods, annotations, and static final field constant
+     * initializer values, and ignores all visibility modifiers, so that both public and non-public classes, fields
+     * and methods are all scanned.
      *
      * <p>
-     * Calls {@link #enableClassInfo()}, {@link #enableFieldInfo()},
-     * {@link #enableMethodInfo()}, {@link #enableAnnotationInfo()},
-     * {@link #enableStaticFinalFieldConstantInitializerValues()},
-     * {@link #ignoreClassVisibility()}, {@link #ignoreFieldVisibility()}, and
-     * {@link #ignoreMethodVisibility()}.
+     * Calls {@link #enableClassInfo()}, {@link #enableFieldInfo()}, {@link #enableMethodInfo()},
+     * {@link #enableAnnotationInfo()}, {@link #enableStaticFinalFieldConstantInitializerValues()},
+     * {@link #ignoreClassVisibility()}, {@link #ignoreFieldVisibility()}, and {@link #ignoreMethodVisibility()}.
      *
      * @return this (for method chaining).
      */
@@ -235,9 +219,8 @@ public class ClassGraph {
     }
 
     /**
-     * Enables the scanning of classfiles, producing {@link ClassInfo} objects in
-     * the {@link ScanResult}. Implicitly disables
-     * {@link #enableMultiReleaseVersions()}.
+     * Enables the scanning of classfiles, producing {@link ClassInfo} objects in the {@link ScanResult}. Implicitly
+     * disables {@link #enableMultiReleaseVersions()}.
      *
      * @return this (for method chaining).
      */
@@ -248,9 +231,8 @@ public class ClassGraph {
     }
 
     /**
-     * Causes class visibility to be ignored, enabling private, package-private and
-     * protected classes to be scanned. By default, only public classes are scanned.
-     * (Automatically calls {@link #enableClassInfo()}.)
+     * Causes class visibility to be ignored, enabling private, package-private and protected classes to be scanned.
+     * By default, only public classes are scanned. (Automatically calls {@link #enableClassInfo()}.)
      *
      * @return this (for method chaining).
      */
@@ -261,9 +243,9 @@ public class ClassGraph {
     }
 
     /**
-     * Enables the saving of method info during the scan. This information can be
-     * obtained using {@link ClassInfo#getMethodInfo()} etc. By default, method info
-     * is not scanned. (Automatically calls {@link #enableClassInfo()}.)
+     * Enables the saving of method info during the scan. This information can be obtained using
+     * {@link ClassInfo#getMethodInfo()} etc. By default, method info is not scanned. (Automatically calls
+     * {@link #enableClassInfo()}.)
      *
      * @return this (for method chaining).
      */
@@ -274,9 +256,8 @@ public class ClassGraph {
     }
 
     /**
-     * Causes method visibility to be ignored, enabling private, package-private and
-     * protected methods to be scanned. By default, only public methods are scanned.
-     * (Automatically calls {@link #enableClassInfo()} and
+     * Causes method visibility to be ignored, enabling private, package-private and protected methods to be
+     * scanned. By default, only public methods are scanned. (Automatically calls {@link #enableClassInfo()} and
      * {@link #enableMethodInfo()}.)
      *
      * @return this (for method chaining).
@@ -289,9 +270,9 @@ public class ClassGraph {
     }
 
     /**
-     * Enables the saving of field info during the scan. This information can be
-     * obtained using {@link ClassInfo#getFieldInfo()}. By default, field info is
-     * not scanned. (Automatically calls {@link #enableClassInfo()}.)
+     * Enables the saving of field info during the scan. This information can be obtained using
+     * {@link ClassInfo#getFieldInfo()}. By default, field info is not scanned. (Automatically calls
+     * {@link #enableClassInfo()}.)
      *
      * @return this (for method chaining).
      */
@@ -302,9 +283,8 @@ public class ClassGraph {
     }
 
     /**
-     * Causes field visibility to be ignored, enabling private, package-private and
-     * protected fields to be scanned. By default, only public fields are scanned.
-     * (Automatically calls {@link #enableClassInfo()} and
+     * Causes field visibility to be ignored, enabling private, package-private and protected fields to be scanned.
+     * By default, only public fields are scanned. (Automatically calls {@link #enableClassInfo()} and
      * {@link #enableFieldInfo()}.)
      *
      * @return this (for method chaining).
@@ -317,39 +297,31 @@ public class ClassGraph {
     }
 
     /**
-     * Enables the saving of static final field constant initializer values. By
-     * default, constant initializer values are not scanned. If this is enabled, you
-     * can obtain the constant field initializer values from
+     * Enables the saving of static final field constant initializer values. By default, constant initializer values
+     * are not scanned. If this is enabled, you can obtain the constant field initializer values from
      * {@link FieldInfo#getConstantInitializerValue()}.
      *
      * <p>
-     * Note that constant initializer values are usually only of primitive type, or
-     * String constants (or values that can be computed and reduced to one of those
-     * types at compiletime).
+     * Note that constant initializer values are usually only of primitive type, or String constants (or values that
+     * can be computed and reduced to one of those types at compiletime).
      *
      * <p>
-     * Also note that it is up to the compiler as to whether or not a
-     * constant-valued field is assigned as a constant in the field definition
-     * itself, or whether it is assigned manually in static class initializer blocks
-     * -- so your mileage may vary in being able to extract constant initializer
-     * values.
+     * Also note that it is up to the compiler as to whether or not a constant-valued field is assigned as a
+     * constant in the field definition itself, or whether it is assigned manually in static class initializer
+     * blocks -- so your mileage may vary in being able to extract constant initializer values.
      *
      * <p>
-     * In fact in Kotlin, even constant initializers for non-static / non-final
-     * fields are stored in a field attribute in the classfile (and so these values
-     * may be picked up by ClassGraph by calling this method), although any field
-     * initializers for non-static fields are supposed to be ignored by the JVM
-     * according to the classfile spec, so the Kotlin compiler may change in future
-     * to stop generating these values, and you probably shouldn't rely on being
-     * able to get the initializers for non-static fields in Kotlin. (As far as
-     * non-final fields, javac simply does not add constant initializer values to
-     * the field attributes list for non-final fields, even if they are static, but
-     * the spec doesn't say whether or not the JVM should ignore constant
+     * In fact in Kotlin, even constant initializers for non-static / non-final fields are stored in a field
+     * attribute in the classfile (and so these values may be picked up by ClassGraph by calling this method),
+     * although any field initializers for non-static fields are supposed to be ignored by the JVM according to the
+     * classfile spec, so the Kotlin compiler may change in future to stop generating these values, and you probably
+     * shouldn't rely on being able to get the initializers for non-static fields in Kotlin. (As far as non-final
+     * fields, javac simply does not add constant initializer values to the field attributes list for non-final
+     * fields, even if they are static, but the spec doesn't say whether or not the JVM should ignore constant
      * initializers for non-final fields.)
      *
      * <p>
-     * Automatically calls {@link #enableClassInfo()} and
-     * {@link #enableFieldInfo()}.
+     * Automatically calls {@link #enableClassInfo()} and {@link #enableFieldInfo()}.
      *
      * @return this (for method chaining).
      */
@@ -361,12 +333,10 @@ public class ClassGraph {
     }
 
     /**
-     * Enables the saving of annotation info (for class, field, method and method
-     * parameter annotations) during the scan. This information can be obtained
-     * using {@link ClassInfo#getAllAnnotationInfo()},
-     * {@link FieldInfo#getAllAnnotationInfo()}, and
-     * {@link MethodParameterInfo#getAllAnnotationInfo()}. By default, annotation info
-     * is not scanned. (Automatically calls {@link #enableClassInfo()}.)
+     * Enables the saving of annotation info (for class, field, method and method parameter annotations) during the
+     * scan. This information can be obtained using {@link ClassInfo#getAllAnnotationInfo()},
+     * {@link FieldInfo#getAllAnnotationInfo()}, and {@link MethodParameterInfo#getAllAnnotationInfo()}. By default,
+     * annotation info is not scanned. (Automatically calls {@link #enableClassInfo()}.)
      *
      * @return this (for method chaining).
      */
@@ -377,14 +347,11 @@ public class ClassGraph {
     }
 
     /**
-     * Enables the determination of inter-class dependencies, which may be read by
-     * calling {@link ClassInfo#getClassDependencies()},
-     * {@link ScanResult#getClassDependencyMap()} or
-     * {@link ScanResult#getReverseClassDependencyMap()}. (Automatically calls
-     * {@link #enableClassInfo()}, {@link #enableFieldInfo()},
-     * {@link #enableMethodInfo()}, {@link #enableAnnotationInfo()},
-     * {@link #ignoreClassVisibility()}, {@link #ignoreFieldVisibility()} and
-     * {@link #ignoreMethodVisibility()}.)
+     * Enables the determination of inter-class dependencies, which may be read by calling
+     * {@link ClassInfo#getClassDependencies()}, {@link ScanResult#getClassDependencyMap()} or
+     * {@link ScanResult#getReverseClassDependencyMap()}. (Automatically calls {@link #enableClassInfo()},
+     * {@link #enableFieldInfo()}, {@link #enableMethodInfo()}, {@link #enableAnnotationInfo()},
+     * {@link #ignoreClassVisibility()}, {@link #ignoreFieldVisibility()} and {@link #ignoreMethodVisibility()}.)
      *
      * @return this (for method chaining).
      */
@@ -403,9 +370,8 @@ public class ClassGraph {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Causes only runtime visible annotations to be scanned (causes runtime
-     * invisible annotations to be ignored). (Automatically calls
-     * {@link #enableClassInfo()}.)
+     * Causes only runtime visible annotations to be scanned (causes runtime invisible annotations to be ignored).
+     * (Automatically calls {@link #enableClassInfo()}.)
      *
      * @return this (for method chaining).
      */
@@ -460,10 +426,9 @@ public class ClassGraph {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Causes ClassGraph to return classes that are not in the accepted packages,
-     * but that are directly referred to by classes within accepted packages as a
-     * superclass, implemented interface or annotation. (Automatically calls
-     * {@link #enableClassInfo()}.)
+     * Causes ClassGraph to return classes that are not in the accepted packages, but that are directly referred to
+     * by classes within accepted packages as a superclass, implemented interface or annotation. (Automatically
+     * calls {@link #enableClassInfo()}.)
      *
      * @return this (for method chaining).
      */
@@ -474,19 +439,15 @@ public class ClassGraph {
     }
 
     /**
-     * Remove temporary files, including nested jarfiles (jarfiles within jarfiles,
-     * which have to be extracted during scanning in order to be read) from their
-     * temporary directory as soon as the scan has completed. The default is for
-     * temporary files to be removed by the {@link ScanResult} finalizer, or on JVM
-     * exit.
+     * Remove temporary files, including nested jarfiles (jarfiles within jarfiles, which have to be extracted
+     * during scanning in order to be read) from their temporary directory as soon as the scan has completed. The
+     * default is for temporary files to be removed by the {@link ScanResult} finalizer, or on JVM exit.
      *
      * <p>
-     * N.B. if the scan did extract a nested jarfile to a temporary file, then
-     * removing that temporary file requires closing the extracted jarfile that was
-     * read from it, so the {@link ScanResult} will not be able to read resources or
-     * load classes from any nested jar after the scan returns. If no nested jars
-     * were encountered, no temporary files are created, and the {@link ScanResult}
-     * remains fully usable.
+     * N.B. if the scan did extract a nested jarfile to a temporary file, then removing that temporary file requires
+     * closing the extracted jarfile that was read from it, so the {@link ScanResult} will not be able to read
+     * resources or load classes from any nested jar after the scan returns. If no nested jars were encountered, no
+     * temporary files are created, and the {@link ScanResult} remains fully usable.
      *
      * @return this (for method chaining).
      */
@@ -499,18 +460,16 @@ public class ClassGraph {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Override the automatically-detected classpath with a custom path, with path
-     * elements separated by File.pathSeparatorChar. Causes system ClassLoaders and
-     * the java.class.path system property to be ignored. Also causes modules not to
-     * be scanned.
+     * Override the automatically-detected classpath with a custom path, with path elements separated by
+     * File.pathSeparatorChar. Causes system ClassLoaders and the java.class.path system property to be ignored.
+     * Also causes modules not to be scanned.
      *
      * <p>
-     * If this method is called, nothing but the provided classpath will be scanned,
-     * i.e. this causes ClassLoaders to be ignored, as well as the java.class.path
-     * system property.
+     * If this method is called, nothing but the provided classpath will be scanned, i.e. this causes ClassLoaders
+     * to be ignored, as well as the java.class.path system property.
      *
-     * @param overrideClasspath The custom classpath to use for scanning, with path
-     *                          elements separated by File.pathSeparatorChar.
+     * @param overrideClasspath
+     *            The custom classpath to use for scanning, with path elements separated by File.pathSeparatorChar.
      * @return this (for method chaining).
      */
     public ClassGraph overrideClasspath(final String overrideClasspath) {
@@ -525,17 +484,15 @@ public class ClassGraph {
     }
 
     /**
-     * Override the automatically-detected classpath with a custom path. Causes
-     * system ClassLoaders and the java.class.path system property to be ignored.
-     * Also causes modules not to be scanned.
+     * Override the automatically-detected classpath with a custom path. Causes system ClassLoaders and the
+     * java.class.path system property to be ignored. Also causes modules not to be scanned.
      *
      * <p>
-     * Works for Iterables of any type whose toString() method resolves to a
-     * classpath element string, e.g. String, File or Path.
+     * Works for Iterables of any type whose toString() method resolves to a classpath element string, e.g. String,
+     * File or Path.
      *
-     * @param overrideClasspathElements The custom classpath to use for scanning,
-     *                                  with path elements separated by
-     *                                  File.pathSeparatorChar.
+     * @param overrideClasspathElements
+     *            The custom classpath to use for scanning, with path elements separated by File.pathSeparatorChar.
      * @return this (for method chaining).
      */
     public ClassGraph overrideClasspath(final Iterable<?> overrideClasspathElements) {
@@ -551,17 +508,15 @@ public class ClassGraph {
     }
 
     /**
-     * Override the automatically-detected classpath with a custom path. Causes
-     * system ClassLoaders and the java.class.path system property to be ignored.
-     * Also causes modules not to be scanned.
+     * Override the automatically-detected classpath with a custom path. Causes system ClassLoaders and the
+     * java.class.path system property to be ignored. Also causes modules not to be scanned.
      *
      * <p>
-     * Works for arrays of any member type whose toString() method resolves to a
-     * classpath element string, e.g. String, File or Path.
+     * Works for arrays of any member type whose toString() method resolves to a classpath element string, e.g.
+     * String, File or Path.
      *
-     * @param overrideClasspathElements The custom classpath to use for scanning,
-     *                                  with path elements separated by
-     *                                  File.pathSeparatorChar.
+     * @param overrideClasspathElements
+     *            The custom classpath to use for scanning, with path elements separated by File.pathSeparatorChar.
      * @return this (for method chaining).
      */
     public ClassGraph overrideClasspath(final Object... overrideClasspathElements) {
@@ -578,50 +533,47 @@ public class ClassGraph {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Add a classpath element filter. The includeClasspathElement method should
-     * return true if the path string passed to it is a path you want to scan.
+     * Add a classpath element filter. The includeClasspathElement method should return true if the path string
+     * passed to it is a path you want to scan.
      */
     @FunctionalInterface
     public interface ClasspathElementFilter {
         /**
          * Whether or not to include a given classpath element in the scan.
          *
-         * @param classpathElementPathStr The path string of a classpath element,
-         *                                normalized so that the path separator is '/'.
-         *                                This will usually be a file path, but could be
-         *                                a URL, or it could be a path for a nested jar,
-         *                                where the paths are separated using '!', in
-         *                                Java convention. "jar:" and/or "file:" will
-         *                                have been stripped from the beginning, if they
-         *                                were present in the classpath.
+         * @param classpathElementPathStr
+         *            The path string of a classpath element, normalized so that the path separator is '/'. This
+         *            will usually be a file path, but could be a URL, or it could be a path for a nested jar, where
+         *            the paths are separated using '!', in Java convention. "jar:" and/or "file:" will have been
+         *            stripped from the beginning, if they were present in the classpath.
          * @return true if the path string passed is a path you want to scan.
          */
         boolean includeClasspathElement(String classpathElementPathStr);
     }
 
     /**
-     * Add a classpath element URL filter. The includeClasspathElement method should
-     * return true if the {@link URL} passed to it corresponds to a classpath
-     * element that you want to scan.
+     * Add a classpath element URL filter. The includeClasspathElement method should return true if the {@link URL}
+     * passed to it corresponds to a classpath element that you want to scan.
      */
     @FunctionalInterface
     public interface ClasspathElementURLFilter {
         /**
          * Whether or not to include a given classpath element in the scan.
          *
-         * @param classpathElementURL The {@link URL} of a classpath element.
+         * @param classpathElementURL
+         *            The {@link URL} of a classpath element.
          * @return true if you want to scan the {@link URL}.
          */
         boolean includeClasspathElement(URL classpathElementURL);
     }
 
     /**
-     * Add a classpath element filter. The provided ClasspathElementFilter should
-     * return true if the path string passed to it is a path you want to scan.
+     * Add a classpath element filter. The provided ClasspathElementFilter should return true if the path string
+     * passed to it is a path you want to scan.
      *
-     * @param classpathElementFilter The filter function to use. This function
-     *                               should return true if the classpath element
-     *                               path should be scanned, and false if not.
+     * @param classpathElementFilter
+     *            The filter function to use. This function should return true if the classpath element path should
+     *            be scanned, and false if not.
      * @return this (for method chaining).
      */
     public ClassGraph filterClasspathElements(final ClasspathElementFilter classpathElementFilter) {
@@ -631,13 +583,12 @@ public class ClassGraph {
     }
 
     /**
-     * Add a classpath element filter. The provided ClasspathElementFilter should
-     * return true if the {@link URL} passed to it is a URL you want to scan.
+     * Add a classpath element filter. The provided ClasspathElementFilter should return true if the {@link URL}
+     * passed to it is a URL you want to scan.
      *
-     * @param classpathElementURLFilter The filter function to use. This function
-     *                                  should return true if the classpath element
-     *                                  {@link URL} should be scanned, and false if
-     *                                  not.
+     * @param classpathElementURLFilter
+     *            The filter function to use. This function should return true if the classpath element {@link URL}
+     *            should be scanned, and false if not.
      * @return this (for method chaining).
      */
     public ClassGraph filterClasspathElementsByURL(final ClasspathElementURLFilter classpathElementURLFilter) {
@@ -652,16 +603,15 @@ public class ClassGraph {
      * Add a ClassLoader to the list of ClassLoaders to scan.
      *
      * <p>
-     * This call is ignored if {@link #overrideClasspath(String)} is also called, or
-     * if this method is called before
+     * This call is ignored if {@link #overrideClasspath(String)} is also called, or if this method is called before
      * {@link #overrideClassLoaders(ClassLoader...)}.
      *
      * <p>
-     * If the JDK's own application or platform ClassLoader is passed in, the
-     * scanning mechanism that can reach the classes it loads is enabled instead --
-     * see {@link #overrideClassLoaders(ClassLoader...)}.
+     * If the JDK's own application or platform ClassLoader is passed in, the scanning mechanism that can reach the
+     * classes it loads is enabled instead -- see {@link #overrideClassLoaders(ClassLoader...)}.
      *
-     * @param classLoader The additional ClassLoader to scan.
+     * @param classLoader
+     *            The additional ClassLoader to scan.
      * @return this (for method chaining).
      */
     public ClassGraph addClassLoader(final ClassLoader classLoader) {
@@ -671,36 +621,31 @@ public class ClassGraph {
     }
 
     /**
-     * Completely override (and ignore) the automatically-detected ClassLoaders,
-     * scanning only what the given ClassLoaders can load. Neither the
-     * {@code java.class.path} classpath nor the modules are scanned, unless one of
-     * the given ClassLoaders loads from them (see below).
+     * Completely override (and ignore) the automatically-detected ClassLoaders, scanning only what the given
+     * ClassLoaders can load. Neither the {@code java.class.path} classpath nor the modules are scanned, unless one
+     * of the given ClassLoaders loads from them (see below).
      *
      * <p>
-     * Note that you may want to use this together with
-     * {@link #ignoreParentClassLoaders()}, so that classpath entries are obtained
-     * from only the ClassLoaders you passed in, and not from their parent
-     * ClassLoaders.
+     * Note that you may want to use this together with {@link #ignoreParentClassLoaders()}, so that classpath
+     * entries are obtained from only the ClassLoaders you passed in, and not from their parent ClassLoaders.
      *
      * <p>
-     * The JDK's own application and platform ClassLoaders do not expose the
-     * locations they load classes from, so they cannot be scanned as ClassLoaders.
-     * If one of them is passed in -- e.g. the value returned by
-     * {@link ClassLoader#getSystemClassLoader()} or by
-     * {@link Thread#getContextClassLoader()} -- then the scanning mechanism that
-     * can reach the classes it loads is used instead:
+     * The JDK's own application and platform ClassLoaders do not expose the locations they load classes from, so
+     * they cannot be scanned as ClassLoaders. If one of them is passed in -- e.g. the value returned by
+     * {@link ClassLoader#getSystemClassLoader()} or by {@link Thread#getContextClassLoader()} -- then the scanning
+     * mechanism that can reach the classes it loads is used instead:
      * <ul>
-     * <li>for the application ClassLoader, the {@code java.class.path} classpath
-     * and the non-system modules are scanned;</li>
-     * <li>for the platform ClassLoader, the system jars and modules are scanned, as
-     * if {@link #enableSystemJarsAndModules()} had been called.</li>
+     * <li>for the application ClassLoader, the {@code java.class.path} classpath and the non-system modules are
+     * scanned;</li>
+     * <li>for the platform ClassLoader, the system jars and modules are scanned, as if
+     * {@link #enableSystemJarsAndModules()} had been called.</li>
      * </ul>
      *
      * <p>
      * This call is ignored if {@link #overrideClasspath(String)} is called.
      *
-     * @param overrideClassLoaders The ClassLoaders to scan instead of the
-     *                             automatically-detected ClassLoaders.
+     * @param overrideClassLoaders
+     *            The ClassLoaders to scan instead of the automatically-detected ClassLoaders.
      * @return this (for method chaining).
      */
     public ClassGraph overrideClassLoaders(final ClassLoader... overrideClassLoaders) {
@@ -710,8 +655,8 @@ public class ClassGraph {
     }
 
     /**
-     * Ignore parent classloaders (i.e. only obtain paths to scan from classloaders
-     * that are not the parent of another classloader).
+     * Ignore parent classloaders (i.e. only obtain paths to scan from classloaders that are not the parent of
+     * another classloader).
      *
      * @return this (for method chaining).
      */
@@ -723,15 +668,14 @@ public class ClassGraph {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Add a ModuleLayer to the list of ModuleLayers to scan. Use this method if you
-     * define your own ModuleLayer, but the scanning code is not running within that
-     * custom ModuleLayer.
+     * Add a ModuleLayer to the list of ModuleLayers to scan. Use this method if you define your own ModuleLayer,
+     * but the scanning code is not running within that custom ModuleLayer.
      *
      * <p>
-     * This call is ignored if it is called before
-     * {@link #overrideModuleLayers(ModuleLayer...)}.
+     * This call is ignored if it is called before {@link #overrideModuleLayers(ModuleLayer...)}.
      *
-     * @param moduleLayer The additional ModuleLayer to scan.
+     * @param moduleLayer
+     *            The additional ModuleLayer to scan.
      * @return this (for method chaining).
      */
     public ClassGraph addModuleLayer(final ModuleLayer moduleLayer) {
@@ -741,14 +685,13 @@ public class ClassGraph {
     }
 
     /**
-     * Completely override (and ignore) the visible ModuleLayers, and instead scan
-     * the requested ModuleLayers.
+     * Completely override (and ignore) the visible ModuleLayers, and instead scan the requested ModuleLayers.
      *
      * <p>
      * This call is ignored if overrideClasspath() is called.
      *
-     * @param overrideModuleLayers The ModuleLayers to scan instead of the
-     *                             automatically-detected ModuleLayers.
+     * @param overrideModuleLayers
+     *            The ModuleLayers to scan instead of the automatically-detected ModuleLayers.
      * @return this (for method chaining).
      */
     public ClassGraph overrideModuleLayers(final ModuleLayer... overrideModuleLayers) {
@@ -758,8 +701,7 @@ public class ClassGraph {
     }
 
     /**
-     * Ignore parent module layers (i.e. only scan module layers that are not the
-     * parent of another module layer).
+     * Ignore parent module layers (i.e. only scan module layers that are not the parent of another module layer).
      *
      * @return this (for method chaining).
      */
@@ -774,24 +716,19 @@ public class ClassGraph {
      * Scan one or more specific packages and their sub-packages.
      *
      * <p>
-     * N.B. Automatically calls {@link #enableClassInfo()} -- call
-     * {@link #acceptPaths(String...)} instead if you only need to scan resources.
+     * N.B. Automatically calls {@link #enableClassInfo()} -- call {@link #acceptPaths(String...)} instead if you
+     * only need to scan resources.
      *
-     * @param packageNames The fully-qualified names of packages to scan (using '.'
-     *                     as a separator). May include glob wildcards: {@code '*'}
-     *                     matches within a single package segment only, and
-     *                     {@code "**"}, used as a complete segment, matches zero or
-     *                     more package segments, e.g. {@code "com.**.internal"}
-     *                     matches {@code com.internal}, {@code com.a.internal} and
-     *                     {@code com.a.b.internal}. Any number of wildcards may be
-     *                     used, e.g. {@code "com.*.internal.*"}. Sub-packages of a
-     *                     matched package are also scanned, so a trailing
-     *                     {@code ".**"} is accepted but redundant. Note that a
-     *                     {@code '*'} wildcard must match at least one package
-     *                     segment, so {@code "java.awt.*"} matches the sub-packages
-     *                     of {@code java.awt} but not {@code java.awt} itself -- to
-     *                     scan {@code java.awt} and everything below it, use
-     *                     {@code "java.awt"}.
+     * @param packageNames
+     *            The fully-qualified names of packages to scan (using '.' as a separator). May include glob
+     *            wildcards: {@code '*'} matches within a single package segment only, and {@code "**"}, used as a
+     *            complete segment, matches zero or more package segments, e.g. {@code "com.**.internal"} matches
+     *            {@code com.internal}, {@code com.a.internal} and {@code com.a.b.internal}. Any number of wildcards
+     *            may be used, e.g. {@code "com.*.internal.*"}. Sub-packages of a matched package are also scanned,
+     *            so a trailing {@code ".**"} is accepted but redundant. Note that a {@code '*'} wildcard must match
+     *            at least one package segment, so {@code "java.awt.*"} matches the sub-packages of {@code java.awt}
+     *            but not {@code java.awt} itself -- to scan {@code java.awt} and everything below it, use
+     *            {@code "java.awt"}.
      * @return this (for method chaining).
      */
     public ClassGraph acceptPackages(final String... packageNames) {
@@ -826,13 +763,12 @@ public class ClassGraph {
     /**
      * Scan one or more specific paths, and their sub-directories or nested paths.
      *
-     * @param paths The paths to scan, relative to the package root of the classpath
-     *              element (with '/' as a separator). May include glob wildcards:
-     *              {@code '*'} matches within a single path segment only, and
-     *              {@code "**"}, used as a complete segment, matches zero or more
-     *              whole path segments. Any number of wildcards may be used.
-     *              Sub-directories of a matched path are also scanned, so a
-     *              trailing {@code "/**"} is accepted but redundant.
+     * @param paths
+     *            The paths to scan, relative to the package root of the classpath element (with '/' as a
+     *            separator). May include glob wildcards: {@code '*'} matches within a single path segment only, and
+     *            {@code "**"}, used as a complete segment, matches zero or more whole path segments. Any number of
+     *            wildcards may be used. Sub-directories of a matched path are also scanned, so a trailing
+     *            {@code "/**"} is accepted but redundant.
      * @return this (for method chaining).
      */
     public ClassGraph acceptPaths(final String... paths) {
@@ -862,20 +798,20 @@ public class ClassGraph {
     }
 
     /**
-     * Scan one or more specific packages, without recursively scanning sub-packages
-     * unless they are themselves accepted.
+     * Scan one or more specific packages, without recursively scanning sub-packages unless they are themselves
+     * accepted.
      *
      * <p>
-     * N.B. Automatically calls {@link #enableClassInfo()} -- call
-     * {@link #acceptPathsNonRecursive(String...)} instead if you only need to scan
-     * resources.
+     * N.B. Automatically calls {@link #enableClassInfo()} -- call {@link #acceptPathsNonRecursive(String...)}
+     * instead if you only need to scan resources.
      *
      * <p>
-     * This may be particularly useful for scanning the package root ("") without
-     * recursively scanning everything in the jar, dir or module.
+     * This may be particularly useful for scanning the package root ("") without recursively scanning everything in
+     * the jar, dir or module.
      *
-     * @param packageNames The fully-qualified names of packages to scan (with '.'
-     *                     as a separator). May not include a glob wildcard.
+     * @param packageNames
+     *            The fully-qualified names of packages to scan (with '.' as a separator). May not include a glob
+     *            wildcard.
      *
      * @return this (for method chaining).
      */
@@ -898,16 +834,16 @@ public class ClassGraph {
     }
 
     /**
-     * Scan one or more specific paths, without recursively scanning sub-directories
-     * or nested paths unless they are themselves accepted.
+     * Scan one or more specific paths, without recursively scanning sub-directories or nested paths unless they are
+     * themselves accepted.
      *
      * <p>
-     * This may be particularly useful for scanning the package root ("") without
-     * recursively scanning everything in the jar, dir or module.
+     * This may be particularly useful for scanning the package root ("") without recursively scanning everything in
+     * the jar, dir or module.
      *
-     * @param paths The paths to scan, relative to the package root of the classpath
-     *              element (with '/' as a separator). May not include a glob
-     *              wildcard.
+     * @param paths
+     *            The paths to scan, relative to the package root of the classpath element (with '/' as a
+     *            separator). May not include a glob wildcard.
      * @return this (for method chaining).
      */
     public ClassGraph acceptPathsNonRecursive(final String... paths) {
@@ -931,25 +867,19 @@ public class ClassGraph {
      * Prevent the scanning of one or more specific packages and their sub-packages.
      *
      * <p>
-     * N.B. Automatically calls {@link #enableClassInfo()} -- call
-     * {@link #rejectPaths(String...)} instead if you only need to scan resources.
+     * N.B. Automatically calls {@link #enableClassInfo()} -- call {@link #rejectPaths(String...)} instead if you
+     * only need to scan resources.
      *
-     * @param packageNames The fully-qualified names of packages to reject (using
-     *                     '.' as a separator). May include glob wildcards:
-     *                     {@code '*'} matches within a single package segment only,
-     *                     and {@code "**"}, used as a complete segment, matches
-     *                     zero or more package segments, e.g.
-     *                     {@code "com.**.internal"} matches {@code com.internal},
-     *                     {@code com.a.internal} and {@code com.a.b.internal}. Any
-     *                     number of wildcards may be used, e.g.
-     *                     {@code "com.*.internal.*"}. Sub-packages of a matched
-     *                     package are also rejected, so a trailing {@code ".**"} is
-     *                     accepted but redundant. Note that a {@code '*'} wildcard
-     *                     must match at least one package segment, so
-     *                     {@code "java.awt.*"} matches the sub-packages of
-     *                     {@code java.awt} but not {@code java.awt} itself -- to
-     *                     reject {@code java.awt} and everything below it, use
-     *                     {@code "java.awt"}.
+     * @param packageNames
+     *            The fully-qualified names of packages to reject (using '.' as a separator). May include glob
+     *            wildcards: {@code '*'} matches within a single package segment only, and {@code "**"}, used as a
+     *            complete segment, matches zero or more package segments, e.g. {@code "com.**.internal"} matches
+     *            {@code com.internal}, {@code com.a.internal} and {@code com.a.b.internal}. Any number of wildcards
+     *            may be used, e.g. {@code "com.*.internal.*"}. Sub-packages of a matched package are also rejected,
+     *            so a trailing {@code ".**"} is accepted but redundant. Note that a {@code '*'} wildcard must match
+     *            at least one package segment, so {@code "java.awt.*"} matches the sub-packages of {@code java.awt}
+     *            but not {@code java.awt} itself -- to reject {@code java.awt} and everything below it, use
+     *            {@code "java.awt"}.
      * @return this (for method chaining).
      */
     public ClassGraph rejectPackages(final String... packageNames) {
@@ -974,15 +904,13 @@ public class ClassGraph {
     }
 
     /**
-     * Prevent the scanning of one or more specific paths and their sub-directories
-     * / nested paths.
+     * Prevent the scanning of one or more specific paths and their sub-directories / nested paths.
      *
-     * @param paths The paths to reject (with '/' as a separator). May include glob
-     *              wildcards: {@code '*'} matches within a single path segment
-     *              only, and {@code "**"}, used as a complete segment, matches zero
-     *              or more whole path segments. Any number of wildcards may be
-     *              used. Sub-directories of a matched path are also rejected, so a
-     *              trailing {@code "/**"} is accepted but redundant.
+     * @param paths
+     *            The paths to reject (with '/' as a separator). May include glob wildcards: {@code '*'} matches
+     *            within a single path segment only, and {@code "**"}, used as a complete segment, matches zero or
+     *            more whole path segments. Any number of wildcards may be used. Sub-directories of a matched path
+     *            are also rejected, so a trailing {@code "/**"} is accepted but redundant.
      * @return this (for method chaining).
      */
     public ClassGraph rejectPaths(final String... paths) {
@@ -1006,20 +934,18 @@ public class ClassGraph {
     }
 
     /**
-     * Scan one or more specific classes, without scanning other classes in the same
-     * package unless the package is itself accepted.
+     * Scan one or more specific classes, without scanning other classes in the same package unless the package is
+     * itself accepted.
      *
      * <p>
      * N.B. Automatically calls {@link #enableClassInfo()}.
      *
      *
-     * @param classNames The fully-qualified names of classes to scan (using '.' as
-     *                   a separator). May contain glob wildcards, where
-     *                   {@code '*'} matches within a single package or class name
-     *                   segment, {@code "**"} matches zero or more whole packages,
-     *                   and {@code '?'} matches one character. To match a class
-     *                   name by glob in any package, you must include a package
-     *                   glob too, e.g. {@code "**.*Suffix"}.
+     * @param classNames
+     *            The fully-qualified names of classes to scan (using '.' as a separator). May contain glob
+     *            wildcards, where {@code '*'} matches within a single package or class name segment, {@code "**"}
+     *            matches zero or more whole packages, and {@code '?'} matches one character. To match a class name
+     *            by glob in any package, you must include a package glob too, e.g. {@code "**.*Suffix"}.
      * @return this (for method chaining).
      */
     public ClassGraph acceptClasses(final String... classNames) {
@@ -1029,7 +955,8 @@ public class ClassGraph {
             final var classNameNormalized = AcceptReject.normalizePackageOrClassName(className);
             // Accept the class itself
             scanSpec.classAcceptReject.addToAccept(classNameNormalized);
-            scanSpec.classfilePathAcceptReject.addToAccept(AcceptReject.classNameToClassfilePath(classNameNormalized));
+            scanSpec.classfilePathAcceptReject
+                    .addToAccept(AcceptReject.classNameToClassfilePath(classNameNormalized));
             // A class name is never empty, so getParentPackageName cannot return null
             final var packageName = Objects.requireNonNull(PackageInfo.getParentPackageName(classNameNormalized));
             // Record the package containing the class, so we can recurse to this point even
@@ -1042,19 +969,17 @@ public class ClassGraph {
     }
 
     /**
-     * Specifically reject one or more specific classes, preventing them from being
-     * scanned even if they are in a accepted package.
+     * Specifically reject one or more specific classes, preventing them from being scanned even if they are in a
+     * accepted package.
      *
      * <p>
      * N.B. Automatically calls {@link #enableClassInfo()}.
      *
-     * @param classNames The fully-qualified names of classes to reject (using '.'
-     *                   as a separator). May contain glob wildcards, where
-     *                   {@code '*'} matches within a single package or class name
-     *                   segment, {@code "**"} matches zero or more whole packages,
-     *                   and {@code '?'} matches one character. To match a class
-     *                   name by glob in any package, you must include a package
-     *                   glob too, e.g. {@code "**.*Suffix"}.
+     * @param classNames
+     *            The fully-qualified names of classes to reject (using '.' as a separator). May contain glob
+     *            wildcards, where {@code '*'} matches within a single package or class name segment, {@code "**"}
+     *            matches zero or more whole packages, and {@code '?'} matches one character. To match a class name
+     *            by glob in any package, you must include a package glob too, e.g. {@code "**.*Suffix"}.
      * @return this (for method chaining).
      */
     public ClassGraph rejectClasses(final String... classNames) {
@@ -1063,20 +988,19 @@ public class ClassGraph {
         for (final String className : classNames) {
             final var classNameNormalized = AcceptReject.normalizePackageOrClassName(className);
             scanSpec.classAcceptReject.addToReject(classNameNormalized);
-            scanSpec.classfilePathAcceptReject.addToReject(AcceptReject.classNameToClassfilePath(classNameNormalized));
+            scanSpec.classfilePathAcceptReject
+                    .addToReject(AcceptReject.classNameToClassfilePath(classNameNormalized));
         }
         return this;
     }
 
     /**
-     * Accept one or more jars. This will cause only the accepted jars to be
-     * scanned.
+     * Accept one or more jars. This will cause only the accepted jars to be scanned.
      *
-     * @param jarLeafNames The leafnames of the jars that should be scanned (e.g.
-     *                     {@code "mylib.jar"}). May contain glob wildcards, where
-     *                     {@code '*'} matches zero or more characters
-     *                     ({@code "mylib-*.jar"}) and {@code '?'} matches one
-     *                     character.
+     * @param jarLeafNames
+     *            The leafnames of the jars that should be scanned (e.g. {@code "mylib.jar"}). May contain glob
+     *            wildcards, where {@code '*'} matches zero or more characters ({@code "mylib-*.jar"}) and
+     *            {@code '?'} matches one character.
      * @return this (for method chaining).
      */
     public ClassGraph acceptJars(final String... jarLeafNames) {
@@ -1094,11 +1018,10 @@ public class ClassGraph {
     /**
      * Reject one or more jars, preventing them from being scanned.
      *
-     * @param jarLeafNames The leafnames of the jars that should be scanned (e.g.
-     *                     {@code "badlib.jar"}). May contain glob wildcards, where
-     *                     {@code '*'} matches zero or more characters
-     *                     ({@code "badlib-*.jar"}) and {@code '?'} matches one
-     *                     character.
+     * @param jarLeafNames
+     *            The leafnames of the jars that should be scanned (e.g. {@code "badlib.jar"}). May contain glob
+     *            wildcards, where {@code '*'} matches zero or more characters ({@code "badlib-*.jar"}) and
+     *            {@code '?'} matches one character.
      * @return this (for method chaining).
      */
     public ClassGraph rejectJars(final String... jarLeafNames) {
@@ -1116,8 +1039,10 @@ public class ClassGraph {
     /**
      * Add lib or ext jars to accept or reject.
      *
-     * @param accept       if true, add to accept, otherwise add to reject.
-     * @param jarLeafNames the jar leaf names to accept
+     * @param accept
+     *            if true, add to accept, otherwise add to reject.
+     * @param jarLeafNames
+     *            the jar leaf names to accept
      */
     private void acceptOrRejectLibOrExtJars(final boolean accept, final String... jarLeafNames) {
         Assert.notNullElements(jarLeafNames, "jarLeafNames");
@@ -1163,8 +1088,8 @@ public class ClassGraph {
                                 scanSpec.libOrExtJarAcceptReject.addToReject(jarLeafName);
                             }
                             if (topLevelLog != null) {
-                                topLevelLog.log(
-                                        (accept ? "Accepting" : "Rejecting") + " lib or ext jar: " + libOrExtJarPath);
+                                topLevelLog.log((accept ? "Accepting" : "Rejecting") + " lib or ext jar: "
+                                        + libOrExtJarPath);
                             }
                             found = true;
                             break;
@@ -1179,15 +1104,13 @@ public class ClassGraph {
     }
 
     /**
-     * Accept one or more jars in a JRE/JDK "lib/" or "ext/" directory (these
-     * directories are not scanned unless {@link #enableSystemJarsAndModules()} is
-     * called, by association with the JRE/JDK).
+     * Accept one or more jars in a JRE/JDK "lib/" or "ext/" directory (these directories are not scanned unless
+     * {@link #enableSystemJarsAndModules()} is called, by association with the JRE/JDK).
      *
-     * @param jarLeafNames The leafnames of the lib/ext jar(s) that should be
-     *                     scanned (e.g. {@code "mylib.jar"}). May contain a
-     *                     wildcard glob ({@code '*'}). Note that if you call this
-     *                     method with no parameters, all JRE/JDK "lib/" or "ext/"
-     *                     jars will be accepted.
+     * @param jarLeafNames
+     *            The leafnames of the lib/ext jar(s) that should be scanned (e.g. {@code "mylib.jar"}). May contain
+     *            a wildcard glob ({@code '*'}). Note that if you call this method with no parameters, all JRE/JDK
+     *            "lib/" or "ext/" jars will be accepted.
      * @return this (for method chaining).
      */
     public ClassGraph acceptLibOrExtJars(final String... jarLeafNames) {
@@ -1196,14 +1119,12 @@ public class ClassGraph {
     }
 
     /**
-     * Reject one or more jars in a JRE/JDK "lib/" or "ext/" directory, preventing
-     * them from being scanned.
+     * Reject one or more jars in a JRE/JDK "lib/" or "ext/" directory, preventing them from being scanned.
      *
-     * @param jarLeafNames The leafnames of the lib/ext jar(s) that should not be
-     *                     scanned (e.g. {@code "jre/lib/badlib.jar"}). May contain
-     *                     a wildcard glob ({@code '*'}). If you call this method
-     *                     with no parameters, all JRE/JDK {@code "lib/"} or
-     *                     {@code "ext/"} jars will be rejected.
+     * @param jarLeafNames
+     *            The leafnames of the lib/ext jar(s) that should not be scanned (e.g.
+     *            {@code "jre/lib/badlib.jar"}). May contain a wildcard glob ({@code '*'}). If you call this method
+     *            with no parameters, all JRE/JDK {@code "lib/"} or {@code "ext/"} jars will be rejected.
      * @return this (for method chaining).
      */
     public ClassGraph rejectLibOrExtJars(final String... jarLeafNames) {
@@ -1212,22 +1133,19 @@ public class ClassGraph {
     }
 
     /**
-     * Accept one or more modules for scanning. If any module is accepted, only the
-     * accepted modules are scanned (any jars and directories on the classpath are
-     * still scanned, unless they are excluded by other criteria).
+     * Accept one or more modules for scanning. If any module is accepted, only the accepted modules are scanned
+     * (any jars and directories on the classpath are still scanned, unless they are excluded by other criteria).
      *
      * <p>
-     * A system module (e.g. {@code "java.base"} or {@code "jdk.compiler"}) that is
-     * accepted by name is scanned even if {@link #enableSystemJarsAndModules()} was
-     * not called -- that method is only needed in order to scan <i>all</i> system
-     * modules.
+     * A system module (e.g. {@code "java.base"} or {@code "jdk.compiler"}) that is accepted by name is scanned even
+     * if {@link #enableSystemJarsAndModules()} was not called -- that method is only needed in order to scan
+     * <i>all</i> system modules.
      *
-     * @param moduleNames The names of the modules that should be scanned. May
-     *                    contain glob wildcards, where {@code '*'} matches within a
-     *                    single module name segment, {@code "**"} matches zero or
-     *                    more whole segments (e.g. {@code "jdk.**"} matches every
-     *                    module whose name starts with {@code "jdk."}), and
-     *                    {@code '?'} matches one character.
+     * @param moduleNames
+     *            The names of the modules that should be scanned. May contain glob wildcards, where {@code '*'}
+     *            matches within a single module name segment, {@code "**"} matches zero or more whole segments
+     *            (e.g. {@code "jdk.**"} matches every module whose name starts with {@code "jdk."}), and
+     *            {@code '?'} matches one character.
      * @return this (for method chaining).
      */
     // #658
@@ -1242,13 +1160,11 @@ public class ClassGraph {
     /**
      * Reject one or more modules, preventing them from being scanned.
      *
-     * @param moduleNames The names of the modules that should not be scanned. May
-     *                    contain glob wildcards, where {@code '*'} matches within a
-     *                    single module name segment, {@code "**"} matches zero or
-     *                    more whole segments, and {@code '?'} matches one
-     *                    character. Rejecting a system module leaves the other
-     *                    system modules scannable, if
-     *                    {@link #enableSystemJarsAndModules()} was called.
+     * @param moduleNames
+     *            The names of the modules that should not be scanned. May contain glob wildcards, where {@code '*'}
+     *            matches within a single module name segment, {@code "**"} matches zero or more whole segments, and
+     *            {@code '?'} matches one character. Rejecting a system module leaves the other system modules
+     *            scannable, if {@link #enableSystemJarsAndModules()} was called.
      * @return this (for method chaining).
      */
     // #658
@@ -1261,16 +1177,14 @@ public class ClassGraph {
     }
 
     /**
-     * Accept classpath elements based on resource paths. Only classpath elements
-     * that contain resources with paths matching the accept will be scanned.
+     * Accept classpath elements based on resource paths. Only classpath elements that contain resources with paths
+     * matching the accept will be scanned.
      *
-     * @param resourcePaths The resource paths, any of which must be present in a
-     *                      classpath element for the classpath element to be
-     *                      scanned. May contain glob wildcards, where {@code '*'}
-     *                      matches within a single path segment, {@code "**"}
-     *                      matches zero or more whole path segments (e.g.
-     *                      {@code "META-INF/**"}), and {@code '?'} matches one
-     *                      character.
+     * @param resourcePaths
+     *            The resource paths, any of which must be present in a classpath element for the classpath element
+     *            to be scanned. May contain glob wildcards, where {@code '*'} matches within a single path segment,
+     *            {@code "**"} matches zero or more whole path segments (e.g. {@code "META-INF/**"}), and
+     *            {@code '?'} matches one character.
      * @return this (for method chaining).
      */
     public ClassGraph acceptClasspathElementsContainingResourcePath(final String... resourcePaths) {
@@ -1283,15 +1197,14 @@ public class ClassGraph {
     }
 
     /**
-     * Reject classpath elements based on resource paths. Classpath elements that
-     * contain resources with paths matching the reject will not be scanned.
+     * Reject classpath elements based on resource paths. Classpath elements that contain resources with paths
+     * matching the reject will not be scanned.
      *
-     * @param resourcePaths The resource paths which cause a classpath not to be
-     *                      scanned if any are present in a classpath element for
-     *                      the classpath element. May contain glob wildcards, where
-     *                      {@code '*'} matches within a single path segment,
-     *                      {@code "**"} matches zero or more whole path segments,
-     *                      and {@code '?'} matches one character.
+     * @param resourcePaths
+     *            The resource paths which cause a classpath not to be scanned if any are present in a classpath
+     *            element for the classpath element. May contain glob wildcards, where {@code '*'} matches within a
+     *            single path segment, {@code "**"} matches zero or more whole path segments, and {@code '?'}
+     *            matches one character.
      * @return this (for method chaining).
      */
     public ClassGraph rejectClasspathElementsContainingResourcePath(final String... resourcePaths) {
@@ -1304,15 +1217,15 @@ public class ClassGraph {
     }
 
     /**
-     * Enable classpath elements to be fetched from remote ("http:"/"https:") URLs
-     * (or URLs with custom schemes). Equivalent to:
+     * Enable classpath elements to be fetched from remote ("http:"/"https:") URLs (or URLs with custom schemes).
+     * Equivalent to:
      *
      * <p>
      * {@code new ClassGraph().enableURLScheme("http").enableURLScheme("https");}
      *
      * <p>
-     * Scanning from http(s) URLs is disabled by default, as downloading and reading
-     * jars from a remote server may present a security vulnerability.
+     * Scanning from http(s) URLs is disabled by default, as downloading and reading jars from a remote server may
+     * present a security vulnerability.
      *
      * @return this (for method chaining).
      */
@@ -1323,13 +1236,12 @@ public class ClassGraph {
     }
 
     /**
-     * Enable classpath elements to be fetched from {@link URL} connections with the
-     * specified URL scheme (also works for any custom URL schemes that have been
-     * defined, as long as they have more than two characters, in order to not
-     * conflict with Windows drive letters).
+     * Enable classpath elements to be fetched from {@link URL} connections with the specified URL scheme (also
+     * works for any custom URL schemes that have been defined, as long as they have more than two characters, in
+     * order to not conflict with Windows drive letters).
      *
-     * @param scheme the URL scheme string, e.g. "resource" for a custom "resource:"
-     *               URL scheme.
+     * @param scheme
+     *            the URL scheme string, e.g. "resource" for a custom "resource:" URL scheme.
      * @return this (for method chaining).
      */
     public ClassGraph enableURLScheme(final String scheme) {
@@ -1339,14 +1251,13 @@ public class ClassGraph {
     }
 
     /**
-     * Enables the scanning of system packages ({@code "java.*"}, {@code "javax.*"},
-     * {@code "javafx.*"}, {@code "jdk.*"}, {@code "oracle.*"}, {@code "sun.*"}) --
-     * these are not scanned by default for speed.
+     * Enables the scanning of system packages ({@code "java.*"}, {@code "javax.*"}, {@code "javafx.*"},
+     * {@code "jdk.*"}, {@code "oracle.*"}, {@code "sun.*"}) -- these are not scanned by default for speed.
      *
      * <p>
-     * This is only needed in order to scan <i>all</i> system modules and the JRE/JDK
-     * {@code "lib/"} and {@code "ext/"} jars: an individual system module can be
-     * scanned by accepting it by name with {@link #acceptModules(String...)}.
+     * This is only needed in order to scan <i>all</i> system modules and the JRE/JDK {@code "lib/"} and
+     * {@code "ext/"} jars: an individual system module can be scanned by accepting it by name with
+     * {@link #acceptModules(String...)}.
      *
      * <p>
      * N.B. Automatically calls {@link #enableClassInfo()}.
@@ -1362,34 +1273,29 @@ public class ClassGraph {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * The maximum size of an inner (nested) jar that has been deflated (i.e.
-     * compressed, not stored) within an outer jar, before it has to be spilled to
-     * disk rather than stored in a RAM-backed {@link ByteBuffer} when it is
-     * deflated, in order for the inner jar's entries to be read. (Note that this
-     * situation of having to deflate a nested jar to RAM or disk in order to read
-     * it is rare, because normally adding a jarfile to another jarfile will store
-     * the inner jar, rather than deflate it, because deflating a jarfile does not
-     * usually produce any further compression gains. If an inner jar is stored, not
-     * deflated, then its zip entries can be read directly using ClassGraph's own
-     * zipfile central directory parser, which can use file slicing to extract
-     * entries directly from stored nested jars.)
+     * The maximum size of an inner (nested) jar that has been deflated (i.e. compressed, not stored) within an
+     * outer jar, before it has to be spilled to disk rather than stored in a RAM-backed {@link ByteBuffer} when it
+     * is deflated, in order for the inner jar's entries to be read. (Note that this situation of having to deflate
+     * a nested jar to RAM or disk in order to read it is rare, because normally adding a jarfile to another jarfile
+     * will store the inner jar, rather than deflate it, because deflating a jarfile does not usually produce any
+     * further compression gains. If an inner jar is stored, not deflated, then its zip entries can be read directly
+     * using ClassGraph's own zipfile central directory parser, which can use file slicing to extract entries
+     * directly from stored nested jars.)
      *
      * <p>
-     * This is also the maximum size of a jar downloaded from an {@code http://} or
-     * {@code https://} classpath {@link URL} to RAM. Once this many bytes have been
-     * read from the {@link URL}'s {@link InputStream}, then the RAM contents are
-     * spilled over to a temporary file on disk, and the rest of the content is
-     * downloaded to the temporary file. (This is also rare, because normally there
-     * are no {@code http://} or {@code https://} classpath entries.)
+     * This is also the maximum size of a jar downloaded from an {@code http://} or {@code https://} classpath
+     * {@link URL} to RAM. Once this many bytes have been read from the {@link URL}'s {@link InputStream}, then the
+     * RAM contents are spilled over to a temporary file on disk, and the rest of the content is downloaded to the
+     * temporary file. (This is also rare, because normally there are no {@code http://} or {@code https://}
+     * classpath entries.)
      *
      * <p>
-     * Default: 64MB (i.e. writing to disk is avoided wherever possible). Setting a
-     * lower max RAM size value will decrease ClassGraph's memory usage if either of
-     * the above rare situations occurs.
+     * Default: 64MB (i.e. writing to disk is avoided wherever possible). Setting a lower max RAM size value will
+     * decrease ClassGraph's memory usage if either of the above rare situations occurs.
      *
-     * @param maxBufferedJarRAMSize The max RAM size to use for deflated inner jars
-     *                              or downloaded jars. This is the limit per jar,
-     *                              not for the whole classpath.
+     * @param maxBufferedJarRAMSize
+     *            The max RAM size to use for deflated inner jars or downloaded jars. This is the limit per jar, not
+     *            for the whole classpath.
      * @return this (for method chaining).
      */
     public ClassGraph setMaxBufferedJarRAMSize(final int maxBufferedJarRAMSize) {
@@ -1398,12 +1304,10 @@ public class ClassGraph {
     }
 
     /**
-     * If true, use a {@link MappedByteBuffer} rather than the {@link FileChannel}
-     * API to open files, which may be faster for large classpaths consisting of
-     * many large jarfiles, but uses up virtual memory space. On JDK 22+, files are
-     * memory-mapped using the {@code java.lang.foreign.Arena} API, so that they can
-     * be unmapped without calling the terminally-deprecated
-     * {@code Unsafe::invokeCleaner} method.
+     * If true, use a {@link MappedByteBuffer} rather than the {@link FileChannel} API to open files, which may be
+     * faster for large classpaths consisting of many large jarfiles, but uses up virtual memory space. On JDK 22+,
+     * files are memory-mapped using the {@code java.lang.foreign.Arena} API, so that they can be unmapped without
+     * calling the terminally-deprecated {@code Unsafe::invokeCleaner} method.
      *
      * @return this (for method chaining).
      */
@@ -1414,9 +1318,8 @@ public class ClassGraph {
     }
 
     /**
-     * If true, provide all versions of a multi-release resource using their
-     * multi-release path prefix, instead of just the one the running JVM would
-     * select. Implicitly disables {@link #enableClassInfo()} and all features
+     * If true, provide all versions of a multi-release resource using their multi-release path prefix, instead of
+     * just the one the running JVM would select. Implicitly disables {@link #enableClassInfo()} and all features
      * depending on it.
      *
      * @return this (for method chaining).
@@ -1445,11 +1348,10 @@ public class ClassGraph {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Enables logging by calling {@link #verbose()}, and then sets the logger to
-     * "realtime logging mode", where log entries are written out immediately to
-     * stderr, rather than only after the scan has completed. Can help to identify
-     * problems where scanning is stuck in a loop, or where one scanning step is
-     * taking much longer than it should, etc.
+     * Enables logging by calling {@link #verbose()}, and then sets the logger to "realtime logging mode", where log
+     * entries are written out immediately to stderr, rather than only after the scan has completed. Can help to
+     * identify problems where scanning is stuck in a loop, or where one scanning step is taking much longer than it
+     * should, etc.
      *
      * @return this (for method chaining).
      */
@@ -1467,7 +1369,8 @@ public class ClassGraph {
         /**
          * Process the result of an asynchronous scan after scanning has completed.
          *
-         * @param scanResult the {@link ScanResult} to process.
+         * @param scanResult
+         *            the {@link ScanResult} to process.
          */
         void processScanResult(ScanResult scanResult);
     }
@@ -1478,26 +1381,26 @@ public class ClassGraph {
         /**
          * Called on scanning failure during an asynchronous scan.
          *
-         * @param throwable the {@link Throwable} that was thrown during scanning.
+         * @param throwable
+         *            the {@link Throwable} that was thrown during scanning.
          */
         void onFailure(Throwable throwable);
     }
 
     /**
-     * Asynchronously scans the classpath, calling a {@link ScanResultProcessor}
-     * callback on success or a {@link FailureHandler} callback on failure.
+     * Asynchronously scans the classpath, calling a {@link ScanResultProcessor} callback on success or a
+     * {@link FailureHandler} callback on failure.
      *
-     * @param executorService     A custom {@link ExecutorService} to use for
-     *                            scheduling worker tasks.
-     * @param numParallelTasks    The number of parallel tasks to break the work
-     *                            into during the most CPU-intensive stage of
-     *                            classpath scanning. Ideally the ExecutorService
-     *                            will have at least this many threads available.
-     * @param scanResultProcessor A {@link ScanResultProcessor} callback to run on
-     *                            successful scan.
-     * @param failureHandler      A {@link FailureHandler} callback to run on failed
-     *                            scan. This is passed any {@link Throwable} thrown
-     *                            during the scan.
+     * @param executorService
+     *            A custom {@link ExecutorService} to use for scheduling worker tasks.
+     * @param numParallelTasks
+     *            The number of parallel tasks to break the work into during the most CPU-intensive stage of
+     *            classpath scanning. Ideally the ExecutorService will have at least this many threads available.
+     * @param scanResultProcessor
+     *            A {@link ScanResultProcessor} callback to run on successful scan.
+     * @param failureHandler
+     *            A {@link FailureHandler} callback to run on failed scan. This is passed any {@link Throwable}
+     *            thrown during the scan.
      */
     public void scanAsync(final ExecutorService executorService, final int numParallelTasks,
             final ScanResultProcessor scanResultProcessor, final FailureHandler failureHandler) {
@@ -1514,8 +1417,8 @@ public class ClassGraph {
         executorService.execute(() -> {
             try {
                 // Call scanner, but ignore the returned ScanResult
-                new Scanner(/* performScan = */ true, scanSpec, executorService, numParallelTasks, scanResultProcessor,
-                        failureHandler, reflectionUtils, topLevelLog).call();
+                new Scanner(/* performScan = */ true, scanSpec, executorService, numParallelTasks,
+                        scanResultProcessor, failureHandler, reflectionUtils, topLevelLog).call();
             } catch (final InterruptedException | CancellationException | ExecutionException e) {
                 // Call failure handler
                 failureHandler.onFailure(e);
@@ -1524,21 +1427,19 @@ public class ClassGraph {
     }
 
     /**
-     * Asynchronously scans the classpath for matching files, returning a
-     * {@code Future<ScanResult>}. You should assign the wrapped {@link ScanResult}
-     * in a try-with-resources statement, or manually close it when you are finished
-     * with it.
+     * Asynchronously scans the classpath for matching files, returning a {@code Future<ScanResult>}. You should
+     * assign the wrapped {@link ScanResult} in a try-with-resources statement, or manually close it when you are
+     * finished with it.
      *
-     * @param performScan      If true, performing a scan. If false, only fetching
-     *                         the classpath.
-     * @param executorService  A custom {@link ExecutorService} to use for
-     *                         scheduling worker tasks.
-     * @param numParallelTasks The number of parallel tasks to break the work into
-     *                         during the most CPU-intensive stage of classpath
-     *                         scanning. Ideally the ExecutorService will have at
-     *                         least this many threads available.
-     * @return a {@code Future<ScanResult>}, that when resolved using get() yields a
-     *         new {@link ScanResult} object representing the result of the scan.
+     * @param performScan
+     *            If true, performing a scan. If false, only fetching the classpath.
+     * @param executorService
+     *            A custom {@link ExecutorService} to use for scheduling worker tasks.
+     * @param numParallelTasks
+     *            The number of parallel tasks to break the work into during the most CPU-intensive stage of
+     *            classpath scanning. Ideally the ExecutorService will have at least this many threads available.
+     * @return a {@code Future<ScanResult>}, that when resolved using get() yields a new {@link ScanResult} object
+     *         representing the result of the scan.
      */
     private Future<ScanResult> scanAsync(final boolean performScan, final ExecutorService executorService,
             final int numParallelTasks) {
@@ -1559,19 +1460,17 @@ public class ClassGraph {
     }
 
     /**
-     * Asynchronously scans the classpath for matching files, returning a
-     * {@code Future<ScanResult>}. You should assign the wrapped {@link ScanResult}
-     * in a try-with-resources statement, or manually close it when you are finished
-     * with it.
+     * Asynchronously scans the classpath for matching files, returning a {@code Future<ScanResult>}. You should
+     * assign the wrapped {@link ScanResult} in a try-with-resources statement, or manually close it when you are
+     * finished with it.
      *
-     * @param executorService  A custom {@link ExecutorService} to use for
-     *                         scheduling worker tasks.
-     * @param numParallelTasks The number of parallel tasks to break the work into
-     *                         during the most CPU-intensive stage of classpath
-     *                         scanning. Ideally the ExecutorService will have at
-     *                         least this many threads available.
-     * @return a {@code Future<ScanResult>}, that when resolved using get() yields a
-     *         new {@link ScanResult} object representing the result of the scan.
+     * @param executorService
+     *            A custom {@link ExecutorService} to use for scheduling worker tasks.
+     * @param numParallelTasks
+     *            The number of parallel tasks to break the work into during the most CPU-intensive stage of
+     *            classpath scanning. Ideally the ExecutorService will have at least this many threads available.
+     * @return a {@code Future<ScanResult>}, that when resolved using get() yields a new {@link ScanResult} object
+     *         representing the result of the scan.
      */
     public Future<ScanResult> scanAsync(final ExecutorService executorService, final int numParallelTasks) {
         Assert.notNull(executorService, "executorService");
@@ -1579,26 +1478,21 @@ public class ClassGraph {
     }
 
     /**
-     * Scans the classpath using the requested {@link ExecutorService} and the
-     * requested degree of parallelism, blocking until the scan is complete. You
-     * should assign the returned {@link ScanResult} in a try-with-resources
-     * statement, or manually close it when you are finished with it.
+     * Scans the classpath using the requested {@link ExecutorService} and the requested degree of parallelism,
+     * blocking until the scan is complete. You should assign the returned {@link ScanResult} in a
+     * try-with-resources statement, or manually close it when you are finished with it.
      *
-     * @param executorService  A custom {@link ExecutorService} to use for
-     *                         scheduling worker tasks. This {@link ExecutorService}
-     *                         should start tasks in FIFO order to avoid a deadlock
-     *                         during scan, i.e. be sure to construct the
-     *                         {@link ExecutorService} with a
-     *                         {@link LinkedBlockingQueue} as its task queue. (This
-     *                         is the default for
-     *                         {@link Executors#newFixedThreadPool(int)}.)
-     * @param numParallelTasks The number of parallel tasks to break the work into
-     *                         during the most CPU-intensive stage of classpath
-     *                         scanning. Ideally the ExecutorService will have at
-     *                         least this many threads available.
+     * @param executorService
+     *            A custom {@link ExecutorService} to use for scheduling worker tasks. This {@link ExecutorService}
+     *            should start tasks in FIFO order to avoid a deadlock during scan, i.e. be sure to construct the
+     *            {@link ExecutorService} with a {@link LinkedBlockingQueue} as its task queue. (This is the default
+     *            for {@link Executors#newFixedThreadPool(int)}.)
+     * @param numParallelTasks
+     *            The number of parallel tasks to break the work into during the most CPU-intensive stage of
+     *            classpath scanning. Ideally the ExecutorService will have at least this many threads available.
      * @return a {@link ScanResult} object representing the result of the scan.
-     * @throws ClassGraphException if any of the worker threads throws an uncaught
-     *                             exception, or the scan was interrupted.
+     * @throws ClassGraphException
+     *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      */
     public ScanResult scan(final ExecutorService executorService, final int numParallelTasks) {
         try {
@@ -1620,15 +1514,15 @@ public class ClassGraph {
     }
 
     /**
-     * Scans the classpath with the requested number of threads, blocking until the
-     * scan is complete. You should assign the returned {@link ScanResult} in a
-     * try-with-resources statement, or manually close it when you are finished with
-     * it.
+     * Scans the classpath with the requested number of threads, blocking until the scan is complete. You should
+     * assign the returned {@link ScanResult} in a try-with-resources statement, or manually close it when you are
+     * finished with it.
      *
-     * @param numThreads The number of worker threads to start up.
+     * @param numThreads
+     *            The number of worker threads to start up.
      * @return a {@link ScanResult} object representing the result of the scan.
-     * @throws ClassGraphException if any of the worker threads throws an uncaught
-     *                             exception, or the scan was interrupted.
+     * @throws ClassGraphException
+     *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      */
     public ScanResult scan(final int numThreads) {
         try (var executorService = new AutoCloseableExecutorService(numThreads)) {
@@ -1637,13 +1531,12 @@ public class ClassGraph {
     }
 
     /**
-     * Scans the classpath, blocking until the scan is complete. You should assign
-     * the returned {@link ScanResult} in a try-with-resources statement, or
-     * manually close it when you are finished with it.
+     * Scans the classpath, blocking until the scan is complete. You should assign the returned {@link ScanResult}
+     * in a try-with-resources statement, or manually close it when you are finished with it.
      *
      * @return a {@link ScanResult} object representing the result of the scan.
-     * @throws ClassGraphException if any of the worker threads throws an uncaught
-     *                             exception, or the scan was interrupted.
+     * @throws ClassGraphException
+     *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      */
     public ScanResult scan() {
         return scan(DEFAULT_NUM_WORKER_THREADS);
@@ -1654,11 +1547,12 @@ public class ClassGraph {
     /**
      * Get a {@link ScanResult} that can be used for determining the classpath.
      *
-     * @param executorService The executor service.
-     * @return a {@link ScanResult} object representing the result of the scan (can
-     *         only be used for determining classpath).
-     * @throws ClassGraphException if any of the worker threads throws an uncaught
-     *                             exception, or the scan was interrupted.
+     * @param executorService
+     *            The executor service.
+     * @return a {@link ScanResult} object representing the result of the scan (can only be used for determining
+     *         classpath).
+     * @throws ClassGraphException
+     *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      */
     ScanResult getClasspathScanResult(final AutoCloseableExecutorService executorService) {
         try {
@@ -1680,15 +1574,14 @@ public class ClassGraph {
     }
 
     /**
-     * Returns the list of all unique File objects representing directories or
-     * zip/jarfiles on the classpath, in classloader resolution order. Classpath
-     * elements that do not exist as a file or directory are not included in the
-     * returned list.
+     * Returns the list of all unique File objects representing directories or zip/jarfiles on the classpath, in
+     * classloader resolution order. Classpath elements that do not exist as a file or directory are not included in
+     * the returned list.
      *
-     * @return a {@code List<File>} consisting of the unique directories and
-     *         jarfiles on the classpath, in classpath resolution order.
-     * @throws ClassGraphException if any of the worker threads throws an uncaught
-     *                             exception, or the scan was interrupted.
+     * @return a {@code List<File>} consisting of the unique directories and jarfiles on the classpath, in classpath
+     *         resolution order.
+     * @throws ClassGraphException
+     *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      */
     public List<File> getClasspathFiles() {
         try (var executorService = new AutoCloseableExecutorService(DEFAULT_NUM_WORKER_THREADS);
@@ -1698,35 +1591,30 @@ public class ClassGraph {
     }
 
     /**
-     * Returns the list of all unique File objects representing directories or
-     * zip/jarfiles on the classpath, in classloader resolution order, in the form
-     * of a classpath path string. Classpath elements that do not exist as a file or
-     * directory are not included in the returned list. Note that the returned
-     * string contains only base files, and does not include package roots or nested
-     * jars within jars, since the path separator (':') conflicts with the URL
-     * scheme separator character (also ':') on Linux and Mac OS X. Call
-     * {@link #getClasspathURIs()} to get the full URIs for classpath elements and
-     * modules.
+     * Returns the list of all unique File objects representing directories or zip/jarfiles on the classpath, in
+     * classloader resolution order, in the form of a classpath path string. Classpath elements that do not exist as
+     * a file or directory are not included in the returned list. Note that the returned string contains only base
+     * files, and does not include package roots or nested jars within jars, since the path separator (':')
+     * conflicts with the URL scheme separator character (also ':') on Linux and Mac OS X. Call
+     * {@link #getClasspathURIs()} to get the full URIs for classpath elements and modules.
      *
-     * @return a classpath path string consisting of the unique directories and
-     *         jarfiles on the classpath, in classpath resolution order.
-     * @throws ClassGraphException if any of the worker threads throws an uncaught
-     *                             exception, or the scan was interrupted.
+     * @return a classpath path string consisting of the unique directories and jarfiles on the classpath, in
+     *         classpath resolution order.
+     * @throws ClassGraphException
+     *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      */
     public String getClasspath() {
         return JarUtils.pathElementsToPathStr(getClasspathFiles());
     }
 
     /**
-     * Returns the ordered list of all unique {@link URI} objects representing
-     * directory/jar classpath elements and modules. Classpath elements representing
-     * jarfiles or directories that do not exist are not included in the returned
-     * list.
+     * Returns the ordered list of all unique {@link URI} objects representing directory/jar classpath elements and
+     * modules. Classpath elements representing jarfiles or directories that do not exist are not included in the
+     * returned list.
      *
-     * @return the unique classpath elements and modules, as a list of {@link URI}
-     *         objects.
-     * @throws ClassGraphException if any of the worker threads throws an uncaught
-     *                             exception, or the scan was interrupted.
+     * @return the unique classpath elements and modules, as a list of {@link URI} objects.
+     * @throws ClassGraphException
+     *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      */
     public List<URI> getClasspathURIs() {
         try (var executorService = new AutoCloseableExecutorService(DEFAULT_NUM_WORKER_THREADS);
@@ -1736,16 +1624,13 @@ public class ClassGraph {
     }
 
     /**
-     * Returns the ordered list of all unique {@link URL} objects representing
-     * directory/jar classpath elements and modules. Classpath elements representing
-     * jarfiles or directories that do not exist, as well as modules with unknown
-     * (null) location or with {@code jrt:} location URI scheme, are not included in
-     * the returned list.
+     * Returns the ordered list of all unique {@link URL} objects representing directory/jar classpath elements and
+     * modules. Classpath elements representing jarfiles or directories that do not exist, as well as modules with
+     * unknown (null) location or with {@code jrt:} location URI scheme, are not included in the returned list.
      *
-     * @return the unique classpath elements and modules, as a list of {@link URL}
-     *         objects.
-     * @throws ClassGraphException if any of the worker threads throws an uncaught
-     *                             exception, or the scan was interrupted.
+     * @return the unique classpath elements and modules, as a list of {@link URL} objects.
+     * @throws ClassGraphException
+     *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      */
     public List<URL> getClasspathURLs() {
         try (var executorService = new AutoCloseableExecutorService(DEFAULT_NUM_WORKER_THREADS);
@@ -1758,8 +1643,8 @@ public class ClassGraph {
      * Returns {@link ModuleRef} references for all the visible modules.
      *
      * @return a list of {@link ModuleRef} references for all the visible modules.
-     * @throws ClassGraphException if any of the worker threads throws an uncaught
-     *                             exception, or the scan was interrupted.
+     * @throws ClassGraphException
+     *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      */
     public List<ModuleRef> getModules() {
         try (var executorService = new AutoCloseableExecutorService(DEFAULT_NUM_WORKER_THREADS);
@@ -1769,23 +1654,19 @@ public class ClassGraph {
     }
 
     /**
-     * Get the module path info provided on the commandline with
-     * {@code --module-path}, {@code --add-modules}, {@code --patch-module},
-     * {@code --add-exports}, {@code --add-opens}, and {@code --add-reads}.
+     * Get the module path info provided on the commandline with {@code --module-path}, {@code --add-modules},
+     * {@code --patch-module}, {@code --add-exports}, {@code --add-opens}, and {@code --add-reads}.
      *
      * <p>
-     * Note that the returned {@link ModulePathInfo} object does not include
-     * classpath entries from the traditional classpath or system modules. Use
-     * {@link #getModules()} to get all visible modules, including anonymous,
+     * Note that the returned {@link ModulePathInfo} object does not include classpath entries from the traditional
+     * classpath or system modules. Use {@link #getModules()} to get all visible modules, including anonymous,
      * automatic and system modules.
      *
      * <p>
-     * Also, {@link ModulePathInfo#addExports} and {@link ModulePathInfo#addOpens}
-     * will not contain {@code Add-Exports} or {@code Add-Opens} entries from
-     * jarfile manifest files encountered during scanning, unless you obtain the
-     * {@link ModulePathInfo} by calling {@link ScanResult#getModulePathInfo()}
-     * rather than by calling {@link ClassGraph#getModulePathInfo()} before
-     * {@link ClassGraph#scan()}.
+     * Also, {@link ModulePathInfo#addExports} and {@link ModulePathInfo#addOpens} will not contain
+     * {@code Add-Exports} or {@code Add-Opens} entries from jarfile manifest files encountered during scanning,
+     * unless you obtain the {@link ModulePathInfo} by calling {@link ScanResult#getModulePathInfo()} rather than by
+     * calling {@link ClassGraph#getModulePathInfo()} before {@link ClassGraph#scan()}.
      *
      * @return The {@link ModulePathInfo}.
      */

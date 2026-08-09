@@ -16,11 +16,9 @@ import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 
 /**
- * Tests that the {@code Add-Exports} and {@code Add-Opens} manifest entries are
- * each parsed into their own field. The {@code Add-Opens} value used to be
- * stored in {@code addExportsManifestEntryValue}, so it overwrote any
- * {@code Add-Exports} value, and {@code addOpensManifestEntryValue} was always
- * null.
+ * Tests that the {@code Add-Exports} and {@code Add-Opens} manifest entries are each parsed into their own field.
+ * The {@code Add-Opens} value used to be stored in {@code addExportsManifestEntryValue}, so it overwrote any
+ * {@code Add-Exports} value, and {@code addOpensManifestEntryValue} was always null.
  */
 public class AddOpensManifestEntryTest {
     /** The Add-Exports value written to the test manifest. */
@@ -30,12 +28,13 @@ public class AddOpensManifestEntryTest {
     private static final String ADD_OPENS = "java.base/java.lang";
 
     /**
-     * Build a jar whose manifest declares both Add-Exports and Add-Opens, and read
-     * its manifest values.
+     * Build a jar whose manifest declares both Add-Exports and Add-Opens, and read its manifest values.
      *
-     * @param tempDir a temporary directory to write the jar into
+     * @param tempDir
+     *            a temporary directory to write the jar into
      * @return the logical zipfile for the jar
-     * @throws Exception if the jar could not be written or read
+     * @throws Exception
+     *             if the jar could not be written or read
      */
     private static LogicalZipFile readManifestOfTestJar(final File tempDir) throws Exception {
         final var jarFile = new File(tempDir, "add-opens.jar");

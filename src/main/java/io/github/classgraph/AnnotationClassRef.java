@@ -32,8 +32,7 @@ import nonapi.io.github.classgraph.types.ParseException;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Stores the type descriptor of a {@code Class<?>}, as found in an annotation
- * parameter value.
+ * Stores the type descriptor of a {@code Class<?>}, as found in an annotation parameter value.
  */
 public class AnnotationClassRef extends ScanResultObject {
     /** The type descriptor str. */
@@ -48,7 +47,8 @@ public class AnnotationClassRef extends ScanResultObject {
     /**
      * Constructor.
      *
-     * @param typeDescriptorStr the type descriptor str
+     * @param typeDescriptorStr
+     *            the type descriptor str
      */
     AnnotationClassRef(final String typeDescriptorStr) {
         super();
@@ -69,9 +69,8 @@ public class AnnotationClassRef extends ScanResultObject {
     /**
      * Get the type signature.
      *
-     * @return The type signature of the {@code Class<?>} reference. This will be a
-     *         {@link ClassRefTypeSignature}, a {@link BaseTypeSignature}, or an
-     *         {@link ArrayTypeSignature}.
+     * @return The type signature of the {@code Class<?>} reference. This will be a {@link ClassRefTypeSignature}, a
+     *         {@link BaseTypeSignature}, or an {@link ArrayTypeSignature}.
      */
     private TypeSignature getTypeSignature() {
         var typeSig = typeSignature;
@@ -80,8 +79,7 @@ public class AnnotationClassRef extends ScanResultObject {
                 // There can't be any type variables to resolve in ClassRefTypeSignature,
                 // BaseTypeSignature or ArrayTypeSignature, so just set definingClassName to
                 // null
-                typeSignature = typeSig = TypeSignature.parse(typeDescriptorStr,
-                        /* definingClassName = */ null);
+                typeSignature = typeSig = TypeSignature.parse(typeDescriptorStr, /* definingClassName = */ null);
                 typeSig.setScanResult(scanResult);
             } catch (final ParseException e) {
                 throw new IllegalArgumentException(e);
@@ -120,9 +118,8 @@ public class AnnotationClassRef extends ScanResultObject {
     /**
      * Get the class info.
      *
-     * @return The {@link ClassInfo} object for the referenced class, or null if the
-     *         referenced class was not encountered during scanning (i.e. if no
-     *         ClassInfo object was created for the class during scanning).
+     * @return The {@link ClassInfo} object for the referenced class, or null if the referenced class was not
+     *         encountered during scanning (i.e. if no ClassInfo object was created for the class during scanning).
      */
     @Override
     public @Nullable ClassInfo getClassInfo() {

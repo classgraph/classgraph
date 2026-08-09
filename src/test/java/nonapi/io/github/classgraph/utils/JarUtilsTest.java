@@ -10,10 +10,9 @@ import org.junit.jupiter.api.Test;
 /** Tests for {@link JarUtils}. */
 public class JarUtilsTest {
     /**
-     * A comma is not a legal character in a URL scheme, so a path containing one
-     * before the first ':' is not a URL. (The character class in the scheme pattern
-     * used to read "+-.", which is a range covering ',' rather than the three
-     * literal characters.)
+     * A comma is not a legal character in a URL scheme, so a path containing one before the first ':' is not a URL.
+     * (The character class in the scheme pattern used to read "+-.", which is a range covering ',' rather than the
+     * three literal characters.)
      */
     @Test
     public void commaIsNotPartOfAURLScheme() {
@@ -31,8 +30,7 @@ public class JarUtilsTest {
     }
 
     /**
-     * A single-character scheme is not treated as a scheme, so that Windows drive
-     * letters are not mistaken for one.
+     * A single-character scheme is not treated as a scheme, so that Windows drive letters are not mistaken for one.
      */
     @Test
     public void singleCharSchemeDoesNotMatch() {
@@ -40,9 +38,8 @@ public class JarUtilsTest {
     }
 
     /**
-     * A path element containing the path separator character is escaped when the
-     * path elements are joined, and unescaped when the resulting path string is
-     * split again, so that the round trip preserves the path elements.
+     * A path element containing the path separator character is escaped when the path elements are joined, and
+     * unescaped when the resulting path string is split again, so that the round trip preserves the path elements.
      */
     @Test
     public void pathSeparatorInPathElementSurvivesRoundTrip() {

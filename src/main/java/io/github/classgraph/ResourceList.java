@@ -76,20 +76,20 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
     }
 
     /**
-     * Create a new modifiable empty list of {@link Resource} objects, given a size
-     * hint.
+     * Create a new modifiable empty list of {@link Resource} objects, given a size hint.
      *
-     * @param sizeHint the expected number of elements
+     * @param sizeHint
+     *            the expected number of elements
      */
     public ResourceList(final int sizeHint) {
         super(sizeHint);
     }
 
     /**
-     * Create a new modifiable empty {@link ResourceList}, given an initial
-     * collection of {@link Resource} objects.
+     * Create a new modifiable empty {@link ResourceList}, given an initial collection of {@link Resource} objects.
      *
-     * @param resourceCollection the collection of {@link Resource} objects.
+     * @param resourceCollection
+     *            the collection of {@link Resource} objects.
      */
     public ResourceList(final Collection<Resource> resourceCollection) {
         // Objects.requireNonNull rather than Assert.notNull, since Assert.notNull
@@ -98,17 +98,16 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
     }
 
     /**
-     * Returns a list of all resources with the requested path. (There may be more
-     * than one resource with a given path, from different classpath elements or
-     * modules, so this returns a {@link ResourceList} rather than a single
-     * {@link Resource}.)
+     * Returns a list of all resources with the requested path. (There may be more than one resource with a given
+     * path, from different classpath elements or modules, so this returns a {@link ResourceList} rather than a
+     * single {@link Resource}.)
      *
-     * @param resourcePath The path of a resource
-     * @return A {@link ResourceList} of {@link Resource} objects in this list that
-     *         have the given path (there may be more than one resource with a given
-     *         path, from different classpath elements or modules, so this returns a
-     *         {@link ResourceList} rather than a single {@link Resource}.) Returns
-     *         the empty list if no resource with is found with a matching path.
+     * @param resourcePath
+     *            The path of a resource
+     * @return A {@link ResourceList} of {@link Resource} objects in this list that have the given path (there may
+     *         be more than one resource with a given path, from different classpath elements or modules, so this
+     *         returns a {@link ResourceList} rather than a single {@link Resource}.) Returns the empty list if no
+     *         resource with is found with a matching path.
      */
     public ResourceList get(final String resourcePath) {
         Assert.notNull(resourcePath, "resourcePath");
@@ -137,8 +136,8 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
     /**
      * Get the paths of all resources in this list relative to the package root.
      *
-     * @return The paths of all resources in this list relative to the package root,
-     *         by calling {@link Resource#getPath()} for each item in the list.
+     * @return The paths of all resources in this list relative to the package root, by calling
+     *         {@link Resource#getPath()} for each item in the list.
      */
     public List<String> getPaths() {
         final List<String> resourcePaths = new ArrayList<>(this.size());
@@ -149,13 +148,10 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
     }
 
     /**
-     * Get the paths of all resources in this list relative to the root of the
-     * classpath element.
+     * Get the paths of all resources in this list relative to the root of the classpath element.
      *
-     * @return The paths of all resources in this list relative to the root of the
-     *         classpath element, by calling
-     *         {@link Resource#getPathRelativeToClasspathElement()} for each item in
-     *         the list.
+     * @return The paths of all resources in this list relative to the root of the classpath element, by calling
+     *         {@link Resource#getPathRelativeToClasspathElement()} for each item in the list.
      */
     public List<String> getPathsRelativeToClasspathElement() {
         final List<String> resourcePaths = new ArrayList<>(this.size());
@@ -166,16 +162,14 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
     }
 
     /**
-     * Get the URLs of all resources in this list, by calling
-     * {@link Resource#getURL()} for each item in the list. Note that any resource
-     * with a {@code jrt:} URI (e.g. a system resource, or a resource from a jlink'd
-     * image) will cause {@link IllegalStateException} to be thrown, since
-     * {@link URL} does not support this scheme, so {@link #getURIs()} is strongly
-     * preferred over {@link #getURLs()}.
+     * Get the URLs of all resources in this list, by calling {@link Resource#getURL()} for each item in the list.
+     * Note that any resource with a {@code jrt:} URI (e.g. a system resource, or a resource from a jlink'd image)
+     * will cause {@link IllegalStateException} to be thrown, since {@link URL} does not support this scheme, so
+     * {@link #getURIs()} is strongly preferred over {@link #getURLs()}.
      *
      * @return The URLs of all resources in this list.
-     * @throws IllegalStateException if any resource's URI could not be converted to
-     *                               a {@link URL}.
+     * @throws IllegalStateException
+     *             if any resource's URI could not be converted to a {@link URL}.
      */
     public List<URL> getURLs() {
         final List<URL> resourceURLs = new ArrayList<>(this.size());
@@ -186,8 +180,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
     }
 
     /**
-     * Get the URIs of all resources in this list, by calling
-     * {@link Resource#getURI()} for each item in the list.
+     * Get the URIs of all resources in this list, by calling {@link Resource#getURI()} for each item in the list.
      *
      * @return The URIs of all resources in this list.
      */
@@ -213,11 +206,9 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
     };
 
     /**
-     * Return a new {@link ResourceList} consisting of only the resources with the
-     * filename extension ".class".
+     * Return a new {@link ResourceList} consisting of only the resources with the filename extension ".class".
      *
-     * @return A new {@link ResourceList} consisting of only the resources with the
-     *         filename extension ".class".
+     * @return A new {@link ResourceList} consisting of only the resources with the filename extension ".class".
      */
     public ResourceList classFilesOnly() {
         return filter(CLASSFILE_FILTER);
@@ -226,8 +217,8 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
     /**
      * Return a new {@link ResourceList} consisting of non-classfile resources only.
      *
-     * @return A new {@link ResourceList} consisting of only the resources that do
-     *         not have the filename extension ".class".
+     * @return A new {@link ResourceList} consisting of only the resources that do not have the filename extension
+     *         ".class".
      */
     public ResourceList nonClassFilesOnly() {
         return filter(resource -> !CLASSFILE_FILTER.accept(resource));
@@ -236,13 +227,11 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Return this {@link ResourceList} as a map from resource path (obtained from
-     * {@link Resource#getPath()}) to a {@link ResourceList} of {@link Resource}
-     * objects that have that path.
+     * Return this {@link ResourceList} as a map from resource path (obtained from {@link Resource#getPath()}) to a
+     * {@link ResourceList} of {@link Resource} objects that have that path.
      *
-     * @return This {@link ResourceList} as a map from resource path (obtained from
-     *         {@link Resource#getPath()}) to a {@link ResourceList} of
-     *         {@link Resource} objects that have that path.
+     * @return This {@link ResourceList} as a map from resource path (obtained from {@link Resource#getPath()}) to a
+     *         {@link ResourceList} of {@link Resource} objects that have that path.
      */
     public Map<String, ResourceList> asMap() {
         final Map<String, ResourceList> pathToResourceList = new HashMap<>();
@@ -255,12 +244,10 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
     /**
      * Find duplicate resource paths within this {@link ResourceList}.
      *
-     * @return A {@link List} of {@link Entry} objects for all resources in the
-     *         classpath and/or module path that have a non-unique path (i.e. where
-     *         there are at least two resources with the same path). The key of each
-     *         returned {@link Entry} is the path (obtained from
-     *         {@link Resource#getPath()}), and the value is a {@link ResourceList}
-     *         of at least two unique {@link Resource} objects that have that path.
+     * @return A {@link List} of {@link Entry} objects for all resources in the classpath and/or module path that
+     *         have a non-unique path (i.e. where there are at least two resources with the same path). The key of
+     *         each returned {@link Entry} is the path (obtained from {@link Resource#getPath()}), and the value is
+     *         a {@link ResourceList} of at least two unique {@link Resource} objects that have that path.
      */
     public List<Entry<String, ResourceList>> findDuplicatePaths() {
         final List<Entry<String, ResourceList>> duplicatePaths = new ArrayList<>();
@@ -278,29 +265,28 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Filter a {@link ResourceList} using a predicate mapping a {@link Resource}
-     * object to a boolean, producing another {@link ResourceList} for all items in
-     * the list for which the predicate is true.
+     * Filter a {@link ResourceList} using a predicate mapping a {@link Resource} object to a boolean, producing
+     * another {@link ResourceList} for all items in the list for which the predicate is true.
      */
     @FunctionalInterface
     public interface ResourceFilter {
         /**
          * Whether or not to allow a {@link Resource} list item through the filter.
          *
-         * @param resource The {@link Resource} item to filter.
-         * @return Whether or not to allow the item through the filter. If true, the
-         *         item is copied to the output list; if false, it is excluded.
+         * @param resource
+         *            The {@link Resource} item to filter.
+         * @return Whether or not to allow the item through the filter. If true, the item is copied to the output
+         *         list; if false, it is excluded.
          */
         boolean accept(Resource resource);
     }
 
     /**
-     * Find the subset of the {@link Resource} objects in this list for which the
-     * given filter predicate is true.
+     * Find the subset of the {@link Resource} objects in this list for which the given filter predicate is true.
      *
-     * @param filter The {@link ResourceFilter} to apply.
-     * @return The subset of the {@link Resource} objects in this list for which the
-     *         given filter predicate is true.
+     * @param filter
+     *            The {@link ResourceFilter} to apply.
+     * @return The subset of the {@link Resource} objects in this list for which the given filter predicate is true.
      */
     public ResourceList filter(final ResourceFilter filter) {
         Assert.notNull(filter, "filter");
@@ -316,30 +302,32 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * A {@link FunctionalInterface} for consuming the contents of a
-     * {@link Resource} as a byte array.
+     * A {@link FunctionalInterface} for consuming the contents of a {@link Resource} as a byte array.
      */
     @FunctionalInterface
     public interface ByteArrayConsumer {
         /**
          * Consume the complete content of a {@link Resource} as a byte array.
          *
-         * @param resource  The {@link Resource} used to load the byte array.
-         * @param byteArray The complete content of the resource.
-         * @throws IOException if an IO exception occurs.
+         * @param resource
+         *            The {@link Resource} used to load the byte array.
+         * @param byteArray
+         *            The complete content of the resource.
+         * @throws IOException
+         *             if an IO exception occurs.
          */
         void accept(final Resource resource, final byte[] byteArray) throws IOException;
     }
 
     /**
-     * Fetch the content of each {@link Resource} in this {@link ResourceList} as a
-     * byte array, pass the byte array to the given {@link ByteArrayConsumer}, then
-     * close the underlying InputStream or release the underlying ByteBuffer by
-     * calling {@link Resource#close()}.
+     * Fetch the content of each {@link Resource} in this {@link ResourceList} as a byte array, pass the byte array
+     * to the given {@link ByteArrayConsumer}, then close the underlying InputStream or release the underlying
+     * ByteBuffer by calling {@link Resource#close()}.
      *
-     * @param byteArrayConsumer The {@link ByteArrayConsumer}.
-     * @throws IOException if loading any of the resources, or the consumer itself,
-     *                     throws {@link IOException}.
+     * @param byteArrayConsumer
+     *            The {@link ByteArrayConsumer}.
+     * @throws IOException
+     *             if loading any of the resources, or the consumer itself, throws {@link IOException}.
      */
     public void forEachByteArray(final ByteArrayConsumer byteArrayConsumer) throws IOException {
         Assert.notNull(byteArrayConsumer, "byteArrayConsumer");
@@ -351,11 +339,11 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
     }
 
     /**
-     * The same as {@link #forEachByteArray(ByteArrayConsumer)}, but if loading a
-     * resource, or the consumer itself, throws {@link IOException}, that resource is
-     * silently skipped and the iteration continues.
+     * The same as {@link #forEachByteArray(ByteArrayConsumer)}, but if loading a resource, or the consumer itself,
+     * throws {@link IOException}, that resource is silently skipped and the iteration continues.
      *
-     * @param byteArrayConsumer The {@link ByteArrayConsumer}.
+     * @param byteArrayConsumer
+     *            The {@link ByteArrayConsumer}.
      */
     public void forEachByteArrayIgnoringIOException(final ByteArrayConsumer byteArrayConsumer) {
         Assert.notNull(byteArrayConsumer, "byteArrayConsumer");
@@ -371,30 +359,32 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * A {@link FunctionalInterface} for consuming the contents of a
-     * {@link Resource} as an {@link InputStream}.
+     * A {@link FunctionalInterface} for consuming the contents of a {@link Resource} as an {@link InputStream}.
      */
     @FunctionalInterface
     public interface InputStreamConsumer {
         /**
          * Consume a {@link Resource} as an {@link InputStream}.
          *
-         * @param resource    The {@link Resource} used to open the {@link InputStream}.
-         * @param inputStream The {@link InputStream} opened on the resource.
-         * @throws IOException if an IO exception occurs.
+         * @param resource
+         *            The {@link Resource} used to open the {@link InputStream}.
+         * @param inputStream
+         *            The {@link InputStream} opened on the resource.
+         * @throws IOException
+         *             if an IO exception occurs.
          */
         void accept(final Resource resource, final InputStream inputStream) throws IOException;
     }
 
     /**
-     * Fetch an {@link InputStream} for each {@link Resource} in this
-     * {@link ResourceList}, pass the {@link InputStream} to the given
-     * {@link InputStreamConsumer}, then close the {@link InputStream} after the
+     * Fetch an {@link InputStream} for each {@link Resource} in this {@link ResourceList}, pass the
+     * {@link InputStream} to the given {@link InputStreamConsumer}, then close the {@link InputStream} after the
      * {@link InputStreamConsumer} returns, by calling {@link Resource#close()}.
      *
-     * @param inputStreamConsumer The {@link InputStreamConsumer}.
-     * @throws IOException if opening any of the resources, or the consumer itself,
-     *                     throws {@link IOException}.
+     * @param inputStreamConsumer
+     *            The {@link InputStreamConsumer}.
+     * @throws IOException
+     *             if opening any of the resources, or the consumer itself, throws {@link IOException}.
      */
     public void forEachInputStream(final InputStreamConsumer inputStreamConsumer) throws IOException {
         Assert.notNull(inputStreamConsumer, "inputStreamConsumer");
@@ -406,11 +396,11 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
     }
 
     /**
-     * The same as {@link #forEachInputStream(InputStreamConsumer)}, but if opening a
-     * resource, or the consumer itself, throws {@link IOException}, that resource is
-     * silently skipped and the iteration continues.
+     * The same as {@link #forEachInputStream(InputStreamConsumer)}, but if opening a resource, or the consumer
+     * itself, throws {@link IOException}, that resource is silently skipped and the iteration continues.
      *
-     * @param inputStreamConsumer The {@link InputStreamConsumer}.
+     * @param inputStreamConsumer
+     *            The {@link InputStreamConsumer}.
      */
     public void forEachInputStreamIgnoringIOException(final InputStreamConsumer inputStreamConsumer) {
         Assert.notNull(inputStreamConsumer, "inputStreamConsumer");
@@ -426,31 +416,32 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * A {@link FunctionalInterface} for consuming the contents of a
-     * {@link Resource} as a {@link ByteBuffer}.
+     * A {@link FunctionalInterface} for consuming the contents of a {@link Resource} as a {@link ByteBuffer}.
      */
     @FunctionalInterface
     public interface ByteBufferConsumer {
         /**
          * Consume a {@link Resource} as a {@link ByteBuffer}.
          *
-         * @param resource   The {@link Resource} whose content is reflected in the
-         *                   {@link ByteBuffer}.
-         * @param byteBuffer The {@link ByteBuffer} mapped to the resource.
-         * @throws IOException if an IO exception occurs.
+         * @param resource
+         *            The {@link Resource} whose content is reflected in the {@link ByteBuffer}.
+         * @param byteBuffer
+         *            The {@link ByteBuffer} mapped to the resource.
+         * @throws IOException
+         *             if an IO exception occurs.
          */
         void accept(final Resource resource, final ByteBuffer byteBuffer) throws IOException;
     }
 
     /**
-     * Read each {@link Resource} in this {@link ResourceList} as a
-     * {@link ByteBuffer}, pass the {@link ByteBuffer} to the given
-     * {@link ByteBufferConsumer}, then release the {@link ByteBuffer} after the
+     * Read each {@link Resource} in this {@link ResourceList} as a {@link ByteBuffer}, pass the {@link ByteBuffer}
+     * to the given {@link ByteBufferConsumer}, then release the {@link ByteBuffer} after the
      * {@link ByteBufferConsumer} returns, by calling {@link Resource#close()}.
      *
-     * @param byteBufferConsumer The {@link ByteBufferConsumer}.
-     * @throws IOException if reading any of the resources, or the consumer itself,
-     *                     throws {@link IOException}.
+     * @param byteBufferConsumer
+     *            The {@link ByteBufferConsumer}.
+     * @throws IOException
+     *             if reading any of the resources, or the consumer itself, throws {@link IOException}.
      */
     public void forEachByteBuffer(final ByteBufferConsumer byteBufferConsumer) throws IOException {
         Assert.notNull(byteBufferConsumer, "byteBufferConsumer");
@@ -462,11 +453,11 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
     }
 
     /**
-     * The same as {@link #forEachByteBuffer(ByteBufferConsumer)}, but if reading a
-     * resource, or the consumer itself, throws {@link IOException}, that resource is
-     * silently skipped and the iteration continues.
+     * The same as {@link #forEachByteBuffer(ByteBufferConsumer)}, but if reading a resource, or the consumer
+     * itself, throws {@link IOException}, that resource is silently skipped and the iteration continues.
      *
-     * @param byteBufferConsumer The {@link ByteBufferConsumer}.
+     * @param byteBufferConsumer
+     *            The {@link ByteBufferConsumer}.
      */
     public void forEachByteBufferIgnoringIOException(final ByteBufferConsumer byteBufferConsumer) {
         Assert.notNull(byteBufferConsumer, "byteBufferConsumer");

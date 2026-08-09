@@ -19,14 +19,11 @@ import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 
 /**
- * Tests that the entry name in an Info-ZIP Unicode path extra field (tag
- * 0x7075) is read in full.
+ * Tests that the entry name in an Info-ZIP Unicode path extra field (tag 0x7075) is read in full.
  *
  * <p>
- * The extra field's data area is {@code version(1) + nameCRC32(4) + name}, so
- * the name is {@code size - 5} bytes long. It used to be read as
- * {@code size - 9} bytes, which dropped the last four bytes of every such entry
- * name.
+ * The extra field's data area is {@code version(1) + nameCRC32(4) + name}, so the name is {@code size - 5} bytes
+ * long. It used to be read as {@code size - 9} bytes, which dropped the last four bytes of every such entry name.
  */
 public class UnicodePathExtraFieldTest {
     /** The entry name stored in the normal zip entry name field. */
@@ -36,8 +33,7 @@ public class UnicodePathExtraFieldTest {
     private static final String UNICODE_NAME = "testpkg/unicode.txt";
 
     /**
-     * Build an Info-ZIP Unicode path extra field (tag 0x7075) holding
-     * {@link #UNICODE_NAME}.
+     * Build an Info-ZIP Unicode path extra field (tag 0x7075) holding {@link #UNICODE_NAME}.
      *
      * @return the extra field bytes
      */

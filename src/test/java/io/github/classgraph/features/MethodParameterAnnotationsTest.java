@@ -35,7 +35,8 @@ public class MethodParameterAnnotationsTest {
         /**
          * W.
          *
-         * @param w the w
+         * @param w
+         *            the w
          */
         abstract void w(@W int w);
     }
@@ -48,19 +49,20 @@ public class MethodParameterAnnotationsTest {
         /**
          * X.
          *
-         * @param x the x
+         * @param x
+         *            the x
          */
         abstract void x(@X int x);
     }
 
     /**
-     * Test equality of JRE-instantiated Annotation with proxy instance instantiated
-     * by ClassGraph.
+     * Test equality of JRE-instantiated Annotation with proxy instance instantiated by ClassGraph.
      */
     @Test
     public void annotationEquality() {
         try (var scanResult = new ClassGraph()
-                .acceptPackages(MethodParameterAnnotationsTest.class.getPackage().getName()).enableAllInfo().scan()) {
+                .acceptPackages(MethodParameterAnnotationsTest.class.getPackage().getName()).enableAllInfo()
+                .scan()) {
             assertThat(scanResult.getClassInfo(Y.class.getName()).getMethodParameterAnnotations().getNames())
                     .containsOnly(W.class.getName());
             assertThat(scanResult.getClassInfo(Z.class.getName()).getMethodParameterAnnotations().getNames())

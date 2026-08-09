@@ -18,17 +18,15 @@ import org.junit.jupiter.api.io.TempDir;
 import io.github.classgraph.ClassGraph;
 
 /**
- * '!' is a legal character in a file or directory name on every platform
- * ClassGraph supports, but it was unconditionally treated as a nested jar
- * separator, so any classpath element with a '!' in its path was mangled into a
- * nested jar path and could not be opened.
+ * '!' is a legal character in a file or directory name on every platform ClassGraph supports, but it was
+ * unconditionally treated as a nested jar separator, so any classpath element with a '!' in its path was mangled
+ * into a nested jar path and could not be opened.
  *
  * <p>
- * The {@link java.net.JarURLConnection} spec defines the separator as
- * {@code "!/"} and provides no escape for a literal '!' (a backslash is not an
- * escape -- the JDK passes {@code "\!"} through verbatim), so the separator
- * cannot be identified by syntax alone. It is instead identified by testing
- * whether the path before the '!' names an existing jarfile.
+ * The {@link java.net.JarURLConnection} spec defines the separator as {@code "!/"} and provides no escape for a
+ * literal '!' (a backslash is not an escape -- the JDK passes {@code "\!"} through verbatim), so the separator
+ * cannot be identified by syntax alone. It is instead identified by testing whether the path before the '!' names
+ * an existing jarfile.
  */
 class Issue903Test {
     private static final String RESOURCE_PATH = "issue903/resource.txt";
@@ -74,8 +72,7 @@ class Issue903Test {
     }
 
     /**
-     * A directory whose name ends with '!' -- this was truncated, since
-     * "jar:file:x.jar!/" means "all of x.jar".
+     * A directory whose name ends with '!' -- this was truncated, since "jar:file:x.jar!/" means "all of x.jar".
      */
     @Test
     void directoryWithTrailingBangInName(@TempDir final Path tempDir) throws IOException {
@@ -123,11 +120,9 @@ class Issue903Test {
     }
 
     /**
-     * The {@code "jar:jar:file:...!/...!/"} form emitted by servlet containers for
-     * a jar nested within a WAR file ends with the nested jar separator "!/",
-     * marking the whole of the inner jar. The trailing '!' is a separator, not part
-     * of a directory name, even though it is not the outermost separator in the
-     * path.
+     * The {@code "jar:jar:file:...!/...!/"} form emitted by servlet containers for a jar nested within a WAR file
+     * ends with the nested jar separator "!/", marking the whole of the inner jar. The trailing '!' is a separator,
+     * not part of a directory name, even though it is not the outermost separator in the path.
      */
     @Test
     void trailingNestedJarSeparatorOfInnerJarIsStripped(@TempDir final Path tempDir) throws IOException {

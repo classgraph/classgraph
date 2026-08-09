@@ -49,7 +49,8 @@ public class Issue468Test {
     /**
      * Test '+' signs in URLs.
      *
-     * @throws Exception the exception
+     * @throws Exception
+     *             the exception
      */
     @Test
     public void testPlusSigns() throws Exception {
@@ -63,7 +64,8 @@ public class Issue468Test {
     /**
      * Test "file:" URIs as strings, with and without the scheme.
      *
-     * @throws Exception the exception
+     * @throws Exception
+     *             the exception
      */
     @Test
     public void testFileURIs() throws Exception {

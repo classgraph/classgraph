@@ -43,17 +43,23 @@ public class ArraySlice extends Slice {
     /**
      * Constructor for treating a range of an array as a slice.
      *
-     * @param parentSlice        the parent slice
-     * @param offset             the offset of the sub-slice within the parent slice
-     * @param length             the length of the sub-slice
-     * @param isDeflatedZipEntry true if this is a deflated zip entry
-     * @param inflatedLengthHint the uncompressed size of a deflated zip entry, or
-     *                           -1 if unknown, or 0 of this is not a deflated zip
-     *                           entry.
-     * @param nestedJarHandler   the nested jar handler
+     * @param parentSlice
+     *            the parent slice
+     * @param offset
+     *            the offset of the sub-slice within the parent slice
+     * @param length
+     *            the length of the sub-slice
+     * @param isDeflatedZipEntry
+     *            true if this is a deflated zip entry
+     * @param inflatedLengthHint
+     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
+     *            zip entry.
+     * @param nestedJarHandler
+     *            the nested jar handler
      */
     private ArraySlice(final ArraySlice parentSlice, final long offset, final long length,
-            final boolean isDeflatedZipEntry, final long inflatedLengthHint, final NestedJarHandler nestedJarHandler) {
+            final boolean isDeflatedZipEntry, final long inflatedLengthHint,
+            final NestedJarHandler nestedJarHandler) {
         super(parentSlice, offset, length, isDeflatedZipEntry, inflatedLengthHint, nestedJarHandler);
         this.arr = parentSlice.arr;
     }
@@ -61,12 +67,15 @@ public class ArraySlice extends Slice {
     /**
      * Constructor for treating a whole array as a slice.
      *
-     * @param arr                the array containing the slice.
-     * @param isDeflatedZipEntry true if this is a deflated zip entry
-     * @param inflatedLengthHint the uncompressed size of a deflated zip entry, or
-     *                           -1 if unknown, or 0 of this is not a deflated zip
-     *                           entry.
-     * @param nestedJarHandler   the nested jar handler
+     * @param arr
+     *            the array containing the slice.
+     * @param isDeflatedZipEntry
+     *            true if this is a deflated zip entry
+     * @param inflatedLengthHint
+     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
+     *            zip entry.
+     * @param nestedJarHandler
+     *            the nested jar handler
      */
     public ArraySlice(final byte[] arr, final boolean isDeflatedZipEntry, final long inflatedLengthHint,
             final NestedJarHandler nestedJarHandler) {
@@ -77,13 +86,15 @@ public class ArraySlice extends Slice {
     /**
      * Slice this slice to form a sub-slice.
      *
-     * @param offset             the offset relative to the start of this slice to
-     *                           use as the start of the sub-slice.
-     * @param length             the length of the sub-slice.
-     * @param isDeflatedZipEntry the is deflated zip entry
-     * @param inflatedLengthHint the uncompressed size of a deflated zip entry, or
-     *                           -1 if unknown, or 0 of this is not a deflated zip
-     *                           entry.
+     * @param offset
+     *            the offset relative to the start of this slice to use as the start of the sub-slice.
+     * @param length
+     *            the length of the sub-slice.
+     * @param isDeflatedZipEntry
+     *            the is deflated zip entry
+     * @param inflatedLengthHint
+     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
+     *            zip entry.
      * @return the slice
      */
     @Override
@@ -99,7 +110,8 @@ public class ArraySlice extends Slice {
      * Load the slice as a byte array.
      *
      * @return the byte[]
-     * @throws IOException Signals that an I/O exception has occurred.
+     * @throws IOException
+     *             Signals that an I/O exception has occurred.
      */
     @Override
     public byte[] load() throws IOException {

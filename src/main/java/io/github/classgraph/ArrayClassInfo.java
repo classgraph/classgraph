@@ -31,16 +31,13 @@ package io.github.classgraph;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Holds metadata about an array class. This class extends {@link ClassInfo}
- * with additional methods relevant to array classes, in particular
- * {@link #getArrayTypeSignature()}, {@link #getTypeSignatureString()},
- * {@link #getElementTypeSignature()}, {@link #getElementClassInfo()}, and
- * {@link #getNumDimensions()}.
+ * Holds metadata about an array class. This class extends {@link ClassInfo} with additional methods relevant to
+ * array classes, in particular {@link #getArrayTypeSignature()}, {@link #getTypeSignatureString()},
+ * {@link #getElementTypeSignature()}, {@link #getElementClassInfo()}, and {@link #getNumDimensions()}.
  *
  * <p>
- * An {@link ArrayClassInfo} object will not have any methods, fields or
- * annotations. {@link ClassInfo#isArrayClass()} will return true for this
- * subclass of {@link ClassInfo}.
+ * An {@link ArrayClassInfo} object will not have any methods, fields or annotations.
+ * {@link ClassInfo#isArrayClass()} will return true for this subclass of {@link ClassInfo}.
  */
 public class ArrayClassInfo extends ClassInfo {
     /** The array type signature. */
@@ -52,7 +49,8 @@ public class ArrayClassInfo extends ClassInfo {
     /**
      * Constructor.
      *
-     * @param arrayTypeSignature the array type signature
+     * @param arrayTypeSignature
+     *            the array type signature
      */
     ArrayClassInfo(final ArrayTypeSignature arrayTypeSignature) {
         super(arrayTypeSignature.getClassName(), /* modifiers = */ 0, /* resource = */ null);
@@ -64,8 +62,7 @@ public class ArrayClassInfo extends ClassInfo {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the raw type signature string of the array class, e.g. "[[I" for
-     * "int[][]".
+     * Get the raw type signature string of the array class, e.g. "[[I" for "int[][]".
      *
      * @return The raw type signature string of the array class.
      */
@@ -75,8 +72,8 @@ public class ArrayClassInfo extends ClassInfo {
     }
 
     /**
-     * Returns null, because array classes do not have a ClassTypeSignature. Call
-     * {@link #getArrayTypeSignature()} instead.
+     * Returns null, because array classes do not have a ClassTypeSignature. Call {@link #getArrayTypeSignature()}
+     * instead.
      *
      * @return null (always).
      */
@@ -117,10 +114,8 @@ public class ArrayClassInfo extends ClassInfo {
     /**
      * Get the {@link ClassInfo} instance for the array element type.
      *
-     * @return the {@link ClassInfo} instance for the array element type. Returns
-     *         null if the element type was not found during the scan. In
-     *         particular, will return null for arrays that have a primitive element
-     *         type.
+     * @return the {@link ClassInfo} instance for the array element type. Returns null if the element type was not
+     *         found during the scan. In particular, will return null for arrays that have a primitive element type.
      */
     public @Nullable ClassInfo getElementClassInfo() {
         var elementInfo = elementClassInfo;

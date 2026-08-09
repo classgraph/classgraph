@@ -42,8 +42,7 @@ import nonapi.io.github.classgraph.utils.CollectionUtils;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Information about a module: its {@link ModuleReference}, its
- * {@link ModuleLayer}, and its classloader.
+ * Information about a module: its {@link ModuleReference}, its {@link ModuleLayer}, and its classloader.
  */
 public class ModuleRef implements Comparable<ModuleRef> {
     /** The name of the module. */
@@ -68,8 +67,7 @@ public class ModuleRef implements Comparable<ModuleRef> {
     private @Nullable String locationStr;
 
     /**
-     * A file formed from the location URI. The file will not exist if the location
-     * URI is a "jrt:" URI.
+     * A file formed from the location URI. The file will not exist if the location URI is a "jrt:" URI.
      */
     private @Nullable File locationFile;
 
@@ -77,16 +75,17 @@ public class ModuleRef implements Comparable<ModuleRef> {
     private final @Nullable String rawVersion;
 
     /**
-     * The ClassLoader that loads classes in the module. May be null, to represent
-     * the bootstrap classloader.
+     * The ClassLoader that loads classes in the module. May be null, to represent the bootstrap classloader.
      */
     private final @Nullable ClassLoader classLoader;
 
     /**
      * Constructor.
      *
-     * @param moduleReference The module reference.
-     * @param moduleLayer     The module layer.
+     * @param moduleReference
+     *            The module reference.
+     * @param moduleLayer
+     *            The module layer.
      */
     public ModuleRef(final ModuleReference moduleReference, final ModuleLayer moduleLayer) {
         Assert.notNull(moduleReference, "moduleReference");
@@ -122,8 +121,8 @@ public class ModuleRef implements Comparable<ModuleRef> {
     /**
      * Get the module name, i.e. {@code getReference().descriptor().name()}.
      *
-     * @return The module name, i.e. {@code getReference().descriptor().name()}.
-     *         May be empty for an unnamed (automatic) module.
+     * @return The module name, i.e. {@code getReference().descriptor().name()}. May be empty for an unnamed
+     *         (automatic) module.
      */
     public String getName() {
         return name;
@@ -157,34 +156,30 @@ public class ModuleRef implements Comparable<ModuleRef> {
     }
 
     /**
-     * Get a list of packages in the module. (Does not include non-package
-     * directories.)
+     * Get a list of packages in the module. (Does not include non-package directories.)
      *
-     * @return The list of packages in the module. (Does not include non-package
-     *         directories.)
+     * @return The list of packages in the module. (Does not include non-package directories.)
      */
     public List<String> getPackages() {
         return packages;
     }
 
     /**
-     * Get the module location, i.e. {@code getReference().location()}. Returns null
-     * for modules that do not have a location.
+     * Get the module location, i.e. {@code getReference().location()}. Returns null for modules that do not have a
+     * location.
      *
-     * @return The module location, i.e. {@code getReference().location()}. Returns
-     *         null for modules that do not have a location.
+     * @return The module location, i.e. {@code getReference().location()}. Returns null for modules that do not
+     *         have a location.
      */
     public @Nullable URI getLocation() {
         return location;
     }
 
     /**
-     * Get the module location as a string, i.e.
-     * {@code getReference().location().toString()}. Returns null for modules that
-     * do not have a location.
+     * Get the module location as a string, i.e. {@code getReference().location().toString()}. Returns null for
+     * modules that do not have a location.
      *
-     * @return The module location as a string, i.e.
-     *         {@code getReference().location().toString()}. Returns null for
+     * @return The module location as a string, i.e. {@code getReference().location().toString()}. Returns null for
      *         modules that do not have a location.
      */
     public @Nullable String getLocationString() {
@@ -196,16 +191,12 @@ public class ModuleRef implements Comparable<ModuleRef> {
     }
 
     /**
-     * Get the module location as a File, i.e.
-     * {@code new File(getReference().location())}. Returns null for modules that do
-     * not have a location, or for system (or jlinked) modules, which have "jrt:"
-     * location URIs that include only the module name and not the module jar
-     * location.
+     * Get the module location as a File, i.e. {@code new File(getReference().location())}. Returns null for modules
+     * that do not have a location, or for system (or jlinked) modules, which have "jrt:" location URIs that include
+     * only the module name and not the module jar location.
      *
-     * @return The module location as a File, i.e.
-     *         {@code new File(getReference().location())}. Returns null for modules
-     *         that do not have a location, or for modules whole location is a
-     *         "jrt:" URI.
+     * @return The module location as a File, i.e. {@code new File(getReference().location())}. Returns null for
+     *         modules that do not have a location, or for modules whole location is a "jrt:" URI.
      */
     public @Nullable File getLocationFile() {
         var file = locationFile;
@@ -216,11 +207,9 @@ public class ModuleRef implements Comparable<ModuleRef> {
     }
 
     /**
-     * Get the raw version string of the module, or null if the module did not
-     * provide one.
-     * 
-     * @return The raw version of the module, obtained by
-     *         {@code ModuleReference#rawVersion().orElse(null)}.
+     * Get the raw version string of the module, or null if the module did not provide one.
+     *
+     * @return The raw version of the module, obtained by {@code ModuleReference#rawVersion().orElse(null)}.
      */
     public @Nullable String getRawVersion() {
         return rawVersion;
@@ -300,7 +289,8 @@ public class ModuleRef implements Comparable<ModuleRef> {
      * Open the module, returning a {@link ModuleReader}.
      *
      * @return A {@link ModuleReader} for the module.
-     * @throws IOException If the module cannot be opened.
+     * @throws IOException
+     *             If the module cannot be opened.
      */
     public ModuleReader open() throws IOException {
         final ModuleReader moduleReader;

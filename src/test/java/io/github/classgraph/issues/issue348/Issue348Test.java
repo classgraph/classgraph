@@ -23,7 +23,8 @@ public class Issue348Test {
                     .scan()) {
                 // Find all classpath element URIs for non-nested jars
                 final var cpUris = scanResult2.getClasspathURIs().stream().map(URI::toString)
-                        .filter(u -> !u.contains("!")).map(u -> u.replace(":///", ":/").replace("://", ":/")).toList();
+                        .filter(u -> !u.contains("!")).map(u -> u.replace(":///", ":/").replace("://", ":/"))
+                        .toList();
                 assertThat(cpUris).isNotEmpty();
 
                 // Check that cpUris is a non-empty subset of jarResourceUris

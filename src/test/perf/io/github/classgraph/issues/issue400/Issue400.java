@@ -11,8 +11,7 @@ import org.junit.jupiter.api.Test;
 import io.github.classgraph.ClassGraph;
 
 /**
- * Verify that a large number of stored/deflated nested JAR entries don't cause
- * memory problems.
+ * Verify that a large number of stored/deflated nested JAR entries don't cause memory problems.
  *
  * @author Róbert Papp ( https://github.com/TWiStErRob )
  */
@@ -23,8 +22,8 @@ public class Issue400 {
 
     /**
      * @return used JVM heap size allocated in RAM
-     * @see <a href="https://stackoverflow.com/a/42567450/253468">What are
-     *      Runtime.getRuntime().totalMemory() and freeMemory()?</a>
+     * @see <a href="https://stackoverflow.com/a/42567450/253468">What are Runtime.getRuntime().totalMemory() and
+     *      freeMemory()?</a>
      */
     private long usedRam() {
         final var runtime = Runtime.getRuntime();
@@ -38,17 +37,17 @@ public class Issue400 {
     }
 
     /**
-     * Test whether RAM leaks, or whether nested deflated jars cause large RAM
-     * overhead.
-     * 
-     * @param jars the jar URLs.
+     * Test whether RAM leaks, or whether nested deflated jars cause large RAM overhead.
+     *
+     * @param jars
+     *            the jar URLs.
      */
     @SuppressWarnings("null")
     private void loadsJarWithManyNestedEntriesAndDoesNotUseMuchMemory(final URL... jars) {
         final var ramAtStart = usedRam();
         long ramAfterScan;
-        try (var scanResult = new ClassGraph().overrideClassLoaders(new URLClassLoader(jars)).ignoreParentClassLoaders()
-                .enableAllInfo().scan()) {
+        try (var scanResult = new ClassGraph().overrideClassLoaders(new URLClassLoader(jars))
+                .ignoreParentClassLoaders().enableAllInfo().scan()) {
             ramAfterScan = usedRam();
             // There are no classes in any of the JARs.
             assertThat(scanResult.getAllClassesAsMap()).isEmpty();

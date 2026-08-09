@@ -70,11 +70,16 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
     /**
      * Handle a resource loader.
      *
-     * @param resourceLoader    the resource loader, or null (ignored)
-     * @param classLoader       the classloader
-     * @param classpathOrderOut the classpath order
-     * @param scanSpec          the scan spec
-     * @param log               the log node, or null to skip logging
+     * @param resourceLoader
+     *            the resource loader, or null (ignored)
+     * @param classLoader
+     *            the classloader
+     * @param classpathOrderOut
+     *            the classpath order
+     * @param scanSpec
+     *            the scan spec
+     * @param log
+     *            the log node, or null to skip logging
      */
     private static void handleResourceLoader(final @Nullable Object resourceLoader, final ClassLoader classLoader,
             final ClasspathOrder classpathOrderOut, final ScanSpec scanSpec, final @Nullable LogNode log) {
@@ -84,27 +89,27 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
         // PathResourceLoader has root field, which is a Path object
         final var root = classpathOrderOut.reflectionUtils.getFieldVal(false, resourceLoader, "root");
 
-        classpathOrderOut.addClasspathEntry(loadJarPathFromClassicVFS(root, classpathOrderOut), classLoader, scanSpec,
+        classpathOrderOut.addClasspathEntry(loadJarPathFromClassicVFS(root, classpathOrderOut), classLoader,
+                scanSpec, log);
+        classpathOrderOut.addClasspathEntry(loadJarPathFromNewVFS(root, classpathOrderOut), classLoader, scanSpec,
                 log);
-        classpathOrderOut.addClasspathEntry(loadJarPathFromNewVFS(root, classpathOrderOut), classLoader, scanSpec, log);
         classpathOrderOut.addClasspathEntry(
                 classpathOrderOut.reflectionUtils.getFieldVal(false, resourceLoader, "fileOfJar"), classLoader,
                 scanSpec, log);
     }
 
     /**
-     * Returns the absolute path of a JAR file from a given root object using the
-     * JBoss VFS mechanism. This works for Versions of JBoss/Wildfly that contain
-     * the following change:
+     * Returns the absolute path of a JAR file from a given root object using the JBoss VFS mechanism. This works
+     * for Versions of JBoss/Wildfly that contain the following change:
      * <a href="https://issues.redhat.com/browse/WFLY-18544">WFLY-18544</a>
      * <a href="https://issues.redhat.com/browse/JBEAP-25879">JBEAP-25879</a>
      * <a href="https://issues.redhat.com/browse/JBEAP-25677">JBEAP-25677</a>
-     * 
-     * @param root              The root object to get the JAR path from, or null.
-     * @param classpathOrderOut The ClasspathOrder object for updating the classpath
-     *                          order.
-     * @return The {@link File} of the JAR file, or null if the path couldn't be
-     *         found.
+     *
+     * @param root
+     *            The root object to get the JAR path from, or null.
+     * @param classpathOrderOut
+     *            The ClasspathOrder object for updating the classpath order.
+     * @return The {@link File} of the JAR file, or null if the path couldn't be found.
      */
     private static @Nullable File loadJarPathFromNewVFS(final @Nullable Object root,
             final ClasspathOrder classpathOrderOut) {
@@ -139,18 +144,16 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
     }
 
     /**
-     * Get the access to the JBoss VFS class. Tries to load VFS first from the
-     * classloader of the provided root object if it's an object from org.jboss.vfs.
-     * If the root object is not from org.jboss.vfs, VFS will be tried to be loaded
-     * from the current thread class loader. It might be unnecessary to load VFS
-     * from the current thread context, because this means that the root object is
-     * not from org.jboss.vfs and VFS will not help here... but as a defensive
-     * approach we really try to get VFS access here.
+     * Get the access to the JBoss VFS class. Tries to load VFS first from the classloader of the provided root
+     * object if it's an object from org.jboss.vfs. If the root object is not from org.jboss.vfs, VFS will be tried
+     * to be loaded from the current thread class loader. It might be unnecessary to load VFS from the current
+     * thread context, because this means that the root object is not from org.jboss.vfs and VFS will not help
+     * here... but as a defensive approach we really try to get VFS access here.
      *
-     * @param root The root VirtualFile of JBoss VFS. Used to load the VFS via the
-     *             classloader of the root. Can not be null.
-     * @return The Class object representing the JBoss VFS class, or null if it
-     *         couldn't be found.
+     * @param root
+     *            The root VirtualFile of JBoss VFS. Used to load the VFS via the classloader of the root. Can not
+     *            be null.
+     * @return The Class object representing the JBoss VFS class, or null if it couldn't be found.
      */
     private static @Nullable Class<?> getJBossVFSAccess(final Object root) {
         Class<?> jbossVFS = null;
@@ -184,28 +187,28 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
     /**
      * Load the JBoss VFS class from a given classloader.
      *
-     * @param classLoader the classloader to load {@code org.jboss.vfs.VFS} from.
+     * @param classLoader
+     *            the classloader to load {@code org.jboss.vfs.VFS} from.
      * @return the {@code org.jboss.vfs.VFS} class.
-     * @throws ClassNotFoundException if the class is not visible to the given
-     *                                classloader.
+     * @throws ClassNotFoundException
+     *             if the class is not visible to the given classloader.
      */
     private static Class<?> loadJBossVFS(final ClassLoader classLoader) throws ClassNotFoundException {
         return Class.forName("org.jboss.vfs.VFS", true, classLoader);
     }
 
     /**
-     * Returns the absolute path of a JAR file from a given root object using the
-     * 'classic' VFS read mechanism. This works for Versions of JBoss/Wildfly prior
-     * to this change:
+     * Returns the absolute path of a JAR file from a given root object using the 'classic' VFS read mechanism. This
+     * works for Versions of JBoss/Wildfly prior to this change:
      * <a href="https://issues.redhat.com/browse/WFLY-18544">WFLY-18544</a>
      * <a href="https://issues.redhat.com/browse/JBEAP-25879">JBEAP-25879</a>
      * <a href="https://issues.redhat.com/browse/JBEAP-25677">JBEAP-25677</a>
-     * 
-     * @param root              The root object to get the JAR path from, or null.
-     * @param classpathOrderOut The ClasspathOrder object for updating the classpath
-     *                          order.
-     * @return The {@link File} or {@link Path} of the JAR file, or null if the VFS
-     *         path couldn't be found.
+     *
+     * @param root
+     *            The root object to get the JAR path from, or null.
+     * @param classpathOrderOut
+     *            The ClasspathOrder object for updating the classpath order.
+     * @return The {@link File} or {@link Path} of the JAR file, or null if the VFS path couldn't be found.
      */
     private static @Nullable Object loadJarPathFromClassicVFS(final @Nullable Object root,
             final ClasspathOrder classpathOrderOut) {
@@ -213,7 +216,8 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
             return null;
         }
         // type VirtualFile
-        final var physicalFile = (File) classpathOrderOut.reflectionUtils.invokeMethod(false, root, "getPhysicalFile");
+        final var physicalFile = (File) classpathOrderOut.reflectionUtils.invokeMethod(false, root,
+                "getPhysicalFile");
         if (physicalFile != null) {
             final var name = (String) classpathOrderOut.reflectionUtils.invokeMethod(false, root, "getName");
             if (name != null) {
@@ -240,12 +244,18 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
     /**
      * Handle a module.
      *
-     * @param module            the module, or null
-     * @param visitedModules    visited modules
-     * @param classLoader       the classloader
-     * @param classpathOrderOut the classpath order
-     * @param scanSpec          the scan spec
-     * @param log               the log node, or null to skip logging
+     * @param module
+     *            the module, or null
+     * @param visitedModules
+     *            visited modules
+     * @param classLoader
+     *            the classloader
+     * @param classpathOrderOut
+     *            the classpath order
+     * @param scanSpec
+     *            the scan spec
+     * @param log
+     *            the log node, or null to skip logging
      */
     private static void handleRealModule(final @Nullable Object module, final Set<@Nullable Object> visitedModules,
             final ClassLoader classLoader, final ClasspathOrder classpathOrderOut, final ScanSpec scanSpec,
@@ -293,8 +303,7 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
         @SuppressWarnings("unchecked")
         final var moduleMap = (Map<Object, Object>) classpathOrder.reflectionUtils.getFieldVal(false,
                 callerModuleLoader, "moduleMap");
-        final var moduleMapEntries = moduleMap != null ? moduleMap.entrySet()
-                : Set.<Entry<Object, Object>> of();
+        final var moduleMapEntries = moduleMap != null ? moduleMap.entrySet() : Set.<Entry<Object, Object>> of();
         for (final Entry<Object, Object> ent : moduleMapEntries) {
             // type FutureModule
             final var val = ent.getValue();
@@ -308,26 +317,25 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
                 "getPaths");
         // (invokeMethod returns null if the method is not present, so don't assume it
         // was found)
-        final var pathsMapEntries = pathsMap != null ? pathsMap.entrySet()
-                : Set.<Entry<String, List<?>>> of();
+        final var pathsMapEntries = pathsMap != null ? pathsMap.entrySet() : Set.<Entry<String, List<?>>> of();
         for (final Entry<String, List<?>> ent : pathsMapEntries) {
             for (final Object /* ModuleClassLoader$1 */ localLoader : ent.getValue()) {
                 // type ModuleClassLoader (outer class)
-                final var moduleClassLoader = classpathOrder.reflectionUtils.getFieldVal(false, localLoader, "this$0");
+                final var moduleClassLoader = classpathOrder.reflectionUtils.getFieldVal(false, localLoader,
+                        "this$0");
                 // type Module
-                final var realModule = classpathOrder.reflectionUtils.getFieldVal(false, moduleClassLoader, "module");
+                final var realModule = classpathOrder.reflectionUtils.getFieldVal(false, moduleClassLoader,
+                        "module");
                 handleRealModule(realModule, visitedModules, classLoader, classpathOrder, scanSpec, log);
             }
         }
     }
 
     /**
-     * Get the automatic package root prefixes for classpath elements obtained from
-     * this classloader.
+     * Get the automatic package root prefixes for classpath elements obtained from this classloader.
      *
      * <p>
-     * Classpath elements from this classloader may be Spring-Boot executable jars
-     * or wars.
+     * Classpath elements from this classloader may be Spring-Boot executable jars or wars.
      *
      * @return the package root prefixes.
      */

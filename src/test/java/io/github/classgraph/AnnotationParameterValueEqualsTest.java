@@ -5,9 +5,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.Test;
 
 /**
- * {@link AnnotationParameterValue#equals(Object)} and
- * {@link AnnotationParameterValue#hashCode()} compare array values by their
- * elements, for arrays of every element type.
+ * {@link AnnotationParameterValue#equals(Object)} and {@link AnnotationParameterValue#hashCode()} compare array
+ * values by their elements, for arrays of every element type.
  */
 public class AnnotationParameterValueEqualsTest {
     /** Parameter values holding equal arrays are equal, whatever the array type. */
@@ -37,7 +36,8 @@ public class AnnotationParameterValueEqualsTest {
     public void equalValuesHaveEqualHashCodes() {
         assertThat(new AnnotationParameterValue("x", new double[] { 1.0 }))
                 .hasSameHashCodeAs(new AnnotationParameterValue("x", new double[] { 1.0 }));
-        assertThat(new AnnotationParameterValue("x", "a")).hasSameHashCodeAs(new AnnotationParameterValue("x", "a"));
+        assertThat(new AnnotationParameterValue("x", "a"))
+                .hasSameHashCodeAs(new AnnotationParameterValue("x", "a"));
     }
 
     /** Parameter values with different names are not equal. */

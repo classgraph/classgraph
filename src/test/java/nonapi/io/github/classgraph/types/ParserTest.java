@@ -10,12 +10,10 @@ import org.junit.jupiter.api.Test;
  * Tests for the position bounds of {@link Parser}.
  *
  * <p>
- * The end-of-string position is a valid parser position -- it is what
- * {@link Parser#getPosition()} returns once the whole input has been consumed,
- * and {@link Parser#peek()} and {@link Parser#hasMore()} both handle it.
- * Rejecting it in {@link Parser#advance(int)} made a truncated type signature
- * throw {@link IllegalArgumentException} out of the signature parser, rather
- * than the {@link ParseException} that its callers catch.
+ * The end-of-string position is a valid parser position -- it is what {@link Parser#getPosition()} returns once the
+ * whole input has been consumed, and {@link Parser#peek()} and {@link Parser#hasMore()} both handle it. Rejecting
+ * it in {@link Parser#advance(int)} made a truncated type signature throw {@link IllegalArgumentException} out of
+ * the signature parser, rather than the {@link ParseException} that its callers catch.
  */
 public class ParserTest {
     /** Advancing to exactly the end of the input is valid. */
@@ -36,8 +34,7 @@ public class ParserTest {
     }
 
     /**
-     * A negative skip distance, and one large enough to overflow int when added to
-     * the position, are rejected.
+     * A negative skip distance, and one large enough to overflow int when added to the position, are rejected.
      */
     @Test
     public void invalidSkipDistancesAreRejected() throws ParseException {

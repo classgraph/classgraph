@@ -66,12 +66,10 @@ public class FileSlice extends Slice {
     private @Nullable ByteBuffer backingByteBuffer;
 
     /**
-     * The {@code java.lang.foreign.Arena} (JDK 22+) used to memory-map the file, if
-     * any. Typed as {@link Object}, since ClassGraph needs to compile and run on
-     * JDK 17+. Closing the arena unmaps {@link #backingByteBuffer}, without needing
-     * to call the terminally-deprecated {@code Unsafe::invokeCleaner} method.
-     * Only set for toplevel file slices, which own the mapping (sub slices just
-     * duplicate the backing byte buffer).
+     * The {@code java.lang.foreign.Arena} (JDK 22+) used to memory-map the file, if any. Typed as {@link Object},
+     * since ClassGraph needs to compile and run on JDK 17+. Closing the arena unmaps {@link #backingByteBuffer},
+     * without needing to call the terminally-deprecated {@code Unsafe::invokeCleaner} method. Only set for toplevel
+     * file slices, which own the mapping (sub slices just duplicate the backing byte buffer).
      */
     // #939
     private @Nullable Object arena;
@@ -85,17 +83,23 @@ public class FileSlice extends Slice {
     /**
      * Constructor for treating a range of a file as a slice.
      *
-     * @param parentSlice        the parent slice
-     * @param offset             the offset of the sub-slice within the parent slice
-     * @param length             the length of the sub-slice
-     * @param isDeflatedZipEntry true if this is a deflated zip entry
-     * @param inflatedLengthHint the uncompressed size of a deflated zip entry, or
-     *                           -1 if unknown, or 0 of this is not a deflated zip
-     *                           entry.
-     * @param nestedJarHandler   the nested jar handler
+     * @param parentSlice
+     *            the parent slice
+     * @param offset
+     *            the offset of the sub-slice within the parent slice
+     * @param length
+     *            the length of the sub-slice
+     * @param isDeflatedZipEntry
+     *            true if this is a deflated zip entry
+     * @param inflatedLengthHint
+     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
+     *            zip entry.
+     * @param nestedJarHandler
+     *            the nested jar handler
      */
     private FileSlice(final FileSlice parentSlice, final long offset, final long length,
-            final boolean isDeflatedZipEntry, final long inflatedLengthHint, final NestedJarHandler nestedJarHandler) {
+            final boolean isDeflatedZipEntry, final long inflatedLengthHint,
+            final NestedJarHandler nestedJarHandler) {
         super(parentSlice, offset, length, isDeflatedZipEntry, inflatedLengthHint, nestedJarHandler);
         this.file = parentSlice.file;
         this.raf = parentSlice.raf;
@@ -119,14 +123,19 @@ public class FileSlice extends Slice {
     /**
      * Constructor for toplevel file slice.
      *
-     * @param file               the file
-     * @param isDeflatedZipEntry true if this is a deflated zip entry
-     * @param inflatedLengthHint the uncompressed size of a deflated zip entry, or
-     *                           -1 if unknown, or 0 of this is not a deflated zip
-     *                           entry.
-     * @param nestedJarHandler   the nested jar handler
-     * @param log                the log node, or null to skip logging
-     * @throws IOException if the file cannot be opened.
+     * @param file
+     *            the file
+     * @param isDeflatedZipEntry
+     *            true if this is a deflated zip entry
+     * @param inflatedLengthHint
+     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
+     *            zip entry.
+     * @param nestedJarHandler
+     *            the nested jar handler
+     * @param log
+     *            the log node, or null to skip logging
+     * @throws IOException
+     *             if the file cannot be opened.
      */
     public FileSlice(final File file, final boolean isDeflatedZipEntry, final long inflatedLengthHint,
             final NestedJarHandler nestedJarHandler, final @Nullable LogNode log) throws IOException {
@@ -180,15 +189,13 @@ public class FileSlice extends Slice {
     }
 
     /**
-     * Memory-map the file to a {@link ByteBuffer}, using an {@code Arena} to
-     * perform the mapping on JDK 22+, or
+     * Memory-map the file to a {@link ByteBuffer}, using an {@code Arena} to perform the mapping on JDK 22+, or
      * {@link FileChannel#map(MapMode, long, long)} on older JDK versions.
      *
-     * @return the mapped byte buffer, or null if the arena-based mapping API could
-     *         not be invoked reflectively.
-     * @throws IOException if an I/O exception occurred while mapping the file
-     *                     (mapping may succeed if retried after garbage
-     *                     collection).
+     * @return the mapped byte buffer, or null if the arena-based mapping API could not be invoked reflectively.
+     * @throws IOException
+     *             if an I/O exception occurred while mapping the file (mapping may succeed if retried after garbage
+     *             collection).
      */
     private @Nullable ByteBuffer mapFile() throws IOException {
         final var openFileChannel = Objects.requireNonNull(fileChannel);
@@ -212,24 +219,32 @@ public class FileSlice extends Slice {
     /**
      * Constructor for toplevel file slice.
      *
-     * @param file             the file
-     * @param nestedJarHandler the nested jar handler
-     * @param log              the log node, or null to skip logging
-     * @throws IOException if the file cannot be opened.
+     * @param file
+     *            the file
+     * @param nestedJarHandler
+     *            the nested jar handler
+     * @param log
+     *            the log node, or null to skip logging
+     * @throws IOException
+     *             if the file cannot be opened.
      */
-    public FileSlice(final File file, final NestedJarHandler nestedJarHandler, final @Nullable LogNode log) throws IOException {
+    public FileSlice(final File file, final NestedJarHandler nestedJarHandler, final @Nullable LogNode log)
+            throws IOException {
         this(file, /* isDeflatedZipEntry = */ false, /* inflatedSizeHint = */ 0L, nestedJarHandler, log);
     }
 
     /**
      * Slice the file.
      *
-     * @param offset             the offset of the sub-slice within the parent slice
-     * @param length             the length of the sub-slice
-     * @param isDeflatedZipEntry true if this is a deflated zip entry
-     * @param inflatedLengthHint the uncompressed size of a deflated zip entry, or
-     *                           -1 if unknown, or 0 of this is not a deflated zip
-     *                           entry.
+     * @param offset
+     *            the offset of the sub-slice within the parent slice
+     * @param length
+     *            the length of the sub-slice
+     * @param isDeflatedZipEntry
+     *            true if this is a deflated zip entry
+     * @param inflatedLengthHint
+     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
+     *            zip entry.
      * @return the slice
      */
     @Override
@@ -262,7 +277,8 @@ public class FileSlice extends Slice {
      * Load the slice as a byte array.
      *
      * @return the byte[]
-     * @throws IOException Signals that an I/O exception has occurred.
+     * @throws IOException
+     *             Signals that an I/O exception has occurred.
      */
     @Override
     public byte[] load() throws IOException {
@@ -290,12 +306,12 @@ public class FileSlice extends Slice {
     }
 
     /**
-     * Read the slice into a {@link ByteBuffer} (or memory-map the slice to a
-     * {@link MappedByteBuffer}, if {@link ClassGraph#enableMemoryMapping()} was
-     * called.)
+     * Read the slice into a {@link ByteBuffer} (or memory-map the slice to a {@link MappedByteBuffer}, if
+     * {@link ClassGraph#enableMemoryMapping()} was called.)
      *
      * @return the byte buffer
-     * @throws IOException Signals that an I/O exception has occurred.
+     * @throws IOException
+     *             Signals that an I/O exception has occurred.
      */
     @Override
     public ByteBuffer read() throws IOException {

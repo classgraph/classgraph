@@ -51,8 +51,8 @@ public class Issue223Test {
      */
     @Test
     public void testInnerClasses() {
-        try (var scanResult = new ClassGraph().acceptPackages(Issue223Test.class.getPackage().getName()).enableAllInfo()
-                .scan()) {
+        try (var scanResult = new ClassGraph().acceptPackages(Issue223Test.class.getPackage().getName())
+                .enableAllInfo().scan()) {
             // N.B. this anonymous inner class is deliberately not a lambda -- it is itself counted as one of
             // the two inner classes expected below (the other is InnerInterface).
             final var innerClasses = scanResult.getAllClasses().filter(new ClassInfoFilter() {

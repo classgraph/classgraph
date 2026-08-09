@@ -61,25 +61,22 @@ public final class FileUtils {
     private static @Nullable Object theUnsafe;
 
     /**
-     * True if the reflective handles above have been initialized. Volatile, and
-     * only ever assigned while holding the lock on {@link FileUtils}, so that the
-     * double-checked locking in {@link #closeDirectByteBuffer} is correctly
-     * synchronized: a thread that reads true here is guaranteed to see the
-     * fully-initialized handles.
+     * True if the reflective handles above have been initialized. Volatile, and only ever assigned while holding
+     * the lock on {@link FileUtils}, so that the double-checked locking in {@link #closeDirectByteBuffer} is
+     * correctly synchronized: a thread that reads true here is guaranteed to see the fully-initialized handles.
      */
     private static volatile boolean initialized;
 
     /**
-     * The current directory path (only reads the current directory once, the first
-     * time this field is accessed, so will not reflect subsequent changes to the
-     * current directory). Volatile, so that the lazy initialization in
+     * The current directory path (only reads the current directory once, the first time this field is accessed, so
+     * will not reflect subsequent changes to the current directory). Volatile, so that the lazy initialization in
      * {@link #currDirPath()} is not a data race.
      */
     private static volatile @Nullable String currDirPath;
 
     /**
-     * The maximum size of a file buffer array. Eight bytes smaller than
-     * {@link Integer#MAX_VALUE}, since some VMs reserve header words in arrays.
+     * The maximum size of a file buffer array. Eight bytes smaller than {@link Integer#MAX_VALUE}, since some VMs
+     * reserve header words in arrays.
      */
     public static final int MAX_BUFFER_SIZE = Integer.MAX_VALUE - 8;
 
@@ -95,9 +92,9 @@ public final class FileUtils {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the current directory (only looks at the current directory the first time
-     * it is called, then caches this value for future reads).
-     * 
+     * Get the current directory (only looks at the current directory the first time it is called, then caches this
+     * value for future reads).
+     *
      * @return The current directory, as a string
      */
     public static String currDirPath() {
@@ -142,16 +139,16 @@ public final class FileUtils {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Sanitize relative paths against "zip slip" vulnerability, by removing path
-     * segments if ".." is found in the URL, but without allowing navigation above
-     * the path hierarchy root. Treats each "!" character as a new path hierarchy
-     * root. Also removes "." and empty path segments ("//").
-     * 
-     * @param path               The path to sanitize.
-     * @param removeInitialSlash If true, remove any '/' character(s) from the
-     *                           beginning of the returned path.
-     * @param removeFinalSlash   If true, remove any '/' character(s) from the end
-     *                           of the returned path.
+     * Sanitize relative paths against "zip slip" vulnerability, by removing path segments if ".." is found in the
+     * URL, but without allowing navigation above the path hierarchy root. Treats each "!" character as a new path
+     * hierarchy root. Also removes "." and empty path segments ("//").
+     *
+     * @param path
+     *            The path to sanitize.
+     * @param removeInitialSlash
+     *            If true, remove any '/' character(s) from the beginning of the returned path.
+     * @param removeFinalSlash
+     *            If true, remove any '/' character(s) from the end of the returned path.
      * @return The sanitized path.
      */
     public static String sanitizeEntryPath(final String path, final boolean removeInitialSlash,
@@ -288,7 +285,8 @@ public final class FileUtils {
     /**
      * Check if the path ends with a ".class" extension, ignoring case.
      *
-     * @param path A file path.
+     * @param path
+     *            A file path.
      * @return true if path has a ".class" extension, ignoring case.
      */
     public static boolean isClassfile(final String path) {
@@ -301,7 +299,8 @@ public final class FileUtils {
     /**
      * Check if a {@link File} exists and can be read.
      *
-     * @param file A {@link File}.
+     * @param file
+     *            A {@link File}.
      * @return true if a file exists and can be read.
      */
     public static boolean canRead(final File file) {
@@ -315,7 +314,8 @@ public final class FileUtils {
     /**
      * Check if a {@link Path} exists and can be read.
      *
-     * @param path A {@link Path}.
+     * @param path
+     *            A {@link Path}.
      * @return true if the file exists and can be read.
      */
     public static boolean canRead(final Path path) {
@@ -333,7 +333,8 @@ public final class FileUtils {
     /**
      * Check if a {@link File} exists, is a regular file, and can be read.
      *
-     * @param file A {@link File}.
+     * @param file
+     *            A {@link File}.
      * @return true if the file exists, is a regular file, and can be read.
      */
     public static boolean canReadAndIsFile(final File file) {
@@ -350,7 +351,8 @@ public final class FileUtils {
     /**
      * Check if a {@link Path} exists, is a regular file, and can be read.
      *
-     * @param path A {@link Path}.
+     * @param path
+     *            A {@link Path}.
      * @return true if the file exists, is a regular file, and can be read.
      */
     public static boolean canReadAndIsFile(final Path path) {
@@ -371,7 +373,8 @@ public final class FileUtils {
     /**
      * Check if a {@link Path} is a regular file.
      *
-     * @param path A {@link Path}.
+     * @param path
+     *            A {@link Path}.
      * @return true if the path is a regular file.
      */
     public static boolean isFile(final Path path) {
@@ -387,9 +390,10 @@ public final class FileUtils {
     /**
      * Check if a {@link File} exists, is a regular file, and can be read.
      *
-     * @param file A {@link File}.
-     * @throws IOException if the file does not exist, is not a regular file, or
-     *                     cannot be read.
+     * @param file
+     *            A {@link File}.
+     * @throws IOException
+     *             if the file does not exist, is not a regular file, or cannot be read.
      */
     public static void checkCanReadAndIsFile(final File file) throws IOException {
         try {
@@ -407,9 +411,10 @@ public final class FileUtils {
     /**
      * Check if a {@link Path} exists, is a regular file, and can be read.
      *
-     * @param path A {@link Path}.
-     * @throws IOException if the path does not exist, is not a regular file, or
-     *                     cannot be read.
+     * @param path
+     *            A {@link Path}.
+     * @throws IOException
+     *             if the path does not exist, is not a regular file, or cannot be read.
      */
     public static void checkCanReadAndIsFile(final Path path) throws IOException {
         try {
@@ -432,7 +437,8 @@ public final class FileUtils {
     /**
      * Check if a {@link File} exists, is a directory, and can be read.
      *
-     * @param file A {@link File}.
+     * @param file
+     *            A {@link File}.
      * @return true if the file exists, is a directory, and can be read.
      */
     public static boolean canReadAndIsDir(final File file) {
@@ -449,7 +455,8 @@ public final class FileUtils {
     /**
      * Check if a {@link Path} exists, is a directory, and can be read.
      *
-     * @param path A {@link Path}.
+     * @param path
+     *            A {@link Path}.
      * @return true if the file exists, is a directory, and can be read.
      */
     public static boolean canReadAndIsDir(final Path path) {
@@ -470,7 +477,8 @@ public final class FileUtils {
     /**
      * Check if a {@link Path} is a directory.
      *
-     * @param path A {@link Path}.
+     * @param path
+     *            A {@link Path}.
      * @return true if the path is a directory.
      */
     public static boolean isDir(final Path path) {
@@ -486,9 +494,10 @@ public final class FileUtils {
     /**
      * Check if a {@link File} exists, is a directory, and can be read.
      *
-     * @param file A {@link File}.
-     * @throws IOException if the file does not exist, is not a directory, or cannot
-     *                     be read.
+     * @param file
+     *            A {@link File}.
+     * @throws IOException
+     *             if the file does not exist, is not a directory, or cannot be read.
      */
     public static void checkCanReadAndIsDir(final File file) throws IOException {
         try {
@@ -508,8 +517,10 @@ public final class FileUtils {
     /**
      * Get the parent dir path.
      *
-     * @param path      the path
-     * @param separator the separator
+     * @param path
+     *            the path
+     * @param separator
+     *            the separator
      * @return the parent dir path
      */
     public static String getParentDirPath(final String path, final char separator) {
@@ -523,7 +534,8 @@ public final class FileUtils {
     /**
      * Get the parent dir path.
      *
-     * @param path the path
+     * @param path
+     *            the path
      * @return the parent dir path
      */
     public static String getParentDirPath(final String path) {
@@ -533,8 +545,7 @@ public final class FileUtils {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the clean() method, attachment() method, and theUnsafe field, called
-     * inside doPrivileged.
+     * Get the clean() method, attachment() method, and theUnsafe field, called inside doPrivileged.
      */
     private static void lookupCleanMethodPrivileged() {
         if (VersionFinder.JAVA_MAJOR_VERSION < 22) {
@@ -575,11 +586,14 @@ public final class FileUtils {
     /**
      * Close a direct byte buffer (run in doPrivileged).
      *
-     * @param byteBuffer the byte buffer
-     * @param log        the log node, or null to skip logging
+     * @param byteBuffer
+     *            the byte buffer
+     * @param log
+     *            the log node, or null to skip logging
      * @return true if successful
      */
-    private static boolean closeDirectByteBufferPrivileged(final ByteBuffer byteBuffer, final @Nullable LogNode log) {
+    private static boolean closeDirectByteBufferPrivileged(final ByteBuffer byteBuffer,
+            final @Nullable LogNode log) {
         if (!byteBuffer.isDirect()) {
             // Nothing to do
             return true;
@@ -625,13 +639,14 @@ public final class FileUtils {
     }
 
     /**
-     * Close a {@code DirectByteBuffer} -- in particular, will unmap a
-     * {@link MappedByteBuffer}.
-     * 
-     * @param byteBuffer      The {@link ByteBuffer} to close/unmap.
-     * @param reflectionUtils The reflection utils (the cleaner method has to be
-     *                        looked up and invoked reflectively).
-     * @param log             The log.
+     * Close a {@code DirectByteBuffer} -- in particular, will unmap a {@link MappedByteBuffer}.
+     *
+     * @param byteBuffer
+     *            The {@link ByteBuffer} to close/unmap.
+     * @param reflectionUtils
+     *            The reflection utils (the cleaner method has to be looked up and invoked reflectively).
+     * @param log
+     *            The log.
      * @return True if the byteBuffer was closed/unmapped.
      */
     public static boolean closeDirectByteBuffer(final ByteBuffer byteBuffer, final ReflectionUtils reflectionUtils,
@@ -677,27 +692,22 @@ public final class FileUtils {
     // java.lang.foreign API directly rather than through reflection.
 
     /**
-     * The fully-qualified name of the JDK 22+ {@code java.lang.foreign.Arena}
-     * interface.
+     * The fully-qualified name of the JDK 22+ {@code java.lang.foreign.Arena} interface.
      */
     private static final String ARENA_CLASS_NAME = "java.lang.foreign.Arena";
 
     /**
-     * Open a new shared {@code java.lang.foreign.Arena} (JDK 22+), which can be
-     * used to allocate direct {@link ByteBuffer}s
-     * ({@link #allocateDirectByteBufferUsingArena(Object, long, ReflectionUtils)})
-     * and to memory-map files to {@link ByteBuffer}s
-     * ({@link #mapFileUsingArena(Object, FileChannel, long, long, ReflectionUtils)}).
-     * Closing the arena ({@link #closeArena(Object, ReflectionUtils, LogNode)})
-     * frees or unmaps all {@link ByteBuffer}s obtained from it, which on JDK 22+
-     * replaces the use of the terminally-deprecated {@code Unsafe::invokeCleaner}
-     * method.
+     * Open a new shared {@code java.lang.foreign.Arena} (JDK 22+), which can be used to allocate direct
+     * {@link ByteBuffer}s ({@link #allocateDirectByteBufferUsingArena(Object, long, ReflectionUtils)}) and to
+     * memory-map files to {@link ByteBuffer}s
+     * ({@link #mapFileUsingArena(Object, FileChannel, long, long, ReflectionUtils)}). Closing the arena
+     * ({@link #closeArena(Object, ReflectionUtils, LogNode)}) frees or unmaps all {@link ByteBuffer}s obtained from
+     * it, which on JDK 22+ replaces the use of the terminally-deprecated {@code Unsafe::invokeCleaner} method.
      *
-     * @param reflectionUtils the reflection utils (the {@code java.lang.foreign}
-     *                        API has to be invoked using reflection, since
-     *                        ClassGraph needs to compile and run on JDK 17+)
-     * @return a new shared {@code Arena} instance, or null if the arena API is not
-     *         available (JDK older than 22).
+     * @param reflectionUtils
+     *            the reflection utils (the {@code java.lang.foreign} API has to be invoked using reflection, since
+     *            ClassGraph needs to compile and run on JDK 17+)
+     * @return a new shared {@code Arena} instance, or null if the arena API is not available (JDK older than 22).
      */
     // #939
     public static @Nullable Object openArena(final ReflectionUtils reflectionUtils) {
@@ -719,15 +729,16 @@ public final class FileUtils {
     }
 
     /**
-     * Allocate a direct {@link ByteBuffer} using a shared arena (JDK 22+). The
-     * buffer is freed by closing the arena.
+     * Allocate a direct {@link ByteBuffer} using a shared arena (JDK 22+). The buffer is freed by closing the
+     * arena.
      *
-     * @param arena           an arena obtained from
-     *                        {@link #openArena(ReflectionUtils)}.
-     * @param size            the number of bytes to allocate.
-     * @param reflectionUtils the reflection utils
-     * @return the allocated {@link ByteBuffer}, or null if the buffer could not be
-     *         allocated.
+     * @param arena
+     *            an arena obtained from {@link #openArena(ReflectionUtils)}.
+     * @param size
+     *            the number of bytes to allocate.
+     * @param reflectionUtils
+     *            the reflection utils
+     * @return the allocated {@link ByteBuffer}, or null if the buffer could not be allocated.
      */
     public static @Nullable ByteBuffer allocateDirectByteBufferUsingArena(final Object arena, final long size,
             final ReflectionUtils reflectionUtils) {
@@ -740,28 +751,28 @@ public final class FileUtils {
     }
 
     /**
-     * Memory-map a region of a {@link FileChannel} to a read-only
-     * {@link ByteBuffer} using a shared arena (JDK 22+). The buffer is unmapped by
-     * closing the arena.
+     * Memory-map a region of a {@link FileChannel} to a read-only {@link ByteBuffer} using a shared arena (JDK
+     * 22+). The buffer is unmapped by closing the arena.
      *
-     * @param arena           an arena obtained from
-     *                        {@link #openArena(ReflectionUtils)}.
-     * @param fileChannel     the file channel to map.
-     * @param position        the position within the file at which the mapped
-     *                        region is to start.
-     * @param size            the size of the region to map (must not be larger than
-     *                        {@link #MAX_BUFFER_SIZE}, since the mapped memory
-     *                        segment has to be projected to a single
-     *                        {@link ByteBuffer}).
-     * @param reflectionUtils the reflection utils
-     * @return the mapped {@link ByteBuffer}, or null if the arena-based mapping API
-     *         could not be invoked reflectively.
-     * @throws IOException if mapping the file failed with an I/O error (mapping may
-     *                     succeed if retried after garbage collection, see
-     *                     FileSlice).
+     * @param arena
+     *            an arena obtained from {@link #openArena(ReflectionUtils)}.
+     * @param fileChannel
+     *            the file channel to map.
+     * @param position
+     *            the position within the file at which the mapped region is to start.
+     * @param size
+     *            the size of the region to map (must not be larger than {@link #MAX_BUFFER_SIZE}, since the mapped
+     *            memory segment has to be projected to a single {@link ByteBuffer}).
+     * @param reflectionUtils
+     *            the reflection utils
+     * @return the mapped {@link ByteBuffer}, or null if the arena-based mapping API could not be invoked
+     *         reflectively.
+     * @throws IOException
+     *             if mapping the file failed with an I/O error (mapping may succeed if retried after garbage
+     *             collection, see FileSlice).
      */
-    public static @Nullable ByteBuffer mapFileUsingArena(final Object arena, final FileChannel fileChannel, final long position,
-            final long size, final ReflectionUtils reflectionUtils) throws IOException {
+    public static @Nullable ByteBuffer mapFileUsingArena(final Object arena, final FileChannel fileChannel,
+            final long position, final long size, final ReflectionUtils reflectionUtils) throws IOException {
         final Class<?> arenaClass = reflectionUtils.classForNameOrNull(ARENA_CLASS_NAME);
         if (arenaClass == null) {
             return null;
@@ -795,16 +806,19 @@ public final class FileUtils {
     }
 
     /**
-     * Close an arena obtained from {@link #openArena(ReflectionUtils)}, freeing any
-     * direct {@link ByteBuffer}s allocated from it and unmapping any files mapped
-     * with it. The buffers must no longer be in use by any thread.
+     * Close an arena obtained from {@link #openArena(ReflectionUtils)}, freeing any direct {@link ByteBuffer}s
+     * allocated from it and unmapping any files mapped with it. The buffers must no longer be in use by any thread.
      *
-     * @param arena           the arena to close.
-     * @param reflectionUtils the reflection utils
-     * @param log             the log node, or null to skip logging
+     * @param arena
+     *            the arena to close.
+     * @param reflectionUtils
+     *            the reflection utils
+     * @param log
+     *            the log node, or null to skip logging
      * @return true if the arena was successfully closed.
      */
-    public static boolean closeArena(final Object arena, final ReflectionUtils reflectionUtils, final @Nullable LogNode log) {
+    public static boolean closeArena(final Object arena, final ReflectionUtils reflectionUtils,
+            final @Nullable LogNode log) {
         try {
             reflectionUtils.invokeMethod(/* throwException = */ true, arena, "close");
             return true;
@@ -819,10 +833,9 @@ public final class FileUtils {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Create a {@link FileAttributesGetter} that reads the attributes of each
-     * {@link Path} at most once, caching the result. The returned getter is not
-     * thread safe, so it should only be used within the scope of the code that
-     * created it.
+     * Create a {@link FileAttributesGetter} that reads the attributes of each {@link Path} at most once, caching
+     * the result. The returned getter is not thread safe, so it should only be used within the scope of the code
+     * that created it.
      *
      * @return the caching {@link FileAttributesGetter}.
      */
@@ -834,12 +847,12 @@ public final class FileUtils {
     }
 
     /**
-     * Read the {@link BasicFileAttributes} of a {@link Path}. If the attributes
-     * cannot be read, returns a best-effort implementation backed by the
-     * {@link File} API, which throws {@link UnsupportedOperationException} from the
-     * accessors it cannot support.
+     * Read the {@link BasicFileAttributes} of a {@link Path}. If the attributes cannot be read, returns a
+     * best-effort implementation backed by the {@link File} API, which throws {@link UnsupportedOperationException}
+     * from the accessors it cannot support.
      *
-     * @param path A {@link Path}.
+     * @param path
+     *            A {@link Path}.
      * @return the attributes of the path.
      */
     public static BasicFileAttributes readAttributes(final Path path) {
@@ -900,7 +913,8 @@ public final class FileUtils {
         /**
          * Get the attributes of a {@link Path}.
          *
-         * @param path A {@link Path}.
+         * @param path
+         *            A {@link Path}.
          * @return the attributes of the path.
          */
         BasicFileAttributes get(Path path);

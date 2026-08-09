@@ -11,26 +11,23 @@ import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 
 /**
- * A {@link ModuleInfo} is created as soon as any classfile is read from a
- * module, including a {@code module-info.class} file, which does not itself
- * contribute a {@link ClassInfo}. A {@link ModuleInfo} with no accepted classes
- * therefore has a null class set, which used to make
- * {@link ModuleInfo#getClassInfo()} and {@link ModuleInfo#getClassInfo(String)}
- * throw {@link NullPointerException}. The sibling package accessors,
- * {@link ModuleInfo#getPackageInfo()} and
- * {@link ModuleInfo#getPackageInfo(String)}, have always handled this.
+ * A {@link ModuleInfo} is created as soon as any classfile is read from a module, including a
+ * {@code module-info.class} file, which does not itself contribute a {@link ClassInfo}. A {@link ModuleInfo} with
+ * no accepted classes therefore has a null class set, which used to make {@link ModuleInfo#getClassInfo()} and
+ * {@link ModuleInfo#getClassInfo(String)} throw {@link NullPointerException}. The sibling package accessors,
+ * {@link ModuleInfo#getPackageInfo()} and {@link ModuleInfo#getPackageInfo(String)}, have always handled this.
  */
 public class ModuleInfoNoClassesTest {
     /**
-     * A {@link ModuleInfo} with no classes returns an empty list rather than
-     * throwing.
+     * A {@link ModuleInfo} with no classes returns an empty list rather than throwing.
      */
     @Test
     public void moduleWithNoAcceptedClasses() {
         final var workUnit = new ClasspathEntryWorkUnit(Path.of("."), /* classLoader = */ null,
                 /* parentClasspathElement = */ null, /* classpathElementIdx = */ 0, /* packageRootPrefix = */ "",
                 ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES);
-        final var classpathElement = new ClasspathElementDir(workUnit, /* nestedJarHandler = */ null, new ScanSpec());
+        final var classpathElement = new ClasspathElementDir(workUnit, /* nestedJarHandler = */ null,
+                new ScanSpec());
         final var moduleInfo = new ModuleInfo(/* moduleRef = */ null, classpathElement, "com.xyz.mymodule");
         assertThat(moduleInfo.getClassInfo()).isEmpty();
         assertThat(moduleInfo.getClassInfo("com.xyz.Foo")).isNull();

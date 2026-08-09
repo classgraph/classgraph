@@ -9,21 +9,18 @@ import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tests {@link RandomAccessByteBufferReader}, which is the reader used for
- * memory-mapped files, against {@link RandomAccessArrayReader}, which reads the
- * same little-endian layout from a byte array.
+ * Tests {@link RandomAccessByteBufferReader}, which is the reader used for memory-mapped files, against
+ * {@link RandomAccessArrayReader}, which reads the same little-endian layout from a byte array.
  */
 public class RandomAccessByteBufferReaderTest {
     /**
-     * A little-endian unsigned short must be read in full, not truncated to its low
-     * byte.
+     * A little-endian unsigned short must be read in full, not truncated to its low byte.
      */
     @Test
     public void readUnsignedShortReadsBothBytes() throws IOException {
         // 0x1234 in little-endian order
         final byte[] arr = { (byte) 0x34, (byte) 0x12 };
-        final var reader = new RandomAccessByteBufferReader(ByteBuffer.wrap(arr), 0L,
-                arr.length);
+        final var reader = new RandomAccessByteBufferReader(ByteBuffer.wrap(arr), 0L, arr.length);
         assertThat(reader.readUnsignedShort(0)).isEqualTo(0x1234);
         // Must agree with the byte-array reader, which reads the same layout
         assertThat(reader.readUnsignedShort(0))
@@ -35,15 +32,13 @@ public class RandomAccessByteBufferReaderTest {
     public void readShortReadsBothBytes() throws IOException {
         // 0xFF80 in little-endian order == -128 as a signed short
         final byte[] arr = { (byte) 0x80, (byte) 0xFF };
-        final var reader = new RandomAccessByteBufferReader(ByteBuffer.wrap(arr), 0L,
-                arr.length);
+        final var reader = new RandomAccessByteBufferReader(ByteBuffer.wrap(arr), 0L, arr.length);
         assertThat(reader.readShort(0)).isEqualTo((short) -128);
         assertThat(reader.readShort(0)).isEqualTo(new RandomAccessArrayReader(arr, 0, arr.length).readShort(0));
     }
 
     /**
-     * Reading a short at a nonzero offset within a slice must respect the slice
-     * start position.
+     * Reading a short at a nonzero offset within a slice must respect the slice start position.
      */
     @Test
     public void readUnsignedShortWithinASlice() throws IOException {
@@ -54,8 +49,7 @@ public class RandomAccessByteBufferReaderTest {
     }
 
     /**
-     * Reading a string at a nonzero slice offset must return the bytes at that
-     * offset, not fail or return junk.
+     * Reading a string at a nonzero slice offset must return the bytes at that offset, not fail or return junk.
      */
     @Test
     public void readStringAtNonZeroOffset() throws IOException {
@@ -66,13 +60,11 @@ public class RandomAccessByteBufferReaderTest {
         System.arraycopy(str, 0, arr, prefix.length, str.length);
 
         // Read via a slice that starts at the string
-        final var sliceReader = new RandomAccessByteBufferReader(ByteBuffer.wrap(arr),
-                prefix.length, str.length);
+        final var sliceReader = new RandomAccessByteBufferReader(ByteBuffer.wrap(arr), prefix.length, str.length);
         assertThat(sliceReader.readString(0, str.length)).isEqualTo("ClassGraph");
 
         // Read via a whole-array reader, using an offset to reach the string
-        final var wholeReader = new RandomAccessByteBufferReader(ByteBuffer.wrap(arr), 0L,
-                arr.length);
+        final var wholeReader = new RandomAccessByteBufferReader(ByteBuffer.wrap(arr), 0L, arr.length);
         assertThat(wholeReader.readString(prefix.length, str.length)).isEqualTo("ClassGraph");
         // Must agree with the byte-array reader
         assertThat(new RandomAccessArrayReader(arr, 0, arr.length).readString(prefix.length, str.length))

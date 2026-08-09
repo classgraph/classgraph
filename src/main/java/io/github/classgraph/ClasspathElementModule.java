@@ -68,8 +68,7 @@ class ClasspathElementModule extends ClasspathElement {
     final ModuleRef moduleRef;
 
     /**
-     * A singleton map from a {@link ModuleRef} to a {@link ModuleReader} recycler
-     * for the module.
+     * A singleton map from a {@link ModuleRef} to a {@link ModuleReader} recycler for the module.
      */
     SingletonMap<ModuleRef, Recycler<ModuleReader, IOException>, IOException> //
     moduleRefToModuleReaderRecyclerMap;
@@ -81,8 +80,8 @@ class ClasspathElementModule extends ClasspathElement {
      * Get the module reader recycler.
      *
      * @return the module reader recycler
-     * @throws NullPointerException if {@link #open} has not been called, or it
-     *                              failed to open the module
+     * @throws NullPointerException
+     *             if {@link #open} has not been called, or it failed to open the module
      */
     private Recycler<ModuleReader, IOException> moduleReaderRecycler() {
         return Objects.requireNonNull(moduleReaderRecycler);
@@ -92,24 +91,25 @@ class ClasspathElementModule extends ClasspathElement {
     private final Set<String> allResourcePaths = new HashSet<>();
 
     /**
-     * True if this module is not being scanned, and was only opened so that the
-     * classfiles of individual classes can be read from it (see
-     * {@link UnscannedModules}).
+     * True if this module is not being scanned, and was only opened so that the classfiles of individual classes
+     * can be read from it (see {@link UnscannedModules}).
      */
     private final boolean isLookupOnly;
 
     /**
      * A zip/jarfile classpath element.
      *
-     * @param moduleRef                          the module ref
-     * @param workUnit                           the work unit
-     * @param moduleRefToModuleReaderRecyclerMap the module ref to module reader
-     *                                           recycler map
-     * @param isLookupOnly                       true if the module is not being
-     *                                           scanned, and was only opened so
-     *                                           that the classfiles of individual
-     *                                           classes can be read from it
-     * @param scanSpec                           the scan spec
+     * @param moduleRef
+     *            the module ref
+     * @param workUnit
+     *            the work unit
+     * @param moduleRefToModuleReaderRecyclerMap
+     *            the module ref to module reader recycler map
+     * @param isLookupOnly
+     *            true if the module is not being scanned, and was only opened so that the classfiles of individual
+     *            classes can be read from it
+     * @param scanSpec
+     *            the scan spec
      */
     ClasspathElementModule(final ModuleRef moduleRef,
             final SingletonMap<ModuleRef, Recycler<ModuleReader, IOException>, IOException> //
@@ -133,7 +133,8 @@ class ClasspathElementModule extends ClasspathElement {
             throws InterruptedException {
         if (!scanSpec.scanModules) {
             if (log != null) {
-                log(classpathElementIdx, "Skipping module, since module scanning is disabled: " + getModuleName(), log);
+                log(classpathElementIdx, "Skipping module, since module scanning is disabled: " + getModuleName(),
+                        log);
             }
             skipClasspathElement = true;
             return;
@@ -151,10 +152,10 @@ class ClasspathElementModule extends ClasspathElement {
     }
 
     /**
-     * Create a new {@link Resource} object for a resource or classfile discovered
-     * while scanning paths.
+     * Create a new {@link Resource} object for a resource or classfile discovered while scanning paths.
      *
-     * @param resourcePath the resource path
+     * @param resourcePath
+     *            the resource path
      * @return the resource
      */
     private Resource newResource(final String resourcePath) {
@@ -308,9 +309,10 @@ class ClasspathElementModule extends ClasspathElement {
     /**
      * Get the {@link Resource} for a given relative path.
      *
-     * @param relativePath The relative path of the {@link Resource} to return.
-     * @return The {@link Resource} for the given relative path, or null if
-     *         relativePath does not exist in this classpath element.
+     * @param relativePath
+     *            The relative path of the {@link Resource} to return.
+     * @return The {@link Resource} for the given relative path, or null if relativePath does not exist in this
+     *         classpath element.
      */
     @Override
     @Nullable
@@ -324,7 +326,8 @@ class ClasspathElementModule extends ClasspathElement {
             try {
                 final var moduleReader = moduleReaderRecycler().acquire();
                 try {
-                    return ModuleReaderUtils.contains(moduleReader, relativePath) ? newResource(relativePath) : null;
+                    return ModuleReaderUtils.contains(moduleReader, relativePath) ? newResource(relativePath)
+                            : null;
                 } finally {
                     moduleReaderRecycler().recycle(moduleReader);
                 }
@@ -338,7 +341,8 @@ class ClasspathElementModule extends ClasspathElement {
     /**
      * Scan for package matches within module.
      *
-     * @param log the log node, or null to skip logging
+     * @param log
+     *            the log node, or null to skip logging
      */
     @Override
     void scanPaths(final @Nullable LogNode log) {
@@ -350,7 +354,8 @@ class ClasspathElementModule extends ClasspathElement {
             throw new IllegalStateException("Already scanned classpath element " + this);
         }
 
-        final var subLog = log == null ? null : log(classpathElementIdx, "Scanning module " + moduleRef.getName(), log);
+        final var subLog = log == null ? null
+                : log(classpathElementIdx, "Scanning module " + moduleRef.getName(), log);
 
         // Determine whether this is a modular jar
         final var isModularJar = getModuleName() != null;
@@ -360,8 +365,8 @@ class ClasspathElementModule extends ClasspathElement {
             // Look for accepted files in the module.
             final List<String> resourceRelativePaths;
             try {
-                resourceRelativePaths = ModuleReaderUtils.list(moduleReaderRecycleOnClose.get(), moduleRef.getName(),
-                        subLog);
+                resourceRelativePaths = ModuleReaderUtils.list(moduleReaderRecycleOnClose.get(),
+                        moduleRef.getName(), subLog);
             } catch (final SecurityException | IllegalArgumentException e) {
                 // A module whose contents cannot be listed is skipped, rather than aborting the
                 // whole scan.
@@ -411,7 +416,8 @@ class ClasspathElementModule extends ClasspathElement {
                 if (!scanSpec.enableMultiReleaseVersions
                         && relativePath.startsWith(LogicalZipFile.MULTI_RELEASE_PATH_PREFIX)) {
                     if (subLog != null) {
-                        subLog.log("Found unexpected nested versioned entry in module -- skipping: " + relativePath);
+                        subLog.log(
+                                "Found unexpected nested versioned entry in module -- skipping: " + relativePath);
                     }
                     continue;
                 }
@@ -460,15 +466,15 @@ class ClasspathElementModule extends ClasspathElement {
                             || (parentMatchStatus == ScanSpecPathMatch.AT_ACCEPTED_CLASS_PACKAGE
                                     && scanSpec.classfileIsSpecificallyAccepted(relativePath))) {
                         // Add accepted resource
-                        addAcceptedResource(newResource(relativePath), parentMatchStatus, /* isClassfileOnly = */ false,
-                                subLog);
+                        addAcceptedResource(newResource(relativePath), parentMatchStatus,
+                                /* isClassfileOnly = */ false, subLog);
                     } else if (scanSpec.enableClassInfo && "module-info.class".equals(relativePath)) {
                         // Add module descriptor as an accepted classfile resource, so that it is
                         // scanned,
                         // but don't add it to the list of resources in the ScanResult, since it is not
                         // in an accepted package (#352)
-                        addAcceptedResource(newResource(relativePath), parentMatchStatus, /* isClassfileOnly = */ true,
-                                subLog);
+                        addAcceptedResource(newResource(relativePath), parentMatchStatus,
+                                /* isClassfileOnly = */ true, subLog);
                     }
                 }
             }
@@ -515,8 +521,7 @@ class ClasspathElementModule extends ClasspathElement {
     /**
      * Get the module name from the module reference or the module descriptor.
      *
-     * @return the module name, or the empty string if the module does not have a
-     *         name.
+     * @return the module name, or the empty string if the module does not have a name.
      */
     private String getModuleNameOrEmpty() {
         final var moduleName = getModuleName();
@@ -580,7 +585,8 @@ class ClasspathElementModule extends ClasspathElement {
     /**
      * Equals.
      *
-     * @param obj the obj
+     * @param obj
+     *            the obj
      * @return true, if successful
      */
     /*

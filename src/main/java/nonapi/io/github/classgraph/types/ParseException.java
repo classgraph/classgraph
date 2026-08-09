@@ -39,9 +39,11 @@ public class ParseException extends Exception {
 
     /**
      * A parsing exception.
-     * 
-     * @param parser The parser, or null if there is no parsing context to report.
-     * @param msg    The exception message.
+     *
+     * @param parser
+     *            The parser, or null if there is no parsing context to report.
+     * @param msg
+     *            The exception message.
      */
     public ParseException(final @Nullable Parser parser, final String msg) {
         super(parser == null ? msg : msg + " (" + parser.getPositionInfo() + ")");

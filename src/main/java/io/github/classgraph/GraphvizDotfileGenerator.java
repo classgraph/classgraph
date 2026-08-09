@@ -99,7 +99,8 @@ final class GraphvizDotfileGenerator {
     /**
      * Checks if a character is Unicode whitespace.
      *
-     * @param c the character
+     * @param c
+     *            the character
      * @return true if the character is Unicode whitespace
      */
     private static boolean isUnicodeWhitespace(final char c) {
@@ -109,10 +110,12 @@ final class GraphvizDotfileGenerator {
     /**
      * Encode HTML-unsafe characters as HTML entities.
      *
-     * @param unsafeStr            The string to escape to make HTML-safe.
-     * @param turnNewlineIntoBreak If true, turn '\n' into a break element in the
-     *                             output.
-     * @param buf                  the buffer to append to
+     * @param unsafeStr
+     *            The string to escape to make HTML-safe.
+     * @param turnNewlineIntoBreak
+     *            If true, turn '\n' into a break element in the output.
+     * @param buf
+     *            the buffer to append to
      */
     private static void htmlEncode(final CharSequence unsafeStr, final boolean turnNewlineIntoBreak,
             final StringBuilder buf) {
@@ -161,8 +164,10 @@ final class GraphvizDotfileGenerator {
     /**
      * Encode HTML-unsafe characters as HTML entities.
      *
-     * @param unsafeStr The string to escape to make HTML-safe.
-     * @param buf       the buffer to append to
+     * @param unsafeStr
+     *            The string to escape to make HTML-safe.
+     * @param buf
+     *            the buffer to append to
      */
     private static void htmlEncode(final CharSequence unsafeStr, final StringBuilder buf) {
         htmlEncode(unsafeStr, /* turnNewlineIntoBreak = */ false, buf);
@@ -171,19 +176,26 @@ final class GraphvizDotfileGenerator {
     /**
      * Produce HTML label for class node.
      *
-     * @param ci             the class info
-     * @param shape          the shape to use
-     * @param boxBgColor     the box background color
-     * @param showFields     whether to show fields
-     * @param showMethods    whether to show methods
-     * @param useSimpleNames if true, strip package and outer class names from class
-     *                       names
-     * @param scanSpec       the scan spec
-     * @param buf            the buffer to append to
+     * @param ci
+     *            the class info
+     * @param shape
+     *            the shape to use
+     * @param boxBgColor
+     *            the box background color
+     * @param showFields
+     *            whether to show fields
+     * @param showMethods
+     *            whether to show methods
+     * @param useSimpleNames
+     *            if true, strip package and outer class names from class names
+     * @param scanSpec
+     *            the scan spec
+     * @param buf
+     *            the buffer to append to
      */
     private static void labelClassNodeHTML(final ClassInfo ci, final String shape, final String boxBgColor,
-            final boolean showFields, final boolean showMethods, final boolean useSimpleNames, final ScanSpec scanSpec,
-            final StringBuilder buf) {
+            final boolean showFields, final boolean showMethods, final boolean useSimpleNames,
+            final ScanSpec scanSpec, final StringBuilder buf) {
         buf.append("[shape=").append(shape).append(",style=filled,fillcolor=\"#").append(boxBgColor)
                 .append("\",label=");
         buf.append('<');
@@ -245,8 +257,10 @@ final class GraphvizDotfileGenerator {
                 }
             }
             if (!fieldInfoSorted.isEmpty()) {
-                buf.append("<tr><td colspan='3' bgcolor='").append(darkerColor).append("'><font point-size='12'><b>")
-                        .append(scanSpec.ignoreFieldVisibility ? "" : "PUBLIC ").append("FIELDS</b></font></td></tr>");
+                buf.append("<tr><td colspan='3' bgcolor='").append(darkerColor)
+                        .append("'><font point-size='12'><b>")
+                        .append(scanSpec.ignoreFieldVisibility ? "" : "PUBLIC ")
+                        .append("FIELDS</b></font></td></tr>");
                 buf.append("<tr><td cellpadding='0'>");
                 buf.append("<table border='0' cellborder='0'>");
                 for (final FieldInfo fi : fieldInfoSorted) {
@@ -310,7 +324,8 @@ final class GraphvizDotfileGenerator {
             if (!methodInfoSorted.isEmpty()) {
                 buf.append("<tr><td cellpadding='0'>");
                 buf.append("<table border='0' cellborder='0'>");
-                buf.append("<tr><td colspan='3' bgcolor='").append(darkerColor).append("'><font point-size='12'><b>")
+                buf.append("<tr><td colspan='3' bgcolor='").append(darkerColor)
+                        .append("'><font point-size='12'><b>")
                         .append(scanSpec.ignoreMethodVisibility ? "" : "PUBLIC ")
                         .append("METHODS</b></font></td></tr>");
                 for (final MethodInfo mi : methodInfoSorted) {
@@ -344,7 +359,8 @@ final class GraphvizDotfileGenerator {
                     if (!"<init>".equals(mi.getName())) {
                         // Don't list return type for constructors
                         final var resultTypeSig = mi.getTypeSignatureOrTypeDescriptor().getResultType();
-                        htmlEncode(useSimpleNames ? resultTypeSig.toStringWithSimpleNames() : resultTypeSig.toString(),
+                        htmlEncode(
+                                useSimpleNames ? resultTypeSig.toStringWithSimpleNames() : resultTypeSig.toString(),
                                 buf);
                     } else {
                         buf.append("<b>&lt;constructor&gt;</b>");
@@ -428,30 +444,36 @@ final class GraphvizDotfileGenerator {
     }
 
     /**
-     * Generates a .dot file which can be fed into GraphViz for layout and
-     * visualization of the class graph. The sizeX and sizeY parameters are the
-     * image output size to use (in inches) when GraphViz is asked to render the
+     * Generates a .dot file which can be fed into GraphViz for layout and visualization of the class graph. The
+     * sizeX and sizeY parameters are the image output size to use (in inches) when GraphViz is asked to render the
      * .dot file.
      *
-     * @param classInfoList                 the class info list
-     * @param sizeX                         the size X
-     * @param sizeY                         the size Y
-     * @param showFields                    whether to show fields
-     * @param showFieldTypeDependencyEdges  whether to show field type dependency
-     *                                      edges
-     * @param showMethods                   whether to show methods
-     * @param showMethodTypeDependencyEdges whether to show method type dependency
-     *                                      edges
-     * @param showAnnotations               whether to show annotations
-     * @param useSimpleNames                if true, strip package and outer class
-     *                                      names from class names
-     * @param scanSpec                      the scan spec
+     * @param classInfoList
+     *            the class info list
+     * @param sizeX
+     *            the size X
+     * @param sizeY
+     *            the size Y
+     * @param showFields
+     *            whether to show fields
+     * @param showFieldTypeDependencyEdges
+     *            whether to show field type dependency edges
+     * @param showMethods
+     *            whether to show methods
+     * @param showMethodTypeDependencyEdges
+     *            whether to show method type dependency edges
+     * @param showAnnotations
+     *            whether to show annotations
+     * @param useSimpleNames
+     *            if true, strip package and outer class names from class names
+     * @param scanSpec
+     *            the scan spec
      * @return the string
      */
     static String generateGraphVizDotFile(final ClassInfoList classInfoList, final float sizeX, final float sizeY,
             final boolean showFields, final boolean showFieldTypeDependencyEdges, final boolean showMethods,
-            final boolean showMethodTypeDependencyEdges, final boolean showAnnotations, final boolean useSimpleNames,
-            final ScanSpec scanSpec) {
+            final boolean showMethodTypeDependencyEdges, final boolean showAnnotations,
+            final boolean useSimpleNames, final ScanSpec scanSpec) {
         final var buf = new StringBuilder(1024 * 1024);
         buf.append("digraph {\n");
         buf.append("size=\"").append(sizeX).append(',').append(sizeY).append("\";\n");
@@ -484,7 +506,8 @@ final class GraphvizDotfileGenerator {
 
         for (final ClassInfo node : annotationNodes) {
             buf.append('"').append(node.getName()).append('"');
-            labelClassNodeHTML(node, "oval", ANNOTATION_COLOR, showFields, showMethods, useSimpleNames, scanSpec, buf);
+            labelClassNodeHTML(node, "oval", ANNOTATION_COLOR, showFields, showMethods, useSimpleNames, scanSpec,
+                    buf);
             buf.append(";\n");
         }
 
@@ -580,24 +603,23 @@ final class GraphvizDotfileGenerator {
     }
 
     /**
-     * Generate a .dot file which can be fed into GraphViz for layout and
-     * visualization of the class graph. The returned graph shows inter-class
-     * dependencies only. The sizeX and sizeY parameters are the image output size
-     * to use (in inches) when GraphViz is asked to render the .dot file. You must
-     * have called {@link ClassGraph#enableInterClassDependencies()} before scanning
-     * to use this method.
+     * Generate a .dot file which can be fed into GraphViz for layout and visualization of the class graph. The
+     * returned graph shows inter-class dependencies only. The sizeX and sizeY parameters are the image output size
+     * to use (in inches) when GraphViz is asked to render the .dot file. You must have called
+     * {@link ClassGraph#enableInterClassDependencies()} before scanning to use this method.
      *
-     * @param classInfoList          The list of nodes whose dependencies should be
-     *                               plotted in the graph.
-     * @param sizeX                  The GraphViz layout width in inches.
-     * @param sizeY                  The GraphViz layout height in inches.
-     * @param includeExternalClasses If true, include any dependency nodes in the
-     *                               graph that are not themselves in classInfoList.
+     * @param classInfoList
+     *            The list of nodes whose dependencies should be plotted in the graph.
+     * @param sizeX
+     *            The GraphViz layout width in inches.
+     * @param sizeY
+     *            The GraphViz layout height in inches.
+     * @param includeExternalClasses
+     *            If true, include any dependency nodes in the graph that are not themselves in classInfoList.
      * @return the GraphViz file contents.
-     * @throws IllegalStateException if
-     *                               {@link ClassGraph#enableInterClassDependencies()}
-     *                               was not called before scanning (since there
-     *                               would be nothing to graph).
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableInterClassDependencies()} was not called before scanning (since there
+     *             would be nothing to graph).
      */
     static String generateGraphVizDotFileFromInterClassDependencies(final ClassInfoList classInfoList,
             final float sizeX, final float sizeY, final boolean includeExternalClasses) {

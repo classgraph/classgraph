@@ -38,17 +38,15 @@ import java.util.concurrent.Callable;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Standard reflection driver (uses
- * {@link AccessibleObject#setAccessible(boolean)} to access non-public fields
- * if necessary).
+ * Standard reflection driver (uses {@link AccessibleObject#setAccessible(boolean)} to access non-public fields if
+ * necessary).
  */
 class StandardReflectionDriver extends ReflectionDriver {
     /** {@code java.security.PrivilegedAction}, or null if it is not available. */
     private static @Nullable Class<?> privilegedActionClass;
 
     /**
-     * {@code AccessController#doPrivileged(PrivilegedAction)}, or null if it is not
-     * available.
+     * {@code AccessController#doPrivileged(PrivilegedAction)}, or null if it is not available.
      */
     private static @Nullable Method accessControllerDoPrivileged;
 
@@ -72,13 +70,16 @@ class StandardReflectionDriver extends ReflectionDriver {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Call a method in the AccessController.doPrivileged(PrivilegedAction) context,
-     * using reflection, if possible (AccessController is deprecated in JDK 17).
+     * Call a method in the AccessController.doPrivileged(PrivilegedAction) context, using reflection, if possible
+     * (AccessController is deprecated in JDK 17).
      *
-     * @param <T>      the return type of the callable
-     * @param callable the code to call in a privileged context
+     * @param <T>
+     *            the return type of the callable
+     * @param callable
+     *            the code to call in a privileged context
      * @return the value returned by the callable
-     * @throws Throwable if the callable threw
+     * @throws Throwable
+     *             if the callable threw
      */
     @SuppressWarnings("unchecked")
     private <T> T doPrivileged(final Callable<T> callable) throws Throwable {
@@ -95,10 +96,11 @@ class StandardReflectionDriver extends ReflectionDriver {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Try to make a field, method or constructor accessible, without throwing an
-     * exception if this is not permitted.
+     * Try to make a field, method or constructor accessible, without throwing an exception if this is not
+     * permitted.
      *
-     * @param obj the field, method or constructor
+     * @param obj
+     *            the field, method or constructor
      * @return true if the object was made accessible
      */
     private static boolean tryMakeAccessible(final AccessibleObject obj) {

@@ -42,9 +42,8 @@ import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Helper methods for calling {@link ModuleReader}, which convert its
- * {@link Optional} and {@link Stream} return values into plain values, and wrap
- * the checked {@link IOException} thrown by each of its methods in an unchecked
+ * Helper methods for calling {@link ModuleReader}, which convert its {@link Optional} and {@link Stream} return
+ * values into plain values, and wrap the checked {@link IOException} thrown by each of its methods in an unchecked
  * exception.
  */
 public final class ModuleReaderUtils {
@@ -54,27 +53,28 @@ public final class ModuleReaderUtils {
     }
 
     /**
-     * Get the list of resources accessible to a {@link ModuleReader}, logging to the
-     * given {@link LogNode} if the {@code ModuleReader} does not honour its
-     * contract.
+     * Get the list of resources accessible to a {@link ModuleReader}, logging to the given {@link LogNode} if the
+     * {@code ModuleReader} does not honour its contract.
      *
-     * From the documentation for ModuleReader#list(): "Whether the stream of
-     * elements includes names corresponding to directories in the module is module
-     * reader specific. In lazy implementations then an IOException may be thrown
-     * when using the stream to list the module contents. If this occurs then the
-     * IOException will be wrapped in an java.io.UncheckedIOException and thrown
-     * from the method that caused the access to be attempted. SecurityException may
-     * also be thrown when using the stream to list the module contents and access
-     * is denied by the security manager."
+     * From the documentation for ModuleReader#list(): "Whether the stream of elements includes names corresponding
+     * to directories in the module is module reader specific. In lazy implementations then an IOException may be
+     * thrown when using the stream to list the module contents. If this occurs then the IOException will be wrapped
+     * in an java.io.UncheckedIOException and thrown from the method that caused the access to be attempted.
+     * SecurityException may also be thrown when using the stream to list the module contents and access is denied
+     * by the security manager."
      *
-     * @param moduleReader the module reader.
-     * @param moduleName   the name of the module being read, for error messages.
-     * @param log          the log, or null for no logging.
+     * @param moduleReader
+     *            the module reader.
+     * @param moduleName
+     *            the name of the module being read, for error messages.
+     * @param log
+     *            the log, or null for no logging.
      * @return A list of the paths of resources in the module.
-     * @throws SecurityException If the module cannot be accessed.
+     * @throws SecurityException
+     *             If the module cannot be accessed.
      */
-    public static List<String> list(final ModuleReader moduleReader, final String moduleName, final @Nullable LogNode log)
-            throws SecurityException {
+    public static List<String> list(final ModuleReader moduleReader, final String moduleName,
+            final @Nullable LogNode log) throws SecurityException {
         final Stream<String> resourcesStream;
         try {
             resourcesStream = moduleReader.list();
@@ -95,7 +95,8 @@ public final class ModuleReaderUtils {
             if (log != null) {
                 log.log("ModuleReader#list() returned null for module " + moduleName
                         + ", which its contract does not permit -- this is a bug in the ModuleReader "
-                        + "implementation " + moduleReader.getClass().getName() + " -- treating the module as empty");
+                        + "implementation " + moduleReader.getClass().getName()
+                        + " -- treating the module as empty");
             }
             return List.of();
         }
@@ -106,14 +107,17 @@ public final class ModuleReaderUtils {
     }
 
     /**
-     * Use a {@link ModuleReader} to open the named resource as an
-     * {@link InputStream}.
+     * Use a {@link ModuleReader} to open the named resource as an {@link InputStream}.
      *
-     * @param moduleReader the module reader.
-     * @param path         The path to the resource to open.
+     * @param moduleReader
+     *            the module reader.
+     * @param path
+     *            The path to the resource to open.
      * @return An {@link InputStream} for the content of the resource.
-     * @throws SecurityException        If the module cannot be accessed.
-     * @throws IllegalArgumentException If the module cannot be accessed.
+     * @throws SecurityException
+     *             If the module cannot be accessed.
+     * @throws IllegalArgumentException
+     *             If the module cannot be accessed.
      */
     public static InputStream open(final ModuleReader moduleReader, final String path) throws SecurityException {
         final Optional<InputStream> optionalInputStream;
@@ -133,16 +137,18 @@ public final class ModuleReaderUtils {
     }
 
     /**
-     * Use a {@link ModuleReader} to open the named resource as a {@link ByteBuffer}.
-     * Call {@link ModuleReader#release(ByteBuffer)} when you have finished with the
-     * {@link ByteBuffer}.
+     * Use a {@link ModuleReader} to open the named resource as a {@link ByteBuffer}. Call
+     * {@link ModuleReader#release(ByteBuffer)} when you have finished with the {@link ByteBuffer}.
      *
-     * @param moduleReader the module reader.
-     * @param path         The path to the resource to open.
+     * @param moduleReader
+     *            the module reader.
+     * @param path
+     *            The path to the resource to open.
      * @return A {@link ByteBuffer} for the content of the resource.
-     * @throws SecurityException If the module cannot be accessed.
-     * @throws OutOfMemoryError  if the resource is larger than 2GB, the maximum
-     *                           capacity of a byte buffer.
+     * @throws SecurityException
+     *             If the module cannot be accessed.
+     * @throws OutOfMemoryError
+     *             if the resource is larger than 2GB, the maximum capacity of a byte buffer.
      */
     public static ByteBuffer read(final ModuleReader moduleReader, final String path)
             throws SecurityException, OutOfMemoryError {
@@ -163,13 +169,16 @@ public final class ModuleReaderUtils {
     }
 
     /**
-     * Use a {@link ModuleReader} to test whether the module contains the named
-     * resource, without listing the contents of the module.
+     * Use a {@link ModuleReader} to test whether the module contains the named resource, without listing the
+     * contents of the module.
      *
-     * @param moduleReader the module reader.
-     * @param path         The path to the resource to look for.
+     * @param moduleReader
+     *            the module reader.
+     * @param path
+     *            The path to the resource to look for.
      * @return true if the module contains the named resource.
-     * @throws SecurityException If the module cannot be accessed.
+     * @throws SecurityException
+     *             If the module cannot be accessed.
      */
     public static boolean contains(final ModuleReader moduleReader, final String path) throws SecurityException {
         final Optional<URI> optionalURI;
@@ -184,10 +193,13 @@ public final class ModuleReaderUtils {
     /**
      * Use a {@link ModuleReader} to find the named resource as a {@link URI}.
      *
-     * @param moduleReader the module reader.
-     * @param path         The path to the resource to open.
+     * @param moduleReader
+     *            the module reader.
+     * @param path
+     *            The path to the resource to open.
      * @return A {@link URI} for the resource.
-     * @throws SecurityException If the module cannot be accessed.
+     * @throws SecurityException
+     *             If the module cannot be accessed.
      */
     public static URI find(final ModuleReader moduleReader, final String path) throws SecurityException {
         final Optional<URI> optionalURI;

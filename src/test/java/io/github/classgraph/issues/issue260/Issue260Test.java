@@ -37,8 +37,8 @@ import io.github.classgraph.ClassGraph;
 public class Issue260Test {
     @Test
     public void issue260Test() {
-        try (var scanResult = new ClassGraph().acceptPackages(Issue260Test.class.getPackage().getName()).enableAllInfo()
-                .scan()) {
+        try (var scanResult = new ClassGraph().acceptPackages(Issue260Test.class.getPackage().getName())
+                .enableAllInfo().scan()) {
             // Should be no exception here
             assertThat(true).isTrue();
         }

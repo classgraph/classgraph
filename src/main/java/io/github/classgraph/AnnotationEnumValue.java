@@ -31,8 +31,8 @@ package io.github.classgraph;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Class for wrapping an enum constant value (split into class name and constant
- * name), as used as an annotation parameter value.
+ * Class for wrapping an enum constant value (split into class name and constant name), as used as an annotation
+ * parameter value.
  */
 public class AnnotationEnumValue extends ScanResultObject implements Comparable<AnnotationEnumValue> {
     /** The class name. */
@@ -44,8 +44,10 @@ public class AnnotationEnumValue extends ScanResultObject implements Comparable<
     /**
      * Constructor.
      *
-     * @param className      The enum class name.
-     * @param constValueName The enum const value name.
+     * @param className
+     *            The enum class name.
+     * @param constValueName
+     *            The enum const value name.
      */
     AnnotationEnumValue(final String className, final String constValueName) {
         super();
@@ -77,8 +79,8 @@ public class AnnotationEnumValue extends ScanResultObject implements Comparable<
     /**
      * Get the name.
      *
-     * @return The fully-qualified name of the enum constant value, i.e.
-     *         {@link #getClassName()} + {@code "."} + {@link #getValueName()}.
+     * @return The fully-qualified name of the enum constant value, i.e. {@link #getClassName()} + {@code "."} +
+     *         {@link #getValueName()}.
      */
     public String getName() {
         return className + "." + valueName;

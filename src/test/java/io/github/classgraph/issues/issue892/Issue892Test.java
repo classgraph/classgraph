@@ -19,21 +19,18 @@ import org.junit.jupiter.api.Test;
 import io.github.classgraph.ClassGraph;
 
 /**
- * Some classloaders do not expose their classpath through any of the field or
- * method names that {@code FallbackClassLoaderHandler} knows about, but they
- * can still enumerate the resources they serve. Ask such a classloader for
- * resources that are present in the root of most classpath elements, and strip
- * the resource path from the returned URLs to recover the classpath elements.
+ * Some classloaders do not expose their classpath through any of the field or method names that
+ * {@code FallbackClassLoaderHandler} knows about, but they can still enumerate the resources they serve. Ask such a
+ * classloader for resources that are present in the root of most classpath elements, and strip the resource path
+ * from the returned URLs to recover the classpath elements.
  */
 class Issue892Test {
     /**
-     * A classloader that exposes its classpath only through
-     * {@link ClassLoader#getResources(String)}.
+     * A classloader that exposes its classpath only through {@link ClassLoader#getResources(String)}.
      */
     private static class OpaqueClassLoader extends ClassLoader implements Closeable {
         /**
-         * The field name is not one of the names probed by
-         * {@code FallbackClassLoaderHandler}.
+         * The field name is not one of the names probed by {@code FallbackClassLoaderHandler}.
          */
         private final URLClassLoader resourceSource;
 
@@ -86,8 +83,7 @@ class Issue892Test {
     }
 
     /**
-     * A classpath element is found even if the classloader only exposes it through
-     * {@code getResources()}.
+     * A classpath element is found even if the classloader only exposes it through {@code getResources()}.
      */
     @Test
     void classpathElementIsFoundByProbingForResources() throws IOException {

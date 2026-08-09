@@ -63,14 +63,22 @@ public class MethodInfoTest {
     /**
      * Public method with args.
      *
-     * @param str     the str
-     * @param c       the c
-     * @param j       the j
-     * @param f       the f
-     * @param b       the b
-     * @param l       the l
-     * @param xArray  the x array
-     * @param varargs the varargs
+     * @param str
+     *            the str
+     * @param c
+     *            the c
+     * @param j
+     *            the j
+     * @param f
+     *            the f
+     * @param b
+     *            the b
+     * @param l
+     *            the l
+     * @param xArray
+     *            the x array
+     * @param varargs
+     *            the varargs
      * @return the int
      */
     @ExternalAnnotation

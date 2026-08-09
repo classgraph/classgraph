@@ -41,8 +41,7 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
 /**
- * An annotation that is reachable in more than one way should be reported from
- * the most direct of those ways.
+ * An annotation that is reachable in more than one way should be reported from the most direct of those ways.
  */
 public class Issue559Test {
     /** An annotation that annotates itself, so that it is its own meta-annotation. */
@@ -91,7 +90,8 @@ public class Issue559Test {
     }
 
     /**
-     * @param annotationInfo an annotation
+     * @param annotationInfo
+     *            an annotation
      * @return the annotation's {@code value} parameter
      */
     private static String value(final AnnotationInfo annotationInfo) {

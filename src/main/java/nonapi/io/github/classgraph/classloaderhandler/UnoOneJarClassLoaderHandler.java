@@ -36,8 +36,7 @@ import nonapi.io.github.classgraph.utils.VersionFinder;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Extract classpath entries from the Uno-Jar's JarClassLoader and One-Jar's
- * JarClassLoader.
+ * Extract classpath entries from the Uno-Jar's JarClassLoader and One-Jar's JarClassLoader.
  */
 class UnoOneJarClassLoaderHandler implements ClassLoaderHandler {
     /** Constructor. */
@@ -46,10 +45,8 @@ class UnoOneJarClassLoaderHandler implements ClassLoaderHandler {
 
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
-        return classIsOrExtendsOrImplements(classLoaderClass,
-                "com.needhamsoftware.unojar.JarClassLoader")
-                || classIsOrExtendsOrImplements(classLoaderClass,
-                        "com.simontuffs.onejar.JarClassLoader");
+        return classIsOrExtendsOrImplements(classLoaderClass, "com.needhamsoftware.unojar.JarClassLoader")
+                || classIsOrExtendsOrImplements(classLoaderClass, "com.simontuffs.onejar.JarClassLoader");
     }
 
     @Override
@@ -105,12 +102,10 @@ class UnoOneJarClassLoaderHandler implements ClassLoaderHandler {
     }
 
     /**
-     * Get the automatic package root prefixes for classpath elements obtained from
-     * this classloader.
+     * Get the automatic package root prefixes for classpath elements obtained from this classloader.
      *
      * <p>
-     * Classpath elements from this classloader may be Spring-Boot executable jars
-     * or wars.
+     * Classpath elements from this classloader may be Spring-Boot executable jars or wars.
      *
      * @return the package root prefixes.
      */

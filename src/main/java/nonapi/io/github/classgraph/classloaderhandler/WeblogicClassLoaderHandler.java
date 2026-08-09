@@ -42,19 +42,15 @@ class WeblogicClassLoaderHandler implements ClassLoaderHandler {
 
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
-        return classIsOrExtendsOrImplements(classLoaderClass,
-                "weblogic.utils.classloaders.ChangeAwareClassLoader")
-                || classIsOrExtendsOrImplements(classLoaderClass,
-                        "weblogic.utils.classloaders.GenericClassLoader")
+        return classIsOrExtendsOrImplements(classLoaderClass, "weblogic.utils.classloaders.ChangeAwareClassLoader")
+                || classIsOrExtendsOrImplements(classLoaderClass, "weblogic.utils.classloaders.GenericClassLoader")
                 || classIsOrExtendsOrImplements(classLoaderClass,
                         "weblogic.utils.classloaders.FilteringClassLoader")
                 // TODO: The following two known classloader names have not been tested, and the
                 // fields/methods
                 // may not match those of the above classloaders.
-                || classIsOrExtendsOrImplements(classLoaderClass,
-                        "weblogic.servlet.jsp.JspClassLoader")
-                || classIsOrExtendsOrImplements(classLoaderClass,
-                        "weblogic.servlet.jsp.TagFileClassLoader");
+                || classIsOrExtendsOrImplements(classLoaderClass, "weblogic.servlet.jsp.JspClassLoader")
+                || classIsOrExtendsOrImplements(classLoaderClass, "weblogic.servlet.jsp.TagFileClassLoader");
     }
 
     @Override
@@ -71,17 +67,15 @@ class WeblogicClassLoaderHandler implements ClassLoaderHandler {
                 (String) classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getFinderClassPath"),
                 classLoader, scanSpec, log);
         classpathOrder.addClasspathPathStr( //
-                (String) classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getClassPath"), classLoader,
-                scanSpec, log);
+                (String) classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getClassPath"),
+                classLoader, scanSpec, log);
     }
 
     /**
-     * Get the automatic package root prefixes for classpath elements obtained from
-     * this classloader.
+     * Get the automatic package root prefixes for classpath elements obtained from this classloader.
      *
      * <p>
-     * Classpath elements from this classloader may be Spring-Boot executable jars
-     * or wars.
+     * Classpath elements from this classloader may be Spring-Boot executable jars or wars.
      *
      * @return the package root prefixes.
      */

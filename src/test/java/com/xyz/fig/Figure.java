@@ -15,7 +15,8 @@ public class Figure implements Drawable {
     /**
      * Adds the shape.
      *
-     * @param shape the shape
+     * @param shape
+     *            the shape
      */
     public void addShape(final Shape shape) {
         sceneGraph.addShape(shape);

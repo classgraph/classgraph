@@ -1,8 +1,7 @@
 package io.github.classgraph.issues.issue772;
 
 /**
- * Test case A for selecting the 'Close' method of Child. Rather simple case of
- * symmetrical extending classes.
+ * Test case A for selecting the 'Close' method of Child. Rather simple case of symmetrical extending classes.
  */
 public abstract class ExampleA implements AutoCloseable {
 

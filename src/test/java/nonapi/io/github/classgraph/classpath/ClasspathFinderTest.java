@@ -22,8 +22,7 @@ import nonapi.io.github.classgraph.utils.LogNode;
 public class ClasspathFinderTest {
 
     /**
-     * Test that {@link ScanSpec#enableSystemJarsAndModules},
-     * {@link ScanSpec#ignoreParentClassLoaders}, and
+     * Test that {@link ScanSpec#enableSystemJarsAndModules}, {@link ScanSpec#ignoreParentClassLoaders}, and
      * {@link ScanSpec#overrideClasspath} work in combination:
      * <p>
      * Only the system modules and the override classpath should be found.
@@ -54,8 +53,7 @@ public class ClasspathFinderTest {
     }
 
     /**
-     * Test that {@link ScanSpec#enableSystemJarsAndModules},
-     * {@link ScanSpec#ignoreParentClassLoaders}, and
+     * Test that {@link ScanSpec#enableSystemJarsAndModules}, {@link ScanSpec#ignoreParentClassLoaders}, and
      * {@link ScanSpec#overrideClassLoaders} work in combination:
      * <p>
      * Only the system modules and the override classloaders should be found.
@@ -86,11 +84,12 @@ public class ClasspathFinderTest {
     }
 
     /**
-     * The directory or jar this test class was loaded from, which is on
-     * {@code java.class.path}, and is loaded by the application classloader.
+     * The directory or jar this test class was loaded from, which is on {@code java.class.path}, and is loaded by
+     * the application classloader.
      *
      * @return the path of the classpath element containing this test class.
-     * @throws Exception if the location could not be determined.
+     * @throws Exception
+     *             if the location could not be determined.
      */
     private static Path testClasspathElement() throws Exception {
         return Path.of(ClasspathFinderTest.class.getProtectionDomain().getCodeSource().getLocation().toURI())
@@ -100,7 +99,8 @@ public class ClasspathFinderTest {
     /**
      * Get the resolved classpath element paths found by a {@link ClasspathFinder}.
      *
-     * @param classpathFinder the classpath finder.
+     * @param classpathFinder
+     *            the classpath finder.
      * @return the resolved paths.
      */
     private static Set<Path> resolvedPaths(final ClasspathFinder classpathFinder) {
@@ -112,9 +112,9 @@ public class ClasspathFinderTest {
     }
 
     /**
-     * The application classloader does not expose the locations it loads from, so
-     * passing it to {@code overrideClassLoaders()} must scan the two things it does
-     * load from: the {@code java.class.path} classpath, and the non-system modules.
+     * The application classloader does not expose the locations it loads from, so passing it to
+     * {@code overrideClassLoaders()} must scan the two things it does load from: the {@code java.class.path}
+     * classpath, and the non-system modules.
      */
     @Test
     public void applicationClassLoaderOverrideScansClasspathAndNonSystemModules() throws Exception {
@@ -131,9 +131,8 @@ public class ClasspathFinderTest {
     }
 
     /**
-     * The platform classloader loads only system modules, so passing it to
-     * {@code overrideClassLoaders()} must scan the system modules, and must not
-     * scan the {@code java.class.path} classpath, which the platform classloader
+     * The platform classloader loads only system modules, so passing it to {@code overrideClassLoaders()} must scan
+     * the system modules, and must not scan the {@code java.class.path} classpath, which the platform classloader
      * cannot load from.
      */
     @Test
@@ -152,9 +151,8 @@ public class ClasspathFinderTest {
     }
 
     /**
-     * The platform classloader is mapped to the scanning mechanism that can reach
-     * its classes whether it is passed to {@code overrideClassLoaders()} or to
-     * {@code addClassLoader()}.
+     * The platform classloader is mapped to the scanning mechanism that can reach its classes whether it is passed
+     * to {@code overrideClassLoaders()} or to {@code addClassLoader()}.
      */
     @Test
     public void addedPlatformClassLoaderEnablesSystemJarsAndModules() {

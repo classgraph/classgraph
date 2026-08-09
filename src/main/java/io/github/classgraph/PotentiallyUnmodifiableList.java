@@ -37,7 +37,8 @@ import java.util.ListIterator;
 /**
  * A potentially unmodifiable list of objects.
  *
- * @param <T> the element type
+ * @param <T>
+ *            the element type
  */
 class PotentiallyUnmodifiableList<T> extends ArrayList<T> {
     /** serialVersionUID. */
@@ -57,7 +58,8 @@ class PotentiallyUnmodifiableList<T> extends ArrayList<T> {
     /**
      * Constructor.
      *
-     * @param sizeHint the expected number of elements
+     * @param sizeHint
+     *            the expected number of elements
      */
     PotentiallyUnmodifiableList(final int sizeHint) {
         super(sizeHint);
@@ -66,7 +68,8 @@ class PotentiallyUnmodifiableList<T> extends ArrayList<T> {
     /**
      * Constructor.
      *
-     * @param collection the initial elements.
+     * @param collection
+     *            the initial elements.
      */
     PotentiallyUnmodifiableList(final Collection<T> collection) {
         super(collection);

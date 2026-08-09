@@ -29,8 +29,8 @@
 package nonapi.io.github.classgraph.recycler;
 
 /**
- * An interface for recycleable objects that need to be reset when
- * {@link RecycleOnClose#close()} is called to recycle the object.
+ * An interface for recycleable objects that need to be reset when {@link RecycleOnClose#close()} is called to
+ * recycle the object.
  */
 public interface Resettable {
     /** Reset a recycleable object (called when the object is recycled). */

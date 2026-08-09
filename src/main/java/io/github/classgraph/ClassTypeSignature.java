@@ -44,8 +44,7 @@ import nonapi.io.github.classgraph.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A class type signature (called "ClassSignature" in the classfile
- * documentation).
+ * A class type signature (called "ClassSignature" in the classfile documentation).
  */
 public final class ClassTypeSignature extends HierarchicalTypeSignature {
 
@@ -62,9 +61,8 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
     private final List<ClassRefTypeSignature> superinterfaceSignatures;
 
     /**
-     * The throws signatures (usually null). These are only present in Scala
-     * classes, if the class is marked up with {@code @throws}, and they violate the
-     * classfile spec, but we parse them anyway.
+     * The throws signatures (usually null). These are only present in Scala classes, if the class is marked up with
+     * {@code @throws}, and they violate the classfile spec, but we parse them anyway.
      */
     // #495
     private final @Nullable List<ClassRefOrTypeVariableSignature> throwsSignatures;
@@ -74,13 +72,16 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
     /**
      * Constructor.
      *
-     * @param classInfo                the {@link ClassInfo} object of the class.
-     * @param typeParameters           The class type parameters.
-     * @param superclassSignature      The superclass signature.
-     * @param superinterfaceSignatures The superinterface signature(s).
-     * @param throwsSignatures         the throws signatures (these are actually
-     *                                 invalid, but can be added by Scala).
-     *                                 Usually null.
+     * @param classInfo
+     *            the {@link ClassInfo} object of the class.
+     * @param typeParameters
+     *            The class type parameters.
+     * @param superclassSignature
+     *            The superclass signature.
+     * @param superinterfaceSignatures
+     *            The superinterface signature(s).
+     * @param throwsSignatures
+     *            the throws signatures (these are actually invalid, but can be added by Scala). Usually null.
      */
     // #495
     private ClassTypeSignature(final ClassInfo classInfo, final List<TypeParameter> typeParameters,
@@ -98,9 +99,12 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
     /**
      * Constructor used to create synthetic class type descriptor.
      *
-     * @param classInfo  The class.
-     * @param superclass The superclass.
-     * @param interfaces The implemented interfaces.
+     * @param classInfo
+     *            The class.
+     * @param superclass
+     *            The superclass.
+     * @param interfaces
+     *            The implemented interfaces.
      */
     // #662
     ClassTypeSignature(final ClassInfo classInfo, final @Nullable ClassInfo superclass,
@@ -111,8 +115,8 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
         ClassRefTypeSignature superclassSignature = null;
         try {
             superclassSignature = superclass == null ? null
-                    : (ClassRefTypeSignature) TypeSignature.parse("L" + superclass.getName().replace('.', '/') + ";",
-                            classInfo.getName());
+                    : (ClassRefTypeSignature) TypeSignature
+                            .parse("L" + superclass.getName().replace('.', '/') + ";", classInfo.getName());
         } catch (final ParseException e) {
             // Silently fail (should not happen)
         }
@@ -145,11 +149,10 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
     }
 
     /**
-     * Get the type signature for the superclass (possibly null in the case of
-     * {@link java.lang.Object}, since it doesn't have a superclass).
+     * Get the type signature for the superclass (possibly null in the case of {@link java.lang.Object}, since it
+     * doesn't have a superclass).
      *
-     * @return The type signature for the superclass, or null if no superclass (i.e.
-     *         for {@link java.lang.Object}).
+     * @return The type signature for the superclass, or null if no superclass (i.e. for {@link java.lang.Object}).
      */
     public @Nullable ClassRefTypeSignature getSuperclassSignature() {
         return superclassSignature;
@@ -165,9 +168,8 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
     }
 
     /**
-     * Gets the throws signatures. These are invalid according to the classfile spec
-     * (so this method is currently non-public), but may be added by the Scala
-     * compiler.
+     * Gets the throws signatures. These are invalid according to the classfile spec (so this method is currently
+     * non-public), but may be added by the Scala compiler.
      *
      * @return the throws signatures
      */
@@ -181,7 +183,8 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
     void addTypeAnnotation(final List<TypePathNode> typePath, final AnnotationInfo annotationInfo) {
         // Individual parts of a class' type each have their own addTypeAnnotation
         // methods
-        throw new UnsupportedOperationException("Cannot call this method on " + ClassTypeSignature.class.getSimpleName());
+        throw new UnsupportedOperationException(
+                "Cannot call this method on " + ClassTypeSignature.class.getSimpleName());
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -235,7 +238,8 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
     /**
      * Get the names of any classes referenced in the type signature.
      *
-     * @param refdClassNames the referenced class names.
+     * @param refdClassNames
+     *            the referenced class names.
      */
     protected void findReferencedClassNames(final Set<String> refdClassNames) {
         for (final TypeParameter typeParameter : typeParameters) {
@@ -259,11 +263,12 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
     }
 
     /**
-     * Get {@link ClassInfo} objects for any classes referenced in the type
-     * descriptor or type signature.
+     * Get {@link ClassInfo} objects for any classes referenced in the type descriptor or type signature.
      *
-     * @param classNameToClassInfo the map from class name to {@link ClassInfo}.
-     * @param refdClassInfo        the referenced class info
+     * @param classNameToClassInfo
+     *            the map from class name to {@link ClassInfo}.
+     * @param refdClassInfo
+     *            the referenced class info
      */
     @Override
     void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
@@ -313,13 +318,18 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
     /**
      * Render into String form.
      *
-     * @param className      The class name
-     * @param useSimpleNames if true, strip package and outer class names from class
-     *                       names
-     * @param modifiers      The class modifiers.
-     * @param isAnnotation   True if the class is an annotation.
-     * @param isInterface    True if the class is an interface.
-     * @param buf            the buffer to append to
+     * @param className
+     *            The class name
+     * @param useSimpleNames
+     *            if true, strip package and outer class names from class names
+     * @param modifiers
+     *            The class modifiers.
+     * @param isAnnotation
+     *            True if the class is an annotation.
+     * @param isInterface
+     *            True if the class is an interface.
+     * @param buf
+     *            the buffer to append to
      */
     void toStringInternal(final String className, final boolean useSimpleNames, final int modifiers,
             final boolean isAnnotation, final boolean isInterface, final StringBuilder buf) {
@@ -341,8 +351,8 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
         if (!buf.isEmpty()) {
             buf.append(' ');
         }
-        buf.append(
-                isAnnotation ? "@interface" : isInterface ? "interface" : (modifiers & 0x4000) != 0 ? "enum" : "class");
+        buf.append(isAnnotation ? "@interface"
+                : isInterface ? "interface" : (modifiers & 0x4000) != 0 ? "enum" : "class");
         buf.append(' ');
         if (className != null) {
             buf.append(useSimpleNames ? ClassInfo.getSimpleName(className) : className);
@@ -381,15 +391,16 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
     /**
      * To string internal.
      *
-     * @param useSimpleNames       if true, strip package and outer class names from
-     *                             class names
-     * @param annotationsToExclude the annotations to exclude
-     * @param buf                  the buffer to append to
+     * @param useSimpleNames
+     *            if true, strip package and outer class names from class names
+     * @param annotationsToExclude
+     *            the annotations to exclude
+     * @param buf
+     *            the buffer to append to
      */
     @Override
     protected void toStringInternal(final boolean useSimpleNames,
-            final @Nullable AnnotationInfoList annotationsToExclude,
-            final StringBuilder buf) {
+            final @Nullable AnnotationInfoList annotationsToExclude, final StringBuilder buf) {
         toStringInternal(classInfo.getName(), useSimpleNames, classInfo.getModifiers(), classInfo.isAnnotation(),
                 classInfo.isInterface(), buf);
     }
@@ -399,11 +410,13 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
     /**
      * Parse a class type signature or class type descriptor.
      *
-     * @param typeDescriptor The class type signature or class type descriptor to
-     *                       parse.
-     * @param classInfo      the class info
+     * @param typeDescriptor
+     *            The class type signature or class type descriptor to parse.
+     * @param classInfo
+     *            the class info
      * @return The parsed class type signature or class type descriptor.
-     * @throws ParseException If the class type signature could not be parsed.
+     * @throws ParseException
+     *             If the class type signature could not be parsed.
      */
     static ClassTypeSignature parse(final String typeDescriptor, final ClassInfo classInfo) throws ParseException {
         final Parser parser = new Parser(typeDescriptor);

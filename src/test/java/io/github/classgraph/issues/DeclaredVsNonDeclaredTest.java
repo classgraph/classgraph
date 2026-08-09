@@ -73,9 +73,12 @@ public class DeclaredVsNonDeclaredTest {
     /**
      * Compare results.
      *
-     * @param superClassInfo   the superclass info
-     * @param subClassInfo     the subclass info
-     * @param ignoreVisibility whether or not to ignore method and field visibility
+     * @param superClassInfo
+     *            the superclass info
+     * @param subClassInfo
+     *            the subclass info
+     * @param ignoreVisibility
+     *            whether or not to ignore method and field visibility
      */
     private void compareResults(final ClassInfo superClassInfo, final ClassInfo subClassInfo,
             final boolean ignoreVisibility) {
@@ -107,11 +110,10 @@ public class DeclaredVsNonDeclaredTest {
 
         // Non-"declared" methods, subclass
 
-        assertThat(getClassGraphMethodNames.apply(subClassInfo))
-                .containsExactlyInAnyOrder(ignoreVisibility
-                        ? new String[] { "publicSuperClassMethod", "publicSubClassMethod", "privateSuperClassMethod",
-                                "privateSubClassMethod" }
-                        : new String[] { "publicSuperClassMethod", "publicSubClassMethod" });
+        assertThat(getClassGraphMethodNames.apply(subClassInfo)).containsExactlyInAnyOrder(ignoreVisibility
+                ? new String[] { "publicSuperClassMethod", "publicSubClassMethod", "privateSuperClassMethod",
+                        "privateSubClassMethod" }
+                : new String[] { "publicSuperClassMethod", "publicSubClassMethod" });
         assertThat(getClassMethodNames.apply(SubClass.class)).containsExactlyInAnyOrder("publicSuperClassMethod",
                 "publicSubClassMethod");
 
@@ -128,13 +130,13 @@ public class DeclaredVsNonDeclaredTest {
         assertThat(getClassGraphDeclaredMethodNames.apply(subClassInfo)).containsExactlyInAnyOrder(
                 ignoreVisibility ? new String[] { "publicSubClassMethod", "privateSubClassMethod" }
                         : new String[] { "publicSubClassMethod" });
-        assertThat(getClassDeclaredMethodNames.apply(SubClass.class)).containsExactlyInAnyOrder("publicSubClassMethod",
-                "privateSubClassMethod");
+        assertThat(getClassDeclaredMethodNames.apply(SubClass.class))
+                .containsExactlyInAnyOrder("publicSubClassMethod", "privateSubClassMethod");
 
         // FIELDS
 
-        final Function<ClassInfo, List<String>> getClassGraphFieldNames = classInfo -> classInfo.getFieldInfo().stream()
-                .map(FieldInfo::getName).toList();
+        final Function<ClassInfo, List<String>> getClassGraphFieldNames = classInfo -> classInfo.getFieldInfo()
+                .stream().map(FieldInfo::getName).toList();
 
         final Function<ClassInfo, List<String>> getClassGraphDeclaredFieldNames = classInfo -> classInfo
                 .getDeclaredFieldInfo().stream().map(FieldInfo::getName).toList();
@@ -175,15 +177,13 @@ public class DeclaredVsNonDeclaredTest {
         assertThat(getClassGraphDeclaredFieldNames.apply(subClassInfo)).containsExactlyInAnyOrder(
                 ignoreVisibility ? new String[] { "publicSubClassField", "privateSubClassField" }
                         : new String[] { "publicSubClassField" });
-        assertThat(getClassDeclaredFieldNames.apply(SubClass.class)).containsExactlyInAnyOrder("publicSubClassField",
-                "privateSubClassField");
+        assertThat(getClassDeclaredFieldNames.apply(SubClass.class))
+                .containsExactlyInAnyOrder("publicSubClassField", "privateSubClassField");
     }
 
     /**
-     * Test ClassGraph's "declared" vs. non-"declared" method/field retrieval
-     * against the Java reflection API, without calling
-     * {@link ClassGraph#ignoreMethodVisibility()} or
-     * {@link ClassGraph#ignoreFieldVisibility()}.
+     * Test ClassGraph's "declared" vs. non-"declared" method/field retrieval against the Java reflection API,
+     * without calling {@link ClassGraph#ignoreMethodVisibility()} or {@link ClassGraph#ignoreFieldVisibility()}.
      */
     @Test
     public void publicDeclaredVsNonDeclared() {
@@ -198,10 +198,8 @@ public class DeclaredVsNonDeclaredTest {
     }
 
     /**
-     * Test ClassGraph's "declared" vs. non-"declared" method/field retrieval
-     * against the Java reflection API, without calling
-     * {@link ClassGraph#ignoreMethodVisibility()} or
-     * {@link ClassGraph#ignoreFieldVisibility()}.
+     * Test ClassGraph's "declared" vs. non-"declared" method/field retrieval against the Java reflection API,
+     * without calling {@link ClassGraph#ignoreMethodVisibility()} or {@link ClassGraph#ignoreFieldVisibility()}.
      */
     @Test
     public void publicAndPrivateDeclaredVsNonDeclared() {

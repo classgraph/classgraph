@@ -47,9 +47,8 @@ public class Issue107Test {
             assertThat(scanResult.getClassesWithAnnotation(PackageAnnotation.class).getNames()).isEmpty();
             assertThat(scanResult.getPackageInfo().getNames())
                     .containsAll(List.of("io.github.classgraph", Issue107Test.class.getPackage().getName()));
-            assertThat(
-                    scanResult.getPackageInfo(Issue107Test.class.getPackage().getName()).getAnnotationInfo().getNames())
-                    .containsOnly(PackageAnnotation.class.getName());
+            assertThat(scanResult.getPackageInfo(Issue107Test.class.getPackage().getName()).getAnnotationInfo()
+                    .getNames()).containsOnly(PackageAnnotation.class.getName());
         }
     }
 }

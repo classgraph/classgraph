@@ -42,8 +42,7 @@ public class Issue93Test {
     }
 
     /**
-     * Test that both CLASS-retained and RUNTIME-retained annotations are visible by
-     * default.
+     * Test that both CLASS-retained and RUNTIME-retained annotations are visible by default.
      */
     @Test
     public void classRetentionIsDefault() {
@@ -58,8 +57,7 @@ public class Issue93Test {
 
     /**
      * Test that CLASS-retained annotations are not visible after calling
-     * .setAnnotationVisibility(RetentionPolicy.RUNTIME), but RUNTIME-retained
-     * annotations are still visible.
+     * .setAnnotationVisibility(RetentionPolicy.RUNTIME), but RUNTIME-retained annotations are still visible.
      */
     @Test
     public void classRetentionIsNotVisibleWithRetentionPolicyRUNTIME() {

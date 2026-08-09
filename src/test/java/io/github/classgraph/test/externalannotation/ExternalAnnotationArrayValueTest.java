@@ -12,18 +12,16 @@ import io.github.classgraph.ClassGraph;
 
 /**
  * When the classfile of the annotation class is not on the scanned classpath,
- * {@link io.github.classgraph.AnnotationParameterValue} cannot read the element
- * type of an array-typed annotation parameter from the annotation class'
- * methods, and instead infers it from the first non-null array element. That
- * fallback did not handle {@code String} elements, and for anything it did not
- * recognize it returned the type of the value wrapper object itself rather than
- * {@code Object}, so the parameter value was an array of the wrong element type.
+ * {@link io.github.classgraph.AnnotationParameterValue} cannot read the element type of an array-typed annotation
+ * parameter from the annotation class' methods, and instead infers it from the first non-null array element. That
+ * fallback did not handle {@code String} elements, and for anything it did not recognize it returned the type of
+ * the value wrapper object itself rather than {@code Object}, so the parameter value was an array of the wrong
+ * element type.
  */
 @ExternalAnnotation({ "one", "two" })
 public class ExternalAnnotationArrayValueTest {
     /**
-     * The array-typed parameter of an annotation whose classfile was not scanned
-     * still gets the right element type.
+     * The array-typed parameter of an annotation whose classfile was not scanned still gets the right element type.
      */
     @Test
     public void arrayValueElementTypeFromUnscannedAnnotationClass() throws IOException {
@@ -70,7 +68,8 @@ public class ExternalAnnotationArrayValueTest {
     /**
      * Delete a file or directory and everything below it.
      *
-     * @param file the file or directory to delete
+     * @param file
+     *            the file or directory to delete
      */
     private static void deleteRecursively(final File file) {
         final var subFiles = file.listFiles();

@@ -16,21 +16,18 @@ import org.junit.jupiter.api.io.TempDir;
 import io.github.classgraph.ClassGraph;
 
 /**
- * Tests {@code skip()} on the {@link InputStream} returned for a deflated zip
- * entry.
+ * Tests {@code skip()} on the {@link InputStream} returned for a deflated zip entry.
  *
  * <p>
- * The skip loop used to subtract rather than add the number of bytes read, so
- * it kept reading until the end of the stream (skipping everything, not just
- * the requested number of bytes) and returned a negative count.
+ * The skip loop used to subtract rather than add the number of bytes read, so it kept reading until the end of the
+ * stream (skipping everything, not just the requested number of bytes) and returned a negative count.
  */
 public class InflaterInputStreamSkipTest {
     /** The number of bytes to skip. */
     private static final int NUM_BYTES_TO_SKIP = 100;
 
     /**
-     * Build a resource whose content is long and repetitive, so that the zip entry
-     * is actually deflated.
+     * Build a resource whose content is long and repetitive, so that the zip entry is actually deflated.
      *
      * @return the resource content
      */

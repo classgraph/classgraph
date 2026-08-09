@@ -60,32 +60,31 @@ public class AnnotationParameterValueList extends MappableInfoList<AnnotationPar
     }
 
     /**
-     * Construct a new modifiable empty list of {@link AnnotationParameterValue}
-     * objects.
+     * Construct a new modifiable empty list of {@link AnnotationParameterValue} objects.
      */
     public AnnotationParameterValueList() {
         super();
     }
 
     /**
-     * Construct a new modifiable empty list of {@link AnnotationParameterValue}
-     * objects, given a size hint.
+     * Construct a new modifiable empty list of {@link AnnotationParameterValue} objects, given a size hint.
      *
-     * @param sizeHint the expected number of elements
+     * @param sizeHint
+     *            the expected number of elements
      */
     public AnnotationParameterValueList(final int sizeHint) {
         super(sizeHint);
     }
 
     /**
-     * Construct a new modifiable empty {@link AnnotationParameterValueList}, given
-     * an initial list of {@link AnnotationParameterValue} objects.
+     * Construct a new modifiable empty {@link AnnotationParameterValueList}, given an initial list of
+     * {@link AnnotationParameterValue} objects.
      *
-     * @param annotationParameterValueCollection the collection of
-     *                                           {@link AnnotationParameterValue}
-     *                                           objects.
+     * @param annotationParameterValueCollection
+     *            the collection of {@link AnnotationParameterValue} objects.
      */
-    public AnnotationParameterValueList(final Collection<AnnotationParameterValue> annotationParameterValueCollection) {
+    public AnnotationParameterValueList(
+            final Collection<AnnotationParameterValue> annotationParameterValueCollection) {
         super(Objects.requireNonNull(annotationParameterValueCollection,
                 "annotationParameterValueCollection must not be null"));
     }
@@ -93,12 +92,14 @@ public class AnnotationParameterValueList extends MappableInfoList<AnnotationPar
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get {@link ClassInfo} objects for any classes referenced in the methods in
-     * this list.
+     * Get {@link ClassInfo} objects for any classes referenced in the methods in this list.
      *
-     * @param classNameToClassInfo the map from class name to {@link ClassInfo}.
-     * @param refdClassInfo        the referenced class info
-     * @param log                  the log node, or null to skip logging
+     * @param classNameToClassInfo
+     *            the map from class name to {@link ClassInfo}.
+     * @param refdClassInfo
+     *            the referenced class info
+     * @param log
+     *            the log node, or null to skip logging
      */
     void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
             final Set<ClassInfo> refdClassInfo, final @Nullable LogNode log) {
@@ -110,11 +111,11 @@ public class AnnotationParameterValueList extends MappableInfoList<AnnotationPar
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * For primitive array type params, replace Object[] arrays containing boxed
-     * types with primitive arrays (need to check the type of each method of the
-     * annotation class to determine if it is a primitive array type).
+     * For primitive array type params, replace Object[] arrays containing boxed types with primitive arrays (need
+     * to check the type of each method of the annotation class to determine if it is a primitive array type).
      *
-     * @param annotationClassInfo the annotation class info
+     * @param annotationClassInfo
+     *            the annotation class info
      */
     void convertWrapperArraysToPrimitiveArrays(final @Nullable ClassInfo annotationClassInfo) {
         for (final AnnotationParameterValue apv : this) {
@@ -125,32 +126,28 @@ public class AnnotationParameterValueList extends MappableInfoList<AnnotationPar
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the annotation parameter value, by calling
-     * {@link AnnotationParameterValue#getValue()} on the result of
+     * Get the annotation parameter value, by calling {@link AnnotationParameterValue#getValue()} on the result of
      * {@link #get(String)}, if non-null.
      *
-     * @param parameterName The name of an annotation parameter.
-     * @return The value of the {@link AnnotationParameterValue} object in the list
-     *         with the given name, by calling
-     *         {@link AnnotationParameterValue#getValue()} on that object, or null
-     *         if not found.
-     * 
+     * @param parameterName
+     *            The name of an annotation parameter.
+     * @return The value of the {@link AnnotationParameterValue} object in the list with the given name, by calling
+     *         {@link AnnotationParameterValue#getValue()} on that object, or null if not found.
+     *
      *         <p>
      *         The annotation parameter value may be one of the following types:
      *         <ul>
      *         <li>String for string constants
      *         <li>String[] for arrays of strings
-     *         <li>A boxed type, e.g. Integer or Character, for primitive-typed
-     *         constants
-     *         <li>A 1-dimensional primitive-typed array (i.e. int[], long[],
-     *         short[], char[], byte[], boolean[], float[], or double[]), for arrays
-     *         of primitives
-     *         <li>A 1-dimensional {@link Object}[] array for array types (and then
-     *         the array element type may be one of the types in this list)
-     *         <li>{@link AnnotationEnumValue}, for enum constants (this wraps the
-     *         enum class and the string name of the constant)
-     *         <li>{@link AnnotationClassRef}, for Class references within
-     *         annotations (this wraps the name of the referenced class)
+     *         <li>A boxed type, e.g. Integer or Character, for primitive-typed constants
+     *         <li>A 1-dimensional primitive-typed array (i.e. int[], long[], short[], char[], byte[], boolean[],
+     *         float[], or double[]), for arrays of primitives
+     *         <li>A 1-dimensional {@link Object}[] array for array types (and then the array element type may be
+     *         one of the types in this list)
+     *         <li>{@link AnnotationEnumValue}, for enum constants (this wraps the enum class and the string name of
+     *         the constant)
+     *         <li>{@link AnnotationClassRef}, for Class references within annotations (this wraps the name of the
+     *         referenced class)
      *         <li>{@link AnnotationInfo}, for nested annotations
      *         </ul>
      */

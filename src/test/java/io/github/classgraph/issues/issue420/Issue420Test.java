@@ -47,8 +47,10 @@ public class Issue420Test {
     /**
      * Test accessing a jar over Jimfs.
      *
-     * @throws IOException        If an I/O exception occurred.
-     * @throws URISyntaxException If a URI is bad.
+     * @throws IOException
+     *             If an I/O exception occurred.
+     * @throws URISyntaxException
+     *             If a URI is bad.
      */
     @Test
     public void testScanningFileBackedByFileSystem() throws IOException, URISyntaxException {
@@ -73,9 +75,12 @@ public class Issue420Test {
     /**
      * Test accessing a package hierarchy in Jimfs.
      *
-     * @param packageRootPrefix The package root prefix.
-     * @throws IOException        If an I/O exception occurred.
-     * @throws URISyntaxException If a URI is bad.
+     * @param packageRootPrefix
+     *            The package root prefix.
+     * @throws IOException
+     *             If an I/O exception occurred.
+     * @throws URISyntaxException
+     *             If a URI is bad.
      */
     private void testDir(final String packageRootPrefix) throws IOException, URISyntaxException {
         try (var memFs = Jimfs.newFileSystem()) {
@@ -95,8 +100,8 @@ public class Issue420Test {
             try (var childClassLoader = new URLClassLoader(new URL[] { memFsRootURL },
                     getClass().getClassLoader())) {
                 final var classGraph = new ClassGraph().enableURLScheme(memFsRootURL.getProtocol())
-                        .overrideClassLoaders(childClassLoader).ignoreParentClassLoaders().acceptPackages(packageName)
-                        .enableAllInfo();
+                        .overrideClassLoaders(childClassLoader).ignoreParentClassLoaders()
+                        .acceptPackages(packageName).enableAllInfo();
                 try (var scanResult = classGraph.scan()) {
                     assertThat(scanResult.getClassInfo(classFullyQualifiedName)).isNotNull();
                 }
@@ -105,11 +110,12 @@ public class Issue420Test {
     }
 
     /**
-     * Test accessing a package hierarchy rooted at the default dir of "work/" in
-     * Jimfs.
+     * Test accessing a package hierarchy rooted at the default dir of "work/" in Jimfs.
      *
-     * @throws IOException        If an I/O exception occurred.
-     * @throws URISyntaxException If a URI is bad.
+     * @throws IOException
+     *             If an I/O exception occurred.
+     * @throws URISyntaxException
+     *             If a URI is bad.
      */
     @Test
     public void testScanningDirBackedByFileSystem() throws IOException, URISyntaxException {
@@ -117,11 +123,13 @@ public class Issue420Test {
     }
 
     /**
-     * Test accessing a package hierarchy rooted at "work/classes/" (i.e. with an
-     * automatically-detected package root) in Jimfs.
+     * Test accessing a package hierarchy rooted at "work/classes/" (i.e. with an automatically-detected package
+     * root) in Jimfs.
      *
-     * @throws IOException        If an I/O exception occurred.
-     * @throws URISyntaxException If a URI is bad.
+     * @throws IOException
+     *             If an I/O exception occurred.
+     * @throws URISyntaxException
+     *             If a URI is bad.
      */
     @Test
     public void testScanningDirBackedByFileSystemWithPackageRoot() throws IOException, URISyntaxException {

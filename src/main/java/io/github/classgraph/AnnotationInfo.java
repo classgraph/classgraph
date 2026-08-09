@@ -38,8 +38,7 @@ import nonapi.io.github.classgraph.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Holds metadata about a specific annotation instance on a class, method,
- * method parameter or field.
+ * Holds metadata about a specific annotation instance on a class, method, method parameter or field.
  */
 public class AnnotationInfo extends ScanResultObject implements Comparable<AnnotationInfo>, HasName {
     /** The name. */
@@ -49,8 +48,8 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     private @Nullable AnnotationParameterValueList annotationParamValues;
 
     /**
-     * Set to true once any Object[] arrays of boxed types in annotationParamValues
-     * have been lazily converted to primitive arrays.
+     * Set to true once any Object[] arrays of boxed types in annotationParamValues have been lazily converted to
+     * primitive arrays.
      */
     private boolean annotationParamValuesHasBeenConvertedToPrimitive;
 
@@ -62,9 +61,10 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     /**
      * Constructor.
      *
-     * @param name                  The name of the annotation.
-     * @param annotationParamValues The annotation parameter values, or null if
-     *                              none.
+     * @param name
+     *            The name of the annotation.
+     * @param annotationParamValues
+     *            The annotation parameter values, or null if none.
      */
     AnnotationInfo(final String name, final @Nullable AnnotationParameterValueList annotationParamValues) {
         super();
@@ -96,8 +96,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     /**
      * Get the default parameter values.
      *
-     * @return the list of default parameter values for this annotation, or the
-     *         empty list if none.
+     * @return the list of default parameter values for this annotation, or the empty list if none.
      */
     public AnnotationParameterValueList getDefaultParameterValues() {
         return Objects.requireNonNull(getClassInfo()).getAnnotationDefaultParameterValues();
@@ -106,11 +105,10 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     /**
      * Get the parameter values, optionally filling in default values.
      *
-     * @param includeDefaultValues if true, include default values for any
-     *                             annotation parameter value that is missing.
-     * @return The parameter values of this annotation, including any default
-     *         parameter values inherited from the annotation class definition (if
-     *         requested), or the empty list if none.
+     * @param includeDefaultValues
+     *            if true, include default values for any annotation parameter value that is missing.
+     * @return The parameter values of this annotation, including any default parameter values inherited from the
+     *         annotation class definition (if requested), or the empty list if none.
      */
     private AnnotationParameterValueList getParameterValues(final boolean includeDefaultValues) {
         final var paramValues = annotationParamValues;
@@ -193,27 +191,22 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     }
 
     /**
-     * Get the parameter values of this annotation, including any parameter values
-     * that were not given explicitly at the annotation use site, but that have a
-     * default value declared by the annotation type.
+     * Get the parameter values of this annotation, including any parameter values that were not given explicitly at
+     * the annotation use site, but that have a default value declared by the annotation type.
      *
-     * @return The parameter values of this annotation, including any default
-     *         parameter values inherited from the annotation class definition, or
-     *         the empty list if none.
+     * @return The parameter values of this annotation, including any default parameter values inherited from the
+     *         annotation class definition, or the empty list if none.
      */
     public AnnotationParameterValueList getParameterValues() {
         return getParameterValues(/* includeDefaultValues = */ true);
     }
 
     /**
-     * Get only the parameter values that were given explicitly at the annotation
-     * use site, without filling in any default values declared by the annotation
-     * type. Compare with {@link #getParameterValues()}, which does fill in
-     * defaults, and {@link #getDefaultParameterValues()}, which returns only the
-     * defaults.
+     * Get only the parameter values that were given explicitly at the annotation use site, without filling in any
+     * default values declared by the annotation type. Compare with {@link #getParameterValues()}, which does fill
+     * in defaults, and {@link #getDefaultParameterValues()}, which returns only the defaults.
      *
-     * @return The parameter values given explicitly at the annotation use site, or
-     *         the empty list if none.
+     * @return The parameter values given explicitly at the annotation use site, or the empty list if none.
      */
     public AnnotationParameterValueList getDeclaredParameterValues() {
         return getParameterValues(/* includeDefaultValues = */ false);
@@ -250,11 +243,12 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     }
 
     /**
-     * Get {@link ClassInfo} objects for any classes referenced in the type
-     * descriptor or type signature.
+     * Get {@link ClassInfo} objects for any classes referenced in the type descriptor or type signature.
      *
-     * @param classNameToClassInfo the map from class name to {@link ClassInfo}.
-     * @param refdClassInfo        the referenced class info
+     * @param classNameToClassInfo
+     *            the map from class name to {@link ClassInfo}.
+     * @param refdClassInfo
+     *            the referenced class info
      */
     @Override
     void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
@@ -271,8 +265,8 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Return the {@link ClassInfo} object for the annotation class, or null if the
-     * annotation class was not encountered during scanning.
+     * Return the {@link ClassInfo} object for the annotation class, or null if the annotation class was not
+     * encountered during scanning.
      */
     @Override
     public @Nullable ClassInfo getClassInfo() {

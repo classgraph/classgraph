@@ -87,8 +87,10 @@ public class Issue151Test {
     /**
      * Method.
      *
-     * @param annotatedValue0 the annotated value 0
-     * @param annotatedValue1 the annotated value 1
+     * @param annotatedValue0
+     *            the annotated value 0
+     * @param annotatedValue1
+     *            the annotated value 1
      */
     public void method(@ParamAnnotation0 final String annotatedValue0,
             @ParamAnnotation1 @ParamAnnotation2 final String annotatedValue1) {

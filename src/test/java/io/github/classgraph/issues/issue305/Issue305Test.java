@@ -28,10 +28,10 @@ public class Issue305Test {
     }
 
     /**
-     * Test that multi-line continuations in manifest file values are correctly
-     * assembled into a string.
+     * Test that multi-line continuations in manifest file values are correctly assembled into a string.
      *
-     * @throws Exception the exception
+     * @throws Exception
+     *             the exception
      */
     @Test
     public void issue305() throws Exception {
@@ -47,8 +47,8 @@ public class Issue305Test {
         rootLogger.addHandler(errPrintStreamHandler);
 
         try (var scanResult = new ClassGraph()
-                .overrideClassLoaders(new URLClassLoader(
-                        new URL[] { Issue305Test.class.getClassLoader().getResource("class-path-manifest-entry.jar") }))
+                .overrideClassLoaders(new URLClassLoader(new URL[] {
+                        Issue305Test.class.getClassLoader().getResource("class-path-manifest-entry.jar") }))
                 // This .verbose() is needed (stderr is captured)
                 .verbose().scan()) {
         }

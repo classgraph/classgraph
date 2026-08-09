@@ -127,7 +127,8 @@ class TypeAnnotationTest {
     /**
      * Convert class names to short names.
      *
-     * @param type the type
+     * @param type
+     *            the type
      * @return the class names as short names
      */
     private static String shortNames(final Object type) {
@@ -205,8 +206,8 @@ class TypeAnnotationTest {
 
             assertThat(shortNames(pClassInfo)).isEqualTo("static class P<@A T extends @B U & @C V>");
 
-            assertThat(shortNames(pClassInfo.getMethodInfo("explicitReceiver").get(0).getTypeSignatureOrTypeDescriptor()
-                    .getReceiverTypeAnnotationInfo().get(0))).isEqualTo("@F");
+            assertThat(shortNames(pClassInfo.getMethodInfo("explicitReceiver").get(0)
+                    .getTypeSignatureOrTypeDescriptor().getReceiverTypeAnnotationInfo().get(0))).isEqualTo("@F");
 
         }
     }

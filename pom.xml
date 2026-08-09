@@ -160,6 +160,11 @@
 				<version>3.5.0</version>
 			</plugin>
 			<plugin>
+				<groupId>net.revelc.code.formatter</groupId>
+				<artifactId>formatter-maven-plugin</artifactId>
+				<version>2.26.0</version>
+			</plugin>
+			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>3.15.0</version>
@@ -333,6 +338,41 @@
 									</jar>
 								</target>
 							</configuration>
+						</execution>
+					</executions>
+				</plugin>
+
+				<!-- Reformat sources with the Eclipse code formatter, using the shared project profile. -->
+				<!-- The same profile can be imported into Eclipse via -->
+				<!-- Preferences -> Java -> Code Style -> Formatter -> Import. -->
+				<!-- Run "./mvnw formatter:validate" to check formatting without rewriting the sources. -->
+				<plugin>
+					<groupId>net.revelc.code.formatter</groupId>
+					<artifactId>formatter-maven-plugin</artifactId>
+					<configuration>
+						<configFile>${project.basedir}/.eclipse/code-formatter-config.xml</configFile>
+						<encoding>UTF-8</encoding>
+						<lineEnding>LF</lineEnding>
+						<!-- Setting <directories> replaces the default source and test source directories, -->
+						<!-- so both have to be listed again here, along with the extra test source root -->
+						<!-- that build-helper-maven-plugin adds. -->
+						<directories>
+							<directory>${project.build.sourceDirectory}</directory>
+							<directory>${project.build.testSourceDirectory}</directory>
+							<directory>${project.basedir}/src/test/perf</directory>
+						</directories>
+						<!-- The formatter parses the sources itself, so it needs to be told the language level -->
+						<compilerSource>${maven.compiler.release}</compilerSource>
+						<compilerCompliance>${maven.compiler.release}</compilerCompliance>
+						<compilerTargetPlatform>${maven.compiler.release}</compilerTargetPlatform>
+					</configuration>
+					<executions>
+						<execution>
+							<id>format-sources</id>
+							<phase>process-sources</phase>
+							<goals>
+								<goal>format</goal>
+							</goals>
 						</execution>
 					</executions>
 				</plugin>

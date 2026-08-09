@@ -12,7 +12,8 @@ import io.github.classgraph.TypeVariableSignature;
 /**
  * ResolveTypeVariable.
  *
- * @param <T> the generic type
+ * @param <T>
+ *            the generic type
  */
 public class ResolveTypeVariableTest<T extends ArrayList<Integer>> {
     /** The list. */

@@ -19,8 +19,7 @@ import io.github.classgraph.ScanResult;
 public class Issue914Test {
 
     /**
-     * A method annotation. Also targets {@code ANNOTATION_TYPE}, so that it can
-     * meta-annotate {@link MetaMarker}.
+     * A method annotation. Also targets {@code ANNOTATION_TYPE}, so that it can meta-annotate {@link MetaMarker}.
      */
     @Retention(RetentionPolicy.RUNTIME)
     @Target({ ElementType.METHOD, ElementType.FIELD, ElementType.ANNOTATION_TYPE })
@@ -43,8 +42,7 @@ public class Issue914Test {
     }
 
     /**
-     * Superclass, so that declared vs. inherited methods and fields can be
-     * distinguished.
+     * Superclass, so that declared vs. inherited methods and fields can be distinguished.
      */
     public static class Super {
         @Marker
@@ -97,8 +95,7 @@ public class Issue914Test {
     }
 
     /**
-     * Declared methods with the annotation should not include methods declared by
-     * the superclass.
+     * Declared methods with the annotation should not include methods declared by the superclass.
      */
     @Test
     public void declaredMethodInfoWithAnnotation() {
@@ -110,8 +107,7 @@ public class Issue914Test {
     }
 
     /**
-     * Methods with the annotation should include methods declared by the
-     * superclass.
+     * Methods with the annotation should include methods declared by the superclass.
      */
     @Test
     public void methodInfoWithAnnotation() {
@@ -123,8 +119,7 @@ public class Issue914Test {
     }
 
     /**
-     * The {@link Class}-typed overloads should behave identically to the
-     * {@link String}-typed overloads.
+     * The {@link Class}-typed overloads should behave identically to the {@link String}-typed overloads.
      */
     @Test
     public void classOverloadsMatchStringOverloads() {
@@ -161,15 +156,14 @@ public class Issue914Test {
     }
 
     /**
-     * Declared fields with the annotation should not include fields declared by the
-     * superclass.
+     * Declared fields with the annotation should not include fields declared by the superclass.
      */
     @Test
     public void declaredFieldInfoWithAnnotation() {
         try (var scanResult = scan()) {
             final var sub = scanResult.getClassInfo(Sub.class.getName());
-            assertThat(sub.getDeclaredFieldInfoWithAnnotation(MARKER).getNames()).containsExactlyInAnyOrder("subField",
-                    "metaMarkedField");
+            assertThat(sub.getDeclaredFieldInfoWithAnnotation(MARKER).getNames())
+                    .containsExactlyInAnyOrder("subField", "metaMarkedField");
         }
     }
 
@@ -200,8 +194,7 @@ public class Issue914Test {
     }
 
     /**
-     * Without {@code enableAnnotationInfo()}, an {@link IllegalStateException}
-     * should be thrown.
+     * Without {@code enableAnnotationInfo()}, an {@link IllegalStateException} should be thrown.
      */
     @Test
     public void annotationInfoMustBeEnabled() {

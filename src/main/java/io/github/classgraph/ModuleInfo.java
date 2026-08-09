@@ -48,8 +48,8 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     private final ClasspathElement classpathElement;
 
     /**
-     * The {@link ModuleRef}, or null if this module was obtained from a classpath
-     * element on the traditional classpath.
+     * The {@link ModuleRef}, or null if this module was obtained from a classpath element on the traditional
+     * classpath.
      */
     private @Nullable ModuleRef moduleRef;
 
@@ -57,20 +57,18 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     private @Nullable URI locationURI;
 
     /**
-     * Unique {@link AnnotationInfo} objects for any annotations on the
-     * module-info.class file, if present, else null.
+     * Unique {@link AnnotationInfo} objects for any annotations on the module-info.class file, if present, else
+     * null.
      */
     private @Nullable Set<AnnotationInfo> annotationInfoSet;
 
     /**
-     * {@link AnnotationInfo} objects for any annotations on the module-info.class
-     * file, if present, else null.
+     * {@link AnnotationInfo} objects for any annotations on the module-info.class file, if present, else null.
      */
     private @Nullable AnnotationInfoList annotationInfo;
 
     /**
-     * {@link PackageInfo} objects for packages found within the class, keyed by
-     * package name, if any, else null.
+     * {@link PackageInfo} objects for packages found within the class, keyed by package name, if any, else null.
      */
     private @Nullable Map<String, PackageInfo> packageNameToPackageInfo;
 
@@ -82,10 +80,13 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     /**
      * Construct a ModuleInfo object.
      *
-     * @param moduleRef        the module ref, or null if this module was obtained
-     *                         from a classpath element on the traditional classpath
-     * @param classpathElement the classpath element
-     * @param name             the module name
+     * @param moduleRef
+     *            the module ref, or null if this module was obtained from a classpath element on the traditional
+     *            classpath
+     * @param classpathElement
+     *            the classpath element
+     * @param name
+     *            the module name
      */
     ModuleInfo(final @Nullable ModuleRef moduleRef, final ClasspathElement classpathElement, final String name) {
         this.moduleRef = moduleRef;
@@ -127,13 +128,11 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     }
 
     /**
-     * The {@link ModuleRef} for this module, or null if this module was obtained
-     * from a classpath element on the traditional classpath that contained a
-     * {@code module-info.class} file.
+     * The {@link ModuleRef} for this module, or null if this module was obtained from a classpath element on the
+     * traditional classpath that contained a {@code module-info.class} file.
      *
-     * @return the {@link ModuleRef}, or null if this module was obtained from a
-     *         classpath element on the traditional classpath that contained a
-     *         {@code module-info.class} file.
+     * @return the {@link ModuleRef}, or null if this module was obtained from a classpath element on the
+     *         traditional classpath that contained a {@code module-info.class} file.
      */
     public @Nullable ModuleRef getModuleRef() {
         return moduleRef;
@@ -144,7 +143,8 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     /**
      * Add a {@link ClassInfo} object to this {@link ModuleInfo}.
      *
-     * @param classInfo the {@link ClassInfo} object to add
+     * @param classInfo
+     *            the {@link ClassInfo} object to add
      */
     void addClassInfo(final ClassInfo classInfo) {
         var classes = classNameToClassInfo;
@@ -155,12 +155,13 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     }
 
     /**
-     * Get the {@link ClassInfo} object for the named class in this module, or null
-     * if the class was not found in this module.
+     * Get the {@link ClassInfo} object for the named class in this module, or null if the class was not found in
+     * this module.
      *
-     * @param className the class name
-     * @return the {@link ClassInfo} object for the named class in this module, or
-     *         null if the class was not found in this module.
+     * @param className
+     *            the class name
+     * @return the {@link ClassInfo} object for the named class in this module, or null if the class was not found
+     *         in this module.
      */
     public @Nullable ClassInfo getClassInfo(final String className) {
         Assert.notNull(className, "className");
@@ -171,11 +172,9 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     }
 
     /**
-     * Get the list of {@link ClassInfo} objects for all classes that are members of
-     * this module.
+     * Get the list of {@link ClassInfo} objects for all classes that are members of this module.
      *
-     * @return the list of {@link ClassInfo} objects for all classes that are
-     *         members of this module.
+     * @return the list of {@link ClassInfo} objects for all classes that are members of this module.
      */
     public ClassInfoList getClassInfo() {
         final var classes = classNameToClassInfo;
@@ -188,7 +187,8 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     /**
      * Add a {@link PackageInfo} object to this {@link ModuleInfo}.
      *
-     * @param packageInfo the {@link PackageInfo} object
+     * @param packageInfo
+     *            the {@link PackageInfo} object
      */
     void addPackageInfo(final PackageInfo packageInfo) {
         var packages = packageNameToPackageInfo;
@@ -199,12 +199,13 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     }
 
     /**
-     * Get the {@link PackageInfo} object for the named package in this module, or
-     * null if the package was not found in this module.
+     * Get the {@link PackageInfo} object for the named package in this module, or null if the package was not found
+     * in this module.
      *
-     * @param packageName the package name
-     * @return the {@link PackageInfo} object for the named package in this module,
-     *         or null if the package was not found in this module.
+     * @param packageName
+     *            the package name
+     * @return the {@link PackageInfo} object for the named package in this module, or null if the package was not
+     *         found in this module.
      */
     public @Nullable PackageInfo getPackageInfo(final String packageName) {
         Assert.notNull(packageName, "packageName");
@@ -213,11 +214,9 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     }
 
     /**
-     * Get the {@link PackageInfo} objects for all packages that are members of this
-     * module.
+     * Get the {@link PackageInfo} objects for all packages that are members of this module.
      *
-     * @return the list of {@link PackageInfo} objects for all packages that are
-     *         members of this module.
+     * @return the list of {@link PackageInfo} objects for all packages that are members of this module.
      */
     public PackageInfoList getPackageInfo() {
         final var packages = packageNameToPackageInfo;
@@ -234,7 +233,8 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     /**
      * Set ScanResult backreferences in info objects after scan has completed.
      *
-     * @param scanResult the scan result
+     * @param scanResult
+     *            the scan result
      */
     void setScanResult(final ScanResult scanResult) {
         final var annotations = annotationInfoSet;
@@ -248,7 +248,8 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     /**
      * Add annotations found in a module descriptor classfile.
      *
-     * @param moduleAnnotations the module annotations
+     * @param moduleAnnotations
+     *            the module annotations
      */
     void addAnnotations(final @Nullable AnnotationInfoList moduleAnnotations) {
         // Currently only class annotations are used in the module-info.class file
@@ -262,12 +263,12 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     }
 
     /**
-     * Get the annotation on this module, or null if the module does not have the
-     * annotation.
+     * Get the annotation on this module, or null if the module does not have the annotation.
      *
-     * @param annotation the annotation class
-     * @return An {@link AnnotationInfo} object representing the annotation on this
-     *         module, or null if the module does not have the annotation.
+     * @param annotation
+     *            the annotation class
+     * @return An {@link AnnotationInfo} object representing the annotation on this module, or null if the module
+     *         does not have the annotation.
      */
     public @Nullable AnnotationInfo getAnnotationInfo(final Class<? extends Annotation> annotation) {
         Assert.notNull(annotation, "annotation");
@@ -276,13 +277,12 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     }
 
     /**
-     * Get the named annotation on this module, or null if the module does not have
-     * the named annotation.
+     * Get the named annotation on this module, or null if the module does not have the named annotation.
      *
-     * @param annotationName the name of the annotation class
-     * @return An {@link AnnotationInfo} object representing the named annotation on
-     *         this module, or null if the module does not have the named
-     *         annotation.
+     * @param annotationName
+     *            the name of the annotation class
+     * @return An {@link AnnotationInfo} object representing the named annotation on this module, or null if the
+     *         module does not have the named annotation.
      */
     public @Nullable AnnotationInfo getAnnotationInfo(final String annotationName) {
         Assert.notNull(annotationName, "annotationName");
@@ -292,8 +292,7 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     /**
      * Get any annotations on the {@code module-info.class} file.
      *
-     * @return the list of {@link AnnotationInfo} objects for annotations on the
-     *         {@code module-info.class} file.
+     * @return the list of {@link AnnotationInfo} objects for annotations on the {@code module-info.class} file.
      */
     public AnnotationInfoList getAnnotationInfo() {
         var annotations = annotationInfo;
@@ -313,7 +312,8 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     /**
      * Check if this module has the annotation.
      *
-     * @param annotation the annotation class
+     * @param annotation
+     *            the annotation class
      * @return true if this module has the annotation.
      */
     public boolean hasAnnotation(final Class<? extends Annotation> annotation) {
@@ -325,7 +325,8 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     /**
      * Check if this module has the named annotation.
      *
-     * @param annotationName the name of the annotation class
+     * @param annotationName
+     *            the name of the annotation class
      * @return true if this module has the named annotation.
      */
     public boolean hasAnnotation(final String annotationName) {

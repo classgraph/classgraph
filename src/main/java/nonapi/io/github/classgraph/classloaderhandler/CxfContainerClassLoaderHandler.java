@@ -35,8 +35,7 @@ import nonapi.io.github.classgraph.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
 /**
- * ClassLoaderHandler that is able to extract the URLs from a
- * CxfContainerClassLoader.
+ * ClassLoaderHandler that is able to extract the URLs from a CxfContainerClassLoader.
  */
 class CxfContainerClassLoaderHandler implements ClassLoaderHandler {
     /** Constructor. */
@@ -76,12 +75,10 @@ class CxfContainerClassLoaderHandler implements ClassLoaderHandler {
     }
 
     /**
-     * Get the automatic package root prefixes for classpath elements obtained from
-     * this classloader.
+     * Get the automatic package root prefixes for classpath elements obtained from this classloader.
      *
      * <p>
-     * Classpath elements from this classloader may be Spring-Boot executable jars
-     * or wars.
+     * Classpath elements from this classloader may be Spring-Boot executable jars or wars.
      *
      * @return the package root prefixes.
      */

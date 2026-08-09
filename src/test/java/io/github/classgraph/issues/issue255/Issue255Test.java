@@ -39,10 +39,10 @@ import io.github.classgraph.ClassGraph;
 public class Issue255Test {
 
     /**
-     * A directory classpath entry whose path contains percent-encoded characters is
-     * scanned.
+     * A directory classpath entry whose path contains percent-encoded characters is scanned.
      *
-     * @throws IOException If an I/O exception occurs.
+     * @throws IOException
+     *             If an I/O exception occurs.
      */
     @Test
     public void issue255Test() throws IOException {

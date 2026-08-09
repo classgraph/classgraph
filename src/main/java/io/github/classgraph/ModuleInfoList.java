@@ -49,7 +49,8 @@ public class ModuleInfoList extends MappableInfoList<ModuleInfo> {
     /**
      * Constructor.
      *
-     * @param sizeHint the expected number of elements
+     * @param sizeHint
+     *            the expected number of elements
      */
     ModuleInfoList(final int sizeHint) {
         super(sizeHint);
@@ -58,7 +59,8 @@ public class ModuleInfoList extends MappableInfoList<ModuleInfo> {
     /**
      * Constructor.
      *
-     * @param moduleInfoCollection the module info collection
+     * @param moduleInfoCollection
+     *            the module info collection
      */
     ModuleInfoList(final Collection<ModuleInfo> moduleInfoCollection) {
         super(moduleInfoCollection);
@@ -67,30 +69,29 @@ public class ModuleInfoList extends MappableInfoList<ModuleInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Filter an {@link ModuleInfoList} using a predicate mapping an
-     * {@link ModuleInfo} object to a boolean, producing another
-     * {@link ModuleInfoList} for all items in the list for which the predicate is
-     * true.
+     * Filter an {@link ModuleInfoList} using a predicate mapping an {@link ModuleInfo} object to a boolean,
+     * producing another {@link ModuleInfoList} for all items in the list for which the predicate is true.
      */
     @FunctionalInterface
     public interface ModuleInfoFilter {
         /**
          * Whether or not to allow an {@link ModuleInfo} list item through the filter.
          *
-         * @param moduleInfo The {@link ModuleInfo} item to filter.
-         * @return Whether or not to allow the item through the filter. If true, the
-         *         item is copied to the output list; if false, it is excluded.
+         * @param moduleInfo
+         *            The {@link ModuleInfo} item to filter.
+         * @return Whether or not to allow the item through the filter. If true, the item is copied to the output
+         *         list; if false, it is excluded.
          */
         boolean accept(ModuleInfo moduleInfo);
     }
 
     /**
-     * Find the subset of the {@link ModuleInfo} objects in this list for which the
-     * given filter predicate is true.
+     * Find the subset of the {@link ModuleInfo} objects in this list for which the given filter predicate is true.
      *
-     * @param filter The {@link ModuleInfoFilter} to apply.
-     * @return The subset of the {@link ModuleInfo} objects in this list for which
-     *         the given filter predicate is true.
+     * @param filter
+     *            The {@link ModuleInfoFilter} to apply.
+     * @return The subset of the {@link ModuleInfo} objects in this list for which the given filter predicate is
+     *         true.
      */
     public ModuleInfoList filter(final ModuleInfoFilter filter) {
         Assert.notNull(filter, "filter");

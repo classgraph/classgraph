@@ -18,7 +18,8 @@ public class Issue352Test {
     /**
      * Test *.
      *
-     * @throws IOException Signals that an I/O exception has occurred.
+     * @throws IOException
+     *             Signals that an I/O exception has occurred.
      */
     @Test
     public void test() throws IOException {

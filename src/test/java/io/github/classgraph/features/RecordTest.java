@@ -19,7 +19,8 @@ public class RecordTest {
     /**
      * Test records (JDK 14+).
      *
-     * @throws Exception the exception
+     * @throws Exception
+     *             the exception
      */
     @Test
     public void recordJar() throws Exception {

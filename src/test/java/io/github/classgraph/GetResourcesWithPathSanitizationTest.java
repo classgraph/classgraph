@@ -6,13 +6,12 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Tests that {@link ScanResult#getResourcesWithPath(String)} and
- * {@link ScanResult#getResourcesWithPathIgnoringAccept(String)} sanitize their
- * argument without throwing, even for a path that normalizes away to nothing.
+ * {@link ScanResult#getResourcesWithPathIgnoringAccept(String)} sanitize their argument without throwing, even for
+ * a path that normalizes away to nothing.
  */
 public class GetResourcesWithPathSanitizationTest {
     /**
-     * A path that normalizes to the hierarchy root simply matches nothing, rather
-     * than throwing.
+     * A path that normalizes to the hierarchy root simply matches nothing, rather than throwing.
      */
     @Test
     public void pathNormalizingToRootMatchesNothing() {

@@ -7,8 +7,8 @@ import org.junit.jupiter.api.Test;
 import io.github.classgraph.ClassGraph;
 
 /**
- * Test that {@link Object} is scanned like any other class, and that it is
- * recorded as the superclass of standard classes that extend no other class.
+ * Test that {@link Object} is scanned like any other class, and that it is recorded as the superclass of standard
+ * classes that extend no other class.
  */
 public class Issue703Test {
     /** A standard class that extends no other class. */
@@ -38,9 +38,8 @@ public class Issue703Test {
     }
 
     /**
-     * Object is the superclass of a standard class that extends no other class, and
-     * is the last entry in the superclass chain of any standard class. Interfaces
-     * have no superclass.
+     * Object is the superclass of a standard class that extends no other class, and is the last entry in the
+     * superclass chain of any standard class. Interfaces have no superclass.
      */
     @Test
     public void objectIsTheUniversalSuperclass() {

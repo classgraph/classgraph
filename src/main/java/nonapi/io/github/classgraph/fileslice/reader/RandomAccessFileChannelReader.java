@@ -38,8 +38,8 @@ import nonapi.io.github.classgraph.utils.StringUtils;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@link RandomAccessReader} for a {@link File}. Reads in <b>little endian</b>
- * order, as required by the zipfile format.
+ * {@link RandomAccessReader} for a {@link File}. Reads in <b>little endian</b> order, as required by the zipfile
+ * format.
  */
 public class RandomAccessFileChannelReader implements RandomAccessReader {
 
@@ -67,9 +67,12 @@ public class RandomAccessFileChannelReader implements RandomAccessReader {
     /**
      * Constructor.
      *
-     * @param fileChannel   the file channel
-     * @param sliceStartPos the slice start pos
-     * @param sliceLength   the slice length
+     * @param fileChannel
+     *            the file channel
+     * @param sliceStartPos
+     *            the slice start pos
+     * @param sliceLength
+     *            the slice length
      */
     public RandomAccessFileChannelReader(final FileChannel fileChannel, final long sliceStartPos,
             final long sliceLength) {

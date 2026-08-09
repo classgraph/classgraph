@@ -9,20 +9,16 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.MethodInfo;
 
 /**
- * A javac bridge-method bug (JDK-8385663): javac copies a parameter's TYPE_USE
- * annotation onto the synthetic bridge method, but the bridge's erased
- * descriptor makes the copied type path invalid. For
- * {@code class BridgeImpl implements BridgeInterface<@BridgeAnno String[]>},
- * the real method {@code f(String[])} gets {@code location=[ARRAY]} (correct),
- * and javac copies that same path onto the bridge {@code f(Object)} where it is
- * bogus.
+ * A javac bridge-method bug (JDK-8385663): javac copies a parameter's TYPE_USE annotation onto the synthetic bridge
+ * method, but the bridge's erased descriptor makes the copied type path invalid. For
+ * {@code class BridgeImpl implements BridgeInterface<@BridgeAnno String[]>}, the real method {@code f(String[])}
+ * gets {@code location=[ARRAY]} (correct), and javac copies that same path onto the bridge {@code f(Object)} where
+ * it is bogus.
  *
  * <p>
- * ClassGraph cannot fix an inherently-incorrect type path, but it must not
- * crash on it: the unmatchable annotation is skipped. Verified against a
- * checked-in fixture {@code BridgeImpl.class} (compiled with a javac that
- * exhibits JDK-8385663; see {@code BridgeImpl.java} alongside it). Before the
- * fix, reading the bridge method threw
+ * ClassGraph cannot fix an inherently-incorrect type path, but it must not crash on it: the unmatchable annotation
+ * is skipped. Verified against a checked-in fixture {@code BridgeImpl.class} (compiled with a javac that exhibits
+ * JDK-8385663; see {@code BridgeImpl.java} alongside it). Before the fix, reading the bridge method threw
  * {@code IllegalArgumentException: Bad typePathKind: 0}.
  */
 public class Issue926Test {

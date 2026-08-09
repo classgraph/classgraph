@@ -51,22 +51,26 @@ public class DeclaredVsNonDeclaredTest {
         /**
          * Y.
          *
-         * @param x the x
-         * @param y the y
+         * @param x
+         *            the x
+         * @param y
+         *            the y
          */
         abstract void y(int x, int y);
 
         /**
          * Y.
          *
-         * @param x the x
+         * @param x
+         *            the x
          */
         abstract void y(String x);
 
         /**
          * Y.
          *
-         * @param x the x
+         * @param x
+         *            the x
          */
         abstract void y(Integer x);
 
@@ -127,13 +131,13 @@ public class DeclaredVsNonDeclaredTest {
             assertThat(B.getMethodInfo().toString())
                     .isEqualTo("[void y(final int x, final int y), void w(), abstract void y(java.lang.String x), "
                             + "abstract void y(java.lang.Integer x)]");
-            assertThat(B.getDeclaredMethodInfo().toString()).isEqualTo("[void y(final int x, final int y), void w()]");
+            assertThat(B.getDeclaredMethodInfo().toString())
+                    .isEqualTo("[void y(final int x, final int y), void w()]");
         }
     }
 
     /**
-     * Annotation infos should be able to differentiate between direct and
-     * reachable.
+     * Annotation infos should be able to differentiate between direct and reachable.
      */
     @Test
     public void annotationInfosShouldBeAbleToDifferentiateBetweenDirectAndReachable() {

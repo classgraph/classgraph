@@ -65,16 +65,22 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
     /**
      * Add the bundle file.
      *
-     * @param bundlefile        the bundle file, or null (ignored)
-     * @param path              the path
-     * @param classLoader       the classloader
-     * @param classpathOrderOut the classpath order
-     * @param scanSpec          the scan spec
-     * @param log               the log node, or null to skip logging
+     * @param bundlefile
+     *            the bundle file, or null (ignored)
+     * @param path
+     *            the path
+     * @param classLoader
+     *            the classloader
+     * @param classpathOrderOut
+     *            the classpath order
+     * @param scanSpec
+     *            the scan spec
+     * @param log
+     *            the log node, or null to skip logging
      */
     private static void addBundleFile(final @Nullable Object bundlefile, final Set<Object> path,
-            final ClassLoader classLoader,
-            final ClasspathOrder classpathOrderOut, final ScanSpec scanSpec, final @Nullable LogNode log) {
+            final ClassLoader classLoader, final ClasspathOrder classpathOrderOut, final ScanSpec scanSpec,
+            final @Nullable LogNode log) {
         // Don't get stuck in infinite loop
         if (bundlefile != null && path.add(bundlefile)) {
             // type File
@@ -82,7 +88,8 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
             if (baseFile != null) {
                 var foundClassPathElement = false;
                 for (final String fieldName : FIELD_NAMES) {
-                    final var fieldVal = classpathOrderOut.reflectionUtils.getFieldVal(false, bundlefile, fieldName);
+                    final var fieldVal = classpathOrderOut.reflectionUtils.getFieldVal(false, bundlefile,
+                            fieldName);
                     if (fieldVal != null) {
                         foundClassPathElement = true;
                         // We found the base file and a classpath element, e.g. "bin/"
@@ -91,8 +98,8 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
                         if ("org.eclipse.osgi.storage.bundlefile.NestedDirBundleFile"
                                 .equals(bundlefile.getClass().getName())) {
                             // Handle nested ZipBundleFile with "!/" separator
-                            final var baseBundleFile = classpathOrderOut.reflectionUtils.getFieldVal(false, bundlefile,
-                                    "baseBundleFile");
+                            final var baseBundleFile = classpathOrderOut.reflectionUtils.getFieldVal(false,
+                                    bundlefile, "baseBundleFile");
                             if (baseBundleFile != null && "org.eclipse.osgi.storage.bundlefile.ZipBundleFile"
                                     .equals(baseBundleFile.getClass().getName())) {
                                 base = baseBundleFile;
@@ -112,19 +119,24 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
             }
             addBundleFile(classpathOrderOut.reflectionUtils.getFieldVal(false, bundlefile, "wrapped"), path,
                     classLoader, classpathOrderOut, scanSpec, log);
-            addBundleFile(classpathOrderOut.reflectionUtils.getFieldVal(false, bundlefile, "next"), path, classLoader,
-                    classpathOrderOut, scanSpec, log);
+            addBundleFile(classpathOrderOut.reflectionUtils.getFieldVal(false, bundlefile, "next"), path,
+                    classLoader, classpathOrderOut, scanSpec, log);
         }
     }
 
     /**
      * Adds the classpath entries.
      *
-     * @param owner             the owner, or null
-     * @param classLoader       the class loader
-     * @param classpathOrderOut the classpath order out
-     * @param scanSpec          the scan spec
-     * @param log               the log node, or null to skip logging
+     * @param owner
+     *            the owner, or null
+     * @param classLoader
+     *            the class loader
+     * @param classpathOrderOut
+     *            the classpath order out
+     * @param scanSpec
+     *            the scan spec
+     * @param log
+     *            the log node, or null to skip logging
      */
     private static void addClasspathEntries(final @Nullable Object owner, final ClassLoader classLoader,
             final ClasspathOrder classpathOrderOut, final ScanSpec scanSpec, final @Nullable LogNode log) {
@@ -167,19 +179,22 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
             // type Storage
             final var storage = classpathOrder.reflectionUtils.getFieldVal(false, container, "storage");
             // type ModuleContainer
-            final var moduleContainer = classpathOrder.reflectionUtils.getFieldVal(false, storage, "moduleContainer");
+            final var moduleContainer = classpathOrder.reflectionUtils.getFieldVal(false, storage,
+                    "moduleContainer");
             // type ModuleDatabase
             final var moduleDatabase = classpathOrder.reflectionUtils.getFieldVal(false, moduleContainer,
                     "moduleDatabase");
             // type HashMap<Integer, EquinoxModule>
-            final var modulesById = classpathOrder.reflectionUtils.getFieldVal(false, moduleDatabase, "modulesById");
+            final var modulesById = classpathOrder.reflectionUtils.getFieldVal(false, moduleDatabase,
+                    "modulesById");
             // type EquinoxSystemModule (module 0 is always the system module)
             final var module0 = classpathOrder.reflectionUtils.invokeMethod(false, modulesById, "get", Object.class,
                     0L);
             // type Bundle
             final var bundle = classpathOrder.reflectionUtils.invokeMethod(false, module0, "getBundle");
             // type BundleContext
-            final var bundleContext = classpathOrder.reflectionUtils.invokeMethod(false, bundle, "getBundleContext");
+            final var bundleContext = classpathOrder.reflectionUtils.invokeMethod(false, bundle,
+                    "getBundleContext");
             // type Bundle[]
             final var bundles = classpathOrder.reflectionUtils.invokeMethod(false, bundleContext, "getBundles");
             if (bundles != null) {
@@ -203,12 +218,10 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
     }
 
     /**
-     * Get the automatic package root prefixes for classpath elements obtained from
-     * this classloader.
+     * Get the automatic package root prefixes for classpath elements obtained from this classloader.
      *
      * <p>
-     * Classpath elements from this classloader may be Spring-Boot executable jars
-     * or wars.
+     * Classpath elements from this classloader may be Spring-Boot executable jars or wars.
      *
      * @return the package root prefixes.
      */

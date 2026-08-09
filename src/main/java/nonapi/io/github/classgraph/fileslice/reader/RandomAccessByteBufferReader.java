@@ -37,8 +37,8 @@ import java.nio.ReadOnlyBufferException;
 import nonapi.io.github.classgraph.utils.StringUtils;
 
 /**
- * {@link RandomAccessReader} for a {@link ByteBuffer}. Reads in <b>little
- * endian</b> order, as required by the zipfile format.
+ * {@link RandomAccessReader} for a {@link ByteBuffer}. Reads in <b>little endian</b> order, as required by the
+ * zipfile format.
  */
 public class RandomAccessByteBufferReader implements RandomAccessReader {
     /** The byte buffer. */
@@ -53,11 +53,15 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
     /**
      * Constructor.
      *
-     * @param byteBuffer    the byte buffer
-     * @param sliceStartPos the slice start pos
-     * @param sliceLength   the slice length
+     * @param byteBuffer
+     *            the byte buffer
+     * @param sliceStartPos
+     *            the slice start pos
+     * @param sliceLength
+     *            the slice length
      */
-    public RandomAccessByteBufferReader(final ByteBuffer byteBuffer, final long sliceStartPos, final long sliceLength) {
+    public RandomAccessByteBufferReader(final ByteBuffer byteBuffer, final long sliceStartPos,
+            final long sliceLength) {
         this.byteBuffer = byteBuffer.duplicate();
         this.byteBuffer.order(ByteOrder.LITTLE_ENDIAN);
         this.sliceStartPos = (int) sliceStartPos;

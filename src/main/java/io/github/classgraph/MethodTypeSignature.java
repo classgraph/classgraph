@@ -41,8 +41,7 @@ import nonapi.io.github.classgraph.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A method type signature (called "MethodSignature" in the classfile
- * documentation).
+ * A method type signature (called "MethodSignature" in the classfile documentation).
  */
 public final class MethodTypeSignature extends HierarchicalTypeSignature {
     /** The method type parameters. */
@@ -65,10 +64,14 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
     /**
      * Constructor.
      *
-     * @param typeParameters   The type parameters for the method.
-     * @param paramTypes       The parameter types for the method.
-     * @param resultType       The return type for the method.
-     * @param throwsSignatures The throws signatures for the method.
+     * @param typeParameters
+     *            The type parameters for the method.
+     * @param paramTypes
+     *            The parameter types for the method.
+     * @param resultType
+     *            The return type for the method.
+     * @param throwsSignatures
+     *            The throws signatures for the method.
      */
     private MethodTypeSignature(final List<TypeParameter> typeParameters, final List<TypeSignature> paramTypes,
             final TypeSignature resultType, final List<ClassRefOrTypeVariableSignature> throwsSignatures) {
@@ -82,25 +85,21 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the type parameters for the method, if this is a <a href=
-     * "https://docs.oracle.com/javase/tutorial/extra/generics/methods.html">generic
-     * method</a>.
-     * 
-     * @return The type parameters for the method, or the empty list if the method
-     *         is not generic.
+     * Get the type parameters for the method, if this is a
+     * <a href= "https://docs.oracle.com/javase/tutorial/extra/generics/methods.html">generic method</a>.
+     *
+     * @return The type parameters for the method, or the empty list if the method is not generic.
      */
     public List<TypeParameter> getTypeParameters() {
         return typeParameters;
     }
 
     /**
-     * Get the type signatures of the method parameters. N.B. this is non-public,
-     * since the types have to be aligned with other parameter metadata. The type of
-     * a parameter can be obtained post-alignment from the parameter's
+     * Get the type signatures of the method parameters. N.B. this is non-public, since the types have to be aligned
+     * with other parameter metadata. The type of a parameter can be obtained post-alignment from the parameter's
      * {@link MethodParameterInfo} object.
-     * 
-     * @return The parameter types for the method, as {@link TypeSignature} parsed
-     *         type objects.
+     *
+     * @return The parameter types for the method, as {@link TypeSignature} parsed type objects.
      */
     List<TypeSignature> getParameterTypeSignatures() {
         return parameterTypeSignatures;
@@ -108,9 +107,8 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
 
     /**
      * Get the result type for the method.
-     * 
-     * @return The result type for the method, as a {@link TypeSignature} parsed
-     *         type object.
+     *
+     * @return The result type for the method, as a {@link TypeSignature} parsed type object.
      */
     public TypeSignature getResultType() {
         return resultType;
@@ -118,9 +116,8 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
 
     /**
      * Get the throws type(s) for the method.
-     * 
-     * @return The throws types for the method, as {@link TypeSignature} parsed type
-     *         objects.
+     *
+     * @return The throws types for the method, as {@link TypeSignature} parsed type objects.
      */
     public List<ClassRefOrTypeVariableSignature> getThrowsSignatures() {
         return throwsSignatures;
@@ -130,13 +127,15 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
     void addTypeAnnotation(final List<TypePathNode> typePath, final AnnotationInfo annotationInfo) {
         // Individual parts of a class' type each have their own addTypeAnnotation
         // methods
-        throw new UnsupportedOperationException("Cannot call this method on " + MethodTypeSignature.class.getSimpleName());
+        throw new UnsupportedOperationException(
+                "Cannot call this method on " + MethodTypeSignature.class.getSimpleName());
     }
 
     /**
      * Add a type annotation for an explicit receiver parameter.
      *
-     * @param annotationInfo the receiver type annotation
+     * @param annotationInfo
+     *            the receiver type annotation
      */
     void addReceiverTypeAnnotation(final AnnotationInfo annotationInfo) {
         var receiverTypeAnnotations = receiverTypeAnnotationInfo;
@@ -148,7 +147,7 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
 
     /**
      * Get type annotations on the explicit receiver parameter, or null if none.
-     * 
+     *
      * @return type annotations on the explicit receiver parameter, or null if none.
      */
     public @Nullable AnnotationInfoList getReceiverTypeAnnotationInfo() {
@@ -212,7 +211,8 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
     /**
      * Get the names of any classes referenced in the type signature.
      *
-     * @param refdClassNames the referenced class names.
+     * @param refdClassNames
+     *            the referenced class names.
      */
     protected void findReferencedClassNames(final Set<String> refdClassNames) {
         for (final TypeParameter typeParameter : typeParameters) {
@@ -234,12 +234,14 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
     }
 
     /**
-     * Get {@link ClassInfo} objects for any classes referenced in the type
-     * descriptor or type signature.
+     * Get {@link ClassInfo} objects for any classes referenced in the type descriptor or type signature.
      *
-     * @param classNameToClassInfo the map from class name to {@link ClassInfo}.
-     * @param refdClassInfo        the referenced class info
-     * @param log                  the log node, or null to skip logging
+     * @param classNameToClassInfo
+     *            the map from class name to {@link ClassInfo}.
+     * @param refdClassInfo
+     *            the referenced class info
+     * @param log
+     *            the log node, or null to skip logging
      */
     @Override
     void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
@@ -288,8 +290,7 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
 
     @Override
     protected void toStringInternal(final boolean useSimpleNames,
-            final @Nullable AnnotationInfoList annotationsToExclude,
-            final StringBuilder buf) {
+            final @Nullable AnnotationInfoList annotationsToExclude, final StringBuilder buf) {
         if (!typeParameters.isEmpty()) {
             buf.append('<');
             for (var i = 0; i < typeParameters.size(); i++) {
@@ -330,13 +331,15 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
 
     /**
      * Parse a method signature.
-     * 
-     * @param typeDescriptor    The type descriptor of the method.
-     * @param definingClassName The name of the defining class (for resolving type
-     *                          variables), or null if the defining class is not
-     *                          known.
+     *
+     * @param typeDescriptor
+     *            The type descriptor of the method.
+     * @param definingClassName
+     *            The name of the defining class (for resolving type variables), or null if the defining class is
+     *            not known.
      * @return The parsed method type signature.
-     * @throws ParseException If method type signature could not be parsed.
+     * @throws ParseException
+     *             If method type signature could not be parsed.
      */
     static MethodTypeSignature parse(final String typeDescriptor, final @Nullable String definingClassName)
             throws ParseException {
@@ -344,8 +347,7 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
             // Special case for instance initialization method signatures in a
             // CONSTANT_NameAndType_info structure:
             // https://docs.oracle.com/javase/specs/jvms/se11/html/jvms-4.html#jvms-4.4.2
-            return new MethodTypeSignature(List.of(), List.of(),
-                    /* void */ new BaseTypeSignature('V'), List.of());
+            return new MethodTypeSignature(List.of(), List.of(), /* void */ new BaseTypeSignature('V'), List.of());
         }
         final Parser parser = new Parser(typeDescriptor);
         final var typeParameters = TypeParameter.parseList(parser, definingClassName);

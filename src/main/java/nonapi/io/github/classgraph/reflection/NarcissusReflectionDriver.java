@@ -36,10 +36,9 @@ import java.lang.reflect.Method;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Narcissus reflection driver (uses the
- * <a href="https://github.com/toolfactory/narcissus">Narcissus</a> library, if
- * it is available, which allows access to non-public fields and methods,
- * circumventing encapsulation and visibility controls via JNI).
+ * Narcissus reflection driver (uses the <a href="https://github.com/toolfactory/narcissus">Narcissus</a> library,
+ * if it is available, which allows access to non-public fields and methods, circumventing encapsulation and
+ * visibility controls via JNI).
  */
 class NarcissusReflectionDriver extends ReflectionDriver {
     /** {@code Narcissus#getDeclaredMethods(Class)}. */
@@ -73,11 +72,12 @@ class NarcissusReflectionDriver extends ReflectionDriver {
     private final Method invokeStaticMethod;
 
     /**
-     * Constructor. Looks up the Narcissus API reflectively, so that ClassGraph has
-     * no compile-time or runtime dependency on Narcissus.
+     * Constructor. Looks up the Narcissus API reflectively, so that ClassGraph has no compile-time or runtime
+     * dependency on Narcissus.
      *
-     * @throws Exception if Narcissus is not on the classpath, or its native library
-     *                   could not be loaded, or its API is not the expected shape
+     * @throws Exception
+     *             if Narcissus is not on the classpath, or its native library could not be loaded, or its API is
+     *             not the expected shape
      */
     NarcissusReflectionDriver() throws Exception {
         // Load Narcissus class via reflection, so that there is no runtime dependency
@@ -96,8 +96,10 @@ class NarcissusReflectionDriver extends ReflectionDriver {
         setField = drv.findStaticMethod(narcissusClass, "setField", Object.class, Field.class, Object.class);
         getStaticField = drv.findStaticMethod(narcissusClass, "getStaticField", Field.class);
         setStaticField = drv.findStaticMethod(narcissusClass, "setStaticField", Field.class, Object.class);
-        invokeMethod = drv.findStaticMethod(narcissusClass, "invokeMethod", Object.class, Method.class, Object[].class);
-        invokeStaticMethod = drv.findStaticMethod(narcissusClass, "invokeStaticMethod", Method.class, Object[].class);
+        invokeMethod = drv.findStaticMethod(narcissusClass, "invokeMethod", Object.class, Method.class,
+                Object[].class);
+        invokeStaticMethod = drv.findStaticMethod(narcissusClass, "invokeStaticMethod", Method.class,
+                Object[].class);
     }
 
     @Override
@@ -155,8 +157,7 @@ class NarcissusReflectionDriver extends ReflectionDriver {
 
     @Override
     @Nullable
-    Object invokeMethod(final Object object, final Method method, final @Nullable Object... args)
-            throws Exception {
+    Object invokeMethod(final Object object, final Method method, final @Nullable Object... args) throws Exception {
         return invokeMethod.invoke(null, object, method, args);
     }
 

@@ -15,7 +15,8 @@ public class SceneGraph implements Drawable {
     /**
      * Adds the shape.
      *
-     * @param shape the shape
+     * @param shape
+     *            the shape
      */
     public void addShape(final Shape shape) {
         shapes.add(shape);
@@ -24,7 +25,8 @@ public class SceneGraph implements Drawable {
     /**
      * Draw.
      *
-     * @param g the g
+     * @param g
+     *            the g
      */
     /*
      * (non-Javadoc)

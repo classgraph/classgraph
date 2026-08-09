@@ -12,9 +12,12 @@ public class Circle extends ShapeImpl {
     /**
      * Constructor.
      *
-     * @param x the x
-     * @param y the y
-     * @param r the r
+     * @param x
+     *            the x
+     * @param y
+     *            the y
+     * @param r
+     *            the r
      */
     public Circle(final float x, final float y, final float r) {
         super(x, y);

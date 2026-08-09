@@ -16,8 +16,10 @@ public abstract class ShapeImpl implements Shape {
     /**
      * Constructor.
      *
-     * @param x the x
-     * @param y the y
+     * @param x
+     *            the x
+     * @param y
+     *            the y
      */
     public ShapeImpl(final float x, final float y) {
         this.x = x;

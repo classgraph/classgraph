@@ -42,8 +42,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     final LogicalZipFile parentLogicalZipFile;
 
     /**
-     * The offset of the entry's local header, as an offset relative to the parent
-     * logical zipfile.
+     * The offset of the entry's local header, as an offset relative to the parent logical zipfile.
      */
     private final long locHeaderPos;
 
@@ -63,14 +62,12 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     private long lastModifiedTimeMillis;
 
     /**
-     * The last modified time in MSDOS format, if
-     * {@link FastZipEntry#lastModifiedTimeMillis} is 0L.
+     * The last modified time in MSDOS format, if {@link FastZipEntry#lastModifiedTimeMillis} is 0L.
      */
     private final int lastModifiedTimeMSDOS;
 
     /**
-     * The last modified date in MSDOS format, if
-     * {@link FastZipEntry#lastModifiedTimeMillis} is 0L.
+     * The last modified date in MSDOS format, if {@link FastZipEntry#lastModifiedTimeMillis} is 0L.
      */
     private final int lastModifiedDateMSDOS;
 
@@ -78,20 +75,18 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     public final int fileAttributes;
 
     /**
-     * The {@link Slice} for the zip entry's raw data (which can be either stored or
-     * deflated), or null until {@link #getSlice()} is first called.
+     * The {@link Slice} for the zip entry's raw data (which can be either stored or deflated), or null until
+     * {@link #getSlice()} is first called.
      */
     private @Nullable Slice slice;
 
     /**
-     * The version code (&gt;= 9), or 8 for the base layer or a non-versioned jar
-     * (whether JDK 7 or 8 compatible).
+     * The version code (&gt;= 9), or 8 for the base layer or a non-versioned jar (whether JDK 7 or 8 compatible).
      */
     final int version;
 
     /**
-     * The unversioned entry name (i.e. entryName with
-     * "META_INF/versions/{versionInt}/" stripped)
+     * The unversioned entry name (i.e. entryName with "META_INF/versions/{versionInt}/" stripped)
      */
     public final String entryNameUnversioned;
 
@@ -99,31 +94,31 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
 
     /**
      * Constructor.
-     * 
-     * @param parentLogicalZipFile       The parent logical zipfile containing this
-     *                                   entry.
-     * @param locHeaderPos               The offset of the LOC header for this entry
-     *                                   within the parent logical zipfile.
-     * @param entryName                  The name of the entry.
-     * @param isDeflated                 True if the entry is deflated; false if the
-     *                                   entry is stored.
-     * @param compressedSize             The compressed size of the entry.
-     * @param uncompressedSize           The uncompressed size of the entry.
-     * @param lastModifiedTimeMillis     The last modified date/time in millis since
-     *                                   the epoch, or 0L if unknown (in which case,
-     *                                   the MSDOS time and date fields will be
-     *                                   provided).
-     * @param lastModifiedTimeMSDOS      The last modified date, in MSDOS format, if
-     *                                   lastModifiedMillis is 0L.
-     * @param lastModifiedDateMSDOS      The last modified date, in MSDOS format, if
-     *                                   lastModifiedMillis is 0L.
-     * @param fileAttributes             The POSIX file attribute bits from the zip
-     *                                   entry.
-     * @param enableMultiReleaseVersions If true, strip any
-     *                                   "META-INF/versions/{versionInt}/" prefix
-     *                                   from the entry name, and record the version
-     *                                   number; if false, leave multi-release entry
-     *                                   names unchanged.
+     *
+     * @param parentLogicalZipFile
+     *            The parent logical zipfile containing this entry.
+     * @param locHeaderPos
+     *            The offset of the LOC header for this entry within the parent logical zipfile.
+     * @param entryName
+     *            The name of the entry.
+     * @param isDeflated
+     *            True if the entry is deflated; false if the entry is stored.
+     * @param compressedSize
+     *            The compressed size of the entry.
+     * @param uncompressedSize
+     *            The uncompressed size of the entry.
+     * @param lastModifiedTimeMillis
+     *            The last modified date/time in millis since the epoch, or 0L if unknown (in which case, the MSDOS
+     *            time and date fields will be provided).
+     * @param lastModifiedTimeMSDOS
+     *            The last modified date, in MSDOS format, if lastModifiedMillis is 0L.
+     * @param lastModifiedDateMSDOS
+     *            The last modified date, in MSDOS format, if lastModifiedMillis is 0L.
+     * @param fileAttributes
+     *            The POSIX file attribute bits from the zip entry.
+     * @param enableMultiReleaseVersions
+     *            If true, strip any "META-INF/versions/{versionInt}/" prefix from the entry name, and record the
+     *            version number; if false, leave multi-release entry names unchanged.
      */
     FastZipEntry(final LogicalZipFile parentLogicalZipFile, final long locHeaderPos, final String entryName,
             final boolean isDeflated, final long compressedSize, final long uncompressedSize,
@@ -199,12 +194,12 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Lazily get zip entry slice -- this is deferred until zip entry data needs to
-     * be read, in order to avoid randomly seeking within zipfile for every entry as
-     * the central directory is read.
+     * Lazily get zip entry slice -- this is deferred until zip entry data needs to be read, in order to avoid
+     * randomly seeking within zipfile for every entry as the central directory is read.
      *
      * @return the offset within the physical zip file of the entry's start offset.
-     * @throws IOException If an I/O exception occurs.
+     * @throws IOException
+     *             If an I/O exception occurs.
      */
     public Slice getSlice() throws IOException {
         var slice = this.slice;
@@ -237,8 +232,8 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the path to this zip entry, using "!/" as a separator between the parent
-     * logical zipfile and the entry name.
+     * Get the path to this zip entry, using "!/" as a separator between the parent logical zipfile and the entry
+     * name.
      *
      * @return the path of the entry
      */
@@ -277,10 +272,11 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     }
 
     /**
-     * Sort in decreasing order of version number, then lexicographically increasing
-     * order of unversioned entry path.
+     * Sort in decreasing order of version number, then lexicographically increasing order of unversioned entry
+     * path.
      *
-     * @param o the object to compare to
+     * @param o
+     *            the object to compare to
      * @return the result of comparison
      */
     @Override

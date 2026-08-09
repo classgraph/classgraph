@@ -5,11 +5,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.Test;
 
 /**
- * {@link ResourceList#getPathsRelativeToClasspathElement()} called
- * {@link Resource#getPath()} rather than
- * {@link Resource#getPathRelativeToClasspathElement()}, so it returned the same
- * paths as {@link ResourceList#getPaths()}, with the package root prefix
- * stripped.
+ * {@link ResourceList#getPathsRelativeToClasspathElement()} called {@link Resource#getPath()} rather than
+ * {@link Resource#getPathRelativeToClasspathElement()}, so it returned the same paths as
+ * {@link ResourceList#getPaths()}, with the package root prefix stripped.
  */
 public class ResourceListPathsTest {
     /** Paths relative to the classpath element retain the package root prefix. */

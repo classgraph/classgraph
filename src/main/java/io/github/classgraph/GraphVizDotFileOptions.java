@@ -31,20 +31,19 @@ package io.github.classgraph;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Options for the GraphViz .dot file generators on {@link ClassInfoList}. A freshly
- * constructed instance holds the defaults; each method switches one option away from its
- * default and returns {@code this}, so options can be chained:
+ * Options for the GraphViz .dot file generators on {@link ClassInfoList}. A freshly constructed instance holds the
+ * defaults; each method switches one option away from its default and returns {@code this}, so options can be
+ * chained:
  *
  * <pre>
- * classInfoList.generateGraphVizDotFile(
- *         new GraphVizDotFileOptions().layoutSize(12, 8).hideFields().hideMethods());
+ * classInfoList.generateGraphVizDotFile(new GraphVizDotFileOptions().layoutSize(12, 8).hideFields().hideMethods());
  * </pre>
  *
  * <p>
- * {@link ClassInfoList#generateGraphVizDotFileFromInterClassDependencies(GraphVizDotFileOptions)}
- * draws a different graph, and reads only {@link #layoutSize(float, float)},
- * {@link #includeExternalClasses()} and {@link #excludeExternalClasses()} — the options
- * that show or hide the contents of a class node have no effect on it.
+ * {@link ClassInfoList#generateGraphVizDotFileFromInterClassDependencies(GraphVizDotFileOptions)} draws a different
+ * graph, and reads only {@link #layoutSize(float, float)}, {@link #includeExternalClasses()} and
+ * {@link #excludeExternalClasses()} — the options that show or hide the contents of a class node have no effect on
+ * it.
  */
 public class GraphVizDotFileOptions {
     /** The GraphViz layout width, in inches. */
@@ -63,8 +62,7 @@ public class GraphVizDotFileOptions {
     boolean showMethods = true;
 
     /**
-     * Whether to show edges between classes and the return types and parameter types of
-     * their methods.
+     * Whether to show edges between classes and the return types and parameter types of their methods.
      */
     boolean showMethodTypeDependencyEdges = true;
 
@@ -75,8 +73,8 @@ public class GraphVizDotFileOptions {
     boolean useSimpleNames = true;
 
     /**
-     * Whether to show external classes in the inter-class dependency graph, or null to
-     * follow the scan's own {@link ClassGraph#enableExternalClasses()} setting.
+     * Whether to show external classes in the inter-class dependency graph, or null to follow the scan's own
+     * {@link ClassGraph#enableExternalClasses()} setting.
      */
     @Nullable
     Boolean includeExternalClasses;
@@ -87,11 +85,13 @@ public class GraphVizDotFileOptions {
     }
 
     /**
-     * Set the image output size to use (in inches) when GraphViz is asked to render the
-     * .dot file. The default is 10.5 by 8 inches.
+     * Set the image output size to use (in inches) when GraphViz is asked to render the .dot file. The default is
+     * 10.5 by 8 inches.
      *
-     * @param sizeX The GraphViz layout width in inches.
-     * @param sizeY The GraphViz layout height in inches.
+     * @param sizeX
+     *            The GraphViz layout width in inches.
+     * @param sizeY
+     *            The GraphViz layout height in inches.
      * @return this {@link GraphVizDotFileOptions}, for method chaining.
      */
     public GraphVizDotFileOptions layoutSize(final float sizeX, final float sizeY) {
@@ -101,8 +101,8 @@ public class GraphVizDotFileOptions {
     }
 
     /**
-     * Do not show fields within class nodes. (Fields are shown by default, if
-     * {@link ClassGraph#enableFieldInfo()} was called before scanning.)
+     * Do not show fields within class nodes. (Fields are shown by default, if {@link ClassGraph#enableFieldInfo()}
+     * was called before scanning.)
      *
      * @return this {@link GraphVizDotFileOptions}, for method chaining.
      */
@@ -112,8 +112,7 @@ public class GraphVizDotFileOptions {
     }
 
     /**
-     * Do not show edges between classes and the types of their fields. (These edges are
-     * shown by default.)
+     * Do not show edges between classes and the types of their fields. (These edges are shown by default.)
      *
      * @return this {@link GraphVizDotFileOptions}, for method chaining.
      */
@@ -134,8 +133,8 @@ public class GraphVizDotFileOptions {
     }
 
     /**
-     * Do not show edges between classes and the return types and parameter types of their
-     * methods. (These edges are shown by default.)
+     * Do not show edges between classes and the return types and parameter types of their methods. (These edges are
+     * shown by default.)
      *
      * @return this {@link GraphVizDotFileOptions}, for method chaining.
      */
@@ -145,8 +144,8 @@ public class GraphVizDotFileOptions {
     }
 
     /**
-     * Do not show annotations. (Annotations are shown by default, if
-     * {@link ClassGraph#enableAnnotationInfo()} was called before scanning.)
+     * Do not show annotations. (Annotations are shown by default, if {@link ClassGraph#enableAnnotationInfo()} was
+     * called before scanning.)
      *
      * @return this {@link GraphVizDotFileOptions}, for method chaining.
      */
@@ -156,8 +155,8 @@ public class GraphVizDotFileOptions {
     }
 
     /**
-     * Show class names in method and field type signatures fully qualified. (By default
-     * the package name is stripped, leaving the simple name.)
+     * Show class names in method and field type signatures fully qualified. (By default the package name is
+     * stripped, leaving the simple name.)
      *
      * @return this {@link GraphVizDotFileOptions}, for method chaining.
      */
@@ -167,9 +166,9 @@ public class GraphVizDotFileOptions {
     }
 
     /**
-     * Show "external classes" (non-accepted classes) in the inter-class dependency graph.
-     * This has an effect only if {@link ClassGraph#enableExternalClasses()} was called
-     * before scanning. By default the graph follows that setting.
+     * Show "external classes" (non-accepted classes) in the inter-class dependency graph. This has an effect only
+     * if {@link ClassGraph#enableExternalClasses()} was called before scanning. By default the graph follows that
+     * setting.
      *
      * @return this {@link GraphVizDotFileOptions}, for method chaining.
      */
@@ -179,9 +178,9 @@ public class GraphVizDotFileOptions {
     }
 
     /**
-     * Do not show "external classes" (non-accepted classes) in the inter-class dependency
-     * graph, even if {@link ClassGraph#enableExternalClasses()} was called before
-     * scanning. By default the graph follows that setting.
+     * Do not show "external classes" (non-accepted classes) in the inter-class dependency graph, even if
+     * {@link ClassGraph#enableExternalClasses()} was called before scanning. By default the graph follows that
+     * setting.
      *
      * @return this {@link GraphVizDotFileOptions}, for method chaining.
      */

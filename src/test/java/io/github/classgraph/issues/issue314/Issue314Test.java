@@ -7,8 +7,7 @@ import org.junit.jupiter.api.Test;
 import io.github.classgraph.ClassGraph;
 
 /**
- * The subclass relationship between two private nested classes is found by a
- * scan.
+ * The subclass relationship between two private nested classes is found by a scan.
  */
 public class Issue314Test {
     /**

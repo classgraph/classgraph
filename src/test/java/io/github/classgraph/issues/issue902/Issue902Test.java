@@ -9,9 +9,8 @@ import org.junit.jupiter.api.Test;
 import io.github.classgraph.ClassGraph;
 
 /**
- * Test that the hierarchy above an accepted class is completed from classfiles
- * in system modules, without having to call
- * {@link ClassGraph#enableSystemJarsAndModules()}.
+ * Test that the hierarchy above an accepted class is completed from classfiles in system modules, without having to
+ * call {@link ClassGraph#enableSystemJarsAndModules()}.
  */
 public class Issue902Test {
     /** Implements an interface directly. */
@@ -33,8 +32,7 @@ public class Issue902Test {
     }
 
     /**
-     * A class implements an interface that only the classfile of its system
-     * superclass names.
+     * A class implements an interface that only the classfile of its system superclass names.
      */
     @Test
     public void interfaceOfSystemSuperclassIsFound() {
@@ -52,8 +50,7 @@ public class Issue902Test {
     }
 
     /**
-     * The superclass chain of a class in a system module is completed all the way
-     * to Object.
+     * The superclass chain of a class in a system module is completed all the way to Object.
      */
     @Test
     public void systemSuperclassChainIsCompleted() {
@@ -67,9 +64,8 @@ public class Issue902Test {
     }
 
     /**
-     * A class read from a system module in order to complete a hierarchy is an
-     * external class, so it is not listed among the scanned classes, and its module
-     * is not listed among the scanned modules.
+     * A class read from a system module in order to complete a hierarchy is an external class, so it is not listed
+     * among the scanned classes, and its module is not listed among the scanned modules.
      */
     @Test
     public void systemClassesAreNotAddedToTheScanResult() {

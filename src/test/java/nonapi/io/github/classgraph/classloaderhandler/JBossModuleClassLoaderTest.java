@@ -8,16 +8,13 @@ import org.junit.jupiter.api.Test;
 import io.github.classgraph.ClassGraph;
 
 /**
- * Test that {@code JBossClassLoaderHandler} does not throw when a
- * {@code ModuleClassLoader} does not have the {@code getPaths()} method that
- * the handler calls by reflection. The handler already null-checks the
- * {@code moduleMap} field it reads just above, so it should tolerate a missing
- * {@code getPaths()} too.
+ * Test that {@code JBossClassLoaderHandler} does not throw when a {@code ModuleClassLoader} does not have the
+ * {@code getPaths()} method that the handler calls by reflection. The handler already null-checks the
+ * {@code moduleMap} field it reads just above, so it should tolerate a missing {@code getPaths()} too.
  */
 public class JBossModuleClassLoaderTest {
     /**
-     * Scanning with a ModuleClassLoader that has no getPaths() method should not
-     * throw.
+     * Scanning with a ModuleClassLoader that has no getPaths() method should not throw.
      */
     @Test
     public void moduleClassLoaderWithoutGetPaths() {

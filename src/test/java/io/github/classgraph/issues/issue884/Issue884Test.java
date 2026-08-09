@@ -11,28 +11,23 @@ import io.github.classgraph.ClassInfo;
 import nonapi.io.github.classgraph.scanspec.AcceptReject.AcceptRejectPrefix;
 
 /**
- * A reject criterion containing a glob wildcard was not applied to the
- * sub-packages of a matched package.
+ * A reject criterion containing a glob wildcard was not applied to the sub-packages of a matched package.
  *
  * <p>
- * {@code rejectPackages("javax.swing.*")} adds {@code "javax.swing.*."} as a
- * rejected <i>prefix</i>, which is how "and everything below a matched package"
- * is implemented. {@link AcceptRejectPrefix} stores a prefix containing a
- * wildcard as a regexp rather than as a literal {@code String#startsWith}
- * prefix, but {@link AcceptRejectPrefix#isRejected(String)} only tested the
- * literal prefixes -- so the glob prefixes it stored were never consulted, and
- * the sub-packages of a glob-matched package were scanned anyway.
+ * {@code rejectPackages("javax.swing.*")} adds {@code "javax.swing.*."} as a rejected <i>prefix</i>, which is how
+ * "and everything below a matched package" is implemented. {@link AcceptRejectPrefix} stores a prefix containing a
+ * wildcard as a regexp rather than as a literal {@code String#startsWith} prefix, but
+ * {@link AcceptRejectPrefix#isRejected(String)} only tested the literal prefixes -- so the glob prefixes it stored
+ * were never consulted, and the sub-packages of a glob-matched package were scanned anyway.
  *
  * <p>
- * Recursive directory scanning prunes a rejected directory before descending
- * into it, so this was only visible where classfile entries are enumerated flat
- * rather than walked as a tree, as they are for modules.
+ * Recursive directory scanning prunes a rejected directory before descending into it, so this was only visible
+ * where classfile entries are enumerated flat rather than walked as a tree, as they are for modules.
  */
 public class Issue884Test {
 
     /**
-     * A glob prefix must be applied by
-     * {@link AcceptRejectPrefix#isRejected(String)}, not just stored.
+     * A glob prefix must be applied by {@link AcceptRejectPrefix#isRejected(String)}, not just stored.
      */
     @Test
     public void globRejectPrefixIsApplied() {
@@ -48,11 +43,9 @@ public class Issue884Test {
     }
 
     /**
-     * End-to-end: {@code rejectPackages("javax.swing.*")} must reject every
-     * sub-package of {@code javax.swing}, leaving only {@code javax.swing} itself.
-     * {@code javax.swing} is used because it is in the system class library on
-     * every supported JDK, and is reached by flat enumeration rather than by
-     * directory recursion.
+     * End-to-end: {@code rejectPackages("javax.swing.*")} must reject every sub-package of {@code javax.swing},
+     * leaving only {@code javax.swing} itself. {@code javax.swing} is used because it is in the system class
+     * library on every supported JDK, and is reached by flat enumeration rather than by directory recursion.
      */
     @Test
     public void globRejectIsRecursiveWhenEnumeratingFlatly() {

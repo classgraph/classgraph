@@ -33,9 +33,8 @@ import nonapi.io.github.classgraph.types.Parser;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A type signature for a reference type. Subclasses are
- * {@link ClassRefOrTypeVariableSignature} ({@link ClassRefTypeSignature} or
- * {@link TypeVariableSignature}), and {@link ArrayTypeSignature}.
+ * A type signature for a reference type. Subclasses are {@link ClassRefOrTypeVariableSignature}
+ * ({@link ClassRefTypeSignature} or {@link TypeVariableSignature}), and {@link ArrayTypeSignature}.
  */
 public abstract class ReferenceTypeSignature extends TypeSignature {
     /** Constructor. */
@@ -45,11 +44,14 @@ public abstract class ReferenceTypeSignature extends TypeSignature {
 
     /**
      * Parse a reference type signature.
-     * 
-     * @param parser            The parser
-     * @param definingClassName The class containing the type descriptor.
+     *
+     * @param parser
+     *            The parser
+     * @param definingClassName
+     *            The class containing the type descriptor.
      * @return The parsed type reference type signature.
-     * @throws ParseException If the type signature could not be parsed.
+     * @throws ParseException
+     *             If the type signature could not be parsed.
      */
     static @Nullable ReferenceTypeSignature parseReferenceTypeSignature(final Parser parser,
             final @Nullable String definingClassName) throws ParseException {
@@ -70,11 +72,14 @@ public abstract class ReferenceTypeSignature extends TypeSignature {
 
     /**
      * Parse a class bound.
-     * 
-     * @param parser            The parser.
-     * @param definingClassName The class containing the type descriptor.
+     *
+     * @param parser
+     *            The parser.
+     * @param definingClassName
+     *            The class containing the type descriptor.
      * @return The parsed class bound.
-     * @throws ParseException If the type signature could not be parsed.
+     * @throws ParseException
+     *             If the type signature could not be parsed.
      */
     static @Nullable ReferenceTypeSignature parseClassBound(final Parser parser,
             final @Nullable String definingClassName) throws ParseException {

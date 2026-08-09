@@ -62,22 +62,21 @@ import nonapi.io.github.classgraph.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
 /**
- * The result of a scan. You should assign a ScanResult in a try-with-resources
- * block, or manually close it when you have finished with the result of a scan.
+ * The result of a scan. You should assign a ScanResult in a try-with-resources block, or manually close it when you
+ * have finished with the result of a scan.
  */
 public final class ScanResult implements Closeable {
     /** The order of raw classpath elements. */
     private List<String> rawClasspathEltOrderStrs;
 
     /**
-     * The order of classpath elements, after inner jars have been extracted to
-     * temporary files, etc.
+     * The order of classpath elements, after inner jars have been extracted to temporary files, etc.
      */
     private @Nullable List<ClasspathElement> classpathOrder;
 
     /**
-     * A list of all files that were found in accepted packages, or null if not yet
-     * cached, or if this {@link ScanResult} has been closed.
+     * A list of all files that were found in accepted packages, or null if not yet cached, or if this
+     * {@link ScanResult} has been closed.
      */
     private @Nullable ResourceList allAcceptedResourcesCached;
 
@@ -87,8 +86,7 @@ public final class ScanResult implements Closeable {
     private final AtomicInteger getResourcesWithPathCallCount = new AtomicInteger();
 
     /**
-     * The map from path (relative to package root) to a list of {@link Resource}
-     * elements with the matching path.
+     * The map from path (relative to package root) to a list of {@link Resource} elements with the matching path.
      */
     private @Nullable Map<String, ResourceList> pathToAcceptedResourcesCached;
 
@@ -102,11 +100,9 @@ public final class ScanResult implements Closeable {
     private @Nullable Map<String, ModuleInfo> moduleNameToModuleInfo;
 
     /**
-     * The file, directory and jarfile resources timestamped during a scan, along
-     * with their timestamp at the time of the scan. For jarfiles, the timestamp
-     * represents the timestamp of all files within the jar. May be null, if this
-     * ScanResult object is the result of a call to
-     * ClassGraph#getUniqueClasspathElementsAsync().
+     * The file, directory and jarfile resources timestamped during a scan, along with their timestamp at the time
+     * of the scan. For jarfiles, the timestamp represents the timestamp of all files within the jar. May be null,
+     * if this ScanResult object is the result of a call to ClassGraph#getUniqueClasspathElementsAsync().
      */
     private @Nullable Map<File, Long> fileToLastModified;
 
@@ -120,20 +116,21 @@ public final class ScanResult implements Closeable {
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
     /**
-     * The {@link ReflectionUtils} instance, or null if this {@link ScanResult} has
-     * been closed.
+     * The {@link ReflectionUtils} instance, or null if this {@link ScanResult} has been closed.
      */
-    @Nullable ReflectionUtils reflectionUtils;
+    @Nullable
+    ReflectionUtils reflectionUtils;
 
     /** The message for the {@link IllegalStateException} thrown after closing. */
     private static final String CLOSED_MESSAGE = "Cannot use a ScanResult after it has been closed";
 
     /**
-     * Get the classpath order, for use in code paths that are only reachable before
-     * this {@link ScanResult} is closed.
+     * Get the classpath order, for use in code paths that are only reachable before this {@link ScanResult} is
+     * closed.
      *
      * @return the classpath order
-     * @throws IllegalStateException if this {@link ScanResult} has been closed.
+     * @throws IllegalStateException
+     *             if this {@link ScanResult} has been closed.
      */
     private List<ClasspathElement> classpathOrder() {
         final var order = classpathOrder;
@@ -144,11 +141,12 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Get the map from package name to {@link PackageInfo}, for use in code paths
-     * that are only reachable before this {@link ScanResult} is closed.
+     * Get the map from package name to {@link PackageInfo}, for use in code paths that are only reachable before
+     * this {@link ScanResult} is closed.
      *
      * @return the map from package name to {@link PackageInfo}
-     * @throws IllegalStateException if this {@link ScanResult} has been closed.
+     * @throws IllegalStateException
+     *             if this {@link ScanResult} has been closed.
      */
     private Map<String, PackageInfo> packageNameToPackageInfo() {
         final var map = packageNameToPackageInfo;
@@ -159,11 +157,12 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Get the map from module name to {@link ModuleInfo}, for use in code paths that
-     * are only reachable before this {@link ScanResult} is closed.
+     * Get the map from module name to {@link ModuleInfo}, for use in code paths that are only reachable before this
+     * {@link ScanResult} is closed.
      *
      * @return the map from module name to {@link ModuleInfo}
-     * @throws IllegalStateException if this {@link ScanResult} has been closed.
+     * @throws IllegalStateException
+     *             if this {@link ScanResult} has been closed.
      */
     private Map<String, ModuleInfo> moduleNameToModuleInfo() {
         final var map = moduleNameToModuleInfo;
@@ -182,8 +181,8 @@ public final class ScanResult implements Closeable {
     private final WeakReference<ScanResult> weakReference;
 
     /**
-     * The set of WeakReferences to non-closed ScanResult objects. Uses
-     * WeakReferences so that garbage collection is not blocked.
+     * The set of WeakReferences to non-closed ScanResult objects. Uses WeakReferences so that garbage collection is
+     * not blocked.
      */
     // #233
     private static final Set<WeakReference<ScanResult>> nonClosedWeakReferences = Collections
@@ -196,11 +195,10 @@ public final class ScanResult implements Closeable {
     // Shutdown hook init code
 
     /**
-     * Static initialization (warm up classloading), called when the ClassGraph
-     * class is initialized.
+     * Static initialization (warm up classloading), called when the ClassGraph class is initialized.
      *
-     * @param reflectionUtils the {@link ReflectionUtils} instance to use for
-     *                        pre-loading classes
+     * @param reflectionUtils
+     *            the {@link ReflectionUtils} instance to use for pre-loading classes
      */
     static void init(final ReflectionUtils reflectionUtils) {
         if (!initialized.getAndSet(true)) {
@@ -233,24 +231,33 @@ public final class ScanResult implements Closeable {
     // Constructor
 
     /**
-     * The result of a scan. Make sure you call complete() after calling the
-     * constructor.
+     * The result of a scan. Make sure you call complete() after calling the constructor.
      *
-     * @param scanSpec                 the scan spec
-     * @param classpathOrder           the classpath order
-     * @param rawClasspathEltOrderStrs the raw classpath element order
-     * @param classNameToClassInfo     a map from class name to class info
-     * @param packageNameToPackageInfo a map from package name to package info
-     * @param moduleNameToModuleInfo   a map from module name to module info
-     * @param fileToLastModified       a map from file to last modified time
-     * @param nestedJarHandler         the nested jar handler
-     * @param topLevelLog              the toplevel log
+     * @param scanSpec
+     *            the scan spec
+     * @param classpathOrder
+     *            the classpath order
+     * @param rawClasspathEltOrderStrs
+     *            the raw classpath element order
+     * @param classNameToClassInfo
+     *            a map from class name to class info
+     * @param packageNameToPackageInfo
+     *            a map from package name to package info
+     * @param moduleNameToModuleInfo
+     *            a map from module name to module info
+     * @param fileToLastModified
+     *            a map from file to last modified time
+     * @param nestedJarHandler
+     *            the nested jar handler
+     * @param topLevelLog
+     *            the toplevel log
      */
     ScanResult(final ScanSpec scanSpec, final List<ClasspathElement> classpathOrder,
             final List<String> rawClasspathEltOrderStrs, final Map<String, ClassInfo> classNameToClassInfo,
             final Map<String, PackageInfo> packageNameToPackageInfo,
-            final Map<String, ModuleInfo> moduleNameToModuleInfo, final @Nullable Map<File, Long> fileToLastModified,
-            final NestedJarHandler nestedJarHandler, final @Nullable LogNode topLevelLog) {
+            final Map<String, ModuleInfo> moduleNameToModuleInfo,
+            final @Nullable Map<File, Long> fileToLastModified, final NestedJarHandler nestedJarHandler,
+            final @Nullable LogNode topLevelLog) {
         this.scanSpec = scanSpec;
         this.rawClasspathEltOrderStrs = rawClasspathEltOrderStrs;
         this.classpathOrder = classpathOrder;
@@ -268,7 +275,8 @@ public final class ScanResult implements Closeable {
         final Set<String> allRepeatableAnnotationNames = new HashSet<>();
         for (final ClassInfo classInfo : classNameToClassInfo.values()) {
             if (classInfo.isAnnotation() && classInfo.annotationInfo != null) {
-                final var repeatableMetaAnnotation = classInfo.annotationInfo.get("java.lang.annotation.Repeatable");
+                final var repeatableMetaAnnotation = classInfo.annotationInfo
+                        .get("java.lang.annotation.Repeatable");
                 if (repeatableMetaAnnotation != null) {
                     final var vals = repeatableMetaAnnotation.getParameterValues();
                     if (!vals.isEmpty()) {
@@ -297,7 +305,8 @@ public final class ScanResult implements Closeable {
     /**
      * Index {@link Resource} and {@link ClassInfo} objects.
      *
-     * @param log the log node, or null to skip logging
+     * @param log
+     *            the log node, or null to skip logging
      */
     private void indexResourcesAndClassInfo(final @Nullable LogNode log) {
         // Add backrefs from Info objects back to this ScanResult
@@ -343,7 +352,8 @@ public final class ScanResult implements Closeable {
     /**
      * Check that this {@link ScanResult} has not been closed.
      *
-     * @throws IllegalStateException if this {@link ScanResult} has been closed.
+     * @throws IllegalStateException
+     *             if this {@link ScanResult} has been closed.
      */
     private void checkNotClosed() {
         if (closed.get()) {
@@ -352,11 +362,10 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Check that this {@link ScanResult} has not been closed, and that class info
-     * was enabled during the scan.
+     * Check that this {@link ScanResult} has not been closed, and that class info was enabled during the scan.
      *
-     * @throws IllegalStateException if this {@link ScanResult} has been closed,
-     *                                  or class info was not enabled.
+     * @throws IllegalStateException
+     *             if this {@link ScanResult} has been closed, or class info was not enabled.
      */
     private void checkClassInfoEnabled() {
         checkNotClosed();
@@ -366,12 +375,11 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Check that this {@link ScanResult} has not been closed, and that class info
-     * and annotation info were enabled during the scan.
+     * Check that this {@link ScanResult} has not been closed, and that class info and annotation info were enabled
+     * during the scan.
      *
-     * @throws IllegalStateException if this {@link ScanResult} has been closed,
-     *                                  or class info or annotation info were not
-     *                                  enabled.
+     * @throws IllegalStateException
+     *             if this {@link ScanResult} has been closed, or class info or annotation info were not enabled.
      */
     private void checkAnnotationInfoEnabled() {
         checkNotClosed();
@@ -382,12 +390,12 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Check that this {@link ScanResult} has not been closed, and that class info,
-     * method info and annotation info were enabled during the scan.
+     * Check that this {@link ScanResult} has not been closed, and that class info, method info and annotation info
+     * were enabled during the scan.
      *
-     * @throws IllegalStateException if this {@link ScanResult} has been closed,
-     *                                  or class info, method info or annotation
-     *                                  info were not enabled.
+     * @throws IllegalStateException
+     *             if this {@link ScanResult} has been closed, or class info, method info or annotation info were
+     *             not enabled.
      */
     private void checkMethodAnnotationInfoEnabled() {
         checkNotClosed();
@@ -398,12 +406,12 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Check that this {@link ScanResult} has not been closed, and that class info,
-     * field info and annotation info were enabled during the scan.
+     * Check that this {@link ScanResult} has not been closed, and that class info, field info and annotation info
+     * were enabled during the scan.
      *
-     * @throws IllegalStateException if this {@link ScanResult} has been closed,
-     *                                  or class info, field info or annotation info
-     *                                  were not enabled.
+     * @throws IllegalStateException
+     *             if this {@link ScanResult} has been closed, or class info, field info or annotation info were not
+     *             enabled.
      */
     private void checkFieldAnnotationInfoEnabled() {
         checkNotClosed();
@@ -417,8 +425,8 @@ public final class ScanResult implements Closeable {
     // Classpath / module path
 
     /**
-     * Returns the list of File objects for unique classpath elements (directories
-     * or jarfiles), in classloader resolution order.
+     * Returns the list of File objects for unique classpath elements (directories or jarfiles), in classloader
+     * resolution order.
      *
      * @return The unique classpath elements.
      */
@@ -435,12 +443,11 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Returns all unique directories or zip/jarfiles on the classpath, in
-     * classloader resolution order, as a classpath string, delineated with the
-     * standard path separator character.
+     * Returns all unique directories or zip/jarfiles on the classpath, in classloader resolution order, as a
+     * classpath string, delineated with the standard path separator character.
      *
-     * @return a the unique directories and jarfiles on the classpath, in classpath
-     *         resolution order, as a path string.
+     * @return a the unique directories and jarfiles on the classpath, in classpath resolution order, as a path
+     *         string.
      */
     public String getClasspath() {
         checkNotClosed();
@@ -470,9 +477,9 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Returns an ordered list of unique classpath element and module URLs. Will
-     * skip any system modules or modules that are part of a jlink'd runtime image,
-     * since {@link URL} does not support the {@code jrt:} {@link URI} scheme.
+     * Returns an ordered list of unique classpath element and module URLs. Will skip any system modules or modules
+     * that are part of a jlink'd runtime image, since {@link URL} does not support the {@code jrt:} {@link URI}
+     * scheme.
      *
      * @return The unique classpath element and module URLs.
      */
@@ -506,16 +513,13 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Get the module path info provided on the commandline with
-     * {@code --module-path}, {@code --add-modules}, {@code --patch-module},
-     * {@code --add-exports}, {@code --add-opens}, and {@code --add-reads}, and also
-     * the {@code Add-Exports} and {@code Add-Opens} entries from jarfile manifest
-     * files encountered during scanning.
+     * Get the module path info provided on the commandline with {@code --module-path}, {@code --add-modules},
+     * {@code --patch-module}, {@code --add-exports}, {@code --add-opens}, and {@code --add-reads}, and also the
+     * {@code Add-Exports} and {@code Add-Opens} entries from jarfile manifest files encountered during scanning.
      *
      * <p>
-     * Note that the returned {@link ModulePathInfo} object does not include
-     * classpath entries from the traditional classpath or system modules. Use
-     * {@link #getModules()} to get all visible modules, including anonymous,
+     * Note that the returned {@link ModulePathInfo} object does not include classpath entries from the traditional
+     * classpath or system modules. Use {@link #getModules()} to get all visible modules, including anonymous,
      * automatic and system modules.
      *
      * @return The {@link ModulePathInfo}.
@@ -532,8 +536,7 @@ public final class ScanResult implements Closeable {
     /**
      * Get the list of all resources.
      *
-     * @return A list of all resources (including classfiles and non-classfiles)
-     *         found in accepted packages.
+     * @return A list of all resources (including classfiles and non-classfiles) found in accepted packages.
      */
     public ResourceList getAllResources() {
         checkNotClosed();
@@ -553,12 +556,11 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Get a map from resource path to {@link Resource} for all resources (including
-     * classfiles and non-classfiles) found in accepted packages.
+     * Get a map from resource path to {@link Resource} for all resources (including classfiles and non-classfiles)
+     * found in accepted packages.
      *
-     * @return An unmodifiable map from resource path to {@link Resource} for all
-     *         resources (including classfiles and non-classfiles) found in accepted
-     *         packages.
+     * @return An unmodifiable map from resource path to {@link Resource} for all resources (including classfiles
+     *         and non-classfiles) found in accepted packages.
      */
     public Map<String, ResourceList> getAllResourcesAsMap() {
         checkNotClosed();
@@ -577,15 +579,13 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Get the list of all resources found in accepted packages that have the given
-     * path, relative to the package root of the classpath element. May match
-     * several resources, up to one per classpath element.
+     * Get the list of all resources found in accepted packages that have the given path, relative to the package
+     * root of the classpath element. May match several resources, up to one per classpath element.
      *
-     * @param resourcePath A complete resource path, relative to the classpath entry
-     *                     package root.
-     * @return A list of all resources found in accepted packages that have the
-     *         given path, relative to the package root of the classpath element.
-     *         May match several resources, up to one per classpath element.
+     * @param resourcePath
+     *            A complete resource path, relative to the classpath entry package root.
+     * @return A list of all resources found in accepted packages that have the given path, relative to the package
+     *         root of the classpath element. May match several resources, up to one per classpath element.
      */
     public ResourceList getResourcesWithPath(final String resourcePath) {
         checkNotClosed();
@@ -615,22 +615,18 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Get the list of all resources found in any classpath element, <i>whether in
-     * accepted packages or not (as long as the resource is not rejected)</i>, that
-     * have the given path, relative to the package root of the classpath element.
-     * May match several resources, up to one per classpath element. Note that this
-     * may not return a non-accepted resource, particularly when scanning directory
-     * classpath elements, because recursive scanning terminates once there are no
-     * possible accepted resources below a given directory. However, resources in
+     * Get the list of all resources found in any classpath element, <i>whether in accepted packages or not (as long
+     * as the resource is not rejected)</i>, that have the given path, relative to the package root of the classpath
+     * element. May match several resources, up to one per classpath element. Note that this may not return a
+     * non-accepted resource, particularly when scanning directory classpath elements, because recursive scanning
+     * terminates once there are no possible accepted resources below a given directory. However, resources in
      * ancestral directories of accepted directories can be found using this method.
      *
-     * @param resourcePath A complete resource path, relative to the classpath entry
-     *                     package root.
-     * @return A list of all resources found in any classpath element, <i>whether in
-     *         accepted packages or not (as long as the resource is not
-     *         rejected)</i>, that have the given path, relative to the package root
-     *         of the classpath element. May match several resources, up to one per
-     *         classpath element.
+     * @param resourcePath
+     *            A complete resource path, relative to the classpath entry package root.
+     * @return A list of all resources found in any classpath element, <i>whether in accepted packages or not (as
+     *         long as the resource is not rejected)</i>, that have the given path, relative to the package root of
+     *         the classpath element. May match several resources, up to one per classpath element.
      */
     public ResourceList getResourcesWithPathIgnoringAccept(final String resourcePath) {
         checkNotClosed();
@@ -648,12 +644,11 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Get the list of all resources found in accepted packages that have the
-     * requested leafname.
+     * Get the list of all resources found in accepted packages that have the requested leafname.
      *
-     * @param leafName A resource leaf filename.
-     * @return A list of all resources found in accepted packages that have the
-     *         requested leafname.
+     * @param leafName
+     *            A resource leaf filename.
+     * @return A list of all resources found in accepted packages that have the requested leafname.
      */
     public ResourceList getResourcesWithLeafName(final String leafName) {
         checkNotClosed();
@@ -675,13 +670,11 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Get the list of all resources found in accepted packages that have the
-     * requested filename extension.
+     * Get the list of all resources found in accepted packages that have the requested filename extension.
      *
-     * @param extension A filename extension, e.g. "xml" to match all resources
-     *                  ending in ".xml".
-     * @return A list of all resources found in accepted packages that have the
-     *         requested filename extension.
+     * @param extension
+     *            A filename extension, e.g. "xml" to match all resources ending in ".xml".
+     * @return A list of all resources found in accepted packages that have the requested filename extension.
      */
     public ResourceList getResourcesWithExtension(final String extension) {
         checkNotClosed();
@@ -709,13 +702,12 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Get the list of all resources found in accepted packages that have a path
-     * matching the requested regex pattern. See also
-     * {@link #getResourcesMatchingWildcard(String)}.
+     * Get the list of all resources found in accepted packages that have a path matching the requested regex
+     * pattern. See also {@link #getResourcesMatchingWildcard(String)}.
      *
-     * @param pattern A pattern to match {@link Resource} paths with.
-     * @return A list of all resources found in accepted packages that have a path
-     *         matching the requested pattern.
+     * @param pattern
+     *            A pattern to match {@link Resource} paths with.
+     * @return A list of all resources found in accepted packages that have a path matching the requested pattern.
      */
     public ResourceList getResourcesMatchingPattern(final Pattern pattern) {
         checkNotClosed();
@@ -736,32 +728,30 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Get the list of all resources found in accepted packages that have a path
-     * matching the requested wildcard string.
+     * Get the list of all resources found in accepted packages that have a path matching the requested wildcard
+     * string.
      *
      * <p>
      * The wildcard string may contain:
      * <ul>
-     * <li>{@code '*'}, to match zero or more of any character other than
-     * {@code '/'}</li>
-     * <li>{@code "**"}, forming a complete path segment, to match zero or more
-     * whole path segments, e.g. {@code "META-INF/**&#47;*.properties"} matches
-     * {@code META-INF/a.properties} and {@code META-INF/services/a.properties}</li>
+     * <li>{@code '*'}, to match zero or more of any character other than {@code '/'}</li>
+     * <li>{@code "**"}, forming a complete path segment, to match zero or more whole path segments, e.g.
+     * {@code "META-INF/**&#47;*.properties"} matches {@code META-INF/a.properties} and
+     * {@code META-INF/services/a.properties}</li>
      * <li>{@code '?'}, to match exactly one character other than {@code '/'}</li>
      * </ul>
      *
      * <p>
-     * Any other character is matched literally. This is the same glob syntax used
-     * by the accept/reject criteria of {@link ClassGraph}. If you need more complex
-     * pattern matching, use a regex directly, via
+     * Any other character is matched literally. This is the same glob syntax used by the accept/reject criteria of
+     * {@link ClassGraph}. If you need more complex pattern matching, use a regex directly, via
      * {@link #getResourcesMatchingPattern(Pattern)}.
      *
-     * @param wildcardString A wildcard (glob) pattern to match {@link Resource}
-     *                       paths with.
-     * @return A list of all resources found in accepted packages that have a path
-     *         matching the requested wildcard string.
-     * @throws IllegalArgumentException if {@code "**"} is used without forming a
-     *                                  complete path segment.
+     * @param wildcardString
+     *            A wildcard (glob) pattern to match {@link Resource} paths with.
+     * @return A list of all resources found in accepted packages that have a path matching the requested wildcard
+     *         string.
+     * @throws IllegalArgumentException
+     *             if {@code "**"} is used without forming a complete path segment.
      */
     public ResourceList getResourcesMatchingWildcard(final String wildcardString) {
         checkNotClosed();
@@ -774,12 +764,12 @@ public final class ScanResult implements Closeable {
     // Modules
 
     /**
-     * Get the {@link ModuleInfo} object for the named module, or null if no module
-     * of the requested name was found during the scan.
+     * Get the {@link ModuleInfo} object for the named module, or null if no module of the requested name was found
+     * during the scan.
      *
-     * @param moduleName The module name.
-     * @return The {@link ModuleInfo} object for the named module, or null if the
-     *         module was not found.
+     * @param moduleName
+     *            The module name.
+     * @return The {@link ModuleInfo} object for the named module, or null if the module was not found.
      */
     public @Nullable ModuleInfo getModuleInfo(final String moduleName) {
         checkClassInfoEnabled();
@@ -790,8 +780,7 @@ public final class ScanResult implements Closeable {
     /**
      * Get all modules found during the scan.
      *
-     * @return A list of all modules found during the scan, or the empty list if
-     *         none.
+     * @return A list of all modules found during the scan, or the empty list if none.
      */
     public ModuleInfoList getModuleInfo() {
         checkClassInfoEnabled();
@@ -802,12 +791,12 @@ public final class ScanResult implements Closeable {
     // Packages
 
     /**
-     * Get the {@link PackageInfo} object for the named package, or null if no
-     * package of the requested name was found during the scan.
+     * Get the {@link PackageInfo} object for the named package, or null if no package of the requested name was
+     * found during the scan.
      *
-     * @param packageName The package name.
-     * @return The {@link PackageInfo} object for the named package, or null if the
-     *         package was not found.
+     * @param packageName
+     *            The package name.
+     * @return The {@link PackageInfo} object for the named package, or null if the package was not found.
      */
     public @Nullable PackageInfo getPackageInfo(final String packageName) {
         checkClassInfoEnabled();
@@ -818,8 +807,7 @@ public final class ScanResult implements Closeable {
     /**
      * Get all packages found during the scan.
      *
-     * @return A list of all packages found during the scan, or the empty list if
-     *         none.
+     * @return A list of all packages found during the scan, or the empty list if none.
      */
     public PackageInfoList getPackageInfo() {
         checkClassInfoEnabled();
@@ -830,19 +818,16 @@ public final class ScanResult implements Closeable {
     // Class dependencies
 
     /**
-     * Get a map from the {@link ClassInfo} object for each accepted class to a list
-     * of the classes referenced by that class (i.e. returns a map from dependents
-     * to dependencies). Note that you need to call
-     * {@link ClassGraph#enableInterClassDependencies()} before
-     * {@link ClassGraph#scan()} for this method to work. You should also call
-     * {@link ClassGraph#enableExternalClasses()} before {@link ClassGraph#scan()}
-     * if you want non-accepted classes to appear in the result. See also
-     * {@link #getReverseClassDependencyMap()}, which inverts the map.
+     * Get a map from the {@link ClassInfo} object for each accepted class to a list of the classes referenced by
+     * that class (i.e. returns a map from dependents to dependencies). Note that you need to call
+     * {@link ClassGraph#enableInterClassDependencies()} before {@link ClassGraph#scan()} for this method to work.
+     * You should also call {@link ClassGraph#enableExternalClasses()} before {@link ClassGraph#scan()} if you want
+     * non-accepted classes to appear in the result. See also {@link #getReverseClassDependencyMap()}, which inverts
+     * the map.
      *
-     * @return A map from a {@link ClassInfo} object for each accepted class to a
-     *         list of the classes referenced by that class (i.e. returns a map from
-     *         dependents to dependencies). Each map value is the result of calling
-     *         {@link ClassInfo#getClassDependencies()} on the corresponding key.
+     * @return A map from a {@link ClassInfo} object for each accepted class to a list of the classes referenced by
+     *         that class (i.e. returns a map from dependents to dependencies). Each map value is the result of
+     *         calling {@link ClassInfo#getClassDependencies()} on the corresponding key.
      */
     public Map<ClassInfo, ClassInfoList> getClassDependencyMap() {
         final Map<ClassInfo, ClassInfoList> map = new HashMap<>();
@@ -853,19 +838,15 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Get the reverse class dependency map, i.e. a map from the {@link ClassInfo}
-     * object for each dependency class (accepted or not) to a list of the accepted
-     * classes that referenced that class as a dependency (i.e. returns a map from
-     * dependencies to dependents). Note that you need to call
-     * {@link ClassGraph#enableInterClassDependencies()} before
-     * {@link ClassGraph#scan()} for this method to work. You should also call
-     * {@link ClassGraph#enableExternalClasses()} before {@link ClassGraph#scan()}
-     * if you want non-accepted classes to appear in the result. See also
-     * {@link #getClassDependencyMap}.
+     * Get the reverse class dependency map, i.e. a map from the {@link ClassInfo} object for each dependency class
+     * (accepted or not) to a list of the accepted classes that referenced that class as a dependency (i.e. returns
+     * a map from dependencies to dependents). Note that you need to call
+     * {@link ClassGraph#enableInterClassDependencies()} before {@link ClassGraph#scan()} for this method to work.
+     * You should also call {@link ClassGraph#enableExternalClasses()} before {@link ClassGraph#scan()} if you want
+     * non-accepted classes to appear in the result. See also {@link #getClassDependencyMap}.
      *
-     * @return A map from a {@link ClassInfo} object for each dependency class
-     *         (accepted or not) to a list of the accepted classes that referenced
-     *         that class as a dependency (i.e. returns a map from dependencies to
+     * @return A map from a {@link ClassInfo} object for each dependency class (accepted or not) to a list of the
+     *         accepted classes that referenced that class as a dependency (i.e. returns a map from dependencies to
      *         dependents).
      */
     public Map<ClassInfo, ClassInfoList> getReverseClassDependencyMap() {
@@ -886,13 +867,12 @@ public final class ScanResult implements Closeable {
     // Classes
 
     /**
-     * Get the {@link ClassInfo} object for the named class, or null if no class of
-     * the requested name was found in an accepted/non-rejected package during the
-     * scan.
+     * Get the {@link ClassInfo} object for the named class, or null if no class of the requested name was found in
+     * an accepted/non-rejected package during the scan.
      *
-     * @param className The class name.
-     * @return The {@link ClassInfo} object for the named class, or null if the
-     *         class was not found.
+     * @param className
+     *            The class name.
+     * @return The {@link ClassInfo} object for the named class, or null if the class was not found.
      */
     public @Nullable ClassInfo getClassInfo(final String className) {
         checkClassInfoEnabled();
@@ -903,8 +883,7 @@ public final class ScanResult implements Closeable {
     /**
      * Get all classes, interfaces and annotations found during the scan.
      *
-     * @return A list of all accepted classes found during the scan, or the empty
-     *         list if none.
+     * @return A list of all accepted classes found during the scan, or the empty list if none.
      */
     public ClassInfoList getAllClasses() {
         checkClassInfoEnabled();
@@ -914,8 +893,7 @@ public final class ScanResult implements Closeable {
     /**
      * Get all {@link Enum} classes found during the scan.
      *
-     * @return A list of all {@link Enum} classes found during the scan, or the
-     *         empty list if none.
+     * @return A list of all {@link Enum} classes found during the scan, or the empty list if none.
      */
     public ClassInfoList getAllEnums() {
         checkClassInfoEnabled();
@@ -925,8 +903,7 @@ public final class ScanResult implements Closeable {
     /**
      * Get all {@code record} classes found during the scan (JDK 14+).
      *
-     * @return A list of all {@code record} classes found during the scan, or the
-     *         empty list if none.
+     * @return A list of all {@code record} classes found during the scan, or the empty list if none.
      */
     public ClassInfoList getAllRecords() {
         checkClassInfoEnabled();
@@ -934,11 +911,11 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Get a map from class name to {@link ClassInfo} object for all classes,
-     * interfaces and annotations found during the scan.
+     * Get a map from class name to {@link ClassInfo} object for all classes, interfaces and annotations found
+     * during the scan.
      *
-     * @return An unmodifiable map from class name to {@link ClassInfo} object for
-     *         all classes, interfaces and annotations found during the scan.
+     * @return An unmodifiable map from class name to {@link ClassInfo} object for all classes, interfaces and
+     *         annotations found during the scan.
      */
     public Map<String, ClassInfo> getAllClassesAsMap() {
         checkClassInfoEnabled();
@@ -946,11 +923,9 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Get all standard (non-interface/non-annotation) classes found during the
-     * scan.
+     * Get all standard (non-interface/non-annotation) classes found during the scan.
      *
-     * @return A list of all accepted standard classes found during the scan, or the
-     *         empty list if none.
+     * @return A list of all accepted standard classes found during the scan, or the empty list if none.
      */
     public ClassInfoList getAllStandardClasses() {
         checkClassInfoEnabled();
@@ -958,10 +933,11 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Get all subclasses of the superclass, i.e. the classes that extend the
-     * superclass, and the classes that extend those, transitively.
+     * Get all subclasses of the superclass, i.e. the classes that extend the superclass, and the classes that
+     * extend those, transitively.
      *
-     * @param superclass The superclass.
+     * @param superclass
+     *            The superclass.
      * @return A list of all subclasses of the superclass, or the empty list if none.
      */
     public ClassInfoList getAllSubclasses(final Class<?> superclass) {
@@ -970,12 +946,12 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Get all subclasses of the named superclass, i.e. the classes that extend the
-     * superclass, and the classes that extend those, transitively.
+     * Get all subclasses of the named superclass, i.e. the classes that extend the superclass, and the classes that
+     * extend those, transitively.
      *
-     * @param superclassName The name of the superclass.
-     * @return A list of all subclasses of the named superclass, or the empty list if
-     *         none.
+     * @param superclassName
+     *            The name of the superclass.
+     * @return A list of all subclasses of the named superclass, or the empty list if none.
      */
     public ClassInfoList getAllSubclasses(final String superclassName) {
         checkClassInfoEnabled();
@@ -992,12 +968,12 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Get the direct subclasses of the superclass, i.e. only the classes that name
-     * the superclass as their superclass.
+     * Get the direct subclasses of the superclass, i.e. only the classes that name the superclass as their
+     * superclass.
      *
-     * @param superclass The superclass.
-     * @return A list of direct subclasses of the superclass, or the empty list if
-     *         none.
+     * @param superclass
+     *            The superclass.
+     * @return A list of direct subclasses of the superclass, or the empty list if none.
      */
     public ClassInfoList getDirectSubclasses(final Class<?> superclass) {
         Assert.notNull(superclass, "superclass");
@@ -1005,12 +981,12 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Get the direct subclasses of the named superclass, i.e. only the classes that
-     * name the superclass as their superclass.
+     * Get the direct subclasses of the named superclass, i.e. only the classes that name the superclass as their
+     * superclass.
      *
-     * @param superclassName The name of the superclass.
-     * @return A list of direct subclasses of the named superclass, or the empty list
-     *         if none.
+     * @param superclassName
+     *            The name of the superclass.
+     * @return A list of direct subclasses of the named superclass, or the empty list if none.
      */
     public ClassInfoList getDirectSubclasses(final String superclassName) {
         checkClassInfoEnabled();
@@ -1020,13 +996,12 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Get all superclasses of the named subclass, in ascending order in the class
-     * hierarchy, ending with {@link Object} if the whole superclass chain was
-     * scanned.
+     * Get all superclasses of the named subclass, in ascending order in the class hierarchy, ending with
+     * {@link Object} if the whole superclass chain was scanned.
      *
-     * @param subclassName The name of the subclass.
-     * @return A list of all superclasses of the named subclass, or the empty list if
-     *         none.
+     * @param subclassName
+     *            The name of the subclass.
+     * @return A list of all superclasses of the named subclass, or the empty list if none.
      */
     public ClassInfoList getAllSuperclasses(final String subclassName) {
         checkClassInfoEnabled();
@@ -1036,11 +1011,11 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Get all superclasses of the subclass, in ascending order in the class
-     * hierarchy, ending with {@link Object} if the whole superclass chain was
-     * scanned.
+     * Get all superclasses of the subclass, in ascending order in the class hierarchy, ending with {@link Object}
+     * if the whole superclass chain was scanned.
      *
-     * @param subclass The subclass.
+     * @param subclass
+     *            The subclass.
      * @return A list of all superclasses of the subclass, or the empty list if none.
      */
     public ClassInfoList getAllSuperclasses(final Class<?> subclass) {
@@ -1051,9 +1026,9 @@ public final class ScanResult implements Closeable {
     /**
      * Get classes that have a method with an annotation of the named type.
      *
-     * @param methodAnnotation the method annotation.
-     * @return A list of classes with a method that has an annotation of the named
-     *         type, or the empty list if none.
+     * @param methodAnnotation
+     *            the method annotation.
+     * @return A list of classes with a method that has an annotation of the named type, or the empty list if none.
      */
     public ClassInfoList getClassesWithMethodAnnotation(final Class<? extends Annotation> methodAnnotation) {
         Assert.notNull(methodAnnotation, "methodAnnotation");
@@ -1064,9 +1039,9 @@ public final class ScanResult implements Closeable {
     /**
      * Get classes that have a method with an annotation of the named type.
      *
-     * @param methodAnnotationName the name of the method annotation.
-     * @return A list of classes with a method that has an annotation of the named
-     *         type, or the empty list if none.
+     * @param methodAnnotationName
+     *            the name of the method annotation.
+     * @return A list of classes with a method that has an annotation of the named type, or the empty list if none.
      */
     public ClassInfoList getClassesWithMethodAnnotation(final String methodAnnotationName) {
         checkMethodAnnotationInfoEnabled();
@@ -1076,12 +1051,12 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Get classes that have a method with a parameter that is annotated with an
-     * annotation of the named type.
+     * Get classes that have a method with a parameter that is annotated with an annotation of the named type.
      *
-     * @param methodParameterAnnotation the method parameter annotation.
-     * @return A list of classes that have a method with a parameter annotated with
-     *         the named annotation type, or the empty list if none.
+     * @param methodParameterAnnotation
+     *            the method parameter annotation.
+     * @return A list of classes that have a method with a parameter annotated with the named annotation type, or
+     *         the empty list if none.
      */
     public ClassInfoList getClassesWithMethodParameterAnnotation(
             final Class<? extends Annotation> methodParameterAnnotation) {
@@ -1091,13 +1066,12 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Get classes that have a method with a parameter that is annotated with an
-     * annotation of the named type.
+     * Get classes that have a method with a parameter that is annotated with an annotation of the named type.
      *
-     * @param methodParameterAnnotationName the name of the method parameter
-     *                                      annotation.
-     * @return A list of classes that have a method with a parameter annotated with
-     *         the named annotation type, or the empty list if none.
+     * @param methodParameterAnnotationName
+     *            the name of the method parameter annotation.
+     * @return A list of classes that have a method with a parameter annotated with the named annotation type, or
+     *         the empty list if none.
      */
     public ClassInfoList getClassesWithMethodParameterAnnotation(final String methodParameterAnnotationName) {
         checkMethodAnnotationInfoEnabled();
@@ -1109,9 +1083,9 @@ public final class ScanResult implements Closeable {
     /**
      * Get classes that have a field with an annotation of the named type.
      *
-     * @param fieldAnnotation the field annotation.
-     * @return A list of classes that have a field with an annotation of the named
-     *         type, or the empty list if none.
+     * @param fieldAnnotation
+     *            the field annotation.
+     * @return A list of classes that have a field with an annotation of the named type, or the empty list if none.
      */
     public ClassInfoList getClassesWithFieldAnnotation(final Class<? extends Annotation> fieldAnnotation) {
         Assert.notNull(fieldAnnotation, "fieldAnnotation");
@@ -1122,9 +1096,9 @@ public final class ScanResult implements Closeable {
     /**
      * Get classes that have a field with an annotation of the named type.
      *
-     * @param fieldAnnotationName the name of the field annotation.
-     * @return A list of classes that have a field with an annotation of the named
-     *         type, or the empty list if none.
+     * @param fieldAnnotationName
+     *            the name of the field annotation.
+     * @return A list of classes that have a field with an annotation of the named type, or the empty list if none.
      */
     public ClassInfoList getClassesWithFieldAnnotation(final String fieldAnnotationName) {
         checkFieldAnnotationInfoEnabled();
@@ -1137,12 +1111,10 @@ public final class ScanResult implements Closeable {
     // Interfaces
 
     /**
-     * Get all interface classes found during the scan (not including annotations,
-     * which are also technically interfaces). See also
-     * {@link #getAllInterfacesAndAnnotations()}.
+     * Get all interface classes found during the scan (not including annotations, which are also technically
+     * interfaces). See also {@link #getAllInterfacesAndAnnotations()}.
      *
-     * @return A list of all accepted interfaces found during the scan, or the empty
-     *         list if none.
+     * @return A list of all accepted interfaces found during the scan, or the empty list if none.
      */
     public ClassInfoList getAllInterfaces() {
         checkClassInfoEnabled();
@@ -1150,14 +1122,13 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Get all superinterfaces of the named class or interface: all interfaces
-     * implemented by the named class or by one of its superclasses, if the named
-     * class is a standard class, or all interfaces extended by the named
+     * Get all superinterfaces of the named class or interface: all interfaces implemented by the named class or by
+     * one of its superclasses, if the named class is a standard class, or all interfaces extended by the named
      * interface, directly or indirectly, if it is an interface.
      *
-     * @param className The class name.
-     * @return A list of all superinterfaces of the named class or interface, or
-     *         the empty list if none.
+     * @param className
+     *            The class name.
+     * @return A list of all superinterfaces of the named class or interface, or the empty list if none.
      */
     public ClassInfoList getAllSuperinterfaces(final String className) {
         checkClassInfoEnabled();
@@ -1167,14 +1138,13 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Get all superinterfaces of the given class or interface: all interfaces
-     * implemented by the class or by one of its superclasses, if the given class
-     * is a standard class, or all interfaces extended by the given interface,
+     * Get all superinterfaces of the given class or interface: all interfaces implemented by the class or by one of
+     * its superclasses, if the given class is a standard class, or all interfaces extended by the given interface,
      * directly or indirectly, if it is an interface.
      *
-     * @param classRef The class.
-     * @return A list of all superinterfaces of the given class or interface, or
-     *         the empty list if none.
+     * @param classRef
+     *            The class.
+     * @return A list of all superinterfaces of the given class or interface, or the empty list if none.
      */
     public ClassInfoList getAllSuperinterfaces(final Class<?> classRef) {
         Assert.notNull(classRef, "classRef");
@@ -1182,14 +1152,13 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Get the direct superinterfaces of the named class or interface: the
-     * interfaces directly implemented by the named class, if the named class is a
-     * standard class, or the interfaces directly extended by the named interface,
-     * if it is an interface.
+     * Get the direct superinterfaces of the named class or interface: the interfaces directly implemented by the
+     * named class, if the named class is a standard class, or the interfaces directly extended by the named
+     * interface, if it is an interface.
      *
-     * @param className The class name.
-     * @return A list of the direct superinterfaces of the named class or
-     *         interface, or the empty list if none.
+     * @param className
+     *            The class name.
+     * @return A list of the direct superinterfaces of the named class or interface, or the empty list if none.
      */
     public ClassInfoList getDirectSuperinterfaces(final String className) {
         checkClassInfoEnabled();
@@ -1199,14 +1168,13 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Get the direct superinterfaces of the given class or interface: the
-     * interfaces directly implemented by the class, if the given class is a
-     * standard class, or the interfaces directly extended by the interface, if it
-     * is an interface.
+     * Get the direct superinterfaces of the given class or interface: the interfaces directly implemented by the
+     * class, if the given class is a standard class, or the interfaces directly extended by the interface, if it is
+     * an interface.
      *
-     * @param classRef The class.
-     * @return A list of the direct superinterfaces of the given class or
-     *         interface, or the empty list if none.
+     * @param classRef
+     *            The class.
+     * @return A list of the direct superinterfaces of the given class or interface, or the empty list if none.
      */
     public ClassInfoList getDirectSuperinterfaces(final Class<?> classRef) {
         Assert.notNull(classRef, "classRef");
@@ -1214,18 +1182,18 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Get all classes that implement (or have superclasses that implement) the
-     * interface (or one of its subinterfaces).
+     * Get all classes that implement (or have superclasses that implement) the interface (or one of its
+     * subinterfaces).
      *
      * <p>
-     * The returned list also contains the transitive subinterfaces of the
-     * interface. Call {@link ClassInfoList#getInterfaces()} on the result for just
-     * the subinterfaces, or {@link ClassInfoList#getStandardClasses()} for just the
-     * implementing classes.
+     * The returned list also contains the transitive subinterfaces of the interface. Call
+     * {@link ClassInfoList#getInterfaces()} on the result for just the subinterfaces, or
+     * {@link ClassInfoList#getStandardClasses()} for just the implementing classes.
      *
-     * @param interfaceClass The interface class.
-     * @return A list of all classes that implement the interface, and all
-     *         transitive subinterfaces of the interface, or the empty list if none.
+     * @param interfaceClass
+     *            The interface class.
+     * @return A list of all classes that implement the interface, and all transitive subinterfaces of the
+     *         interface, or the empty list if none.
      */
     public ClassInfoList getAllClassesImplementing(final Class<?> interfaceClass) {
         Assert.notNull(interfaceClass, "interfaceClass");
@@ -1234,18 +1202,18 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Get all classes that implement (or have superclasses that implement) the
-     * named interface (or one of its subinterfaces).
+     * Get all classes that implement (or have superclasses that implement) the named interface (or one of its
+     * subinterfaces).
      *
      * <p>
-     * The returned list also contains the transitive subinterfaces of the
-     * interface. Call {@link ClassInfoList#getInterfaces()} on the result for just
-     * the subinterfaces, or {@link ClassInfoList#getStandardClasses()} for just the
-     * implementing classes.
+     * The returned list also contains the transitive subinterfaces of the interface. Call
+     * {@link ClassInfoList#getInterfaces()} on the result for just the subinterfaces, or
+     * {@link ClassInfoList#getStandardClasses()} for just the implementing classes.
      *
-     * @param interfaceName The interface name.
-     * @return A list of all classes that implement the named interface, and all
-     *         transitive subinterfaces of the interface, or the empty list if none.
+     * @param interfaceName
+     *            The interface name.
+     * @return A list of all classes that implement the named interface, and all transitive subinterfaces of the
+     *         interface, or the empty list if none.
      */
     public ClassInfoList getAllClassesImplementing(final String interfaceName) {
         checkClassInfoEnabled();
@@ -1255,12 +1223,13 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Get the classes that directly declare that they implement the interface, and
-     * the interfaces that directly extend the interface.
+     * Get the classes that directly declare that they implement the interface, and the interfaces that directly
+     * extend the interface.
      *
-     * @param interfaceClass The interface class.
-     * @return A list of the classes that directly implement the interface, and the
-     *         direct subinterfaces of the interface, or the empty list if none.
+     * @param interfaceClass
+     *            The interface class.
+     * @return A list of the classes that directly implement the interface, and the direct subinterfaces of the
+     *         interface, or the empty list if none.
      */
     public ClassInfoList getDirectClassesImplementing(final Class<?> interfaceClass) {
         Assert.notNull(interfaceClass, "interfaceClass");
@@ -1269,13 +1238,13 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Get the classes that directly declare that they implement the named
-     * interface, and the interfaces that directly extend the named interface.
+     * Get the classes that directly declare that they implement the named interface, and the interfaces that
+     * directly extend the named interface.
      *
-     * @param interfaceName The interface name.
-     * @return A list of the classes that directly implement the named interface,
-     *         and the direct subinterfaces of the interface, or the empty list if
-     *         none.
+     * @param interfaceName
+     *            The interface name.
+     * @return A list of the classes that directly implement the named interface, and the direct subinterfaces of
+     *         the interface, or the empty list if none.
      */
     public ClassInfoList getDirectClassesImplementing(final String interfaceName) {
         checkClassInfoEnabled();
@@ -1285,17 +1254,16 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Get all transitive subinterfaces of the given interface, i.e. the interfaces
-     * that extend the interface, and the interfaces that extend those.
+     * Get all transitive subinterfaces of the given interface, i.e. the interfaces that extend the interface, and
+     * the interfaces that extend those.
      *
      * <p>
-     * This is the interface-hierarchy equivalent of
-     * {@link #getAllSubclasses(Class)}, which only traverses the superclass
-     * hierarchy.
+     * This is the interface-hierarchy equivalent of {@link #getAllSubclasses(Class)}, which only traverses the
+     * superclass hierarchy.
      *
-     * @param interfaceClass The interface class.
-     * @return A list of all transitive subinterfaces of the interface, or the empty
-     *         list if none.
+     * @param interfaceClass
+     *            The interface class.
+     * @return A list of all transitive subinterfaces of the interface, or the empty list if none.
      */
     public ClassInfoList getAllSubinterfaces(final Class<?> interfaceClass) {
         Assert.notNull(interfaceClass, "interfaceClass");
@@ -1304,17 +1272,16 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Get all transitive subinterfaces of the named interface, i.e. the interfaces
-     * that extend the interface, and the interfaces that extend those.
+     * Get all transitive subinterfaces of the named interface, i.e. the interfaces that extend the interface, and
+     * the interfaces that extend those.
      *
      * <p>
-     * This is the interface-hierarchy equivalent of
-     * {@link #getAllSubclasses(String)}, which only traverses the superclass
-     * hierarchy.
+     * This is the interface-hierarchy equivalent of {@link #getAllSubclasses(String)}, which only traverses the
+     * superclass hierarchy.
      *
-     * @param interfaceName The interface name.
-     * @return A list of all transitive subinterfaces of the named interface, or the
-     *         empty list if none.
+     * @param interfaceName
+     *            The interface name.
+     * @return A list of all transitive subinterfaces of the named interface, or the empty list if none.
      */
     public ClassInfoList getAllSubinterfaces(final String interfaceName) {
         checkClassInfoEnabled();
@@ -1324,17 +1291,16 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Get the direct subinterfaces of the given interface, i.e. only the interfaces
-     * that directly extend the interface.
+     * Get the direct subinterfaces of the given interface, i.e. only the interfaces that directly extend the
+     * interface.
      *
      * <p>
-     * This is the interface-hierarchy equivalent of
-     * {@link #getDirectSubclasses(Class)}, which only traverses the superclass
-     * hierarchy.
+     * This is the interface-hierarchy equivalent of {@link #getDirectSubclasses(Class)}, which only traverses the
+     * superclass hierarchy.
      *
-     * @param interfaceClass The interface class.
-     * @return A list of the direct subinterfaces of the interface, or the empty
-     *         list if none.
+     * @param interfaceClass
+     *            The interface class.
+     * @return A list of the direct subinterfaces of the interface, or the empty list if none.
      */
     public ClassInfoList getDirectSubinterfaces(final Class<?> interfaceClass) {
         Assert.notNull(interfaceClass, "interfaceClass");
@@ -1343,17 +1309,16 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Get the direct subinterfaces of the named interface, i.e. only the interfaces
-     * that directly extend the interface.
+     * Get the direct subinterfaces of the named interface, i.e. only the interfaces that directly extend the
+     * interface.
      *
      * <p>
-     * This is the interface-hierarchy equivalent of
-     * {@link #getDirectSubclasses(String)}, which only traverses the superclass
-     * hierarchy.
+     * This is the interface-hierarchy equivalent of {@link #getDirectSubclasses(String)}, which only traverses the
+     * superclass hierarchy.
      *
-     * @param interfaceName The interface name.
-     * @return A list of the direct subinterfaces of the named interface, or the
-     *         empty list if none.
+     * @param interfaceName
+     *            The interface name.
+     * @return A list of the direct subinterfaces of the named interface, or the empty list if none.
      */
     public ClassInfoList getDirectSubinterfaces(final String interfaceName) {
         checkClassInfoEnabled();
@@ -1366,11 +1331,9 @@ public final class ScanResult implements Closeable {
     // Annotations
 
     /**
-     * Get all annotation classes found during the scan. See also
-     * {@link #getAllInterfacesAndAnnotations()}.
+     * Get all annotation classes found during the scan. See also {@link #getAllInterfacesAndAnnotations()}.
      *
-     * @return A list of all annotation classes found during the scan, or the empty
-     *         list if none.
+     * @return A list of all annotation classes found during the scan, or the empty list if none.
      */
     public ClassInfoList getAllAnnotations() {
         checkAnnotationInfoEnabled();
@@ -1378,11 +1341,10 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Get all interface or annotation classes found during the scan. (Annotations
-     * are technically interfaces, and they can be implemented.)
+     * Get all interface or annotation classes found during the scan. (Annotations are technically interfaces, and
+     * they can be implemented.)
      *
-     * @return A list of all accepted interfaces found during the scan, or the empty
-     *         list if none.
+     * @return A list of all accepted interfaces found during the scan, or the empty list if none.
      */
     public ClassInfoList getAllInterfacesAndAnnotations() {
         checkAnnotationInfoEnabled();
@@ -1392,9 +1354,10 @@ public final class ScanResult implements Closeable {
     /**
      * Get classes with the class annotation or meta-annotation.
      *
-     * @param annotation The class annotation or meta-annotation.
-     * @return A list of all non-annotation classes that were found with the class
-     *         annotation during the scan, or the empty list if none.
+     * @param annotation
+     *            The class annotation or meta-annotation.
+     * @return A list of all non-annotation classes that were found with the class annotation during the scan, or
+     *         the empty list if none.
      */
     public ClassInfoList getClassesWithAnnotation(final Class<? extends Annotation> annotation) {
         Assert.notNull(annotation, "annotation");
@@ -1405,9 +1368,10 @@ public final class ScanResult implements Closeable {
     /**
      * Get classes with all of the specified class annotations or meta-annotation.
      *
-     * @param annotations The class annotations or meta-annotations.
-     * @return A list of all non-annotation classes that were found with any of the
-     *         class annotations during the scan, or the empty list if none.
+     * @param annotations
+     *            The class annotations or meta-annotations.
+     * @return A list of all non-annotation classes that were found with any of the class annotations during the
+     *         scan, or the empty list if none.
      */
     @SuppressWarnings("unchecked")
     public ClassInfoList getClassesWithAllAnnotations(final Class<? extends Annotation>... annotations) {
@@ -1423,9 +1387,10 @@ public final class ScanResult implements Closeable {
     /**
      * Get classes with any of the specified class annotations or meta-annotation.
      *
-     * @param annotations The class annotations or meta-annotations.
-     * @return A list of all non-annotation classes that were found with any of the
-     *         class annotations during the scan, or the empty list if none.
+     * @param annotations
+     *            The class annotations or meta-annotations.
+     * @return A list of all non-annotation classes that were found with any of the class annotations during the
+     *         scan, or the empty list if none.
      */
     @SuppressWarnings("unchecked")
     public ClassInfoList getClassesWithAnyAnnotation(final Class<? extends Annotation>... annotations) {
@@ -1441,9 +1406,10 @@ public final class ScanResult implements Closeable {
     /**
      * Get classes with the named class annotation or meta-annotation.
      *
-     * @param annotationName The name of the class annotation or meta-annotation.
-     * @return A list of all non-annotation classes that were found with the named
-     *         class annotation during the scan, or the empty list if none.
+     * @param annotationName
+     *            The name of the class annotation or meta-annotation.
+     * @return A list of all non-annotation classes that were found with the named class annotation during the scan,
+     *         or the empty list if none.
      */
     public ClassInfoList getClassesWithAnnotation(final String annotationName) {
         checkAnnotationInfoEnabled();
@@ -1455,9 +1421,10 @@ public final class ScanResult implements Closeable {
     /**
      * Get classes with all of the named class annotations or meta-annotation.
      *
-     * @param annotationNames The name of the class annotations or meta-annotations.
-     * @return A list of all non-annotation classes that were found with all of the
-     *         named class annotations during the scan, or the empty list if none.
+     * @param annotationNames
+     *            The name of the class annotations or meta-annotations.
+     * @return A list of all non-annotation classes that were found with all of the named class annotations during
+     *         the scan, or the empty list if none.
      */
     public ClassInfoList getClassesWithAllAnnotations(final String... annotationNames) {
         Assert.notNullElements(annotationNames, "annotationNames");
@@ -1480,9 +1447,10 @@ public final class ScanResult implements Closeable {
     /**
      * Get classes with any of the named class annotations or meta-annotation.
      *
-     * @param annotationNames The name of the class annotations or meta-annotations.
-     * @return A list of all non-annotation classes that were found with any of the
-     *         named class annotations during the scan, or the empty list if none.
+     * @param annotationNames
+     *            The name of the class annotations or meta-annotations.
+     * @return A list of all non-annotation classes that were found with any of the named class annotations during
+     *         the scan, or the empty list if none.
      */
     public ClassInfoList getClassesWithAnyAnnotation(final String... annotationNames) {
         Assert.notNullElements(annotationNames, "annotationNames");
@@ -1503,15 +1471,14 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Get the annotations and meta-annotations on the named class. This only
-     * returns the annotating classes; to read annotation parameters, call
-     * {@link #getClassInfo(String)} to get the {@link ClassInfo} object for the
-     * named class, then if the {@link ClassInfo} object is non-null, call
-     * {@link ClassInfo#getAllAnnotationInfo()} to get detailed annotation info.
+     * Get the annotations and meta-annotations on the named class. This only returns the annotating classes; to
+     * read annotation parameters, call {@link #getClassInfo(String)} to get the {@link ClassInfo} object for the
+     * named class, then if the {@link ClassInfo} object is non-null, call {@link ClassInfo#getAllAnnotationInfo()}
+     * to get detailed annotation info.
      *
-     * @param className The name of the class.
-     * @return A list of all annotations and meta-annotations on the named class, or
-     *         the empty list if none.
+     * @param className
+     *            The name of the class.
+     * @return A list of all annotations and meta-annotations on the named class, or the empty list if none.
      */
     public ClassInfoList getAllAnnotationsOnClass(final String className) {
         checkAnnotationInfoEnabled();
@@ -1521,15 +1488,14 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Get the annotations and meta-annotations on the class. This only returns the
-     * annotating classes; to read annotation parameters, call
-     * {@link #getClassInfo(String)} to get the {@link ClassInfo} object for the
-     * class, then if the {@link ClassInfo} object is non-null, call
-     * {@link ClassInfo#getAllAnnotationInfo()} to get detailed annotation info.
+     * Get the annotations and meta-annotations on the class. This only returns the annotating classes; to read
+     * annotation parameters, call {@link #getClassInfo(String)} to get the {@link ClassInfo} object for the class,
+     * then if the {@link ClassInfo} object is non-null, call {@link ClassInfo#getAllAnnotationInfo()} to get
+     * detailed annotation info.
      *
-     * @param classRef The class.
-     * @return A list of all annotations and meta-annotations on the class, or the
-     *         empty list if none.
+     * @param classRef
+     *            The class.
+     * @return A list of all annotations and meta-annotations on the class, or the empty list if none.
      */
     public ClassInfoList getAllAnnotationsOnClass(final Class<?> classRef) {
         Assert.notNull(classRef, "classRef");
@@ -1537,12 +1503,11 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Get the annotations directly present on the named class, without expanding
-     * meta-annotations.
+     * Get the annotations directly present on the named class, without expanding meta-annotations.
      *
-     * @param className The name of the class.
-     * @return A list of the annotations directly present on the named class, or the
-     *         empty list if none.
+     * @param className
+     *            The name of the class.
+     * @return A list of the annotations directly present on the named class, or the empty list if none.
      */
     public ClassInfoList getDirectAnnotationsOnClass(final String className) {
         checkAnnotationInfoEnabled();
@@ -1552,12 +1517,11 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Get the annotations directly present on the class, without expanding
-     * meta-annotations.
+     * Get the annotations directly present on the class, without expanding meta-annotations.
      *
-     * @param classRef The class.
-     * @return A list of the annotations directly present on the class, or the empty
-     *         list if none.
+     * @param classRef
+     *            The class.
+     * @return A list of the annotations directly present on the class, or the empty list if none.
      */
     public ClassInfoList getDirectAnnotationsOnClass(final Class<?> classRef) {
         Assert.notNull(classRef, "classRef");
@@ -1568,14 +1532,12 @@ public final class ScanResult implements Closeable {
     // Classpath modification tests
 
     /**
-     * Determine whether the classpath contents have been modified since the last
-     * scan. Checks the timestamps of files and jarfiles encountered during the
-     * previous scan to see if they have changed. Does not perform a full scan, so
-     * cannot detect the addition of directories that newly match accept criteria --
-     * you need to perform a full scan to detect those changes.
+     * Determine whether the classpath contents have been modified since the last scan. Checks the timestamps of
+     * files and jarfiles encountered during the previous scan to see if they have changed. Does not perform a full
+     * scan, so cannot detect the addition of directories that newly match accept criteria -- you need to perform a
+     * full scan to detect those changes.
      *
-     * @return true if the classpath contents have been modified since the last
-     *         scan.
+     * @return true if the classpath contents have been modified since the last scan.
      */
     public boolean isClasspathContentsModifiedSinceScan() {
         checkNotClosed();
@@ -1592,19 +1554,16 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Find the maximum last-modified timestamp of any accepted
-     * file/directory/jarfile encountered during the scan. Checks the current
-     * timestamps, so this should increase between calls if something changes in
-     * accepted paths. Assumes both file and system timestamps were generated from
-     * clocks whose time was accurate. Ignores timestamps greater than the system
-     * time.
+     * Find the maximum last-modified timestamp of any accepted file/directory/jarfile encountered during the scan.
+     * Checks the current timestamps, so this should increase between calls if something changes in accepted paths.
+     * Assumes both file and system timestamps were generated from clocks whose time was accurate. Ignores
+     * timestamps greater than the system time.
      *
      * <p>
-     * This method cannot in general tell if classpath has changed (or modules have
-     * been added or removed) if it is run twice during the same runtime session.
+     * This method cannot in general tell if classpath has changed (or modules have been added or removed) if it is
+     * run twice during the same runtime session.
      *
-     * @return the maximum last-modified time for accepted files/directories/jars
-     *         encountered during the scan.
+     * @return the maximum last-modified time for accepted files/directories/jars encountered during the scan.
      */
     public long getClasspathContentsLastModifiedTimeMillis() {
         checkNotClosed();
@@ -1623,12 +1582,10 @@ public final class ScanResult implements Closeable {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Free any temporary files created by extracting jars or files from within
-     * jars. Without calling this method, the temporary files created by extracting
-     * the inner jars will be removed in a finalizer, called by the garbage
-     * collector (or at JVM shutdown). If you don't want to experience long GC
-     * pauses, make sure you call this close method when you have finished with the
-     * {@link ScanResult}.
+     * Free any temporary files created by extracting jars or files from within jars. Without calling this method,
+     * the temporary files created by extracting the inner jars will be removed in a finalizer, called by the
+     * garbage collector (or at JVM shutdown). If you don't want to experience long GC pauses, make sure you call
+     * this close method when you have finished with the {@link ScanResult}.
      */
     @Override
     public void close() {
@@ -1693,14 +1650,12 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Close all {@link ScanResult} instances that have not yet been closed. Note
-     * that this will close all open {@link ScanResult} instances for any class that
-     * uses the classloader that the {@link ScanResult} class is cached in -- so if
-     * you call this method, you need to ensure that the lifecycle of the
-     * classloader matches the lifecycle of your application, or that two concurrent
-     * applications don't share the same classloader, otherwise one application
-     * might close another application's {@link ScanResult} instances while they are
-     * still in use.
+     * Close all {@link ScanResult} instances that have not yet been closed. Note that this will close all open
+     * {@link ScanResult} instances for any class that uses the classloader that the {@link ScanResult} class is
+     * cached in -- so if you call this method, you need to ensure that the lifecycle of the classloader matches the
+     * lifecycle of your application, or that two concurrent applications don't share the same classloader,
+     * otherwise one application might close another application's {@link ScanResult} instances while they are still
+     * in use.
      */
     public static void closeAll() {
         for (final WeakReference<ScanResult> nonClosedWeakReference : new ArrayList<>(nonClosedWeakReferences)) {

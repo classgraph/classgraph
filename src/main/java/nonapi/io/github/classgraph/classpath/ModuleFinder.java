@@ -53,19 +53,17 @@ public class ModuleFinder {
     private @Nullable List<ModuleRef> nonSystemModuleRefs;
 
     /**
-     * If true, must forcibly scan {@code java.class.path}, since there was an
-     * anonymous module layer.
+     * If true, must forcibly scan {@code java.class.path}, since there was an anonymous module layer.
      */
     private boolean forceScanJavaClassPath;
 
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the system modules as {@link ModuleRef} wrappers. All visible system
-     * modules are listed, whether or not they are going to be scanned.
+     * Get the system modules as {@link ModuleRef} wrappers. All visible system modules are listed, whether or not
+     * they are going to be scanned.
      *
-     * @return The system modules as {@link ModuleRef} wrappers, or null if no
-     *         modules were found.
+     * @return The system modules as {@link ModuleRef} wrappers, or null if no modules were found.
      */
     public @Nullable List<ModuleRef> getSystemModuleRefs() {
         return systemModuleRefs;
@@ -74,8 +72,7 @@ public class ModuleFinder {
     /**
      * Get the non-system modules as {@link ModuleRef} wrappers.
      *
-     * @return The non-system modules as {@link ModuleRef} wrappers, or null if no
-     *         modules were found.
+     * @return The non-system modules as {@link ModuleRef} wrappers, or null if no modules were found.
      */
     public @Nullable List<ModuleRef> getNonSystemModuleRefs() {
         return nonSystemModuleRefs;
@@ -84,8 +81,7 @@ public class ModuleFinder {
     /**
      * Force scan java class path.
      *
-     * @return If true, must forcibly scan {@code java.class.path}, since there was
-     *         an anonymous module layer.
+     * @return If true, must forcibly scan {@code java.class.path}, since there was an anonymous module layer.
      */
     public boolean forceScanJavaClassPath() {
         return forceScanJavaClassPath;
@@ -95,17 +91,20 @@ public class ModuleFinder {
 
     /**
      * Recursively find the topological sort order of ancestral layers.
-     * 
-     * <p>
-     * (The JDK (as of 10.0.0.1) uses a broken (non-topological) DFS ordering for
-     * layer resolution in ModuleLayer#layers() and Configuration#configurations()
-     * but when I reported this bug on the Jigsaw mailing list, Alan didn't see what
-     * the problem was.)
      *
-     * @param layer         the layer
-     * @param layerVisited  layer visited
-     * @param parentLayers  the parent layers
-     * @param layerOrderOut the layer order
+     * <p>
+     * (The JDK (as of 10.0.0.1) uses a broken (non-topological) DFS ordering for layer resolution in
+     * ModuleLayer#layers() and Configuration#configurations() but when I reported this bug on the Jigsaw mailing
+     * list, Alan didn't see what the problem was.)
+     *
+     * @param layer
+     *            the layer
+     * @param layerVisited
+     *            layer visited
+     * @param parentLayers
+     *            the parent layers
+     * @param layerOrderOut
+     *            the layer order
      */
     private static void findLayerOrder(final ModuleLayer layer, final Set<ModuleLayer> layerVisited,
             final Set<ModuleLayer> parentLayers, final Deque<ModuleLayer> layerOrderOut) {
@@ -124,9 +123,12 @@ public class ModuleFinder {
     /**
      * Get all visible ModuleReferences in a list of layers.
      *
-     * @param layers   the layers
-     * @param scanSpec the scan spec
-     * @param log      the log node, or null to skip logging
+     * @param layers
+     *            the layers
+     * @param scanSpec
+     *            the scan spec
+     * @param log
+     *            the log node, or null to skip logging
      * @return the list
      */
     private static List<ModuleRef> findModuleRefs(final LinkedHashSet<ModuleLayer> layers, final ScanSpec scanSpec,
@@ -197,13 +199,16 @@ public class ModuleFinder {
     }
 
     /**
-     * Get all visible ModuleReferences in all layers, given an array of stack frame
-     * {@code Class<?>} references.
+     * Get all visible ModuleReferences in all layers, given an array of stack frame {@code Class<?>} references.
      *
-     * @param callStack            the call stack
-     * @param scanSpec             the scan spec
-     * @param scanNonSystemModules whether to include unnamed and non-system modules
-     * @param log                  the log node, or null to skip logging
+     * @param callStack
+     *            the call stack
+     * @param scanSpec
+     *            the scan spec
+     * @param scanNonSystemModules
+     *            whether to include unnamed and non-system modules
+     * @param log
+     *            the log node, or null to skip logging
      * @return the list
      */
     private List<ModuleRef> findModuleRefsFromCallstack(final Class<?>[] callStack, final ScanSpec scanSpec,
@@ -233,13 +238,17 @@ public class ModuleFinder {
     /**
      * A class to find the visible modules.
      *
-     * @param callStack            the callstack.
-     * @param scanSpec             The scan spec.
-     * @param scanNonSystemModules whether to scan unnamed and non-system modules
-     * @param scanSystemModules    whether system modules are going to be scanned
-     *                             (system modules are listed either way, see
-     *                             {@link #getSystemModuleRefs()})
-     * @param log                  The log.
+     * @param callStack
+     *            the callstack.
+     * @param scanSpec
+     *            The scan spec.
+     * @param scanNonSystemModules
+     *            whether to scan unnamed and non-system modules
+     * @param scanSystemModules
+     *            whether system modules are going to be scanned (system modules are listed either way, see
+     *            {@link #getSystemModuleRefs()})
+     * @param log
+     *            The log.
      */
     public ModuleFinder(final Class<?>[] callStack, final ScanSpec scanSpec, final boolean scanNonSystemModules,
             final boolean scanSystemModules, final @Nullable LogNode log) {

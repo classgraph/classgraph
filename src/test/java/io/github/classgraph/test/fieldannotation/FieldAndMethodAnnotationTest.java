@@ -54,8 +54,9 @@ public class FieldAndMethodAnnotationTest {
      */
     @Test
     public void testGetNamesOfClassesWithFieldAnnotation() {
-        try (var scanResult = new ClassGraph().acceptPackages(FieldAndMethodAnnotationTest.class.getPackage().getName())
-                .enableFieldInfo().enableAnnotationInfo().scan()) {
+        try (var scanResult = new ClassGraph()
+                .acceptPackages(FieldAndMethodAnnotationTest.class.getPackage().getName()).enableFieldInfo()
+                .enableAnnotationInfo().scan()) {
             final var testClasses = scanResult.getClassesWithFieldAnnotation(ExternalAnnotation.class).getNames();
             assertThat(testClasses).isEmpty();
         }
@@ -66,8 +67,9 @@ public class FieldAndMethodAnnotationTest {
      */
     @Test
     public void testGetNamesOfClassesWithFieldAnnotationIgnoringVisibility() {
-        try (var scanResult = new ClassGraph().acceptPackages(FieldAndMethodAnnotationTest.class.getPackage().getName())
-                .enableFieldInfo().ignoreFieldVisibility().enableAnnotationInfo().scan()) {
+        try (var scanResult = new ClassGraph()
+                .acceptPackages(FieldAndMethodAnnotationTest.class.getPackage().getName()).enableFieldInfo()
+                .ignoreFieldVisibility().enableAnnotationInfo().scan()) {
             final var testClasses = scanResult.getClassesWithFieldAnnotation(ExternalAnnotation.class).getNames();
             assertThat(testClasses).containsOnly(FieldAndMethodAnnotationTest.class.getName());
         }
@@ -79,8 +81,9 @@ public class FieldAndMethodAnnotationTest {
     @Test
     @ExternalAnnotation
     public void testGetNamesOfClassesWithMethodAnnotation() {
-        try (var scanResult = new ClassGraph().acceptPackages(FieldAndMethodAnnotationTest.class.getPackage().getName())
-                .enableMethodInfo().enableAnnotationInfo().scan()) {
+        try (var scanResult = new ClassGraph()
+                .acceptPackages(FieldAndMethodAnnotationTest.class.getPackage().getName()).enableMethodInfo()
+                .enableAnnotationInfo().scan()) {
             final var testClasses = scanResult.getClassesWithMethodAnnotation(ExternalAnnotation.class).getNames();
             assertThat(testClasses).containsOnly(FieldAndMethodAnnotationTest.class.getName());
         }

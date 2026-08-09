@@ -70,13 +70,18 @@ public class MethodParameterInfo {
     /**
      * Constructor.
      *
-     * @param methodInfo     The {@link MethodInfo} for the defining method.
-     * @param annotationInfo {@link AnnotationInfo} for any annotations on this
-     *                       method parameter.
-     * @param modifiers      The method parameter modifiers.
-     * @param typeDescriptor The method parameter type descriptor.
-     * @param typeSignature  The method parameter type signature.
-     * @param name           The method parameter name.
+     * @param methodInfo
+     *            The {@link MethodInfo} for the defining method.
+     * @param annotationInfo
+     *            {@link AnnotationInfo} for any annotations on this method parameter.
+     * @param modifiers
+     *            The method parameter modifiers.
+     * @param typeDescriptor
+     *            The method parameter type descriptor.
+     * @param typeSignature
+     *            The method parameter type signature.
+     * @param name
+     *            The method parameter name.
      */
     MethodParameterInfo(final MethodInfo methodInfo, final AnnotationInfo @Nullable [] annotationInfo,
             final int modifiers, final @Nullable TypeSignature typeDescriptor,
@@ -101,9 +106,8 @@ public class MethodParameterInfo {
     }
 
     /**
-     * Method parameter name. May be null, for unnamed parameters (e.g. synthetic
-     * parameters), or if compiled for JDK version lower than 8, or if compiled for
-     * JDK version 8+ but without the commandline switch `-parameters`.
+     * Method parameter name. May be null, for unnamed parameters (e.g. synthetic parameters), or if compiled for
+     * JDK version lower than 8, or if compiled for JDK version 8+ but without the commandline switch `-parameters`.
      *
      * @return The method parameter name.
      */
@@ -112,9 +116,8 @@ public class MethodParameterInfo {
     }
 
     /**
-     * Method parameter modifiers. May be zero, if no modifier bits set, or if
-     * compiled for JDK version lower than 8, or if compiled for JDK version 8+ but
-     * without the commandline switch `-parameters`.
+     * Method parameter modifiers. May be zero, if no modifier bits set, or if compiled for JDK version lower than
+     * 8, or if compiled for JDK version 8+ but without the commandline switch `-parameters`.
      *
      * @return The method parameter modifiers.
      */
@@ -123,8 +126,8 @@ public class MethodParameterInfo {
     }
 
     /**
-     * Get the method parameter modifiers as a String, e.g. "final". For the
-     * modifier bits, call {@link #getModifiers()}.
+     * Get the method parameter modifiers as a String, e.g. "final". For the modifier bits, call
+     * {@link #getModifiers()}.
      *
      * @return The modifiers for the method parameter, as a String.
      */
@@ -135,8 +138,8 @@ public class MethodParameterInfo {
     }
 
     /**
-     * Method parameter type signature, possibly including generic type information
-     * (or null if no type signature information available for this parameter).
+     * Method parameter type signature, possibly including generic type information (or null if no type signature
+     * information available for this parameter).
      *
      * @return The method type signature, if available, else null.
      */
@@ -156,8 +159,7 @@ public class MethodParameterInfo {
     /**
      * Method parameter type signature, or if not available, method type descriptor.
      *
-     * @return The method type signature, if present, otherwise the method type
-     *         descriptor.
+     * @return The method type signature, if present, otherwise the method type descriptor.
      */
     public @Nullable TypeSignature getTypeSignatureOrTypeDescriptor() {
         return typeSignature != null ? typeSignature : typeDescriptor;
@@ -166,8 +168,8 @@ public class MethodParameterInfo {
     /**
      * Get the annotations and meta-annotations on this method parameter.
      *
-     * @return {@link AnnotationInfo} for the annotations and meta-annotations on
-     *         this method parameter, or the empty list if none.
+     * @return {@link AnnotationInfo} for the annotations and meta-annotations on this method parameter, or the
+     *         empty list if none.
      */
     public AnnotationInfoList getAllAnnotationInfo() {
         if (!Objects.requireNonNull(scanResult).scanSpec.enableAnnotationInfo) {
@@ -183,27 +185,25 @@ public class MethodParameterInfo {
     }
 
     /**
-     * Get only the annotations directly present on this method parameter, not the
-     * meta-annotations on those annotations.
+     * Get only the annotations directly present on this method parameter, not the meta-annotations on those
+     * annotations.
      *
-     * @return {@link AnnotationInfo} for the annotations directly present on this
-     *         method parameter, or the empty list if none.
+     * @return {@link AnnotationInfo} for the annotations directly present on this method parameter, or the empty
+     *         list if none.
      */
     public AnnotationInfoList getDirectAnnotationInfo() {
         return getAllAnnotationInfo().directOnly();
     }
 
     /**
-     * Get the non-{@link Repeatable} annotation or meta-annotation on this method
-     * parameter, or null if the method parameter does not have the annotation. (Use
-     * {@link #getAllAnnotationInfoRepeatable(Class)} for {@link Repeatable}
-     * annotations, or {@link #getDirectAnnotationInfo(Class)} to ignore
-     * meta-annotations.)
+     * Get the non-{@link Repeatable} annotation or meta-annotation on this method parameter, or null if the method
+     * parameter does not have the annotation. (Use {@link #getAllAnnotationInfoRepeatable(Class)} for
+     * {@link Repeatable} annotations, or {@link #getDirectAnnotationInfo(Class)} to ignore meta-annotations.)
      *
-     * @param annotation the annotation class
-     * @return An {@link AnnotationInfo} object representing the annotation on this
-     *         method parameter, or null if the method parameter does not have the
-     *         annotation.
+     * @param annotation
+     *            the annotation class
+     * @return An {@link AnnotationInfo} object representing the annotation on this method parameter, or null if the
+     *         method parameter does not have the annotation.
      */
     public @Nullable AnnotationInfo getAllAnnotationInfo(final Class<? extends Annotation> annotation) {
         Assert.notNull(annotation, "annotation");
@@ -212,23 +212,20 @@ public class MethodParameterInfo {
     }
 
     /**
-     * Get the named non-{@link Repeatable} annotation or meta-annotation on this
-     * method parameter, or null if the method parameter does not have the named
-     * annotation. (Use {@link #getAllAnnotationInfoRepeatable(String)} for
-     * {@link Repeatable} annotations, or {@link #getDirectAnnotationInfo(String)} to
-     * ignore meta-annotations.)
+     * Get the named non-{@link Repeatable} annotation or meta-annotation on this method parameter, or null if the
+     * method parameter does not have the named annotation. (Use {@link #getAllAnnotationInfoRepeatable(String)} for
+     * {@link Repeatable} annotations, or {@link #getDirectAnnotationInfo(String)} to ignore meta-annotations.)
      *
      * <p>
-     * If the named annotation can be reached in more than one way -- if it is
-     * directly present on the method parameter and is also a meta-annotation of one
-     * of the parameter's other annotations, for example -- then the one reached most
-     * directly is returned. Call {@link #getDirectAnnotationInfo(String)} if you want
-     * only the annotation present on the method parameter itself.
+     * If the named annotation can be reached in more than one way -- if it is directly present on the method
+     * parameter and is also a meta-annotation of one of the parameter's other annotations, for example -- then the
+     * one reached most directly is returned. Call {@link #getDirectAnnotationInfo(String)} if you want only the
+     * annotation present on the method parameter itself.
      *
-     * @param annotationName the name of the annotation class
-     * @return An {@link AnnotationInfo} object representing the named annotation on
-     *         this method parameter, or null if the method parameter does not have
-     *         the named annotation.
+     * @param annotationName
+     *            the name of the annotation class
+     * @return An {@link AnnotationInfo} object representing the named annotation on this method parameter, or null
+     *         if the method parameter does not have the named annotation.
      */
     public @Nullable AnnotationInfo getAllAnnotationInfo(final String annotationName) {
         Assert.notNull(annotationName, "annotationName");
@@ -236,16 +233,14 @@ public class MethodParameterInfo {
     }
 
     /**
-     * Get the non-{@link Repeatable} annotation directly present on this method
-     * parameter, or null if the annotation is not directly present.
-     * Meta-annotations are ignored. (Use
-     * {@link #getDirectAnnotationInfoRepeatable(Class)} for {@link Repeatable}
-     * annotations.)
+     * Get the non-{@link Repeatable} annotation directly present on this method parameter, or null if the
+     * annotation is not directly present. Meta-annotations are ignored. (Use
+     * {@link #getDirectAnnotationInfoRepeatable(Class)} for {@link Repeatable} annotations.)
      *
-     * @param annotation the annotation class
-     * @return An {@link AnnotationInfo} object representing the annotation directly
-     *         present on this method parameter, or null if it is not directly
-     *         present.
+     * @param annotation
+     *            the annotation class
+     * @return An {@link AnnotationInfo} object representing the annotation directly present on this method
+     *         parameter, or null if it is not directly present.
      */
     public @Nullable AnnotationInfo getDirectAnnotationInfo(final Class<? extends Annotation> annotation) {
         Assert.notNull(annotation, "annotation");
@@ -254,16 +249,14 @@ public class MethodParameterInfo {
     }
 
     /**
-     * Get the named non-{@link Repeatable} annotation directly present on this
-     * method parameter, or null if the named annotation is not directly present.
-     * Meta-annotations are ignored. (Use
-     * {@link #getDirectAnnotationInfoRepeatable(String)} for {@link Repeatable}
-     * annotations.)
+     * Get the named non-{@link Repeatable} annotation directly present on this method parameter, or null if the
+     * named annotation is not directly present. Meta-annotations are ignored. (Use
+     * {@link #getDirectAnnotationInfoRepeatable(String)} for {@link Repeatable} annotations.)
      *
-     * @param annotationName the name of the annotation class
-     * @return An {@link AnnotationInfo} object representing the named annotation
-     *         directly present on this method parameter, or null if it is not
-     *         directly present.
+     * @param annotationName
+     *            the name of the annotation class
+     * @return An {@link AnnotationInfo} object representing the named annotation directly present on this method
+     *         parameter, or null if it is not directly present.
      */
     public @Nullable AnnotationInfo getDirectAnnotationInfo(final String annotationName) {
         Assert.notNull(annotationName, "annotationName");
@@ -271,14 +264,13 @@ public class MethodParameterInfo {
     }
 
     /**
-     * Get the {@link Repeatable} annotation or meta-annotation on this method
-     * parameter, or the empty list if the method parameter does not have the
-     * annotation.
+     * Get the {@link Repeatable} annotation or meta-annotation on this method parameter, or the empty list if the
+     * method parameter does not have the annotation.
      *
-     * @param annotation the annotation class
-     * @return An {@link AnnotationInfoList} containing all instances of the
-     *         annotation on this method parameter, or the empty list if the method
-     *         parameter does not have the annotation.
+     * @param annotation
+     *            the annotation class
+     * @return An {@link AnnotationInfoList} containing all instances of the annotation on this method parameter, or
+     *         the empty list if the method parameter does not have the annotation.
      */
     public AnnotationInfoList getAllAnnotationInfoRepeatable(final Class<? extends Annotation> annotation) {
         Assert.notNull(annotation, "annotation");
@@ -287,14 +279,13 @@ public class MethodParameterInfo {
     }
 
     /**
-     * Get the named {@link Repeatable} annotation or meta-annotation on this method
-     * parameter, or the empty list if the method parameter does not have the named
-     * annotation.
+     * Get the named {@link Repeatable} annotation or meta-annotation on this method parameter, or the empty list if
+     * the method parameter does not have the named annotation.
      *
-     * @param annotationName the name of the annotation class
-     * @return An {@link AnnotationInfoList} containing all instances of the named
-     *         annotation on this method parameter, or the empty list if the method
-     *         parameter does not have the named annotation.
+     * @param annotationName
+     *            the name of the annotation class
+     * @return An {@link AnnotationInfoList} containing all instances of the named annotation on this method
+     *         parameter, or the empty list if the method parameter does not have the named annotation.
      */
     public AnnotationInfoList getAllAnnotationInfoRepeatable(final String annotationName) {
         Assert.notNull(annotationName, "annotationName");
@@ -302,14 +293,13 @@ public class MethodParameterInfo {
     }
 
     /**
-     * Get the {@link Repeatable} annotation directly present on this method
-     * parameter, or the empty list if it is not directly present. Meta-annotations
-     * are ignored.
+     * Get the {@link Repeatable} annotation directly present on this method parameter, or the empty list if it is
+     * not directly present. Meta-annotations are ignored.
      *
-     * @param annotation the annotation class
-     * @return An {@link AnnotationInfoList} containing all instances of the
-     *         annotation directly present on this method parameter, or the empty
-     *         list if it is not directly present.
+     * @param annotation
+     *            the annotation class
+     * @return An {@link AnnotationInfoList} containing all instances of the annotation directly present on this
+     *         method parameter, or the empty list if it is not directly present.
      */
     public AnnotationInfoList getDirectAnnotationInfoRepeatable(final Class<? extends Annotation> annotation) {
         Assert.notNull(annotation, "annotation");
@@ -318,14 +308,13 @@ public class MethodParameterInfo {
     }
 
     /**
-     * Get the named {@link Repeatable} annotation directly present on this method
-     * parameter, or the empty list if it is not directly present. Meta-annotations
-     * are ignored.
+     * Get the named {@link Repeatable} annotation directly present on this method parameter, or the empty list if
+     * it is not directly present. Meta-annotations are ignored.
      *
-     * @param annotationName the name of the annotation class
-     * @return An {@link AnnotationInfoList} containing all instances of the named
-     *         annotation directly present on this method parameter, or the empty
-     *         list if it is not directly present.
+     * @param annotationName
+     *            the name of the annotation class
+     * @return An {@link AnnotationInfoList} containing all instances of the named annotation directly present on
+     *         this method parameter, or the empty list if it is not directly present.
      */
     public AnnotationInfoList getDirectAnnotationInfoRepeatable(final String annotationName) {
         Assert.notNull(annotationName, "annotationName");
@@ -335,7 +324,8 @@ public class MethodParameterInfo {
     /**
      * Check whether this method parameter has the annotation.
      *
-     * @param annotation the annotation class
+     * @param annotation
+     *            the annotation class
      * @return true if this method parameter has the annotation.
      */
     public boolean hasAnnotation(final Class<? extends Annotation> annotation) {
@@ -347,7 +337,8 @@ public class MethodParameterInfo {
     /**
      * Check whether this method parameter has the named annotation.
      *
-     * @param annotationName the name of the annotation class
+     * @param annotationName
+     *            the name of the annotation class
      * @return true if this method parameter has the named annotation.
      */
     public boolean hasAnnotation(final String annotationName) {
@@ -360,7 +351,8 @@ public class MethodParameterInfo {
     /**
      * Sets the scan result.
      *
-     * @param scanResult the new scan result
+     * @param scanResult
+     *            the new scan result
      */
     protected void setScanResult(final @Nullable ScanResult scanResult) {
         this.scanResult = scanResult;
@@ -419,8 +411,9 @@ public class MethodParameterInfo {
         if (!(obj instanceof final MethodParameterInfo other)) {
             return false;
         }
-        return Objects.equals(methodInfo, other.methodInfo) && Objects.deepEquals(annotationInfo, other.annotationInfo)
-                && modifiers == other.modifiers && Objects.equals(typeDescriptor, other.typeDescriptor)
+        return Objects.equals(methodInfo, other.methodInfo)
+                && Objects.deepEquals(annotationInfo, other.annotationInfo) && modifiers == other.modifiers
+                && Objects.equals(typeDescriptor, other.typeDescriptor)
                 && Objects.equals(typeSignature, other.typeSignature) && Objects.equals(name, other.name);
     }
 
@@ -438,8 +431,10 @@ public class MethodParameterInfo {
     /**
      * Convert modifiers into a string representation, e.g. "public static final".
      *
-     * @param modifiers The field or method modifiers.
-     * @param buf       the buffer to append to
+     * @param modifiers
+     *            The field or method modifiers.
+     * @param buf
+     *            the buffer to append to
      */
     static void modifiersToString(final int modifiers, final StringBuilder buf) {
         if ((modifiers & Modifier.FINAL) != 0) {
@@ -458,9 +453,10 @@ public class MethodParameterInfo {
     /**
      * Render to string.
      *
-     * @param useSimpleNames if true, strip package and outer class names from class
-     *                       names
-     * @param buf            the buffer to append to
+     * @param useSimpleNames
+     *            if true, strip package and outer class names from class names
+     * @param buf
+     *            the buffer to append to
      */
     protected void toString(final boolean useSimpleNames, final StringBuilder buf) {
         if (annotationInfo != null) {

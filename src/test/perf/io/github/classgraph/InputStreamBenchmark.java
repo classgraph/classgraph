@@ -55,7 +55,8 @@ public class InputStreamBenchmark {
     /**
      * Setup.
      *
-     * @throws IOException Signals that an I/O exception has occurred.
+     * @throws IOException
+     *             Signals that an I/O exception has occurred.
      */
     @Setup
     public void setUp() throws IOException {
@@ -77,8 +78,10 @@ public class InputStreamBenchmark {
     /**
      * Test files.
      *
-     * @param blackhole the blackhole
-     * @throws IOException Signals that an I/O exception has occurred.
+     * @param blackhole
+     *            the blackhole
+     * @throws IOException
+     *             Signals that an I/O exception has occurred.
      */
     @Benchmark
     public void testFiles(final Blackhole blackhole) throws IOException {
@@ -90,8 +93,10 @@ public class InputStreamBenchmark {
     /**
      * Test file channel via random file.
      *
-     * @param blackhole the blackhole
-     * @throws IOException Signals that an I/O exception has occurred.
+     * @param blackhole
+     *            the blackhole
+     * @throws IOException
+     *             Signals that an I/O exception has occurred.
      */
     @Benchmark
     public void testFileChannelViaRandomFile(final Blackhole blackhole) throws IOException {
@@ -107,8 +112,10 @@ public class InputStreamBenchmark {
     /**
      * Test file channel.
      *
-     * @param blackhole the blackhole
-     * @throws IOException Signals that an I/O exception has occurred.
+     * @param blackhole
+     *            the blackhole
+     * @throws IOException
+     *             Signals that an I/O exception has occurred.
      */
     @Benchmark
     public void testFileChannel(final Blackhole blackhole) throws IOException {
@@ -126,8 +133,10 @@ public class InputStreamBenchmark {
     /**
      * Test file input stream.
      *
-     * @param blackhole the blackhole
-     * @throws IOException Signals that an I/O exception has occurred.
+     * @param blackhole
+     *            the blackhole
+     * @throws IOException
+     *             Signals that an I/O exception has occurred.
      */
     @Benchmark
     public void testFileInputStream(final Blackhole blackhole) throws IOException {
@@ -139,9 +148,12 @@ public class InputStreamBenchmark {
     /**
      * Consume.
      *
-     * @param is        the is
-     * @param blackhole the blackhole
-     * @throws IOException Signals that an I/O exception has occurred.
+     * @param is
+     *            the is
+     * @param blackhole
+     *            the blackhole
+     * @throws IOException
+     *             Signals that an I/O exception has occurred.
      */
     private void consume(final InputStream is, final Blackhole blackhole) throws IOException {
         final var buffer = new byte[4096];

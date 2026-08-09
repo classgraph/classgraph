@@ -7,8 +7,8 @@ import org.junit.jupiter.api.Test;
 import io.github.classgraph.ClassGraph;
 
 /**
- * The constant initializer value of a {@code static final double} field is read
- * exactly, including for the infinities and NaN.
+ * The constant initializer value of a {@code static final double} field is read exactly, including for the
+ * infinities and NaN.
  */
 public class Issue310Test {
     /** The Constant A. */

@@ -16,8 +16,7 @@ import io.github.classgraph.ClassInfo;
 import io.github.classgraph.ScanResult;
 
 /**
- * This class tests for function parameter annotations with different retention
- * policies.
+ * This class tests for function parameter annotations with different retention policies.
  *
  * @author Tony Nguyen
  * @version 4.8.22
@@ -109,7 +108,8 @@ public class RetentionPolicyForFunctionParameterAnnotationsTest {
      */
     @Test
     public void canDetect_ParameterAnnotation_WithRuntimeRetention() {
-        final var methodInfo = classInfo.getMethodInfo().getSingleMethod("parameterAnnotation_WithRuntimeRetention");
+        final var methodInfo = classInfo.getMethodInfo()
+                .getSingleMethod("parameterAnnotation_WithRuntimeRetention");
 
         assertThat(methodInfo.hasParameterAnnotation(ParamAnnoRuntime.class)).isTrue();
     }
@@ -117,7 +117,8 @@ public class RetentionPolicyForFunctionParameterAnnotationsTest {
     /**
      * Parameter annotation with runtime retention.
      *
-     * @param input the input
+     * @param input
+     *            the input
      */
     public void parameterAnnotation_WithRuntimeRetention(@ParamAnnoRuntime final int input) {
     }
@@ -133,8 +134,7 @@ public class RetentionPolicyForFunctionParameterAnnotationsTest {
     }
 
     /**
-     * Should be able to detect multiple annotations with RUNTIME retention for a
-     * single function parameter.
+     * Should be able to detect multiple annotations with RUNTIME retention for a single function parameter.
      */
     @Test
     public void canDetect_TwoAnnotations_WithRuntimeRetention_ForSingleParam() {
@@ -149,7 +149,8 @@ public class RetentionPolicyForFunctionParameterAnnotationsTest {
     /**
      * Two annotations with runtime retention for single param.
      *
-     * @param input the input
+     * @param input
+     *            the input
      */
     public void twoAnnotations_WithRuntimeRetention_ForSingleParam(
             @ParamAnnoRuntime @SecondParamAnnoRuntime final int input) {
@@ -158,8 +159,8 @@ public class RetentionPolicyForFunctionParameterAnnotationsTest {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Annotations with CLASS retention does not need to be retained by vm at run
-     * time, but annotations with RUNTIME retention should still be detectable.
+     * Annotations with CLASS retention does not need to be retained by vm at run time, but annotations with RUNTIME
+     * retention should still be detectable.
      */
     @Test
     public void canDetect_ParameterAnnotation_OneRuntimeRetention_OneClassRetention() {
@@ -171,7 +172,8 @@ public class RetentionPolicyForFunctionParameterAnnotationsTest {
     /**
      * One runtime retention annotation, one class retention annotation.
      *
-     * @param input the input
+     * @param input
+     *            the input
      */
     public void oneRuntimeRetention_OneClassRetention(@ParamAnnoRuntime @ParamAnnoClass final int input) {
     }
@@ -179,11 +181,10 @@ public class RetentionPolicyForFunctionParameterAnnotationsTest {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Annotations with CLASS retention does not need to be retained by vm at run
-     * time, but annotations with RUNTIME retention should still be detectable.
+     * Annotations with CLASS retention does not need to be retained by vm at run time, but annotations with RUNTIME
+     * retention should still be detectable.
      *
-     * This tests a changed ordering of the annotations with different retention
-     * policies.
+     * This tests a changed ordering of the annotations with different retention policies.
      */
     @Test
     public void canDetect_ParameterAnnotation_OneRuntimeRetention_OneClassRetention_ChangedAnnotationOrder() {
@@ -194,10 +195,10 @@ public class RetentionPolicyForFunctionParameterAnnotationsTest {
     }
 
     /**
-     * One runtime retention annotation, one class retention annotation, in reverse
-     * order.
+     * One runtime retention annotation, one class retention annotation, in reverse order.
      *
-     * @param input the input
+     * @param input
+     *            the input
      */
     public void oneRuntimeRetention_OneClassRetention_ChangedAnnotationOrder(
             @ParamAnnoClass @ParamAnnoRuntime final int input) {
@@ -206,8 +207,8 @@ public class RetentionPolicyForFunctionParameterAnnotationsTest {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Annotations with SOURCE retention are discarded on compilation, but
-     * annotations with RUNTIME retention should still be detectable.
+     * Annotations with SOURCE retention are discarded on compilation, but annotations with RUNTIME retention should
+     * still be detectable.
      */
     @Test
     public void canDetect_ParameterAnnotation_OneRuntimeRetention_OneSourceRetention() {
@@ -219,7 +220,8 @@ public class RetentionPolicyForFunctionParameterAnnotationsTest {
     /**
      * One runtime retention annotation, one source retention annotation.
      *
-     * @param input the input
+     * @param input
+     *            the input
      */
     public void oneRuntimeRetention_OneSourceRetention(@ParamAnnoRuntime @ParamAnnoSource final int input) {
     }

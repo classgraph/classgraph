@@ -88,12 +88,13 @@ class ClassTypeAnnotation {
             // Y<T> extends @X ClassTypeAnnotation$Z
             // because the annotation is on Z, not ClassTypeAnnotation
 
-            assertThat(scanResult.getClassInfo(E.class.getName()).getTypeSignature().toString()).isEqualTo(
-                    "private static class " + E.class.getName() + "<T> extends " + ClassTypeAnnotation.class.getName()
-                            + "$@" + P.class.getName() + " " + Z.class.getSimpleName() + " implements "
-                            + ClassTypeAnnotation.class.getName() + "$@" + Q.class.getName() + " "
-                            + A.class.getSimpleName() + ", " + ClassTypeAnnotation.class.getName() + "$@"
-                            + R.class.getName() + " " + B.class.getSimpleName());
+            assertThat(scanResult.getClassInfo(E.class.getName()).getTypeSignature().toString())
+                    .isEqualTo("private static class " + E.class.getName() + "<T> extends "
+                            + ClassTypeAnnotation.class.getName() + "$@" + P.class.getName() + " "
+                            + Z.class.getSimpleName() + " implements " + ClassTypeAnnotation.class.getName() + "$@"
+                            + Q.class.getName() + " " + A.class.getSimpleName() + ", "
+                            + ClassTypeAnnotation.class.getName() + "$@" + R.class.getName() + " "
+                            + B.class.getSimpleName());
 
             assertThat(scanResult.getClassInfo(F.class.getName()).getTypeSignatureOrTypeDescriptor().toString())
                     .isEqualTo("private static class " + F.class.getName() + " extends "

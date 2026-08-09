@@ -48,8 +48,8 @@ import nonapi.io.github.classgraph.utils.URLPathEncoder;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A classpath or module path resource (i.e. file) that was found in an
- * accepted/non-rejected package inside a classpath element or module.
+ * A classpath or module path resource (i.e. file) that was found in an accepted/non-rejected package inside a
+ * classpath element or module.
  */
 public abstract class Resource implements Closeable, Comparable<Resource> {
     /** The classpath element this resource was obtained from. */
@@ -68,20 +68,21 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     private @Nullable String toString;
 
     /**
-     * The {@link LogNode} used to log that the resource was found when classpath
-     * element paths are scanned. In the case of accepted classfile resources,
-     * sublog entries are added when the classfile's contents are scanned.
+     * The {@link LogNode} used to log that the resource was found when classpath element paths are scanned. In the
+     * case of accepted classfile resources, sublog entries are added when the classfile's contents are scanned.
      */
-    @Nullable LogNode scanLog;
+    @Nullable
+    LogNode scanLog;
 
     // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Constructor.
      *
-     * @param classpathElement the classpath element this resource was obtained
-     *                         from.
-     * @param length           the length the length of the resource.
+     * @param classpathElement
+     *            the classpath element this resource was obtained from.
+     * @param length
+     *            the length the length of the resource.
      */
     Resource(final ClasspathElement classpathElement, final long length) {
         this.classpathElement = classpathElement;
@@ -93,10 +94,11 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     /**
      * Convert a URI to URL, catching "jrt:" URIs as invalid.
      *
-     * @param uri the uri
+     * @param uri
+     *            the uri
      * @return the URL.
-     * @throws IllegalStateException if the URI could not be converted to a URL, or
-     *                               the URI had "jrt:" scheme.
+     * @throws IllegalStateException
+     *             if the URI could not be converted to a URL, or the URI had "jrt:" scheme.
      */
     private static URL uriToURL(final URI uri) {
         try {
@@ -107,7 +109,8 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
             if ("jrt".equals(uri.getScheme())) {
                 // Currently URL cannot handle the "jrt:" scheme, used by system modules.
                 throw new IllegalStateException("Could not create URL from URI with \"jrt:\" scheme "
-                        + "(\"jrt:\" is not supported by the URL class without a custom URL protocol handler): " + uri);
+                        + "(\"jrt:\" is not supported by the URL class without a custom URL protocol handler): "
+                        + uri);
             } else {
                 throw new IllegalStateException("Could not create URL from URI: " + uri + " -- " + e);
             }
@@ -118,8 +121,8 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
      * Get the {@link URI} representing the resource's location.
      *
      * @return A {@link URI} representing the resource's location.
-     * @throws IllegalStateException if the resource was obtained from a module and
-     *                               the module's location URI is null.
+     * @throws IllegalStateException
+     *             if the resource was obtained from a module and the module's location URI is null.
      */
     public URI getURI() {
         final var locationURI = getClasspathElementURI();
@@ -139,52 +142,41 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     }
 
     /**
-     * Get the {@link URL} representing the resource's location. Use
-     * {@link #getURI()} instead if the resource may have come from a system module,
-     * or if this is a jlink'd runtime image, since "jrt:" URI schemes used by
-     * system modules and jlink'd runtime images are not supported by {@link URL},
-     * and this will cause {@link IllegalStateException} to be thrown.
+     * Get the {@link URL} representing the resource's location. Use {@link #getURI()} instead if the resource may
+     * have come from a system module, or if this is a jlink'd runtime image, since "jrt:" URI schemes used by
+     * system modules and jlink'd runtime images are not supported by {@link URL}, and this will cause
+     * {@link IllegalStateException} to be thrown.
      *
      * @return A {@link URL} representing the resource's location.
-     * @throws IllegalStateException if the resource was obtained from a system
-     *                                  module or jlink'd runtime image with a
-     *                                  "jrt:" location URI, or the resource was
-     *                                  obtained from a module and the module's
-     *                                  location URI is null
+     * @throws IllegalStateException
+     *             if the resource was obtained from a system module or jlink'd runtime image with a "jrt:" location
+     *             URI, or the resource was obtained from a module and the module's location URI is null
      */
     public URL getURL() {
         return uriToURL(getURI());
     }
 
     /**
-     * Get the {@link URI} of the classpath element or module that this resource was
-     * obtained from.
+     * Get the {@link URI} of the classpath element or module that this resource was obtained from.
      *
-     * @return The {@link URL} of the classpath element or module that this resource
-     *         was found within.
-     * @throws IllegalStateException if the classpath element does not have a
-     *                                  valid URI (e.g. for modules whose location
-     *                                  URI is null).
+     * @return The {@link URL} of the classpath element or module that this resource was found within.
+     * @throws IllegalStateException
+     *             if the classpath element does not have a valid URI (e.g. for modules whose location URI is null).
      */
     public URI getClasspathElementURI() {
         return classpathElement.getURI();
     }
 
     /**
-     * Get the {@link URL} of the classpath element or module that this resource was
-     * obtained from. Use {@link #getClasspathElementURI()} instead if the resource
-     * may have come from a system module, or if this is a jlink'd runtime image,
-     * since "jrt:" URI schemes used by system modules and jlink'd runtime images
-     * are not supported by {@link URL}, and this will cause
-     * {@link IllegalStateException} to be thrown.
+     * Get the {@link URL} of the classpath element or module that this resource was obtained from. Use
+     * {@link #getClasspathElementURI()} instead if the resource may have come from a system module, or if this is a
+     * jlink'd runtime image, since "jrt:" URI schemes used by system modules and jlink'd runtime images are not
+     * supported by {@link URL}, and this will cause {@link IllegalStateException} to be thrown.
      *
-     * @return The {@link URL} of the classpath element or module that this resource
-     *         was found within.
-     * @throws IllegalStateException if the resource was obtained from a system
-     *                                  module or jlink'd runtime image with a
-     *                                  "jrt:" location URI, or the resource was
-     *                                  obtained from a module and the module's
-     *                                  location URI is null.
+     * @return The {@link URL} of the classpath element or module that this resource was found within.
+     * @throws IllegalStateException
+     *             if the resource was obtained from a system module or jlink'd runtime image with a "jrt:" location
+     *             URI, or the resource was obtained from a module and the module's location URI is null.
      */
     public URL getClasspathElementURL() {
         return uriToURL(getClasspathElementURI());
@@ -193,25 +185,21 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     /**
      * Get the classpath element {@link File}.
      *
-     * @return The {@link File} for the classpath element package root dir or jar
-     *         that this {@link Resource} was found within, or null if this
-     *         {@link Resource} was found in a module backed by a "jrt:" URI, or a
-     *         module with an unknown location. May also return null if the
-     *         classpath element was an http/https URL, and the jar was downloaded
-     *         directly to RAM, rather than to a temp file on disk (e.g. if the temp
-     *         dir is not writeable).
+     * @return The {@link File} for the classpath element package root dir or jar that this {@link Resource} was
+     *         found within, or null if this {@link Resource} was found in a module backed by a "jrt:" URI, or a
+     *         module with an unknown location. May also return null if the classpath element was an http/https URL,
+     *         and the jar was downloaded directly to RAM, rather than to a temp file on disk (e.g. if the temp dir
+     *         is not writeable).
      */
     public @Nullable File getClasspathElementFile() {
         return classpathElement.getFile();
     }
 
     /**
-     * Get the {@link ModuleRef} for the module that this {@link Resource} was found
-     * within.
+     * Get the {@link ModuleRef} for the module that this {@link Resource} was found within.
      *
-     * @return The {@link ModuleRef} for the module that this {@link Resource} was
-     *         found within, as a {@link ModuleRef}, or null if this
-     *         {@link Resource} was found in a directory or jar in the classpath.
+     * @return The {@link ModuleRef} for the module that this {@link Resource} was found within, as a
+     *         {@link ModuleRef}, or null if this {@link Resource} was found in a directory or jar in the classpath.
      */
     public @Nullable ModuleRef getModuleRef() {
         return classpathElement instanceof final ClasspathElementModule classpathElementModule
@@ -220,11 +208,12 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     }
 
     /**
-     * Convenience method to get the content of this {@link Resource} as a String.
-     * Assumes UTF8 encoding. (Calls {@link #close()} after completion.)
+     * Convenience method to get the content of this {@link Resource} as a String. Assumes UTF8 encoding. (Calls
+     * {@link #close()} after completion.)
      *
      * @return the content of this {@link Resource} as a String.
-     * @throws IOException If an I/O exception occurred.
+     * @throws IOException
+     *             If an I/O exception occurred.
      */
     public String getContentAsString() throws IOException {
         final String content = new String(load(), StandardCharsets.UTF_8);
@@ -237,25 +226,20 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     /**
      * Get the path of this classpath resource relative to the package root.
      *
-     * @return the path of this classpath resource relative to the package root. For
-     *         example, for a resource path of
-     *         {@code "BOOT-INF/classes/com/xyz/resource.xml"} and a package root of
-     *         {@code "BOOT-INF/classes/"}, returns {@code "com/xyz/resource.xml"}.
-     *         Also drops version prefixes for multi-version jars, for example for a
-     *         resource path of {@code "META-INF/versions/11/com/xyz/resource.xml"},
-     *         returns {@code "com/xyz/resource.xml"}.
+     * @return the path of this classpath resource relative to the package root. For example, for a resource path of
+     *         {@code "BOOT-INF/classes/com/xyz/resource.xml"} and a package root of {@code "BOOT-INF/classes/"},
+     *         returns {@code "com/xyz/resource.xml"}. Also drops version prefixes for multi-version jars, for
+     *         example for a resource path of {@code "META-INF/versions/11/com/xyz/resource.xml"}, returns
+     *         {@code "com/xyz/resource.xml"}.
      */
     public abstract String getPath();
 
     /**
-     * Get the full path of this classpath resource relative to the root of the
-     * classpath element.
+     * Get the full path of this classpath resource relative to the root of the classpath element.
      *
-     * @return the full path of this classpath resource within the classpath
-     *         element. For example, will return the full path of
-     *         {@code "BOOT-INF/classes/com/xyz/resource.xml"} or
-     *         {@code "META-INF/versions/11/com/xyz/resource.xml"}, not
-     *         {@code "com/xyz/resource.xml"}.
+     * @return the full path of this classpath resource within the classpath element. For example, will return the
+     *         full path of {@code "BOOT-INF/classes/com/xyz/resource.xml"} or
+     *         {@code "META-INF/versions/11/com/xyz/resource.xml"}, not {@code "com/xyz/resource.xml"}.
      */
     public String getPathRelativeToClasspathElement() {
         // Only overridden for jars
@@ -265,55 +249,51 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Open an {@link InputStream} for a classpath resource. Make sure you call
-     * {@link Resource#close()} when you are finished with the {@link InputStream},
-     * so that the {@link InputStream} is closed.
+     * Open an {@link InputStream} for a classpath resource. Make sure you call {@link Resource#close()} when you
+     * are finished with the {@link InputStream}, so that the {@link InputStream} is closed.
      *
      * @return The opened {@link InputStream}.
-     * @throws IOException If the {@link InputStream} could not be opened.
+     * @throws IOException
+     *             If the {@link InputStream} could not be opened.
      */
     public abstract InputStream open() throws IOException;
 
     /**
-     * Open a {@link ByteBuffer} for a classpath resource. Make sure you call
-     * {@link Resource#close()} when you are finished with the {@link ByteBuffer},
-     * so that the {@link ByteBuffer} is released or unmapped. See also
+     * Open a {@link ByteBuffer} for a classpath resource. Make sure you call {@link Resource#close()} when you are
+     * finished with the {@link ByteBuffer}, so that the {@link ByteBuffer} is released or unmapped. See also
      * {@link #readCloseable()}.
      *
-     * @return The allocated or mapped {@link ByteBuffer} for the resource file
-     *         content.
-     * @throws IOException If the resource could not be read.
+     * @return The allocated or mapped {@link ByteBuffer} for the resource file content.
+     * @throws IOException
+     *             If the resource could not be read.
      */
     public abstract ByteBuffer read() throws IOException;
 
     /**
-     * Open a {@link ByteBuffer} for a classpath resource, and wrap it in a
-     * {@link CloseableByteBuffer} instance, which implements the
-     * {@link Closeable#close()} method to free the underlying {@link ByteBuffer}
-     * when {@link CloseableByteBuffer#close()} is called, by automatically calling
-     * {@link Resource#close()}.
+     * Open a {@link ByteBuffer} for a classpath resource, and wrap it in a {@link CloseableByteBuffer} instance,
+     * which implements the {@link Closeable#close()} method to free the underlying {@link ByteBuffer} when
+     * {@link CloseableByteBuffer#close()} is called, by automatically calling {@link Resource#close()}.
      *
      * <p>
-     * Call {@link CloseableByteBuffer#getByteBuffer()} on the returned instance to
-     * access the underlying {@link ByteBuffer}.
+     * Call {@link CloseableByteBuffer#getByteBuffer()} on the returned instance to access the underlying
+     * {@link ByteBuffer}.
      *
-     * @return The allocated or mapped {@link ByteBuffer} for the resource file
-     *         content.
-     * @throws IOException If the resource could not be read.
+     * @return The allocated or mapped {@link ByteBuffer} for the resource file content.
+     * @throws IOException
+     *             If the resource could not be read.
      */
     public CloseableByteBuffer readCloseable() throws IOException {
         return new CloseableByteBuffer(read(), this::close);
     }
 
     /**
-     * Load a classpath resource and return its content as a byte array.
-     * Automatically calls {@link Resource#close()} after loading the byte array and
-     * before returning it, so that the underlying InputStream is closed or the
-     * underlying ByteBuffer is released or unmapped.
+     * Load a classpath resource and return its content as a byte array. Automatically calls
+     * {@link Resource#close()} after loading the byte array and before returning it, so that the underlying
+     * InputStream is closed or the underlying ByteBuffer is released or unmapped.
      *
      * @return The contents of the resource file.
-     * @throws IOException If the file contents could not be loaded in their
-     *                     entirety.
+     * @throws IOException
+     *             If the file contents could not be loaded in their entirety.
      */
     public abstract byte[] load() throws IOException;
 
@@ -321,54 +301,47 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
      * Open a {@link ClassfileReader} on the resource (for reading classfiles).
      *
      * @return the {@link ClassfileReader}.
-     * @throws IOException if an I/O exception occurs.
+     * @throws IOException
+     *             if an I/O exception occurs.
      */
     abstract ClassfileReader openClassfile() throws IOException;
 
     /**
      * Get the length of the resource.
      *
-     * @return The length of the resource. This only reliably returns a valid value
-     *         after calling {@link #open()}, {@link #read()}, or {@link #load()}
-     *         (and for {@link #open()}, only if the underlying jarfile has length
-     *         information for corresponding {@link ZipEntry} -- some jarfiles may
-     *         not have length information in their zip entries). Returns -1L if the
-     *         length is unknown.
+     * @return The length of the resource. This only reliably returns a valid value after calling {@link #open()},
+     *         {@link #read()}, or {@link #load()} (and for {@link #open()}, only if the underlying jarfile has
+     *         length information for corresponding {@link ZipEntry} -- some jarfiles may not have length
+     *         information in their zip entries). Returns -1L if the length is unknown.
      */
     public long getLength() {
         return length;
     }
 
     /**
-     * Get the last modified time for the resource, in milliseconds since the epoch.
-     * This time is obtained from the directory entry, if this resource is a file on
-     * disk, or from the zipfile central directory, if this resource is a zipfile
-     * entry. Timestamps are not available for resources obtained from system
-     * modules or jlink'd modules.
+     * Get the last modified time for the resource, in milliseconds since the epoch. This time is obtained from the
+     * directory entry, if this resource is a file on disk, or from the zipfile central directory, if this resource
+     * is a zipfile entry. Timestamps are not available for resources obtained from system modules or jlink'd
+     * modules.
      *
      * <p>
-     * Note: The ZIP format has no notion of timezone, so timestamps are only
-     * meaningful if it is known what timezone they were created in. We arbitrarily
-     * assume that zipfile timestamps are in the UTC timezone. This may be a wrong
-     * assumption, so you may need to apply a timezone correction if you know the
-     * timezone used by the zipfile creator.
+     * Note: The ZIP format has no notion of timezone, so timestamps are only meaningful if it is known what
+     * timezone they were created in. We arbitrarily assume that zipfile timestamps are in the UTC timezone. This
+     * may be a wrong assumption, so you may need to apply a timezone correction if you know the timezone used by
+     * the zipfile creator.
      *
-     * @return The millis since the epoch indicating the date / time that this file
-     *         resource was last modified. Returns 0L if the last modified date is
-     *         unknown.
+     * @return The millis since the epoch indicating the date / time that this file resource was last modified.
+     *         Returns 0L if the last modified date is unknown.
      */
     public abstract long getLastModifiedMillis();
 
     /**
-     * Get the POSIX file permissions for the resource. POSIX file permissions are
-     * obtained from the directory entry, if this resource is a file on disk, or
-     * from the zipfile central directory, if this resource is a zipfile entry.
-     * POSIX file permissions are not available for resources obtained from system
-     * modules or jlink'd modules, and may not be available on non-POSIX-compliant
-     * operating systems or non-POSIX filesystems.
+     * Get the POSIX file permissions for the resource. POSIX file permissions are obtained from the directory
+     * entry, if this resource is a file on disk, or from the zipfile central directory, if this resource is a
+     * zipfile entry. POSIX file permissions are not available for resources obtained from system modules or jlink'd
+     * modules, and may not be available on non-POSIX-compliant operating systems or non-POSIX filesystems.
      *
-     * @return The set of {@link PosixFilePermission} permission flags for the
-     *         resource, or null if unknown.
+     * @return The set of {@link PosixFilePermission} permission flags for the resource, or null if unknown.
      */
     public abstract @Nullable Set<PosixFilePermission> getPosixFilePermissions();
 
@@ -406,7 +379,8 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     /**
      * Equals.
      *
-     * @param obj the obj
+     * @param obj
+     *            the obj
      * @return true, if successful
      */
     /*
@@ -427,7 +401,8 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     /**
      * Compare to.
      *
-     * @param o the o
+     * @param o
+     *            the o
      * @return the int
      */
     /*
