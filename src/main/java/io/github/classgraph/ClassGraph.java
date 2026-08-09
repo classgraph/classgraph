@@ -64,6 +64,27 @@ import org.jspecify.annotations.Nullable;
  * binary format directly rather than by using reflection.
  *
  * <p>
+ * By default, ClassGraph scans the classpath and module path of the current
+ * runtime environment: the classpath elements it can obtain from the visible
+ * {@link ClassLoader} instances and from {@code java.class.path}, together with
+ * the non-system modules in the visible {@link ModuleLayer} instances. The JDK's
+ * own system jars and modules are not scanned unless
+ * {@link #enableSystemJarsAndModules()} is called, or the platform classloader
+ * is named explicitly via {@link #overrideClassLoaders(ClassLoader...)} or
+ * {@link #addClassLoader(ClassLoader)}.
+ *
+ * <p>
+ * To scan something other than the current environment, replace what is scanned
+ * with {@link #overrideClasspath(Object...)},
+ * {@link #overrideClassLoaders(ClassLoader...)} or
+ * {@link #overrideModuleLayers(ModuleLayer...)}, and narrow which mechanisms
+ * contribute classpath elements with {@link #ignoreParentClassLoaders()},
+ * {@link #ignoreParentModuleLayers()}, {@link #disableModuleScanning()},
+ * {@link #disableJarScanning()} and {@link #disableDirScanning()}. After a scan,
+ * {@link ScanResult#getClasspathURIs()} and {@link ScanResult#getModules()}
+ * report exactly which classpath elements and modules were scanned.
+ *
+ * <p>
  * Documentation: <a href= "https://github.com/classgraph/classgraph/wiki">
  * https://github.com/classgraph/classgraph/wiki</a>
  */
