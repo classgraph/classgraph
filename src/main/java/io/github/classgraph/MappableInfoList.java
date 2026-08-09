@@ -111,7 +111,6 @@ public class MappableInfoList<T extends HasName> extends InfoList<T> {
      * @param name The name to search for.
      * @return The list item with the given name, or null if not found.
      */
-    @SuppressWarnings("null")
     public @Nullable T get(final String name) {
         Assert.notNull(name, "name");
         for (final T i : this) {

@@ -321,7 +321,6 @@ class ClasspathElementDir extends ClasspathElement {
                 }
             }
 
-            @SuppressWarnings("null")
             @Override
             public @Nullable Set<PosixFilePermission> getPosixFilePermissions() {
                 Set<PosixFilePermission> posixFilePermissions = null;

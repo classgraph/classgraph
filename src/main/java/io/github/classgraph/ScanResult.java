@@ -1684,7 +1684,6 @@ public final class ScanResult implements Closeable {
      * @param json The JSON string for the serialized {@link ScanResult}.
      * @return The deserialized {@link ScanResult}.
      */
-    @SuppressWarnings("null")
     public static ScanResult fromJSON(final String json) {
         Assert.notNull(json, "json");
         final var matcher = Pattern.compile("\\{[\\n\\r ]*\"format\"[ ]?:[ ]?\"([^\"]+)\"").matcher(json);
