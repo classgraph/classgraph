@@ -1183,6 +1183,23 @@ is fixed on the 4.x branch as well.
   so a bound of `List<String>` was not reconcilable with `List<Integer>`, even though the
   method's whole purpose is to ignore type arguments.
 
+* `ClassGraph#filterClasspathElementsByURL(Predicate<URL>)` never saw a classpath element
+  with a `file:` or `jar:file:` URL, which is almost every classpath element there is: the
+  filter only ran for elements whose URL had some other scheme. Classpath element paths are
+  resolved before they are filtered, and resolving a path strips the `file:` or `jar:file:`
+  prefix off it, so by the time the filter was applied there was no URL left to pass to it,
+  and the element was accepted unconditionally. Every classpath element is now offered to
+  the filter: one whose URL was stripped is passed the `file:` or `jar:file:` URL rebuilt
+  from its resolved path.
+
+* `ClassGraph#scanAsync(ExecutorService, int, Consumer<ScanResult>, Consumer<Throwable>)`
+  did not call the failure handler if the scan failed before it started -- which is when a
+  user-supplied classpath element filter runs, so a filter that threw was enough to trigger
+  it. Only `InterruptedException`, `CancellationException` and `ExecutionException` were
+  caught; anything else was thrown on the `ExecutorService`'s thread, where nothing was
+  waiting for it, and the caller waited forever for a callback that never came. The failure
+  handler is now called for anything thrown during the scan.
+
 Two further bugs found during the port were only reachable through the JSON
 serialization API, which 5.x removes (`AnnotationParameterValue#toString()` threw
 `NullPointerException` for a null parameter value, and `ScanResult#fromJSON(String)` did

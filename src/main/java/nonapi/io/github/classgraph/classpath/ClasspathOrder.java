@@ -209,19 +209,47 @@ public class ClasspathOrder {
     }
 
     /**
+     * Convert a resolved classpath element path back into a {@link URL}, so that it can be tested against the
+     * user's {@link URL} filters.
+     *
+     * @param classpathElementPath
+     *            the resolved classpath element path
+     * @return the {@link URL} of the classpath element, or null if the path could not be converted to a {@link URL}
+     */
+    private static @Nullable URL toURL(final String classpathElementPath) {
+        try {
+            final var nestedPathIdx = classpathElementPath.indexOf("!/");
+            if (nestedPathIdx < 0) {
+                return new File(classpathElementPath).toURI().toURL();
+            }
+            // A nested path "outer.jar!/inner" becomes the jar URL "jar:file:/outer.jar!/inner"
+            return new URL("jar:" + new File(classpathElementPath.substring(0, nestedPathIdx)).toURI()
+                    + classpathElementPath.substring(nestedPathIdx));
+        } catch (final MalformedURLException | IllegalArgumentException | IOError | SecurityException e) {
+            return null;
+        }
+    }
+
+    /**
      * Test to see if a classpath element has been filtered out by the user.
      *
      * @param classpathElementURL
-     *            the classpath element URL
+     *            the classpath element URL, or null if the classpath element was not given as a URL
      * @param classpathElementPath
      *            the classpath element path
      * @return true, if not filtered out
      */
     private boolean filter(final @Nullable URL classpathElementURL, final @Nullable String classpathElementPath) {
-        if (classpathElementURL != null && scanSpec.classpathElementURLFilters != null) {
-            for (final Predicate<URL> urlFilter : scanSpec.classpathElementURLFilters) {
-                if (!urlFilter.test(classpathElementURL)) {
-                    return false;
+        if (scanSpec.classpathElementURLFilters != null) {
+            // FastPathResolver strips the scheme from "file:" and "jar:file:" classpath elements, so for those the
+            // URL has to be reconstituted from the resolved path before the URL filters can be applied to it
+            final var url = classpathElementURL != null ? classpathElementURL
+                    : classpathElementPath == null ? null : toURL(classpathElementPath);
+            if (url != null) {
+                for (final Predicate<URL> urlFilter : scanSpec.classpathElementURLFilters) {
+                    if (!urlFilter.test(url)) {
+                        return false;
+                    }
                 }
             }
         }

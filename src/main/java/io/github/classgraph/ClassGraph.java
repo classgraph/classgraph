@@ -1410,9 +1410,12 @@ public class ClassGraph {
                 // Call scanner, but ignore the returned ScanResult
                 new Scanner(/* performScan = */ true, scanSpec, executorService, numParallelTasks,
                         scanResultProcessor, failureHandler, reflectionUtils, topLevelLog).call();
-            } catch (final InterruptedException | CancellationException | ExecutionException e) {
-                // Call failure handler
-                failureHandler.accept(e);
+            } catch (final Throwable t) {
+                // Call failure handler. Anything thrown before the Scanner starts running the scan (e.g. by a
+                // user-supplied classpath element filter, which the Scanner constructor calls) has to be caught
+                // here too, otherwise it would be thrown on the ExecutorService's thread and lost, and the caller
+                // would wait forever for a callback that never comes
+                failureHandler.accept(t);
             }
         });
     }
