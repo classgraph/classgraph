@@ -172,82 +172,12 @@ public final class FileUtils {
         // legal filename character, and must not be treated as a path hierarchy root (#903)
         final var nestedJarSepIdx = JarUtils.indexOfNestedJarSeparator(path);
 
-        // Find all '/' and nested jar separator '!' character positions, which split a path into segments. This
-        // scan reads the path via charAt() rather than copying it into a char[], since the common case is that
-        // nothing needs sanitizing, and the copy would then be pure overhead.
-        var foundSegmentToSanitize = false;
         final var pathLen = path.length();
-        {
-            var lastSepIdx = -1;
-            var prevC = '\0';
-            for (int i = 0, ii = pathLen + 1; i < ii; i++) {
-                final var c = i == pathLen ? '\0' : path.charAt(i);
-                if (c == '/' || (c == '!' && nestedJarSepIdx >= 0 && i >= nestedJarSepIdx) || c == '\0') {
-                    final var segmentLength = i - (lastSepIdx + 1);
-                    if (
-                    // Found empty segment "//" or "!!"
-                    (segmentLength == 0 && prevC == c)
-                            // Found segment "."
-                            || (segmentLength == 1 && path.charAt(i - 1) == '.')
-                            // Found segment ".."
-                            || (segmentLength == 2 && path.charAt(i - 2) == '.' && path.charAt(i - 1) == '.')) {
-                        foundSegmentToSanitize = true;
-                    }
-                    lastSepIdx = i;
-                }
-                prevC = c;
-            }
-        }
-
-        // Handle "..", "." and empty path segments, if any were found
         final var pathHasInitialSlash = path.charAt(0) == '/';
         final var pathHasInitialSlashSlash = pathHasInitialSlash && pathLen > 1 && path.charAt(1) == '/';
         final StringBuilder pathSanitized = new StringBuilder(pathLen + 16);
-        if (foundSegmentToSanitize) {
-            // Sanitize between "!" section markers separately (".." should not apply past preceding "!")
-            final List<List<CharSequence>> allSectionSegments = new ArrayList<>();
-            List<CharSequence> currSectionSegments = new ArrayList<>();
-            allSectionSegments.add(currSectionSegments);
-            var lastSepIdx = -1;
-            for (var i = 0; i < pathLen + 1; i++) {
-                final var c = i == pathLen ? '\0' : path.charAt(i);
-                final var isSectionMarker = c == '!' && nestedJarSepIdx >= 0 && i >= nestedJarSepIdx;
-                if (c == '/' || isSectionMarker || c == '\0') {
-                    final var segmentStartIdx = lastSepIdx + 1;
-                    final var segmentLen = i - segmentStartIdx;
-                    if (segmentLen == 0 || (segmentLen == 1 && path.charAt(segmentStartIdx) == '.')) {
-                        // Ignore empty segment "//" or idempotent segment "/./"
-                    } else if (segmentLen == 2 && path.charAt(segmentStartIdx) == '.'
-                            && path.charAt(segmentStartIdx + 1) == '.') {
-                        // Remove one segment if ".." encountered, but do not allow ".." above top of hierarchy
-                        if (!currSectionSegments.isEmpty()) {
-                            currSectionSegments.remove(currSectionSegments.size() - 1);
-                        }
-                    } else {
-                        // Encountered normal path segment
-                        currSectionSegments.add(path.subSequence(segmentStartIdx, segmentStartIdx + segmentLen));
-                    }
-                    if (isSectionMarker && !currSectionSegments.isEmpty()) {
-                        // Begin new section
-                        currSectionSegments = new ArrayList<>();
-                        allSectionSegments.add(currSectionSegments);
-                    }
-                    lastSepIdx = i;
-                }
-            }
-            // Turn sections and segments back into path string
-            for (final List<CharSequence> sectionSegments : allSectionSegments) {
-                if (!sectionSegments.isEmpty()) {
-                    // Delineate segments with "!"
-                    if (!pathSanitized.isEmpty()) {
-                        pathSanitized.append('!');
-                    }
-                    for (final CharSequence sectionSegment : sectionSegments) {
-                        pathSanitized.append('/');
-                        pathSanitized.append(sectionSegment);
-                    }
-                }
-            }
+        if (hasSegmentToSanitize(path, nestedJarSepIdx)) {
+            appendSanitizedSegments(path, nestedJarSepIdx, pathSanitized);
             if (pathSanitized.isEmpty() && pathHasInitialSlash) {
                 pathSanitized.append('/');
             }
@@ -278,6 +208,104 @@ public final class FileUtils {
         }
 
         return pathSanitized.substring(startIdx);
+    }
+
+    /**
+     * Check whether a path contains any segment that has to be removed, i.e. a {@code ".."} segment, a {@code "."}
+     * segment, or an empty segment.
+     *
+     * @param path
+     *            The path to check.
+     * @param nestedJarSepIdx
+     *            The index of the first nested jar separator {@code '!'} in the path, or -1 if there is none.
+     * @return true if the path has to be sanitized.
+     */
+    private static boolean hasSegmentToSanitize(final String path, final int nestedJarSepIdx) {
+        // Find all '/' and nested jar separator '!' character positions, which split a path into segments. This
+        // scan reads the path via charAt() rather than copying it into a char[], since the common case is that
+        // nothing needs sanitizing, and the copy would then be pure overhead.
+        final var pathLen = path.length();
+        var lastSepIdx = -1;
+        var prevC = '\0';
+        for (int i = 0, ii = pathLen + 1; i < ii; i++) {
+            final var c = i == pathLen ? '\0' : path.charAt(i);
+            if (c == '/' || (c == '!' && nestedJarSepIdx >= 0 && i >= nestedJarSepIdx) || c == '\0') {
+                final var segmentLength = i - (lastSepIdx + 1);
+                if (
+                // Found empty segment "//" or "!!"
+                (segmentLength == 0 && prevC == c)
+                        // Found segment "."
+                        || (segmentLength == 1 && path.charAt(i - 1) == '.')
+                        // Found segment ".."
+                        || (segmentLength == 2 && path.charAt(i - 2) == '.' && path.charAt(i - 1) == '.')) {
+                    return true;
+                }
+                lastSepIdx = i;
+            }
+            prevC = c;
+        }
+        return false;
+    }
+
+    /**
+     * Append a path to a {@link StringBuilder}, dropping empty and {@code "."} segments, and removing the preceding
+     * segment for each {@code ".."} segment. Each segment is preceded by {@code '/'}, and each nested jar separator
+     * is written as {@code '!'} (so that {@code "jar:"} URL syntax is produced, since {@code '/'} always follows).
+     *
+     * @param path
+     *            The path to sanitize.
+     * @param nestedJarSepIdx
+     *            The index of the first nested jar separator {@code '!'} in the path, or -1 if there is none.
+     * @param pathSanitized
+     *            The buffer to append the sanitized path to.
+     */
+    private static void appendSanitizedSegments(final String path, final int nestedJarSepIdx,
+            final StringBuilder pathSanitized) {
+        // Sanitize between "!" section markers separately (".." should not apply past preceding "!")
+        final var pathLen = path.length();
+        final List<List<CharSequence>> allSectionSegments = new ArrayList<>();
+        List<CharSequence> currSectionSegments = new ArrayList<>();
+        allSectionSegments.add(currSectionSegments);
+        var lastSepIdx = -1;
+        for (var i = 0; i < pathLen + 1; i++) {
+            final var c = i == pathLen ? '\0' : path.charAt(i);
+            final var isSectionMarker = c == '!' && nestedJarSepIdx >= 0 && i >= nestedJarSepIdx;
+            if (c == '/' || isSectionMarker || c == '\0') {
+                final var segmentStartIdx = lastSepIdx + 1;
+                final var segmentLen = i - segmentStartIdx;
+                if (segmentLen == 0 || (segmentLen == 1 && path.charAt(segmentStartIdx) == '.')) {
+                    // Ignore empty segment "//" or idempotent segment "/./"
+                } else if (segmentLen == 2 && path.charAt(segmentStartIdx) == '.'
+                        && path.charAt(segmentStartIdx + 1) == '.') {
+                    // Remove one segment if ".." encountered, but do not allow ".." above top of hierarchy
+                    if (!currSectionSegments.isEmpty()) {
+                        currSectionSegments.remove(currSectionSegments.size() - 1);
+                    }
+                } else {
+                    // Encountered normal path segment
+                    currSectionSegments.add(path.subSequence(segmentStartIdx, segmentStartIdx + segmentLen));
+                }
+                if (isSectionMarker && !currSectionSegments.isEmpty()) {
+                    // Begin new section
+                    currSectionSegments = new ArrayList<>();
+                    allSectionSegments.add(currSectionSegments);
+                }
+                lastSepIdx = i;
+            }
+        }
+        // Turn sections and segments back into path string
+        for (final List<CharSequence> sectionSegments : allSectionSegments) {
+            if (!sectionSegments.isEmpty()) {
+                // Delineate sections with "!"
+                if (!pathSanitized.isEmpty()) {
+                    pathSanitized.append('!');
+                }
+                for (final CharSequence sectionSegment : sectionSegments) {
+                    pathSanitized.append('/');
+                    pathSanitized.append(sectionSegment);
+                }
+            }
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
