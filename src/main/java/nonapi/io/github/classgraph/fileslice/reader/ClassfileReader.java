@@ -453,17 +453,25 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
 
     @Override
     public void close() {
+        // Close each of the two resources in its own try block, so that a failure to close the input stream does
+        // not skip the close of the underlying resource, leaving its file handle or memory mapping open
         try {
             if (inflaterInputStream != null) {
                 inflaterInputStream.close();
-                inflaterInputStream = null;
-            }
-            if (resourceToClose != null) {
-                resourceToClose.close();
-                resourceToClose = null;
             }
         } catch (final Exception e) {
             // Ignore
+        } finally {
+            inflaterInputStream = null;
+        }
+        try {
+            if (resourceToClose != null) {
+                resourceToClose.close();
+            }
+        } catch (final Exception e) {
+            // Ignore
+        } finally {
+            resourceToClose = null;
         }
     }
 }
