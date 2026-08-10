@@ -46,9 +46,13 @@ public final class FastPathResolver {
     /**
      * Match custom URLs that are followed by one or two slashes. The scheme grammar is the one in RFC 3986: a
      * letter, then any number of letters, digits, {@code '+'}, {@code '-'} and {@code '.'} -- digits included, so
-     * that a scheme such as {@code "s3:"} is recognized.
+     * that a scheme such as {@code "s3:"} is recognized. At least two characters are required, so that a Windows
+     * drive designation such as {@code "C:/dir"} is read as a drive and not as a scheme, matching
+     * {@link JarUtils#URL_SCHEME_PATTERN}. A single-letter scheme is unusable in practice for exactly that reason,
+     * so nothing is given up by not recognizing one: off Windows, {@code "C:/dir"} is then resolved as an ordinary
+     * relative path, which does not exist, so the classpath element is logged and skipped during scanning.
      */
-    private static final Pattern schemeOneOrTwoSlashMatcher = Pattern.compile("^[a-zA-Z][a-zA-Z0-9+\\-.]*:/{1,2}");
+    private static final Pattern schemeOneOrTwoSlashMatcher = Pattern.compile("^[a-zA-Z][a-zA-Z0-9+\\-.]+:/{1,2}");
 
     /**
      * The separator that Tomcat uses in a {@code "war:"} URL between the path of the WAR file and the path within
@@ -97,6 +101,17 @@ public final class FastPathResolver {
                 buf.append(c);
             }
         }
+    }
+
+    /**
+     * Test whether a path is a bare Windows drive designation, such as {@code "C:"}.
+     *
+     * @param path
+     *            the path
+     * @return true if the path is a letter followed by a colon, and nothing else
+     */
+    private static boolean isDriveDesignation(final String path) {
+        return path.length() == 2 && Character.isLetter(path.charAt(0)) && path.charAt(1) == ':';
     }
 
     /**
@@ -152,19 +167,20 @@ public final class FastPathResolver {
      * 
      * @param path
      *            The path to normalize.
-     * @param isFileOrJarURL
-     *            True if this is a "file:" or "jar:" URL.
+     * @param percentDecode
+     *            True if percent encoding in the path should be decoded, which is the case only when the path
+     *            resolves to a filesystem path rather than remaining a URL.
      * @return The normalized path.
      */
-    public static String normalizePath(final String path, final boolean isFileOrJarURL) {
+    public static String normalizePath(final String path, final boolean percentDecode) {
         final boolean hasPercent = path.indexOf('%') >= 0;
         if (!hasPercent && path.indexOf('\\') < 0 && !path.endsWith("/")) {
             return path;
         } else {
             final int len = path.length();
             final StringBuilder buf = new StringBuilder();
-            // Only "file:" and "jar:" URLs are %-decoded (issue 255)
-            if (hasPercent && isFileOrJarURL) {
+            // Decode percent encoding only for a path, never for something that is still a URL (#255)
+            if (hasPercent && percentDecode) {
                 // Perform '%'-decoding of path segment
                 int prevEndMatchIdx = 0;
                 final Matcher matcher = percentMatcher.matcher(path);
@@ -178,7 +194,7 @@ public final class FastPathResolver {
                 }
                 translateSeparator(path, prevEndMatchIdx, len, /* stripFinalSeparator = */ true, buf);
             } else {
-                // Fast path -- no '%', or "http(s)://" or "jrt:" URL, or non-"file:" or non-"jar:" URL
+                // Fast path -- no '%', or a path that stays a URL and so keeps its percent encoding
                 translateSeparator(path, 0, len, /* stripFinalSeparator = */ true, buf);
                 return buf.toString();
             }
@@ -244,16 +260,22 @@ public final class FastPathResolver {
 
         String prefix = "";
         boolean isAbsolutePath = false;
-        boolean isFileOrJarURL = false;
+        // Percent encoding is only decoded when what is left after the scheme prefixes have been stripped is a
+        // filesystem path. A path that is still a URL has to keep its encoding, or it can no longer be fetched: a
+        // space decoded into "jar:http://host/a%20b.jar!/x" gives a URL that will not even parse as a URI. So each
+        // scheme sets this according to what it leaves behind, and the innermost scheme is the one that decides
+        boolean remainderIsFilePath = false;
         int startIdx = 0;
         boolean matchedPrefix;
         do {
             matchedPrefix = false;
             if (relativePath.regionMatches(true, startIdx, "jar:", 0, 4)) {
-                // "jar:" prefix can be stripped
+                // "jar:" prefix can be stripped. A "jar:" URL wraps an inner URL, so whether the result is a path
+                // is decided by the inner scheme, if there is one -- but a "jar:" prefix on a bare path, as in
+                // "jar:/dir/x.jar!/y", leaves a filesystem path behind
                 matchedPrefix = true;
                 startIdx += 4;
-                isFileOrJarURL = true;
+                remainderIsFilePath = true;
             } else if (relativePath.regionMatches(true, startIdx, "http://", 0, 7)) {
                 // Detect http://
                 matchedPrefix = true;
@@ -264,23 +286,26 @@ public final class FastPathResolver {
                 // relative to the current directory.
                 isAbsolutePath = true;
                 // Don't un-escape percent encoding etc.
+                remainderIsFilePath = false;
             } else if (relativePath.regionMatches(true, startIdx, "https://", 0, 8)) {
                 // Detect https://
                 matchedPrefix = true;
                 startIdx += 8;
                 prefix += "https://";
                 isAbsolutePath = true;
+                remainderIsFilePath = false;
             } else if (relativePath.regionMatches(true, startIdx, "jrt:", 0, 4)) {
                 // Detect jrt:
                 matchedPrefix = true;
                 startIdx += 4;
                 prefix += "jrt:";
                 isAbsolutePath = true;
+                remainderIsFilePath = false;
             } else if (relativePath.regionMatches(true, startIdx, "file:", 0, 5)) {
                 // Strip off "file:" prefix from relative path
                 matchedPrefix = true;
                 startIdx += 5;
-                isFileOrJarURL = true;
+                remainderIsFilePath = true;
             } else {
                 // Preserve the number of slashes on custom URL schemes (#420)
                 final String relPath = startIdx == 0 ? relativePath : relativePath.substring(startIdx);
@@ -293,6 +318,8 @@ public final class FastPathResolver {
                     // Treat the part after the protocol as an absolute path, so the rest of the URL is not treated
                     // as a directory relative to the current directory.
                     isAbsolutePath = true;
+                    // The scheme is kept, so the result is still a URL
+                    remainderIsFilePath = false;
                 }
             }
         } while (matchedPrefix);
@@ -301,7 +328,7 @@ public final class FastPathResolver {
         // produces) has two slashes that are not part of the path. Drop them, so that the path itself is what the
         // checks below see -- otherwise on Windows the empty authority is read as the start of a UNC path, and
         // "file:///C:/xyz" resolves to "///C:/xyz", which names neither a drive nor a network share
-        if (isFileOrJarURL && relativePath.startsWith("///", startIdx)) {
+        if (remainderIsFilePath && relativePath.startsWith("///", startIdx)) {
             startIdx += 2;
         }
 
@@ -311,7 +338,7 @@ public final class FastPathResolver {
         // and "file://localhost/tmp/a" would resolve to "/localhost/tmp/a", which names a different file. On
         // Windows the authority is left alone, so that it becomes the UNC path "//localhost/tmp/a" -- that is both
         // what Path#of(URI) produces there and what RFC 8089 appendix B.3 specifies
-        if (isFileOrJarURL && VersionFinder.OS != OperatingSystem.Windows
+        if (remainderIsFilePath && VersionFinder.OS != OperatingSystem.Windows
                 && relativePath.regionMatches(true, startIdx, "//localhost/", 0, 12)) {
             startIdx += "//localhost".length();
         }
@@ -344,8 +371,8 @@ public final class FastPathResolver {
         }
 
         // Normalize the path, then add any UNC or URL prefix
-        String pathStr = normalizePath(startIdx == 0 ? relativePath : relativePath.substring(startIdx),
-                isFileOrJarURL);
+        final String pathRaw = startIdx == 0 ? relativePath : relativePath.substring(startIdx);
+        String pathStr = normalizePath(pathRaw, remainderIsFilePath);
         if (!pathStr.equals("/")) {
             // Remove any "!/" on end of URL
             if (pathStr.endsWith("/")) {
@@ -368,13 +395,23 @@ public final class FastPathResolver {
             }
         }
 
+        // On Windows, the root directory of a drive is "C:/", and it is a root path in the same sense that "/" is:
+        // its final separator is the whole of its name, and dropping it leaves the drive designation "C:", which
+        // names the current directory on drive C instead. The separator was stripped along with every other
+        // trailing separator above, so put it back. A bare "C:", written without a separator, is left as written
+        final boolean isDriveRoot = VersionFinder.OS == OperatingSystem.Windows && isDriveDesignation(pathStr)
+                && (pathRaw.endsWith("/") || pathRaw.endsWith("\\"));
+        if (isDriveRoot) {
+            pathStr += "/";
+        }
+
         // Sanitize path (resolve ".." sections, collapse "//" double separators, etc.)
         String pathResolved;
         if (isAbsolutePath || resolveBasePath == null || resolveBasePath.isEmpty()) {
-            // There is no base path to resolve against, or path is an absolute path or http(s):// URL
-            // (ignore the base path). The root path is the one path whose final separator must not be removed,
-            // since removing it leaves the empty string, which names no directory at all
-            pathResolved = "/".equals(pathStr) ? "/"
+            // There is no base path to resolve against, or path is an absolute path or http(s):// URL (ignore the
+            // base path). A root path is the one kind of path whose final separator must not be removed, since the
+            // separator is the whole of the directory's name
+            pathResolved = "/".equals(pathStr) || isDriveRoot ? pathStr
                     : FileUtils.sanitizeEntryPath(pathStr, /* removeInitialSlash = */ false,
                             /* removeFinalSlash = */ true);
         } else {
