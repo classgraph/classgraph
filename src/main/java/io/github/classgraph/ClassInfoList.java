@@ -465,9 +465,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
         }
         final var scanSpec = get(0).scanResult().scanSpec;
         scanSpec.checkInterClassDependenciesEnabled();
-        return GraphvizDotfileGenerator.generateGraphVizDotFileFromInterClassDependencies(this, options.sizeX,
-                options.sizeY, options.includeExternalClasses != null ? options.includeExternalClasses
-                        : scanSpec.enableExternalClasses);
+        return GraphvizDotfileGenerator.generateGraphVizDotFileFromInterClassDependencies(this, options, scanSpec);
     }
 
     /**
@@ -563,10 +561,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
         }
         final var scanSpec = get(0).scanResult().scanSpec;
         scanSpec.checkClassInfoEnabled();
-        return GraphvizDotfileGenerator.generateGraphVizDotFile(this, options.sizeX, options.sizeY,
-                options.showFields, options.showFieldTypeDependencyEdges, options.showMethods,
-                options.showMethodTypeDependencyEdges, options.showAnnotations,
-                options.showAnnotationDependencyEdges, options.useSimpleNames, scanSpec);
+        return GraphvizDotfileGenerator.generateGraphVizDotFile(this, options, scanSpec);
     }
 
     /**
