@@ -41,7 +41,9 @@ import nonapi.io.github.classgraph.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A method type signature (called "MethodSignature" in the classfile documentation).
+ * The generic type signature of a method: its type parameters, parameter types, result type, and thrown exception
+ * types. This corresponds to the {@code MethodSignature} production of the signature grammar in section 4.7.9.1 of
+ * the JVM Specification.
  */
 public final class MethodTypeSignature extends HierarchicalTypeSignature {
     /** The method type parameters. */

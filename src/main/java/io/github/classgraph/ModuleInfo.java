@@ -159,7 +159,7 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
      * this module.
      *
      * @param className
-     *            the class name
+     *            The fully-qualified name of the class, in the same form as {@link Class#getName()}.
      * @return the {@link ClassInfo} object for the named class in this module, or null if the class was not found
      *         in this module.
      */
@@ -203,7 +203,8 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
      * in this module.
      *
      * @param packageName
-     *            the package name
+     *            The package name, with {@code '.'} between package name segments, e.g. {@code "com.xyz"}. The root
+     *            package is named {@code ""}.
      * @return the {@link PackageInfo} object for the named package in this module, or null if the package was not
      *         found in this module.
      */
@@ -269,6 +270,8 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
      *            the annotation class
      * @return An {@link AnnotationInfo} object representing the annotation on this module, or null if the module
      *         does not have the annotation.
+     * @throws IllegalArgumentException
+     *             if {@code annotation} is not an annotation type.
      */
     public @Nullable AnnotationInfo getAnnotationInfo(final Class<? extends Annotation> annotation) {
         Assert.notNull(annotation, "annotation");
@@ -315,6 +318,8 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
      * @param annotation
      *            the annotation class
      * @return true if this module has the annotation.
+     * @throws IllegalArgumentException
+     *             if {@code annotation} is not an annotation type.
      */
     public boolean hasAnnotation(final Class<? extends Annotation> annotation) {
         Assert.notNull(annotation, "annotation");

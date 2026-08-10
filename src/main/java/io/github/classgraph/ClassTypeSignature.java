@@ -44,7 +44,10 @@ import nonapi.io.github.classgraph.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A class type signature (called "ClassSignature" in the classfile documentation).
+ * The generic type signature of a class declaration: its type parameters, its superclass, and its superinterfaces.
+ * This corresponds to the {@code ClassSignature} production of the signature grammar in section 4.7.9.1 of the JVM
+ * Specification. (A reference to a class type, as it appears in the signature of a field, method or superclass, is
+ * modeled by {@link ClassRefTypeSignature} instead.)
  */
 public final class ClassTypeSignature extends HierarchicalTypeSignature {
 

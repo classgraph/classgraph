@@ -467,8 +467,11 @@ public class ClassGraph {
      * to be ignored, as well as the java.class.path system property.
      *
      * @param overrideClasspath
-     *            The custom classpath to use for scanning, with path elements separated by File.pathSeparatorChar.
+     *            The custom classpath to use for scanning, with path elements separated by
+     *            {@link java.io.File#pathSeparatorChar}.
      * @return this (for method chaining).
+     * @throws IllegalArgumentException
+     *             if {@code overrideClasspath} is empty.
      */
     public ClassGraph overrideClasspath(final String overrideClasspath) {
         Assert.notNull(overrideClasspath, "overrideClasspath");
@@ -487,11 +490,15 @@ public class ClassGraph {
      *
      * <p>
      * Works for Iterables of any type whose toString() method resolves to a classpath element string, e.g. String,
-     * File or Path.
+     * File or Path. Each element is one classpath entry, and is not split on {@link java.io.File#pathSeparatorChar}
+     * -- pass the {@link String} overload for a path that needs splitting.
      *
      * @param overrideClasspathElements
-     *            The custom classpath to use for scanning, with path elements separated by File.pathSeparatorChar.
+     *            The classpath entries to scan, one entry per element.
      * @return this (for method chaining).
+     * @throws IllegalArgumentException
+     *             if {@code overrideClasspathElements} is empty, or if any element is a {@link ClassLoader} (pass
+     *             those to {@link #overrideClassLoaders(ClassLoader...)} instead).
      */
     public ClassGraph overrideClasspath(final Iterable<?> overrideClasspathElements) {
         Assert.notNull(overrideClasspathElements, "overrideClasspathElements");
@@ -511,11 +518,15 @@ public class ClassGraph {
      *
      * <p>
      * Works for arrays of any member type whose toString() method resolves to a classpath element string, e.g.
-     * String, File or Path.
+     * String, File or Path. Each element is one classpath entry, and is not split on
+     * {@link java.io.File#pathSeparatorChar} -- pass the {@link String} overload for a path that needs splitting.
      *
      * @param overrideClasspathElements
-     *            The custom classpath to use for scanning, with path elements separated by File.pathSeparatorChar.
+     *            The classpath entries to scan, one entry per element.
      * @return this (for method chaining).
+     * @throws IllegalArgumentException
+     *             if {@code overrideClasspathElements} is empty, or if any element is a {@link ClassLoader} (pass
+     *             those to {@link #overrideClassLoaders(ClassLoader...)} instead).
      */
     public ClassGraph overrideClasspath(final Object... overrideClasspathElements) {
         Assert.notNullElements(overrideClasspathElements, "overrideClasspathElements");
@@ -808,6 +819,8 @@ public class ClassGraph {
      *            wildcard.
      *
      * @return this (for method chaining).
+     * @throws IllegalArgumentException
+     *             if any package name contains a glob wildcard.
      */
     public ClassGraph acceptPackagesNonRecursive(final String... packageNames) {
         Assert.notNullElements(packageNames, "packageNames");
@@ -839,6 +852,8 @@ public class ClassGraph {
      *            The paths to scan, relative to the package root of the classpath element (with '/' as a
      *            separator). May not include a glob wildcard.
      * @return this (for method chaining).
+     * @throws IllegalArgumentException
+     *             if any path contains a glob wildcard.
      */
     public ClassGraph acceptPathsNonRecursive(final String... paths) {
         Assert.notNullElements(paths, "paths");
@@ -875,6 +890,9 @@ public class ClassGraph {
      *            but not {@code java.awt} itself -- to reject {@code java.awt} and everything below it, use
      *            {@code "java.awt"}.
      * @return this (for method chaining).
+     * @throws IllegalArgumentException
+     *             if any package name is the root package ({@code ""}), which would reject everything, leaving
+     *             nothing to scan.
      */
     public ClassGraph rejectPackages(final String... packageNames) {
         Assert.notNullElements(packageNames, "packageNames");
@@ -906,6 +924,9 @@ public class ClassGraph {
      *            more whole path segments. Any number of wildcards may be used. Sub-directories of a matched path
      *            are also rejected, so a trailing {@code "/**"} is accepted but redundant.
      * @return this (for method chaining).
+     * @throws IllegalArgumentException
+     *             if any path is the package root ({@code ""} or {@code "/"}), which would reject everything,
+     *             leaving nothing to scan.
      */
     public ClassGraph rejectPaths(final String... paths) {
         Assert.notNullElements(paths, "paths");
@@ -994,6 +1015,8 @@ public class ClassGraph {
      *            wildcards, where {@code '*'} matches zero or more characters ({@code "mylib-*.jar"}) and
      *            {@code '?'} matches one character.
      * @return this (for method chaining).
+     * @throws IllegalArgumentException
+     *             if any name includes a directory component rather than being a bare leafname.
      */
     public ClassGraph acceptJars(final String... jarLeafNames) {
         Assert.notNullElements(jarLeafNames, "jarLeafNames");
@@ -1011,10 +1034,12 @@ public class ClassGraph {
      * Reject one or more jars, preventing them from being scanned.
      *
      * @param jarLeafNames
-     *            The leafnames of the jars that should be scanned (e.g. {@code "badlib.jar"}). May contain glob
+     *            The leafnames of the jars that should not be scanned (e.g. {@code "badlib.jar"}). May contain glob
      *            wildcards, where {@code '*'} matches zero or more characters ({@code "badlib-*.jar"}) and
      *            {@code '?'} matches one character.
      * @return this (for method chaining).
+     * @throws IllegalArgumentException
+     *             if any name includes a directory component rather than being a bare leafname.
      */
     public ClassGraph rejectJars(final String... jarLeafNames) {
         Assert.notNullElements(jarLeafNames, "jarLeafNames");

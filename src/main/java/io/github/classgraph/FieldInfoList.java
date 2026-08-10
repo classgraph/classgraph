@@ -38,7 +38,7 @@ import nonapi.io.github.classgraph.utils.Assert;
 import nonapi.io.github.classgraph.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
-/** A list of {@link FieldInfo} objects. */
+/** A list of {@link FieldInfo} objects, which can be indexed by field name. */
 public class FieldInfoList extends MappableInfoList<FieldInfo> {
     /** serialVersionUID */
     @Serial

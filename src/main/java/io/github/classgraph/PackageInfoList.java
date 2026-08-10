@@ -33,7 +33,7 @@ import java.util.Collection;
 
 import nonapi.io.github.classgraph.utils.Assert;
 
-/** A list of {@link PackageInfo} objects. */
+/** A list of {@link PackageInfo} objects, which can be indexed by package name. */
 public class PackageInfoList extends MappableInfoList<PackageInfo> {
     /** serialVersionUID */
     @Serial

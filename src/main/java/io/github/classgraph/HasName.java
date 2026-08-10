@@ -28,12 +28,18 @@
  */
 package io.github.classgraph;
 
-/** A named object. */
+/**
+ * An object that has a name, such as a class, method, field, package or module. Implemented by most of the
+ * {@code *Info} types, so that {@link InfoList#getNames()} can list the names of the items in a list, and so that a
+ * {@link MappableInfoList} can be indexed by name.
+ */
 public interface HasName {
     /**
-     * Get the name.
+     * Get the name of this object. What counts as the name depends on the implementing type: for a
+     * {@link ClassInfo} it is the fully-qualified class name, for a {@link MethodInfo} or {@link FieldInfo} it is
+     * the unqualified member name, and so on.
      *
-     * @return The name.
+     * @return The name of this object.
      */
     String getName();
 }

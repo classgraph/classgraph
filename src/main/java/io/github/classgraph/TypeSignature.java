@@ -45,7 +45,8 @@ import org.jspecify.annotations.Nullable;
 /**
  * A type signature for a reference type or base type. Subclasses are {@link ReferenceTypeSignature} (whose own
  * subclasses are {@link ClassRefTypeSignature}, {@link TypeVariableSignature}, and {@link ArrayTypeSignature}), and
- * {@link BaseTypeSignature}.
+ * {@link BaseTypeSignature}. This corresponds to the {@code JavaTypeSignature} production of the signature grammar
+ * in section 4.7.9.1 of the JVM Specification.
  */
 public abstract class TypeSignature extends HierarchicalTypeSignature {
     /** Constructor. */

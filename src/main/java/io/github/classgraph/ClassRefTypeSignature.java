@@ -41,7 +41,10 @@ import nonapi.io.github.classgraph.types.TypeUtils;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A class reference type signature (called "ClassTypeSignature" in the classfile documentation).
+ * A reference to a class type, with any type arguments it was parameterized with. This corresponds to the
+ * {@code ClassTypeSignature} production of the signature grammar in section 4.7.9.1 of the JVM Specification. (Note
+ * that ClassGraph's {@link ClassTypeSignature} models the {@code ClassSignature} production instead, i.e. the
+ * signature of a class declaration.)
  */
 public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature {
     /** The class name. */

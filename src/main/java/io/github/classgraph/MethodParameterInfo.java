@@ -197,6 +197,8 @@ public class MethodParameterInfo {
      *
      * @return {@link AnnotationInfo} for the annotations and meta-annotations on this method parameter, or the
      *         empty list if none.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public AnnotationInfoList getAllAnnotationInfo() {
         if (!Objects.requireNonNull(scanResult).scanSpec.enableAnnotationInfo) {
@@ -217,6 +219,8 @@ public class MethodParameterInfo {
      *
      * @return {@link AnnotationInfo} for the annotations directly present on this method parameter, or the empty
      *         list if none.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public AnnotationInfoList getDirectAnnotationInfo() {
         return getAllAnnotationInfo().directOnly();
@@ -231,6 +235,10 @@ public class MethodParameterInfo {
      *            the annotation class
      * @return An {@link AnnotationInfo} object representing the annotation on this method parameter, or null if the
      *         method parameter does not have the annotation.
+     * @throws IllegalArgumentException
+     *             if {@code annotation} is not an annotation type.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public @Nullable AnnotationInfo getAllAnnotationInfo(final Class<? extends Annotation> annotation) {
         Assert.notNull(annotation, "annotation");
@@ -253,6 +261,8 @@ public class MethodParameterInfo {
      *            the name of the annotation class
      * @return An {@link AnnotationInfo} object representing the named annotation on this method parameter, or null
      *         if the method parameter does not have the named annotation.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public @Nullable AnnotationInfo getAllAnnotationInfo(final String annotationName) {
         Assert.notNull(annotationName, "annotationName");
@@ -268,6 +278,10 @@ public class MethodParameterInfo {
      *            the annotation class
      * @return An {@link AnnotationInfo} object representing the annotation directly present on this method
      *         parameter, or null if it is not directly present.
+     * @throws IllegalArgumentException
+     *             if {@code annotation} is not an annotation type.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public @Nullable AnnotationInfo getDirectAnnotationInfo(final Class<? extends Annotation> annotation) {
         Assert.notNull(annotation, "annotation");
@@ -284,6 +298,8 @@ public class MethodParameterInfo {
      *            the name of the annotation class
      * @return An {@link AnnotationInfo} object representing the named annotation directly present on this method
      *         parameter, or null if it is not directly present.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public @Nullable AnnotationInfo getDirectAnnotationInfo(final String annotationName) {
         Assert.notNull(annotationName, "annotationName");
@@ -298,6 +314,10 @@ public class MethodParameterInfo {
      *            the annotation class
      * @return An {@link AnnotationInfoList} containing all instances of the annotation on this method parameter, or
      *         the empty list if the method parameter does not have the annotation.
+     * @throws IllegalArgumentException
+     *             if {@code annotation} is not an annotation type.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public AnnotationInfoList getAllAnnotationInfoRepeatable(final Class<? extends Annotation> annotation) {
         Assert.notNull(annotation, "annotation");
@@ -313,6 +333,8 @@ public class MethodParameterInfo {
      *            the name of the annotation class
      * @return An {@link AnnotationInfoList} containing all instances of the named annotation on this method
      *         parameter, or the empty list if the method parameter does not have the named annotation.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public AnnotationInfoList getAllAnnotationInfoRepeatable(final String annotationName) {
         Assert.notNull(annotationName, "annotationName");
@@ -327,6 +349,10 @@ public class MethodParameterInfo {
      *            the annotation class
      * @return An {@link AnnotationInfoList} containing all instances of the annotation directly present on this
      *         method parameter, or the empty list if it is not directly present.
+     * @throws IllegalArgumentException
+     *             if {@code annotation} is not an annotation type.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public AnnotationInfoList getDirectAnnotationInfoRepeatable(final Class<? extends Annotation> annotation) {
         Assert.notNull(annotation, "annotation");
@@ -342,6 +368,8 @@ public class MethodParameterInfo {
      *            the name of the annotation class
      * @return An {@link AnnotationInfoList} containing all instances of the named annotation directly present on
      *         this method parameter, or the empty list if it is not directly present.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public AnnotationInfoList getDirectAnnotationInfoRepeatable(final String annotationName) {
         Assert.notNull(annotationName, "annotationName");
@@ -354,6 +382,10 @@ public class MethodParameterInfo {
      * @param annotation
      *            the annotation class
      * @return true if this method parameter has the annotation.
+     * @throws IllegalArgumentException
+     *             if {@code annotation} is not an annotation type.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public boolean hasAnnotation(final Class<? extends Annotation> annotation) {
         Assert.notNull(annotation, "annotation");
@@ -367,6 +399,8 @@ public class MethodParameterInfo {
      * @param annotationName
      *            the name of the annotation class
      * @return true if this method parameter has the named annotation.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public boolean hasAnnotation(final String annotationName) {
         Assert.notNull(annotationName, "annotationName");

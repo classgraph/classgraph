@@ -39,20 +39,24 @@ import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.Parser;
 import org.jspecify.annotations.Nullable;
 
-/** A type argument. */
+/**
+ * A type argument of a parameterized type, e.g. the {@code ? extends Number} in {@code List<? extends Number>}.
+ * This corresponds to the {@code TypeArgument} production of the signature grammar in section 4.7.9.1 of the JVM
+ * Specification.
+ */
 public final class TypeArgument extends HierarchicalTypeSignature {
-    /** A type wildcard. */
+    /** The kind of wildcard bound on a {@link TypeArgument}. */
     public enum Wildcard {
-        /** No wildcard. */
+        /** No wildcard: the type argument is a plain type, e.g. the {@code String} in {@code List<String>}. */
         NONE,
 
-        /** The '?' wildcard. */
+        /** The unbounded {@code ?} wildcard, e.g. in {@code List<?>}. */
         ANY,
 
-        /** extends. */
+        /** An upper-bounded wildcard, e.g. the {@code ? extends Number} in {@code List<? extends Number>}. */
         EXTENDS,
 
-        /** super. */
+        /** A lower-bounded wildcard, e.g. the {@code ? super Integer} in {@code List<? super Integer>}. */
         SUPER
     }
 

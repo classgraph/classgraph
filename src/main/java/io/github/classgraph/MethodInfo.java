@@ -677,6 +677,10 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
      * @param annotation
      *            The method parameter annotation.
      * @return true if this method has a parameter with the annotation.
+     * @throws IllegalArgumentException
+     *             if {@code annotation} is not an annotation type.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public boolean hasParameterAnnotation(final Class<? extends Annotation> annotation) {
         Assert.notNull(annotation, "annotation");
@@ -690,6 +694,8 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
      * @param annotationName
      *            The name of a method parameter annotation.
      * @return true if this method has a parameter with the named annotation.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public boolean hasParameterAnnotation(final String annotationName) {
         Assert.notNull(annotationName, "annotationName");

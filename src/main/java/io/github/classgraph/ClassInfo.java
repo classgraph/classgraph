@@ -61,7 +61,26 @@ import nonapi.io.github.classgraph.utils.Assert;
 import nonapi.io.github.classgraph.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
-/** Holds metadata about a class encountered during a scan. */
+/**
+ * Holds metadata about a class encountered during a scan.
+ *
+ * <p>
+ * A {@link ClassInfo} object is also created for each class that was merely referred to by a scanned class as a
+ * superclass, implemented interface or annotation, but whose own classfile was never read during the scan, because
+ * the class was not on the scanned classpath -- {@link Object} is the most common example, when only the user's own
+ * packages were accepted. These placeholder objects hold only what could be inferred from the classes that referred
+ * to them: {@link #getResource()} returns null for them, accessors that depend on the classfile having been read
+ * return empty results, and the accessors that report where the class was found
+ * ({@link #getClasspathElementFile()}, {@link #getClasspathElementURI()}, {@link #getClasspathElementURL()} and
+ * {@link #getModuleRef()}) throw {@link IllegalStateException}.
+ *
+ * <p>
+ * Separately, {@link #isExternalClass()} reports whether a class lies outside the accepted packages. An external
+ * class may still have been scanned, if its classfile happened to be reachable on the scanned classpath, in which
+ * case none of the above applies to it. External classes are only returned by queries that report all scanned
+ * classes, such as {@link ScanResult#getAllClasses()}, if {@link ClassGraph#enableExternalClasses()} was called
+ * before scanning.
+ */
 public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>, HasName {
     /** The name of the class. */
     protected String name;
@@ -1389,7 +1408,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * Checks if this class extends the superclass.
      *
      * @param superclass
-     *            A superclass.
+     *            The superclass. Only the name of this class is used for the lookup, so the class itself does not
+     *            need to have been on the scanned classpath.
      * @return true if this class extends the superclass.
      */
     public boolean extendsSuperclass(final Class<?> superclass) {
@@ -1461,6 +1481,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @param interfaceClazz
      *            An interface.
      * @return true if this class implements the interface.
+     * @throws IllegalArgumentException
+     *             if {@code interfaceClazz} is not an interface.
      */
     public boolean implementsInterface(final Class<?> interfaceClazz) {
         Assert.notNull(interfaceClazz, "interfaceClazz");
@@ -1486,6 +1508,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @param annotation
      *            the annotation class
      * @return true if this class has the annotation.
+     * @throws IllegalArgumentException
+     *             if {@code annotation} is not an annotation type.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public boolean hasAnnotation(final Class<? extends Annotation> annotation) {
         Assert.notNull(annotation, "annotation");
@@ -1499,6 +1525,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @param annotationName
      *            the name of the annotation class
      * @return true if this class has the named annotation.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public boolean hasAnnotation(final String annotationName) {
         Assert.notNull(annotationName, "annotationName");
@@ -1511,6 +1539,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @param fieldName
      *            The name of a field.
      * @return true if this class declares a field of the given name.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableFieldInfo()} was not called before scanning.
      */
     public boolean hasDeclaredField(final String fieldName) {
         Assert.notNull(fieldName, "fieldName");
@@ -1523,6 +1553,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @param fieldName
      *            The name of a field.
      * @return true if this class or one of its superclasses declares a field of the given name.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableFieldInfo()} was not called before scanning.
      */
     public boolean hasField(final String fieldName) {
         Assert.notNull(fieldName, "fieldName");
@@ -1540,6 +1572,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @param annotation
      *            A field annotation.
      * @return true if this class declares a field with the annotation.
+     * @throws IllegalArgumentException
+     *             if {@code annotation} is not an annotation type.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableFieldInfo()} and {@link ClassGraph#enableAnnotationInfo()} were not
+     *             both called before scanning.
      */
     public boolean hasDeclaredFieldAnnotation(final Class<? extends Annotation> annotation) {
         Assert.notNull(annotation, "annotation");
@@ -1553,6 +1590,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @param fieldAnnotationName
      *            The name of a field annotation.
      * @return true if this class declares a field with the named annotation.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableFieldInfo()} and {@link ClassGraph#enableAnnotationInfo()} were not
+     *             both called before scanning.
      */
     public boolean hasDeclaredFieldAnnotation(final String fieldAnnotationName) {
         Assert.notNull(fieldAnnotationName, "fieldAnnotationName");
@@ -1568,8 +1608,14 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * Checks whether this class or one of its superclasses declares a field with the annotation.
      *
      * @param fieldAnnotation
-     *            A field annotation.
+     *            The field annotation. Only the name of this class is used for the lookup, so the class itself does
+     *            not need to have been on the scanned classpath.
      * @return true if this class or one of its superclasses declares a field with the annotation.
+     * @throws IllegalArgumentException
+     *             if {@code fieldAnnotation} is not an annotation type.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableFieldInfo()} and {@link ClassGraph#enableAnnotationInfo()} were not
+     *             both called before scanning.
      */
     public boolean hasFieldAnnotation(final Class<? extends Annotation> fieldAnnotation) {
         Assert.notNull(fieldAnnotation, "fieldAnnotation");
@@ -1583,6 +1629,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @param fieldAnnotationName
      *            The name of a field annotation.
      * @return true if this class or one of its superclasses declares a field with the named annotation.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableFieldInfo()} and {@link ClassGraph#enableAnnotationInfo()} were not
+     *             both called before scanning.
      */
     public boolean hasFieldAnnotation(final String fieldAnnotationName) {
         Assert.notNull(fieldAnnotationName, "fieldAnnotationName");
@@ -1600,6 +1649,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @param methodName
      *            The name of a method.
      * @return true if this class declares a method of the given name.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableMethodInfo()} was not called before scanning.
      */
     public boolean hasDeclaredMethod(final String methodName) {
         Assert.notNull(methodName, "methodName");
@@ -1612,6 +1663,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @param methodName
      *            The name of a method.
      * @return true if this class or one of its superclasses or interfaces declares a method of the given name.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableMethodInfo()} was not called before scanning.
      */
     public boolean hasMethod(final String methodName) {
         Assert.notNull(methodName, "methodName");
@@ -1627,8 +1680,14 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * Checks whether this class declares a method with the annotation.
      *
      * @param methodAnnotation
-     *            A method annotation.
+     *            The method annotation. Only the name of this class is used for the lookup, so the class itself
+     *            does not need to have been on the scanned classpath.
      * @return true if this class declares a method with the annotation.
+     * @throws IllegalArgumentException
+     *             if {@code methodAnnotation} is not an annotation type.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableMethodInfo()} and {@link ClassGraph#enableAnnotationInfo()} were not
+     *             both called before scanning.
      */
     public boolean hasDeclaredMethodAnnotation(final Class<? extends Annotation> methodAnnotation) {
         Assert.notNull(methodAnnotation, "methodAnnotation");
@@ -1642,6 +1701,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @param methodAnnotationName
      *            The name of a method annotation.
      * @return true if this class declares a method with the named annotation.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableMethodInfo()} and {@link ClassGraph#enableAnnotationInfo()} were not
+     *             both called before scanning.
      */
     public boolean hasDeclaredMethodAnnotation(final String methodAnnotationName) {
         Assert.notNull(methodAnnotationName, "methodAnnotationName");
@@ -1657,8 +1719,14 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * Checks whether this class or one of its superclasses or interfaces declares a method with the annotation.
      *
      * @param methodAnnotation
-     *            A method annotation.
+     *            The method annotation. Only the name of this class is used for the lookup, so the class itself
+     *            does not need to have been on the scanned classpath.
      * @return true if this class or one of its superclasses or interfaces declares a method with the annotation.
+     * @throws IllegalArgumentException
+     *             if {@code methodAnnotation} is not an annotation type.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableMethodInfo()} and {@link ClassGraph#enableAnnotationInfo()} were not
+     *             both called before scanning.
      */
     public boolean hasMethodAnnotation(final Class<? extends Annotation> methodAnnotation) {
         Assert.notNull(methodAnnotation, "methodAnnotation");
@@ -1674,6 +1742,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *            The name of a method annotation.
      * @return true if this class or one of its superclasses or interfaces declares a method with the named
      *         annotation.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableMethodInfo()} and {@link ClassGraph#enableAnnotationInfo()} were not
+     *             both called before scanning.
      */
     public boolean hasMethodAnnotation(final String methodAnnotationName) {
         Assert.notNull(methodAnnotationName, "methodAnnotationName");
@@ -1691,6 +1762,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @param methodParameterAnnotation
      *            A method annotation.
      * @return true if this class declares a method with the annotation.
+     * @throws IllegalArgumentException
+     *             if {@code methodParameterAnnotation} is not an annotation type.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableMethodInfo()} and {@link ClassGraph#enableAnnotationInfo()} were not
+     *             both called before scanning.
      */
     public boolean hasDeclaredMethodParameterAnnotation(
             final Class<? extends Annotation> methodParameterAnnotation) {
@@ -1705,6 +1781,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @param methodParameterAnnotationName
      *            The name of a method annotation.
      * @return true if this class declares a method with the named annotation.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableMethodInfo()} and {@link ClassGraph#enableAnnotationInfo()} were not
+     *             both called before scanning.
      */
     public boolean hasDeclaredMethodParameterAnnotation(final String methodParameterAnnotationName) {
         Assert.notNull(methodParameterAnnotationName, "methodParameterAnnotationName");
@@ -1722,6 +1801,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @param methodParameterAnnotation
      *            A method annotation.
      * @return true if this class or one of its superclasses or interfaces has a method with the annotation.
+     * @throws IllegalArgumentException
+     *             if {@code methodParameterAnnotation} is not an annotation type.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableMethodInfo()} and {@link ClassGraph#enableAnnotationInfo()} were not
+     *             both called before scanning.
      */
     public boolean hasMethodParameterAnnotation(final Class<? extends Annotation> methodParameterAnnotation) {
         Assert.notNull(methodParameterAnnotation, "methodParameterAnnotation");
@@ -1735,6 +1819,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @param methodParameterAnnotationName
      *            The name of a method annotation.
      * @return true if this class or one of its superclasses or interfaces has a method with the named annotation.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableMethodInfo()} and {@link ClassGraph#enableAnnotationInfo()} were not
+     *             both called before scanning.
      */
     public boolean hasMethodParameterAnnotation(final String methodParameterAnnotationName) {
         Assert.notNull(methodParameterAnnotationName, "methodParameterAnnotationName");
@@ -2090,6 +2177,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * Filters out meta-annotations in the {@code java.lang.annotation} package.
      *
      * @return the list of annotations and meta-annotations on this class.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public ClassInfoList getAllAnnotations() {
         synchronized (this) {
@@ -2141,6 +2230,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * you need the parameter values of annotations, rather than just the annotation classes.)
      *
      * @return the list of annotations directly present on this class.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public ClassInfoList getDirectAnnotations() {
         return getAllAnnotations().directOnly();
@@ -2225,6 +2316,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * @return A list of {@link AnnotationInfo} objects for the annotations and meta-annotations on this class, or
      *         the empty list if none.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public AnnotationInfoList getAllAnnotationInfo() {
         synchronized (this) {
@@ -2247,6 +2340,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * @return A list of {@link AnnotationInfo} objects for the annotations directly present on this class, or the
      *         empty list if none.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public AnnotationInfoList getDirectAnnotationInfo() {
         return getAllAnnotationInfo().directOnly();
@@ -2270,6 +2365,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *            the annotation class
      * @return An {@link AnnotationInfo} object representing the annotation on this class, or null if the class does
      *         not have the annotation.
+     * @throws IllegalArgumentException
+     *             if {@code annotation} is not an annotation type.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public @Nullable AnnotationInfo getAllAnnotationInfo(final Class<? extends Annotation> annotation) {
         Assert.notNull(annotation, "annotation");
@@ -2302,6 +2401,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *            the name of the annotation class
      * @return An {@link AnnotationInfo} object representing the named annotation on this class, or null if the
      *         class does not have the named annotation.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public @Nullable AnnotationInfo getAllAnnotationInfo(final String annotationName) {
         Assert.notNull(annotationName, "annotationName");
@@ -2317,6 +2418,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *            the annotation class
      * @return An {@link AnnotationInfo} object representing the annotation directly present on this class, or null
      *         if it is not directly present.
+     * @throws IllegalArgumentException
+     *             if {@code annotation} is not an annotation type.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public @Nullable AnnotationInfo getDirectAnnotationInfo(final Class<? extends Annotation> annotation) {
         Assert.notNull(annotation, "annotation");
@@ -2333,6 +2438,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *            the name of the annotation class
      * @return An {@link AnnotationInfo} object representing the named annotation directly present on this class, or
      *         null if it is not directly present.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public @Nullable AnnotationInfo getDirectAnnotationInfo(final String annotationName) {
         Assert.notNull(annotationName, "annotationName");
@@ -2356,6 +2463,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *            the annotation class
      * @return An {@link AnnotationInfoList} of all instances of the annotation on this class, or the empty list if
      *         the class does not have the annotation.
+     * @throws IllegalArgumentException
+     *             if {@code annotation} is not an annotation type.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public AnnotationInfoList getAllAnnotationInfoRepeatable(final Class<? extends Annotation> annotation) {
         Assert.notNull(annotation, "annotation");
@@ -2380,6 +2491,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *            the name of the annotation class
      * @return An {@link AnnotationInfoList} of all instances of the named annotation on this class, or the empty
      *         list if the class does not have the named annotation.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public AnnotationInfoList getAllAnnotationInfoRepeatable(final String annotationName) {
         Assert.notNull(annotationName, "annotationName");
@@ -2394,6 +2507,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *            the annotation class
      * @return An {@link AnnotationInfoList} of all instances of the annotation directly present on this class, or
      *         the empty list if it is not directly present.
+     * @throws IllegalArgumentException
+     *             if {@code annotation} is not an annotation type.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public AnnotationInfoList getDirectAnnotationInfoRepeatable(final Class<? extends Annotation> annotation) {
         Assert.notNull(annotation, "annotation");
@@ -2409,6 +2526,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *            the name of the annotation class
      * @return An {@link AnnotationInfoList} of all instances of the named annotation directly present on this
      *         class, or the empty list if it is not directly present.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public AnnotationInfoList getDirectAnnotationInfoRepeatable(final String annotationName) {
         Assert.notNull(annotationName, "annotationName");
@@ -2420,6 +2539,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * @return A list of {@link AnnotationParameterValue} objects for each of the default parameter values for this
      *         annotation, if this is an annotation class with default parameter values, otherwise the empty list.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning, or if this class is
+     *             not an annotation.
      */
     public AnnotationParameterValueList getAnnotationDefaultParameterValues() {
         if (!scanResult().scanSpec.enableAnnotationInfo) {
@@ -2446,6 +2568,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return A list of standard classes and non-annotation interfaces that are annotated by this class, if this is
      *         an annotation class, or the empty list if none. Also handles the {@link Inherited} meta-annotation,
      *         which causes an annotation on a class to be inherited by all of its subclasses.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public ClassInfoList getClassesWithAnnotation() {
         if (!scanResult().scanSpec.enableAnnotationInfo) {
@@ -2932,12 +3056,15 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * was called before the scan.
      *
      * @param methodAnnotation
-     *            The method annotation.
+     *            The method annotation. Only the name of this class is used for the lookup, so the class itself
+     *            does not need to have been on the scanned classpath.
      * @return the list of {@link MethodInfo} objects for visible methods declared by this class that have the given
      *         annotation or meta-annotation, or the empty list if none.
      * @throws IllegalStateException
      *             if {@link ClassGraph#enableMethodInfo()} or {@link ClassGraph#enableAnnotationInfo()} was not
      *             called prior to initiating the scan.
+     * @throws IllegalArgumentException
+     *             if {@code methodAnnotation} is not an annotation type.
      */
     public MethodInfoList getDeclaredMethodInfoWithAnnotation(final Class<? extends Annotation> methodAnnotation) {
         Assert.notNull(methodAnnotation, "methodAnnotation");
@@ -3001,12 +3128,15 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * was called before the scan.
      *
      * @param methodAnnotation
-     *            The method annotation.
+     *            The method annotation. Only the name of this class is used for the lookup, so the class itself
+     *            does not need to have been on the scanned classpath.
      * @return the list of {@link MethodInfo} objects for visible methods of this class, its interfaces and
      *         superclasses that have the given annotation or meta-annotation, or the empty list if none.
      * @throws IllegalStateException
      *             if {@link ClassGraph#enableMethodInfo()} or {@link ClassGraph#enableAnnotationInfo()} was not
      *             called prior to initiating the scan.
+     * @throws IllegalArgumentException
+     *             if {@code methodAnnotation} is not an annotation type.
      */
     public MethodInfoList getMethodInfoWithAnnotation(final Class<? extends Annotation> methodAnnotation) {
         Assert.notNull(methodAnnotation, "methodAnnotation");
@@ -3036,6 +3166,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         objects, or the empty list if none. N.B. these annotations do not contain specific annotation
      *         parameters -- call {@link MethodInfo#getAllAnnotationInfo()} to get details on specific method
      *         annotation instances.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableMethodInfo()} and {@link ClassGraph#enableAnnotationInfo()} were not
+     *             both called before scanning.
      */
     public ClassInfoList getMethodAnnotations() {
         return getFieldOrMethodAnnotations(RelType.METHOD_ANNOTATIONS);
@@ -3049,6 +3182,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         objects, or the empty list if none. N.B. these annotations do not contain specific annotation
      *         parameters -- call {@link MethodInfo#getAllAnnotationInfo()} to get details on specific method
      *         annotation instances.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableMethodInfo()} and {@link ClassGraph#enableAnnotationInfo()} were not
+     *             both called before scanning.
      */
     public ClassInfoList getMethodParameterAnnotations() {
         return getFieldOrMethodAnnotations(RelType.METHOD_PARAMETER_ANNOTATIONS);
@@ -3060,6 +3196,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * @return A list of classes that have a declared method with this annotation or meta-annotation, or the empty
      *         list if none.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableMethodInfo()} and {@link ClassGraph#enableAnnotationInfo()} were not
+     *             both called before scanning.
      */
     public ClassInfoList getClassesWithMethodAnnotation() {
         // Get all classes that have a method annotated or meta-annotated with this annotation
@@ -3082,6 +3221,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * @return A list of classes that have a declared method with a parameter that is annotated with this annotation
      *         or meta-annotation, or the empty list if none.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableMethodInfo()} and {@link ClassGraph#enableAnnotationInfo()} were not
+     *             both called before scanning.
      */
     public ClassInfoList getClassesWithMethodParameterAnnotation() {
         // Get all classes that have a method annotated or meta-annotated with this annotation
@@ -3200,6 +3342,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * @return All enum constants of an enum class as a list of {@link FieldInfo} objects (enum constants are stored
      *         as fields in Java classes).
+     * @throws IllegalStateException
+     *             if this class is not an enum, or if {@link ClassGraph#enableFieldInfo()} was not called before
+     *             scanning.
      */
     public FieldInfoList getEnumConstants() {
         if (!isEnum()) {
@@ -3335,12 +3480,15 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * called before the scan.
      *
      * @param fieldAnnotation
-     *            The field annotation.
+     *            The field annotation. Only the name of this class is used for the lookup, so the class itself does
+     *            not need to have been on the scanned classpath.
      * @return the list of {@link FieldInfo} objects for visible fields declared by this class that have the given
      *         annotation or meta-annotation, or the empty list if none.
      * @throws IllegalStateException
      *             if {@link ClassGraph#enableFieldInfo()} or {@link ClassGraph#enableAnnotationInfo()} was not
      *             called prior to initiating the scan.
+     * @throws IllegalArgumentException
+     *             if {@code fieldAnnotation} is not an annotation type.
      */
     public FieldInfoList getDeclaredFieldInfoWithAnnotation(final Class<? extends Annotation> fieldAnnotation) {
         Assert.notNull(fieldAnnotation, "fieldAnnotation");
@@ -3396,12 +3544,15 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * called before the scan.
      *
      * @param fieldAnnotation
-     *            The field annotation.
+     *            The field annotation. Only the name of this class is used for the lookup, so the class itself does
+     *            not need to have been on the scanned classpath.
      * @return the list of {@link FieldInfo} objects for visible fields of this class, its interfaces and
      *         superclasses that have the given annotation or meta-annotation, or the empty list if none.
      * @throws IllegalStateException
      *             if {@link ClassGraph#enableFieldInfo()} or {@link ClassGraph#enableAnnotationInfo()} was not
      *             called prior to initiating the scan.
+     * @throws IllegalArgumentException
+     *             if {@code fieldAnnotation} is not an annotation type.
      */
     public FieldInfoList getFieldInfoWithAnnotation(final Class<? extends Annotation> fieldAnnotation) {
         Assert.notNull(fieldAnnotation, "fieldAnnotation");
@@ -3429,6 +3580,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return A list of all annotations on fields of this class, or the empty list if none. N.B. these annotations
      *         do not contain specific annotation parameters -- call {@link FieldInfo#getAllAnnotationInfo()} to get
      *         details on specific field annotation instances.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableFieldInfo()} and {@link ClassGraph#enableAnnotationInfo()} were not
+     *             both called before scanning.
      */
     public ClassInfoList getFieldAnnotations() {
         return getFieldOrMethodAnnotations(RelType.FIELD_ANNOTATIONS);
@@ -3439,6 +3593,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * @return A list of classes that have a field with this annotation or meta-annotation, or the empty list if
      *         none.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableFieldInfo()} and {@link ClassGraph#enableAnnotationInfo()} were not
+     *             both called before scanning.
      */
     public ClassInfoList getClassesWithFieldAnnotation() {
         // Get all classes that have a field annotated or meta-annotated with this annotation
@@ -3581,12 +3738,17 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * @return The {@link URI} of the classpath element that this class was found within.
      * @throws IllegalStateException
-     *             if the classpath element does not have a valid URI (e.g. for modules whose location URI is null).
+     *             if the classpath element does not have a valid URI (e.g. for modules whose location URI is null),
+     *             or if the classpath element is not known for this class, because this {@link ClassInfo} is a
+     *             placeholder for a class that was referenced by a scanned class but was not itself scanned.
      */
     public URI getClasspathElementURI() {
+        if (classfileResource == null) {
+            throw new IllegalStateException("Classpath element is not known for class " + getName());
+        }
         // Calling classfileResource.getClasspathElementURI() rather than classpathElement.getURI() will append any
         // automatically-stripped package root prefix
-        return Objects.requireNonNull(classfileResource).getClasspathElementURI();
+        return classfileResource.getClasspathElementURI();
     }
 
     /**
@@ -3598,7 +3760,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return The {@link URL} of the classpath element that this class was found within.
      * @throws IllegalStateException
      *             if the classpath element URI cannot be converted to a {@link URL} (in particular, if the URI has
-     *             a {@code jrt:/} scheme).
+     *             a {@code jrt:/} scheme), or if the classpath element is not known for this class, because this
+     *             {@link ClassInfo} is a placeholder for a class that was referenced by a scanned class but was not
+     *             itself scanned.
      */
     public URL getClasspathElementURL() {
         try {
@@ -3616,6 +3780,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         or null if this class was found in a module (see {@link #getModuleRef}). May also return null if the
      *         classpath element was an http/https URL, and the jar was downloaded directly to RAM, rather than to a
      *         temp file on disk (e.g. if the temp dir is not writeable).
+     * @throws IllegalStateException
+     *             if the classpath element is not known for this class, because this {@link ClassInfo} is a
+     *             placeholder for a class that was referenced by a scanned class but was not itself scanned.
      */
     public @Nullable File getClasspathElementFile() {
         if (classpathElement == null) {
@@ -3630,6 +3797,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * @return The module that this class was found within, as a {@link ModuleRef}, or null if this class was found
      *         in a directory or jar in the classpath. (See also {@link #getClasspathElementFile()}.)
+     * @throws IllegalStateException
+     *             if the classpath element is not known for this class, because this {@link ClassInfo} is a
+     *             placeholder for a class that was referenced by a scanned class but was not itself scanned.
      */
     public @Nullable ModuleRef getModuleRef() {
         if (classpathElement == null) {
@@ -3820,6 +3990,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         {@link ClassGraph#scan()} for this method to work. You should also call
      *         {@link ClassGraph#enableExternalClasses()} before {@link ClassGraph#scan()} if you want non-accepted
      *         classes to appear in the result.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableInterClassDependencies()} was not called before scanning.
      */
     public ClassInfoList getClassDependencies() {
         if (!scanResult().scanSpec.enableInterClassDependencies) {

@@ -80,12 +80,13 @@ public class ModuleRef implements Comparable<ModuleRef> {
     private final @Nullable ClassLoader classLoader;
 
     /**
-     * Constructor.
+     * Wrap a {@link ModuleReference} and the {@link ModuleLayer} it was resolved in, reading the module's
+     * descriptor, package list, location and classloader eagerly.
      *
      * @param moduleReference
-     *            The module reference.
+     *            The {@link ModuleReference} for the module.
      * @param moduleLayer
-     *            The module layer.
+     *            The {@link ModuleLayer} that the module was resolved in.
      */
     public ModuleRef(final ModuleReference moduleReference, final ModuleLayer moduleLayer) {
         Assert.notNull(moduleReference, "moduleReference");
@@ -129,18 +130,18 @@ public class ModuleRef implements Comparable<ModuleRef> {
     }
 
     /**
-     * Get the module reference.
+     * Get the {@link ModuleReference} that this {@link ModuleRef} wraps.
      *
-     * @return The module reference.
+     * @return The {@link ModuleReference} for the module.
      */
     public ModuleReference getReference() {
         return reference;
     }
 
     /**
-     * Get the module layer.
+     * Get the {@link ModuleLayer} that the module was resolved in.
      *
-     * @return The module layer.
+     * @return The {@link ModuleLayer} that the module was resolved in.
      */
     public ModuleLayer getLayer() {
         return layer;

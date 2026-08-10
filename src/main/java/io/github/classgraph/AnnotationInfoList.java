@@ -47,7 +47,13 @@ import nonapi.io.github.classgraph.utils.CollectionUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
-/** A list of {@link AnnotationInfo} objects. */
+/**
+ * A list of {@link AnnotationInfo} objects, which stores both the reachable annotations (annotations that are
+ * either directly present on the annotated item, or reached indirectly through a meta-annotation, or inherited from
+ * a superclass or interface that was annotated with {@link java.lang.annotation.Inherited @Inherited}), and the
+ * directly present annotations. (By default, accessing an {@link AnnotationInfoList} as a {@link List} returns the
+ * reachable annotations; by calling {@link #directOnly()}, you can get only the directly present annotations.)
+ */
 public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     /**
      * The set of annotations directly related to a class or method and not inherited through a meta-annotated
@@ -97,7 +103,8 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
      * objects.
      *
      * @param reachableAnnotations
-     *            the reachable annotations
+     *            the annotations to add to the list. All of them are treated as directly present on the annotated
+     *            item, rather than as meta-annotations.
      */
     public AnnotationInfoList(final AnnotationInfoList reachableAnnotations) {
         // If only reachable annotations are given, treat all of them as direct
@@ -393,10 +400,10 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * returns the list of direct annotations, excluding meta-annotations. If this {@link AnnotationInfoList}
-     * consists of class annotations, i.e. if it was produced using `ClassInfo#getAllAnnotationInfo()`, then the
+     * Get the list of direct annotations, excluding meta-annotations. If this {@link AnnotationInfoList} consists
+     * of class annotations, i.e. if it was produced using {@link ClassInfo#getAllAnnotationInfo()}, then the
      * returned list also excludes annotations inherited from a superclass or implemented interface that was
-     * meta-annotated with {@link java.lang.annotation.Inherited @Inherited}.
+     * annotated with {@link java.lang.annotation.Inherited @Inherited}.
      *
      * @return The list of directly-related annotations.
      */
@@ -417,6 +424,8 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
      * @param annotationClass
      *            The class to search for.
      * @return The list of annotations with the given class, or the empty list if none found.
+     * @throws IllegalArgumentException
+     *             if {@code annotationClass} is not an annotation type.
      */
     public AnnotationInfoList getRepeatable(final Class<? extends Annotation> annotationClass) {
         Assert.notNull(annotationClass, "annotationClass");

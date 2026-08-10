@@ -39,7 +39,12 @@ import nonapi.io.github.classgraph.types.Parser;
 import nonapi.io.github.classgraph.types.TypeUtils;
 import org.jspecify.annotations.Nullable;
 
-/** A type parameter. */
+/**
+ * A type parameter of a generic class or method declaration, e.g. the {@code T extends Comparable<T>} in
+ * {@code class Foo<T extends Comparable<T>>}, consisting of the name of the type variable and its bounds. This
+ * corresponds to the {@code TypeParameter} production of the signature grammar in section 4.7.9.1 of the JVM
+ * Specification.
+ */
 public final class TypeParameter extends HierarchicalTypeSignature {
     /** The type parameter identifier. */
     final String name;

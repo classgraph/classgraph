@@ -951,6 +951,14 @@ is fixed on the 4.x branch as well.
   told readers that an uncollected `ScanResult` would eventually be cleaned up by the
   garbage collector, and it will not be.
 
+* `ClassInfo#getClasspathElementURI()` and `ClassInfo#getClasspathElementURL()` threw a
+  bare `NullPointerException`, with no message, when called on a `ClassInfo` for a class
+  that was referenced by a scanned class but was never itself scanned (`java.lang.Object`,
+  for example, when only your own packages are accepted). The two sibling accessors,
+  `getClasspathElementFile()` and `getModuleRef()`, already threw `IllegalStateException`
+  with an explanatory message in that situation. All four now do. This is still the
+  behavior on the 4.x branch, where the exception type is part of the released API.
+
 Two further bugs found during the port were only reachable through the JSON
 serialization API, which 5.x removes (`AnnotationParameterValue#toString()` threw
 `NullPointerException` for a null parameter value, and `ScanResult#fromJSON(String)` did

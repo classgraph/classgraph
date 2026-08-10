@@ -280,6 +280,8 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
      *
      * @return A list of the annotations and meta-annotations on this class member, along with any annotation
      *         parameter values, wrapped in {@link AnnotationInfo} objects, or the empty list if none.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public AnnotationInfoList getAllAnnotationInfo() {
         synchronized (this) {
@@ -303,6 +305,8 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
      *
      * @return A list of the annotations directly present on this class member, along with any annotation parameter
      *         values, wrapped in {@link AnnotationInfo} objects, or the empty list if none.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public AnnotationInfoList getDirectAnnotationInfo() {
         return getAllAnnotationInfo().directOnly();
@@ -317,6 +321,10 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
      *            the annotation class
      * @return An {@link AnnotationInfo} object representing the annotation on this class member, or null if the
      *         class member does not have the annotation.
+     * @throws IllegalArgumentException
+     *             if {@code annotation} is not an annotation type.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public @Nullable AnnotationInfo getAllAnnotationInfo(final Class<? extends Annotation> annotation) {
         Assert.notNull(annotation, "annotation");
@@ -339,6 +347,8 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
      *            the name of the annotation class
      * @return An {@link AnnotationInfo} object representing the named annotation on this class member, or null if
      *         the class member does not have the named annotation.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public @Nullable AnnotationInfo getAllAnnotationInfo(final String annotationName) {
         Assert.notNull(annotationName, "annotationName");
@@ -354,6 +364,10 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
      *            the annotation class
      * @return An {@link AnnotationInfo} object representing the annotation directly present on this class member,
      *         or null if it is not directly present.
+     * @throws IllegalArgumentException
+     *             if {@code annotation} is not an annotation type.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public @Nullable AnnotationInfo getDirectAnnotationInfo(final Class<? extends Annotation> annotation) {
         Assert.notNull(annotation, "annotation");
@@ -370,6 +384,8 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
      *            the name of the annotation class
      * @return An {@link AnnotationInfo} object representing the named annotation directly present on this class
      *         member, or null if it is not directly present.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public @Nullable AnnotationInfo getDirectAnnotationInfo(final String annotationName) {
         Assert.notNull(annotationName, "annotationName");
@@ -384,6 +400,10 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
      *            the annotation class
      * @return An {@link AnnotationInfoList} of all instances of the annotation on this class member, or the empty
      *         list if the class member does not have the annotation.
+     * @throws IllegalArgumentException
+     *             if {@code annotation} is not an annotation type.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public AnnotationInfoList getAllAnnotationInfoRepeatable(final Class<? extends Annotation> annotation) {
         Assert.notNull(annotation, "annotation");
@@ -399,6 +419,8 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
      *            the name of the annotation class
      * @return An {@link AnnotationInfoList} of all instances of the named annotation on this class member, or the
      *         empty list if the class member does not have the named annotation.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public AnnotationInfoList getAllAnnotationInfoRepeatable(final String annotationName) {
         Assert.notNull(annotationName, "annotationName");
@@ -413,6 +435,10 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
      *            the annotation class
      * @return An {@link AnnotationInfoList} of all instances of the annotation directly present on this class
      *         member, or the empty list if it is not directly present.
+     * @throws IllegalArgumentException
+     *             if {@code annotation} is not an annotation type.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public AnnotationInfoList getDirectAnnotationInfoRepeatable(final Class<? extends Annotation> annotation) {
         Assert.notNull(annotation, "annotation");
@@ -428,6 +454,8 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
      *            the name of the annotation class
      * @return An {@link AnnotationInfoList} of all instances of the named annotation directly present on this class
      *         member, or the empty list if it is not directly present.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public AnnotationInfoList getDirectAnnotationInfoRepeatable(final String annotationName) {
         Assert.notNull(annotationName, "annotationName");
@@ -440,6 +468,10 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
      * @param annotation
      *            the annotation class
      * @return true if this class member has the annotation.
+     * @throws IllegalArgumentException
+     *             if {@code annotation} is not an annotation type.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public boolean hasAnnotation(final Class<? extends Annotation> annotation) {
         Assert.notNull(annotation, "annotation");
@@ -453,6 +485,8 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
      * @param annotationName
      *            the name of the annotation class
      * @return true if this class member has the named annotation.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public boolean hasAnnotation(final String annotationName) {
         Assert.notNull(annotationName, "annotationName");

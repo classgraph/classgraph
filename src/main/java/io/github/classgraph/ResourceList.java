@@ -47,7 +47,16 @@ import java.util.Objects;
 import nonapi.io.github.classgraph.utils.Assert;
 import nonapi.io.github.classgraph.utils.CollectionUtils;
 
-/** An AutoCloseable list of AutoCloseable {@link Resource} objects. */
+/**
+ * An {@link AutoCloseable} list of {@link AutoCloseable} {@link Resource} objects. Closing the list closes every
+ * {@link Resource} in the list, releasing any open file handles or memory mappings.
+ *
+ * <p>
+ * Lists returned by ClassGraph should be treated as read-only. Some accessors return the list that is held
+ * internally by the {@link ScanResult}, so modifying the returned list can corrupt the scan result; and when there
+ * are no results, a shared immutable empty list is returned, so modifying that throws
+ * {@link UnsupportedOperationException}. Copy the list before modifying it, e.g. {@code new ArrayList<>(list)}.
+ */
 public class ResourceList extends PotentiallyUnmodifiableList<Resource> implements AutoCloseable {
     /** serialVersionUID. */
     @Serial

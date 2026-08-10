@@ -36,6 +36,12 @@ import java.util.List;
 /**
  * A list of named objects.
  *
+ * <p>
+ * Lists returned by ClassGraph should be treated as read-only. Some accessors return the list that is held
+ * internally by the {@link ScanResult}, so modifying the returned list can corrupt the scan result; and when there
+ * are no results, a shared immutable empty list is returned, so modifying that throws
+ * {@link UnsupportedOperationException}. Copy the list before modifying it, e.g. {@code new ArrayList<>(list)}.
+ *
  * @param <T>
  *            the element type
  */

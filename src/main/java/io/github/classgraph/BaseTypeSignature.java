@@ -37,7 +37,9 @@ import nonapi.io.github.classgraph.types.Parser;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A type signature for a base type (byte, char, double, float, int, long, short, boolean, or void).
+ * A type signature for a base type (byte, char, double, float, int, long, short, boolean, or void). This
+ * corresponds to the {@code BaseType} production of the signature grammar in section 4.7.9.1 of the JVM
+ * Specification.
  */
 public class BaseTypeSignature extends TypeSignature {
     /** The type signature character used to represent the base type. */

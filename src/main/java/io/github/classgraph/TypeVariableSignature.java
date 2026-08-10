@@ -40,7 +40,12 @@ import nonapi.io.github.classgraph.types.Parser;
 import nonapi.io.github.classgraph.types.TypeUtils;
 import org.jspecify.annotations.Nullable;
 
-/** A type variable signature. */
+/**
+ * A reference to a type variable, e.g. the {@code T} in {@code List<T>}. This corresponds to the
+ * {@code TypeVariableSignature} production of the signature grammar in section 4.7.9.1 of the JVM Specification.
+ * The type variable is declared by a {@link TypeParameter} of the enclosing method or class, which can be looked up
+ * using {@link #resolve()}.
+ */
 public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature {
     /** The type variable name. */
     private final String name;

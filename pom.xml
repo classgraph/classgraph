@@ -511,6 +511,9 @@
 								<doclint>all</doclint>
 								<excludePackageNames>nonapi.*</excludePackageNames>
 								<show>public</show>
+								<!-- Without this, doclint reports missing or malformed Javadoc as a warning, and -->
+								<!-- the release still succeeds. -->
+								<failOnWarnings>true</failOnWarnings>
 								<!-- Pin the Javadoc output dir to ${project.build.directory}/apidocs. Do not rely -->
 								<!-- on the plugin default: it changed in maven-javadoc-plugin 3.12.0 from -->
 								<!-- ${project.build.directory} to ${project.build.directory}/reports, which -->

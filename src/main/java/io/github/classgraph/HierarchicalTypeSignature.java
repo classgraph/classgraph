@@ -34,7 +34,9 @@ import io.github.classgraph.Classfile.TypePathNode;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A Java type signature. Subclasses are ClassTypeSignature, MethodTypeSignature, and TypeSignature.
+ * The base class for all parsed elements of the generic signature grammar in section 4.7.9.1 of the JVM
+ * Specification. Subclasses are {@link ClassTypeSignature}, {@link MethodTypeSignature}, {@link TypeSignature},
+ * {@link TypeParameter} and {@link TypeArgument}.
  */
 public abstract class HierarchicalTypeSignature extends ScanResultObject {
     /** The type annotations on this type, or null if none. */

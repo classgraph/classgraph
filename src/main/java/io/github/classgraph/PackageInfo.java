@@ -147,6 +147,8 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
      *            the annotation class
      * @return An {@link AnnotationInfo} object representing the annotation on this package, or null if the package
      *         does not have the annotation.
+     * @throws IllegalArgumentException
+     *             if {@code annotation} is not an annotation type.
      */
     public @Nullable AnnotationInfo getAnnotationInfo(final Class<? extends Annotation> annotation) {
         Assert.notNull(annotation, "annotation");
@@ -193,6 +195,8 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
      * @param annotation
      *            the annotation class
      * @return true if this package has the annotation.
+     * @throws IllegalArgumentException
+     *             if {@code annotation} is not an annotation type.
      */
     public boolean hasAnnotation(final Class<? extends Annotation> annotation) {
         Assert.notNull(annotation, "annotation");
@@ -246,7 +250,7 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
      * this package.
      *
      * @param className
-     *            the class name
+     *            The fully-qualified name of the class, in the same form as {@link Class#getName()}.
      * @return the {@link ClassInfo} object for the named class in this package, or null if the class was not found
      *         in this package.
      */

@@ -147,7 +147,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      * Construct a new empty modifiable list of {@link ClassInfo} objects, given a size hint.
      *
      * @param sizeHint
-     *            the size hint.
+     *            the expected number of elements
      */
     public ClassInfoList(final int sizeHint) {
         super(sizeHint);

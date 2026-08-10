@@ -39,7 +39,16 @@ import nonapi.io.github.classgraph.utils.Assert;
 import nonapi.io.github.classgraph.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
-/** A list of {@link MethodInfo} objects. */
+/**
+ * A list of {@link MethodInfo} objects.
+ *
+ * <p>
+ * Unlike the other list types, this is not a {@link MappableInfoList}, because method names are not unique within a
+ * class: a class may declare several overloads of the same method name. Consequently {@link #get(String)} returns a
+ * {@link MethodInfoList} of all the overloads with the requested name, and {@link #asMap()} maps each method name
+ * to a {@link MethodInfoList}. Use {@link #getSingleMethod(String)} when you expect exactly one method of a given
+ * name.
+ */
 public class MethodInfoList extends InfoList<MethodInfo> {
     /** serialVersionUID */
     @Serial
