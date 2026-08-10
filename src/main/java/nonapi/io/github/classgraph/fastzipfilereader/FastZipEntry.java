@@ -76,9 +76,11 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
 
     /**
      * The {@link Slice} for the zip entry's raw data (which can be either stored or deflated), or null until
-     * {@link #getSlice()} is first called.
+     * {@link #getSlice()} is first called. Volatile, so that a {@link Slice} created by one thread is safely
+     * published to any other thread that reads this field (two threads racing to initialize this field each end up
+     * with an equivalent {@link Slice}, which is harmless, since a sub-slice does not own any resources).
      */
-    private @Nullable Slice slice;
+    private volatile @Nullable Slice slice;
 
     /**
      * The version code (&gt;= 9), or 8 for the base layer or a non-versioned jar (whether JDK 7 or 8 compatible).
