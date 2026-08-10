@@ -6,6 +6,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
+import java.net.URLConnection;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -91,7 +92,11 @@ public class AwkwardPathNamesTest {
         // The URL of a resource within the jar has to name something that can be read back
         try (ScanResult scanResult = new ClassGraph().overrideClasspath(jar.toString()).scan()) {
             final URL url = scanResult.getResourcesWithExtension("class").get(0).getURL();
-            try (InputStream inputStream = url.openStream()) {
+            final URLConnection connection = url.openConnection();
+            // The JDK caches the JarFile behind a "jar:" URL, and a cached JarFile is never closed, which would
+            // leave the jarfile open and so stop the temporary directory from being deleted on Windows
+            connection.setUseCaches(false);
+            try (InputStream inputStream = connection.getInputStream()) {
                 assertThat(readAllBytes(inputStream)).isNotEmpty();
             }
         }
