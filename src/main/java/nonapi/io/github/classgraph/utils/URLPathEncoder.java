@@ -192,6 +192,7 @@ public final class URLPathEncoder {
      */
     public static String normalizeURLPath(final String urlPath) {
         String urlPathNormalized = urlPath;
+        boolean hasNestedJarSeparator = false;
         if (!urlPathNormalized.startsWith("jrt:") && !urlPathNormalized.startsWith("http://")
                 && !urlPathNormalized.startsWith("https://")) {
 
@@ -214,6 +215,21 @@ public final class URLPathEncoder {
                 }
             }
 
+            // A '!' is only a nested jar separator if it really separates a jarfile from a path within it -- it is
+            // an ordinary filename character otherwise, and a path such as "/dir!bang/x.jar" must not be rewritten
+            // to "/dir!/bang/x.jar", which names a different file and cannot be opened. Everything before the
+            // outermost separator is left exactly as it is; from the separator onwards, every '!' is a separator,
+            // and each needs the '/' after it that the "jar:" URL scheme requires. This is done before the Windows
+            // drive prefix is stripped below, since the separator is found by testing whether the path before the
+            // '!' names a file, which needs the drive letter
+            // #903
+            final int nestedJarSepIdx = JarUtils.indexOfNestedJarSeparator(urlPathNormalized);
+            hasNestedJarSeparator = nestedJarSepIdx >= 0;
+            if (hasNestedJarSeparator) {
+                urlPathNormalized = urlPathNormalized.substring(0, nestedJarSepIdx) + urlPathNormalized
+                        .substring(nestedJarSepIdx).replace("/!", "!").replace("!/", "!").replace("!", "!/");
+            }
+
             // On Windows, remove drive prefix from path, if present (otherwise the ':' after the drive
             // letter will be escaped as %3A)
             String windowsDrivePrefix = "";
@@ -231,9 +247,6 @@ public final class URLPathEncoder {
                 }
             }
 
-            // Any URL containing "!" segments must have "/" after "!" for the "jar:" URL scheme to work
-            urlPathNormalized = urlPathNormalized.replace("/!", "!").replace("!/", "!").replace("!", "!/");
-
             // Prepend "file:///" to absolute paths and "file:" to relative paths
             if (windowsDrivePrefix.isEmpty()) {
                 // There is no Windows drive
@@ -249,8 +262,8 @@ public final class URLPathEncoder {
                 urlPathNormalized = "file:///" + windowsDrivePrefix + urlPathNormalized;
             }
 
-            // Prepend "jar:" if path contains a "!" segment
-            if (urlPathNormalized.contains("!") && !urlPathNormalized.startsWith("jar:")) {
+            // Prepend "jar:" if the path really does name something nested inside a jarfile
+            if (hasNestedJarSeparator && !urlPathNormalized.startsWith("jar:")) {
                 urlPathNormalized = "jar:" + urlPathNormalized;
             }
         }
