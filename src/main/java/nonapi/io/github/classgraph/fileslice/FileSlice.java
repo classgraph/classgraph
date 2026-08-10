@@ -366,11 +366,15 @@ public class FileSlice extends Slice {
             }
             backingByteBuffer = null;
             fileChannel = null;
-            try {
-                // Closing raf will also close the associated FileChannel
-                raf.close();
-            } catch (final IOException e) {
-                // Ignore
+            if (isTopLevelFileSlice && raf != null) {
+                // Only close the RandomAccessFile in the toplevel file slice, so that it is only closed
+                // once (sub slices just copy the reference to the toplevel slice's RandomAccessFile)
+                try {
+                    // Closing raf will also close the associated FileChannel
+                    raf.close();
+                } catch (final IOException e) {
+                    // Ignore
+                }
             }
             raf = null;
             nestedJarHandler.markSliceAsClosed(this);
