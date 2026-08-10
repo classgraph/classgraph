@@ -397,46 +397,66 @@ class ClasspathElementDir extends ClasspathElement {
     }
 
     /**
-     * Recursively scan a {@link Path} for sub-path patterns matching the scan spec.
+     * Canonicalize a directory path, and check that it has not been reached before, so that recursive scanning
+     * doesn't get stuck in an infinite loop due to symlinks.
      *
      * @param path
-     *            the {@link Path}
+     *            the directory {@link Path}
      * @param log
      *            the log node, or null to skip logging
+     * @return the canonical path, or null if the path could not be canonicalized, or has already been scanned.
      */
-    private void scanPathRecursively(final Path path, final @Nullable LogNode log) {
-        // See if this canonical path has been scanned before, so that recursive scanning doesn't get stuck in an
-        // infinite loop due to symlinks
-        final Path canonicalPath;
+    private @Nullable Path canonicalizeIfNotAlreadyScanned(final Path path, final @Nullable LogNode log) {
         try {
-            canonicalPath = path.toRealPath();
+            final var canonicalPath = path.toRealPath();
             if (!scannedCanonicalPaths.add(canonicalPath)) {
                 if (log != null) {
                     log.log("Reached symlink cycle, stopping recursion: " + path);
                 }
-                return;
+                return null;
             }
+            return canonicalPath;
         } catch (final IOException | SecurityException e) {
             if (log != null) {
                 log.log("Could not canonicalize path: " + path, e);
             }
-            return;
+            return null;
         }
+    }
 
+    /**
+     * Get the path of a directory relative to the classpath element root, with any leading {@code "/"} removed and
+     * a trailing {@code "/"} added.
+     *
+     * @param path
+     *            the directory {@link Path}
+     * @return the relative path of the directory
+     */
+    private String getDirRelativePathStr(final Path path) {
         var dirRelativePathStr = FastPathResolver.resolve(classpathEltPath.relativize(path).toString());
         while (dirRelativePathStr.startsWith("/")) {
             dirRelativePathStr = dirRelativePathStr.substring(1);
         }
-        if (!dirRelativePathStr.endsWith("/")) {
-            dirRelativePathStr += "/";
-        }
+        return dirRelativePathStr.endsWith("/") ? dirRelativePathStr : dirRelativePathStr + "/";
+    }
 
+    /**
+     * Determine whether a directory should be scanned, and if so, how its files match the scan spec.
+     *
+     * @param dirRelativePathStr
+     *            the path of the directory relative to the classpath element root
+     * @param log
+     *            the log node, or null to skip logging
+     * @return the match status of the directory, or null if the recursive scan should stop at this directory.
+     */
+    private @Nullable ScanSpecPathMatch getDirMatchStatus(final String dirRelativePathStr,
+            final @Nullable LogNode log) {
         if (nestedClasspathRootPrefixes != null && nestedClasspathRootPrefixes.contains(dirRelativePathStr)) {
             if (log != null) {
                 log.log("Reached nested classpath root, stopping recursion to avoid duplicate scanning: "
                         + dirRelativePathStr);
             }
-            return;
+            return null;
         }
 
         // Skipping versioned sections in a directory classpath element is what makes a directory scan agree with
@@ -448,24 +468,179 @@ class ClasspathElementDir extends ClasspathElement {
                 log.log("Found unexpected nested versioned entry in directory classpath element -- skipping: "
                         + dirRelativePathStr);
             }
-            return;
+            return null;
         }
 
         // Accept/reject classpath elements based on dir resource paths
         if (!checkResourcePathAcceptReject(dirRelativePathStr, log)) {
-            return;
+            return null;
         }
 
-        final var parentMatchStatus = scanSpec.dirAcceptMatchStatus(dirRelativePathStr);
-        if (parentMatchStatus == ScanSpecPathMatch.HAS_REJECTED_PATH_PREFIX) {
-            // Reached a non-accepted or rejected path -- stop the recursive scan
+        final var matchStatus = scanSpec.dirAcceptMatchStatus(dirRelativePathStr);
+        if (matchStatus == ScanSpecPathMatch.HAS_REJECTED_PATH_PREFIX) {
+            // Reached a rejected path -- stop the recursive scan
             if (log != null) {
                 log.log("Reached rejected directory, stopping recursive scan: " + dirRelativePathStr);
             }
+            return null;
+        }
+        if (matchStatus == ScanSpecPathMatch.NOT_WITHIN_ACCEPTED_PATH) {
+            // Reached a non-accepted and non-rejected path -- stop the recursive scan
+            return null;
+        }
+        return matchStatus;
+    }
+
+    /**
+     * List the entries of a directory, in sorted order.
+     *
+     * @param path
+     *            the directory {@link Path}
+     * @param log
+     *            the log node, or null to skip logging
+     * @return the paths within the directory, or null if the directory could not be read.
+     */
+    private static @Nullable List<Path> listDirEntries(final Path path, final @Nullable LogNode log) {
+        final List<Path> pathsInDir = new ArrayList<>();
+        try (var stream = Files.newDirectoryStream(path)) {
+            for (final Path subPath : stream) {
+                pathsInDir.add(subPath);
+            }
+        } catch (IOException | SecurityException e) {
+            if (log != null) {
+                log.log("Could not read directory " + path + " : " + e.getMessage());
+            }
+            return null;
+        }
+        Collections.sort(pathsInDir);
+        return pathsInDir;
+    }
+
+    /**
+     * Add the accepted files of a directory as resources, removing them from {@code pathsInDir} so that only
+     * subdirectories are left to recurse into.
+     *
+     * @param pathsInDir
+     *            the paths within the directory
+     * @param getFileAttributes
+     *            the file attribute cache for the directory
+     * @param parentMatchStatus
+     *            the match status of the directory
+     * @param subLog
+     *            the log node, or null to skip logging
+     * @return false if the classpath element was rejected by one of the file paths, so that scanning should stop.
+     */
+    private boolean scanFilesInDir(final List<Path> pathsInDir,
+            final FileUtils.FileAttributesGetter getFileAttributes, final ScanSpecPathMatch parentMatchStatus,
+            final @Nullable LogNode subLog) {
+        // Determine whether this is a modular jar
+        final var isModularJar = getModuleName() != null;
+
+        // Do preorder traversal (files in dir, then subdirs), to reduce filesystem cache misses
+        final var pathsIterator = pathsInDir.iterator();
+        while (pathsIterator.hasNext()) {
+            final var subPath = pathsIterator.next();
+            // Process files in dir before recursing
+            final var fileAttributes = getFileAttributes.get(subPath);
+            if (fileAttributes.isRegularFile()) {
+                pathsIterator.remove();
+                final var subPathRelative = classpathEltPath.relativize(subPath);
+                final var subPathRelativeStr = FastPathResolver.resolve(subPathRelative.toString());
+                if (isIgnoredDefaultPackageClassfile(isModularJar, subPathRelativeStr)) {
+                    continue;
+                }
+
+                // Accept/reject classpath elements based on file resource paths
+                if (!checkResourcePathAcceptReject(subPathRelativeStr, subLog)) {
+                    return false;
+                }
+
+                if (isAcceptedResourcePath(subPathRelativeStr, parentMatchStatus)) {
+                    // Resource is accepted
+                    final var resource = newResource(subPath, subPathRelativeStr, fileAttributes);
+                    addAcceptedResource(resource, parentMatchStatus, /* isClassfileOnly = */ false, subLog);
+                    recordLastModified(subPath, fileAttributes);
+                } else {
+                    if (subLog != null) {
+                        subLog.log("Skipping non-accepted file: " + subPathRelative);
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Add the module descriptor of the package root as a resource, if there is one, removing it from
+     * {@code pathsInDir}. This is called for the package root even when the package root is not accepted, so that
+     * the module name is always known.
+     *
+     * @param pathsInDir
+     *            the paths within the package root
+     * @param getFileAttributes
+     *            the file attribute cache for the package root
+     * @param parentMatchStatus
+     *            the match status of the package root
+     * @param subLog
+     *            the log node, or null to skip logging
+     */
+    private void scanForModuleDescriptor(final List<Path> pathsInDir,
+            final FileUtils.FileAttributesGetter getFileAttributes, final ScanSpecPathMatch parentMatchStatus,
+            final @Nullable LogNode subLog) {
+        final var pathsIterator = pathsInDir.iterator();
+        while (pathsIterator.hasNext()) {
+            final var subPath = pathsIterator.next();
+            if ("module-info.class".equals(subPath.getFileName().toString())) {
+                final var fileAttributes = getFileAttributes.get(subPath);
+                if (fileAttributes.isRegularFile()) {
+                    pathsIterator.remove();
+                    final var resource = newResource(subPath, fileAttributes);
+                    addAcceptedResource(resource, parentMatchStatus, /* isClassfileOnly = */ true, subLog);
+                    recordLastModified(subPath, fileAttributes);
+                    break;
+                }
+            }
+        }
+    }
+
+    /**
+     * Record the last modified time of a file, so that {@link ScanResult#classpathContentsModifiedSinceScan()} can
+     * detect changes to it.
+     *
+     * @param path
+     *            the {@link Path} of the file
+     * @param attributes
+     *            the file attributes, or null to read the last modified time through the {@link File} API.
+     */
+    private void recordLastModified(final Path path, final @Nullable BasicFileAttributes attributes) {
+        try {
+            if (attributes == null) {
+                final var file = path.toFile();
+                fileToLastModified.put(file, file.lastModified());
+            } else {
+                fileToLastModified.put(path.toFile(), attributes.lastModifiedTime().toMillis());
+            }
+        } catch (final UnsupportedOperationException e) {
+            // Ignore
+        }
+    }
+
+    /**
+     * Recursively scan a {@link Path} for sub-path patterns matching the scan spec.
+     *
+     * @param path
+     *            the {@link Path}
+     * @param log
+     *            the log node, or null to skip logging
+     */
+    private void scanPathRecursively(final Path path, final @Nullable LogNode log) {
+        final var canonicalPath = canonicalizeIfNotAlreadyScanned(path, log);
+        if (canonicalPath == null) {
             return;
         }
-        if (parentMatchStatus == ScanSpecPathMatch.NOT_WITHIN_ACCEPTED_PATH) {
-            // Reached a non-accepted and non-rejected path -- stop the recursive scan
+        final var dirRelativePathStr = getDirRelativePathStr(path);
+        final var parentMatchStatus = getDirMatchStatus(dirRelativePathStr, log);
+        if (parentMatchStatus == null) {
             return;
         }
 
@@ -476,84 +651,23 @@ class ClasspathElementDir extends ClasspathElement {
                                 ? ""
                                 : " ; canonical path: " + FastPathResolver.resolve(canonicalPath.toString())));
 
-        final List<Path> pathsInDir = new ArrayList<>();
-        try (var stream = Files.newDirectoryStream(path)) {
-            for (final Path subPath : stream) {
-                pathsInDir.add(subPath);
-            }
-        } catch (IOException | SecurityException e) {
-            if (log != null) {
-                log.log("Could not read directory " + path + " : " + e.getMessage());
-            }
+        final var pathsInDir = listDirEntries(path, log);
+        if (pathsInDir == null) {
             return;
         }
-        Collections.sort(pathsInDir);
         final var getFileAttributes = FileUtils.createCachedAttributesGetter();
-
-        // Determine whether this is a modular jar
-        final var isModularJar = getModuleName() != null;
 
         // Only scan files in directory if directory is not only an ancestor of an accepted path
         if (parentMatchStatus != ScanSpecPathMatch.ANCESTOR_OF_ACCEPTED_PATH) {
-            // Do preorder traversal (files in dir, then subdirs), to reduce filesystem cache misses
-            final var pathsIterator = pathsInDir.iterator();
-            while (pathsIterator.hasNext()) {
-                final var subPath = pathsIterator.next();
-                // Process files in dir before recursing
-                final var fileAttributes = getFileAttributes.get(subPath);
-                if (fileAttributes.isRegularFile()) {
-                    pathsIterator.remove();
-                    final var subPathRelative = classpathEltPath.relativize(subPath);
-                    final var subPathRelativeStr = FastPathResolver.resolve(subPathRelative.toString());
-                    if (isIgnoredDefaultPackageClassfile(isModularJar, subPathRelativeStr)) {
-                        continue;
-                    }
-
-                    // Accept/reject classpath elements based on file resource paths
-                    if (!checkResourcePathAcceptReject(subPathRelativeStr, subLog)) {
-                        return;
-                    }
-
-                    if (isAcceptedResourcePath(subPathRelativeStr, parentMatchStatus)) {
-                        // Resource is accepted
-                        final var resource = newResource(subPath, subPathRelativeStr, fileAttributes);
-                        addAcceptedResource(resource, parentMatchStatus, /* isClassfileOnly = */ false, subLog);
-
-                        // Save last modified time
-                        try {
-                            fileToLastModified.put(subPath.toFile(), fileAttributes.lastModifiedTime().toMillis());
-                        } catch (final UnsupportedOperationException e) {
-                            // Ignore
-                        }
-                    } else {
-                        if (subLog != null) {
-                            subLog.log("Skipping non-accepted file: " + subPathRelative);
-                        }
-                    }
-                }
+            if (!scanFilesInDir(pathsInDir, getFileAttributes, parentMatchStatus, subLog)) {
+                return;
             }
         } else if (scanSpec.enableClassInfo && "/".equals(dirRelativePathStr)) {
             // Always check for module descriptor in package root, even if package root isn't in accept
-            final var pathsIterator = pathsInDir.iterator();
-            while (pathsIterator.hasNext()) {
-                final var subPath = pathsIterator.next();
-                if ("module-info.class".equals(subPath.getFileName().toString())) {
-                    final var fileAttributes = getFileAttributes.get(subPath);
-                    if (fileAttributes.isRegularFile()) {
-                        pathsIterator.remove();
-                        final var resource = newResource(subPath, fileAttributes);
-                        addAcceptedResource(resource, parentMatchStatus, /* isClassfileOnly = */ true, subLog);
-                        try {
-                            fileToLastModified.put(subPath.toFile(), fileAttributes.lastModifiedTime().toMillis());
-                        } catch (final UnsupportedOperationException e) {
-                            // Ignore
-                        }
-                        break;
-                    }
-                }
-            }
+            scanForModuleDescriptor(pathsInDir, getFileAttributes, parentMatchStatus, subLog);
         }
-        // Recurse into subdirectories
+
+        // Recurse into subdirectories (the files in the directory have been removed from pathsInDir)
         for (final Path subPath : pathsInDir) {
             try {
                 if (getFileAttributes.get(subPath).isDirectory()) {
@@ -569,14 +683,7 @@ class ClasspathElementDir extends ClasspathElement {
         if (subLog != null) {
             subLog.addElapsedTime();
         }
-
-        // Save the last modified time of the directory
-        try {
-            final var file = path.toFile();
-            fileToLastModified.put(file, file.lastModified());
-        } catch (final UnsupportedOperationException e) {
-            // Ignore
-        }
+        recordLastModified(path, /* attributes = */ null);
     }
 
     /**
