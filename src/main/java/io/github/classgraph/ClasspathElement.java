@@ -248,15 +248,6 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
         return classLoader;
     }
 
-    /**
-     * Get the number of classfile matches.
-     *
-     * @return the num classfile matches
-     */
-    int getNumClassfileMatches() {
-        return acceptedClassfileResources == null ? 0 : acceptedClassfileResources.size();
-    }
-
     // -------------------------------------------------------------------------------------------------------------
 
     /**

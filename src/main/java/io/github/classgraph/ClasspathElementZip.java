@@ -177,12 +177,7 @@ class ClasspathElementZip extends ClasspathElement {
                 throw new IOException("Could not get logical zipfile " + rawPath + " : "
                         + (e.getCause() == null ? e : e.getCause()));
             }
-            final var logicalZipFileFromMap = logicalZipFileAndPackageRoot.getKey();
-            if (logicalZipFileFromMap == null) {
-                // Should not happen, but this keeps lgtm static analysis happy
-                throw new IOException("Logical zipfile was null");
-            }
-            this.logicalZipFile = logicalZipFile = logicalZipFileFromMap;
+            this.logicalZipFile = logicalZipFile = logicalZipFileAndPackageRoot.getKey();
 
             // Get the normalized path of the logical zipfile
             zipFilePath = FastPathResolver.resolve(FileUtils.currDirPath(), logicalZipFile.getPath());

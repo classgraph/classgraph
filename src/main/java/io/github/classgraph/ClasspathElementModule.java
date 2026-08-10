@@ -146,7 +146,6 @@ class ClasspathElementModule extends ClasspathElement {
                         + (e.getCause() == null ? e : e.getCause()), log);
             }
             skipClasspathElement = true;
-            return;
         }
     }
 
