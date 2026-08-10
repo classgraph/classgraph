@@ -167,10 +167,13 @@ public class ResourceTest {
             assertThat(Path.of(resource.getURI())).isEqualTo(classpathElementFile.toPath().resolve(TEXT_FILE));
 
             // The URL forms of the same locations (a URL renders a "file:" URI without its empty authority, so the
-            // string forms differ from the URI string forms by two slashes)
+            // string forms differ from the URI string forms by two slashes). The path of a "file:" URL is the URI
+            // path, not the filesystem path -- on Windows they differ, since the URI path uses '/' as its
+            // separator and carries a leading slash before the drive letter, as in "/C:/dir/"
+            final var classpathElementUriPath = classpathElementFile.toURI().getRawPath();
             assertThat(resource.getClasspathElementURL().getProtocol()).isEqualTo("file");
-            assertThat(resource.getClasspathElementURL().getPath()).isEqualTo(classpathElementFile.getPath() + "/");
-            assertThat(resource.getURL().getPath()).isEqualTo(classpathElementFile.getPath() + "/" + TEXT_FILE);
+            assertThat(resource.getClasspathElementURL().getPath()).isEqualTo(classpathElementUriPath);
+            assertThat(resource.getURL().getPath()).isEqualTo(classpathElementUriPath + TEXT_FILE);
 
             // A ModuleRef is only present for resources read from the module path
             assertThat(resource.getModuleRef()).isNull();

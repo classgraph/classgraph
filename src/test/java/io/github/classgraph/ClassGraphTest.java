@@ -242,7 +242,19 @@ public class ClassGraphTest {
                 }).scan()) {
             assertThat(scanResult.getAllResources().getPaths()).containsExactly("marker.txt");
         }
-        assertThat(paths).containsExactly(classesDir.toString(), markerDir.toString());
+        // A filter is given the path with '/' as its separator, whatever the platform's own separator is
+        assertThat(paths).containsExactly(withForwardSlashes(classesDir), withForwardSlashes(markerDir));
+    }
+
+    /**
+     * Get the path of a file with '/' as the separator, which is the form ClassGraph normalizes paths to.
+     *
+     * @param path
+     *            the path.
+     * @return the path, with any platform-specific separator replaced by '/'.
+     */
+    private static String withForwardSlashes(final Path path) {
+        return path.toString().replace(File.separatorChar, '/');
     }
 
     /** A classpath element is only scanned if every {@link URL} filter accepts its {@link URL}. */
@@ -350,11 +362,17 @@ public class ClassGraphTest {
     public void theClasspathCanBeListedWithoutScanning() throws IOException {
         final var classGraph = new ClassGraph().overrideClasspath(classesDir.toString(), jarFile.toString());
 
-        assertThat(classGraph.getClasspathFiles()).containsExactly(classesDir.toFile(), jarFile.toFile());
-        assertThat(classGraph.getClasspath()).isEqualTo(classesDir + File.pathSeparator + jarFile);
-        assertThat(classGraph.getClasspathURIs()).containsExactly(classesDir.toUri(), jarFile.toUri());
-        assertThat(classGraph.getClasspathURLs()).containsExactly(classesDir.toUri().toURL(),
-                jarFile.toUri().toURL());
+        // ClassGraph canonicalizes a classpath element, so the listed paths are the real paths, which differ from
+        // the paths the temp directory was handed out as on macOS (/var is a symlink to /private/var) and on
+        // Windows (a path can be handed out in 8.3 short form)
+        final var realClassesDir = classesDir.toRealPath();
+        final var realJarFile = jarFile.toRealPath();
+
+        assertThat(classGraph.getClasspathFiles()).containsExactly(realClassesDir.toFile(), realJarFile.toFile());
+        assertThat(classGraph.getClasspath()).isEqualTo(realClassesDir + File.pathSeparator + realJarFile);
+        assertThat(classGraph.getClasspathURIs()).containsExactly(realClassesDir.toUri(), realJarFile.toUri());
+        assertThat(classGraph.getClasspathURLs()).containsExactly(realClassesDir.toUri().toURL(),
+                realJarFile.toUri().toURL());
         // Modules are not scanned when the classpath is overridden
         assertThat(classGraph.getModules()).isEmpty();
     }

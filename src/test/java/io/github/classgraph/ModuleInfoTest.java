@@ -125,15 +125,23 @@ public class ModuleInfoTest {
         }
     }
 
-    /** A module read from the traditional classpath has no {@link ModuleRef}, but does have a location. */
+    /**
+     * A module read from the traditional classpath has no {@link ModuleRef}, but does have a location.
+     *
+     * @throws IOException
+     *             if the module directory could not be canonicalized.
+     */
     @Test
-    public void aModuleOnTheClasspathHasNoModuleRefButHasALocation() {
+    public void aModuleOnTheClasspathHasNoModuleRefButHasALocation() throws IOException {
         try (var scanResult = scan(/* enableAnnotationInfo = */ false)) {
             final var moduleInfo = moduleInfo(scanResult);
             // A ModuleRef is only present for modules read from the module path
             assertThat(moduleInfo.getModuleRef()).isNull();
-            // The location falls back to the URI of the classpath element the module descriptor was read from
-            assertThat(Path.of(moduleInfo.getLocationURI())).isEqualTo(moduleDir);
+            // The location falls back to the URI of the classpath element the module descriptor was read from.
+            // ClassGraph canonicalizes a directory classpath element, so the location is the real path of the
+            // module directory, which differs from the path the temp directory was handed out as on macOS
+            // (/var is a symlink to /private/var) and on Windows (a path can be handed out in 8.3 short form).
+            assertThat(Path.of(moduleInfo.getLocationURI())).isEqualTo(moduleDir.toRealPath());
             // The location is cached after the first call
             assertThat(moduleInfo.getLocationURI()).isEqualTo(moduleInfo.getLocationURI());
         }
