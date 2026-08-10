@@ -138,6 +138,6 @@ public class ClassLoaderFinder {
             }
         }
 
-        this.contextClassLoaders = classLoadersUnique.toArray(new ClassLoader[0]);
+        this.contextClassLoaders = classLoadersUnique.toArray(ClassLoader[]::new);
     }
 }

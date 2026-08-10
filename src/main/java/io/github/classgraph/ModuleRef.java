@@ -240,42 +240,22 @@ public class ModuleRef implements Comparable<ModuleRef> {
         return classLoader;
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.Object#equals(java.lang.Object)
-     */
     @Override
     public boolean equals(final @Nullable Object obj) {
         return obj == this || obj instanceof final ModuleRef modRef && modRef.reference.equals(this.reference)
                 && modRef.layer.equals(this.layer);
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.Object#hashCode()
-     */
     @Override
     public int hashCode() {
         return reference.hashCode() * layer.hashCode();
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.Object#toString()
-     */
     @Override
     public String toString() {
         return reference.toString();
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.Comparable#compareTo(java.lang.Object)
-     */
     @Override
     public int compareTo(final ModuleRef o) {
         final var diff = this.name.compareTo(o.name);

@@ -37,7 +37,7 @@ import org.jspecify.annotations.Nullable;
 /**
  * Handle the WebSphere traditional ClassLoaders.
  *
- * @author lukehutch
+ * @author Luke Hutchison
  */
 class WebsphereTraditionalClassLoaderHandler implements ClassLoaderHandler {
     /** Constructor. */

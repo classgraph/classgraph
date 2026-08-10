@@ -3619,33 +3619,16 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see io.github.classgraph.ScanResultObject#getClassName()
-     */
     @Override
     protected String getClassName() {
         return name;
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see io.github.classgraph.ScanResultObject#getClassInfo()
-     */
     @Override
     protected ClassInfo getClassInfo() {
         return this;
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see
-     * io.github.classgraph.ScanResultObject#setScanResult(io.github.classgraph.
-     * ScanResult)
-     */
     @Override
     void setScanResult(final @Nullable ScanResult scanResult) {
         super.setScanResult(scanResult);

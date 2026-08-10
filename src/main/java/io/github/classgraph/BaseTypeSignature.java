@@ -188,21 +188,11 @@ public class BaseTypeSignature extends TypeSignature {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see io.github.classgraph.ScanResultObject#getClassName()
-     */
     @Override
     protected String getClassName() {
         return getTypeName();
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see io.github.classgraph.ScanResultObject#getClassInfo()
-     */
     @Override
     protected @Nullable ClassInfo getClassInfo() {
         return null;
@@ -219,11 +209,6 @@ public class BaseTypeSignature extends TypeSignature {
         // Don't add byte.class, int.class, etc.
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see io.github.classgraph.ScanResultObject#setScanResult(ScanResult)
-     */
     @Override
     void setScanResult(final @Nullable ScanResult scanResult) {
         // Don't set ScanResult for BaseTypeSignature objects (#419). The ScanResult is not needed, since this class
@@ -233,21 +218,11 @@ public class BaseTypeSignature extends TypeSignature {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.Object#hashCode()
-     */
     @Override
     public int hashCode() {
         return typeSignatureChar;
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.Object#equals(java.lang.Object)
-     */
     @Override
     public boolean equals(final @Nullable Object obj) {
         if (obj == this) {
@@ -260,12 +235,6 @@ public class BaseTypeSignature extends TypeSignature {
                 && other.typeSignatureChar == this.typeSignatureChar;
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see io.github.classgraph.TypeSignature#equalsIgnoringTypeParams(io.github.
-     * classgraph.TypeSignature)
-     */
     @Override
     public boolean equalsIgnoringTypeParams(final @Nullable TypeSignature other) {
         if (!(other instanceof final BaseTypeSignature otherBaseTypeSignature)) {

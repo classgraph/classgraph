@@ -145,7 +145,7 @@ public final class JarUtils {
                     partsFiltered.add(partFiltered);
                 }
             }
-            return partsFiltered.toArray(new String[0]);
+            return partsFiltered.toArray(String[]::new);
         } else {
             // If the separator char is ':', don't split on URL protocol boundaries. This will allow for HTTP(S)
             // jars to be given in java.class.path. (The JRE may not even support them, but we may as well do so.)
@@ -208,7 +208,7 @@ public final class JarUtils {
                     parts.add(part);
                 }
             }
-            return parts.toArray(new String[0]);
+            return parts.toArray(String[]::new);
         }
     }
 

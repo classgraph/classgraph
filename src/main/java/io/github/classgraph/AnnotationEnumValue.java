@@ -88,22 +88,12 @@ public class AnnotationEnumValue extends ScanResultObject implements Comparable<
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.Comparable#compareTo(java.lang.Object)
-     */
     @Override
     public int compareTo(final AnnotationEnumValue o) {
         final var diff = className.compareTo(o.className);
         return diff == 0 ? valueName.compareTo(o.valueName) : diff;
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.Object#equals(java.lang.Object)
-     */
     @Override
     public boolean equals(final @Nullable Object obj) {
         if (obj == this) {
@@ -115,11 +105,6 @@ public class AnnotationEnumValue extends ScanResultObject implements Comparable<
         return compareTo(other) == 0;
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.Object#hashCode()
-     */
     @Override
     public int hashCode() {
         return className.hashCode() * 11 + valueName.hashCode();

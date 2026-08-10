@@ -254,34 +254,17 @@ public final class TypeArgument extends HierarchicalTypeSignature {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see io.github.classgraph.ScanResultObject#getClassName()
-     */
     @Override
     protected String getClassName() {
         // getClassInfo() is not valid for this type, so getClassName() does not need to be implemented
         throw new UnsupportedOperationException("getClassName() cannot be called here");
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see io.github.classgraph.ScanResultObject#getClassInfo()
-     */
     @Override
     protected ClassInfo getClassInfo() {
         throw new UnsupportedOperationException("getClassInfo() cannot be called here");
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see
-     * io.github.classgraph.ScanResultObject#setScanResult(io.github.classgraph.
-     * ScanResult)
-     */
     @Override
     void setScanResult(final @Nullable ScanResult scanResult) {
         super.setScanResult(scanResult);
@@ -306,21 +289,11 @@ public final class TypeArgument extends HierarchicalTypeSignature {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.Object#hashCode()
-     */
     @Override
     public int hashCode() {
         return (typeSignature != null ? typeSignature.hashCode() : 0) + 7 * wildcard.hashCode();
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.Object#equals(java.lang.Object)
-     */
     @Override
     public boolean equals(final @Nullable Object obj) {
         if (obj == this) {

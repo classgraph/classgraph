@@ -97,13 +97,6 @@ class ClasspathElementDir extends ClasspathElement {
         this.scanResources = scanResources;
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see io.github.classgraph.ClasspathElement#open(
-     * nonapi.io.github.classgraph.concurrency.WorkQueue,
-     * nonapi.io.github.classgraph.utils.LogNode)
-     */
     @Override
     void open(final WorkQueue<ClasspathEntryWorkUnit> workQueue, final @Nullable LogNode log) {
         if (!scanSpec.scanDirs) {
@@ -652,11 +645,6 @@ class ClasspathElementDir extends ClasspathElement {
         }
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see io.github.classgraph.ClasspathElement#getURI()
-     */
     @Override
     URI getURI() {
         try {
@@ -686,21 +674,11 @@ class ClasspathElementDir extends ClasspathElement {
         }
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.Object#hashCode()
-     */
     @Override
     public int hashCode() {
-        return Objects.hash(classpathEltPath);
+        return classpathEltPath.hashCode();
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.Object#equals(java.lang.Object)
-     */
     @Override
     public boolean equals(final @Nullable Object obj) {
         if (obj == this) {
@@ -709,6 +687,6 @@ class ClasspathElementDir extends ClasspathElement {
         if (!(obj instanceof final ClasspathElementDir other)) {
             return false;
         }
-        return Objects.equals(this.classpathEltPath, other.classpathEltPath);
+        return this.classpathEltPath.equals(other.classpathEltPath);
     }
 }

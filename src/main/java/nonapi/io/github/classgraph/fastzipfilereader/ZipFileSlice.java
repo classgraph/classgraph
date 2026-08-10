@@ -191,11 +191,6 @@ public class ZipFileSlice {
         }
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.Object#equals(java.lang.Object)
-     */
     @Override
     public boolean equals(final @Nullable Object o) {
         if (o == this) {
@@ -208,21 +203,11 @@ public class ZipFileSlice {
                 && Objects.equals(pathWithinParentZipFileSlice, other.pathWithinParentZipFileSlice);
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.Object#hashCode()
-     */
     @Override
     public int hashCode() {
         return Objects.hash(physicalZipFile, slice, pathWithinParentZipFileSlice);
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.Object#toString()
-     */
     @Override
     public String toString() {
         final var path = getPath();

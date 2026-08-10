@@ -107,7 +107,7 @@ class CallStackReader {
                 }
             }
             if (!stackClassesList.isEmpty()) {
-                callStack = stackClassesList.toArray(new Class<?>[0]);
+                callStack = stackClassesList.toArray(Class<?>[]::new);
             }
         }
 

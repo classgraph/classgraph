@@ -168,11 +168,6 @@ class PhysicalZipFile {
         return slice.sliceLength;
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.Object#hashCode()
-     */
     @Override
     public int hashCode() {
         // (Use pathStr for identity, not file -- file is null for Path-backed zipfiles, and is the outermost file,
@@ -180,11 +175,6 @@ class PhysicalZipFile {
         return Objects.hashCode(pathStr);
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.Object#equals(java.lang.Object)
-     */
     @Override
     public boolean equals(final @Nullable Object o) {
         if (o == this) {
@@ -196,11 +186,6 @@ class PhysicalZipFile {
         return Objects.equals(pathStr, other.pathStr);
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.Object#toString()
-     */
     @Override
     public String toString() {
         return pathStr;

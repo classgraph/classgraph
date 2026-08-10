@@ -134,13 +134,6 @@ class ClasspathElementZip extends ClasspathElement {
         this.nestedJarHandler = nestedJarHandler;
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see io.github.classgraph.ClasspathElement#open(
-     * nonapi.io.github.classgraph.concurrency.WorkQueue,
-     * nonapi.io.github.classgraph.utils.LogNode)
-     */
     @Override
     void open(final WorkQueue<ClasspathEntryWorkUnit> workQueue, final @Nullable LogNode log)
             throws InterruptedException {
@@ -500,7 +493,7 @@ class ClasspathElementZip extends ClasspathElement {
                         + "declares the class " + disprovingClassName);
             }
         }
-        return verifiedPackageRootPrefixes.toArray(new String[0]);
+        return verifiedPackageRootPrefixes.toArray(String[]::new);
     }
 
     /**
@@ -705,11 +698,6 @@ class ClasspathElementZip extends ClasspathElement {
                 : zipFilePath + "!/" + packageRootPrefix.substring(0, packageRootPrefix.length() - 1);
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see io.github.classgraph.ClasspathElement#getURI()
-     */
     @Override
     URI getURI() {
         try {
@@ -774,11 +762,6 @@ class ClasspathElementZip extends ClasspathElement {
         return getZipFilePath();
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.Object#equals(java.lang.Object)
-     */
     @Override
     public boolean equals(final @Nullable Object obj) {
         if (obj == this) {
@@ -790,11 +773,6 @@ class ClasspathElementZip extends ClasspathElement {
         return this.getZipFilePath().equals(other.getZipFilePath());
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.Object#hashCode()
-     */
     @Override
     public int hashCode() {
         return getZipFilePath().hashCode();

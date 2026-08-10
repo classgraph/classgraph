@@ -271,21 +271,11 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.Object#hashCode()
-     */
     @Override
     public int hashCode() {
         return name.hashCode();
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.Object#equals(java.lang.Object)
-     */
     @Override
     public boolean equals(final @Nullable Object obj) {
         if (obj == this) {
@@ -297,12 +287,6 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
         return other.name.equals(this.name) && Objects.equals(other.typeAnnotationInfo, this.typeAnnotationInfo);
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see io.github.classgraph.TypeSignature#equalsIgnoringTypeParams(io.github.
-     * classgraph.TypeSignature)
-     */
     @Override
     public boolean equalsIgnoringTypeParams(final @Nullable TypeSignature other) {
         return equalsIgnoringTypeParams(other, new HashSet<>());

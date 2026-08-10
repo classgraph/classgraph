@@ -40,7 +40,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
@@ -143,7 +142,7 @@ public class ClasspathOrder {
 
         @Override
         public int hashCode() {
-            return Objects.hash(classpathEntryObj);
+            return classpathEntryObj.hashCode();
         }
 
         @Override
@@ -154,7 +153,7 @@ public class ClasspathOrder {
             if (!(obj instanceof final ClasspathEntry other)) {
                 return false;
             }
-            return Objects.equals(this.classpathEntryObj, other.classpathEntryObj);
+            return this.classpathEntryObj.equals(other.classpathEntryObj);
         }
 
         @Override

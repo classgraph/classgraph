@@ -89,11 +89,6 @@ public class AnnotationClassRef extends ScanResultObject {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see io.github.classgraph.ScanResultObject#getClassName()
-     */
     @Override
     protected String getClassName() {
         var name = className;
@@ -125,13 +120,6 @@ public class AnnotationClassRef extends ScanResultObject {
         return getTypeSignature().getClassInfo();
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see
-     * io.github.classgraph.ScanResultObject#setScanResult(io.github.classgraph.
-     * ScanResult)
-     */
     @Override
     void setScanResult(final @Nullable ScanResult scanResult) {
         super.setScanResult(scanResult);
@@ -142,21 +130,11 @@ public class AnnotationClassRef extends ScanResultObject {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.Object#hashCode()
-     */
     @Override
     public int hashCode() {
         return getTypeSignature().hashCode();
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.Object#equals(java.lang.Object)
-     */
     @Override
     public boolean equals(final @Nullable Object obj) {
         if (obj == this) {

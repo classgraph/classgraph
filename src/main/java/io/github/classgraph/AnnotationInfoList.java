@@ -451,11 +451,6 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.util.ArrayList#equals(java.lang.Object)
-     */
     @Override
     public boolean equals(final @Nullable Object obj) {
         if (this == obj) {
@@ -471,11 +466,6 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
         return super.equals(other) && directlyRelatedAnnotations.equals(other.directlyRelatedAnnotations);
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.util.ArrayList#hashCode()
-     */
     @Override
     public int hashCode() {
         return super.hashCode() ^ (directlyRelatedAnnotations == null ? 0 : directlyRelatedAnnotations.hashCode());

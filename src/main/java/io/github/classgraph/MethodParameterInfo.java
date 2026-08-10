@@ -40,7 +40,7 @@ import org.jspecify.annotations.Nullable;
 /**
  * Information on the parameters of a method.
  *
- * @author lukehutch
+ * @author Luke Hutchison
  */
 public class MethodParameterInfo implements HasAnnotations {
     /** The containing method. */
@@ -266,11 +266,6 @@ public class MethodParameterInfo implements HasAnnotations {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.Object#equals(java.lang.Object)
-     */
     @Override
     public boolean equals(final @Nullable Object obj) {
         if (obj == this) {
@@ -285,11 +280,6 @@ public class MethodParameterInfo implements HasAnnotations {
                 && Objects.equals(typeSignature, other.typeSignature) && Objects.equals(name, other.name);
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.Object#hashCode()
-     */
     @Override
     public int hashCode() {
         return Objects.hash(methodInfo, Arrays.hashCode(annotationInfo), typeDescriptor, typeSignature, name)

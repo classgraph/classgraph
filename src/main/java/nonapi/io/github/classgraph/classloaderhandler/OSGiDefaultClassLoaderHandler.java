@@ -39,7 +39,7 @@ import org.jspecify.annotations.Nullable;
 /**
  * Handle the OSGi DefaultClassLoader.
  *
- * @author lukehutch
+ * @author Luke Hutchison
  */
 class OSGiDefaultClassLoaderHandler implements ClassLoaderHandler {
     /** Constructor. */

@@ -312,13 +312,6 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
         return super.getClassInfo();
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see
-     * io.github.classgraph.ScanResultObject#setScanResult(io.github.classgraph.
-     * ScanResult)
-     */
     @Override
     void setScanResult(final @Nullable ScanResult scanResult) {
         super.setScanResult(scanResult);
@@ -353,11 +346,6 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.Object#hashCode()
-     */
     @Override
     public int hashCode() {
         return className.hashCode() + 7 * typeArguments.hashCode() + 15 * suffixTypeArguments.hashCode()
@@ -381,11 +369,6 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
                 && Objects.equals(a.suffixTypeAnnotations, b.suffixTypeAnnotations);
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.Object#equals(java.lang.Object)
-     */
     @Override
     public boolean equals(final @Nullable Object obj) {
         if (obj == this) {
@@ -398,12 +381,6 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
                 && Objects.equals(this.typeAnnotationInfo, o.typeAnnotationInfo) && suffixesMatch(o, this);
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see io.github.classgraph.TypeSignature#equalsIgnoringTypeParams(io.github.
-     * classgraph.TypeSignature)
-     */
     @Override
     public boolean equalsIgnoringTypeParams(final @Nullable TypeSignature other) {
         if (other instanceof TypeVariableSignature) {

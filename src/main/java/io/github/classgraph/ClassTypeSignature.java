@@ -189,33 +189,16 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see io.github.classgraph.ScanResultObject#getClassName()
-     */
     @Override
     protected String getClassName() {
         return classInfo.getName();
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see io.github.classgraph.ScanResultObject#getClassInfo()
-     */
     @Override
     protected ClassInfo getClassInfo() {
         return classInfo;
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see
-     * io.github.classgraph.ScanResultObject#setScanResult(io.github.classgraph.
-     * ScanResult)
-     */
     @Override
     void setScanResult(final @Nullable ScanResult scanResult) {
         super.setScanResult(scanResult);
@@ -284,22 +267,12 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.Object#hashCode()
-     */
     @Override
     public int hashCode() {
         return typeParameters.hashCode() + (superclassSignature == null ? 1 : superclassSignature.hashCode()) * 7
                 + (superinterfaceSignatures == null ? 1 : superinterfaceSignatures.hashCode()) * 15;
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.Object#equals(java.lang.Object)
-     */
     @Override
     public boolean equals(final @Nullable Object obj) {
         if (obj == this) {

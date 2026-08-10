@@ -38,7 +38,7 @@ import org.jspecify.annotations.Nullable;
 /**
  * Handle the Plexus ClassWorlds ClassRealm ClassLoader.
  *
- * @author lukehutch
+ * @author Luke Hutchison
  */
 class PlexusClassWorldsClassRealmClassLoaderHandler extends URLClassLoaderHandler {
     /** Constructor. */

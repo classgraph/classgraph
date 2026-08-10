@@ -279,7 +279,7 @@ public class ClasspathFinder {
                     : classpathFinderLog.log("Finding unique classloaders in delegation order");
             final ClassLoaderOrder classLoaderOrder = new ClassLoaderOrder(reflectionUtils);
             final var origClassLoaderOrder = scanSpec.overrideClassLoaders != null
-                    ? scanSpec.overrideClassLoaders.toArray(new ClassLoader[0])
+                    ? scanSpec.overrideClassLoaders.toArray(ClassLoader[]::new)
                     : contextClassLoaders;
             if (origClassLoaderOrder != null) {
                 for (final ClassLoader classLoader : origClassLoaderOrder) {
@@ -326,7 +326,7 @@ public class ClasspathFinder {
 
             // Need to record the classloader delegation order, in particular to respect parent-last delegation
             // order, since this is not the default (issue #267).
-            classLoaderOrderRespectingParentDelegation = finalClassLoaderOrder.toArray(new ClassLoader[0]);
+            classLoaderOrderRespectingParentDelegation = finalClassLoaderOrder.toArray(ClassLoader[]::new);
         }
 
         // Only scan java.class.path if parent classloaders are not ignored, classloaders are not overridden, and

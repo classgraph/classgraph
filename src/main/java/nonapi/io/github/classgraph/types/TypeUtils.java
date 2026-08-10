@@ -33,7 +33,7 @@ import java.lang.reflect.Modifier;
 /**
  * Utilities for parsing Java type descriptors and type signatures.
  *
- * @author lukehutch
+ * @author Luke Hutchison
  */
 public final class TypeUtils {
 

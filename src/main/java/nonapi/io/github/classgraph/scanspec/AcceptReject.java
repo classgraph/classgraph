@@ -838,11 +838,6 @@ public abstract class AcceptReject {
         buf.append(']');
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.Object#toString()
-     */
     @Override
     public String toString() {
         final StringBuilder buf = new StringBuilder();

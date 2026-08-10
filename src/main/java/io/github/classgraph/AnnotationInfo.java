@@ -227,13 +227,6 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
         return name;
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see
-     * io.github.classgraph.ScanResultObject#setScanResult(io.github.classgraph.
-     * ScanResult)
-     */
     @Override
     void setScanResult(final @Nullable ScanResult scanResult) {
         super.setScanResult(scanResult);
@@ -288,11 +281,6 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.Comparable#compareTo(java.lang.Object)
-     */
     @Override
     public int compareTo(final AnnotationInfo o) {
         final var diff = this.name.compareTo(o.name);
@@ -324,11 +312,6 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
         return 0;
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.Object#equals(java.lang.Object)
-     */
     @Override
     public boolean equals(final @Nullable Object obj) {
         if (obj == this) {
@@ -340,11 +323,6 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
         return this.compareTo(other) == 0;
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.Object#hashCode()
-     */
     @Override
     public int hashCode() {
         var h = name.hashCode();

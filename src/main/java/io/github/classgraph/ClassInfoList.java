@@ -647,11 +647,6 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.util.ArrayList#equals(java.lang.Object)
-     */
     @Override
     public boolean equals(final @Nullable Object obj) {
         if (this == obj) {
@@ -662,11 +657,6 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
                 && directlyRelatedClasses.equals(other.directlyRelatedClasses);
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.util.ArrayList#hashCode()
-     */
     @Override
     public int hashCode() {
         return super.hashCode() ^ directlyRelatedClasses.hashCode();

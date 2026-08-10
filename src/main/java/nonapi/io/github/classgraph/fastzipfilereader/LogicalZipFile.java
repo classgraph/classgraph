@@ -864,11 +864,6 @@ public class LogicalZipFile extends ZipFileSlice {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see nonapi.io.github.classgraph.fastzipfilereader.ZipFileSlice#toString()
-     */
     @Override
     public String toString() {
         return getPath();

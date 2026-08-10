@@ -743,13 +743,6 @@ class Scanner implements Callable<ScanResult> {
          * @throws InterruptedException
          *             the interrupted exception
          */
-        /*
-         * (non-Javadoc)
-         *
-         * @see nonapi.io.github.classgraph.concurrency.WorkQueue.WorkUnitProcessor#
-         * processWorkUnit( java.lang.Object,
-         * nonapi.io.github.classgraph.concurrency.WorkQueue)
-         */
         @Override
         public void processWorkUnit(final ClassfileScanWorkUnit workUnit,
                 final WorkQueue<ClassfileScanWorkUnit> workQueue, final @Nullable LogNode log)

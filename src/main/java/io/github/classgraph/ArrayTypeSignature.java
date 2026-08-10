@@ -177,11 +177,6 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see io.github.classgraph.ScanResultObject#getClassName()
-     */
     @Override
     protected String getClassName() {
         var name = className;
@@ -198,11 +193,6 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
         return name;
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see io.github.classgraph.ScanResultObject#getClassInfo()
-     */
     @Override
     protected ClassInfo getClassInfo() {
         return getArrayClassInfo();
@@ -234,13 +224,6 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
         return classInfo;
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see
-     * io.github.classgraph.ScanResultObject#setScanResult(io.github.classgraph.
-     * ScanResult)
-     */
     @Override
     void setScanResult(final @Nullable ScanResult scanResult) {
         super.setScanResult(scanResult);
@@ -264,21 +247,11 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.Object#hashCode()
-     */
     @Override
     public int hashCode() {
         return 1 + nestedType.hashCode();
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.Object#equals(java.lang.Object)
-     */
     @Override
     public boolean equals(final @Nullable Object obj) {
         if (obj == this) {
@@ -291,12 +264,6 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
                 && this.nestedType.equals(other.nestedType);
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see io.github.classgraph.TypeSignature#equalsIgnoringTypeParams(io.github.
-     * classgraph.TypeSignature)
-     */
     @Override
     public boolean equalsIgnoringTypeParams(final @Nullable TypeSignature other) {
         if (this == other) {

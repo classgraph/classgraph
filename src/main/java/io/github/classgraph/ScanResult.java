@@ -1524,7 +1524,7 @@ public final class ScanResult implements Closeable {
             Assert.isAnnotation(cls);
             annotationNames.add(cls.getName());
         }
-        return getClassesWithAllAnnotations(annotationNames.toArray(new String[0]));
+        return getClassesWithAllAnnotations(annotationNames.toArray(String[]::new));
     }
 
     /**
@@ -1548,7 +1548,7 @@ public final class ScanResult implements Closeable {
             Assert.isAnnotation(cls);
             annotationNames.add(cls.getName());
         }
-        return getClassesWithAnyAnnotation(annotationNames.toArray(new String[0]));
+        return getClassesWithAnyAnnotation(annotationNames.toArray(String[]::new));
     }
 
     /**

@@ -59,7 +59,7 @@ import org.jspecify.annotations.Nullable;
 /**
  * A module classpath element.
  *
- * @author luke
+ * @author Luke Hutchison
  */
 class ClasspathElementModule extends ClasspathElement {
 
@@ -120,13 +120,6 @@ class ClasspathElementModule extends ClasspathElement {
         this.isLookupOnly = isLookupOnly;
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see io.github.classgraph.ClasspathElement#open(
-     * nonapi.io.github.classgraph.concurrency.WorkQueue,
-     * nonapi.io.github.classgraph.utils.LogNode)
-     */
     @Override
     void open(final @Nullable WorkQueue<ClasspathEntryWorkUnit> workQueueIgnored, final @Nullable LogNode log)
             throws InterruptedException {
@@ -492,11 +485,6 @@ class ClasspathElementModule extends ClasspathElement {
         return moduleName == null ? "" : moduleName;
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see io.github.classgraph.ClasspathElement#getURI()
-     */
     @Override
     URI getURI() {
         final var uri = moduleRef.getLocationURI();
@@ -512,11 +500,6 @@ class ClasspathElementModule extends ClasspathElement {
         return List.of(getURI());
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see io.github.classgraph.ClasspathElement#getFile()
-     */
     @Override
     @Nullable
     File getFile() {
@@ -552,11 +535,6 @@ class ClasspathElementModule extends ClasspathElement {
      *            the obj
      * @return true, if successful
      */
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.Object#equals(java.lang.Object)
-     */
     @Override
     public boolean equals(final @Nullable Object obj) {
         if (obj == this) {
@@ -572,11 +550,6 @@ class ClasspathElementModule extends ClasspathElement {
      * Hash code.
      *
      * @return the int
-     */
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.Object#hashCode()
      */
     @Override
     public int hashCode() {

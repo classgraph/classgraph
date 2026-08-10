@@ -746,7 +746,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
                                 RelType.METHOD_PARAMETER_ANNOTATIONS,
                                 RelType.CLASSES_WITH_METHOD_PARAMETER_ANNOTATION,
                                 RelType.CLASSES_WITH_NONPRIVATE_METHOD_PARAMETER_ANNOTATION);
-                        parameterAnnotationInfo[i] = aiList.toArray(new AnnotationInfo[0]);
+                        parameterAnnotationInfo[i] = aiList.toArray(AnnotationInfo[]::new);
                     }
                 }
             }
@@ -755,13 +755,6 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see
-     * io.github.classgraph.ScanResultObject#setScanResult(io.github.classgraph.
-     * ScanResult)
-     */
     @Override
     void setScanResult(final @Nullable ScanResult scanResult) {
         super.setScanResult(scanResult);
