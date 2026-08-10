@@ -28,6 +28,8 @@
  */
 package io.github.classgraph;
 
+import static io.github.classgraph.PotentiallyUnmodifiableList.unmodifiable;
+
 import java.lang.annotation.Annotation;
 import java.lang.annotation.Repeatable;
 import java.lang.reflect.Modifier;
@@ -209,7 +211,8 @@ public class MethodParameterInfo {
         } else {
             final AnnotationInfoList annotationInfoList = new AnnotationInfoList(annotationInfo.length);
             Collections.addAll(annotationInfoList, annotationInfo);
-            return AnnotationInfoList.getIndirectAnnotations(annotationInfoList, /* annotatedClass = */ null);
+            return unmodifiable(
+                    AnnotationInfoList.getIndirectAnnotations(annotationInfoList, /* annotatedClass = */ null));
         }
     }
 

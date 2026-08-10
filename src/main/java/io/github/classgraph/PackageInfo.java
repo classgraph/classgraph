@@ -28,6 +28,8 @@
  */
 package io.github.classgraph;
 
+import static io.github.classgraph.PotentiallyUnmodifiableList.unmodifiable;
+
 import java.lang.annotation.Annotation;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -183,6 +185,7 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
             } else {
                 annotations = new AnnotationInfoList();
                 annotations.addAll(annotationSet);
+                annotations.makeUnmodifiable();
             }
             annotationInfo = annotations;
         }
@@ -240,7 +243,7 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
         final PackageInfoList childrenSorted = new PackageInfoList(childPackages);
         // Ensure children are sorted
         CollectionUtils.sortIfNotEmpty(childrenSorted, Comparator.comparing(o1 -> o1.name));
-        return childrenSorted;
+        return unmodifiable(childrenSorted);
     }
 
     // -------------------------------------------------------------------------------------------------------------

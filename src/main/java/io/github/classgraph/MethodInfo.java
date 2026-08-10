@@ -28,6 +28,8 @@
  */
 package io.github.classgraph;
 
+import static io.github.classgraph.PotentiallyUnmodifiableList.unmodifiable;
+
 import java.lang.annotation.Annotation;
 import java.lang.annotation.Repeatable;
 import java.lang.reflect.Modifier;
@@ -372,7 +374,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
                     }
                 }
             }
-            return thrownExceptions == null ? ClassInfoList.EMPTY_LIST : thrownExceptions;
+            return thrownExceptions == null ? ClassInfoList.EMPTY_LIST : unmodifiable(thrownExceptions);
         }
     }
 

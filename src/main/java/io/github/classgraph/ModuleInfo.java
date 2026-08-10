@@ -28,6 +28,8 @@
  */
 package io.github.classgraph;
 
+import static io.github.classgraph.PotentiallyUnmodifiableList.unmodifiable;
+
 import java.lang.annotation.Annotation;
 import java.net.URI;
 import java.util.HashMap;
@@ -179,7 +181,7 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     public ClassInfoList getClassInfo() {
         final var classes = classNameToClassInfo;
         // The ClassInfoList(Collection) constructor uniquifies and sorts by name
-        return classes == null ? ClassInfoList.EMPTY_LIST : new ClassInfoList(classes.values());
+        return classes == null ? ClassInfoList.EMPTY_LIST : unmodifiable(new ClassInfoList(classes.values()));
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -226,7 +228,7 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
         }
         final PackageInfoList packageInfoList = new PackageInfoList(packages.values());
         CollectionUtils.sortIfNotEmpty(packageInfoList);
-        return packageInfoList;
+        return unmodifiable(packageInfoList);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -306,6 +308,7 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
             } else {
                 annotations = new AnnotationInfoList();
                 annotations.addAll(annotationSet);
+                annotations.makeUnmodifiable();
             }
             annotationInfo = annotations;
         }

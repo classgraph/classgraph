@@ -386,7 +386,10 @@ class Classfile {
             // Should not be possible -- ignore
         } else if (annotationParamVal instanceof final AnnotationInfo annotationInfo) {
             scheduleScanningIfExternalClass(annotationInfo.getClassName(), "annotation class", log);
-            for (final AnnotationParameterValue apv : annotationInfo.getParameterValues()) {
+            // Call the package-private accessor, so that the annotation's parameter value list is not frozen
+            // while scanning is still in progress
+            for (final AnnotationParameterValue apv : annotationInfo
+                    .getParameterValues(/* includeDefaultValues = */ true)) {
                 extendScanningUpwardsFromAnnotationParameterValues(apv.getValue(), log);
             }
         } else if (annotationParamVal instanceof final AnnotationEnumValue annotationEnumValue) {

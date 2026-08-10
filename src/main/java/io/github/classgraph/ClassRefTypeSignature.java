@@ -29,6 +29,7 @@
 package io.github.classgraph;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -130,7 +131,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
      * @return The type arguments for the base class.
      */
     public List<TypeArgument> getTypeArguments() {
-        return typeArguments;
+        return Collections.unmodifiableList(typeArguments);
     }
 
     /**
@@ -139,7 +140,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
      * @return The class suffixes (for inner classes), or the empty list if none.
      */
     public List<String> getSuffixes() {
-        return suffixes;
+        return Collections.unmodifiableList(suffixes);
     }
 
     /**
@@ -149,7 +150,12 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
      *         list if none.
      */
     public List<List<TypeArgument>> getSuffixTypeArguments() {
-        return suffixTypeArguments;
+        final List<List<TypeArgument>> unmodifiableSuffixTypeArguments = new ArrayList<>(
+                suffixTypeArguments.size());
+        for (final List<TypeArgument> typeArgs : suffixTypeArguments) {
+            unmodifiableSuffixTypeArguments.add(Collections.unmodifiableList(typeArgs));
+        }
+        return Collections.unmodifiableList(unmodifiableSuffixTypeArguments);
     }
 
     @Override
@@ -181,7 +187,14 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
      *         or null if none.
      */
     public @Nullable List<AnnotationInfoList> getSuffixTypeAnnotationInfo() {
-        return suffixTypeAnnotations;
+        final var typeAnnotations = suffixTypeAnnotations;
+        if (typeAnnotations == null) {
+            return null;
+        }
+        for (final AnnotationInfoList annotationInfoList : typeAnnotations) {
+            annotationInfoList.makeUnmodifiable();
+        }
+        return Collections.unmodifiableList(typeAnnotations);
     }
 
     /**

@@ -28,6 +28,8 @@
  */
 package io.github.classgraph;
 
+import static io.github.classgraph.PotentiallyUnmodifiableList.unmodifiable;
+
 import java.io.File;
 import java.lang.annotation.Annotation;
 import java.lang.annotation.Inherited;
@@ -2329,7 +2331,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 throw new IllegalStateException("Please call ClassGraph#enableAnnotationInfo() before #scan()");
             }
 
-            annotationInfoRef = AnnotationInfoList.getIndirectAnnotations(annotationInfo, this);
+            annotationInfoRef = unmodifiable(AnnotationInfoList.getIndirectAnnotations(annotationInfo, this));
             return annotationInfoRef;
         }
     }
@@ -2558,7 +2560,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 annotationDefaultParamValues.convertWrapperArraysToPrimitiveArrays(this);
                 annotationDefaultParamValuesHasBeenConvertedToPrimitive = true;
             }
-            return annotationDefaultParamValues;
+            return unmodifiable(annotationDefaultParamValues);
         }
     }
 
@@ -2652,7 +2654,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                     methodInfoList.add(mi);
                 }
             }
-            return methodInfoList;
+            return unmodifiable(methodInfoList);
         } else {
             // If method name is provided, filter for methods whose name matches, and ignore method type
             var hasMethodWithName = false;
@@ -2671,7 +2673,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                     methodInfoList.add(mi);
                 }
             }
-            return methodInfoList;
+            return unmodifiable(methodInfoList);
         }
     }
 
@@ -2708,7 +2710,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 }
             }
         }
-        return methodInfoList;
+        return unmodifiable(methodInfoList);
     }
 
     /**
@@ -3293,7 +3295,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         if (!scanResult().scanSpec.enableFieldInfo) {
             throw new IllegalStateException("Please call ClassGraph#enableFieldInfo() before #scan()");
         }
-        return fieldInfo == null ? FieldInfoList.EMPTY_LIST : fieldInfo;
+        return fieldInfo == null ? FieldInfoList.EMPTY_LIST : unmodifiable(fieldInfo);
     }
 
     /**
@@ -3334,7 +3336,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 }
             }
         }
-        return fieldInfoList;
+        return unmodifiable(fieldInfoList);
     }
 
     /**

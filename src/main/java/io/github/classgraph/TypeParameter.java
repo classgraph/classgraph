@@ -29,6 +29,7 @@
 package io.github.classgraph;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -99,7 +100,7 @@ public final class TypeParameter extends HierarchicalTypeSignature {
      * @return Get the type parameter interface bound(s), which may be the empty list.
      */
     public List<ReferenceTypeSignature> getInterfaceBounds() {
-        return interfaceBounds;
+        return Collections.unmodifiableList(interfaceBounds);
     }
 
     @Override

@@ -28,6 +28,8 @@
  */
 package io.github.classgraph;
 
+import static io.github.classgraph.PotentiallyUnmodifiableList.unmodifiable;
+
 import java.lang.annotation.Annotation;
 import java.lang.annotation.Repeatable;
 import java.lang.reflect.Modifier;
@@ -294,7 +296,8 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
             }
 
             annotationInfoRef = annotationInfo == null ? AnnotationInfoList.EMPTY_LIST
-                    : AnnotationInfoList.getIndirectAnnotations(annotationInfo, /* annotatedClass = */ null);
+                    : unmodifiable(
+                            AnnotationInfoList.getIndirectAnnotations(annotationInfo, /* annotatedClass = */ null));
             return annotationInfoRef;
         }
     }

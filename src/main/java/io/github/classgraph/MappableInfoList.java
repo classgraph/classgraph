@@ -30,6 +30,7 @@ package io.github.classgraph;
 
 import java.io.Serial;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -88,7 +89,7 @@ public class MappableInfoList<T extends HasName> extends InfoList<T> {
                 nameToInfoObject.put(i.getName(), i);
             }
         }
-        return nameToInfoObject;
+        return Collections.unmodifiableMap(nameToInfoObject);
     }
 
     /**

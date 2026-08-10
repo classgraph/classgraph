@@ -28,6 +28,8 @@
  */
 package io.github.classgraph;
 
+import static io.github.classgraph.PotentiallyUnmodifiableList.unmodifiable;
+
 import java.io.Closeable;
 import java.io.File;
 import java.lang.annotation.Annotation;
@@ -400,7 +402,7 @@ public final class ScanResult implements Closeable {
                 classpathElementOrderFiles.add(file);
             }
         }
-        return classpathElementOrderFiles;
+        return Collections.unmodifiableList(classpathElementOrderFiles);
     }
 
     /**
@@ -438,7 +440,7 @@ public final class ScanResult implements Closeable {
                 // Skip null location URIs
             }
         }
-        return classpathElementOrderURIs;
+        return Collections.unmodifiableList(classpathElementOrderURIs);
     }
 
     /**
@@ -460,7 +462,7 @@ public final class ScanResult implements Closeable {
                 // Skip "jrt:" URIs and malformed URLs
             }
         }
-        return classpathElementOrderURLs;
+        return Collections.unmodifiableList(classpathElementOrderURLs);
     }
 
     /**
@@ -478,7 +480,7 @@ public final class ScanResult implements Closeable {
                 moduleRefs.add(classpathElementModule.getModuleRef());
             }
         }
-        return moduleRefs;
+        return Collections.unmodifiableList(moduleRefs);
     }
 
     /**
@@ -521,6 +523,7 @@ public final class ScanResult implements Closeable {
                 for (final ClasspathElement classpathElt : classpathOrder()) {
                     acceptedResourcesList.addAll(classpathElt.acceptedResources);
                 }
+                acceptedResourcesList.makeUnmodifiable();
                 // Set atomically for thread safety
                 allAcceptedResourcesCached = allAcceptedResources = acceptedResourcesList;
             }
@@ -545,6 +548,9 @@ public final class ScanResult implements Closeable {
                 final Map<String, ResourceList> pathToAcceptedResourceListMap = new HashMap<>();
                 for (final Resource res : getAllResources()) {
                     pathToAcceptedResourceListMap.computeIfAbsent(res.getPath(), k -> new ResourceList()).add(res);
+                }
+                for (final ResourceList resourceList : pathToAcceptedResourceListMap.values()) {
+                    resourceList.makeUnmodifiable();
                 }
                 // Set atomically for thread safety
                 pathToAcceptedResourcesCached = pathToAcceptedResources = pathToAcceptedResourceListMap;
@@ -586,7 +592,7 @@ public final class ScanResult implements Closeable {
                 }
             }
         }
-        return matchingResources == null ? ResourceList.EMPTY_LIST : matchingResources;
+        return matchingResources == null ? ResourceList.EMPTY_LIST : unmodifiable(matchingResources);
     }
 
     /**
@@ -617,7 +623,7 @@ public final class ScanResult implements Closeable {
                 matchingResources.add(matchingResource);
             }
         }
-        return matchingResources;
+        return unmodifiable(matchingResources);
     }
 
     /**
@@ -644,7 +650,7 @@ public final class ScanResult implements Closeable {
                     filteredResources.add(classpathResource);
                 }
             }
-            return filteredResources;
+            return unmodifiable(filteredResources);
         }
     }
 
@@ -678,7 +684,7 @@ public final class ScanResult implements Closeable {
                     filteredResources.add(classpathResource);
                 }
             }
-            return filteredResources;
+            return unmodifiable(filteredResources);
         }
     }
 
@@ -706,7 +712,7 @@ public final class ScanResult implements Closeable {
                     filteredResources.add(classpathResource);
                 }
             }
-            return filteredResources;
+            return unmodifiable(filteredResources);
         }
     }
 
@@ -775,7 +781,7 @@ public final class ScanResult implements Closeable {
      */
     public ModuleInfoList getModuleInfo() {
         checkClassInfoEnabled();
-        return new ModuleInfoList(moduleNameToModuleInfo().values());
+        return unmodifiable(new ModuleInfoList(moduleNameToModuleInfo().values()));
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -809,7 +815,7 @@ public final class ScanResult implements Closeable {
      */
     public PackageInfoList getPackageInfo() {
         checkClassInfoEnabled();
-        return new PackageInfoList(packageNameToPackageInfo().values());
+        return unmodifiable(new PackageInfoList(packageNameToPackageInfo().values()));
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -835,7 +841,7 @@ public final class ScanResult implements Closeable {
         for (final ClassInfo ci : getAllClasses()) {
             map.put(ci, ci.getClassDependencies());
         }
-        return map;
+        return Collections.unmodifiableMap(map);
     }
 
     /**
@@ -864,7 +870,7 @@ public final class ScanResult implements Closeable {
         for (final Entry<ClassInfo, Set<ClassInfo>> ent : revMapSet.entrySet()) {
             revMapList.put(ent.getKey(), new ClassInfoList(ent.getValue(), /* sortByName = */ true));
         }
-        return revMapList;
+        return Collections.unmodifiableMap(revMapList);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1776,13 +1782,11 @@ public final class ScanResult implements Closeable {
                 for (final Resource classpathResource : allAcceptedResources) {
                     classpathResource.close();
                 }
-                allAcceptedResources.clear();
+                // Drop the reference to the cached list rather than clearing it, since the list (or a map
+                // containing it) may have been returned to the caller, and returned collections are unmodifiable
                 allAcceptedResourcesCached = null;
             }
-            if (pathToAcceptedResourcesCached != null) {
-                pathToAcceptedResourcesCached.clear();
-                pathToAcceptedResourcesCached = null;
-            }
+            pathToAcceptedResourcesCached = null;
             // Don't clear classNameToClassInfo, since ClassInfo objects and the objects reachable from them keep
             // working after the ScanResult they came from is closed. Just rely on the garbage collector to collect
             // these once the ScanResult goes out of scope.

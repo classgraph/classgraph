@@ -28,6 +28,8 @@
  */
 package io.github.classgraph;
 
+import static io.github.classgraph.PotentiallyUnmodifiableList.unmodifiable;
+
 import java.io.Serial;
 import java.util.Collection;
 
@@ -107,6 +109,6 @@ public class PackageInfoList extends MappableInfoList<PackageInfo> {
                 packageInfoFiltered.add(packageInfo);
             }
         }
-        return packageInfoFiltered;
+        return unmodifiable(packageInfoFiltered);
     }
 }

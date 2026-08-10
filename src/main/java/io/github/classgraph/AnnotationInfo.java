@@ -28,6 +28,8 @@
  */
 package io.github.classgraph;
 
+import static io.github.classgraph.PotentiallyUnmodifiableList.unmodifiable;
+
 import java.lang.annotation.Inherited;
 import java.util.HashMap;
 import java.util.Map;
@@ -110,7 +112,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      * @return The parameter values of this annotation, including any default parameter values inherited from the
      *         annotation class definition (if requested), or the empty list if none.
      */
-    private AnnotationParameterValueList getParameterValues(final boolean includeDefaultValues) {
+    AnnotationParameterValueList getParameterValues(final boolean includeDefaultValues) {
         final var paramValues = annotationParamValues;
         final var classInfo = getClassInfo();
         if (classInfo == null) {
@@ -191,7 +193,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      *         annotation class definition, or the empty list if none.
      */
     public AnnotationParameterValueList getParameterValues() {
-        return getParameterValues(/* includeDefaultValues = */ true);
+        return unmodifiable(getParameterValues(/* includeDefaultValues = */ true));
     }
 
     /**
@@ -202,7 +204,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      * @return The parameter values given explicitly at the annotation use site, or the empty list if none.
      */
     public AnnotationParameterValueList getDeclaredParameterValues() {
-        return getParameterValues(/* includeDefaultValues = */ false);
+        return unmodifiable(getParameterValues(/* includeDefaultValues = */ false));
     }
 
     // -------------------------------------------------------------------------------------------------------------

@@ -28,8 +28,11 @@
  */
 package io.github.classgraph;
 
+import static io.github.classgraph.PotentiallyUnmodifiableList.unmodifiable;
+
 import java.io.Serial;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -132,7 +135,10 @@ public class MethodInfoList extends InfoList<MethodInfo> {
             methodNameToMethodInfoList.computeIfAbsent(methodInfo.getName(), k -> new MethodInfoList(1))
                     .add(methodInfo);
         }
-        return methodNameToMethodInfoList;
+        for (final MethodInfoList methodInfoList : methodNameToMethodInfoList.values()) {
+            methodInfoList.makeUnmodifiable();
+        }
+        return Collections.unmodifiableMap(methodNameToMethodInfoList);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -183,7 +189,7 @@ public class MethodInfoList extends InfoList<MethodInfo> {
                     matchingMethods.add(mi);
                 }
             }
-            return matchingMethods;
+            return unmodifiable(matchingMethods);
         }
     }
 
@@ -253,6 +259,6 @@ public class MethodInfoList extends InfoList<MethodInfo> {
                 methodInfoFiltered.add(methodInfo);
             }
         }
-        return methodInfoFiltered;
+        return unmodifiable(methodInfoFiltered);
     }
 }

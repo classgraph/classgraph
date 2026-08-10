@@ -28,6 +28,8 @@
  */
 package io.github.classgraph;
 
+import static io.github.classgraph.PotentiallyUnmodifiableList.unmodifiable;
+
 import java.io.Serial;
 import java.lang.annotation.Annotation;
 import java.lang.annotation.Inherited;
@@ -162,7 +164,7 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
                 annotationInfoFiltered.add(resource);
             }
         }
-        return annotationInfoFiltered;
+        return unmodifiable(annotationInfoFiltered);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -413,7 +415,8 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
         // only the direct annotations.
         return this.directlyRelatedAnnotations == null ? this
                 // Make .directOnly() idempotent
-                : new AnnotationInfoList(directlyRelatedAnnotations, /* directlyRelatedAnnotations = */ null);
+                : unmodifiable(new AnnotationInfoList(directlyRelatedAnnotations,
+                        /* directlyRelatedAnnotations = */ null));
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -458,7 +461,7 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
                 matchingAnnotations.add(ai);
             }
         }
-        return matchingAnnotations;
+        return unmodifiable(matchingAnnotations);
     }
 
     // -------------------------------------------------------------------------------------------------------------

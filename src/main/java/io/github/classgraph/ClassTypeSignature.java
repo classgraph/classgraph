@@ -29,6 +29,7 @@
 package io.github.classgraph;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -148,7 +149,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
      * @return The type parameters for the class.
      */
     public List<TypeParameter> getTypeParameters() {
-        return typeParameters;
+        return Collections.unmodifiableList(typeParameters);
     }
 
     /**
@@ -167,7 +168,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
      * @return The type signatures of any superinterfaces.
      */
     public List<ClassRefTypeSignature> getSuperinterfaceSignatures() {
-        return superinterfaceSignatures;
+        return Collections.unmodifiableList(superinterfaceSignatures);
     }
 
     /**

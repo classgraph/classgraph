@@ -31,16 +31,16 @@ package io.github.classgraph;
 import java.io.Serial;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 /**
  * A list of named objects.
  *
  * <p>
- * Lists returned by ClassGraph should be treated as read-only. Some accessors return the list that is held
- * internally by the {@link ScanResult}, so modifying the returned list can corrupt the scan result; and when there
- * are no results, a shared immutable empty list is returned, so modifying that throws
- * {@link UnsupportedOperationException}. Copy the list before modifying it, e.g. {@code new ArrayList<>(list)}.
+ * Lists returned by the ClassGraph API are unmodifiable: any attempt to add, remove, replace or sort their elements
+ * throws {@link UnsupportedOperationException}. Copy the list if you need a modifiable version of it, e.g.
+ * {@code new ArrayList<>(list)}.
  *
  * @param <T>
  *            the element type
@@ -94,7 +94,7 @@ public class InfoList<T extends HasName> extends PotentiallyUnmodifiableList<T> 
                     names.add(i.getName());
                 }
             }
-            return names;
+            return Collections.unmodifiableList(names);
         }
     }
 
@@ -113,7 +113,7 @@ public class InfoList<T extends HasName> extends PotentiallyUnmodifiableList<T> 
             for (final T i : this) {
                 toStringVals.add(i == null ? "null" : i.toString());
             }
-            return toStringVals;
+            return Collections.unmodifiableList(toStringVals);
         }
     }
 
@@ -139,7 +139,7 @@ public class InfoList<T extends HasName> extends PotentiallyUnmodifiableList<T> 
                                 ? scanResultObject.toStringWithSimpleNames()
                                 : i.toString());
             }
-            return toStringVals;
+            return Collections.unmodifiableList(toStringVals);
         }
     }
 }

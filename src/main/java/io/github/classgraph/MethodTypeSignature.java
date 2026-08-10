@@ -28,7 +28,10 @@
  */
 package io.github.classgraph;
 
+import static io.github.classgraph.PotentiallyUnmodifiableList.unmodifiable;
+
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -93,7 +96,7 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
      * @return The type parameters for the method, or the empty list if the method is not generic.
      */
     public List<TypeParameter> getTypeParameters() {
-        return typeParameters;
+        return Collections.unmodifiableList(typeParameters);
     }
 
     /**
@@ -122,7 +125,7 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
      * @return The throws types for the method, as {@link TypeSignature} parsed type objects.
      */
     public List<ClassRefOrTypeVariableSignature> getThrowsSignatures() {
-        return throwsSignatures;
+        return Collections.unmodifiableList(throwsSignatures);
     }
 
     @Override
@@ -152,7 +155,7 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
      * @return type annotations on the explicit receiver parameter, or null if none.
      */
     public @Nullable AnnotationInfoList getReceiverTypeAnnotationInfo() {
-        return receiverTypeAnnotationInfo;
+        return receiverTypeAnnotationInfo == null ? null : unmodifiable(receiverTypeAnnotationInfo);
     }
 
     // -------------------------------------------------------------------------------------------------------------

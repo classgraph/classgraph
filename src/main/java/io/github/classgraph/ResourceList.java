@@ -28,6 +28,8 @@
  */
 package io.github.classgraph;
 
+import static io.github.classgraph.PotentiallyUnmodifiableList.unmodifiable;
+
 import java.io.IOException;
 import java.io.Serial;
 import java.io.InputStream;
@@ -37,6 +39,7 @@ import java.nio.ByteBuffer;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -52,10 +55,9 @@ import nonapi.io.github.classgraph.utils.CollectionUtils;
  * {@link Resource} in the list, releasing any open file handles or memory mappings.
  *
  * <p>
- * Lists returned by ClassGraph should be treated as read-only. Some accessors return the list that is held
- * internally by the {@link ScanResult}, so modifying the returned list can corrupt the scan result; and when there
- * are no results, a shared immutable empty list is returned, so modifying that throws
- * {@link UnsupportedOperationException}. Copy the list before modifying it, e.g. {@code new ArrayList<>(list)}.
+ * Lists returned by the ClassGraph API are unmodifiable: any attempt to add, remove, replace or sort their elements
+ * throws {@link UnsupportedOperationException}. Copy the list if you need a modifiable version of it, e.g.
+ * {@code new ArrayList<>(list)}.
  */
 public class ResourceList extends PotentiallyUnmodifiableList<Resource> implements AutoCloseable {
     /** serialVersionUID. */
@@ -136,7 +138,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
                     matchingResources.add(res);
                 }
             }
-            return matchingResources;
+            return unmodifiable(matchingResources);
         }
     }
 
@@ -153,7 +155,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
         for (final Resource resource : this) {
             resourcePaths.add(resource.getPath());
         }
-        return resourcePaths;
+        return Collections.unmodifiableList(resourcePaths);
     }
 
     /**
@@ -167,7 +169,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
         for (final Resource resource : this) {
             resourcePaths.add(resource.getPathRelativeToClasspathElement());
         }
-        return resourcePaths;
+        return Collections.unmodifiableList(resourcePaths);
     }
 
     /**
@@ -185,7 +187,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
         for (final Resource resource : this) {
             resourceURLs.add(resource.getURL());
         }
-        return resourceURLs;
+        return Collections.unmodifiableList(resourceURLs);
     }
 
     /**
@@ -198,7 +200,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
         for (final Resource resource : this) {
             resourceURLs.add(resource.getURI());
         }
-        return resourceURLs;
+        return Collections.unmodifiableList(resourceURLs);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -247,7 +249,10 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
         for (final Resource resource : this) {
             pathToResourceList.computeIfAbsent(resource.getPath(), path -> new ResourceList(1)).add(resource);
         }
-        return pathToResourceList;
+        for (final ResourceList resourceList : pathToResourceList.values()) {
+            resourceList.makeUnmodifiable();
+        }
+        return Collections.unmodifiableMap(pathToResourceList);
     }
 
     /**
@@ -268,7 +273,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
         }
         // Sort in lexicographic order of path
         CollectionUtils.sortIfNotEmpty(duplicatePaths, Comparator.comparing(Entry<String, ResourceList>::getKey));
-        return duplicatePaths;
+        return Collections.unmodifiableList(duplicatePaths);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -305,7 +310,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
                 resourcesFiltered.add(resource);
             }
         }
-        return resourcesFiltered;
+        return unmodifiable(resourcesFiltered);
     }
 
     // -------------------------------------------------------------------------------------------------------------

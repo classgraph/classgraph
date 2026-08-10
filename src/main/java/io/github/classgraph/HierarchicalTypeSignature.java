@@ -28,6 +28,8 @@
  */
 package io.github.classgraph;
 
+import static io.github.classgraph.PotentiallyUnmodifiableList.unmodifiable;
+
 import java.util.List;
 
 import io.github.classgraph.Classfile.TypePathNode;
@@ -78,7 +80,7 @@ public abstract class HierarchicalTypeSignature extends ScanResultObject {
      * @return a list of {@link AnnotationInfo} objects for any type annotations on this type, or null if none.
      */
     public @Nullable AnnotationInfoList getTypeAnnotationInfo() {
-        return typeAnnotationInfo;
+        return typeAnnotationInfo == null ? null : unmodifiable(typeAnnotationInfo);
     }
 
     /**

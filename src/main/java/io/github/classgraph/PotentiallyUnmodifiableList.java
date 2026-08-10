@@ -31,8 +31,15 @@ package io.github.classgraph;
 import java.io.Serial;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Iterator;
+import java.util.List;
 import java.util.ListIterator;
+import java.util.function.Predicate;
+import java.util.function.UnaryOperator;
+
+import org.jspecify.annotations.Nullable;
 
 /**
  * A potentially unmodifiable list of objects.
@@ -78,6 +85,20 @@ class PotentiallyUnmodifiableList<T> extends ArrayList<T> {
     /** Make this list unmodifiable. */
     void makeUnmodifiable() {
         modifiable = false;
+    }
+
+    /**
+     * Make a list unmodifiable and return it, so that a list can be frozen in a return statement.
+     *
+     * @param <L>
+     *            the list type
+     * @param list
+     *            the list to make unmodifiable
+     * @return the list
+     */
+    static <L extends PotentiallyUnmodifiableList<?>> L unmodifiable(final L list) {
+        list.makeUnmodifiable();
+        return list;
     }
 
     @Override
@@ -203,8 +224,49 @@ class PotentiallyUnmodifiableList<T> extends ArrayList<T> {
     }
 
     @Override
+    public void sort(final @Nullable Comparator<? super T> c) {
+        if (!modifiable && !isEmpty()) {
+            throw new UnsupportedOperationException("List is immutable");
+        } else {
+            super.sort(c);
+        }
+    }
+
+    @Override
+    public boolean removeIf(final Predicate<? super T> filter) {
+        if (!modifiable && !isEmpty()) {
+            throw new UnsupportedOperationException("List is immutable");
+        } else {
+            return super.removeIf(filter);
+        }
+    }
+
+    @Override
+    public void replaceAll(final UnaryOperator<T> operator) {
+        if (!modifiable && !isEmpty()) {
+            throw new UnsupportedOperationException("List is immutable");
+        } else {
+            super.replaceAll(operator);
+        }
+    }
+
+    // ArrayList#subList returns a view that writes through to the backing array, bypassing the overrides in this
+    // class, so an unmodifiable view has to be wrapped around it
+
+    @Override
+    public List<T> subList(final int fromIndex, final int toIndex) {
+        final var subList = super.subList(fromIndex, toIndex);
+        return modifiable ? subList : Collections.unmodifiableList(subList);
+    }
+
+    @Override
     public ListIterator<T> listIterator() {
-        final var iterator = super.listIterator();
+        return listIterator(0);
+    }
+
+    @Override
+    public ListIterator<T> listIterator(final int index) {
+        final var iterator = super.listIterator(index);
         return new ListIterator<>() {
             @Override
             public boolean hasNext() {

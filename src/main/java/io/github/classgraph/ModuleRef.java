@@ -35,6 +35,7 @@ import java.lang.module.ModuleReader;
 import java.lang.module.ModuleReference;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import nonapi.io.github.classgraph.utils.Assert;
@@ -162,7 +163,7 @@ public class ModuleRef implements Comparable<ModuleRef> {
      * @return The list of packages in the module. (Does not include non-package directories.)
      */
     public List<String> getPackages() {
-        return packages;
+        return Collections.unmodifiableList(packages);
     }
 
     /**

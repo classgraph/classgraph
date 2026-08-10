@@ -596,15 +596,30 @@ Code that catches `IllegalArgumentException` around any of these calls needs to 
 new type. All of them are unchecked, so nothing fails to compile; if you catch
 `RuntimeException`, or `ClassGraphException` by name, nothing changes.
 
-### `getAllClassesAsMap()` and `getAllResourcesAsMap()` return unmodifiable maps
+### Every list and map returned by the API is now unmodifiable
 
-`ScanResult#getAllClassesAsMap()` and `#getAllResourcesAsMap()` returned ClassGraph's own
-internal maps, so writing to the returned map corrupted the scan result. They now return
-an unmodifiable view of the same map: reads are unchanged, and a write throws
-`UnsupportedOperationException`. Copy the map into a `HashMap` if you need to modify it.
+In 4.x, some returned lists were unmodifiable and some were not, with no way to tell which
+was which from the method signature — and several of the modifiable ones were ClassGraph's
+own internal lists, so writing to a returned list silently corrupted the scan result. In
+5.x the rule is uniform: **every `List` and `Map` handed back by the public API is
+unmodifiable**. Reads are unchanged; `add`, `remove`, `set`, `clear`, `sort`, `removeIf`,
+`replaceAll`, `put` and the rest all throw `UnsupportedOperationException`, as do the
+iterators, list iterators and sublists obtained from them. This includes derived lists such
+as those returned by `filter()`, `union()`, `intersect()`, `exclude()` and `directOnly()`,
+the plain `java.util.List` returns such as `InfoList#getNames()` and
+`ResourceList#getPaths()`, and the lists nested inside returned maps such as
+`MethodInfoList#asMap()` and `ResourceList#asMap()`.
 
-The views are live, as the returned maps always were: they reflect the scan result they
+Copy the collection if you need a modifiable version of it, e.g. `new ArrayList<>(list)` or
+`new HashMap<>(map)`. Lists you construct yourself, through a public constructor such as
+`new ClassInfoList(collection)`, are still modifiable.
+
+The returned maps are live views, as they always were: they reflect the scan result they
 came from, and stop being usable once it is closed.
+
+One consequence inside ClassGraph: `ScanResult#close()` no longer calls `clear()` on the
+cached resource list and resource map before dropping them, since the caller may be holding
+one of them. It drops the references instead, so the collections are still released.
 
 ### `ClassInfoList#getAssignableTo` accepts a class or a class name
 

@@ -88,8 +88,33 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
     }
 
     /**
-     * Construct a modifiable list of {@link ClassInfo} objects, consisting of reachable classes (obtained through
-     * the transitive closure) and directly related classes (one step away in the graph).
+     * Constructor.
+     *
+     * @param reachableClasses
+     *            reachable classes
+     * @param directlyRelatedClasses
+     *            directly related classes
+     * @param sortByName
+     *            whether to sort by name
+     * @param modifiable
+     *            whether the list may be modified after construction
+     */
+    private ClassInfoList(final Set<ClassInfo> reachableClasses,
+            final @Nullable Set<ClassInfo> directlyRelatedClasses, final boolean sortByName,
+            final boolean modifiable) {
+        // Sort a copy of the classes before handing them to the superclass constructor, rather than sorting this
+        // list once it has been built, so that a partly-initialized instance is never passed to another method
+        super(sortByName ? CollectionUtils.sortCopy(reachableClasses) : reachableClasses);
+        this.sortByName = sortByName;
+        // If directlyRelatedClasses was not provided, then assume all reachable classes were directly related
+        this.directlyRelatedClasses = directlyRelatedClasses == null ? reachableClasses : directlyRelatedClasses;
+        this.modifiable = modifiable;
+    }
+
+    /**
+     * Construct an unmodifiable list of {@link ClassInfo} objects, consisting of reachable classes (obtained
+     * through the transitive closure) and directly related classes (one step away in the graph). This is the
+     * constructor used to build the result lists returned by the public API, which are all unmodifiable.
      *
      * @param reachableClasses
      *            reachable classes
@@ -100,16 +125,11 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      */
     ClassInfoList(final Set<ClassInfo> reachableClasses, final @Nullable Set<ClassInfo> directlyRelatedClasses,
             final boolean sortByName) {
-        // Sort a copy of the classes before handing them to the superclass constructor, rather than sorting this
-        // list once it has been built, so that a partly-initialized instance is never passed to another method
-        super(sortByName ? CollectionUtils.sortCopy(reachableClasses) : reachableClasses);
-        this.sortByName = sortByName;
-        // If directlyRelatedClasses was not provided, then assume all reachable classes were directly related
-        this.directlyRelatedClasses = directlyRelatedClasses == null ? reachableClasses : directlyRelatedClasses;
+        this(reachableClasses, directlyRelatedClasses, sortByName, /* modifiable = */ false);
     }
 
     /**
-     * Construct a modifiable list of {@link ClassInfo} objects.
+     * Construct an unmodifiable list of {@link ClassInfo} objects.
      *
      * @param reachableAndDirectlyRelatedClasses
      *            reachable and directly related classes
@@ -123,7 +143,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
     }
 
     /**
-     * Construct a modifiable list of {@link ClassInfo} objects, where each class is directly related.
+     * Construct an unmodifiable list of {@link ClassInfo} objects, where each class is directly related.
      *
      * @param reachableClasses
      *            reachable classes
@@ -171,7 +191,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
                 "classInfoCollection must not be null") instanceof final Set<ClassInfo> classInfoSet //
                         ? classInfoSet
                         : new HashSet<>(classInfoCollection), //
-                /* directlyRelatedClasses = */ null, /* sortByName = */ true);
+                /* directlyRelatedClasses = */ null, /* sortByName = */ true, /* modifiable = */ true);
     }
 
     // -------------------------------------------------------------------------------------------------------------

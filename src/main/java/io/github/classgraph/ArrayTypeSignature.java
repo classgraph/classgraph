@@ -172,7 +172,7 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
      */
     @Override
     public @Nullable AnnotationInfoList getTypeAnnotationInfo() {
-        return typeAnnotationInfo;
+        return super.getTypeAnnotationInfo();
     }
 
     // -------------------------------------------------------------------------------------------------------------
