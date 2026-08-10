@@ -329,33 +329,14 @@ public class NestedJarHandler {
             isDirectory = true;
             childPath = childPath.substring(0, childPath.length() - 1);
         }
-        FastZipEntry childZipEntry = null;
-        if (!isDirectory) {
-            // If child path doesn't end with a slash, see if there's a non-directory entry with a name matching the
-            // child path (LogicalZipFile discards directory entries ending with a slash when reading the central
-            // directory of a zipfile).
-            // N.B. We perform an O(N) search here because we assume the number of classpath elements containing "!"
-            // sections is relatively small compared to the total number of entries in all jarfiles (i.e. building a
-            // HashMap of entry path to entry for every jarfile would generally be more expensive than performing
-            // this linear search, and unless the classpath is enormous, the overall time performance will not tend
-            // towards O(N^2).
-            for (final FastZipEntry entry : parentLogicalZipFile.entries) {
-                if (entry.entryName.equals(childPath)) {
-                    childZipEntry = entry;
-                    break;
-                }
-            }
-        }
-        if (childZipEntry == null) {
-            // If there is no non-directory zipfile entry with a name matching the child path, test to see if any
-            // entries in the zipfile have the child path as a dir prefix
-            final var childPathPrefix = childPath + "/";
-            for (final FastZipEntry entry : parentLogicalZipFile.entries) {
-                if (entry.entryName.startsWith(childPathPrefix)) {
-                    isDirectory = true;
-                    break;
-                }
-            }
+        // If child path doesn't end with a slash, see if there's a non-directory entry with a name matching the
+        // child path (LogicalZipFile discards directory entries ending with a slash when reading the central
+        // directory of a zipfile)
+        final var childZipEntry = isDirectory ? null : findEntry(parentLogicalZipFile, childPath);
+        if (childZipEntry == null && hasEntriesUnderDir(parentLogicalZipFile, childPath)) {
+            // If there is no non-directory zipfile entry with a name matching the child path, the child path is a
+            // directory if any entries in the zipfile have it as a dir prefix
+            isDirectory = true;
         }
         // At this point, either isDirectory is true, or childZipEntry is non-null
 
@@ -384,36 +365,93 @@ public class NestedJarHandler {
         }
 
         // The child path corresponds to a non-directory zip entry, so it must be a nested jar (since non-jar nested
-        // files cannot be used on the classpath). Map the nested jar as a new ZipFileSlice if it is stored, or
-        // inflate it to RAM or to a temporary file if it is deflated, then create a new ZipFileSlice over the
-        // temporary file or ByteBuffer.
+        // files cannot be used on the classpath)
+        return new SimpleEntry<>(openNestedJarEntry(childZipEntry, log), "");
+    }
 
+    /**
+     * Find a non-directory zip entry with a given name. {@link LogicalZipFile} discards directory entries ending
+     * with a slash when it reads the central directory of a zipfile, so only file entries can be matched.
+     *
+     * <p>
+     * N.B. this performs an O(N) search, because the number of classpath elements containing {@code '!'} sections
+     * is assumed to be small relative to the total number of entries in all jarfiles (i.e. building a map from
+     * entry path to entry for every jarfile would generally be more expensive than performing this linear search,
+     * and unless the classpath is enormous, the overall time performance will not tend towards O(N^2)).
+     *
+     * @param logicalZipFile
+     *            the zipfile to search
+     * @param entryName
+     *            the entry name to search for
+     * @return the matching {@link FastZipEntry}, or null if there is no entry with that name
+     */
+    private static @Nullable FastZipEntry findEntry(final LogicalZipFile logicalZipFile, final String entryName) {
+        for (final FastZipEntry entry : logicalZipFile.entries) {
+            if (entry.entryName.equals(entryName)) {
+                return entry;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Test whether any entry of a zipfile is within a given directory, i.e. whether the directory path is a prefix
+     * of any entry name.
+     *
+     * @param logicalZipFile
+     *            the zipfile to search
+     * @param dirPath
+     *            the directory path, without a trailing slash
+     * @return true if at least one entry is within the directory
+     */
+    private static boolean hasEntriesUnderDir(final LogicalZipFile logicalZipFile, final String dirPath) {
+        final var dirPathPrefix = dirPath + "/";
+        for (final FastZipEntry entry : logicalZipFile.entries) {
+            if (entry.entryName.startsWith(dirPathPrefix)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Open a zip entry that contains a nested jarfile as a {@link LogicalZipFile}. The nested jar is mapped as a
+     * new {@link ZipFileSlice} if it is stored, or inflated to RAM or to a temporary file if it is deflated, then a
+     * new {@link ZipFileSlice} is created over the temporary file or {@link java.nio.ByteBuffer ByteBuffer}.
+     *
+     * @param zipEntry
+     *            the zip entry containing the nested jarfile
+     * @param log
+     *            the log node, or null to skip logging
+     * @return the {@link LogicalZipFile} for the nested jarfile
+     * @throws IOException
+     *             if the nested jarfile could not be opened
+     * @throws InterruptedException
+     *             if the thread was interrupted
+     */
+    private LogicalZipFile openNestedJarEntry(final FastZipEntry zipEntry, final @Nullable LogNode log)
+            throws IOException, InterruptedException {
         // Get zip entry as a ZipFileSlice, possibly inflating to disk or RAM
-        final ZipFileSlice childZipEntrySlice;
+        final ZipFileSlice zipEntrySlice;
         try {
-            childZipEntrySlice = fastZipEntryToZipFileSliceMap().get(childZipEntry, log);
+            zipEntrySlice = fastZipEntryToZipFileSliceMap().get(zipEntry, log);
         } catch (final NullSingletonException e) {
-            throw new IOException("Could not get child zip entry slice " + childZipEntry + " : " + e);
+            throw new IOException("Could not get child zip entry slice " + zipEntry + " : " + e);
         } catch (final NewInstanceException e) {
-            throw new IOException("Could not get child zip entry slice " + childZipEntry, e);
+            throw new IOException("Could not get child zip entry slice " + zipEntry, e);
         }
 
         final var zipSliceLog = log == null ? null
-                : log.log("Getting zipfile slice " + childZipEntrySlice + " for nested jar "
-                        + childZipEntry.entryName);
+                : log.log("Getting zipfile slice " + zipEntrySlice + " for nested jar " + zipEntry.entryName);
 
         // Get or create a new LogicalZipFile for the child zipfile
-        LogicalZipFile childLogicalZipFile;
         try {
-            childLogicalZipFile = zipFileSliceToLogicalZipFileMap().get(childZipEntrySlice, zipSliceLog);
+            return zipFileSliceToLogicalZipFileMap().get(zipEntrySlice, zipSliceLog);
         } catch (final NullSingletonException e) {
-            throw new IOException("Could not get child logical zipfile " + childZipEntrySlice + " : " + e);
+            throw new IOException("Could not get child logical zipfile " + zipEntrySlice + " : " + e);
         } catch (final NewInstanceException e) {
-            throw new IOException("Could not get child logical zipfile " + childZipEntrySlice, e);
+            throw new IOException("Could not get child logical zipfile " + zipEntrySlice, e);
         }
-
-        // Return new logical zipfile with an empty package root
-        return new SimpleEntry<>(childLogicalZipFile, "");
     }
 
     // -------------------------------------------------------------------------------------------------------------
