@@ -140,9 +140,12 @@ by anything that ignored the `nonapi` package naming.
 
 A serialized `ScanResult` was never a stable format: it carried an internal format version
 that changed whenever the fields of the scan result classes changed, and reading a
-`ScanResult` written by a different version of ClassGraph failed. If you need to persist
-scan results, serialize the specific facts your application needs with a real JSON library
-(Jackson, Gson, `jackson-jr`, …), from your own value types.
+`ScanResult` written by a different version of ClassGraph failed.
+
+JSON serialization of a `ScanResult`, or of the objects linked from it (`ClassInfo`,
+`MethodInfo`, `FieldInfo`, and the rest), is not supported in 5.x, whether by ClassGraph or
+by pointing a JSON library at them. If you need scan results as JSON, read the information
+you need from the `ScanResult`, then generate your own JSON format from that.
 
 Removing it also removes the no-argument constructor that every scan result class
 (`ClassInfo`, `FieldInfo`, `MethodInfo`, `AnnotationInfo`, `PackageInfo`, `ModuleInfo` and
