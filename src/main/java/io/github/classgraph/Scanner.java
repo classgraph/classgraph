@@ -577,6 +577,44 @@ class Scanner implements Callable<ScanResult> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Determine whether a normalized classpath entry object names a jar (or other zipfile) rather than a directory.
+     *
+     * @param classpathEntryObj
+     *            the normalized classpath entry object
+     * @return true if the classpath entry is a jar, false if it is a directory
+     * @throws IOException
+     *             if the classpath entry is unreadable, or is of a type that cannot be scanned
+     */
+    private static boolean classpathEntryIsJar(final Object classpathEntryObj) throws IOException {
+        if (classpathEntryObj instanceof URL || classpathEntryObj instanceof URI) {
+            // URLs and URIs always point to jars
+            return true;
+        }
+        if (!(classpathEntryObj instanceof final Path path)) {
+            // Should not happen
+            throw new IOException("Got unexpected classpath entry object type "
+                    + classpathEntryObj.getClass().getName() + " : " + classpathEntryObj);
+        }
+        if ("JrtFileSystem".equals(path.getFileSystem().getClass().getSimpleName())) {
+            // Ignore JrtFileSystem (#553) -- paths are of form: /modules/java.base/module-info.class
+            throw new IOException(
+                    "Ignoring JrtFS filesystem path (modules are scanned using the JPMS API): " + path);
+        }
+        if (!FileUtils.canRead(path)) {
+            throw new IOException("Cannot read path: " + path);
+        }
+        final var attributes = Files.readAttributes(path, BasicFileAttributes.class);
+        if (attributes.isRegularFile()) {
+            // The Path points to a file, so it must be a jar
+            return true;
+        }
+        if (attributes.isDirectory()) {
+            return false;
+        }
+        throw new IOException("Not a file or directory: " + path);
+    }
+
+    /**
      * Create a WorkUnitProcessor for opening traditional classpath entries (which are mapped to
      * {@link ClasspathElementDir} or {@link ClasspathElementZip} -- {@link ClasspathElementModule} is handled
      * separately).
@@ -596,35 +634,7 @@ class Scanner implements Callable<ScanResult> {
                 workUnit.classpathEntryObj = classpathEntryObj;
 
                 // Determine if classpath entry is a jar or dir
-                final boolean isJar;
-                if (classpathEntryObj instanceof URL || classpathEntryObj instanceof URI) {
-                    // URLs and URIs always point to jars
-                    isJar = true;
-                } else if (classpathEntryObj instanceof final Path path) {
-                    if ("JrtFileSystem".equals(path.getFileSystem().getClass().getSimpleName())) {
-                        // Ignore JrtFileSystem (#553) -- paths are of form: /modules/java.base/module-info.class
-                        throw new IOException("Ignoring JrtFS filesystem path "
-                                + "(modules are scanned using the JPMS API): " + path);
-                    }
-                    if (!FileUtils.canRead(path)) {
-                        throw new IOException("Cannot read path: " + path);
-                    } else {
-                        final var attributes = Files.readAttributes(path, BasicFileAttributes.class);
-                        if (attributes.isRegularFile()) {
-                            // classpathEntObj is a Path which points to a file, so it must be a jar
-                            isJar = true;
-                        } else if (attributes.isDirectory()) {
-                            // classpathEntObj is a Path which points to a dir
-                            isJar = false;
-                        } else {
-                            throw new IOException("Not a file or directory: " + path);
-                        }
-                    }
-                } else {
-                    // Should not happen
-                    throw new IOException("Got unexpected classpath entry object type "
-                            + classpathEntryObj.getClass().getName() + " : " + classpathEntryObj);
-                }
+                final var isJar = classpathEntryIsJar(classpathEntryObj);
 
                 // Create a ClasspathElementZip or ClasspathElementDir from the classpath entry. Use a singleton map
                 // to ensure that classpath elements are only opened once per unique Path, URL, or URI

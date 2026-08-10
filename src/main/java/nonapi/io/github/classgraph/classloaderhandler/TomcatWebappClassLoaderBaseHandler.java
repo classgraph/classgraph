@@ -120,47 +120,7 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
                 // EmptyResourceSet}
                 for (final Object webResourceSet : webResourceSetList) {
                     if (webResourceSet != null) {
-                        // For DirResourceSet
-                        final var file = (File) classpathOrder.reflectionUtils.invokeMethod(false, webResourceSet,
-                                "getFileBase");
-                        var base = file == null ? null : file.getPath();
-                        if (base == null) {
-                            // For FileResourceSet
-                            base = (String) classpathOrder.reflectionUtils.invokeMethod(false, webResourceSet,
-                                    "getBase");
-                        }
-                        if (base == null) {
-                            // For JarResourceSet and JarWarResourceSet, the absolute path to the WAR file on the
-                            // file system in which the JAR is located
-                            base = (String) classpathOrder.reflectionUtils.invokeMethod(false, webResourceSet,
-                                    "getBaseUrlString");
-                        }
-                        if (base != null) {
-                            // For JarWarResourceSet: the path within the WAR file where the JAR file is located
-                            final var archivePath = (String) classpathOrder.reflectionUtils.getFieldVal(false,
-                                    webResourceSet, "archivePath");
-                            if (archivePath != null && !archivePath.isEmpty()) {
-                                // If archivePath is non-null, this is a jar within a war
-                                base += "!" + (archivePath.startsWith("/") ? archivePath : "/" + archivePath);
-                            }
-                            final var className = webResourceSet.getClass().getName();
-                            // (These class names previously had a spurious "java." prefix, so isJar was always
-                            // false, and the internal path of a resource JAR was appended as a directory path
-                            // rather than as a path within the JAR)
-                            final var isJar = "org.apache.catalina.webresources.JarResourceSet".equals(className)
-                                    || "org.apache.catalina.webresources.JarWarResourceSet".equals(className);
-                            // The path within this WebResourceSet where resources will be served from, e.g. for a
-                            // resource JAR, this would be "META-INF/resources"
-                            final var internalPath = (String) classpathOrder.reflectionUtils.invokeMethod(false,
-                                    webResourceSet, "getInternalPath");
-                            if (internalPath != null && !internalPath.isEmpty() && !"/".equals(internalPath)) {
-                                classpathOrder.addClasspathEntryObject(base + (isJar ? "!" : "")
-                                        + (internalPath.startsWith("/") ? internalPath : "/" + internalPath),
-                                        classLoader, scanSpec, log);
-                            } else {
-                                classpathOrder.addClasspathEntryObject(base, classLoader, scanSpec, log);
-                            }
-                        }
+                        addWebResourceSet(webResourceSet, classLoader, classpathOrder, scanSpec, log);
                     }
                 }
             }
@@ -168,6 +128,64 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
         // This may or may not duplicate the above
         final var urls = classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getURLs");
         classpathOrder.addClasspathEntryObject(urls, classLoader, scanSpec, log);
+    }
+
+    /**
+     * Add the classpath entry that a single Catalina {@code WebResourceSet} serves resources from.
+     *
+     * @param webResourceSet
+     *            the {@code WebResourceSet}, one of {@code DirResourceSet}, {@code FileResourceSet},
+     *            {@code JarResourceSet}, {@code JarWarResourceSet} or {@code EmptyResourceSet}.
+     * @param classLoader
+     *            the classloader the {@code WebResourceSet} was found in.
+     * @param classpathOrder
+     *            the classpath order to add the classpath entry to.
+     * @param scanSpec
+     *            the scan spec.
+     * @param log
+     *            the log.
+     */
+    private static void addWebResourceSet(final Object webResourceSet, final ClassLoader classLoader,
+            final ClasspathOrder classpathOrder, final ScanSpec scanSpec, final @Nullable LogNode log) {
+        // For DirResourceSet
+        final var file = (File) classpathOrder.reflectionUtils.invokeMethod(false, webResourceSet, "getFileBase");
+        var base = file == null ? null : file.getPath();
+        if (base == null) {
+            // For FileResourceSet
+            base = (String) classpathOrder.reflectionUtils.invokeMethod(false, webResourceSet, "getBase");
+        }
+        if (base == null) {
+            // For JarResourceSet and JarWarResourceSet, the absolute path to the WAR file on the file system in
+            // which the JAR is located
+            base = (String) classpathOrder.reflectionUtils.invokeMethod(false, webResourceSet, "getBaseUrlString");
+        }
+        if (base == null) {
+            // This WebResourceSet serves nothing from the filesystem (e.g. EmptyResourceSet)
+            return;
+        }
+        // For JarWarResourceSet: the path within the WAR file where the JAR file is located
+        final var archivePath = (String) classpathOrder.reflectionUtils.getFieldVal(false, webResourceSet,
+                "archivePath");
+        if (archivePath != null && !archivePath.isEmpty()) {
+            // If archivePath is non-null, this is a jar within a war
+            base += "!" + (archivePath.startsWith("/") ? archivePath : "/" + archivePath);
+        }
+        final var className = webResourceSet.getClass().getName();
+        // (These class names previously had a spurious "java." prefix, so isJar was always false, and the internal
+        // path of a resource JAR was appended as a directory path rather than as a path within the JAR)
+        final var isJar = "org.apache.catalina.webresources.JarResourceSet".equals(className)
+                || "org.apache.catalina.webresources.JarWarResourceSet".equals(className);
+        // The path within this WebResourceSet where resources will be served from, e.g. for a resource JAR, this
+        // would be "META-INF/resources"
+        final var internalPath = (String) classpathOrder.reflectionUtils.invokeMethod(false, webResourceSet,
+                "getInternalPath");
+        if (internalPath != null && !internalPath.isEmpty() && !"/".equals(internalPath)) {
+            classpathOrder.addClasspathEntryObject(
+                    base + (isJar ? "!" : "") + (internalPath.startsWith("/") ? internalPath : "/" + internalPath),
+                    classLoader, scanSpec, log);
+        } else {
+            classpathOrder.addClasspathEntryObject(base, classLoader, scanSpec, log);
+        }
     }
 
     /**

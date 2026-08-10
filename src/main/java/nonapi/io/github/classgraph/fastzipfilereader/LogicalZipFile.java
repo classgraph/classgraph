@@ -736,31 +736,7 @@ public class LogicalZipFile extends ZipFileSlice {
                 break;
             }
             if (tag == 1 && size >= 20) {
-                // Zip64 extended information extra field
-                final var uncompressedSize64 = cenReader.readLong(tagOff + 4 + 0);
-                if (entryFields.uncompressedSize == 0xffffffffL) {
-                    entryFields.uncompressedSize = uncompressedSize64;
-                } else if (entryFields.uncompressedSize != uncompressedSize64) {
-                    throw new IOException("Mismatch in uncompressed size: " + entryFields.uncompressedSize + " vs. "
-                            + uncompressedSize64 + ": " + entryFields.entryNameSanitized);
-                }
-                final var compressedSize64 = cenReader.readLong(tagOff + 4 + 8);
-                if (entryFields.compressedSize == 0xffffffffL) {
-                    entryFields.compressedSize = compressedSize64;
-                } else if (entryFields.compressedSize != compressedSize64) {
-                    throw new IOException("Mismatch in compressed size: " + entryFields.compressedSize + " vs. "
-                            + compressedSize64 + ": " + entryFields.entryNameSanitized);
-                }
-                // Only compressed size and uncompressed size are required fields
-                if (size >= 28) {
-                    final var pos64 = cenReader.readLong(tagOff + 4 + 16);
-                    if (entryFields.pos == 0xffffffffL) {
-                        entryFields.pos = pos64;
-                    } else if (entryFields.pos != pos64) {
-                        throw new IOException("Mismatch in entry pos: " + entryFields.pos + " vs. " + pos64 + ": "
-                                + entryFields.entryNameSanitized);
-                    }
-                }
+                readZip64ExtraField(cenReader, tagOff, size, entryFields);
                 break;
 
             } else if (tag == 0x5455 && size >= 5) {
@@ -779,32 +755,96 @@ public class LogicalZipFile extends ZipFileSlice {
                 // Info-ZIP Unix UID and GID fields (currently ignored)
 
             } else if (tag == 0x7075) {
-                // Info-ZIP Unicode path extra field
-                final var version = cenReader.readUnsignedByte(tagOff + 4 + 0);
-                if (version != 1) {
-                    throw new IOException("Unknown Unicode entry name format " + version + " in extra field: "
-                            + entryFields.entryNameSanitized);
-                } else if (size > 5) {
-                    // Replace non-Unicode entry name with Unicode version. The data area of this extra field is
-                    // version(1) + nameCRC32(4) + name, so the name starts 5 bytes into the data area (i.e. 9
-                    // bytes after the tag), and is (size - 5) bytes long.
-                    final String unicodeEntryName;
-                    try {
-                        unicodeEntryName = cenReader.readString(tagOff + 9, size - 5);
-                    } catch (final IllegalArgumentException e) {
-                        throw new IOException("Malformed extended Unicode entry name for entry: "
-                                + entryFields.entryNameSanitized);
-                    }
-                    // The replacement name has to be sanitized, and tested for naming a directory, exactly as the
-                    // name it replaces was -- otherwise an entry can carry a path such as "pkg/../../x" or
-                    // "/abs/x" simply by declaring it here
-                    entryFields.entryNameSanitized = FileUtils.sanitizeEntryPath(unicodeEntryName,
-                            /* removeInitialSlash = */ true, /* removeFinalSlash = */ false);
-                    entryFields.renamedToDirectoryEntry = entryFields.entryNameSanitized.isEmpty()
-                            || unicodeEntryName.endsWith("/");
-                }
+                readUnicodePathExtraField(cenReader, tagOff, size, entryFields);
             }
             extraFieldOff += 4 + size;
+        }
+    }
+
+    /**
+     * Read a Zip64 extended information extra field, which gives the true sizes and local file header offset of an
+     * entry whose 32-bit values are too large to store in the central directory record.
+     *
+     * @param cenReader
+     *            a reader for the central directory
+     * @param tagOff
+     *            the offset of the extra field's tag within the central directory
+     * @param size
+     *            the size of the extra field's data area
+     * @param entryFields
+     *            the fields of the entry, which are overridden in place
+     * @throws IOException
+     *             If an I/O exception occurs, or a size or offset in this extra field contradicts the one in the
+     *             central directory record.
+     */
+    private static void readZip64ExtraField(final RandomAccessReader cenReader, final long tagOff, final int size,
+            final EntryFields entryFields) throws IOException {
+        final var uncompressedSize64 = cenReader.readLong(tagOff + 4 + 0);
+        if (entryFields.uncompressedSize == 0xffffffffL) {
+            entryFields.uncompressedSize = uncompressedSize64;
+        } else if (entryFields.uncompressedSize != uncompressedSize64) {
+            throw new IOException("Mismatch in uncompressed size: " + entryFields.uncompressedSize + " vs. "
+                    + uncompressedSize64 + ": " + entryFields.entryNameSanitized);
+        }
+        final var compressedSize64 = cenReader.readLong(tagOff + 4 + 8);
+        if (entryFields.compressedSize == 0xffffffffL) {
+            entryFields.compressedSize = compressedSize64;
+        } else if (entryFields.compressedSize != compressedSize64) {
+            throw new IOException("Mismatch in compressed size: " + entryFields.compressedSize + " vs. "
+                    + compressedSize64 + ": " + entryFields.entryNameSanitized);
+        }
+        // Only compressed size and uncompressed size are required fields
+        if (size >= 28) {
+            final var pos64 = cenReader.readLong(tagOff + 4 + 16);
+            if (entryFields.pos == 0xffffffffL) {
+                entryFields.pos = pos64;
+            } else if (entryFields.pos != pos64) {
+                throw new IOException("Mismatch in entry pos: " + entryFields.pos + " vs. " + pos64 + ": "
+                        + entryFields.entryNameSanitized);
+            }
+        }
+    }
+
+    /**
+     * Read an Info-ZIP Unicode path extra field, which gives the entry's name in UTF-8 when the name in the central
+     * directory record is in some other encoding.
+     *
+     * @param cenReader
+     *            a reader for the central directory
+     * @param tagOff
+     *            the offset of the extra field's tag within the central directory
+     * @param size
+     *            the size of the extra field's data area
+     * @param entryFields
+     *            the fields of the entry, which are overridden in place
+     * @throws IOException
+     *             If an I/O exception occurs, or the extra field is of an unknown version, or its entry name is
+     *             malformed.
+     */
+    private static void readUnicodePathExtraField(final RandomAccessReader cenReader, final long tagOff,
+            final int size, final EntryFields entryFields) throws IOException {
+        final var version = cenReader.readUnsignedByte(tagOff + 4 + 0);
+        if (version != 1) {
+            throw new IOException("Unknown Unicode entry name format " + version + " in extra field: "
+                    + entryFields.entryNameSanitized);
+        } else if (size > 5) {
+            // Replace non-Unicode entry name with Unicode version. The data area of this extra field is
+            // version(1) + nameCRC32(4) + name, so the name starts 5 bytes into the data area (i.e. 9
+            // bytes after the tag), and is (size - 5) bytes long.
+            final String unicodeEntryName;
+            try {
+                unicodeEntryName = cenReader.readString(tagOff + 9, size - 5);
+            } catch (final IllegalArgumentException e) {
+                throw new IOException(
+                        "Malformed extended Unicode entry name for entry: " + entryFields.entryNameSanitized);
+            }
+            // The replacement name has to be sanitized, and tested for naming a directory, exactly as the
+            // name it replaces was -- otherwise an entry can carry a path such as "pkg/../../x" or
+            // "/abs/x" simply by declaring it here
+            entryFields.entryNameSanitized = FileUtils.sanitizeEntryPath(unicodeEntryName,
+                    /* removeInitialSlash = */ true, /* removeFinalSlash = */ false);
+            entryFields.renamedToDirectoryEntry = entryFields.entryNameSanitized.isEmpty()
+                    || unicodeEntryName.endsWith("/");
         }
     }
 

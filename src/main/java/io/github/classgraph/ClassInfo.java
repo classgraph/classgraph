@@ -956,12 +956,39 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             // Clone collection to prevent users modifying contents accidentally or intentionally
             directlyRelatedClasses = new LinkedHashSet<>(directlyRelatedClasses);
         }
+        final var reachableClasses = findReachableClasses(relType, directlyRelatedClasses);
+        if (reachableClasses.isEmpty()) {
+            return NO_REACHABLE_CLASSES;
+        }
+
+        if (relType == RelType.CLASS_ANNOTATIONS || relType == RelType.METHOD_ANNOTATIONS
+                || relType == RelType.METHOD_PARAMETER_ANNOTATIONS || relType == RelType.FIELD_ANNOTATIONS) {
+            removeInheritedJavaLangAnnotations(reachableClasses, directlyRelatedClasses);
+        }
+
+        return new ReachableAndDirectlyRelatedClasses(
+                filterClassInfo(reachableClasses, scanResult().scanSpec, strictAccept, classTypes),
+                filterClassInfo(directlyRelatedClasses, scanResult().scanSpec, strictAccept, classTypes));
+
+    }
+
+    /**
+     * Find the transitive closure of the classes reachable from this one for the given relationship type.
+     *
+     * @param relType
+     *            the relationship type
+     * @param directlyRelatedClasses
+     *            the classes that are one relationship step away from this one
+     * @return the reachable classes, including the directly related classes
+     */
+    private Set<ClassInfo> findReachableClasses(final RelType relType,
+            final Set<ClassInfo> directlyRelatedClasses) {
         final Set<ClassInfo> reachableClasses = new LinkedHashSet<>(directlyRelatedClasses);
         if (relType == RelType.METHOD_ANNOTATIONS || relType == RelType.METHOD_PARAMETER_ANNOTATIONS
                 || relType == RelType.FIELD_ANNOTATIONS) {
             // For method and field annotations, need to change the RelType when finding meta-annotations
             for (final ClassInfo annotation : directlyRelatedClasses) {
-                // Don't filter this intermediate traversal -- the result is filtered below
+                // Don't filter this intermediate traversal -- the result is filtered by the caller
                 reachableClasses.addAll(annotation
                         .filterClassInfo(RelType.CLASS_ANNOTATIONS, /* strictAccept = */ false).reachableClasses());
             }
@@ -974,7 +1001,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             // If looking for meta-annotated methods or fields, need to find all meta-annotated annotations, then
             // look for the methods or fields that they annotate. Don't filter this intermediate traversal -- an
             // accepted class can be annotated by an external annotation that is itself meta-annotated by this one.
-            // The result is filtered below.
+            // The result is filtered by the caller.
             for (final ClassInfo subAnnotation : this.filterClassInfo(RelType.CLASSES_WITH_ANNOTATION,
                     /* strictAccept = */ false, ClassType.ANNOTATION).reachableClasses()) {
                 final var annotatedClasses = subAnnotation.relatedClasses.get(relType);
@@ -999,34 +1026,36 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 }
             }
         }
-        if (reachableClasses.isEmpty()) {
-            return NO_REACHABLE_CLASSES;
-        }
+        return reachableClasses;
+    }
 
-        if (relType == RelType.CLASS_ANNOTATIONS || relType == RelType.METHOD_ANNOTATIONS
-                || relType == RelType.METHOD_PARAMETER_ANNOTATIONS || relType == RelType.FIELD_ANNOTATIONS) {
-            // Special case -- don't inherit java.lang.annotation.* meta-annotations as related meta-annotations
-            // (but still return them as direct meta-annotations on annotation classes).
-            Set<ClassInfo> reachableClassesToRemove = null;
-            for (final ClassInfo reachableClassInfo : reachableClasses) {
-                // Remove all java.lang.annotation annotations that are not directly related to this class
-                if (reachableClassInfo.getName().startsWith("java.lang.annotation.")
-                        && !directlyRelatedClasses.contains(reachableClassInfo)) {
-                    if (reachableClassesToRemove == null) {
-                        reachableClassesToRemove = new LinkedHashSet<>();
-                    }
-                    reachableClassesToRemove.add(reachableClassInfo);
+    /**
+     * Remove from the reachable classes any {@code java.lang.annotation.*} meta-annotation that was reached
+     * indirectly, since meta-annotations of meta-annotations should not be inherited. Directly related
+     * {@code java.lang.annotation.*} annotations are still returned as direct meta-annotations of annotation
+     * classes.
+     *
+     * @param reachableClasses
+     *            the reachable classes, which are modified in place
+     * @param directlyRelatedClasses
+     *            the classes that are one relationship step away from this one
+     */
+    private static void removeInheritedJavaLangAnnotations(final Set<ClassInfo> reachableClasses,
+            final Set<ClassInfo> directlyRelatedClasses) {
+        Set<ClassInfo> reachableClassesToRemove = null;
+        for (final ClassInfo reachableClassInfo : reachableClasses) {
+            // Remove all java.lang.annotation annotations that are not directly related to this class
+            if (reachableClassInfo.getName().startsWith("java.lang.annotation.")
+                    && !directlyRelatedClasses.contains(reachableClassInfo)) {
+                if (reachableClassesToRemove == null) {
+                    reachableClassesToRemove = new LinkedHashSet<>();
                 }
-            }
-            if (reachableClassesToRemove != null) {
-                reachableClasses.removeAll(reachableClassesToRemove);
+                reachableClassesToRemove.add(reachableClassInfo);
             }
         }
-
-        return new ReachableAndDirectlyRelatedClasses(
-                filterClassInfo(reachableClasses, scanResult().scanSpec, strictAccept, classTypes),
-                filterClassInfo(directlyRelatedClasses, scanResult().scanSpec, strictAccept, classTypes));
-
+        if (reachableClassesToRemove != null) {
+            reachableClasses.removeAll(reachableClassesToRemove);
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
