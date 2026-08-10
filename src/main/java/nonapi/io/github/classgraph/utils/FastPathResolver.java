@@ -238,6 +238,198 @@ public final class FastPathResolver {
         return sepIdx < 0 ? jarUrl : jarUrl.substring(0, sepIdx) + "!/" + jarUrl.substring(sepIdx + sepLen);
     }
 
+    /** What the prefix at the beginning of a path says about the rest of the path. */
+    private static final class ParsedPrefix {
+        /** The prefix to put back in front of the resolved path, e.g. {@code "https://"}. */
+        String prefix = "";
+
+        /** True if the path after the prefix is an absolute path, so no base path is resolved against it. */
+        boolean isAbsolutePath;
+
+        /**
+         * True if what is left after the prefix is a filesystem path rather than a URL. Percent encoding is only
+         * decoded for a filesystem path: a path that is still a URL has to keep its encoding, or it can no longer
+         * be fetched, since a space decoded into {@code "jar:http://host/a%20b.jar!/x"} gives a URL that will not
+         * even parse as a URI. Each scheme sets this according to what it leaves behind, so the innermost scheme is
+         * the one that decides.
+         */
+        boolean remainderIsFilePath;
+
+        /** The index of the first character after the prefix. */
+        int startIdx;
+    }
+
+    /**
+     * Strip any number of nested URL scheme prefixes from the beginning of a path.
+     *
+     * @param path
+     *            the path
+     * @return what was stripped, and what it says about the rest of the path.
+     */
+    private static ParsedPrefix stripSchemePrefixes(final String path) {
+        final var parsed = new ParsedPrefix();
+        boolean matchedPrefix;
+        do {
+            matchedPrefix = false;
+            if (path.regionMatches(true, parsed.startIdx, "jar:", 0, 4)) {
+                // "jar:" prefix can be stripped. A "jar:" URL wraps an inner URL, so whether the result is a path
+                // is decided by the inner scheme, if there is one -- but a "jar:" prefix on a bare path, as in
+                // "jar:/dir/x.jar!/y", leaves a filesystem path behind
+                matchedPrefix = true;
+                parsed.startIdx += 4;
+                parsed.remainderIsFilePath = true;
+            } else if (path.regionMatches(true, parsed.startIdx, "http://", 0, 7)) {
+                // Detect http://
+                matchedPrefix = true;
+                parsed.startIdx += 7;
+                // Force protocol name to lowercase
+                parsed.prefix += "http://";
+                // Treat the part after the protocol as an absolute path, so the domain is not treated as a
+                // directory relative to the current directory.
+                parsed.isAbsolutePath = true;
+                // Don't un-escape percent encoding etc.
+                parsed.remainderIsFilePath = false;
+            } else if (path.regionMatches(true, parsed.startIdx, "https://", 0, 8)) {
+                // Detect https://
+                matchedPrefix = true;
+                parsed.startIdx += 8;
+                parsed.prefix += "https://";
+                parsed.isAbsolutePath = true;
+                parsed.remainderIsFilePath = false;
+            } else if (path.regionMatches(true, parsed.startIdx, "jrt:", 0, 4)) {
+                // Detect jrt:
+                matchedPrefix = true;
+                parsed.startIdx += 4;
+                parsed.prefix += "jrt:";
+                parsed.isAbsolutePath = true;
+                parsed.remainderIsFilePath = false;
+            } else if (path.regionMatches(true, parsed.startIdx, "file:", 0, 5)) {
+                // Strip off "file:" prefix from relative path
+                matchedPrefix = true;
+                parsed.startIdx += 5;
+                parsed.remainderIsFilePath = true;
+            } else {
+                // Preserve the number of slashes on custom URL schemes (#420)
+                final var relPath = parsed.startIdx == 0 ? path : path.substring(parsed.startIdx);
+                final var matcher = schemeOneOrTwoSlashMatcher.matcher(relPath);
+                if (matcher.find()) {
+                    matchedPrefix = true;
+                    final var match = matcher.group();
+                    parsed.startIdx += match.length();
+                    parsed.prefix += match;
+                    // Treat the part after the protocol as an absolute path, so the rest of the URL is not treated
+                    // as a directory relative to the current directory.
+                    parsed.isAbsolutePath = true;
+                    // The scheme is kept, so the result is still a URL
+                    parsed.remainderIsFilePath = false;
+                }
+            }
+        } while (matchedPrefix);
+        return parsed;
+    }
+
+    /**
+     * Strip the authority of a {@code "file:"} URL, which names the local machine and is not part of the path.
+     *
+     * @param path
+     *            the path
+     * @param parsed
+     *            the prefix parsed so far, updated in place
+     */
+    private static void stripFileUrlAuthority(final String path, final ParsedPrefix parsed) {
+        if (!parsed.remainderIsFilePath) {
+            return;
+        }
+
+        // A "file:" URL with an empty authority ("file:///path", which is the spelling that Path#toUri() produces)
+        // has two slashes that are not part of the path. Drop them, so that the path itself is what the checks
+        // below see -- otherwise on Windows the empty authority is read as the start of a UNC path, and
+        // "file:///C:/xyz" resolves to "///C:/xyz", which names neither a drive nor a network share
+        if (path.startsWith("///", parsed.startIdx)) {
+            parsed.startIdx += 2;
+        }
+
+        // A "file:" URL names the local machine either with an empty authority ("file:///path") or with the
+        // authority "localhost" ("file://localhost/path"), and the two mean the same local path (RFC 8089 section
+        // 2). Outside Windows there is no UNC concept, so the authority would otherwise be folded into the path
+        // and "file://localhost/tmp/a" would resolve to "/localhost/tmp/a", which names a different file. On
+        // Windows the authority is left alone, so that it becomes the UNC path "//localhost/tmp/a" -- that is both
+        // what Path#of(URI) produces there and what RFC 8089 appendix B.3 specifies
+        if (VersionFinder.OS != OperatingSystem.Windows
+                && path.regionMatches(true, parsed.startIdx, "//localhost/", 0, 12)) {
+            parsed.startIdx += "//localhost".length();
+        }
+    }
+
+    /**
+     * Determine whether what is left of a path after its scheme prefixes is an absolute path, stripping the Windows
+     * UNC prefix or the slash before a drive designation if either is present.
+     *
+     * @param path
+     *            the path
+     * @param parsed
+     *            the prefix parsed so far, updated in place
+     */
+    private static void stripAbsolutePathPrefix(final String path, final ParsedPrefix parsed) {
+        // Handle Windows paths starting with a drive designation as an absolute path
+        if (VersionFinder.OS == OperatingSystem.Windows) {
+            if (path.startsWith("//", parsed.startIdx) || path.startsWith("\\\\", parsed.startIdx)) {
+                // Windows UNC path
+                parsed.startIdx += 2;
+                parsed.prefix += "//";
+                parsed.isAbsolutePath = true;
+            } else if (path.length() - parsed.startIdx >= 2 && Character.isLetter(path.charAt(parsed.startIdx))
+                    && path.charAt(parsed.startIdx + 1) == ':') {
+                // Path like "C:/xyz", or the bare drive designation "C:"
+                parsed.isAbsolutePath = true;
+            } else if (path.length() - parsed.startIdx >= 3
+                    && (path.charAt(parsed.startIdx) == '/' || path.charAt(parsed.startIdx) == '\\')
+                    && Character.isLetter(path.charAt(parsed.startIdx + 1))
+                    && path.charAt(parsed.startIdx + 2) == ':') {
+                // Path like "/C:/xyz", or the bare drive designation "/C:"
+                parsed.isAbsolutePath = true;
+                parsed.startIdx++;
+            }
+        }
+        // Catch-all for paths starting with separator. A path consisting of nothing but a separator is the root
+        // path, which is absolute too, so one character is enough here
+        if (path.length() - parsed.startIdx >= 1
+                && (path.charAt(parsed.startIdx) == '/' || path.charAt(parsed.startIdx) == '\\')) {
+            parsed.isAbsolutePath = true;
+        }
+    }
+
+    /**
+     * Strip the trailing separator, and any trailing nested jar separator, from a normalized path.
+     *
+     * @param path
+     *            the normalized path
+     * @return the path, without any trailing separator.
+     */
+    private static String stripTrailingSeparators(final String path) {
+        if ("/".equals(path)) {
+            // The root path is the one path whose final separator is the whole of its name
+            return path;
+        }
+        var pathStr = path;
+        // Remove any "!/" on end of URL
+        if (pathStr.endsWith("/")) {
+            pathStr = pathStr.substring(0, pathStr.length() - 1);
+        }
+        // Only strip a trailing '!' if it is really a nested jar separator, i.e. if it marks the whole of the
+        // jarfile before it -- a trailing '!' is otherwise part of a directory name (#903). Use
+        // lastIndexOfNestedJarSeparator, not indexOfNestedJarSeparator, so that the trailing '!' of a doubly-nested
+        // path such as "/a/b.war!/WEB-INF/lib/c.jar!" is stripped too: the innermost separator is the relevant one,
+        // and this is the rule NestedJarHandler applies when splitting the resulting path back apart.
+        if (pathStr.endsWith("!") && JarUtils.lastIndexOfNestedJarSeparator(pathStr) == pathStr.length() - 1) {
+            pathStr = pathStr.substring(0, pathStr.length() - 1);
+        }
+        if (pathStr.endsWith("/")) {
+            pathStr = pathStr.substring(0, pathStr.length() - 1);
+        }
+        return pathStr.isEmpty() ? "/" : pathStr;
+    }
+
     /**
      * Strip away any "jar:" prefix from a filename URI, and convert it to a file path, handling possibly-broken
      * mixes of filesystem and URI conventions; resolve relative paths relative to resolveBasePath.
@@ -260,142 +452,13 @@ public final class FastPathResolver {
         // method sees a path it understands (#925)
         final var relativePath = warUrlToJarUrl(relativePathRaw);
 
-        var prefix = "";
-        var isAbsolutePath = false;
-        // Percent encoding is only decoded when what is left after the scheme prefixes have been stripped is a
-        // filesystem path. A path that is still a URL has to keep its encoding, or it can no longer be fetched: a
-        // space decoded into "jar:http://host/a%20b.jar!/x" gives a URL that will not even parse as a URI. So each
-        // scheme sets this according to what it leaves behind, and the innermost scheme is the one that decides
-        var remainderIsFilePath = false;
-        var startIdx = 0;
-        boolean matchedPrefix;
-        do {
-            matchedPrefix = false;
-            if (relativePath.regionMatches(true, startIdx, "jar:", 0, 4)) {
-                // "jar:" prefix can be stripped. A "jar:" URL wraps an inner URL, so whether the result is a path
-                // is decided by the inner scheme, if there is one -- but a "jar:" prefix on a bare path, as in
-                // "jar:/dir/x.jar!/y", leaves a filesystem path behind
-                matchedPrefix = true;
-                startIdx += 4;
-                remainderIsFilePath = true;
-            } else if (relativePath.regionMatches(true, startIdx, "http://", 0, 7)) {
-                // Detect http://
-                matchedPrefix = true;
-                startIdx += 7;
-                // Force protocol name to lowercase
-                prefix += "http://";
-                // Treat the part after the protocol as an absolute path, so the domain is not treated as a
-                // directory relative to the current directory.
-                isAbsolutePath = true;
-                // Don't un-escape percent encoding etc.
-                remainderIsFilePath = false;
-            } else if (relativePath.regionMatches(true, startIdx, "https://", 0, 8)) {
-                // Detect https://
-                matchedPrefix = true;
-                startIdx += 8;
-                prefix += "https://";
-                isAbsolutePath = true;
-                remainderIsFilePath = false;
-            } else if (relativePath.regionMatches(true, startIdx, "jrt:", 0, 4)) {
-                // Detect jrt:
-                matchedPrefix = true;
-                startIdx += 4;
-                prefix += "jrt:";
-                isAbsolutePath = true;
-                remainderIsFilePath = false;
-            } else if (relativePath.regionMatches(true, startIdx, "file:", 0, 5)) {
-                // Strip off "file:" prefix from relative path
-                matchedPrefix = true;
-                startIdx += 5;
-                remainderIsFilePath = true;
-            } else {
-                // Preserve the number of slashes on custom URL schemes (#420)
-                final var relPath = startIdx == 0 ? relativePath : relativePath.substring(startIdx);
-                final var matcher = schemeOneOrTwoSlashMatcher.matcher(relPath);
-                if (matcher.find()) {
-                    matchedPrefix = true;
-                    final var match = matcher.group();
-                    startIdx += match.length();
-                    prefix += match;
-                    // Treat the part after the protocol as an absolute path, so the rest of the URL is not treated
-                    // as a directory relative to the current directory.
-                    isAbsolutePath = true;
-                    // The scheme is kept, so the result is still a URL
-                    remainderIsFilePath = false;
-                }
-            }
-        } while (matchedPrefix);
-
-        // A "file:" URL with an empty authority ("file:///path", which is the spelling that Path#toUri() produces)
-        // has two slashes that are not part of the path. Drop them, so that the path itself is what the checks
-        // below see -- otherwise on Windows the empty authority is read as the start of a UNC path, and
-        // "file:///C:/xyz" resolves to "///C:/xyz", which names neither a drive nor a network share
-        if (remainderIsFilePath && relativePath.startsWith("///", startIdx)) {
-            startIdx += 2;
-        }
-
-        // A "file:" URL names the local machine either with an empty authority ("file:///path") or with the
-        // authority "localhost" ("file://localhost/path"), and the two mean the same local path (RFC 8089 section
-        // 2). Outside Windows there is no UNC concept, so the authority would otherwise be folded into the path
-        // and "file://localhost/tmp/a" would resolve to "/localhost/tmp/a", which names a different file. On
-        // Windows the authority is left alone, so that it becomes the UNC path "//localhost/tmp/a" -- that is both
-        // what Path#of(URI) produces there and what RFC 8089 appendix B.3 specifies
-        if (remainderIsFilePath && VersionFinder.OS != OperatingSystem.Windows
-                && relativePath.regionMatches(true, startIdx, "//localhost/", 0, 12)) {
-            startIdx += "//localhost".length();
-        }
-
-        // Handle Windows paths starting with a drive designation as an absolute path
-        if (VersionFinder.OS == OperatingSystem.Windows) {
-            if (relativePath.startsWith("//", startIdx) || relativePath.startsWith("\\\\", startIdx)) {
-                // Windows UNC path
-                startIdx += 2;
-                prefix += "//";
-                isAbsolutePath = true;
-            } else if (relativePath.length() - startIdx >= 2 && Character.isLetter(relativePath.charAt(startIdx))
-                    && relativePath.charAt(startIdx + 1) == ':') {
-                // Path like "C:/xyz", or the bare drive designation "C:"
-                isAbsolutePath = true;
-            } else if (relativePath.length() - startIdx >= 3
-                    && (relativePath.charAt(startIdx) == '/' || relativePath.charAt(startIdx) == '\\')
-                    && Character.isLetter(relativePath.charAt(startIdx + 1))
-                    && relativePath.charAt(startIdx + 2) == ':') {
-                // Path like "/C:/xyz", or the bare drive designation "/C:"
-                isAbsolutePath = true;
-                startIdx++;
-            }
-        }
-        // Catch-all for paths starting with separator. A path consisting of nothing but a separator is the root
-        // path, which is absolute too, so one character is enough here
-        if (relativePath.length() - startIdx >= 1
-                && (relativePath.charAt(startIdx) == '/' || relativePath.charAt(startIdx) == '\\')) {
-            isAbsolutePath = true;
-        }
+        final var parsed = stripSchemePrefixes(relativePath);
+        stripFileUrlAuthority(relativePath, parsed);
+        stripAbsolutePathPrefix(relativePath, parsed);
 
         // Normalize the path, then add any UNC or URL prefix
-        final var pathRaw = startIdx == 0 ? relativePath : relativePath.substring(startIdx);
-        var pathStr = normalizePath(pathRaw, remainderIsFilePath);
-        if (!"/".equals(pathStr)) {
-            // Remove any "!/" on end of URL
-            if (pathStr.endsWith("/")) {
-                pathStr = pathStr.substring(0, pathStr.length() - 1);
-            }
-            // Only strip a trailing '!' if it is really a nested jar separator, i.e. if it marks the whole of the
-            // jarfile before it -- a trailing '!' is otherwise part of a directory name (#903). Use
-            // lastIndexOfNestedJarSeparator, not indexOfNestedJarSeparator, so that the trailing '!' of a
-            // doubly-nested path such as "/a/b.war!/WEB-INF/lib/c.jar!" is stripped too: the innermost separator is
-            // the relevant one, and this is the rule NestedJarHandler applies when splitting the resulting path
-            // back apart.
-            if (pathStr.endsWith("!") && JarUtils.lastIndexOfNestedJarSeparator(pathStr) == pathStr.length() - 1) {
-                pathStr = pathStr.substring(0, pathStr.length() - 1);
-            }
-            if (pathStr.endsWith("/")) {
-                pathStr = pathStr.substring(0, pathStr.length() - 1);
-            }
-            if (pathStr.isEmpty()) {
-                pathStr = "/";
-            }
-        }
+        final var pathRaw = parsed.startIdx == 0 ? relativePath : relativePath.substring(parsed.startIdx);
+        var pathStr = stripTrailingSeparators(normalizePath(pathRaw, parsed.remainderIsFilePath));
 
         // On Windows, the root directory of a drive is "C:/", and it is a root path in the same sense that "/" is:
         // its final separator is the whole of its name, and dropping it leaves the drive designation "C:", which
@@ -408,8 +471,8 @@ public final class FastPathResolver {
         }
 
         // Sanitize path (resolve ".." sections, collapse "//" double separators, etc.)
-        String pathResolved;
-        if (isAbsolutePath || resolveBasePath == null || resolveBasePath.isEmpty()) {
+        final String pathResolved;
+        if (parsed.isAbsolutePath || resolveBasePath == null || resolveBasePath.isEmpty()) {
             // There is no base path to resolve against, or path is an absolute path or http(s):// URL (ignore the
             // base path). A root path is the one kind of path whose final separator must not be removed, since the
             // separator is the whole of the directory's name
@@ -425,11 +488,12 @@ public final class FastPathResolver {
 
         // Add any prefix back, e.g. "https://". A prefix that already ends with a separator supplies the root
         // path's own separator, so joining the two must not double it ("C:/" must not become "C://")
-        if (prefix.isEmpty()) {
+        if (parsed.prefix.isEmpty()) {
             return pathResolved;
         }
-        return prefix.endsWith("/") && pathResolved.startsWith("/") ? prefix + pathResolved.substring(1)
-                : prefix + pathResolved;
+        return parsed.prefix.endsWith("/") && pathResolved.startsWith("/")
+                ? parsed.prefix + pathResolved.substring(1)
+                : parsed.prefix + pathResolved;
     }
 
     /**
