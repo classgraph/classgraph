@@ -11,6 +11,9 @@ import java.nio.file.Path;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 
 import nonapi.io.github.classgraph.classpath.ClasspathOrder.ClasspathEntry;
@@ -184,6 +187,29 @@ public class ClasspathOrderTest {
         // A '*' is only a wildcard as a "/*" suffix, not as a glob in the middle of the path
         assertThat(classpathOrder.addClasspathEntry(tempDir + "/*/a.jar", null, scanSpec, null)).isFalse();
         assertThat(classpathOrder.getOrder()).isEmpty();
+    }
+
+    /**
+     * On Windows, a UNC path (a path starting with a double slash) is added as a {@link File}, since {@link File}
+     * supports UNC paths directly.
+     */
+    // #705
+    @Test
+    @EnabledOnOs(OS.WINDOWS)
+    public void uncPathsAreAddedAsFilesOnWindows() {
+        assertThat(classpathOrder.addClasspathEntry("//server/share/a.jar", null, scanSpec, null)).isTrue();
+        assertThat(entryObjects()).containsExactly(new File("//server/share/a.jar"));
+    }
+
+    /**
+     * There are no UNC paths outside Windows, so a path starting with a double slash is just an absolute path
+     * written with a redundant separator, and the extra separator is collapsed.
+     */
+    @Test
+    @DisabledOnOs(OS.WINDOWS)
+    public void uncPathsAreOrdinaryPathsOutsideWindows() {
+        assertThat(classpathOrder.addClasspathEntry("//server/share/a.jar", null, scanSpec, null)).isTrue();
+        assertThat(entryObjects()).containsExactly("/server/share/a.jar");
     }
 
     /** A classpath element rejected by a user-supplied path filter is not added. */

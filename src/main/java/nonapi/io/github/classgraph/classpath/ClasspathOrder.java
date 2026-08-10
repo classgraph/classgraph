@@ -356,6 +356,211 @@ public class ClasspathOrder {
     }
 
     /**
+     * Describe a classpath element for the log, showing the resolved form of the path if it differs from the form
+     * the classpath element was found in.
+     *
+     * @param pathElementStr
+     *            the path of the classpath element.
+     * @param pathElementStrResolved
+     *            the resolved path of the classpath element.
+     * @return the description of the classpath element.
+     */
+    private static String describe(final String pathElementStr, final String pathElementStrResolved) {
+        return pathElementStr
+                + (pathElementStr.equals(pathElementStrResolved) ? "" : " -> " + pathElementStrResolved);
+    }
+
+    /**
+     * Test a classpath element against the user's classpath element filters, logging it if it is filtered out.
+     *
+     * @param pathElementURL
+     *            the classpath element URL, or null if the classpath element was not given as a URL
+     * @param pathElementStr
+     *            the path of the classpath element.
+     * @param pathElementStrResolved
+     *            the resolved path of the classpath element.
+     * @param log
+     *            the LogNode instance to use if logging in verbose mode.
+     * @return true if the classpath element passes the filters.
+     */
+    private boolean passesFilters(final @Nullable URL pathElementURL, final String pathElementStr,
+            final String pathElementStrResolved, final @Nullable LogNode log) {
+        // The path is tested in both the form it was found in and its resolved form, since a filter may have been
+        // written to match either
+        if (filter(pathElementURL, pathElementStr) && (pathElementStrResolved.equals(pathElementStr)
+                || filter(pathElementURL, pathElementStrResolved))) {
+            return true;
+        }
+        if (log != null) {
+            log.log("Classpath element did not match filter criterion, skipping: "
+                    + describe(pathElementStr, pathElementStrResolved));
+        }
+        return false;
+    }
+
+    /**
+     * Add a classpath entry, and log whether it was added or was a duplicate of an entry already found.
+     *
+     * @param pathElement
+     *            the {@link String} path, {@link File}, {@link Path}, {@link URL} or {@link URI} of the classpath
+     *            element.
+     * @param pathElementStr
+     *            the path of the classpath element.
+     * @param pathElementStrResolved
+     *            the resolved path of the classpath element.
+     * @param classLoader
+     *            the classloader
+     * @param scanSpec
+     *            the scan spec
+     * @param log
+     *            the LogNode instance to use if logging in verbose mode.
+     * @return true, if added and unique
+     */
+    private boolean addClasspathEntryAndLog(final Object pathElement, final String pathElementStr,
+            final String pathElementStrResolved, final @Nullable ClassLoader classLoader, final ScanSpec scanSpec,
+            final @Nullable LogNode log) {
+        final var added = addClasspathEntry(pathElement, pathElementStrResolved, classLoader, scanSpec);
+        if (log != null) {
+            log.log((added ? "Found classpath element: " : "Ignoring duplicate classpath element: ")
+                    + describe(pathElementStr, pathElementStrResolved));
+        }
+        return added;
+    }
+
+    /**
+     * Get the string form of a classpath element object.
+     *
+     * @param pathElement
+     *            the classpath element object.
+     * @return the string form of the classpath element.
+     */
+    private static String toPathElementStr(final Object pathElement) {
+        if (pathElement instanceof final Path pathElementPath) {
+            try {
+                // Path objects have to be converted to URIs before calling .toString(), otherwise the scheme of a
+                // path on a non-default filesystem is dropped. A local path comes back in the "file:///path"
+                // spelling (or "file:///C:/x/y" on Windows), which FastPathResolver turns back into a plain path
+                return pathElementPath.toUri().toString();
+            } catch (final IOError | SecurityException e) {
+                // Fall back to the string form of the Path
+            }
+        }
+        return pathElement.toString();
+    }
+
+    /**
+     * Convert a classpath element whose path has a URL scheme into a {@link URL}.
+     *
+     * @param pathElement
+     *            the classpath element object.
+     * @param pathElementStr
+     *            the path of the classpath element.
+     * @param log
+     *            the LogNode instance to use if logging in verbose mode.
+     * @return the {@link URL} of the classpath element, or null if it could not be converted to a {@link URL}.
+     */
+    private static @Nullable URL toClasspathElementURL(final Object pathElement, final String pathElementStr,
+            final @Nullable LogNode log) {
+        URL pathElementURL = null;
+        try {
+            pathElementURL = pathElement instanceof final URL url ? url
+                    : pathElement instanceof final URI uri ? uri.toURL()
+                            : pathElement instanceof final Path path ? path.toUri().toURL()
+                                    : pathElement instanceof final File file ? file.toURI().toURL() : null;
+        } catch (final MalformedURLException | IllegalArgumentException | IOError | SecurityException e) {
+            // Fall through
+        }
+        if (pathElementURL == null) {
+            // Escape percentage characters in URLs (#255)
+            final var urlStr = pathElementStr.replace("%", "%25");
+            try {
+                pathElementURL = new URL(urlStr);
+            } catch (final MalformedURLException e) {
+                try {
+                    pathElementURL = new File(urlStr).toURI().toURL();
+                } catch (final MalformedURLException | IllegalArgumentException | IOError | SecurityException e1) {
+                    // Final fallback -- try just using the raw string as a URL
+                    try {
+                        pathElementURL = new URL(pathElementStr);
+                    } catch (final MalformedURLException e2) {
+                        // Fall through
+                    }
+                }
+            }
+        }
+        if (pathElementURL == null && log != null) {
+            log.log("Failed to convert classpath element to URL: " + pathElement);
+        }
+        return pathElementURL;
+    }
+
+    /**
+     * Add every file in a directory to the classpath, for a wildcarded classpath entry of the form {@code
+     *
+    <dir>
+     * /*} (allowable for local classpaths as of JDK 6).
+     *
+     * @param baseDirPath
+     *            the path of the directory, i.e. the classpath entry with the {@code "/*"} suffix removed.
+     * @param classLoader
+     *            the ClassLoader that this classpath element was obtained from.
+     * @param scanSpec
+     *            the scan spec
+     * @param log
+     *            the LogNode instance to use if logging in verbose mode.
+     * @return true if the contents of the directory could be listed.
+     */
+    private boolean addWildcardedDirEntries(final String baseDirPath, final @Nullable ClassLoader classLoader,
+            final ScanSpec scanSpec, final @Nullable LogNode log) {
+        // A wildcarded classpath entry is only ever reached as a path string, never as a URL, so there is no URL to
+        // apply the user's URL filters to
+        final var baseDirPathResolved = FastPathResolver.resolve(FileUtils.currDirPath(), baseDirPath);
+        if (!passesFilters(/* pathElementURL = */ null, baseDirPath, baseDirPathResolved, log)) {
+            return false;
+        }
+
+        // Check the path before the "/*" suffix is a directory
+        final var baseDir = new File(baseDirPathResolved);
+        if (!baseDir.exists()) {
+            if (log != null) {
+                log.log("Directory does not exist for wildcard classpath element: " + baseDirPath);
+            }
+            return false;
+        }
+        if (!FileUtils.canRead(baseDir)) {
+            if (log != null) {
+                log.log("Cannot read directory for wildcard classpath element: " + baseDirPath);
+            }
+            return false;
+        }
+        if (!baseDir.isDirectory()) {
+            if (log != null) {
+                log.log("Wildcard is appended to something other than a directory: " + baseDirPath);
+            }
+            return false;
+        }
+
+        // Add all elements in the requested directory to the classpath
+        final var dirLog = log == null ? null
+                : log.log("Adding classpath elements from wildcarded directory: " + baseDirPath);
+        final var baseDirFiles = baseDir.listFiles();
+        if (baseDirFiles == null) {
+            return false;
+        }
+        for (final File fileInDir : baseDirFiles) {
+            final var name = fileInDir.getName();
+            if (!".".equals(name) && !"..".equals(name)) {
+                // Add each directory entry as a classpath element
+                final var fileInDirPath = fileInDir.getPath();
+                final var fileInDirPathResolved = FastPathResolver.resolve(FileUtils.currDirPath(), fileInDirPath);
+                addClasspathEntryAndLog(fileInDirPathResolved, fileInDirPath, fileInDirPathResolved, classLoader,
+                        scanSpec, dirLog);
+            }
+        }
+        return true;
+    }
+
+    /**
      * Add a classpath element relative to a base file. May be called by a ClassLoaderHandler to add classpath
      * elements that it knows about. ClassLoaders will be called in order.
      *
@@ -376,19 +581,7 @@ public class ClasspathOrder {
         if (pathElement == null) {
             return false;
         }
-        String pathElementStr;
-        if (pathElement instanceof final Path pathElementPath) {
-            try {
-                // Path objects have to be converted to URIs before calling .toString(), otherwise the scheme of a
-                // path on a non-default filesystem is dropped. A local path comes back in the "file:///path"
-                // spelling (or "file:///C:/x/y" on Windows), which FastPathResolver turns back into a plain path
-                pathElementStr = pathElementPath.toUri().toString();
-            } catch (IOError | SecurityException e) {
-                pathElementStr = pathElement.toString();
-            }
-        } else {
-            pathElementStr = pathElement.toString();
-        }
+        var pathElementStr = toPathElementStr(pathElement);
         if (pathElementStr.isEmpty()) {
             // Check for an empty path element before resolving it, not after: resolving an empty path against the
             // current directory yields the current directory, which would silently turn an empty classpath entry
@@ -398,7 +591,6 @@ public class ClasspathOrder {
         pathElementStr = FastPathResolver.resolve(FileUtils.currDirPath(), pathElementStr);
         URL pathElementURL = null;
         var hasWildcardSuffix = false;
-        // Fallback -- call toString() on the path element, then try converting to a URL
         if (pathElementStr.endsWith("/*") || pathElementStr.endsWith("\\*")) {
             hasWildcardSuffix = true;
             pathElementStr = pathElementStr.substring(0, pathElementStr.length() - 2);
@@ -407,192 +599,54 @@ public class ClasspathOrder {
             hasWildcardSuffix = true;
             pathElementStr = "";
             // Leave pathElementURL null, so that wildcards can be handled below
-        } else {
-            final var m1 = schemeMatcher.matcher(pathElementStr);
-            if (m1.find()) {
-                // Path element string is URL with scheme other than `[jar:]file:`, so need to actually parse URL,
-                // since the scheme may be a custom scheme
-                try {
-                    pathElementURL = pathElement instanceof final URL url ? url
-                            : pathElement instanceof final URI uri ? uri.toURL()
-                                    : pathElement instanceof final Path path ? path.toUri().toURL()
-                                            : pathElement instanceof final File file ? file.toURI().toURL() : null;
-                } catch (final MalformedURLException | IllegalArgumentException | IOError | SecurityException e2) {
-                    // Fall through
-                }
-                if (pathElementURL == null) {
-                    // Escape percentage characters in URLs (#255)
-                    final var urlStr = pathElementStr.replace("%", "%25");
-                    try {
-                        pathElementURL = new URL(urlStr);
-                    } catch (final MalformedURLException e) {
-                        try {
-                            pathElementURL = new File(urlStr).toURI().toURL();
-                        } catch (final MalformedURLException | IllegalArgumentException | IOError
-                                | SecurityException e1) {
-                            // Final fallback -- try just using the raw string as a URL
-                            try {
-                                pathElementURL = new URL(pathElementStr);
-                            } catch (final MalformedURLException e2) {
-                                // Fall through
-                            }
-                        }
-                    }
-                }
-                if ((pathElementURL == null) && (log != null)) {
-                    log.log("Failed to convert classpath element to URL: " + pathElement);
-                }
-            }
+        } else if (schemeMatcher.matcher(pathElementStr).find()) {
+            // Path element string is a URL with a scheme other than `[jar:]file:`, so the URL has to actually be
+            // parsed, since the scheme may be a custom scheme
+            pathElementURL = toClasspathElementURL(pathElement, pathElementStr, log);
         }
+
         if (pathElementURL != null || pathElement instanceof URI || pathElement instanceof File
                 || pathElement instanceof Path) {
-            if (!filter(pathElementURL, pathElementStr)) {
-                if (log != null) {
-                    log.log("Classpath element did not match filter criterion, skipping: " + pathElementStr);
-                }
+            if (!passesFilters(pathElementURL, pathElementStr, pathElementStr, log)) {
                 return false;
             }
-            // For URL objects, use the object itself (so that URL scheme handling can be
-            // undertaken later);
-            // for URI and Path objects, convert to URL; for File objects, use the toString
-            // result (the path)
-            final Object classpathElementObj;
-            classpathElementObj = pathElement instanceof File ? pathElementStr
+            // For a URL object, or a URI or Path that was parsed into a URL, use the URL (so that URL scheme
+            // handling can be undertaken later); for a File object, use the resolved path string; otherwise use the
+            // object itself
+            final var classpathElementObj = pathElement instanceof File ? pathElementStr
                     : pathElementURL != null ? pathElementURL : pathElement;
-            if (addClasspathEntry(classpathElementObj, pathElementStr, classLoader, scanSpec)) {
-                if (log != null) {
-                    log.log("Found classpath element: " + pathElementStr);
-                }
-                return true;
-            } else {
-                if (log != null) {
-                    log.log("Ignoring duplicate classpath element: " + pathElementStr);
-                }
-                return false;
-            }
+            return addClasspathEntryAndLog(classpathElementObj, pathElementStr, pathElementStr, classLoader,
+                    scanSpec, log);
         }
+
         if (hasWildcardSuffix) {
-            // Has wildcard path element (allowable for local classpaths as of JDK 6). Apply classpath element
-            // filters, if any
-            final var baseDirPath = pathElementStr;
-            final var baseDirPathResolved = FastPathResolver.resolve(FileUtils.currDirPath(), baseDirPath);
-            if (!filter(pathElementURL, baseDirPath)
-                    || (!baseDirPathResolved.equals(baseDirPath) && !filter(pathElementURL, baseDirPathResolved))) {
-                if (log != null) {
-                    log.log("Classpath element did not match filter criterion, skipping: " + pathElementStr);
-                }
-                return false;
-            }
+            return addWildcardedDirEntries(pathElementStr, classLoader, scanSpec, log);
+        }
 
-            // Check the path before the "/*" suffix is a directory
-            final File baseDir = new File(baseDirPathResolved);
-            if (!baseDir.exists()) {
-                if (log != null) {
-                    log.log("Directory does not exist for wildcard classpath element: " + pathElementStr);
-                }
-                return false;
+        // Non-wildcarded (standard) classpath element
+        if (pathElementStr.indexOf('*') >= 0) {
+            if (log != null) {
+                log.log("Wildcard classpath elements can only end with a suffix of \"/*\", "
+                        + "can't use globs elsewhere in the path: " + pathElementStr);
             }
-            if (!FileUtils.canRead(baseDir)) {
-                if (log != null) {
-                    log.log("Cannot read directory for wildcard classpath element: " + pathElementStr);
-                }
-                return false;
-            }
-            if (!baseDir.isDirectory()) {
-                if (log != null) {
-                    log.log("Wildcard is appended to something other than a directory: " + pathElementStr);
-                }
-                return false;
-            }
-
-            // Add all elements in the requested directory to the classpath
-            final var dirLog = log == null ? null
-                    : log.log("Adding classpath elements from wildcarded directory: " + pathElementStr);
-            final var baseDirFiles = baseDir.listFiles();
-            if (baseDirFiles != null) {
-                for (final File fileInDir : baseDirFiles) {
-                    final var name = fileInDir.getName();
-                    if (!".".equals(name) && !"..".equals(name)) {
-                        // Add each directory entry as a classpath element
-                        final var fileInDirPath = fileInDir.getPath();
-                        final var fileInDirPathResolved = FastPathResolver.resolve(FileUtils.currDirPath(),
-                                fileInDirPath);
-                        if (addClasspathEntry(fileInDirPathResolved, fileInDirPathResolved, classLoader,
-                                scanSpec)) {
-                            if (dirLog != null) {
-                                dirLog.log("Found classpath element: " + fileInDirPath
-                                        + (fileInDirPath.equals(fileInDirPathResolved) ? ""
-                                                : " -> " + fileInDirPathResolved));
-                            }
-                        } else {
-                            if (dirLog != null) {
-                                dirLog.log("Ignoring duplicate classpath element: " + fileInDirPath
-                                        + (fileInDirPath.equals(fileInDirPathResolved) ? ""
-                                                : " -> " + fileInDirPathResolved));
-                            }
-                        }
-                    }
-                }
-                return true;
-            } else {
-                return false;
-            }
-        } else {
-            // Non-wildcarded (standard) classpath element
-            if (pathElementStr.indexOf('*') >= 0) {
-                if (log != null) {
-                    log.log("Wildcard classpath elements can only end with a suffix of \"/*\", "
-                            + "can't use globs elsewhere in the path: " + pathElementStr);
-                }
-                return false;
-            }
-            final var pathElementResolved = FastPathResolver.resolve(FileUtils.currDirPath(), pathElementStr);
-            if (!filter(pathElementURL, pathElementStr) || (!pathElementResolved.equals(pathElementStr)
-                    && !filter(pathElementURL, pathElementResolved))) {
-                if (log != null) {
-                    log.log("Classpath element did not match filter criterion, skipping: " + pathElementStr
-                            + (pathElementStr.equals(pathElementResolved) ? "" : " -> " + pathElementResolved));
-                }
-                return false;
-            }
-            if (pathElementResolved.startsWith("//")) {
-                // Handle Windows UNC paths (#705). File supports UNC paths directly:
-                // https://wiki.eclipse.org/Eclipse/UNC_Paths#Programming_with_UNC_paths
-                try {
-                    final File file = new File(pathElementResolved);
-                    if (addClasspathEntry(file, pathElementResolved, classLoader, scanSpec)) {
-                        if (log != null) {
-                            log.log("Found classpath element: " + file
-                                    + (pathElementStr.equals(pathElementResolved) ? ""
-                                            : " -> " + pathElementResolved));
-                        }
-                        return true;
-                    } else {
-                        if (log != null) {
-                            log.log("Ignoring duplicate classpath element: " + pathElementStr
-                                    + (pathElementStr.equals(pathElementResolved) ? ""
-                                            : " -> " + pathElementResolved));
-                        }
-                        return false;
-                    }
-                } catch (final Exception e) {
-                    // Fall through
-                }
-            }
-            if (addClasspathEntry(pathElementResolved, pathElementResolved, classLoader, scanSpec)) {
-                if (log != null) {
-                    log.log("Found classpath element: " + pathElementStr
-                            + (pathElementStr.equals(pathElementResolved) ? "" : " -> " + pathElementResolved));
-                }
-                return true;
-            } else {
-                if (log != null) {
-                    log.log("Ignoring duplicate classpath element: " + pathElementStr
-                            + (pathElementStr.equals(pathElementResolved) ? "" : " -> " + pathElementResolved));
-                }
-                return false;
+            return false;
+        }
+        final var pathElementResolved = FastPathResolver.resolve(FileUtils.currDirPath(), pathElementStr);
+        if (!passesFilters(pathElementURL, pathElementStr, pathElementResolved, log)) {
+            return false;
+        }
+        if (pathElementResolved.startsWith("//")) {
+            // Handle Windows UNC paths (#705). File supports UNC paths directly:
+            // https://wiki.eclipse.org/Eclipse/UNC_Paths#Programming_with_UNC_paths
+            try {
+                return addClasspathEntryAndLog(new File(pathElementResolved), pathElementStr, pathElementResolved,
+                        classLoader, scanSpec, log);
+            } catch (final Exception e) {
+                // Fall through, and add the path as a string rather than as a File
             }
         }
+        return addClasspathEntryAndLog(pathElementResolved, pathElementStr, pathElementResolved, classLoader,
+                scanSpec, log);
     }
 
     /**
