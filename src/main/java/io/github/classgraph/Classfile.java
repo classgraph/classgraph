@@ -1151,6 +1151,98 @@ class Classfile {
         }
     }
 
+    /**
+     * Test whether an attribute holds annotations that should be read, i.e. whether annotation info was enabled,
+     * and the attribute is either the runtime visible form, or the runtime invisible form and runtime invisible
+     * annotations were not disabled.
+     *
+     * @param attributeNameCpIdx
+     *            the constant pool index of the attribute name
+     * @param runtimeVisibleAttributeName
+     *            the name of the runtime visible form of the attribute
+     * @param runtimeInvisibleAttributeName
+     *            the name of the runtime invisible form of the attribute
+     * @return true if the attribute holds annotations that should be read.
+     * @throws IOException
+     *             if the classfile could not be read
+     */
+    private boolean isAnnotationAttribute(final int attributeNameCpIdx, final String runtimeVisibleAttributeName,
+            final String runtimeInvisibleAttributeName) throws IOException {
+        return scanSpec.enableAnnotationInfo
+                && (constantPoolStringEquals(attributeNameCpIdx, runtimeVisibleAttributeName)
+                        || (!scanSpec.disableRuntimeInvisibleAnnotations
+                                && constantPoolStringEquals(attributeNameCpIdx, runtimeInvisibleAttributeName)));
+    }
+
+    /**
+     * Test whether an attribute holds declaration annotations that should be read.
+     *
+     * @param attributeNameCpIdx
+     *            the constant pool index of the attribute name
+     * @return true if the attribute holds declaration annotations that should be read.
+     * @throws IOException
+     *             if the classfile could not be read
+     */
+    private boolean isAnnotationsAttribute(final int attributeNameCpIdx) throws IOException {
+        return isAnnotationAttribute(attributeNameCpIdx, "RuntimeVisibleAnnotations",
+                "RuntimeInvisibleAnnotations");
+    }
+
+    /**
+     * Test whether an attribute holds type annotations that should be read.
+     *
+     * @param attributeNameCpIdx
+     *            the constant pool index of the attribute name
+     * @return true if the attribute holds type annotations that should be read.
+     * @throws IOException
+     *             if the classfile could not be read
+     */
+    private boolean isTypeAnnotationsAttribute(final int attributeNameCpIdx) throws IOException {
+        return isAnnotationAttribute(attributeNameCpIdx, "RuntimeVisibleTypeAnnotations",
+                "RuntimeInvisibleTypeAnnotations");
+    }
+
+    /**
+     * Test whether an attribute holds method parameter annotations that should be read.
+     *
+     * @param attributeNameCpIdx
+     *            the constant pool index of the attribute name
+     * @return true if the attribute holds method parameter annotations that should be read.
+     * @throws IOException
+     *             if the classfile could not be read
+     */
+    private boolean isParameterAnnotationsAttribute(final int attributeNameCpIdx) throws IOException {
+        return isAnnotationAttribute(attributeNameCpIdx, "RuntimeVisibleParameterAnnotations",
+                "RuntimeInvisibleParameterAnnotations");
+    }
+
+    /**
+     * Read the annotations of a {@code RuntimeVisibleAnnotations} or {@code RuntimeInvisibleAnnotations} attribute
+     * into an annotation list. The two attributes are read into the same list, so the list of the other attribute,
+     * if it was read first, is passed in.
+     *
+     * @param annotationInfoList
+     *            the annotations read from the other attribute, or null if this is the first of the two attributes
+     *            to be encountered
+     * @return the annotation list, which is created if it was null and this attribute holds any annotations, or
+     *         null if the attribute holds no annotations and the list had not been created yet
+     * @throws IOException
+     *             if an I/O exception occurs.
+     */
+    private @Nullable AnnotationInfoList readAnnotations(final @Nullable AnnotationInfoList annotationInfoList)
+            throws IOException {
+        final var annotationCount = reader().readUnsignedShort();
+        if (annotationCount == 0) {
+            return annotationInfoList;
+        }
+        final var annotations = annotationInfoList == null ? new AnnotationInfoList(annotationCount)
+                : annotationInfoList;
+        for (var i = 0; i < annotationCount; i++) {
+            annotations.add(readAnnotation());
+        }
+        return annotations;
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -1533,25 +1625,9 @@ class Classfile {
                                 cpIdx);
                     } else if (fieldIsVisible && constantPoolStringEquals(attributeNameCpIdx, "Signature")) {
                         fieldTypeSignatureStr = getConstantPoolString(reader().readUnsignedShort());
-                    } else if (scanSpec.enableAnnotationInfo //
-                            && (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleAnnotations")
-                                    || (!scanSpec.disableRuntimeInvisibleAnnotations && constantPoolStringEquals(
-                                            attributeNameCpIdx, "RuntimeInvisibleAnnotations")))) {
-                        // Read annotation names
-                        final var fieldAnnotationCount = reader().readUnsignedShort();
-                        if (fieldAnnotationCount > 0) {
-                            if (fieldAnnotationInfo == null) {
-                                fieldAnnotationInfo = new AnnotationInfoList(1);
-                            }
-                            for (var k = 0; k < fieldAnnotationCount; k++) {
-                                final var fieldAnnotation = readAnnotation();
-                                fieldAnnotationInfo.add(fieldAnnotation);
-                            }
-                        }
-                    } else if (scanSpec.enableAnnotationInfo //
-                            && (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleTypeAnnotations")
-                                    || (!scanSpec.disableRuntimeInvisibleAnnotations && constantPoolStringEquals(
-                                            attributeNameCpIdx, "RuntimeInvisibleTypeAnnotations")))) {
+                    } else if (isAnnotationsAttribute(attributeNameCpIdx)) {
+                        fieldAnnotationInfo = readAnnotations(fieldAnnotationInfo);
+                    } else if (isTypeAnnotationsAttribute(attributeNameCpIdx)) {
                         final var annotationCount = reader().readUnsignedShort();
                         if (annotationCount > 0) {
                             fieldTypeAnnotationDecorators = new ArrayList<>();
@@ -1601,331 +1677,398 @@ class Classfile {
      *             if the classfile is incorrectly formatted.
      */
     private void readMethods() throws IOException, ClassfileFormatException {
-        // Methods
         final var methodCount = reader().readUnsignedShort();
         for (var i = 0; i < methodCount; i++) {
-            // Info on modifier flags:
-            // http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.6
-            final var methodModifierFlags = reader().readUnsignedShort();
-            final var isPublicMethod = (methodModifierFlags & 0x0001) == 0x0001;
-            final var methodIsVisible = isPublicMethod || scanSpec.ignoreMethodVisibility;
-            List<MethodTypeAnnotationDecorator> methodTypeAnnotationDecorators = null;
-            String methodName = null;
-            String methodTypeDescriptor = null;
-            String methodTypeSignatureStr = null;
-            // Always enable MethodInfo for annotations (this is how annotation constants are defined)
-            final var enableMethodInfo = scanSpec.enableMethodInfo || isAnnotation;
-            if (enableMethodInfo) {
-                final var methodNameCpIdx = reader().readUnsignedShort();
-                methodName = getConstantPoolString(methodNameCpIdx);
-                final var methodTypeDescriptorCpIdx = reader().readUnsignedShort();
-                methodTypeDescriptor = getConstantPoolString(methodTypeDescriptorCpIdx);
-            } else {
-                reader().skip(4); // name_index, descriptor_index
+            readMethod();
+        }
+    }
+
+    /**
+     * Read one of the class' methods, adding a {@link MethodInfo} to {@link #methodInfoList} if method info is
+     * enabled and the method is visible.
+     *
+     * @throws IOException
+     *             if an I/O exception occurs.
+     * @throws ClassfileFormatException
+     *             if the classfile is incorrectly formatted.
+     */
+    private void readMethod() throws IOException, ClassfileFormatException {
+        // Info on modifier flags:
+        // http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.6
+        final var methodModifierFlags = reader().readUnsignedShort();
+        final var isPublicMethod = (methodModifierFlags & 0x0001) == 0x0001;
+        final var methodIsVisible = isPublicMethod || scanSpec.ignoreMethodVisibility;
+        String methodName = null;
+        String methodTypeDescriptor = null;
+        // Always enable MethodInfo for annotations (this is how annotation constants are defined)
+        final var enableMethodInfo = scanSpec.enableMethodInfo || isAnnotation;
+        if (enableMethodInfo) {
+            final var methodNameCpIdx = reader().readUnsignedShort();
+            methodName = getConstantPoolString(methodNameCpIdx);
+            final var methodTypeDescriptorCpIdx = reader().readUnsignedShort();
+            methodTypeDescriptor = getConstantPoolString(methodTypeDescriptorCpIdx);
+        } else {
+            reader().skip(4); // name_index, descriptor_index
+        }
+        final var attributesCount = reader().readUnsignedShort();
+        if (!methodIsVisible || !enableMethodInfo) {
+            // Skip method attributes
+            for (var i = 0; i < attributesCount; i++) {
+                reader().skip(2); // attribute_name_index
+                final var attributeLength = reader().readInt();
+                reader().skip(attributeLength);
             }
-            final var attributesCount = reader().readUnsignedShort();
-            @Nullable
-            String[] methodParameterNames = null;
-            String[] thrownExceptionNames = null;
-            int[] methodParameterModifiers = null;
-            AnnotationInfo[][] methodParameterAnnotations = null;
-            AnnotationInfoList methodAnnotationInfo = null;
-            var methodHasBody = false;
-            var minLineNum = 0;
-            var maxLineNum = 0;
-            if (!methodIsVisible || !enableMethodInfo) {
-                // Skip method attributes
-                for (var j = 0; j < attributesCount; j++) {
-                    reader().skip(2); // attribute_name_index
-                    final var attributeLength = reader().readInt();
-                    reader().skip(attributeLength);
+            return;
+        }
+        if (methodName == null || methodTypeDescriptor == null) {
+            // Should not happen for a valid classfile (enableMethodInfo is true here, so the method name and type
+            // descriptor were read from the constant pool)
+            throw new ClassfileFormatException("Method name and/or type descriptor is null");
+        }
+
+        List<MethodTypeAnnotationDecorator> methodTypeAnnotationDecorators = null;
+        String methodTypeSignatureStr = null;
+        AnnotationInfoList methodAnnotationInfo = null;
+        AnnotationInfo[][] methodParameterAnnotations = null;
+        @Nullable
+        String[] methodParameterNames = null;
+        int[] methodParameterModifiers = null;
+        String[] thrownExceptionNames = null;
+        var methodHasBody = false;
+        var minLineNum = 0;
+        var maxLineNum = 0;
+        for (var i = 0; i < attributesCount; i++) {
+            final var attributeNameCpIdx = reader().readUnsignedShort();
+            final var attributeLength = reader().readInt();
+            if (isAnnotationsAttribute(attributeNameCpIdx)) {
+                methodAnnotationInfo = readAnnotations(methodAnnotationInfo);
+            } else if (isParameterAnnotationsAttribute(attributeNameCpIdx)) {
+                methodParameterAnnotations = readMethodParameterAnnotations(methodParameterAnnotations);
+            } else if (isTypeAnnotationsAttribute(attributeNameCpIdx)) {
+                final var decorators = readMethodTypeAnnotationDecorators();
+                if (decorators != null) {
+                    methodTypeAnnotationDecorators = decorators;
                 }
+            } else if (constantPoolStringEquals(attributeNameCpIdx, "MethodParameters")) {
+                // Read method parameters. For Java, these are only produced in JDK8+, and only if the commandline
+                // switch `-parameters` is provided at compiletime.
+                final var paramCount = reader().readUnsignedByte();
+                methodParameterNames = new String[paramCount];
+                methodParameterModifiers = new int[paramCount];
+                for (var j = 0; j < paramCount; j++) {
+                    final var cpIdx = reader().readUnsignedShort();
+                    // If the constant pool index is zero, then the parameter is unnamed => use null
+                    methodParameterNames[j] = cpIdx == 0 ? null : getConstantPoolString(cpIdx);
+                    methodParameterModifiers[j] = reader().readUnsignedShort();
+                }
+            } else if (constantPoolStringEquals(attributeNameCpIdx, "Signature")) {
+                // Add type params to method type signature
+                methodTypeSignatureStr = getConstantPoolString(reader().readUnsignedShort());
+            } else if (constantPoolStringEquals(attributeNameCpIdx, "AnnotationDefault")) {
+                if (annotationParamDefaultValues == null) {
+                    annotationParamDefaultValues = new AnnotationParameterValueList();
+                }
+                this.annotationParamDefaultValues.add(new AnnotationParameterValue(methodName,
+                        // Get annotation parameter default value
+                        readAnnotationElementValue()));
+            } else if (constantPoolStringEquals(attributeNameCpIdx, "Exceptions")) {
+                final var exceptionCount = reader().readUnsignedShort();
+                thrownExceptionNames = new String[exceptionCount];
+                for (var j = 0; j < exceptionCount; j++) {
+                    final var cpIdx = reader().readUnsignedShort();
+                    thrownExceptionNames[j] = requireConstantPoolString(getConstantPoolClassName(cpIdx),
+                            "thrown exception class name");
+                }
+            } else if (constantPoolStringEquals(attributeNameCpIdx, "Code")) {
+                methodHasBody = true;
+                final var lineNumberRange = readCodeAttribute();
+                minLineNum = lineNumberRange.minLineNum();
+                maxLineNum = lineNumberRange.maxLineNum();
             } else {
-                if (methodName == null || methodTypeDescriptor == null) {
-                    // Should not happen for a valid classfile (enableMethodInfo is true here, so the method name
-                    // and type descriptor were read from the constant pool)
-                    throw new ClassfileFormatException("Method name and/or type descriptor is null");
-                }
-                // Look for method annotations
-                for (var j = 0; j < attributesCount; j++) {
-                    final var attributeNameCpIdx = reader().readUnsignedShort();
-                    final var attributeLength = reader().readInt();
-                    if (scanSpec.enableAnnotationInfo
-                            && (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleAnnotations")
-                                    || (!scanSpec.disableRuntimeInvisibleAnnotations && constantPoolStringEquals(
-                                            attributeNameCpIdx, "RuntimeInvisibleAnnotations")))) {
-                        final var methodAnnotationCount = reader().readUnsignedShort();
-                        if (methodAnnotationCount > 0) {
-                            if (methodAnnotationInfo == null) {
-                                methodAnnotationInfo = new AnnotationInfoList(1);
-                            }
-                            for (var k = 0; k < methodAnnotationCount; k++) {
-                                final var annotationInfo = readAnnotation();
-                                methodAnnotationInfo.add(annotationInfo);
-                            }
-                        }
-                    } else if (scanSpec.enableAnnotationInfo
-                            && (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleParameterAnnotations")
-                                    || (!scanSpec.disableRuntimeInvisibleAnnotations && constantPoolStringEquals(
-                                            attributeNameCpIdx, "RuntimeInvisibleParameterAnnotations")))) {
-                        // Merge together runtime visible and runtime invisible annotations into a single array of
-                        // annotations for each method parameter (runtime visible and runtime invisible annotations
-                        // are given in separate attributes, so if both attributes are present, have to make the
-                        // parameter annotation arrays larger when the second attribute is encountered).
-                        final var numParams = reader().readUnsignedByte();
-                        if (methodParameterAnnotations == null) {
-                            methodParameterAnnotations = new AnnotationInfo[numParams][];
-                        } else if (methodParameterAnnotations.length != numParams) {
-                            throw new ClassfileFormatException(
-                                    "Mismatch in number of parameters between RuntimeVisibleParameterAnnotations "
-                                            + "and RuntimeInvisibleParameterAnnotations");
-                        }
-                        for (var paramIdx = 0; paramIdx < numParams; paramIdx++) {
-                            final var numAnnotations = reader().readUnsignedShort();
-                            if (numAnnotations > 0) {
-                                var annStartIdx = 0;
-                                if (methodParameterAnnotations[paramIdx] != null) {
-                                    annStartIdx = methodParameterAnnotations[paramIdx].length;
-                                    methodParameterAnnotations[paramIdx] = Arrays.copyOf(
-                                            methodParameterAnnotations[paramIdx], annStartIdx + numAnnotations);
-                                } else {
-                                    methodParameterAnnotations[paramIdx] = new AnnotationInfo[numAnnotations];
-                                }
-                                for (var annIdx = 0; annIdx < numAnnotations; annIdx++) {
-                                    methodParameterAnnotations[paramIdx][annStartIdx + annIdx] = readAnnotation();
-                                }
-                            } else if (methodParameterAnnotations[paramIdx] == null) {
-                                methodParameterAnnotations[paramIdx] = NO_ANNOTATIONS;
-                            }
-                        }
-                    } else if (scanSpec.enableAnnotationInfo //
-                            && (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleTypeAnnotations")
-                                    || (!scanSpec.disableRuntimeInvisibleAnnotations && constantPoolStringEquals(
-                                            attributeNameCpIdx, "RuntimeInvisibleTypeAnnotations")))) {
-                        final var annotationCount = reader().readUnsignedShort();
-                        if (annotationCount > 0) {
-                            methodTypeAnnotationDecorators = new ArrayList<>(annotationCount);
-                            for (var m = 0; m < annotationCount; m++) {
-                                final var targetType = reader().readUnsignedByte();
-                                final int typeParameterIndex;
-                                final int boundIndex;
-                                final int formalParameterIndex;
-                                final int throwsTypeIndex;
-                                // JVMS 26 table 4.7.20-A permits target_types 0x01, 0x12, 0x14, 0x15, 0x16 and 0x17
-                                // in method_info; all are handled below, plus 0x10 and 0x13, which are illegal here
-                                // but are emitted by buggy compilers (see the notes below). Complete and up to date
-                                // as of JDK 26.
-                                switch (targetType) {
-                                case 0x01 -> {
-                                    // Type parameter declaration of generic method or constructor
-                                    typeParameterIndex = reader().readUnsignedByte();
-                                    boundIndex = -1;
-                                    formalParameterIndex = -1;
-                                    throwsTypeIndex = -1;
-                                }
-                                case 0x10 -> {
-                                    // This target_type is not supposed to be added to methods, it is intended for
-                                    // ClassFile annotations, but Google's Java compiler adds annotations of this
-                                    // type to methods in guava for some reason. Just ignore these annotations.
-                                    // (#861)
-                                    reader().readUnsignedShort();
-                                    typeParameterIndex = -1;
-                                    boundIndex = -1;
-                                    formalParameterIndex = -1;
-                                    throwsTypeIndex = -1;
-                                }
-                                case 0x12 -> {
-                                    // Type in bound of type parameter declaration of generic method or constructor
-                                    typeParameterIndex = reader().readUnsignedByte();
-                                    boundIndex = reader().readUnsignedByte();
-                                    formalParameterIndex = -1;
-                                    throwsTypeIndex = -1;
-                                }
-                                case 0x13, 0x14, 0x15 -> {
-                                    // 0x13: Type in field or record component declaration (empty target). This
-                                    // target_type is not supposed to be added to methods, but it seems that the JDK
-                                    // 17 compiler is buggy, and adds this target_type to the methods of records
-                                    // anyway (#797). Therefore, accept this, but ignore it (the same target_type
-                                    // should also be added to the fields of records). 0x14: Return type of method,
-                                    // or type of newly constructed object (empty target). 0x15: Receiver type of
-                                    // method or constructor (empty target).
-                                    typeParameterIndex = -1;
-                                    boundIndex = -1;
-                                    formalParameterIndex = -1;
-                                    throwsTypeIndex = -1;
-                                }
-                                case 0x16 -> {
-                                    // Type in formal parameter declaration of method, constructor, or lambda
-                                    // expression
-                                    typeParameterIndex = -1;
-                                    boundIndex = -1;
-                                    formalParameterIndex = reader().readUnsignedByte();
-                                    throwsTypeIndex = -1;
-                                }
-                                case 0x17 -> {
-                                    // Type in throws clause of method or constructor
-                                    typeParameterIndex = -1;
-                                    boundIndex = -1;
-                                    formalParameterIndex = -1;
-                                    throwsTypeIndex = reader().readUnsignedShort();
-                                }
-                                default -> throw new ClassfileFormatException(
-                                        "Class " + className + " has unknown method type annotation target 0x"
-                                                + Integer.toHexString(targetType)
-                                                + ": element size unknown, cannot continue reading class. "
-                                                + "Please report this at "
-                                                + "https://github.com/classgraph/classgraph/issues");
-                                }
-                                final var typePath = readTypePath();
-                                final var annotationInfo = readAnnotation();
-                                methodTypeAnnotationDecorators.add(methodTypeSignature -> {
-                                    switch (targetType) {
-                                    case 0x01 -> {
-                                        // Type parameter declaration of generic method or constructor
-                                        final var typeParameters = methodTypeSignature.getTypeParameters();
-                                        if (typeParameters != null && typeParameterIndex < typeParameters.size()) {
-                                            typeParameters.get(typeParameterIndex).addTypeAnnotation(typePath,
-                                                    annotationInfo);
-                                        }
-                                        // else this is a method type descriptor, not a method type signature, so
-                                        // there are no type parameters
-                                    }
-                                    case 0x12 -> {
-                                        // Type in bound of type parameter declaration of generic method or
-                                        // constructor
-                                        final var typeParameters = methodTypeSignature.getTypeParameters();
-                                        if (typeParameters != null && typeParameterIndex < typeParameters.size()) {
-                                            final var typeParameter = typeParameters.get(typeParameterIndex);
-                                            // boundIndex == 0 => class bound; boundIndex > 0 => interface bound
-                                            if (boundIndex == 0) {
-                                                final var classBound = typeParameter.getClassBound();
-                                                if (classBound != null) {
-                                                    classBound.addTypeAnnotation(typePath, annotationInfo);
-                                                }
-                                            } else {
-                                                final var interfaceBounds = typeParameter.getInterfaceBounds();
-                                                if (interfaceBounds != null
-                                                        && boundIndex - 1 < interfaceBounds.size()) {
-                                                    interfaceBounds.get(boundIndex - 1).addTypeAnnotation(typePath,
-                                                            annotationInfo);
-                                                }
-                                            }
-                                        }
-                                        // else this is a method type descriptor, not a method type signature, so
-                                        // there are no type parameters
-                                    }
-                                    case 0x14 ->
-                                        // Return type of method, or type of newly constructed object
-                                        methodTypeSignature.getResultType().addTypeAnnotation(typePath,
-                                                annotationInfo);
-                                    case 0x15 ->
-                                        // Receiver type of method or constructor (explicit receiver parameter)
-                                        methodTypeSignature.addReceiverTypeAnnotation(annotationInfo);
-                                    case 0x16 -> {
-                                        // Type in formal parameter declaration of method, constructor, or lambda
-                                        // expression.
-                                        // N.B. formal parameter indices are dodgy, because not all compilers index
-                                        // parameters the same way -- so be robust here. The classfile spec says "A
-                                        // formal_parameter_index value of i may, but is not required to, correspond
-                                        // to the i'th parameter descriptor in the method descriptor". Also "The
-                                        // formal_parameter_target item records that a formal parameter's type is
-                                        // annotated, but does not record the type itself. The type may be found by
-                                        // inspecting the method descriptor, although a formal_parameter_index value
-                                        // of 0 does not always indicate the first parameter descriptor in the
-                                        // method descriptor." What the heck, guys.
-                                        final var parameterTypeSignatures = methodTypeSignature
-                                                .getParameterTypeSignatures();
-                                        if (formalParameterIndex < parameterTypeSignatures.size()) {
-                                            parameterTypeSignatures.get(formalParameterIndex)
-                                                    .addTypeAnnotation(typePath, annotationInfo);
-                                        }
-                                    }
-                                    case 0x17 -> {
-                                        // Type in throws clause of method or constructor
-                                        final var throwsSignatures = //
-                                                methodTypeSignature.getThrowsSignatures();
-                                        if (throwsSignatures != null && throwsTypeIndex < throwsSignatures.size()) {
-                                            throwsSignatures.get(throwsTypeIndex).addTypeAnnotation(typePath,
-                                                    annotationInfo);
-                                        }
-                                    }
-                                    default -> {
-                                        // Ignore other target types (e.g. 0x10 and 0x13, which are emitted for
-                                        // methods by some buggy compilers)
-                                    }
-                                    }
-                                });
-                            }
-                        }
-                    } else if (constantPoolStringEquals(attributeNameCpIdx, "MethodParameters")) {
-                        // Read method parameters. For Java, these are only produced in JDK8+, and only if the
-                        // commandline switch `-parameters` is provided at compiletime.
-                        final var paramCount = reader().readUnsignedByte();
-                        methodParameterNames = new String[paramCount];
-                        methodParameterModifiers = new int[paramCount];
-                        for (var k = 0; k < paramCount; k++) {
-                            final var cpIdx = reader().readUnsignedShort();
-                            // If the constant pool index is zero, then the parameter is unnamed => use null
-                            methodParameterNames[k] = cpIdx == 0 ? null : getConstantPoolString(cpIdx);
-                            methodParameterModifiers[k] = reader().readUnsignedShort();
-                        }
-                    } else if (constantPoolStringEquals(attributeNameCpIdx, "Signature")) {
-                        // Add type params to method type signature
-                        methodTypeSignatureStr = getConstantPoolString(reader().readUnsignedShort());
-                    } else if (constantPoolStringEquals(attributeNameCpIdx, "AnnotationDefault")) {
-                        if (annotationParamDefaultValues == null) {
-                            annotationParamDefaultValues = new AnnotationParameterValueList();
-                        }
-                        this.annotationParamDefaultValues.add(new AnnotationParameterValue(methodName,
-                                // Get annotation parameter default value
-                                readAnnotationElementValue()));
-                    } else if (constantPoolStringEquals(attributeNameCpIdx, "Exceptions")) {
-                        final var exceptionCount = reader().readUnsignedShort();
-                        thrownExceptionNames = new String[exceptionCount];
-                        for (var k = 0; k < exceptionCount; k++) {
-                            final var cpIdx = reader().readUnsignedShort();
-                            thrownExceptionNames[k] = requireConstantPoolString(getConstantPoolClassName(cpIdx),
-                                    "thrown exception class name");
-                        }
-                    } else if (constantPoolStringEquals(attributeNameCpIdx, "Code")) {
-                        methodHasBody = true;
-                        reader().skip(4); // max_stack, max_locals
-                        final var codeLength = reader().readInt();
-                        reader().skip(codeLength);
-                        final var exceptionTableLength = reader().readUnsignedShort();
-                        reader().skip(8 * exceptionTableLength);
-                        final var codeAttrCount = reader().readUnsignedShort();
-                        for (var k = 0; k < codeAttrCount; k++) {
-                            final var codeAttrCpIdx = reader().readUnsignedShort();
-                            final var codeAttrLen = reader().readInt();
-                            if (constantPoolStringEquals(codeAttrCpIdx, "LineNumberTable")) {
-                                final var lineNumTableLen = reader().readUnsignedShort();
-                                for (var l = 0; l < lineNumTableLen; l++) {
-                                    reader().skip(2); // start_pc
-                                    final var lineNum = reader().readUnsignedShort();
-                                    minLineNum = minLineNum == 0 ? lineNum : Math.min(minLineNum, lineNum);
-                                    maxLineNum = maxLineNum == 0 ? lineNum : Math.max(maxLineNum, lineNum);
-                                }
-                            } else {
-                                reader().skip(codeAttrLen);
-                            }
-                        }
-                    } else {
-                        reader().skip(attributeLength);
-                    }
-                }
-                // Create MethodInfo
-                if (enableMethodInfo) {
-                    if (methodInfoList == null) {
-                        methodInfoList = new MethodInfoList();
-                    }
-                    methodInfoList.add(new MethodInfo(className, methodName, methodAnnotationInfo,
-                            methodModifierFlags, methodTypeDescriptor, methodTypeSignatureStr, methodParameterNames,
-                            methodParameterModifiers, methodParameterAnnotations, methodHasBody, minLineNum,
-                            maxLineNum, methodTypeAnnotationDecorators, thrownExceptionNames));
-                }
+                reader().skip(attributeLength);
             }
         }
+
+        // Create MethodInfo
+        if (methodInfoList == null) {
+            methodInfoList = new MethodInfoList();
+        }
+        methodInfoList.add(new MethodInfo(className, methodName, methodAnnotationInfo, methodModifierFlags,
+                methodTypeDescriptor, methodTypeSignatureStr, methodParameterNames, methodParameterModifiers,
+                methodParameterAnnotations, methodHasBody, minLineNum, maxLineNum, methodTypeAnnotationDecorators,
+                thrownExceptionNames));
+    }
+
+    /**
+     * Read a method's {@code RuntimeVisibleParameterAnnotations} or {@code RuntimeInvisibleParameterAnnotations}
+     * attribute. Runtime visible and runtime invisible parameter annotations are given in separate attributes, but
+     * are merged into a single array of annotations for each method parameter, so if both attributes are present,
+     * the parameter annotation arrays have to be enlarged when the second attribute is encountered.
+     *
+     * @param parameterAnnotations
+     *            the parameter annotations read from the other attribute, or null if this is the first of the two
+     *            attributes to be encountered
+     * @return the merged parameter annotations
+     * @throws IOException
+     *             if an I/O exception occurs.
+     * @throws ClassfileFormatException
+     *             if the two attributes disagree on the number of parameters.
+     */
+    private AnnotationInfo[][] readMethodParameterAnnotations(
+            final AnnotationInfo @Nullable [][] parameterAnnotations) throws IOException, ClassfileFormatException {
+        final var numParams = reader().readUnsignedByte();
+        final AnnotationInfo[][] mergedParameterAnnotations;
+        if (parameterAnnotations == null) {
+            mergedParameterAnnotations = new AnnotationInfo[numParams][];
+        } else if (parameterAnnotations.length != numParams) {
+            throw new ClassfileFormatException(
+                    "Mismatch in number of parameters between RuntimeVisibleParameterAnnotations "
+                            + "and RuntimeInvisibleParameterAnnotations");
+        } else {
+            mergedParameterAnnotations = parameterAnnotations;
+        }
+        for (var paramIdx = 0; paramIdx < numParams; paramIdx++) {
+            final var numAnnotations = reader().readUnsignedShort();
+            if (numAnnotations > 0) {
+                var annStartIdx = 0;
+                if (mergedParameterAnnotations[paramIdx] != null) {
+                    annStartIdx = mergedParameterAnnotations[paramIdx].length;
+                    mergedParameterAnnotations[paramIdx] = Arrays.copyOf(mergedParameterAnnotations[paramIdx],
+                            annStartIdx + numAnnotations);
+                } else {
+                    mergedParameterAnnotations[paramIdx] = new AnnotationInfo[numAnnotations];
+                }
+                for (var annIdx = 0; annIdx < numAnnotations; annIdx++) {
+                    mergedParameterAnnotations[paramIdx][annStartIdx + annIdx] = readAnnotation();
+                }
+            } else if (mergedParameterAnnotations[paramIdx] == null) {
+                mergedParameterAnnotations[paramIdx] = NO_ANNOTATIONS;
+            }
+        }
+        return mergedParameterAnnotations;
+    }
+
+    /**
+     * Read a method's {@code RuntimeVisibleTypeAnnotations} or {@code RuntimeInvisibleTypeAnnotations} attribute.
+     *
+     * @return one decorator per type annotation, which adds the annotation to the annotated type of a method type
+     *         signature, or null if the attribute holds no annotations
+     * @throws IOException
+     *             if an I/O exception occurs.
+     * @throws ClassfileFormatException
+     *             if a type annotation has a target type that is not permitted in a method.
+     */
+    private @Nullable List<MethodTypeAnnotationDecorator> readMethodTypeAnnotationDecorators()
+            throws IOException, ClassfileFormatException {
+        final var annotationCount = reader().readUnsignedShort();
+        if (annotationCount == 0) {
+            return null;
+        }
+        final List<MethodTypeAnnotationDecorator> decorators = new ArrayList<>(annotationCount);
+        for (var i = 0; i < annotationCount; i++) {
+            final var targetType = reader().readUnsignedByte();
+            final int typeParameterIndex;
+            final int boundIndex;
+            final int formalParameterIndex;
+            final int throwsTypeIndex;
+            // JVMS 26 table 4.7.20-A permits target_types 0x01, 0x12, 0x14, 0x15, 0x16 and 0x17 in method_info; all
+            // are handled below, plus 0x10 and 0x13, which are illegal here but are emitted by buggy compilers (see
+            // the notes below). Complete and up to date as of JDK 26.
+            switch (targetType) {
+            case 0x01 -> {
+                // Type parameter declaration of generic method or constructor
+                typeParameterIndex = reader().readUnsignedByte();
+                boundIndex = -1;
+                formalParameterIndex = -1;
+                throwsTypeIndex = -1;
+            }
+            case 0x10 -> {
+                // This target_type is not supposed to be added to methods, it is intended for ClassFile
+                // annotations, but Google's Java compiler adds annotations of this type to methods in guava for
+                // some reason. Just ignore these annotations.
+                // (#861)
+                reader().readUnsignedShort();
+                typeParameterIndex = -1;
+                boundIndex = -1;
+                formalParameterIndex = -1;
+                throwsTypeIndex = -1;
+            }
+            case 0x12 -> {
+                // Type in bound of type parameter declaration of generic method or constructor
+                typeParameterIndex = reader().readUnsignedByte();
+                boundIndex = reader().readUnsignedByte();
+                formalParameterIndex = -1;
+                throwsTypeIndex = -1;
+            }
+            case 0x13, 0x14, 0x15 -> {
+                // 0x13: Type in field or record component declaration (empty target). This target_type is not
+                // supposed to be added to methods, but it seems that the JDK 17 compiler is buggy, and adds this
+                // target_type to the methods of records anyway (#797). Therefore, accept this, but ignore it (the
+                // same target_type should also be added to the fields of records). 0x14: Return type of method, or
+                // type of newly constructed object (empty target). 0x15: Receiver type of method or constructor
+                // (empty target).
+                typeParameterIndex = -1;
+                boundIndex = -1;
+                formalParameterIndex = -1;
+                throwsTypeIndex = -1;
+            }
+            case 0x16 -> {
+                // Type in formal parameter declaration of method, constructor, or lambda expression
+                typeParameterIndex = -1;
+                boundIndex = -1;
+                formalParameterIndex = reader().readUnsignedByte();
+                throwsTypeIndex = -1;
+            }
+            case 0x17 -> {
+                // Type in throws clause of method or constructor
+                typeParameterIndex = -1;
+                boundIndex = -1;
+                formalParameterIndex = -1;
+                throwsTypeIndex = reader().readUnsignedShort();
+            }
+            default -> throw new ClassfileFormatException("Class " + className
+                    + " has unknown method type annotation target 0x" + Integer.toHexString(targetType)
+                    + ": element size unknown, cannot continue reading class. " + "Please report this at "
+                    + "https://github.com/classgraph/classgraph/issues");
+            }
+            final var typePath = readTypePath();
+            final var annotationInfo = readAnnotation();
+            decorators.add(methodTypeSignature -> decorateMethodTypeSignature(methodTypeSignature, targetType,
+                    typeParameterIndex, boundIndex, formalParameterIndex, throwsTypeIndex, typePath,
+                    annotationInfo));
+        }
+        return decorators;
+    }
+
+    /**
+     * Add a type annotation to the type of a method type signature that the annotation's target info names.
+     *
+     * @param methodTypeSignature
+     *            the method type signature to decorate
+     * @param targetType
+     *            the {@code target_type} of the type annotation
+     * @param typeParameterIndex
+     *            the index of the annotated type parameter, or -1 if the target info does not name one
+     * @param boundIndex
+     *            the index of the annotated bound of a type parameter, or -1 if the target info does not name one
+     * @param formalParameterIndex
+     *            the index of the annotated formal parameter, or -1 if the target info does not name one
+     * @param throwsTypeIndex
+     *            the index of the annotated thrown type, or -1 if the target info does not name one
+     * @param typePath
+     *            the type path of the annotation within the annotated type
+     * @param annotationInfo
+     *            the annotation
+     */
+    private static void decorateMethodTypeSignature(final MethodTypeSignature methodTypeSignature,
+            final int targetType, final int typeParameterIndex, final int boundIndex,
+            final int formalParameterIndex, final int throwsTypeIndex, final List<TypePathNode> typePath,
+            final AnnotationInfo annotationInfo) {
+        switch (targetType) {
+        case 0x01 -> {
+            // Type parameter declaration of generic method or constructor
+            final var typeParameters = methodTypeSignature.getTypeParameters();
+            if (typeParameters != null && typeParameterIndex < typeParameters.size()) {
+                typeParameters.get(typeParameterIndex).addTypeAnnotation(typePath, annotationInfo);
+            }
+            // else this is a method type descriptor, not a method type signature, so there are no type parameters
+        }
+        case 0x12 -> {
+            // Type in bound of type parameter declaration of generic method or constructor
+            final var typeParameters = methodTypeSignature.getTypeParameters();
+            if (typeParameters != null && typeParameterIndex < typeParameters.size()) {
+                final var typeParameter = typeParameters.get(typeParameterIndex);
+                // boundIndex == 0 => class bound; boundIndex > 0 => interface bound
+                if (boundIndex == 0) {
+                    final var classBound = typeParameter.getClassBound();
+                    if (classBound != null) {
+                        classBound.addTypeAnnotation(typePath, annotationInfo);
+                    }
+                } else {
+                    final var interfaceBounds = typeParameter.getInterfaceBounds();
+                    if (interfaceBounds != null && boundIndex - 1 < interfaceBounds.size()) {
+                        interfaceBounds.get(boundIndex - 1).addTypeAnnotation(typePath, annotationInfo);
+                    }
+                }
+            }
+            // else this is a method type descriptor, not a method type signature, so there are no type parameters
+        }
+        case 0x14 ->
+            // Return type of method, or type of newly constructed object
+            methodTypeSignature.getResultType().addTypeAnnotation(typePath, annotationInfo);
+        case 0x15 ->
+            // Receiver type of method or constructor (explicit receiver parameter)
+            methodTypeSignature.addReceiverTypeAnnotation(annotationInfo);
+        case 0x16 -> {
+            // Type in formal parameter declaration of method, constructor, or lambda expression.
+            // N.B. formal parameter indices are dodgy, because not all compilers index parameters the same way --
+            // so be robust here. The classfile spec says "A formal_parameter_index value of i may, but is not
+            // required to, correspond to the i'th parameter descriptor in the method descriptor". Also "The
+            // formal_parameter_target item records that a formal parameter's type is annotated, but does not record
+            // the type itself. The type may be found by inspecting the method descriptor, although a
+            // formal_parameter_index value of 0 does not always indicate the first parameter descriptor in the
+            // method descriptor." What the heck, guys.
+            final var parameterTypeSignatures = methodTypeSignature.getParameterTypeSignatures();
+            if (formalParameterIndex < parameterTypeSignatures.size()) {
+                parameterTypeSignatures.get(formalParameterIndex).addTypeAnnotation(typePath, annotationInfo);
+            }
+        }
+        case 0x17 -> {
+            // Type in throws clause of method or constructor
+            final var throwsSignatures = methodTypeSignature.getThrowsSignatures();
+            if (throwsSignatures != null && throwsTypeIndex < throwsSignatures.size()) {
+                throwsSignatures.get(throwsTypeIndex).addTypeAnnotation(typePath, annotationInfo);
+            }
+        }
+        default -> {
+            // Ignore other target types (e.g. 0x10 and 0x13, which are emitted for methods by some buggy compilers)
+        }
+        }
+    }
+
+    /**
+     * The range of source code line numbers spanned by a method's body.
+     *
+     * @param minLineNum
+     *            the lowest line number, or 0 if the method's {@code Code} attribute has no line number table
+     * @param maxLineNum
+     *            the highest line number, or 0 if the method's {@code Code} attribute has no line number table
+     */
+    private record LineNumberRange(int minLineNum, int maxLineNum) {
+    }
+
+    /**
+     * Read a method's {@code Code} attribute, skipping over the bytecode itself.
+     *
+     * @return the range of source code line numbers spanned by the method's body
+     * @throws IOException
+     *             if an I/O exception occurs.
+     */
+    private LineNumberRange readCodeAttribute() throws IOException {
+        reader().skip(4); // max_stack, max_locals
+        final var codeLength = reader().readInt();
+        reader().skip(codeLength);
+        final var exceptionTableLength = reader().readUnsignedShort();
+        reader().skip(8 * exceptionTableLength);
+        var minLineNum = 0;
+        var maxLineNum = 0;
+        final var codeAttrCount = reader().readUnsignedShort();
+        for (var i = 0; i < codeAttrCount; i++) {
+            final var codeAttrCpIdx = reader().readUnsignedShort();
+            final var codeAttrLen = reader().readInt();
+            if (constantPoolStringEquals(codeAttrCpIdx, "LineNumberTable")) {
+                final var lineNumTableLen = reader().readUnsignedShort();
+                for (var j = 0; j < lineNumTableLen; j++) {
+                    reader().skip(2); // start_pc
+                    final var lineNum = reader().readUnsignedShort();
+                    minLineNum = minLineNum == 0 ? lineNum : Math.min(minLineNum, lineNum);
+                    maxLineNum = maxLineNum == 0 ? lineNum : Math.max(maxLineNum, lineNum);
+                }
+            } else {
+                reader().skip(codeAttrLen);
+            }
+        }
+        return new LineNumberRange(minLineNum, maxLineNum);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1944,117 +2087,12 @@ class Classfile {
         for (var i = 0; i < attributesCount; i++) {
             final var attributeNameCpIdx = reader().readUnsignedShort();
             final var attributeLength = reader().readInt();
-            if (scanSpec.enableAnnotationInfo //
-                    && (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleAnnotations")
-                            || (!scanSpec.disableRuntimeInvisibleAnnotations && constantPoolStringEquals(
-                                    attributeNameCpIdx, "RuntimeInvisibleAnnotations")))) {
-                final var annotationCount = reader().readUnsignedShort();
-                if (annotationCount > 0) {
-                    if (classAnnotations == null) {
-                        classAnnotations = new AnnotationInfoList();
-                    }
-                    for (var m = 0; m < annotationCount; m++) {
-                        classAnnotations.add(readAnnotation());
-                    }
-                }
-            } else if (scanSpec.enableAnnotationInfo //
-                    && (constantPoolStringEquals(attributeNameCpIdx, "RuntimeVisibleTypeAnnotations")
-                            || (!scanSpec.disableRuntimeInvisibleAnnotations && constantPoolStringEquals(
-                                    attributeNameCpIdx, "RuntimeInvisibleTypeAnnotations")))) {
-                final var annotationCount = reader().readUnsignedShort();
-                if (annotationCount > 0) {
-                    classTypeAnnotationDecorators = new ArrayList<>(annotationCount);
-                    for (var m = 0; m < annotationCount; m++) {
-                        final var targetType = reader().readUnsignedByte();
-                        final int typeParameterIndex;
-                        final int supertypeIndex;
-                        final int boundIndex;
-                        // 0x00, 0x10 and 0x11 are the only target_types that JVMS 26 table 4.7.20-A permits in
-                        // ClassFile. Complete and up to date as of JDK 26.
-                        switch (targetType) {
-                        case 0x00 -> {
-                            // Type parameter declaration of generic class or interface
-                            typeParameterIndex = reader().readUnsignedByte();
-                            supertypeIndex = -1;
-                            boundIndex = -1;
-                        }
-                        case 0x10 -> {
-                            // Type in extends or implements clause of class declaration (including the direct
-                            // superclass or direct superinterface of an anonymous class declaration), or in extends
-                            // clause of interface declaration
-                            supertypeIndex = reader().readUnsignedShort();
-                            typeParameterIndex = -1;
-                            boundIndex = -1;
-                        }
-                        case 0x11 -> {
-                            // Type in bound of type parameter declaration of generic class or interface
-                            typeParameterIndex = reader().readUnsignedByte();
-                            boundIndex = reader().readUnsignedByte();
-                            supertypeIndex = -1;
-                        }
-                        default -> throw new ClassfileFormatException("Class " + className
-                                + " has unknown class type annotation target 0x" + Integer.toHexString(targetType)
-                                + ": element size unknown, cannot continue reading class. "
-                                + "Please report this at https://github.com/classgraph/classgraph/issues");
-                        }
-                        final var typePath = readTypePath();
-                        final var annotationInfo = readAnnotation();
-                        classTypeAnnotationDecorators.add(classTypeSignature -> {
-                            switch (targetType) {
-                            case 0x00 -> {
-                                // Type parameter declaration of generic class or interface
-                                final var typeParameters = classTypeSignature.getTypeParameters();
-                                if (typeParameters != null && typeParameterIndex < typeParameters.size()) {
-                                    typeParameters.get(typeParameterIndex).addTypeAnnotation(typePath,
-                                            annotationInfo);
-                                }
-                            }
-                            case 0x10 -> {
-                                // Type in extends or implements clause of class declaration (including the direct
-                                // superclass or direct superinterface of an anonymous class declaration), or in
-                                // extends clause of interface declaration
-                                if (supertypeIndex == 65535) {
-                                    // Type in extends clause of class declaration
-                                    final var superclassSignature = classTypeSignature.getSuperclassSignature();
-                                    if (superclassSignature != null) {
-                                        superclassSignature.addTypeAnnotation(typePath, annotationInfo);
-                                    }
-                                } else {
-                                    // Type in implements clause of interface declaration
-                                    final var superinterfaceSignatures = classTypeSignature
-                                            .getSuperinterfaceSignatures();
-                                    if (supertypeIndex < superinterfaceSignatures.size()) {
-                                        superinterfaceSignatures.get(supertypeIndex).addTypeAnnotation(typePath,
-                                                annotationInfo);
-                                    }
-                                }
-                            }
-                            case 0x11 -> {
-                                // Type in bound of type parameter declaration of generic class or interface
-                                final var typeParameters = classTypeSignature.getTypeParameters();
-                                if (typeParameters != null && typeParameterIndex < typeParameters.size()) {
-                                    final var typeParameter = typeParameters.get(typeParameterIndex);
-                                    // boundIndex == 0 => class bound; boundIndex > 0 => interface bound
-                                    if (boundIndex == 0) {
-                                        final var classBound = typeParameter.getClassBound();
-                                        if (classBound != null) {
-                                            classBound.addTypeAnnotation(typePath, annotationInfo);
-                                        }
-                                    } else {
-                                        final var interfaceBounds = typeParameter.getInterfaceBounds();
-                                        if (interfaceBounds != null && boundIndex - 1 < interfaceBounds.size()) {
-                                            typeParameter.getInterfaceBounds().get(boundIndex - 1)
-                                                    .addTypeAnnotation(typePath, annotationInfo);
-                                        }
-                                    }
-                                }
-                            }
-                            default -> {
-                                // No other target types are permitted in ClassFile
-                            }
-                            }
-                        });
-                    }
+            if (isAnnotationsAttribute(attributeNameCpIdx)) {
+                classAnnotations = readAnnotations(classAnnotations);
+            } else if (isTypeAnnotationsAttribute(attributeNameCpIdx)) {
+                final var decorators = readClassTypeAnnotationDecorators();
+                if (decorators != null) {
+                    classTypeAnnotationDecorators = decorators;
                 }
             } else if (constantPoolStringEquals(attributeNameCpIdx, "Record")) {
                 isRecord = true;
@@ -2063,64 +2101,14 @@ class Classfile {
                 // rely on the field and method reading code to work correctly with records.
                 reader().skip(attributeLength);
             } else if (constantPoolStringEquals(attributeNameCpIdx, "InnerClasses")) {
-                final var numInnerClasses = reader().readUnsignedShort();
-                for (var j = 0; j < numInnerClasses; j++) {
-                    final var innerClassInfoCpIdx = reader().readUnsignedShort();
-                    final var outerClassInfoCpIdx = reader().readUnsignedShort();
-                    reader().skip(2); // inner_name_idx
-                    final var innerClassAccessFlags = reader().readUnsignedShort();
-                    if (innerClassInfoCpIdx != 0 && outerClassInfoCpIdx != 0) {
-                        final var innerClassName = getConstantPoolClassName(innerClassInfoCpIdx);
-                        final var outerClassName = getConstantPoolClassName(outerClassInfoCpIdx);
-                        if (innerClassName == null || outerClassName == null) {
-                            // Should not happen (fix static analyzer warning)
-                            throw new ClassfileFormatException("Inner and/or outer class name is null");
-                        }
-                        if (innerClassName.equals(outerClassName)) {
-                            // Invalid according to spec
-                            throw new ClassfileFormatException("Inner and outer class name cannot be the same");
-                        }
-                        // Record types have a Lookup inner class for boostrap methods in JDK 14 -- drop this
-                        if (!("java.lang.invoke.MethodHandles$Lookup".equals(innerClassName)
-                                && "java.lang.invoke.MethodHandles".equals(outerClassName))) {
-                            // Store relationship between inner class and outer class
-                            if (classContainmentEntries == null) {
-                                classContainmentEntries = new ArrayList<>();
-                            }
-                            classContainmentEntries.add(
-                                    new ClassContainment(innerClassName, innerClassAccessFlags, outerClassName));
-                        }
-                    }
-                }
+                readInnerClassesAttribute();
             } else if (constantPoolStringEquals(attributeNameCpIdx, "Signature")) {
                 // Get class type signature, including type variables
                 typeSignatureStr = getConstantPoolString(reader().readUnsignedShort());
             } else if (constantPoolStringEquals(attributeNameCpIdx, "SourceFile")) {
                 sourceFile = getConstantPoolString(reader().readUnsignedShort());
             } else if (constantPoolStringEquals(attributeNameCpIdx, "EnclosingMethod")) {
-                final var innermostEnclosingClassName = requireConstantPoolString(
-                        getConstantPoolClassName(reader().readUnsignedShort()), "enclosing class name");
-                final var enclosingMethodCpIdx = reader().readUnsignedShort();
-                final String definingMethodName;
-                if (enclosingMethodCpIdx == 0) {
-                    // A cpIdx of 0 (which is an invalid value) is used for anonymous inner classes declared in
-                    // class initializer code, e.g. assigned to a class field.
-                    definingMethodName = "<clinit>";
-                } else {
-                    definingMethodName = requireConstantPoolString(
-                            getConstantPoolString(enclosingMethodCpIdx, /* subFieldIdx = */ 0),
-                            "enclosing method name");
-                    // Could also fetch method type signature using subFieldIdx = 1, if needed
-                }
-                // Link anonymous inner classes into the class with their containing method
-                if (classContainmentEntries == null) {
-                    classContainmentEntries = new ArrayList<>();
-                }
-                classContainmentEntries
-                        .add(new ClassContainment(className, classModifiers, innermostEnclosingClassName));
-                // Also store the fully-qualified name of the enclosing method, to mark this as an anonymous inner
-                // class
-                this.fullyQualifiedDefiningMethodName = innermostEnclosingClassName + "." + definingMethodName;
+                readEnclosingMethodAttribute();
             } else if (constantPoolStringEquals(attributeNameCpIdx, "Module")) {
                 final var moduleNameCpIdx = reader().readUnsignedShort();
                 classpathElement.moduleNameFromModuleDescriptor = getConstantPoolString(moduleNameCpIdx);
@@ -2131,6 +2119,209 @@ class Classfile {
                 reader().skip(attributeLength);
             }
         }
+    }
+
+    /**
+     * Read the class' {@code RuntimeVisibleTypeAnnotations} or {@code RuntimeInvisibleTypeAnnotations} attribute.
+     *
+     * @return one decorator per type annotation, which adds the annotation to the annotated type of the class type
+     *         signature, or null if the attribute holds no annotations
+     * @throws IOException
+     *             if an I/O exception occurs.
+     * @throws ClassfileFormatException
+     *             if a type annotation has a target type that is not permitted in a class.
+     */
+    private @Nullable List<ClassTypeAnnotationDecorator> readClassTypeAnnotationDecorators()
+            throws IOException, ClassfileFormatException {
+        final var annotationCount = reader().readUnsignedShort();
+        if (annotationCount == 0) {
+            return null;
+        }
+        final List<ClassTypeAnnotationDecorator> decorators = new ArrayList<>(annotationCount);
+        for (var i = 0; i < annotationCount; i++) {
+            final var targetType = reader().readUnsignedByte();
+            final int typeParameterIndex;
+            final int supertypeIndex;
+            final int boundIndex;
+            // 0x00, 0x10 and 0x11 are the only target_types that JVMS 26 table 4.7.20-A permits in ClassFile.
+            // Complete and up to date as of JDK 26.
+            switch (targetType) {
+            case 0x00 -> {
+                // Type parameter declaration of generic class or interface
+                typeParameterIndex = reader().readUnsignedByte();
+                supertypeIndex = -1;
+                boundIndex = -1;
+            }
+            case 0x10 -> {
+                // Type in extends or implements clause of class declaration (including the direct superclass or
+                // direct superinterface of an anonymous class declaration), or in extends clause of interface
+                // declaration
+                supertypeIndex = reader().readUnsignedShort();
+                typeParameterIndex = -1;
+                boundIndex = -1;
+            }
+            case 0x11 -> {
+                // Type in bound of type parameter declaration of generic class or interface
+                typeParameterIndex = reader().readUnsignedByte();
+                boundIndex = reader().readUnsignedByte();
+                supertypeIndex = -1;
+            }
+            default -> throw new ClassfileFormatException("Class " + className
+                    + " has unknown class type annotation target 0x" + Integer.toHexString(targetType)
+                    + ": element size unknown, cannot continue reading class. "
+                    + "Please report this at https://github.com/classgraph/classgraph/issues");
+            }
+            final var typePath = readTypePath();
+            final var annotationInfo = readAnnotation();
+            decorators.add(classTypeSignature -> decorateClassTypeSignature(classTypeSignature, targetType,
+                    typeParameterIndex, supertypeIndex, boundIndex, typePath, annotationInfo));
+        }
+        return decorators;
+    }
+
+    /**
+     * Add a type annotation to the type of a class type signature that the annotation's target info names.
+     *
+     * @param classTypeSignature
+     *            the class type signature to decorate
+     * @param targetType
+     *            the {@code target_type} of the type annotation
+     * @param typeParameterIndex
+     *            the index of the annotated type parameter, or -1 if the target info does not name one
+     * @param supertypeIndex
+     *            the index of the annotated superinterface, or 65535 for the superclass, or -1 if the target info
+     *            does not name a supertype
+     * @param boundIndex
+     *            the index of the annotated bound of a type parameter, or -1 if the target info does not name one
+     * @param typePath
+     *            the type path of the annotation within the annotated type
+     * @param annotationInfo
+     *            the annotation
+     */
+    private static void decorateClassTypeSignature(final ClassTypeSignature classTypeSignature,
+            final int targetType, final int typeParameterIndex, final int supertypeIndex, final int boundIndex,
+            final List<TypePathNode> typePath, final AnnotationInfo annotationInfo) {
+        switch (targetType) {
+        case 0x00 -> {
+            // Type parameter declaration of generic class or interface
+            final var typeParameters = classTypeSignature.getTypeParameters();
+            if (typeParameters != null && typeParameterIndex < typeParameters.size()) {
+                typeParameters.get(typeParameterIndex).addTypeAnnotation(typePath, annotationInfo);
+            }
+        }
+        case 0x10 -> {
+            // Type in extends or implements clause of class declaration (including the direct superclass or direct
+            // superinterface of an anonymous class declaration), or in extends clause of interface declaration
+            if (supertypeIndex == 65535) {
+                // Type in extends clause of class declaration
+                final var superclassSignature = classTypeSignature.getSuperclassSignature();
+                if (superclassSignature != null) {
+                    superclassSignature.addTypeAnnotation(typePath, annotationInfo);
+                }
+            } else {
+                // Type in implements clause of interface declaration
+                final var superinterfaceSignatures = classTypeSignature.getSuperinterfaceSignatures();
+                if (supertypeIndex < superinterfaceSignatures.size()) {
+                    superinterfaceSignatures.get(supertypeIndex).addTypeAnnotation(typePath, annotationInfo);
+                }
+            }
+        }
+        case 0x11 -> {
+            // Type in bound of type parameter declaration of generic class or interface
+            final var typeParameters = classTypeSignature.getTypeParameters();
+            if (typeParameters != null && typeParameterIndex < typeParameters.size()) {
+                final var typeParameter = typeParameters.get(typeParameterIndex);
+                // boundIndex == 0 => class bound; boundIndex > 0 => interface bound
+                if (boundIndex == 0) {
+                    final var classBound = typeParameter.getClassBound();
+                    if (classBound != null) {
+                        classBound.addTypeAnnotation(typePath, annotationInfo);
+                    }
+                } else {
+                    final var interfaceBounds = typeParameter.getInterfaceBounds();
+                    if (interfaceBounds != null && boundIndex - 1 < interfaceBounds.size()) {
+                        interfaceBounds.get(boundIndex - 1).addTypeAnnotation(typePath, annotationInfo);
+                    }
+                }
+            }
+        }
+        default -> {
+            // No other target types are permitted in ClassFile
+        }
+        }
+    }
+
+    /**
+     * Read the class' {@code InnerClasses} attribute, recording the relationship between each inner class and its
+     * outer class.
+     *
+     * @throws IOException
+     *             if an I/O exception occurs.
+     * @throws ClassfileFormatException
+     *             if an inner class entry is invalid.
+     */
+    private void readInnerClassesAttribute() throws IOException, ClassfileFormatException {
+        final var numInnerClasses = reader().readUnsignedShort();
+        for (var i = 0; i < numInnerClasses; i++) {
+            final var innerClassInfoCpIdx = reader().readUnsignedShort();
+            final var outerClassInfoCpIdx = reader().readUnsignedShort();
+            reader().skip(2); // inner_name_idx
+            final var innerClassAccessFlags = reader().readUnsignedShort();
+            if (innerClassInfoCpIdx != 0 && outerClassInfoCpIdx != 0) {
+                final var innerClassName = getConstantPoolClassName(innerClassInfoCpIdx);
+                final var outerClassName = getConstantPoolClassName(outerClassInfoCpIdx);
+                if (innerClassName == null || outerClassName == null) {
+                    // Should not happen (fix static analyzer warning)
+                    throw new ClassfileFormatException("Inner and/or outer class name is null");
+                }
+                if (innerClassName.equals(outerClassName)) {
+                    // Invalid according to spec
+                    throw new ClassfileFormatException("Inner and outer class name cannot be the same");
+                }
+                // Record types have a Lookup inner class for boostrap methods in JDK 14 -- drop this
+                if (!("java.lang.invoke.MethodHandles$Lookup".equals(innerClassName)
+                        && "java.lang.invoke.MethodHandles".equals(outerClassName))) {
+                    // Store relationship between inner class and outer class
+                    if (classContainmentEntries == null) {
+                        classContainmentEntries = new ArrayList<>();
+                    }
+                    classContainmentEntries
+                            .add(new ClassContainment(innerClassName, innerClassAccessFlags, outerClassName));
+                }
+            }
+        }
+    }
+
+    /**
+     * Read the class' {@code EnclosingMethod} attribute, which marks the class as an anonymous inner class, and
+     * names the method it is declared in.
+     *
+     * @throws IOException
+     *             if an I/O exception occurs.
+     * @throws ClassfileFormatException
+     *             if the enclosing class or method name is missing.
+     */
+    private void readEnclosingMethodAttribute() throws IOException, ClassfileFormatException {
+        final var innermostEnclosingClassName = requireConstantPoolString(
+                getConstantPoolClassName(reader().readUnsignedShort()), "enclosing class name");
+        final var enclosingMethodCpIdx = reader().readUnsignedShort();
+        final String definingMethodName;
+        if (enclosingMethodCpIdx == 0) {
+            // A cpIdx of 0 (which is an invalid value) is used for anonymous inner classes declared in class
+            // initializer code, e.g. assigned to a class field.
+            definingMethodName = "<clinit>";
+        } else {
+            definingMethodName = requireConstantPoolString(
+                    getConstantPoolString(enclosingMethodCpIdx, /* subFieldIdx = */ 0), "enclosing method name");
+            // Could also fetch method type signature using subFieldIdx = 1, if needed
+        }
+        // Link anonymous inner classes into the class with their containing method
+        if (classContainmentEntries == null) {
+            classContainmentEntries = new ArrayList<>();
+        }
+        classContainmentEntries.add(new ClassContainment(className, classModifiers, innermostEnclosingClassName));
+        // Also store the fully-qualified name of the enclosing method, to mark this as an anonymous inner class
+        this.fullyQualifiedDefiningMethodName = innermostEnclosingClassName + "." + definingMethodName;
     }
 
     // -------------------------------------------------------------------------------------------------------------
