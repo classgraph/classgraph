@@ -56,7 +56,6 @@ import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.AcceptReject;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.Assert;
-import nonapi.io.github.classgraph.utils.CollectionUtils;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
@@ -1592,17 +1591,16 @@ public final class ScanResult implements Closeable {
         ClassInfoList foundClassInfo = null;
         for (final String annotationName : annotationNames) {
             final var classInfoList = getClassesWithAnnotation(annotationName);
-            if (foundClassInfo == null) {
-                foundClassInfo = classInfoList;
-            } else {
-                foundClassInfo = foundClassInfo.intersect(classInfoList);
+            if (classInfoList.isEmpty()) {
+                // The intersection with an empty list is empty
+                return ClassInfoList.EMPTY_LIST;
             }
+            foundClassInfo = foundClassInfo == null ? classInfoList : foundClassInfo.intersect(classInfoList);
         }
-        if (foundClassInfo == null) {
-            return ClassInfoList.EMPTY_LIST;
-        }
-        CollectionUtils.sortIfNotEmpty(foundClassInfo);
-        return foundClassInfo;
+        // The lists returned by #getClassesWithAnnotation(String) are sorted by name, and the intersection of
+        // name-sorted lists is name-sorted, so the result does not need to be sorted again (and cannot be sorted
+        // in place, since the lists returned by the public API are unmodifiable)
+        return foundClassInfo == null ? ClassInfoList.EMPTY_LIST : foundClassInfo;
     }
 
     /**
@@ -1621,17 +1619,16 @@ public final class ScanResult implements Closeable {
         ClassInfoList foundClassInfo = null;
         for (final String annotationName : annotationNames) {
             final var classInfoList = getClassesWithAnnotation(annotationName);
-            if (foundClassInfo == null) {
-                foundClassInfo = classInfoList;
-            } else {
-                foundClassInfo = foundClassInfo.union(classInfoList);
+            if (classInfoList.isEmpty()) {
+                // The union with an empty list is unchanged
+                continue;
             }
+            foundClassInfo = foundClassInfo == null ? classInfoList : foundClassInfo.union(classInfoList);
         }
-        if (foundClassInfo == null) {
-            return ClassInfoList.EMPTY_LIST;
-        }
-        CollectionUtils.sortIfNotEmpty(foundClassInfo);
-        return foundClassInfo;
+        // The lists returned by #getClassesWithAnnotation(String) are sorted by name, and the union of name-sorted
+        // lists is name-sorted, so the result does not need to be sorted again (and cannot be sorted in place,
+        // since the lists returned by the public API are unmodifiable)
+        return foundClassInfo == null ? ClassInfoList.EMPTY_LIST : foundClassInfo;
     }
 
     /**
