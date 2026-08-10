@@ -94,6 +94,49 @@ public class ResourceTest {
         }
     }
 
+    /** The single-byte {@code read()} method returns byte values, not the number of bytes read. */
+    @Test
+    public void theContentCanBeReadOneByteAtATime() throws IOException {
+        try (var scanResult = scanTestResourcesDir()) {
+            final var expected = TEXT_FILE_CONTENT.getBytes(StandardCharsets.UTF_8);
+            final var resource = resource(scanResult, TEXT_FILE);
+            try (var inputStream = resource.open()) {
+                final var read = new byte[expected.length];
+                for (var i = 0; i < expected.length; i++) {
+                    final var byteVal = inputStream.read();
+                    assertThat(byteVal).as("byte " + i).isBetween(0, 255);
+                    read[i] = (byte) byteVal;
+                }
+                assertThat(read).isEqualTo(expected);
+                // The stream is now at EOF
+                assertThat(inputStream.read()).isEqualTo(-1);
+            }
+            resource.close();
+        }
+    }
+
+    /**
+     * Closing an {@link java.io.InputStream} that has already been closed has no effect, as required by
+     * {@link java.io.InputStream#close()} -- in particular it does not close the resource a second time, which
+     * would close a stream that had since been opened on the same resource.
+     */
+    @Test
+    public void closingAnInputStreamIsIdempotent() throws IOException {
+        try (var scanResult = scanTestResourcesDir()) {
+            final var expected = TEXT_FILE_CONTENT.getBytes(StandardCharsets.UTF_8);
+            final var resource = resource(scanResult, TEXT_FILE);
+            final var inputStream = resource.open();
+            inputStream.close();
+
+            // Reopen the same resource, then close the stale stream again -- the second close must be a no-op
+            try (var reopened = resource.open()) {
+                inputStream.close();
+                assertThat(reopened.readAllBytes()).isEqualTo(expected);
+            }
+            resource.close();
+        }
+    }
+
     /** Closing a resource twice is harmless, whether or not it was ever opened. */
     @Test
     public void closingAResourceIsIdempotent() throws IOException {

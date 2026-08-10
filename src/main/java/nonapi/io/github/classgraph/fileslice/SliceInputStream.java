@@ -82,7 +82,8 @@ class SliceInputStream extends InputStream {
         if (closed.get()) {
             throw new IOException("Already closed");
         }
-        return read(byteBuf, 0, 1);
+        // Return the byte value, not the number of bytes read (read() returns 1 when a byte was read)
+        return read(byteBuf, 0, 1) < 1 ? -1 : byteBuf[0] & 0xff;
     }
 
     // InputStream's default implementation of this method is very slow -- it calls read() for every byte.
@@ -144,13 +145,14 @@ class SliceInputStream extends InputStream {
 
     @Override
     public void close() {
-        if (resourceToClose != null) {
+        // Closing an already-closed InputStream has no effect, as required by InputStream#close() -- in particular
+        // the Resource must not be closed a second time, since it may have been reopened in the meantime
+        if (!closed.getAndSet(true) && resourceToClose != null) {
             try {
                 resourceToClose.close();
             } catch (final Exception e) {
                 // Ignore
             }
         }
-        closed.getAndSet(true);
     }
 }
