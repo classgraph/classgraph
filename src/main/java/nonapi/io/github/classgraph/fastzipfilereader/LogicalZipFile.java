@@ -427,37 +427,90 @@ public class LogicalZipFile extends ZipFileSlice {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Read the central directory of the zipfile.
+     * The central directory of the zipfile, as located by the End Of Central Directory record.
      *
+     * @param numEnt
+     *            the number of entries in the central directory, or -1 if the End Of Central Directory record and
+     *            its Zip64 counterpart disagreed on the number, so that the entries have to be counted manually
+     * @param cenSize
+     *            the size of the central directory, in bytes
+     * @param cenPos
+     *            the position of the central directory within the zipfile slice
+     * @param locPos
+     *            the position within the zipfile slice that the local file header offset of an entry is relative to
+     */
+    private record CentralDirectory(long numEnt, long cenSize, long cenPos, long locPos) {
+    }
+
+    /**
+     * The fields of a zip entry that the entry's extra field area can override.
+     */
+    private static final class EntryFields {
+        /** The sanitized entry name, which the Info-ZIP Unicode path extra field can replace. */
+        String entryNameSanitized;
+
+        /** The compressed size of the entry, which the Zip64 extra field can replace. */
+        long compressedSize;
+
+        /** The uncompressed size of the entry, which the Zip64 extra field can replace. */
+        long uncompressedSize;
+
+        /** The offset of the entry's local file header, which the Zip64 extra field can replace. */
+        long pos;
+
+        /** The last modified time of the entry, in milliseconds, or 0 if no extra field gives a timestamp. */
+        long lastModifiedMillis;
+
+        /** True if the Info-ZIP Unicode path extra field renamed the entry to a directory, or to nothing. */
+        boolean renamedToDirectoryEntry;
+
+        /**
+         * Constructor.
+         *
+         * @param entryNameSanitized
+         *            the sanitized entry name
+         * @param compressedSize
+         *            the compressed size of the entry
+         * @param uncompressedSize
+         *            the uncompressed size of the entry
+         * @param pos
+         *            the offset of the entry's local file header
+         */
+        EntryFields(final String entryNameSanitized, final long compressedSize, final long uncompressedSize,
+                final long pos) {
+            this.entryNameSanitized = entryNameSanitized;
+            this.compressedSize = compressedSize;
+            this.uncompressedSize = uncompressedSize;
+            this.pos = pos;
+        }
+    }
+
+    /**
+     * Find the End Of Central Directory (EOCD) record, which is the last record in the zipfile, apart from the
+     * zipfile comment.
+     *
+     * @param reader
+     *            a reader for the whole zipfile slice
      * @param scanResources
      *            the resources owned by the scan
-     * @param log
-     *            the log node, or null to skip logging
+     * @return the position of the End Of Central Directory record within the zipfile slice
      * @throws IOException
-     *             If an I/O exception occurs.
+     *             If an I/O exception occurs, or the record could not be found.
      * @throws InterruptedException
      *             if the thread was interrupted.
      */
     @SuppressWarnings("resource")
-    private void readCentralDirectory(final ScanResources scanResources, final @Nullable LogNode log)
+    private long findEndOfCentralDirectoryPos(final RandomAccessReader reader, final ScanResources scanResources)
             throws IOException, InterruptedException {
-        if (slice.sliceLength < 22) {
-            throw new IOException("Zipfile too short to have a central directory");
-        }
-
-        final var reader = slice.randomAccessReader();
-
         // Scan for End Of Central Directory (EOCD) signature. Final comment can be up to 64kB in length, so need to
         // scan back that far to determine if this is a valid zipfile. However for speed, initially just try reading
         // back a maximum of 32 characters.
-        long eocdPos = -1;
         for (long i = slice.sliceLength - 22, iMin = slice.sliceLength - 22 - 32; i >= iMin && i >= 0L; --i) {
             if (reader.readUnsignedInt(i) == 0x06054b50L) {
-                eocdPos = i;
-                break;
+                return i;
             }
         }
-        if (eocdPos < 0 && slice.sliceLength > 22 + 32) {
+        if (slice.sliceLength > 22 + 32) {
             // If EOCD signature was not found, read the last 64kB of file to RAM in a single chunk so that we can
             // scan back through it at higher speed to locate the EOCD signature
             final var bytesToRead = (int) Math.min(slice.sliceLength, 65536);
@@ -472,16 +525,29 @@ public class LogicalZipFile extends ZipFileSlice {
                 final var eocdReader = arraySlice.randomAccessReader();
                 for (var i = eocdBytes.length - 22L; i >= 0L; --i) {
                     if (eocdReader.readUnsignedInt(i) == 0x06054b50L) {
-                        eocdPos = i + readStartOff;
-                        break;
+                        return i + readStartOff;
                     }
                 }
             }
         }
-        if (eocdPos < 0) {
-            throw new IOException("Jarfile central directory signature not found: " + getPath());
-        }
-        long numEnt = reader.readUnsignedShort(eocdPos + 8);
+        throw new IOException("Jarfile central directory signature not found: " + getPath());
+    }
+
+    /**
+     * Read the End Of Central Directory record, and the Zip64 End Of Central Directory record, if the zipfile has
+     * one, to find the central directory.
+     *
+     * @param reader
+     *            a reader for the whole zipfile slice
+     * @param eocdPos
+     *            the position of the End Of Central Directory record within the zipfile slice
+     * @return the central directory
+     * @throws IOException
+     *             If an I/O exception occurs, or the records are inconsistent or describe an unsupported zipfile.
+     */
+    private CentralDirectory readEndOfCentralDirectory(final RandomAccessReader reader, final long eocdPos)
+            throws IOException {
+        var numEnt = (long) reader.readUnsignedShort(eocdPos + 8);
         if (reader.readUnsignedShort(eocdPos + 4) > 0 || reader.readUnsignedShort(eocdPos + 6) > 0
                 || numEnt != reader.readUnsignedShort(eocdPos + 10)) {
             throw new IOException("Multi-disk jarfiles not supported: " + getPath());
@@ -543,66 +609,322 @@ public class LogicalZipFile extends ZipFileSlice {
         if (locPos < 0) {
             throw new IOException("Local file header offset out of range: " + locPos + ": " + getPath());
         }
+        return new CentralDirectory(numEnt, cenSize, cenPos, locPos);
+    }
 
+    /**
+     * Open a reader for the central directory, whose offsets are relative to the start of the central directory.
+     *
+     * @param reader
+     *            a reader for the whole zipfile slice
+     * @param cen
+     *            the central directory
+     * @param scanResources
+     *            the resources owned by the scan
+     * @return the reader
+     * @throws IOException
+     *             If an I/O exception occurs.
+     */
+    @SuppressWarnings("resource")
+    private RandomAccessReader openCentralDirectoryReader(final RandomAccessReader reader,
+            final CentralDirectory cen, final ScanResources scanResources) throws IOException {
         // Read entries into a byte array, if central directory is smaller than 2GB. If central directory is larger
         // than 2GB, need to read each entry field from the file directly using ZipFileSliceReader.
-        RandomAccessReader cenReader;
-        if (cenSize > FileUtils.MAX_BUFFER_SIZE) {
+        if (cen.cenSize() > FileUtils.MAX_BUFFER_SIZE) {
             // Create a slice that covers the central directory (this allows a central directory larger than 2GB to
             // be accessed using the slower FileSlice API, which reads the file directly, but also the slice can be
             // accessed without adding cenPos to each read offset, so that this slice or the slice in the "else"
             // clause below are accessed with the same index, which is the offset from the start of the central
             // directory).
-            cenReader = slice.slice(cenPos, cenSize, /* isDeflatedZipEntry = */ false, /* inflatedSizeHint = */ 0L)
-                    .randomAccessReader();
-        } else {
-            // Read the central directory into RAM for speed, then wrap it in an ArraySlice (random access is faster
-            // for ArraySlice than for FileSlice)
-            final var entryBytes = new byte[(int) cenSize];
-            if (reader.read(cenPos, entryBytes, 0, (int) cenSize) < cenSize) {
-                // Should not happen
-                throw new IOException("Zipfile is truncated");
-            }
-            cenReader = new ArraySlice(entryBytes, /* isDeflatedZipEntry = */ false, /* inflatedSizeHint = */ 0L,
-                    scanResources).randomAccessReader();
+            return slice.slice(cen.cenPos(), cen.cenSize(), /* isDeflatedZipEntry = */ false,
+                    /* inflatedSizeHint = */ 0L).randomAccessReader();
         }
+        // Read the central directory into RAM for speed, then wrap it in an ArraySlice (random access is faster
+        // for ArraySlice than for FileSlice)
+        final var entryBytes = new byte[(int) cen.cenSize()];
+        if (reader.read(cen.cenPos(), entryBytes, 0, (int) cen.cenSize()) < cen.cenSize()) {
+            // Should not happen
+            throw new IOException("Zipfile is truncated");
+        }
+        return new ArraySlice(entryBytes, /* isDeflatedZipEntry = */ false, /* inflatedSizeHint = */ 0L,
+                scanResources).randomAccessReader();
+    }
 
-        if (numEnt == -1L) {
-            // numEnt and numEnt64 were inconsistent -- manually count entries
-            numEnt = 0;
-            for (var entOff = 0L; entOff + 46 <= cenSize;) {
-                final var sig = cenReader.readUnsignedInt(entOff);
-                if (sig != 0x02014b50L) {
-                    throw new IOException("Invalid central directory signature: 0x"
-                            + Integer.toString((int) sig, 16) + ": " + getPath());
+    /**
+     * Count the entries of the central directory, for the rare zipfile whose End Of Central Directory record and
+     * Zip64 End Of Central Directory record disagree on the number of entries.
+     *
+     * @param cenReader
+     *            a reader for the central directory
+     * @param cenSize
+     *            the size of the central directory, in bytes
+     * @return the number of entries
+     * @throws IOException
+     *             If an I/O exception occurs, or an entry does not have a central directory signature.
+     */
+    private long countCentralDirectoryEntries(final RandomAccessReader cenReader, final long cenSize)
+            throws IOException {
+        var numEnt = 0L;
+        for (var entOff = 0L; entOff + 46 <= cenSize;) {
+            final var sig = cenReader.readUnsignedInt(entOff);
+            if (sig != 0x02014b50L) {
+                throw new IOException("Invalid central directory signature: 0x" + Integer.toString((int) sig, 16)
+                        + ": " + getPath());
+            }
+            final var filenameLen = cenReader.readUnsignedShort(entOff + 28);
+            final var extraFieldLen = cenReader.readUnsignedShort(entOff + 30);
+            final var commentLen = cenReader.readUnsignedShort(entOff + 32);
+            entOff += 46 + filenameLen + extraFieldLen + commentLen;
+            numEnt++;
+        }
+        return numEnt;
+    }
+
+    /**
+     * Read the extra field area of a central directory entry, overriding the fields of the entry that the extra
+     * fields give a different value for. See:
+     *
+     * <ul>
+     * <li>https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT
+     * <li>https://github.com/LuaDist/zip/blob/master/proginfo/extrafld.txt
+     * </ul>
+     *
+     * @param cenReader
+     *            a reader for the central directory
+     * @param extraFieldStartOff
+     *            the offset of the extra field area within the central directory
+     * @param extraFieldLen
+     *            the length of the extra field area
+     * @param entryFields
+     *            the fields of the entry, which are overridden in place
+     * @param log
+     *            the log node, or null to skip logging
+     * @throws IOException
+     *             If an I/O exception occurs, or an extra field is inconsistent with the entry it belongs to.
+     */
+    private static void readExtraFields(final RandomAccessReader cenReader, final long extraFieldStartOff,
+            final int extraFieldLen, final EntryFields entryFields, final @Nullable LogNode log)
+            throws IOException {
+        for (var extraFieldOff = 0; extraFieldOff + 4 < extraFieldLen;) {
+            final var tagOff = extraFieldStartOff + extraFieldOff;
+            final var tag = cenReader.readUnsignedShort(tagOff);
+            final var size = cenReader.readUnsignedShort(tagOff + 2);
+            if (extraFieldOff + 4 + size > extraFieldLen) {
+                // Invalid size
+                if (log != null) {
+                    log.log("Skipping zip entry with invalid extra field size: " + entryFields.entryNameSanitized);
                 }
-                final var filenameLen = cenReader.readUnsignedShort(entOff + 28);
-                final var extraFieldLen = cenReader.readUnsignedShort(entOff + 30);
-                final var commentLen = cenReader.readUnsignedShort(entOff + 32);
-                entOff += 46 + filenameLen + extraFieldLen + commentLen;
-                numEnt++;
+                break;
             }
+            if (tag == 1 && size >= 20) {
+                // Zip64 extended information extra field
+                final var uncompressedSize64 = cenReader.readLong(tagOff + 4 + 0);
+                if (entryFields.uncompressedSize == 0xffffffffL) {
+                    entryFields.uncompressedSize = uncompressedSize64;
+                } else if (entryFields.uncompressedSize != uncompressedSize64) {
+                    throw new IOException("Mismatch in uncompressed size: " + entryFields.uncompressedSize + " vs. "
+                            + uncompressedSize64 + ": " + entryFields.entryNameSanitized);
+                }
+                final var compressedSize64 = cenReader.readLong(tagOff + 4 + 8);
+                if (entryFields.compressedSize == 0xffffffffL) {
+                    entryFields.compressedSize = compressedSize64;
+                } else if (entryFields.compressedSize != compressedSize64) {
+                    throw new IOException("Mismatch in compressed size: " + entryFields.compressedSize + " vs. "
+                            + compressedSize64 + ": " + entryFields.entryNameSanitized);
+                }
+                // Only compressed size and uncompressed size are required fields
+                if (size >= 28) {
+                    final var pos64 = cenReader.readLong(tagOff + 4 + 16);
+                    if (entryFields.pos == 0xffffffffL) {
+                        entryFields.pos = pos64;
+                    } else if (entryFields.pos != pos64) {
+                        throw new IOException("Mismatch in entry pos: " + entryFields.pos + " vs. " + pos64 + ": "
+                                + entryFields.entryNameSanitized);
+                    }
+                }
+                break;
+
+            } else if (tag == 0x5455 && size >= 5) {
+                // Extended Unix timestamp
+                final var bits = cenReader.readUnsignedByte(tagOff + 4 + 0);
+                if ((bits & 1) == 1 && size >= 5 + 8) {
+                    entryFields.lastModifiedMillis = cenReader.readLong(tagOff + 4 + 1) * 1000L;
+                }
+
+            } else if (tag == 0x5855 && size >= 20) {
+                // Unix extra field (deprecated)
+                entryFields.lastModifiedMillis = cenReader.readLong(tagOff + 4 + 8) * 1000L;
+                // There are also optional UID and GID fields in this extra field (currently ignored)
+
+            } else if (tag == 0x7855) {
+                // Info-ZIP Unix UID and GID fields (currently ignored)
+
+            } else if (tag == 0x7075) {
+                // Info-ZIP Unicode path extra field
+                final var version = cenReader.readUnsignedByte(tagOff + 4 + 0);
+                if (version != 1) {
+                    throw new IOException("Unknown Unicode entry name format " + version + " in extra field: "
+                            + entryFields.entryNameSanitized);
+                } else if (size > 5) {
+                    // Replace non-Unicode entry name with Unicode version. The data area of this extra field is
+                    // version(1) + nameCRC32(4) + name, so the name starts 5 bytes into the data area (i.e. 9
+                    // bytes after the tag), and is (size - 5) bytes long.
+                    final String unicodeEntryName;
+                    try {
+                        unicodeEntryName = cenReader.readString(tagOff + 9, size - 5);
+                    } catch (final IllegalArgumentException e) {
+                        throw new IOException("Malformed extended Unicode entry name for entry: "
+                                + entryFields.entryNameSanitized);
+                    }
+                    // The replacement name has to be sanitized, and tested for naming a directory, exactly as the
+                    // name it replaces was -- otherwise an entry can carry a path such as "pkg/../../x" or
+                    // "/abs/x" simply by declaring it here
+                    entryFields.entryNameSanitized = FileUtils.sanitizeEntryPath(unicodeEntryName,
+                            /* removeInitialSlash = */ true, /* removeFinalSlash = */ false);
+                    entryFields.renamedToDirectoryEntry = entryFields.entryNameSanitized.isEmpty()
+                            || unicodeEntryName.endsWith("/");
+                }
+            }
+            extraFieldOff += 4 + size;
+        }
+    }
+
+    /**
+     * Read one entry of the central directory.
+     *
+     * @param cenReader
+     *            a reader for the central directory
+     * @param entOff
+     *            the offset of the entry within the central directory
+     * @param filenameLen
+     *            the length of the entry's filename
+     * @param extraFieldLen
+     *            the length of the entry's extra field area
+     * @param locPos
+     *            the position within the zipfile slice that the local file header offset of an entry is relative to
+     * @param log
+     *            the log node, or null to skip logging
+     * @return the entry, or null if the entry is a directory entry, or is unreadable and was skipped.
+     * @throws IOException
+     *             If an I/O exception occurs, or an extra field is inconsistent with the entry it belongs to.
+     */
+    private @Nullable FastZipEntry readEntry(final RandomAccessReader cenReader, final long entOff,
+            final int filenameLen, final int extraFieldLen, final long locPos, final @Nullable LogNode log)
+            throws IOException {
+        // Get and sanitize entry name
+        final var filenameStartOff = entOff + 46;
+        final var entryName = cenReader.readString(filenameStartOff, filenameLen);
+        final var entryNameSanitized = FileUtils.sanitizeEntryPath(entryName, /* removeInitialSlash = */ true,
+                /* removeFinalSlash = */ false);
+        if (entryNameSanitized.isEmpty() || entryName.endsWith("/")) {
+            // Skip directory entries
+            return null;
         }
 
-        // Can't have more than (Integer.MAX_VALUE - 8) entries, since they are stored in an ArrayList
-        if (numEnt > FileUtils.MAX_BUFFER_SIZE) {
-            // One alternative in this (impossibly rare) situation would be to return only the first 2B entries
-            throw new IOException("Too many zipfile entries: " + numEnt);
+        // Check entry flag bits
+        final var flags = cenReader.readUnsignedShort(entOff + 8);
+        if ((flags & 1) != 0) {
+            if (log != null) {
+                log.log("Skipping encrypted zip entry: " + entryNameSanitized);
+            }
+            return null;
         }
 
-        // Make sure there's no DoS attack vector by using a fake number of entries
-        if (numEnt > cenSize / 46) {
-            // The smallest directory entry is 46 bytes in size
-            throw new IOException("Too many zipfile entries: " + numEnt + " (expected a max of " + cenSize / 46
-                    + " based on central directory size)");
+        // Check compression method
+        final var compressionMethod = cenReader.readUnsignedShort(entOff + 10);
+        if (compressionMethod != /* stored */ 0 && compressionMethod != /* deflated */ 8) {
+            if (log != null) {
+                log.log("Skipping zip entry with invalid compression method " + compressionMethod + ": "
+                        + entryNameSanitized);
+            }
+            return null;
+        }
+        final var isDeflated = compressionMethod == /* deflated */ 8;
+
+        // Get external file attributes
+        final var fileAttributes = cenReader.readUnsignedShort(entOff + 40);
+
+        // Read the compressed and uncompressed size, and the offset of the local file header, any of which the
+        // extra fields can override
+        final var entryFields = new EntryFields(entryNameSanitized, cenReader.readUnsignedInt(entOff + 20),
+                cenReader.readUnsignedInt(entOff + 24), cenReader.readUnsignedInt(entOff + 42));
+        if (extraFieldLen > 0) {
+            readExtraFields(cenReader, filenameStartOff + filenameLen, extraFieldLen, entryFields, log);
+        }
+        if (entryFields.renamedToDirectoryEntry) {
+            // Skip directory entries, as above -- the Unicode path extra field can rename an entry into one
+            return null;
         }
 
-        // Enumerate entries
-        entries = new ArrayList<>((int) numEnt);
+        var lastModifiedTimeMSDOS = 0;
+        var lastModifiedDateMSDOS = 0;
+        if (entryFields.lastModifiedMillis == 0L) {
+            // If Unix timestamp was not provided, convert zip entry timestamp from MS-DOS format
+            lastModifiedTimeMSDOS = cenReader.readUnsignedShort(entOff + 12);
+            lastModifiedDateMSDOS = cenReader.readUnsignedShort(entOff + 14);
+        }
+
+        if (entryFields.compressedSize < 0) {
+            if (log != null) {
+                log.log("Skipping zip entry with invalid compressed size (" + entryFields.compressedSize + "): "
+                        + entryFields.entryNameSanitized);
+            }
+            return null;
+        }
+        if (entryFields.uncompressedSize < 0) {
+            if (log != null) {
+                log.log("Skipping zip entry with invalid uncompressed size (" + entryFields.uncompressedSize + "): "
+                        + entryFields.entryNameSanitized);
+            }
+            return null;
+        }
+        if (entryFields.pos < 0) {
+            if (log != null) {
+                log.log("Skipping zip entry with invalid pos (" + entryFields.pos + "): "
+                        + entryFields.entryNameSanitized);
+            }
+            return null;
+        }
+
+        final var locHeaderPos = locPos + entryFields.pos;
+        if (locHeaderPos < 0) {
+            if (log != null) {
+                log.log("Skipping zip entry with invalid loc header position (" + locHeaderPos + "): "
+                        + entryFields.entryNameSanitized);
+            }
+            return null;
+        }
+        if (locHeaderPos + 4 >= slice.sliceLength) {
+            if (log != null) {
+                log.log("Unexpected EOF when trying to read LOC header: " + entryFields.entryNameSanitized);
+            }
+            return null;
+        }
+
+        return new FastZipEntry(this, locHeaderPos, entryFields.entryNameSanitized, isDeflated,
+                entryFields.compressedSize, entryFields.uncompressedSize, entryFields.lastModifiedMillis,
+                lastModifiedTimeMSDOS, lastModifiedDateMSDOS, fileAttributes, enableMultiReleaseVersions);
+    }
+
+    /**
+     * Read the entries of the central directory into {@link #entries}, which must already have been allocated.
+     *
+     * @param cenReader
+     *            a reader for the central directory
+     * @param cen
+     *            the central directory
+     * @param log
+     *            the log node, or null to skip logging
+     * @return the entry for the manifest file, or null if the zipfile does not have one.
+     * @throws IOException
+     *             If an I/O exception occurs, or an entry is invalid.
+     */
+    private @Nullable FastZipEntry readEntries(final RandomAccessReader cenReader, final CentralDirectory cen,
+            final @Nullable LogNode log) throws IOException {
         FastZipEntry manifestZipEntry = null;
         try {
             var entSize = 0;
-            for (var entOff = 0L; entOff + 46 <= cenSize; entOff += entSize) {
+            for (var entOff = 0L; entOff + 46 <= cen.cenSize(); entOff += entSize) {
                 final var sig = cenReader.readUnsignedInt(entOff);
                 if (sig != 0x02014b50L) {
                     throw new IOException("Invalid central directory signature: 0x"
@@ -613,200 +935,21 @@ public class LogicalZipFile extends ZipFileSlice {
                 final var commentLen = cenReader.readUnsignedShort(entOff + 32);
                 entSize = 46 + filenameLen + extraFieldLen + commentLen;
 
-                // Get and sanitize entry name
-                final var filenameStartOff = entOff + 46;
-                final var filenameEndOff = filenameStartOff + filenameLen;
-                if (filenameEndOff > cenSize) {
+                if (entOff + 46 + filenameLen > cen.cenSize()) {
                     if (log != null) {
                         log.log("Filename extends past end of entry -- skipping entry at offset " + entOff);
                     }
                     break;
                 }
-                final var entryName = cenReader.readString(filenameStartOff, filenameLen);
-                var entryNameSanitized = FileUtils.sanitizeEntryPath(entryName, /* removeInitialSlash = */ true,
-                        /* removeFinalSlash = */ false);
-                if (entryNameSanitized.isEmpty() || entryName.endsWith("/")) {
-                    // Skip directory entries
-                    continue;
-                }
 
-                // Check entry flag bits
-                final var flags = cenReader.readUnsignedShort(entOff + 8);
-                if ((flags & 1) != 0) {
-                    if (log != null) {
-                        log.log("Skipping encrypted zip entry: " + entryNameSanitized);
+                final var entry = readEntry(cenReader, entOff, filenameLen, extraFieldLen, cen.locPos(), log);
+                if (entry != null) {
+                    entries.add(entry);
+
+                    // Record manifest entry
+                    if (MANIFEST_PATH.equals(entry.entryName)) {
+                        manifestZipEntry = entry;
                     }
-                    continue;
-                }
-
-                // Check compression method
-                final var compressionMethod = cenReader.readUnsignedShort(entOff + 10);
-                if (compressionMethod != /* stored */ 0 && compressionMethod != /* deflated */ 8) {
-                    if (log != null) {
-                        log.log("Skipping zip entry with invalid compression method " + compressionMethod + ": "
-                                + entryNameSanitized);
-                    }
-                    continue;
-                }
-                final var isDeflated = compressionMethod == /* deflated */ 8;
-
-                // Get compressed and uncompressed size
-                var compressedSize = cenReader.readUnsignedInt(entOff + 20);
-                var uncompressedSize = cenReader.readUnsignedInt(entOff + 24);
-
-                // Get external file attributes
-                final var fileAttributes = cenReader.readUnsignedShort(entOff + 40);
-
-                var pos = cenReader.readUnsignedInt(entOff + 42);
-
-                // Check for Zip64 header in extra fields. See:
-                // https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT
-                // https://github.com/LuaDist/zip/blob/master/proginfo/extrafld.txt
-                var lastModifiedMillis = 0L;
-                // Set if the Info-ZIP Unicode path extra field renames the entry to a directory, or to nothing
-                var renamedToDirectoryEntry = false;
-                if (extraFieldLen > 0) {
-                    for (var extraFieldOff = 0; extraFieldOff + 4 < extraFieldLen;) {
-                        final var tagOff = filenameEndOff + extraFieldOff;
-                        final var tag = cenReader.readUnsignedShort(tagOff);
-                        final var size = cenReader.readUnsignedShort(tagOff + 2);
-                        if (extraFieldOff + 4 + size > extraFieldLen) {
-                            // Invalid size
-                            if (log != null) {
-                                log.log("Skipping zip entry with invalid extra field size: " + entryNameSanitized);
-                            }
-                            break;
-                        }
-                        if (tag == 1 && size >= 20) {
-                            // Zip64 extended information extra field
-                            final var uncompressedSize64 = cenReader.readLong(tagOff + 4 + 0);
-                            if (uncompressedSize == 0xffffffffL) {
-                                uncompressedSize = uncompressedSize64;
-                            } else if (uncompressedSize != uncompressedSize64) {
-                                throw new IOException("Mismatch in uncompressed size: " + uncompressedSize + " vs. "
-                                        + uncompressedSize64 + ": " + entryNameSanitized);
-                            }
-                            final var compressedSize64 = cenReader.readLong(tagOff + 4 + 8);
-                            if (compressedSize == 0xffffffffL) {
-                                compressedSize = compressedSize64;
-                            } else if (compressedSize != compressedSize64) {
-                                throw new IOException("Mismatch in compressed size: " + compressedSize + " vs. "
-                                        + compressedSize64 + ": " + entryNameSanitized);
-                            }
-                            // Only compressed size and uncompressed size are required fields
-                            if (size >= 28) {
-                                final var pos64 = cenReader.readLong(tagOff + 4 + 16);
-                                if (pos == 0xffffffffL) {
-                                    pos = pos64;
-                                } else if (pos != pos64) {
-                                    throw new IOException("Mismatch in entry pos: " + pos + " vs. " + pos64 + ": "
-                                            + entryNameSanitized);
-                                }
-                            }
-                            break;
-
-                        } else if (tag == 0x5455 && size >= 5) {
-                            // Extended Unix timestamp
-                            final var bits = cenReader.readUnsignedByte(tagOff + 4 + 0);
-                            if ((bits & 1) == 1 && size >= 5 + 8) {
-                                lastModifiedMillis = cenReader.readLong(tagOff + 4 + 1) * 1000L;
-                            }
-
-                        } else if (tag == 0x5855 && size >= 20) {
-                            // Unix extra field (deprecated)
-                            lastModifiedMillis = cenReader.readLong(tagOff + 4 + 8) * 1000L;
-                            // There are also optional UID and GID fields in this extra field (currently ignored)
-
-                        } else if (tag == 0x7855) {
-                            // Info-ZIP Unix UID and GID fields (currently ignored)
-
-                        } else if (tag == 0x7075) {
-                            // Info-ZIP Unicode path extra field
-                            final var version = cenReader.readUnsignedByte(tagOff + 4 + 0);
-                            if (version != 1) {
-                                throw new IOException("Unknown Unicode entry name format " + version
-                                        + " in extra field: " + entryNameSanitized);
-                            } else if (size > 5) {
-                                // Replace non-Unicode entry name with Unicode version. The data area of this extra
-                                // field is version(1) + nameCRC32(4) + name, so the name starts 5 bytes into the
-                                // data area (i.e. 9 bytes after the tag), and is (size - 5) bytes long.
-                                final String unicodeEntryName;
-                                try {
-                                    unicodeEntryName = cenReader.readString(tagOff + 9, size - 5);
-                                } catch (final IllegalArgumentException e) {
-                                    throw new IOException("Malformed extended Unicode entry name for entry: "
-                                            + entryNameSanitized);
-                                }
-                                // The replacement name has to be sanitized, and tested for naming a directory,
-                                // exactly as the name it replaces was -- otherwise an entry can carry a path such
-                                // as "pkg/../../x" or "/abs/x" simply by declaring it here
-                                entryNameSanitized = FileUtils.sanitizeEntryPath(unicodeEntryName,
-                                        /* removeInitialSlash = */ true, /* removeFinalSlash = */ false);
-                                renamedToDirectoryEntry = entryNameSanitized.isEmpty()
-                                        || unicodeEntryName.endsWith("/");
-                            }
-                        }
-                        extraFieldOff += 4 + size;
-                    }
-                }
-                if (renamedToDirectoryEntry) {
-                    // Skip directory entries, as above -- the Unicode path extra field can rename an entry into one
-                    continue;
-                }
-
-                var lastModifiedTimeMSDOS = 0;
-                var lastModifiedDateMSDOS = 0;
-                if (lastModifiedMillis == 0L) {
-                    // If Unix timestamp was not provided, convert zip entry timestamp from MS-DOS format
-                    lastModifiedTimeMSDOS = cenReader.readUnsignedShort(entOff + 12);
-                    lastModifiedDateMSDOS = cenReader.readUnsignedShort(entOff + 14);
-                }
-
-                if (compressedSize < 0) {
-                    if (log != null) {
-                        log.log("Skipping zip entry with invalid compressed size (" + compressedSize + "): "
-                                + entryNameSanitized);
-                    }
-                    continue;
-                }
-                if (uncompressedSize < 0) {
-                    if (log != null) {
-                        log.log("Skipping zip entry with invalid uncompressed size (" + uncompressedSize + "): "
-                                + entryNameSanitized);
-                    }
-                    continue;
-                }
-                if (pos < 0) {
-                    if (log != null) {
-                        log.log("Skipping zip entry with invalid pos (" + pos + "): " + entryNameSanitized);
-                    }
-                    continue;
-                }
-
-                final var locHeaderPos = locPos + pos;
-                if (locHeaderPos < 0) {
-                    if (log != null) {
-                        log.log("Skipping zip entry with invalid loc header position (" + locHeaderPos + "): "
-                                + entryNameSanitized);
-                    }
-                    continue;
-                }
-                if (locHeaderPos + 4 >= slice.sliceLength) {
-                    if (log != null) {
-                        log.log("Unexpected EOF when trying to read LOC header: " + entryNameSanitized);
-                    }
-                    continue;
-                }
-
-                // Add zip entry
-                final FastZipEntry entry = new FastZipEntry(this, locHeaderPos, entryNameSanitized, isDeflated,
-                        compressedSize, uncompressedSize, lastModifiedMillis, lastModifiedTimeMSDOS,
-                        lastModifiedDateMSDOS, fileAttributes, enableMultiReleaseVersions);
-                entries.add(entry);
-
-                // Record manifest entry
-                if (MANIFEST_PATH.equals(entry.entryName)) {
-                    manifestZipEntry = entry;
                 }
             }
         } catch (EOFException | IndexOutOfBoundsException e) {
@@ -816,49 +959,105 @@ public class LogicalZipFile extends ZipFileSlice {
                         + (entries.isEmpty() ? "" : " after reading zip entry " + entries.get(entries.size() - 1)));
             }
         }
+        return manifestZipEntry;
+    }
+
+    /**
+     * For a multi-release jar, drop any older or non-versioned entries that are masked by the most recent
+     * version-specific entry.
+     *
+     * @param log
+     *            the log node, or null to skip logging
+     */
+    private void maskMultiReleaseEntries(final @Nullable LogNode log) {
+        if (log != null) {
+            // Find all the unique multirelease versions within the jar
+            final Set<Integer> versionsFound = new HashSet<>();
+            for (final FastZipEntry entry : entries) {
+                if (entry.version > 8) {
+                    versionsFound.add(entry.version);
+                }
+            }
+            final List<Integer> versionsFoundSorted = new ArrayList<>(versionsFound);
+            CollectionUtils.sortIfNotEmpty(versionsFoundSorted);
+            log.log("This is a multi-release jar, with versions: " + StringUtils.join(", ", versionsFoundSorted));
+        }
+
+        // Sort in decreasing order of version in preparation for version masking
+        CollectionUtils.sortIfNotEmpty(entries);
+
+        // Mask files that appear in multiple version sections, so that there is only one entry for each
+        // unversioned path, i.e. the versioned path with the highest version number
+        final List<FastZipEntry> unversionedZipEntriesMasked = new ArrayList<>(entries.size());
+        final Map<String, String> unversionedPathToVersionedPath = new HashMap<>();
+        for (final FastZipEntry versionedZipEntry : entries) {
+            final var maskingEntryName = unversionedPathToVersionedPath
+                    .putIfAbsent(versionedZipEntry.entryNameUnversioned, versionedZipEntry.entryName);
+            if (maskingEntryName == null) {
+                // This is the first FastZipEntry for this entry's unversioned path
+                unversionedZipEntriesMasked.add(versionedZipEntry);
+            } else if (log != null) {
+                log.log(maskingEntryName + " masks " + versionedZipEntry.entryName);
+            }
+        }
+
+        // Override entries with version-masked entries
+        entries = unversionedZipEntriesMasked;
+    }
+
+    /**
+     * Read the central directory of the zipfile.
+     *
+     * @param scanResources
+     *            the resources owned by the scan
+     * @param log
+     *            the log node, or null to skip logging
+     * @throws IOException
+     *             If an I/O exception occurs.
+     * @throws InterruptedException
+     *             if the thread was interrupted.
+     */
+    @SuppressWarnings("resource")
+    private void readCentralDirectory(final ScanResources scanResources, final @Nullable LogNode log)
+            throws IOException, InterruptedException {
+        if (slice.sliceLength < 22) {
+            throw new IOException("Zipfile too short to have a central directory");
+        }
+        final var reader = slice.randomAccessReader();
+
+        // Locate the central directory
+        final var eocdPos = findEndOfCentralDirectoryPos(reader, scanResources);
+        final var cen = readEndOfCentralDirectory(reader, eocdPos);
+        final var cenReader = openCentralDirectoryReader(reader, cen, scanResources);
+
+        // numEnt is -1 if the End Of Central Directory record and its Zip64 counterpart were inconsistent
+        final var numEnt = cen.numEnt() == -1L ? countCentralDirectoryEntries(cenReader, cen.cenSize())
+                : cen.numEnt();
+
+        // Can't have more than (Integer.MAX_VALUE - 8) entries, since they are stored in an ArrayList
+        if (numEnt > FileUtils.MAX_BUFFER_SIZE) {
+            // One alternative in this (impossibly rare) situation would be to return only the first 2B entries
+            throw new IOException("Too many zipfile entries: " + numEnt);
+        }
+
+        // Make sure there's no DoS attack vector by using a fake number of entries
+        if (numEnt > cen.cenSize() / 46) {
+            // The smallest directory entry is 46 bytes in size
+            throw new IOException("Too many zipfile entries: " + numEnt + " (expected a max of "
+                    + cen.cenSize() / 46 + " based on central directory size)");
+        }
+
+        // Enumerate entries
+        entries = new ArrayList<>((int) numEnt);
+        final var manifestZipEntry = readEntries(cenReader, cen, log);
 
         // Parse manifest file, if present
         if (manifestZipEntry != null) {
             parseManifest(manifestZipEntry, log);
         }
 
-        // For multi-release jars, drop any older or non-versioned entries that are masked by the most recent
-        // version-specific entry
         if (isMultiReleaseJar) {
-            if (log != null) {
-                // Find all the unique multirelease versions within the jar
-                final Set<Integer> versionsFound = new HashSet<>();
-                for (final FastZipEntry entry : entries) {
-                    if (entry.version > 8) {
-                        versionsFound.add(entry.version);
-                    }
-                }
-                final List<Integer> versionsFoundSorted = new ArrayList<>(versionsFound);
-                CollectionUtils.sortIfNotEmpty(versionsFoundSorted);
-                log.log("This is a multi-release jar, with versions: "
-                        + StringUtils.join(", ", versionsFoundSorted));
-            }
-
-            // Sort in decreasing order of version in preparation for version masking
-            CollectionUtils.sortIfNotEmpty(entries);
-
-            // Mask files that appear in multiple version sections, so that there is only one entry for each
-            // unversioned path, i.e. the versioned path with the highest version number
-            final List<FastZipEntry> unversionedZipEntriesMasked = new ArrayList<>(entries.size());
-            final Map<String, String> unversionedPathToVersionedPath = new HashMap<>();
-            for (final FastZipEntry versionedZipEntry : entries) {
-                final var maskingEntryName = unversionedPathToVersionedPath
-                        .putIfAbsent(versionedZipEntry.entryNameUnversioned, versionedZipEntry.entryName);
-                if (maskingEntryName == null) {
-                    // This is the first FastZipEntry for this entry's unversioned path
-                    unversionedZipEntriesMasked.add(versionedZipEntry);
-                } else if (log != null) {
-                    log.log(maskingEntryName + " masks " + versionedZipEntry.entryName);
-                }
-            }
-
-            // Override entries with version-masked entries
-            entries = unversionedZipEntriesMasked;
+            maskMultiReleaseEntries(log);
         }
     }
 
