@@ -829,7 +829,11 @@ class Scanner implements Callable<ScanResult> {
                         // basePath is a path prefix of comparePath. Ensure that the nested classpath does not
                         // contain another '!' zip-separator (since classpath scanning does not recurse to
                         // jars-within-jars unless they are explicitly listed on the classpath)
-                        final var nestedClasspathRelativePath = comparePath.substring(basePathLen + 1);
+                        // A '!' zip-separator is always followed by '/', and zip entry names never start with
+                        // '/', so both separator characters have to be skipped for the stored prefix to be able
+                        // to match a zip entry name
+                        final var separatorLen = comparePath.startsWith("!/", basePathLen) ? 2 : 1;
+                        final var nestedClasspathRelativePath = comparePath.substring(basePathLen + separatorLen);
                         if (nestedClasspathRelativePath.indexOf('!') < 0) {
                             // Found a nested classpath root
                             foundNestedClasspathRoot = true;
