@@ -1,0 +1,80 @@
+name: Memory mapping benchmark
+
+# Not an active workflow -- it is kept here, outside .github/workflows, so that it does not run on
+# every push. It measures how much difference enableMemoryMapping() makes on each of the three
+# major operating systems; the numbers it produced are in BENCHMARK.md. To take the measurements
+# again, copy this file into .github/workflows, push the branch named below, collect the
+# artifacts, then remove it again.
+on:
+  push:
+    branches:
+      - mmap-benchmark
+
+jobs:
+  benchmark:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # JDK 17 maps through FileChannel#map and unmaps through the cleaner; JDK 22 and above
+        # map and unmap through a java.lang.foreign.Arena, so both paths need measuring
+        os: [ ubuntu-latest, windows-latest, macos-latest ]
+        java: [ '17', '25' ]
+    steps:
+    - uses: actions/checkout@v7
+    - name: Set up JDK
+      uses: actions/setup-java@v5
+      with:
+        distribution: 'zulu'
+        java-version: ${{ matrix.java }}
+        cache: 'maven'
+    - name: Build ClassGraph
+      run: ./mvnw --no-transfer-progress -B -q clean compile
+    - name: Download the benchmark corpus
+      run: ./mvnw --no-transfer-progress -B -q -f benchmark/pom.xml dependency:copy-dependencies -DoutputDirectory=corpus
+    - name: Download the source jars, which give the mixed-content corpus its non-class bytes
+      # The quotes matter: PowerShell splits a bare -Dmdep.failOnMissingClassifierArtifact=false at the dot
+      run: ./mvnw --no-transfer-progress -B -q -f benchmark/pom.xml dependency:copy-dependencies -Dclassifier=sources "-Dmdep.failOnMissingClassifierArtifact=false" -DoutputDirectory=mixed
+    - name: Run the benchmark
+      shell: bash
+      run: |
+        set -e
+        # The "one large jar" workload is the largest jar in the corpus on its own
+        mkdir -p benchmark/huge
+        cp benchmark/corpus/kotlin-compiler-embeddable-*.jar benchmark/huge/
+        # The "mixed" workload is the corpus plus the source jars, so that only around a third of
+        # its bytes are classfiles, as on a typical real classpath
+        mkdir -p benchmark/mixed
+        cp benchmark/corpus/*.jar benchmark/mixed/
+
+        echo "== $RUNNER_OS / JDK ${{ matrix.java }} / storage:"
+        df -h . | tail -1
+
+        echo "== $RUNNER_OS / JDK ${{ matrix.java }} / can a jar be deleted while it is being scanned?"
+        java -cp target/classes benchmark/LockProbe.java benchmark/huge/kotlin-compiler-embeddable-2.1.0.jar
+
+        for workload in corpus mixed huge ; do
+          echo "== $RUNNER_OS / JDK ${{ matrix.java }} / $workload / warm page cache"
+          java -cp target/classes benchmark/Bench.java "benchmark/$workload" warm 12 none
+        done
+
+        # Dropping files from the page cache needs posix_fadvise on Linux and "purge" on macOS.
+        # Windows has no equivalent that does not need a third-party tool, so it is warm-only.
+        case "$RUNNER_OS" in
+          Linux)   EVICT="python3 benchmark/evict.py" ;;
+          macOS)   EVICT="sudo purge" ;;
+          *)       EVICT="" ;;
+        esac
+        if [ -n "$EVICT" ] ; then
+          for workload in corpus mixed huge ; do
+            echo "== $RUNNER_OS / JDK ${{ matrix.java }} / $workload / cold page cache"
+            # "sudo purge" takes no argument, so only the Linux command gets the directory
+            if [ "$RUNNER_OS" = "Linux" ] ; then
+              java -cp target/classes benchmark/Bench.java "benchmark/$workload" cold 6 $EVICT "benchmark/$workload"
+            else
+              java -cp target/classes benchmark/Bench.java "benchmark/$workload" cold 6 $EVICT
+            fi
+          done
+        else
+          echo "== $RUNNER_OS / JDK ${{ matrix.java }} / cold page cache: not measurable on this OS"
+        fi

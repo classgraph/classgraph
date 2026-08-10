@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>io.github.classgraph</groupId>
+    <artifactId>classgraph-benchmark-corpus</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <name>ClassGraph benchmark corpus</name>
+    <description>
+        Not part of the ClassGraph build. This pom exists only to download a fixed set of jars to scan, so that
+        the memory mapping benchmark scans the same bytes on every operating system. Populate the corpus with:
+
+        mvn -f benchmark/pom.xml dependency:copy-dependencies -DoutputDirectory=benchmark/corpus
+    </description>
+
+    <dependencies>
+        <!-- Pulls in around a hundred transitive jars, for the "many jars" workload -->
+        <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-common</artifactId>
+            <version>3.3.6</version>
+        </dependency>
+        <!-- A single very large jar, for the "one large jar" workload -->
+        <dependency>
+            <groupId>org.jetbrains.kotlin</groupId>
+            <artifactId>kotlin-compiler-embeddable</artifactId>
+            <version>2.1.0</version>
+        </dependency>
+        <!-- A few more large, class-dense jars -->
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-all</artifactId>
+            <version>4.1.100.Final</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+            <version>6.1.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.scala-lang</groupId>
+            <artifactId>scala-library</artifactId>
+            <version>2.13.12</version>
+        </dependency>
+    </dependencies>
+</project>
