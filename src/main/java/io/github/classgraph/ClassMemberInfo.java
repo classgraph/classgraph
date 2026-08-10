@@ -291,9 +291,7 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
                 return annotationInfoRef;
             }
 
-            if (!scanResult().scanSpec.enableAnnotationInfo) {
-                throw new IllegalStateException("Please call ClassGraph#enableAnnotationInfo() before #scan()");
-            }
+            scanResult().scanSpec.checkAnnotationInfoEnabled();
 
             annotationInfoRef = annotationInfo == null ? AnnotationInfoList.EMPTY_LIST
                     : unmodifiable(

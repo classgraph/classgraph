@@ -201,9 +201,7 @@ public class MethodParameterInfo implements HasAnnotations {
      */
     @Override
     public AnnotationInfoList getAllAnnotationInfo() {
-        if (!Objects.requireNonNull(scanResult).scanSpec.enableAnnotationInfo) {
-            throw new IllegalStateException("Please call ClassGraph#enableAnnotationInfo() before #scan()");
-        }
+        Objects.requireNonNull(scanResult).scanSpec.checkAnnotationInfoEnabled();
         if (annotationInfo == null || annotationInfo.length == 0) {
             return AnnotationInfoList.EMPTY_LIST;
         } else {

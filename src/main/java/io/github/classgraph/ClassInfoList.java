@@ -464,9 +464,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
             throw new IllegalStateException("List is empty");
         }
         final var scanSpec = get(0).scanResult().scanSpec;
-        if (!scanSpec.enableInterClassDependencies) {
-            throw new IllegalStateException("Please call ClassGraph#enableInterClassDependencies() before #scan()");
-        }
+        scanSpec.checkInterClassDependenciesEnabled();
         return GraphvizDotfileGenerator.generateGraphVizDotFileFromInterClassDependencies(this, options.sizeX,
                 options.sizeY, options.includeExternalClasses != null ? options.includeExternalClasses
                         : scanSpec.enableExternalClasses);
@@ -564,9 +562,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
             throw new IllegalStateException("List is empty");
         }
         final var scanSpec = get(0).scanResult().scanSpec;
-        if (!scanSpec.enableClassInfo) {
-            throw new IllegalStateException("Please call ClassGraph#enableClassInfo() before #scan()");
-        }
+        scanSpec.checkClassInfoEnabled();
         return GraphvizDotfileGenerator.generateGraphVizDotFile(this, options.sizeX, options.sizeY,
                 options.showFields, options.showFieldTypeDependencyEdges, options.showMethods,
                 options.showMethodTypeDependencyEdges, options.showAnnotations,

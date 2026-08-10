@@ -246,10 +246,7 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
      *             initiating the scan.
      */
     public @Nullable Object getConstantInitializerValue() {
-        if (!scanResult().scanSpec.enableStaticFinalFieldConstantInitializerValues) {
-            throw new IllegalStateException(
-                    "Please call ClassGraph#enableStaticFinalFieldConstantInitializerValues() before #scan()");
-        }
+        scanResult().scanSpec.checkStaticFinalFieldConstantInitializerValuesEnabled();
         return constantInitializerValue;
     }
 

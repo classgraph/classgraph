@@ -279,8 +279,8 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName, HasAnnotatio
     @Override
     public AnnotationInfoList getAllAnnotationInfo() {
         // scanResult is only null if the scan has not completed, which callers cannot observe
-        if (scanResult != null && !scanResult.scanSpec.enableAnnotationInfo) {
-            throw new IllegalStateException("Please call ClassGraph#enableAnnotationInfo() before #scan()");
+        if (scanResult != null) {
+            scanResult.scanSpec.checkAnnotationInfoEnabled();
         }
         var annotations = annotationInfo;
         if (annotations == null) {

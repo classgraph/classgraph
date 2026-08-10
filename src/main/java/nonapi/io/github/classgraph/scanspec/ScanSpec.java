@@ -296,6 +296,88 @@ public class ScanSpec {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /**
+     * Throw {@link IllegalStateException} if {@link #enableClassInfo} was not set before the scan.
+     *
+     * @throws IllegalStateException
+     *             if {@code ClassGraph#enableClassInfo()} was not called before the scan.
+     */
+    public void checkClassInfoEnabled() {
+        checkEnabled(enableClassInfo, "enableClassInfo");
+    }
+
+    /**
+     * Throw {@link IllegalStateException} if {@link #enableMethodInfo} was not set before the scan.
+     *
+     * @throws IllegalStateException
+     *             if {@code ClassGraph#enableMethodInfo()} was not called before the scan.
+     */
+    public void checkMethodInfoEnabled() {
+        checkEnabled(enableMethodInfo, "enableMethodInfo");
+    }
+
+    /**
+     * Throw {@link IllegalStateException} if {@link #enableFieldInfo} was not set before the scan.
+     *
+     * @throws IllegalStateException
+     *             if {@code ClassGraph#enableFieldInfo()} was not called before the scan.
+     */
+    public void checkFieldInfoEnabled() {
+        checkEnabled(enableFieldInfo, "enableFieldInfo");
+    }
+
+    /**
+     * Throw {@link IllegalStateException} if {@link #enableAnnotationInfo} was not set before the scan.
+     *
+     * @throws IllegalStateException
+     *             if {@code ClassGraph#enableAnnotationInfo()} was not called before the scan.
+     */
+    public void checkAnnotationInfoEnabled() {
+        checkEnabled(enableAnnotationInfo, "enableAnnotationInfo");
+    }
+
+    /**
+     * Throw {@link IllegalStateException} if {@link #enableInterClassDependencies} was not set before the scan.
+     *
+     * @throws IllegalStateException
+     *             if {@code ClassGraph#enableInterClassDependencies()} was not called before the scan.
+     */
+    public void checkInterClassDependenciesEnabled() {
+        checkEnabled(enableInterClassDependencies, "enableInterClassDependencies");
+    }
+
+    /**
+     * Throw {@link IllegalStateException} if {@link #enableStaticFinalFieldConstantInitializerValues} was not set
+     * before the scan.
+     *
+     * @throws IllegalStateException
+     *             if {@code ClassGraph#enableStaticFinalFieldConstantInitializerValues()} was not called before the
+     *             scan.
+     */
+    public void checkStaticFinalFieldConstantInitializerValuesEnabled() {
+        checkEnabled(enableStaticFinalFieldConstantInitializerValues,
+                "enableStaticFinalFieldConstantInitializerValues");
+    }
+
+    /**
+     * Throw {@link IllegalStateException} naming the {@link io.github.classgraph.ClassGraph} method that has to be
+     * called before the scan, if the scan option it sets was not enabled.
+     *
+     * @param enabled
+     *            whether the scan option was enabled.
+     * @param enablerMethodName
+     *            the name of the {@link io.github.classgraph.ClassGraph} method that enables the scan option.
+     * @throws IllegalStateException
+     *             if the scan option was not enabled.
+     */
+    private static void checkEnabled(final boolean enabled, final String enablerMethodName) {
+        if (!enabled) {
+            throw new IllegalStateException("Please call ClassGraph#" + enablerMethodName + "() before #scan()");
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
     /** Sort prefixes to ensure correct accept/reject evaluation. */
     // #167
     public void sortPrefixes() {

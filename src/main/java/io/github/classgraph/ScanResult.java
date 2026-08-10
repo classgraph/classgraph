@@ -323,9 +323,7 @@ public final class ScanResult implements Closeable {
      */
     private void checkClassInfoEnabled() {
         checkNotClosed();
-        if (!scanSpec.enableClassInfo) {
-            throw new IllegalStateException("Please call ClassGraph#enableClassInfo() before #scan()");
-        }
+        scanSpec.checkClassInfoEnabled();
     }
 
     /**

@@ -2174,9 +2174,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 return annotationsRef;
             }
 
-            if (!scanResult().scanSpec.enableAnnotationInfo) {
-                throw new IllegalStateException("Please call ClassGraph#enableAnnotationInfo() before #scan()");
-            }
+            scanResult().scanSpec.checkAnnotationInfoEnabled();
 
             // Get all annotations on this class
             final var annotationClasses = this.filterClassInfo(RelType.CLASS_ANNOTATIONS,
@@ -2226,6 +2224,23 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
+     * Throw {@link IllegalStateException} if the annotations on fields or methods were not recorded during the
+     * scan, which needs both the field or method info and the annotation info to have been enabled.
+     *
+     * @param isField
+     *            true to check for field annotations, false to check for method or method parameter annotations.
+     * @throws IllegalStateException
+     *             if the required scan options were not enabled before the scan.
+     */
+    private void checkFieldOrMethodAnnotationInfoEnabled(final boolean isField) {
+        final var scanSpec = scanResult().scanSpec;
+        if (!(isField ? scanSpec.enableFieldInfo : scanSpec.enableMethodInfo) || !scanSpec.enableAnnotationInfo) {
+            throw new IllegalStateException("Please call ClassGraph#enable" + (isField ? "Field" : "Method")
+                    + "Info() and #enableAnnotationInfo() before #scan()");
+        }
+    }
+
+    /**
      * Get the annotations or meta-annotations on fields, methods or method parameters declared by the class, (not
      * including fields, methods or method parameters declared by the interfaces or superclasses of this class).
      *
@@ -2238,11 +2253,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     private ClassInfoList getFieldOrMethodAnnotations(final RelType relType) {
         final var isField = relType == RelType.FIELD_ANNOTATIONS;
-        if (!(isField ? scanResult().scanSpec.enableFieldInfo : scanResult().scanSpec.enableMethodInfo)
-                || !scanResult().scanSpec.enableAnnotationInfo) {
-            throw new IllegalStateException("Please call ClassGraph#enable" + (isField ? "Field" : "Method")
-                    + "Info() and " + "#enableAnnotationInfo() before #scan()");
-        }
+        checkFieldOrMethodAnnotationInfoEnabled(isField);
         final var fieldOrMethodAnnotations = this.filterClassInfo(relType, /* strictAccept = */ false,
                 ClassType.ANNOTATION);
         final Set<ClassInfo> fieldOrMethodAnnotationsAndMetaAnnotations = new LinkedHashSet<>(
@@ -2309,11 +2320,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     private ClassInfoList getClassesWithFieldOrMethodAnnotation(final RelType relType) {
         final var isField = relType == RelType.CLASSES_WITH_FIELD_ANNOTATION
                 || relType == RelType.CLASSES_WITH_NONPRIVATE_FIELD_ANNOTATION;
-        if (!(isField ? scanResult().scanSpec.enableFieldInfo : scanResult().scanSpec.enableMethodInfo)
-                || !scanResult().scanSpec.enableAnnotationInfo) {
-            throw new IllegalStateException("Please call ClassGraph#enable" + (isField ? "Field" : "Method")
-                    + "Info() and " + "#enableAnnotationInfo() before #scan()");
-        }
+        checkFieldOrMethodAnnotationInfoEnabled(isField);
         final var classesWithDirectlyAnnotatedFieldsOrMethods = this.filterClassInfo(relType,
                 /* strictAccept = */ true);
         // Don't filter the meta-annotated annotations -- they are only traversed through, and an accepted class can
@@ -2356,9 +2363,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 return annotationInfoRef;
             }
 
-            if (!scanResult().scanSpec.enableAnnotationInfo) {
-                throw new IllegalStateException("Please call ClassGraph#enableAnnotationInfo() before #scan()");
-            }
+            scanResult().scanSpec.checkAnnotationInfoEnabled();
 
             annotationInfoRef = unmodifiable(AnnotationInfoList.getIndirectAnnotations(annotationInfo, this));
             return annotationInfoRef;
@@ -2375,9 +2380,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *             not an annotation.
      */
     public AnnotationParameterValueList getAnnotationDefaultParameterValues() {
-        if (!scanResult().scanSpec.enableAnnotationInfo) {
-            throw new IllegalStateException("Please call ClassGraph#enableAnnotationInfo() before #scan()");
-        }
+        scanResult().scanSpec.checkAnnotationInfoEnabled();
         if (!isAnnotation()) {
             throw new IllegalStateException("Class is not an annotation: " + getName());
         }
@@ -2403,9 +2406,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public ClassInfoList getClassesWithAnnotation() {
-        if (!scanResult().scanSpec.enableAnnotationInfo) {
-            throw new IllegalStateException("Please call ClassGraph#enableAnnotationInfo() before #scan()");
-        }
+        scanResult().scanSpec.checkAnnotationInfoEnabled();
 
         if (isInherited) {
             // If this is an inherited annotation, add into the result all subclasses of the annotated classes.
@@ -2460,9 +2461,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     private MethodInfoList getDeclaredMethodInfoOfKind(final boolean getNormalMethods,
             final boolean getConstructorMethods) {
-        if (!scanResult().scanSpec.enableMethodInfo) {
-            throw new IllegalStateException("Please call ClassGraph#enableMethodInfo() before #scan()");
-        }
+        scanResult().scanSpec.checkMethodInfoEnabled();
         if (methodInfo == null) {
             return MethodInfoList.EMPTY_LIST;
         }
@@ -2488,9 +2487,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return the declared method info
      */
     private MethodInfoList getDeclaredMethodInfoWithName(final String methodName) {
-        if (!scanResult().scanSpec.enableMethodInfo) {
-            throw new IllegalStateException("Please call ClassGraph#enableMethodInfo() before #scan()");
-        }
+        scanResult().scanSpec.checkMethodInfoEnabled();
         if (methodInfo == null) {
             return MethodInfoList.EMPTY_LIST;
         }
@@ -2513,9 +2510,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     private MethodInfoList mergeDeclaredMethodsInOverrideOrder(
             final Function<ClassInfo, MethodInfoList> declaredMethodsOf) {
-        if (!scanResult().scanSpec.enableMethodInfo) {
-            throw new IllegalStateException("Please call ClassGraph#enableMethodInfo() before #scan()");
-        }
+        scanResult().scanSpec.checkMethodInfoEnabled();
         final var methodInfoList = new MethodInfoList();
         final Set<Entry<String, String>> nameAndTypeDescriptorSet = new HashSet<>();
         for (final ClassInfo ci : getMethodOverrideOrder()) {
@@ -3117,9 +3112,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *             if {@link ClassGraph#enableFieldInfo()} was not called prior to initiating the scan.
      */
     public FieldInfoList getDeclaredFieldInfo() {
-        if (!scanResult().scanSpec.enableFieldInfo) {
-            throw new IllegalStateException("Please call ClassGraph#enableFieldInfo() before #scan()");
-        }
+        scanResult().scanSpec.checkFieldInfoEnabled();
         return fieldInfo == null ? FieldInfoList.EMPTY_LIST : unmodifiable(fieldInfo);
     }
 
@@ -3146,9 +3139,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *             if {@link ClassGraph#enableFieldInfo()} was not called prior to initiating the scan.
      */
     public FieldInfoList getFieldInfo() {
-        if (!scanResult().scanSpec.enableFieldInfo) {
-            throw new IllegalStateException("Please call ClassGraph#enableFieldInfo() before #scan()");
-        }
+        scanResult().scanSpec.checkFieldInfoEnabled();
         // Implement field overriding
         final FieldInfoList fieldInfoList = new FieldInfoList();
         final Set<String> fieldNameSet = new HashSet<>();
@@ -3206,9 +3197,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     public @Nullable FieldInfo getDeclaredFieldInfo(final String fieldName) {
         Assert.notNull(fieldName, "fieldName");
-        if (!scanResult().scanSpec.enableFieldInfo) {
-            throw new IllegalStateException("Please call ClassGraph#enableFieldInfo() before #scan()");
-        }
+        scanResult().scanSpec.checkFieldInfoEnabled();
         if (fieldInfo == null) {
             return null;
         }
@@ -3246,9 +3235,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     public @Nullable FieldInfo getFieldInfo(final String fieldName) {
         Assert.notNull(fieldName, "fieldName");
-        if (!scanResult().scanSpec.enableFieldInfo) {
-            throw new IllegalStateException("Please call ClassGraph#enableFieldInfo() before #scan()");
-        }
+        scanResult().scanSpec.checkFieldInfoEnabled();
         // Implement field overriding
         for (final ClassInfo ci : getFieldOverrideOrder()) {
             final var fi = ci.getDeclaredFieldInfo(fieldName);
@@ -3791,9 +3778,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *             if {@link ClassGraph#enableInterClassDependencies()} was not called before scanning.
      */
     public ClassInfoList getClassDependencies() {
-        if (!scanResult().scanSpec.enableInterClassDependencies) {
-            throw new IllegalStateException("Please call ClassGraph#enableInterClassDependencies() before #scan()");
-        }
+        scanResult().scanSpec.checkInterClassDependenciesEnabled();
         return referencedClasses == null ? ClassInfoList.EMPTY_LIST : referencedClasses;
     }
 
