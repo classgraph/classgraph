@@ -1965,8 +1965,12 @@ class Classfile {
                                                 annotationInfo);
                                     } else {
                                         // Type in implements clause of interface declaration
-                                        classTypeSignature.getSuperinterfaceSignatures().get(supertypeIndex)
-                                                .addTypeAnnotation(typePath, annotationInfo);
+                                        final List<ClassRefTypeSignature> superinterfaceSignatures = classTypeSignature
+                                                .getSuperinterfaceSignatures();
+                                        if (supertypeIndex < superinterfaceSignatures.size()) {
+                                            superinterfaceSignatures.get(supertypeIndex)
+                                                    .addTypeAnnotation(typePath, annotationInfo);
+                                        }
                                     }
                                 } else if (targetType == 0x11) {
                                     // Type in bound of type parameter declaration of generic class or interface

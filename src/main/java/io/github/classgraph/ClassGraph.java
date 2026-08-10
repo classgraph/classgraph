@@ -36,6 +36,7 @@ import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
@@ -479,11 +480,21 @@ public class ClassGraph {
      * Works for Iterables of any type whose toString() method resolves to a classpath element string, e.g. String,
      * File or Path.
      *
+     * <p>
+     * A single {@link Path} is treated as one classpath entry, not as a sequence of its name elements.
+     *
      * @param overrideClasspathElements
      *            The custom classpath to use for scanning, with path elements separated by File.pathSeparatorChar.
      * @return this (for method chaining).
      */
     public ClassGraph overrideClasspath(final Iterable<?> overrideClasspathElements) {
+        if (overrideClasspathElements instanceof Path) {
+            // A Path is an Iterable of its own name elements, so passing a single Path binds to this overload
+            // rather than to the Object... overload. The name elements of a path are never classpath entries in
+            // their own right, so a Path is added as a single classpath entry.
+            scanSpec.addClasspathOverride(overrideClasspathElements);
+            return this;
+        }
         if (!overrideClasspathElements.iterator().hasNext()) {
             throw new IllegalArgumentException("Can't override classpath with an empty path");
         }
