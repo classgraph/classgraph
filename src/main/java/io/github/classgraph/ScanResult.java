@@ -228,7 +228,7 @@ public final class ScanResult implements Closeable {
         this.packageNameToPackageInfo = packageNameToPackageInfo;
         this.moduleNameToModuleInfo = moduleNameToModuleInfo;
         this.nestedJarHandler = nestedJarHandler;
-        this.reflectionUtils = nestedJarHandler.reflectionUtils;
+        this.reflectionUtils = nestedJarHandler.scanResources.reflectionUtils;
         this.topLevelLog = topLevelLog;
 
         indexResourcesAndClassInfo(topLevelLog);

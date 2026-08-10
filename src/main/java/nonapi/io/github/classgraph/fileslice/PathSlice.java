@@ -36,7 +36,6 @@ import java.nio.file.StandardOpenOption;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.fileslice.reader.RandomAccessFileChannelReader;
 import nonapi.io.github.classgraph.fileslice.reader.RandomAccessReader;
 import nonapi.io.github.classgraph.utils.FileUtils;
@@ -86,13 +85,12 @@ public class PathSlice extends Slice {
      * @param inflatedLengthHint
      *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
      *            zip entry.
-     * @param nestedJarHandler
-     *            the nested jar handler
+     * @param scanResources
+     *            the resources owned by the scan
      */
     private PathSlice(final PathSlice parentSlice, final long offset, final long length,
-            final boolean isDeflatedZipEntry, final long inflatedLengthHint,
-            final NestedJarHandler nestedJarHandler) {
-        super(parentSlice, offset, length, isDeflatedZipEntry, inflatedLengthHint, nestedJarHandler);
+            final boolean isDeflatedZipEntry, final long inflatedLengthHint, final ScanResources scanResources) {
+        super(parentSlice, offset, length, isDeflatedZipEntry, inflatedLengthHint, scanResources);
 
         this.path = parentSlice.path;
         this.fileChannel = parentSlice.fileChannel;
@@ -113,14 +111,14 @@ public class PathSlice extends Slice {
      * @param inflatedLengthHint
      *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
      *            zip entry.
-     * @param nestedJarHandler
-     *            the nested jar handler
+     * @param scanResources
+     *            the resources owned by the scan
      * @throws IOException
      *             if the file cannot be opened.
      */
     public PathSlice(final Path path, final boolean isDeflatedZipEntry, final long inflatedLengthHint,
-            final NestedJarHandler nestedJarHandler) throws IOException {
-        this(path, isDeflatedZipEntry, inflatedLengthHint, nestedJarHandler, true);
+            final ScanResources scanResources) throws IOException {
+        this(path, isDeflatedZipEntry, inflatedLengthHint, scanResources, true);
     }
 
     /**
@@ -133,16 +131,16 @@ public class PathSlice extends Slice {
      * @param inflatedLengthHint
      *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
      *            zip entry.
-     * @param nestedJarHandler
-     *            the nested jar handler
+     * @param scanResources
+     *            the resources owned by the scan
      * @param checkAccess
      *            whether it is needed to check read access and if it is a file
      * @throws IOException
      *             if the file cannot be opened.
      */
     public PathSlice(final Path path, final boolean isDeflatedZipEntry, final long inflatedLengthHint,
-            final NestedJarHandler nestedJarHandler, final boolean checkAccess) throws IOException {
-        super(0L, isDeflatedZipEntry, inflatedLengthHint, nestedJarHandler);
+            final ScanResources scanResources, final boolean checkAccess) throws IOException {
+        super(0L, isDeflatedZipEntry, inflatedLengthHint, scanResources);
 
         if (checkAccess) {
             // Make sure the File is readable and is a regular file
@@ -159,7 +157,7 @@ public class PathSlice extends Slice {
         this.sliceLength = fileLength;
 
         // Mark toplevel slice as open
-        nestedJarHandler.markSliceAsOpen(this);
+        scanResources.markSliceAsOpen(this);
     }
 
     /**
@@ -167,13 +165,13 @@ public class PathSlice extends Slice {
      *
      * @param path
      *            the path
-     * @param nestedJarHandler
-     *            the nested jar handler
+     * @param scanResources
+     *            the resources owned by the scan
      * @throws IOException
      *             if the file cannot be opened.
      */
-    public PathSlice(final Path path, final NestedJarHandler nestedJarHandler) throws IOException {
-        this(path, /* isDeflatedZipEntry = */ false, /* inflatedSizeHint = */ 0L, nestedJarHandler);
+    public PathSlice(final Path path, final ScanResources scanResources) throws IOException {
+        this(path, /* isDeflatedZipEntry = */ false, /* inflatedSizeHint = */ 0L, scanResources);
     }
 
     /**
@@ -196,7 +194,7 @@ public class PathSlice extends Slice {
         if (this.isDeflatedZipEntry) {
             throw new IllegalArgumentException("Cannot slice a deflated zip entry");
         }
-        return new PathSlice(this, offset, length, isDeflatedZipEntry, inflatedLengthHint, nestedJarHandler);
+        return new PathSlice(this, offset, length, isDeflatedZipEntry, inflatedLengthHint, scanResources);
     }
 
     /**
@@ -284,7 +282,7 @@ public class PathSlice extends Slice {
                 }
             }
             fileChannel = null;
-            nestedJarHandler.markSliceAsClosed(this);
+            scanResources.markSliceAsClosed(this);
         }
     }
 }

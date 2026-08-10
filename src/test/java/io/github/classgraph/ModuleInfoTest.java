@@ -229,6 +229,6 @@ public class ModuleInfoTest {
         final var workUnit = new ClasspathEntryWorkUnit(moduleDir, /* classLoader = */ null,
                 /* parentClasspathElement = */ null, /* classpathElementIdx = */ 0, /* packageRootPrefix = */ "",
                 ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES);
-        return new ClasspathElementDir(workUnit, /* nestedJarHandler = */ null, new ScanSpec());
+        return new ClasspathElementDir(workUnit, /* scanResources = */ null, new ScanSpec());
     }
 }

@@ -26,8 +26,7 @@ public class ModuleInfoNoClassesTest {
         final var workUnit = new ClasspathEntryWorkUnit(Path.of("."), /* classLoader = */ null,
                 /* parentClasspathElement = */ null, /* classpathElementIdx = */ 0, /* packageRootPrefix = */ "",
                 ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES);
-        final var classpathElement = new ClasspathElementDir(workUnit, /* nestedJarHandler = */ null,
-                new ScanSpec());
+        final var classpathElement = new ClasspathElementDir(workUnit, /* scanResources = */ null, new ScanSpec());
         final var moduleInfo = new ModuleInfo(/* moduleRef = */ null, classpathElement, "com.xyz.mymodule");
         assertThat(moduleInfo.getClassInfo()).isEmpty();
         assertThat(moduleInfo.getClassInfo("com.xyz.Foo")).isNull();

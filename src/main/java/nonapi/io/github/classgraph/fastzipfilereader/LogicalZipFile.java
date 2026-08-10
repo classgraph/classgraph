@@ -44,6 +44,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import nonapi.io.github.classgraph.fileslice.ArraySlice;
+import nonapi.io.github.classgraph.fileslice.ScanResources;
 import nonapi.io.github.classgraph.fileslice.reader.RandomAccessReader;
 import nonapi.io.github.classgraph.utils.CollectionUtils;
 import nonapi.io.github.classgraph.utils.FileUtils;
@@ -151,8 +152,8 @@ public class LogicalZipFile extends ZipFileSlice {
      *
      * @param zipFileSlice
      *            the zipfile slice
-     * @param nestedJarHandler
-     *            the nested jar handler
+     * @param scanResources
+     *            the resources owned by the scan
      * @param log
      *            the log node, or null to skip logging
      * @param enableMultiReleaseVersions
@@ -162,12 +163,11 @@ public class LogicalZipFile extends ZipFileSlice {
      * @throws InterruptedException
      *             if the thread was interrupted.
      */
-    LogicalZipFile(final ZipFileSlice zipFileSlice, final NestedJarHandler nestedJarHandler,
-            final @Nullable LogNode log, final boolean enableMultiReleaseVersions)
-            throws IOException, InterruptedException {
+    LogicalZipFile(final ZipFileSlice zipFileSlice, final ScanResources scanResources, final @Nullable LogNode log,
+            final boolean enableMultiReleaseVersions) throws IOException, InterruptedException {
         super(zipFileSlice);
         this.enableMultiReleaseVersions = enableMultiReleaseVersions;
-        readCentralDirectory(nestedJarHandler, log);
+        readCentralDirectory(scanResources, log);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -429,8 +429,8 @@ public class LogicalZipFile extends ZipFileSlice {
     /**
      * Read the central directory of the zipfile.
      *
-     * @param nestedJarHandler
-     *            the nested jar handler
+     * @param scanResources
+     *            the resources owned by the scan
      * @param log
      *            the log node, or null to skip logging
      * @throws IOException
@@ -439,7 +439,7 @@ public class LogicalZipFile extends ZipFileSlice {
      *             if the thread was interrupted.
      */
     @SuppressWarnings("resource")
-    private void readCentralDirectory(final NestedJarHandler nestedJarHandler, final @Nullable LogNode log)
+    private void readCentralDirectory(final ScanResources scanResources, final @Nullable LogNode log)
             throws IOException, InterruptedException {
         if (slice.sliceLength < 22) {
             throw new IOException("Zipfile too short to have a central directory");
@@ -468,7 +468,7 @@ public class LogicalZipFile extends ZipFileSlice {
                 throw new IOException("Zipfile is truncated");
             }
             try (final ArraySlice arraySlice = new ArraySlice(eocdBytes, /* isDeflatedZipEntry = */ false,
-                    /* inflatedLengthHint = */ 0L, nestedJarHandler)) {
+                    /* inflatedLengthHint = */ 0L, scanResources)) {
                 final var eocdReader = arraySlice.randomAccessReader();
                 for (var i = eocdBytes.length - 22L; i >= 0L; --i) {
                     if (eocdReader.readUnsignedInt(i) == 0x06054b50L) {
@@ -564,7 +564,7 @@ public class LogicalZipFile extends ZipFileSlice {
                 throw new IOException("Zipfile is truncated");
             }
             cenReader = new ArraySlice(entryBytes, /* isDeflatedZipEntry = */ false, /* inflatedSizeHint = */ 0L,
-                    nestedJarHandler).randomAccessReader();
+                    scanResources).randomAccessReader();
         }
 
         if (numEnt == -1L) {

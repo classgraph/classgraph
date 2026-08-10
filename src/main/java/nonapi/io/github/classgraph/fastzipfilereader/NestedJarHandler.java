@@ -28,39 +28,14 @@
  */
 package nonapi.io.github.classgraph.fastzipfilereader;
 
-import java.io.BufferedOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.io.RandomAccessFile;
 import java.lang.module.ModuleReader;
-import java.lang.reflect.Method;
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.net.URLConnection;
-import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.nio.file.FileSystemNotFoundException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.AbstractMap.SimpleEntry;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.Map.Entry;
 import java.util.Objects;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.zip.DataFormatException;
-import java.util.zip.Inflater;
-import java.util.zip.InflaterInputStream;
-import java.util.zip.ZipException;
 
 import io.github.classgraph.ModuleRef;
 import io.github.classgraph.ScanResult;
@@ -68,11 +43,9 @@ import nonapi.io.github.classgraph.concurrency.InterruptionChecker;
 import nonapi.io.github.classgraph.concurrency.SingletonMap;
 import nonapi.io.github.classgraph.concurrency.SingletonMap.NewInstanceException;
 import nonapi.io.github.classgraph.concurrency.SingletonMap.NullSingletonException;
-import nonapi.io.github.classgraph.fileslice.ArraySlice;
-import nonapi.io.github.classgraph.fileslice.FileSlice;
+import nonapi.io.github.classgraph.fileslice.ScanResources;
 import nonapi.io.github.classgraph.fileslice.Slice;
 import nonapi.io.github.classgraph.recycler.Recycler;
-import nonapi.io.github.classgraph.recycler.Resettable;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.FastPathResolver;
@@ -81,13 +54,40 @@ import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
-/** Open and read jarfiles, which may be nested within other jarfiles. */
+/**
+ * Resolve a classpath element path, which may name a jarfile nested within one or more enclosing jarfiles, to the
+ * {@link LogicalZipFile} for the innermost jarfile and the package root within it, opening and caching each zipfile
+ * along the way. Also owns the {@link ScanResources} that the opened zipfiles are backed by, and closes them when
+ * the {@link ScanResult} is closed.
+ */
 public class NestedJarHandler {
-    /** The {@link ScanSpec}. */
-    public final ScanSpec scanSpec;
+    /** The resources opened by this scan. */
+    public final ScanResources scanResources;
 
-    /** The reflection utils instance. */
-    public ReflectionUtils reflectionUtils;
+    /** The {@link ScanSpec}. */
+    private final ScanSpec scanSpec;
+
+    /** The interruption checker. */
+    private final InterruptionChecker interruptionChecker;
+
+    /**
+     * A handler for nested jars.
+     *
+     * @param scanSpec
+     *            The {@link ScanSpec}.
+     * @param interruptionChecker
+     *            the interruption checker
+     * @param reflectionUtils
+     *            the {@link ReflectionUtils} instance
+     */
+    public NestedJarHandler(final ScanSpec scanSpec, final InterruptionChecker interruptionChecker,
+            final ReflectionUtils reflectionUtils) {
+        this.scanSpec = scanSpec;
+        this.interruptionChecker = interruptionChecker;
+        this.scanResources = new ScanResources(scanSpec, reflectionUtils);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * A singleton map from a zipfile's {@link File} to the {@link PhysicalZipFile} for that file, used to ensure
@@ -99,7 +99,7 @@ public class NestedJarHandler {
         @Override
         public PhysicalZipFile newInstance(final File canonicalFile, final @Nullable LogNode log)
                 throws IOException {
-            return new PhysicalZipFile(canonicalFile, NestedJarHandler.this, log);
+            return new PhysicalZipFile(canonicalFile, scanResources, log);
         }
     };
 
@@ -145,7 +145,7 @@ public class NestedJarHandler {
                                 && childZipEntry.uncompressedSize <= FileUtils.MAX_BUFFER_SIZE
                                         ? (int) childZipEntry.uncompressedSize
                                         : -1,
-                        childZipEntry.entryName, NestedJarHandler.this, log);
+                        childZipEntry.entryName, scanResources, log);
 
                 // Create a new logical slice of the extracted inner zipfile
                 childZipEntrySlice = new ZipFileSlice(physicalZipFile, childZipEntry);
@@ -175,8 +175,7 @@ public class NestedJarHandler {
         public LogicalZipFile newInstance(final ZipFileSlice zipFileSlice, final @Nullable LogNode log)
                 throws IOException, InterruptedException {
             // Read the central directory for the zipfile
-            return new LogicalZipFile(zipFileSlice, NestedJarHandler.this, log,
-                    scanSpec.enableMultiReleaseVersions);
+            return new LogicalZipFile(zipFileSlice, scanResources, log, scanSpec.enableMultiReleaseVersions);
         }
     };
 
@@ -223,6 +222,39 @@ public class NestedJarHandler {
     }
 
     /**
+     * A singleton map from a {@link ModuleRef} to a {@link ModuleReader} recycler for the module. Set to null by
+     * {@link #close(LogNode)}.
+     */
+    private @Nullable SingletonMap<ModuleRef, Recycler<ModuleReader, IOException>, IOException> //
+    moduleRefToModuleReaderRecyclerMap = //
+            new SingletonMap<>() {
+                @Override
+                public Recycler<ModuleReader, IOException> newInstance(final ModuleRef moduleRef,
+                        final @Nullable LogNode ignored) {
+                    return new Recycler<>() {
+                        @Override
+                        public ModuleReader newInstance() throws IOException {
+                            return moduleRef.open();
+                        }
+                    };
+                }
+            };
+
+    /**
+     * Get the map from {@link ModuleRef} to {@link ModuleReader} recycler.
+     *
+     * @return the map
+     * @throws NullPointerException
+     *             if {@link #close(LogNode)} has been called
+     */
+    public SingletonMap<ModuleRef, Recycler<ModuleReader, IOException>, IOException> //
+            moduleRefToModuleReaderRecyclerMap() {
+        return Objects.requireNonNull(moduleRefToModuleReaderRecyclerMap);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
      * Open a jarfile whose path has no {@code '!'} sections, i.e. a plain file path or a URL. This is also the last
      * frame of the recursion in {@link #openNestedJar(String, int, LogNode)}.
      *
@@ -252,7 +284,7 @@ public class NestedJarHandler {
             }
 
             // Download jar from URL to a ByteBuffer in RAM, or to a temp file on disk
-            physicalZipFile = downloadJarFromURL(nestedJarPath, log);
+            physicalZipFile = JarURLDownloader.downloadJarFromURL(nestedJarPath, scanResources, log);
 
         } else {
             // Jarfile should be a local file -- wrap in a PhysicalZipFile instance
@@ -421,130 +453,7 @@ public class NestedJarHandler {
         return new SimpleEntry<>(childLogicalZipFile, "");
     }
 
-    /**
-     * A singleton map from a {@link ModuleRef} to a {@link ModuleReader} recycler for the module. Set to null by
-     * {@link #close(LogNode)}.
-     */
-    private @Nullable SingletonMap<ModuleRef, Recycler<ModuleReader, IOException>, IOException> //
-    moduleRefToModuleReaderRecyclerMap = //
-            new SingletonMap<>() {
-                @Override
-                public Recycler<ModuleReader, IOException> newInstance(final ModuleRef moduleRef,
-                        final @Nullable LogNode ignored) {
-                    return new Recycler<>() {
-                        @Override
-                        public ModuleReader newInstance() throws IOException {
-                            return moduleRef.open();
-                        }
-                    };
-                }
-            };
-
-    /**
-     * Get the map from {@link ModuleRef} to {@link ModuleReader} recycler.
-     *
-     * @return the map
-     * @throws NullPointerException
-     *             if {@link #close(LogNode)} has been called
-     */
-    public SingletonMap<ModuleRef, Recycler<ModuleReader, IOException>, IOException> //
-            moduleRefToModuleReaderRecyclerMap() {
-        return Objects.requireNonNull(moduleRefToModuleReaderRecyclerMap);
-    }
-
-    /** A recycler for {@link Inflater} instances. */
-    private final Recycler<RecyclableInflater, RuntimeException> //
-    inflaterRecycler = new Recycler<>() {
-        @Override
-        public RecyclableInflater newInstance() throws RuntimeException {
-            return new RecyclableInflater();
-        }
-    };
-
-    /**
-     * {@link FileSlice} instances that are currently open. Set to null by {@link #close(LogNode)}.
-     */
-    private @Nullable Set<Slice> openSlices = Collections.newSetFromMap(new ConcurrentHashMap<>());
-
-    /**
-     * Any temporary files created while scanning. Set to null by {@link #close(LogNode)}.
-     */
-    private @Nullable Set<File> tempFiles = Collections.newSetFromMap(new ConcurrentHashMap<>());
-
-    /** The separator between random temp filename part and leafname. */
-    public static final String TEMP_FILENAME_LEAF_SEPARATOR = "---";
-
-    /** True if {@link #close(LogNode)} has been called. */
-    private final AtomicBoolean closed = new AtomicBoolean(false);
-
-    /** The interruption checker. */
-    public InterruptionChecker interruptionChecker;
-
-    /** HTTP(S) timeout, ms. */
-    private static final int HTTP_TIMEOUT = 5000;
-
     // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * A handler for nested jars.
-     *
-     * @param scanSpec
-     *            The {@link ScanSpec}.
-     * @param interruptionChecker
-     *            the interruption checker
-     * @param reflectionUtils
-     *            the {@link ReflectionUtils} instance
-     */
-    public NestedJarHandler(final ScanSpec scanSpec, final InterruptionChecker interruptionChecker,
-            final ReflectionUtils reflectionUtils) {
-        this.scanSpec = scanSpec;
-        this.interruptionChecker = interruptionChecker;
-        this.reflectionUtils = reflectionUtils;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Get the leafname of a path.
-     *
-     * @param path
-     *            the path
-     * @return the string
-     */
-    private static String leafname(final String path) {
-        return path.substring(path.lastIndexOf('/') + 1);
-    }
-
-    /**
-     * Sanitize filename.
-     *
-     * @param filename
-     *            the filename
-     * @return the sanitized filename
-     */
-    private static String sanitizeFilename(final String filename) {
-        return filename.replace('/', '_').replace('\\', '_').replace(':', '_').replace('?', '_').replace('&', '_')
-                .replace('=', '_').replace(' ', '_');
-    }
-
-    /**
-     * Create a temporary file, and mark it for deletion on exit.
-     *
-     * @param filePathBase
-     *            The path to derive the temporary filename from.
-     * @param onlyUseLeafname
-     *            If true, only use the leafname of filePath to derive the temporary filename.
-     * @return The temporary {@link File}.
-     * @throws IOException
-     *             If the temporary file could not be created.
-     */
-    public File makeTempFile(final String filePathBase, final boolean onlyUseLeafname) throws IOException {
-        final var tempFile = File.createTempFile("ClassGraph--", TEMP_FILENAME_LEAF_SEPARATOR
-                + sanitizeFilename(onlyUseLeafname ? leafname(filePathBase) : filePathBase));
-        tempFile.deleteOnExit();
-        Objects.requireNonNull(tempFiles).add(tempFile);
-        return tempFile;
-    }
 
     /**
      * Remove any temporary files created during the scan, as requested by
@@ -568,8 +477,7 @@ public class NestedJarHandler {
      */
     // #916
     public boolean removeTemporaryFiles(final @Nullable LogNode log) {
-        final var tempFilesCurr = tempFiles;
-        if (tempFilesCurr == null || tempFilesCurr.isEmpty()) {
+        if (!scanResources.hasTempFiles()) {
             // No temp files were created, so there is nothing to remove, and no need to close anything
             return false;
         }
@@ -578,550 +486,13 @@ public class NestedJarHandler {
     }
 
     /**
-     * Attempt to remove a temporary file.
-     *
-     * @param tempFile
-     *            the temp file
-     * @throws IOException
-     *             If the temporary file could not be removed.
-     * @throws SecurityException
-     *             If the temporary file is inaccessible.
-     */
-    void removeTempFile(final File tempFile) throws IOException, SecurityException {
-        if (Objects.requireNonNull(tempFiles).remove(tempFile)) {
-            Files.delete(tempFile.toPath());
-        } else {
-            throw new IOException("Not a temp file: " + tempFile);
-        }
-    }
-
-    /**
-     * Mark a {@link Slice} as open, so it can be closed when the {@link ScanResult} is closed.
-     *
-     * @param slice
-     *            the {@link Slice} that was just opened.
-     * @throws IOException
-     *             Signals that an I/O exception has occurred.
-     */
-    public void markSliceAsOpen(final Slice slice) throws IOException {
-        Objects.requireNonNull(openSlices).add(slice);
-    }
-
-    /**
-     * Mark a {@link Slice} as closed.
-     *
-     * @param slice
-     *            the {@link Slice} to close.
-     */
-    public void markSliceAsClosed(final Slice slice) {
-        Objects.requireNonNull(openSlices).remove(slice);
-    }
-
-    /**
-     * Download a jar from a URL to a temporary file, or to a ByteBuffer if the temporary directory is not writeable
-     * or full. The downloaded jar is returned wrapped in a {@link PhysicalZipFile} instance.
-     *
-     * @param jarURL
-     *            the jar URL
-     * @param log
-     *            the log node, or null to skip logging
-     * @return the temporary file or {@link ByteBuffer} the jar was downloaded to, wrapped in a
-     *         {@link PhysicalZipFile} instance.
-     * @throws IOException
-     *             If the jar could not be downloaded, or the jar URL is malformed.
-     * @throws InterruptedException
-     *             if the thread was interrupted
-     * @throws IllegalArgumentException
-     *             If the temp dir is not writeable, or has insufficient space to download the jar. (This is thrown
-     *             as a separate exception from IOException, so that the case of an unwriteable temp dir can be
-     *             handled separately, by downloading the jar to a ByteBuffer in RAM.)
-     */
-    private PhysicalZipFile downloadJarFromURL(final String jarURL, final @Nullable LogNode log)
-            throws IOException, InterruptedException {
-        URL url = null;
-        try {
-            url = new URL(jarURL);
-        } catch (final MalformedURLException e1) {
-            try {
-                url = new URI(jarURL).toURL();
-            } catch (final MalformedURLException | IllegalArgumentException | URISyntaxException e2) {
-                throw new IOException("Could not parse URL: " + jarURL);
-            }
-        }
-
-        final var scheme = url.getProtocol();
-        if (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme)) {
-            // Check if this URL is backed by a filesystem -- if it is, don't download a copy of the file over the
-            // URL; instead, access the filesystem directly
-            try {
-                final var path = Path.of(url.toURI());
-                // Fails with FileSystemNotFoundException if filesystem not registered for URL
-                final var fs = path.getFileSystem();
-                if (log != null) {
-                    log.log("URL " + jarURL + " is backed by filesystem " + fs.getClass().getName());
-                }
-                // Wrap Path in PhysicalZipFile and return it
-                return new PhysicalZipFile(path, this, log);
-            } catch (final IllegalArgumentException | SecurityException | URISyntaxException e) {
-                throw new IOException("Could not convert URL to URI (" + e + "): " + url);
-            } catch (final FileSystemNotFoundException e) {
-                // Not a custom filesystem
-            }
-        }
-        try (final CloseableUrlConnection urlConn = new CloseableUrlConnection(url)) {
-            var contentLengthHint = -1L;
-            urlConn.conn.setConnectTimeout(HTTP_TIMEOUT);
-            urlConn.conn.connect();
-            if (urlConn.httpConn != null) {
-                // Get content length from HTTP headers, if available
-                if (urlConn.httpConn.getResponseCode() != HttpURLConnection.HTTP_OK) {
-                    throw new IOException(
-                            "Got response code " + urlConn.httpConn.getResponseCode() + " for URL " + url);
-                }
-            } else if ("file".equalsIgnoreCase(url.getProtocol())) {
-                // We ended up with a "file:" URL, which can happen as a result of a custom URL scheme that rewrites
-                // its URLs into "file:" URLs (see Issue400.java).
-                try {
-                    // If this is a "file:" URL, get the file from the URL and return it as a new PhysicalZipFile
-                    // (this avoids going through an InputStream). Throws IOException if the file cannot be read.
-                    final var file = Path.of(url.toURI()).toFile();
-                    return new PhysicalZipFile(file, this, log);
-
-                } catch (final Exception e) {
-                    // Fall through -- unknown URL type
-                }
-            }
-            // Try to read content length hint
-            contentLengthHint = urlConn.conn.getContentLengthLong();
-            if (contentLengthHint < -1L) {
-                contentLengthHint = -1L;
-            }
-            // Fetch content from URL
-            final var subLog = log == null ? null : log.log("Downloading jar from URL " + jarURL);
-            try (var inputStream = urlConn.conn.getInputStream()) {
-                // Fetch the jar contents from the URL's InputStream. If it doesn't fit in RAM, spill over to disk.
-                final PhysicalZipFile physicalZipFile = new PhysicalZipFile(inputStream, contentLengthHint, jarURL,
-                        this, subLog);
-                if (subLog != null) {
-                    subLog.addElapsedTime();
-                    subLog.log("***** Note that it is time-consuming to scan jars at non-\"file:\" URLs, "
-                            + "the URL must be opened (possibly after an http(s) fetch) for every scan, "
-                            + "and the same URL must also be separately opened by the ClassLoader *****");
-                }
-                return physicalZipFile;
-
-            } catch (final MalformedURLException e) {
-                throw new IOException("Malformed URL: " + jarURL);
-            }
-        }
-    }
-
-    /**
-     * A {@link URLConnection} that can be used in a try-with-resources block, so that the underlying HTTP
-     * connection is disconnected when it goes out of scope.
-     */
-    private static class CloseableUrlConnection implements AutoCloseable {
-        /** The connection. */
-        public final URLConnection conn;
-
-        /** The connection, if it is an HTTP connection, otherwise null. */
-        public final @Nullable HttpURLConnection httpConn;
-
-        /**
-         * Constructor.
-         *
-         * @param url
-         *            the URL to open a connection to
-         * @throws IOException
-         *             if the connection could not be opened
-         */
-        public CloseableUrlConnection(final URL url) throws IOException {
-            conn = url.openConnection();
-            httpConn = conn instanceof final HttpURLConnection httpUrlConn ? httpUrlConn : null;
-        }
-
-        @Override
-        public void close() {
-            if (httpConn != null) {
-                httpConn.disconnect();
-            }
-        }
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Wrapper class that allows an {@link Inflater} instance to be reset for reuse and then recycled by a
-     * {@link Recycler}.
-     */
-    private static class RecyclableInflater implements Resettable, AutoCloseable {
-        /**
-         * The {@link Inflater} instance, created with the "nowrap" option, which is needed for zipfile entries.
-         */
-        private final Inflater inflater = new Inflater(/* nowrap = */ true);
-
-        /** Constructor. */
-        RecyclableInflater() {
-        }
-
-        /**
-         * Get the {@link Inflater} instance.
-         *
-         * @return the {@link Inflater} instance.
-         */
-        public Inflater getInflater() {
-            return inflater;
-        }
-
-        /**
-         * Called when an {@link Inflater} instance is recycled, to reset the inflater so it can accept new input.
-         */
-        @Override
-        public void reset() {
-            inflater.reset();
-        }
-
-        /**
-         * Called when the {@link Recycler} instance is closed, to destroy the {@link Inflater} instance.
-         */
-        @Override
-        public void close() {
-            inflater.end();
-        }
-    }
-
-    /**
-     * Wrap an {@link InputStream} with an {@link InflaterInputStream}, recycling the {@link Inflater} instance.
-     *
-     * @param rawInputStream
-     *            the raw input stream
-     * @return the inflater input stream
-     * @throws IOException
-     *             Signals that an I/O exception has occurred.
-     */
-    public InputStream openInflaterInputStream(final InputStream rawInputStream) throws IOException {
-        if (closed.get()) {
-            throw new IOException("Cannot read from a jarfile after the resources backing the ScanResult "
-                    + "have been closed. This happens if the ScanResult was closed (e.g. by leaving the "
-                    + "try-with-resources block it was opened in) before the resource was read or the class "
-                    + "was loaded, or if ClassGraph#removeTemporaryFilesAfterScan() was called and the scan "
-                    + "extracted a nested jarfile to a temporary file, since removing the temporary file "
-                    + "requires closing the jarfile that was extracted from it");
-        }
-        return new RecycledInflaterInputStream(rawInputStream, inflaterRecycler);
-    }
-
-    /**
-     * An {@link InputStream} that inflates a stream of deflated zip entry data, using an {@link Inflater} borrowed
-     * from a {@link Recycler} and handed back to it when this stream is closed.
-     */
-    private static class RecycledInflaterInputStream extends InputStream {
-        /** The stream of deflated bytes. */
-        private final InputStream rawInputStream;
-
-        /** The recycler to hand the {@link Inflater} back to when this stream is closed. */
-        private final Recycler<RecyclableInflater, RuntimeException> inflaterRecycler;
-
-        /** The borrowed {@link Inflater} wrapper. */
-        private final RecyclableInflater recyclableInflater;
-
-        /** The borrowed {@link Inflater}, created with nowrap set to true (needed by zip entries). */
-        private final Inflater inflater;
-
-        /** True once this stream has been closed. */
-        private final AtomicBoolean closed = new AtomicBoolean();
-
-        /**
-         * The staging buffer that deflated bytes are read into from rawInputStream, and then handed to the inflater
-         * as its input. This must never be used as the destination of an inflate() call: the inflater keeps a
-         * reference to its input array, so inflating into this array would overwrite deflated bytes that the
-         * inflater has not consumed yet.
-         */
-        private final byte[] buf = new byte[INFLATE_BUF_SIZE];
-
-        /** A separate destination buffer for the single-byte read() method. */
-        private final byte[] singleByteBuf = new byte[1];
-
-        /** The size of the staging buffer. */
-        private static final int INFLATE_BUF_SIZE = 8192;
-
-        /**
-         * Constructor.
-         *
-         * @param rawInputStream
-         *            the stream of deflated bytes
-         * @param inflaterRecycler
-         *            the recycler to borrow an {@link Inflater} from, and to hand it back to on close
-         */
-        RecycledInflaterInputStream(final InputStream rawInputStream,
-                final Recycler<RecyclableInflater, RuntimeException> inflaterRecycler) {
-            this.rawInputStream = rawInputStream;
-            this.inflaterRecycler = inflaterRecycler;
-            this.recyclableInflater = inflaterRecycler.acquire();
-            this.inflater = recyclableInflater.getInflater();
-        }
-
-        @Override
-        public int read() throws IOException {
-            if (closed.get()) {
-                throw new IOException("InputStream is already closed");
-            } else if (inflater.finished()) {
-                return -1;
-            }
-            final var numInflatedBytesRead = read(singleByteBuf, 0, 1);
-            if (numInflatedBytesRead < 0) {
-                return -1;
-            } else {
-                return singleByteBuf[0] & 0xff;
-            }
-        }
-
-        @Override
-        public int read(final byte[] outBuf, final int off, final int len) throws IOException {
-            if (closed.get()) {
-                throw new IOException("InputStream is already closed");
-            } else if (len < 0) {
-                throw new IllegalArgumentException("len cannot be negative");
-            } else if (len == 0) {
-                return 0;
-            }
-            try {
-                // Keep fetching data from rawInputStream until buffer is full or inflater has finished
-                var totInflatedBytes = 0;
-                while (!inflater.finished() && totInflatedBytes < len) {
-                    final var numInflatedBytes = inflater.inflate(outBuf, off + totInflatedBytes,
-                            len - totInflatedBytes);
-                    if (numInflatedBytes == 0) {
-                        if (inflater.needsDictionary()) {
-                            // Should not happen for jarfiles
-                            throw new IOException("Inflater needs preset dictionary");
-                        } else if (inflater.needsInput()) {
-                            // Read a chunk of data from the raw InputStream
-                            final var numRawBytesRead = rawInputStream.read(buf, 0, buf.length);
-                            if (numRawBytesRead == -1) {
-                                // An extra dummy byte is needed at the end of the input stream when using the
-                                // "nowrap" Inflater option. See: ZipFile.ZipFileInflaterInputStream.fill()
-                                buf[0] = (byte) 0;
-                                inflater.setInput(buf, 0, 1);
-                            } else {
-                                // Deflate the chunk of data
-                                inflater.setInput(buf, 0, numRawBytesRead);
-                            }
-                        }
-                    } else {
-                        totInflatedBytes += numInflatedBytes;
-                    }
-                }
-                if (totInflatedBytes == 0) {
-                    // If no bytes were inflated, return -1 as required by read() API contract
-                    return -1;
-                }
-                return totInflatedBytes;
-
-            } catch (final DataFormatException e) {
-                throw new ZipException(e.getMessage() != null ? e.getMessage() : "Invalid deflated zip entry data");
-            }
-        }
-
-        @Override
-        public long skip(final long numToSkip) throws IOException {
-            if (closed.get()) {
-                throw new IOException("InputStream is already closed");
-            } else if (numToSkip < 0) {
-                throw new IllegalArgumentException("numToSkip cannot be negative");
-            } else if (numToSkip == 0 || inflater.finished()) {
-                // (InputStream#skip returns 0 at the end of the stream, it does not return -1)
-                return 0;
-            }
-            // (Use a separate destination buffer -- buf is the inflater's input buffer, see above)
-            final var skipBuf = new byte[(int) Math.min(numToSkip, INFLATE_BUF_SIZE)];
-            var totBytesSkipped = 0L;
-            while (totBytesSkipped < numToSkip) {
-                final var readLen = (int) Math.min(numToSkip - totBytesSkipped, skipBuf.length);
-                final var numBytesRead = read(skipBuf, 0, readLen);
-                if (numBytesRead > 0) {
-                    totBytesSkipped += numBytesRead;
-                } else {
-                    break;
-                }
-            }
-            return totBytesSkipped;
-        }
-
-        @Override
-        public int available() throws IOException {
-            if (closed.get()) {
-                throw new IOException("InputStream is already closed");
-            }
-            // We don't know how many bytes are available, but have to return greater than zero if there is
-            // still input, according to the API contract. Hopefully nothing relies on this and ends up reading
-            // just one byte at a time.
-            return inflater.finished() ? 0 : 1;
-        }
-
-        @Override
-        public synchronized void mark(final int readlimit) {
-            throw new IllegalArgumentException("Not supported");
-        }
-
-        @Override
-        public synchronized void reset() throws IOException {
-            throw new IllegalArgumentException("Not supported");
-        }
-
-        @Override
-        public boolean markSupported() {
-            return false;
-        }
-
-        @Override
-        public void close() {
-            if (!closed.getAndSet(true)) {
-                try {
-                    rawInputStream.close();
-                } catch (final Exception e) {
-                    // Ignore
-                }
-                // Reset and recycle inflater instance
-                inflaterRecycler.recycle(recyclableInflater);
-            }
-        }
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Read all the bytes in an {@link InputStream}, with spillover to a temporary file on disk if a maximum buffer
-     * size is exceeded.
-     *
-     * @param inputStream
-     *            the {@link InputStream} to read from.
-     * @param tempFileBaseName
-     *            the source URL or zip entry that inputStream was opened from (used to name temporary file, if
-     *            needed).
-     * @param inputStreamLengthHint
-     *            the length of inputStream if known, else -1L.
-     * @param log
-     *            the log node, or null to skip logging
-     * @return if the {@link InputStream} could be read into a byte array, an {@link ArraySlice} will be returned.
-     *         If this fails and the {@link InputStream} is spilled over to disk, a {@link FileSlice} will be
-     *         returned.
-     *
-     * @throws IOException
-     *             If the contents could not be read.
-     */
-    public Slice readAllBytesWithSpilloverToDisk(final InputStream inputStream, final String tempFileBaseName,
-            final long inputStreamLengthHint, final @Nullable LogNode log) throws IOException {
-        // Open an InflaterInputStream on the slice
-        try (inputStream) {
-            if (inputStreamLengthHint <= scanSpec.maxBufferedJarRAMSize) {
-                // inputStreamLengthHint is unknown (-1) or shorter than scanSpec.maxBufferedJarRAMSize, so try
-                // reading from the InputStream into an array of size scanSpec.maxBufferedJarRAMSize or
-                // inputStreamLengthHint respectively. Also if inputStreamLengthHint == 0, which may or may not be
-                // valid, use a buffer size of 16kB to avoid spilling to disk in case this is wrong but the file is
-                // still small.
-                final var bufSize = inputStreamLengthHint == -1L ? scanSpec.maxBufferedJarRAMSize
-                        : inputStreamLengthHint == 0L ? 16384
-                                : Math.min((int) inputStreamLengthHint, scanSpec.maxBufferedJarRAMSize);
-                var buf = new byte[bufSize];
-                final var bufLength = buf.length;
-
-                var bufBytesUsed = 0;
-                var bytesRead = 0;
-                while ((bytesRead = inputStream.read(buf, bufBytesUsed, bufLength - bufBytesUsed)) > 0) {
-                    // Fill buffer until nothing more can be read
-                    bufBytesUsed += bytesRead;
-                }
-                if (bytesRead == 0) {
-                    // If bytesRead was zero rather than -1, we need to probe the InputStream (by reading one more
-                    // byte) to see if inputStreamHint underestimated the actual length of the stream
-                    final var overflowBuf = new byte[1];
-                    final var overflowBufBytesUsed = inputStream.read(overflowBuf, 0, 1);
-                    if (overflowBufBytesUsed == 1) {
-                        // We were able to read one more byte, so we're still not at the end of the stream, and we
-                        // need to spill to disk, because buf is full
-                        return spillToDisk(inputStream, tempFileBaseName, buf, overflowBuf, log);
-                    }
-                    // else (overflowBufBytesUsed == -1), so reached the end of the stream => don't spill to disk
-                }
-                // Successfully reached end of stream
-                if (bufBytesUsed < buf.length) {
-                    // Trim array if needed (this is needed if inputStreamLengthHint was -1, or overestimated the
-                    // length of the InputStream)
-                    buf = Arrays.copyOf(buf, bufBytesUsed);
-                }
-                // Return buf as new ArraySlice
-                return new ArraySlice(buf, /* isDeflatedZipEntry = */ false, /* inflatedSizeHint = */
-                        0L, this);
-
-            }
-            // inputStreamLengthHint is longer than scanSpec.maxJarRamSize, so immediately spill to disk
-            return spillToDisk(inputStream, tempFileBaseName, /* buf = */ null, /* overflowBuf = */ null, log);
-        }
-    }
-
-    /**
-     * Spill an {@link InputStream} to disk if the stream is too large to fit in RAM.
-     *
-     * @param inputStream
-     *            The {@link InputStream}.
-     * @param tempFileBaseName
-     *            The stem to base the temporary filename on.
-     * @param buf
-     *            The first buffer to write to the beginning of the file, or null if none.
-     * @param overflowBuf
-     *            The second buffer to write to the beginning of the file, or null if none. (Should have same
-     *            nullity as buf.)
-     * @param log
-     *            The log.
-     * @return the file slice
-     * @throws IOException
-     *             If anything went wrong creating or writing to the temp file.
-     */
-    private FileSlice spillToDisk(final InputStream inputStream, final String tempFileBaseName,
-            final byte @Nullable [] buf, final byte @Nullable [] overflowBuf, final @Nullable LogNode log)
-            throws IOException {
-        // Create temp file
-        File tempFile;
-        try {
-            tempFile = makeTempFile(tempFileBaseName, /* onlyUseLeafname = */ true);
-        } catch (final IOException e) {
-            throw new IOException("Could not create temporary file: " + e.getMessage());
-        }
-        if (log != null) {
-            log.log("Could not fit InputStream content into max RAM buffer size, saving to temporary file: "
-                    + tempFileBaseName + " -> " + tempFile);
-        }
-
-        // Copy everything read so far and the rest of the InputStream to the temporary file
-        try (OutputStream outputStream = new BufferedOutputStream(new FileOutputStream(tempFile))) {
-            // Write already-read buffered bytes to temp file, if anything was read (buf and overflowBuf always have
-            // the same nullity)
-            if (buf != null && overflowBuf != null) {
-                outputStream.write(buf);
-                outputStream.write(overflowBuf);
-            }
-            // Copy the rest of the InputStream to the file
-            final var copyBuf = new byte[8192];
-            for (int bytesRead; (bytesRead = inputStream.read(copyBuf, 0, copyBuf.length)) > 0;) {
-                outputStream.write(copyBuf, 0, bytesRead);
-            }
-        }
-
-        // Return a new FileSlice for the temporary file
-        return new FileSlice(tempFile, this, log);
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
      * Close zipfiles, modules, and recyclers, and delete temporary files. Called by {@link ScanResult#close()}.
      *
      * @param log
      *            The log.
      */
     public void close(final @Nullable LogNode log) {
-        if (!closed.getAndSet(true)) {
+        if (scanResources.beginClose()) {
             var interrupted = false;
             final var moduleReaderRecyclerMap = moduleRefToModuleReaderRecyclerMap;
             if (moduleReaderRecyclerMap != null) {
@@ -1161,81 +532,11 @@ public class NestedJarHandler {
                 zipFileSliceMap.clear();
                 fastZipEntryToZipFileSliceMap = null;
             }
-            final var openSlicesCurr = openSlices;
-            if (openSlicesCurr != null) {
-                while (!openSlicesCurr.isEmpty()) {
-                    for (final Slice slice : new ArrayList<>(openSlicesCurr)) {
-                        try {
-                            slice.close();
-                        } catch (final IOException e) {
-                            // Ignore
-                        }
-                        markSliceAsClosed(slice);
-                    }
-                }
-                openSlicesCurr.clear();
-                openSlices = null;
-            }
-            inflaterRecycler.forceClose();
-            // Temp files have to be deleted last, after all PhysicalZipFiles are closed and files are unmapped
-            final var tempFilesCurr = tempFiles;
-            if (tempFilesCurr != null) {
-                final var rmLog = tempFilesCurr.isEmpty() || log == null ? null
-                        : log.log("Removing temporary files");
-                while (!tempFilesCurr.isEmpty()) {
-                    for (final File tempFile : new ArrayList<>(tempFilesCurr)) {
-                        try {
-                            removeTempFile(tempFile);
-                        } catch (IOException | SecurityException e) {
-                            if (rmLog != null) {
-                                rmLog.log("Removing temporary file failed: " + tempFile);
-                            }
-                        }
-                    }
-                }
-                tempFiles = null;
-            }
+            // Close the open slices and the inflater recycler, then delete the temporary files
+            scanResources.close(log);
             if (interrupted) {
                 interruptionChecker.interrupt();
             }
         }
-    }
-
-    /**
-     * System.runFinalization() -- deprecated in JDK 18, so accessed by reflection.
-     */
-    private static volatile @Nullable Method runFinalizationMethod;
-
-    // TODO: once ClassGraph's minimum supported JDK version is one in which System#runFinalization has been
-    // removed (it was deprecated for removal in JDK 18 by JEP 421), this method and its only call site, in
-    // FileSlice's constructor, can be deleted rather than called reflectively.
-
-    /** Call {@code System.runFinalization()}, if it is available in this JDK. */
-    public void runFinalizationMethod() {
-        // Read the volatile field once, so that the method invoked cannot differ from the method tested. Two
-        // threads racing here resolve the same method, so whichever write lands last is equivalent.
-        var runFinalizationMethodCached = runFinalizationMethod;
-        if (runFinalizationMethodCached == null) {
-            runFinalizationMethodCached = reflectionUtils.staticMethodForNameOrNull("System", "runFinalization");
-            runFinalizationMethod = runFinalizationMethodCached;
-        }
-        if (runFinalizationMethodCached != null) {
-            try {
-                // Call System.runFinalization() (deprecated in JDK 18)
-                runFinalizationMethodCached.invoke(null);
-            } catch (final Throwable t) {
-                // Ignore
-            }
-        }
-    }
-
-    /**
-     * Close a direct {@link ByteBuffer}, so that its memory is unmapped without waiting for garbage collection.
-     *
-     * @param backingByteBuffer
-     *            the direct {@link ByteBuffer} to close.
-     */
-    public void closeDirectByteBuffer(final ByteBuffer backingByteBuffer) {
-        FileUtils.closeDirectByteBuffer(backingByteBuffer, reflectionUtils, /* log = */ null);
     }
 }

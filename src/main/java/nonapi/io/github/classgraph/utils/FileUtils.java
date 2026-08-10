@@ -83,6 +83,12 @@ public final class FileUtils {
      */
     public static final int MAX_BUFFER_SIZE = Integer.MAX_VALUE - 8;
 
+    /**
+     * The separator between the random part of a ClassGraph temporary filename and the leafname of the file that
+     * was extracted to it.
+     */
+    public static final String TEMP_FILENAME_LEAF_SEPARATOR = "---";
+
     /** The default size of a file buffer. */
     private static final int DEFAULT_BUFFER_SIZE = 16384;
 
@@ -662,6 +668,39 @@ public final class FileUtils {
         } else {
             // Nothing to unmap
             return false;
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** {@code System.runFinalization()} -- deprecated in JDK 18, so accessed by reflection. */
+    private static volatile @Nullable Method runFinalizationMethod;
+
+    // TODO: once ClassGraph's minimum supported JDK version is one in which System#runFinalization has been
+    // removed (it was deprecated for removal in JDK 18 by JEP 421), this method and its only call site, in
+    // FileSlice's constructor, can be deleted rather than called reflectively.
+
+    /**
+     * Call {@code System.runFinalization()}, if it is available in this JDK.
+     *
+     * @param reflectionUtils
+     *            The reflection utils (the method has to be looked up and invoked reflectively).
+     */
+    public static void runFinalization(final ReflectionUtils reflectionUtils) {
+        // Read the volatile field once, so that the method invoked cannot differ from the method tested. Two
+        // threads racing here resolve the same method, so whichever write lands last is equivalent.
+        var runFinalizationMethodCached = runFinalizationMethod;
+        if (runFinalizationMethodCached == null) {
+            runFinalizationMethodCached = reflectionUtils.staticMethodForNameOrNull("System", "runFinalization");
+            runFinalizationMethod = runFinalizationMethodCached;
+        }
+        if (runFinalizationMethodCached != null) {
+            try {
+                // Call System.runFinalization() (deprecated in JDK 18)
+                runFinalizationMethodCached.invoke(null);
+            } catch (final Throwable t) {
+                // Ignore
+            }
         }
     }
 

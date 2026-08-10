@@ -39,7 +39,6 @@ import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.github.classgraph.ClassGraph;
-import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.fileslice.reader.RandomAccessByteBufferReader;
 import nonapi.io.github.classgraph.fileslice.reader.RandomAccessFileChannelReader;
 import nonapi.io.github.classgraph.fileslice.reader.RandomAccessReader;
@@ -54,7 +53,7 @@ public class FileSlice extends Slice {
     public final File file;
 
     /** The {@link RandomAccessFile} opened on the {@link File}, or null once closed. */
-    public @Nullable RandomAccessFile raf;
+    private @Nullable RandomAccessFile raf;
 
     /** The file length. */
     private final long fileLength;
@@ -94,13 +93,12 @@ public class FileSlice extends Slice {
      * @param inflatedLengthHint
      *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
      *            zip entry.
-     * @param nestedJarHandler
-     *            the nested jar handler
+     * @param scanResources
+     *            the resources owned by the scan
      */
     private FileSlice(final FileSlice parentSlice, final long offset, final long length,
-            final boolean isDeflatedZipEntry, final long inflatedLengthHint,
-            final NestedJarHandler nestedJarHandler) {
-        super(parentSlice, offset, length, isDeflatedZipEntry, inflatedLengthHint, nestedJarHandler);
+            final boolean isDeflatedZipEntry, final long inflatedLengthHint, final ScanResources scanResources) {
+        super(parentSlice, offset, length, isDeflatedZipEntry, inflatedLengthHint, scanResources);
         this.file = parentSlice.file;
         this.raf = parentSlice.raf;
         this.fileChannel = parentSlice.fileChannel;
@@ -128,16 +126,16 @@ public class FileSlice extends Slice {
      * @param inflatedLengthHint
      *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
      *            zip entry.
-     * @param nestedJarHandler
-     *            the nested jar handler
+     * @param scanResources
+     *            the resources owned by the scan
      * @param log
      *            the log node, or null to skip logging
      * @throws IOException
      *             if the file cannot be opened.
      */
     public FileSlice(final File file, final boolean isDeflatedZipEntry, final long inflatedLengthHint,
-            final NestedJarHandler nestedJarHandler, final @Nullable LogNode log) throws IOException {
-        super(file.length(), isDeflatedZipEntry, inflatedLengthHint, nestedJarHandler);
+            final ScanResources scanResources, final @Nullable LogNode log) throws IOException {
+        super(file.length(), isDeflatedZipEntry, inflatedLengthHint, scanResources);
         // Make sure the File is readable and is a regular file
         FileUtils.checkCanReadAndIsFile(file);
         this.file = file;
@@ -148,12 +146,12 @@ public class FileSlice extends Slice {
 
         // (Files larger than MAX_BUFFER_SIZE cannot be memory-mapped to a single ByteBuffer -- for those, fall
         // through and use the RandomAccessFile API instead)
-        if (nestedJarHandler.scanSpec.enableMemoryMapping && fileLength <= FileUtils.MAX_BUFFER_SIZE) {
+        if (scanResources.scanSpec.enableMemoryMapping && fileLength <= FileUtils.MAX_BUFFER_SIZE) {
             // On JDK 22+, memory-map the file using the java.lang.foreign.Arena API, so that the mapped ByteBuffer
             // can be unmapped by closing the arena when this slice is closed, rather than by calling the
             // terminally-deprecated method Unsafe::invokeCleaner (#939). (openArena returns null on JDK older than
             // 22.)
-            arena = FileUtils.openArena(nestedJarHandler.reflectionUtils);
+            arena = FileUtils.openArena(scanResources.reflectionUtils);
             try {
                 // Try mapping file (some operating systems throw OutOfMemoryError if file can't be mapped, some
                 // throw IOException)
@@ -161,7 +159,7 @@ public class FileSlice extends Slice {
             } catch (IOException | OutOfMemoryError e) {
                 // Try running garbage collection then try mapping the file again
                 System.gc();
-                nestedJarHandler.runFinalizationMethod();
+                FileUtils.runFinalization(scanResources.reflectionUtils);
                 try {
                     backingByteBuffer = mapFile();
                 } catch (IOException | OutOfMemoryError e2) {
@@ -174,13 +172,13 @@ public class FileSlice extends Slice {
             }
             if (backingByteBuffer == null && arena != null) {
                 // The arena ended up not being used to map the file -- close it again
-                FileUtils.closeArena(arena, nestedJarHandler.reflectionUtils, log);
+                FileUtils.closeArena(arena, scanResources.reflectionUtils, log);
                 arena = null;
             }
         }
 
         // Mark toplevel slice as open
-        nestedJarHandler.markSliceAsOpen(this);
+        scanResources.markSliceAsOpen(this);
     }
 
     /**
@@ -196,7 +194,7 @@ public class FileSlice extends Slice {
         final var openFileChannel = Objects.requireNonNull(fileChannel);
         if (arena != null) {
             return FileUtils.mapFileUsingArena(arena, openFileChannel, 0L, fileLength,
-                    nestedJarHandler.reflectionUtils);
+                    scanResources.reflectionUtils);
         }
         if (VersionFinder.JAVA_MAJOR_VERSION >= 22) {
             // An arena could not be opened, even though the arena API should be available -- don't fall back to
@@ -212,16 +210,16 @@ public class FileSlice extends Slice {
      *
      * @param file
      *            the file
-     * @param nestedJarHandler
-     *            the nested jar handler
+     * @param scanResources
+     *            the resources owned by the scan
      * @param log
      *            the log node, or null to skip logging
      * @throws IOException
      *             if the file cannot be opened.
      */
-    public FileSlice(final File file, final NestedJarHandler nestedJarHandler, final @Nullable LogNode log)
+    public FileSlice(final File file, final ScanResources scanResources, final @Nullable LogNode log)
             throws IOException {
-        this(file, /* isDeflatedZipEntry = */ false, /* inflatedSizeHint = */ 0L, nestedJarHandler, log);
+        this(file, /* isDeflatedZipEntry = */ false, /* inflatedSizeHint = */ 0L, scanResources, log);
     }
 
     /**
@@ -244,7 +242,7 @@ public class FileSlice extends Slice {
         if (this.isDeflatedZipEntry) {
             throw new IllegalArgumentException("Cannot slice a deflated zip entry");
         }
-        return new FileSlice(this, offset, length, isDeflatedZipEntry, inflatedLengthHint, nestedJarHandler);
+        return new FileSlice(this, offset, length, isDeflatedZipEntry, inflatedLengthHint, scanResources);
     }
 
     /**
@@ -334,10 +332,11 @@ public class FileSlice extends Slice {
                 // (also duplicates of mapped ByteBuffers cannot be closed by the cleaner API)
                 if (arena != null) {
                     // JDK 22+: unmap the ByteBuffer by closing the arena that was used to map it (#939)
-                    FileUtils.closeArena(arena, nestedJarHandler.reflectionUtils, /* log = */ null);
+                    FileUtils.closeArena(arena, scanResources.reflectionUtils, /* log = */ null);
                     arena = null;
                 } else {
-                    nestedJarHandler.closeDirectByteBuffer(backingByteBuffer);
+                    FileUtils.closeDirectByteBuffer(backingByteBuffer, scanResources.reflectionUtils,
+                            /* log = */ null);
                 }
             }
             backingByteBuffer = null;
@@ -349,7 +348,7 @@ public class FileSlice extends Slice {
                 // Ignore
             }
             raf = null;
-            nestedJarHandler.markSliceAsClosed(this);
+            scanResources.markSliceAsClosed(this);
         }
     }
 }

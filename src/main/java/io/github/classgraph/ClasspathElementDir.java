@@ -53,8 +53,8 @@ import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
 import nonapi.io.github.classgraph.fastzipfilereader.LogicalZipFile;
-import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.fileslice.PathSlice;
+import nonapi.io.github.classgraph.fileslice.ScanResources;
 import nonapi.io.github.classgraph.fileslice.reader.ClassfileReader;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.scanspec.ScanSpec.ScanSpecPathMatch;
@@ -78,24 +78,24 @@ class ClasspathElementDir extends ClasspathElement {
      */
     private final Set<Path> scannedCanonicalPaths = new HashSet<>();
 
-    /** The nested jar handler. */
-    private final NestedJarHandler nestedJarHandler;
+    /** The resources owned by the scan. */
+    private final ScanResources scanResources;
 
     /**
      * A directory classpath element.
      *
      * @param workUnit
      *            the work unit -- workUnit.classpathEntryObj must be a {@link Path} object
-     * @param nestedJarHandler
-     *            the nested jar handler
+     * @param scanResources
+     *            the resources owned by the scan
      * @param scanSpec
      *            the scan spec
      */
-    ClasspathElementDir(final ClasspathEntryWorkUnit workUnit, final NestedJarHandler nestedJarHandler,
+    ClasspathElementDir(final ClasspathEntryWorkUnit workUnit, final ScanResources scanResources,
             final ScanSpec scanSpec) {
         super(workUnit, scanSpec);
         this.classpathEltPath = (Path) Objects.requireNonNull(workUnit.classpathEntryObj);
-        this.nestedJarHandler = nestedJarHandler;
+        this.scanResources = scanResources;
     }
 
     /*
@@ -385,7 +385,7 @@ class ClasspathElementDir extends ClasspathElement {
                     final var slice = pathSlice;
                     if (slice != null) {
                         slice.close();
-                        nestedJarHandler.markSliceAsClosed(slice);
+                        scanResources.markSliceAsClosed(slice);
                         pathSlice = null;
                     }
 
@@ -396,7 +396,7 @@ class ClasspathElementDir extends ClasspathElement {
 
             private PathSlice openAndCreateSlice() throws IOException {
                 checkCanOpen();
-                final var slice = new PathSlice(resourcePath, false, 0L, nestedJarHandler, false);
+                final var slice = new PathSlice(resourcePath, false, 0L, scanResources, false);
                 pathSlice = slice;
                 length = slice.sliceLength;
                 return slice;

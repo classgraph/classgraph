@@ -36,7 +36,7 @@ class ClasspathElementReferenceTest {
         final var dir = Path.of(".");
         final var workUnit = new ClasspathEntryWorkUnit(dir, classLoader, /* parentClasspathElement = */ null, idx,
                 /* packageRootPrefix = */ "", ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES);
-        final ClasspathElement classpathElement = new ClasspathElementDir(workUnit, /* nestedJarHandler = */ null,
+        final ClasspathElement classpathElement = new ClasspathElementDir(workUnit, /* scanResources = */ null,
                 new ScanSpec());
         classpathElement.addReference(isToplevelRef, idx, classLoader);
         return classpathElement;

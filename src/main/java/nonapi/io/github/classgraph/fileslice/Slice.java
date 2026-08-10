@@ -29,18 +29,20 @@
  */
 package nonapi.io.github.classgraph.fileslice;
 
+import java.io.BufferedOutputStream;
 import java.io.Closeable;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.Arrays;
 
 import io.github.classgraph.Resource;
-import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.fileslice.reader.RandomAccessReader;
-import nonapi.io.github.classgraph.utils.FileUtils;
+import nonapi.io.github.classgraph.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -48,8 +50,8 @@ import org.jspecify.annotations.Nullable;
  * be used by a single thread.
  */
 public abstract class Slice implements Closeable {
-    /** The {@link NestedJarHandler}. */
-    protected final NestedJarHandler nestedJarHandler;
+    /** The resources owned by the scan that opened this slice. */
+    protected final ScanResources scanResources;
 
     /** The parent slice, or null if this is a toplevel slice. */
     protected final @Nullable Slice parentSlice;
@@ -87,19 +89,18 @@ public abstract class Slice implements Closeable {
      * @param inflatedLengthHint
      *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
      *            zip entry.
-     * @param nestedJarHandler
-     *            the nested jar handler
+     * @param scanResources
+     *            the resources owned by the scan
      */
     protected Slice(final @Nullable Slice parentSlice, final long offset, final long length,
-            final boolean isDeflatedZipEntry, final long inflatedLengthHint,
-            final NestedJarHandler nestedJarHandler) {
+            final boolean isDeflatedZipEntry, final long inflatedLengthHint, final ScanResources scanResources) {
         this.parentSlice = parentSlice;
         final var parentSliceStartPos = parentSlice == null ? 0L : parentSlice.sliceStartPos;
         this.sliceStartPos = parentSliceStartPos + offset;
         this.sliceLength = length;
         this.isDeflatedZipEntry = isDeflatedZipEntry;
         this.inflatedLengthHint = inflatedLengthHint;
-        this.nestedJarHandler = nestedJarHandler;
+        this.scanResources = scanResources;
 
         if (sliceStartPos < 0L) {
             throw new IllegalArgumentException("Invalid startPos");
@@ -123,13 +124,143 @@ public abstract class Slice implements Closeable {
      * @param inflatedLengthHint
      *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
      *            zip entry.
-     * @param nestedJarHandler
-     *            the nested jar handler
+     * @param scanResources
+     *            the resources owned by the scan
      */
     protected Slice(final long length, final boolean isDeflatedZipEntry, final long inflatedLengthHint,
-            final NestedJarHandler nestedJarHandler) {
-        this(/* parentSlice = */ null, 0L, length, isDeflatedZipEntry, inflatedLengthHint, nestedJarHandler);
+            final ScanResources scanResources) {
+        this(/* parentSlice = */ null, 0L, length, isDeflatedZipEntry, inflatedLengthHint, scanResources);
     }
+
+    // ---------------------------------------------------------------------------------------------------------
+
+    /**
+     * Read all the bytes of an {@link InputStream} into a {@link Slice}, spilling over to a temporary file on disk
+     * if the content is too large to buffer in RAM.
+     *
+     * @param inputStream
+     *            the {@link InputStream} to read from.
+     * @param tempFileBaseName
+     *            the source URL or zip entry that inputStream was opened from (used to name the temporary file, if
+     *            one is needed).
+     * @param inputStreamLengthHint
+     *            the length of inputStream if known, else -1L.
+     * @param scanResources
+     *            the resources owned by the scan
+     * @param log
+     *            the log node, or null to skip logging
+     * @return an {@link ArraySlice}, if the {@link InputStream} could be read into a byte array, otherwise a
+     *         {@link FileSlice} over the temporary file that it was spilled to.
+     * @throws IOException
+     *             If the contents could not be read.
+     */
+    public static Slice fromInputStream(final InputStream inputStream, final String tempFileBaseName,
+            final long inputStreamLengthHint, final ScanResources scanResources, final @Nullable LogNode log)
+            throws IOException {
+        final var maxBufferedJarRAMSize = scanResources.scanSpec.maxBufferedJarRAMSize;
+        try (inputStream) {
+            if (inputStreamLengthHint <= maxBufferedJarRAMSize) {
+                // inputStreamLengthHint is unknown (-1) or shorter than scanSpec.maxBufferedJarRAMSize, so try
+                // reading from the InputStream into an array of size scanSpec.maxBufferedJarRAMSize or
+                // inputStreamLengthHint respectively. Also if inputStreamLengthHint == 0, which may or may not be
+                // valid, use a buffer size of 16kB to avoid spilling to disk in case this is wrong but the file is
+                // still small.
+                final var bufSize = inputStreamLengthHint == -1L ? maxBufferedJarRAMSize
+                        : inputStreamLengthHint == 0L ? 16384
+                                : Math.min((int) inputStreamLengthHint, maxBufferedJarRAMSize);
+                var buf = new byte[bufSize];
+                final var bufLength = buf.length;
+
+                var bufBytesUsed = 0;
+                var bytesRead = 0;
+                while ((bytesRead = inputStream.read(buf, bufBytesUsed, bufLength - bufBytesUsed)) > 0) {
+                    // Fill buffer until nothing more can be read
+                    bufBytesUsed += bytesRead;
+                }
+                if (bytesRead == 0) {
+                    // If bytesRead was zero rather than -1, we need to probe the InputStream (by reading one more
+                    // byte) to see if inputStreamHint underestimated the actual length of the stream
+                    final var overflowBuf = new byte[1];
+                    final var overflowBufBytesUsed = inputStream.read(overflowBuf, 0, 1);
+                    if (overflowBufBytesUsed == 1) {
+                        // We were able to read one more byte, so we're still not at the end of the stream, and we
+                        // need to spill to disk, because buf is full
+                        return spillToDisk(inputStream, tempFileBaseName, buf, overflowBuf, scanResources, log);
+                    }
+                    // else (overflowBufBytesUsed == -1), so reached the end of the stream => don't spill to disk
+                }
+                // Successfully reached end of stream
+                if (bufBytesUsed < buf.length) {
+                    // Trim array if needed (this is needed if inputStreamLengthHint was -1, or overestimated the
+                    // length of the InputStream)
+                    buf = Arrays.copyOf(buf, bufBytesUsed);
+                }
+                // Return buf as new ArraySlice
+                return new ArraySlice(buf, /* isDeflatedZipEntry = */ false, /* inflatedSizeHint = */ 0L,
+                        scanResources);
+
+            }
+            // inputStreamLengthHint is longer than scanSpec.maxJarRamSize, so immediately spill to disk
+            return spillToDisk(inputStream, tempFileBaseName, /* buf = */ null, /* overflowBuf = */ null,
+                    scanResources, log);
+        }
+    }
+
+    /**
+     * Spill an {@link InputStream} to disk if the stream is too large to fit in RAM.
+     *
+     * @param inputStream
+     *            The {@link InputStream}.
+     * @param tempFileBaseName
+     *            The stem to base the temporary filename on.
+     * @param buf
+     *            The first buffer to write to the beginning of the file, or null if none.
+     * @param overflowBuf
+     *            The second buffer to write to the beginning of the file, or null if none. (Should have same
+     *            nullity as buf.)
+     * @param scanResources
+     *            the resources owned by the scan
+     * @param log
+     *            The log.
+     * @return the file slice
+     * @throws IOException
+     *             If anything went wrong creating or writing to the temp file.
+     */
+    private static FileSlice spillToDisk(final InputStream inputStream, final String tempFileBaseName,
+            final byte @Nullable [] buf, final byte @Nullable [] overflowBuf, final ScanResources scanResources,
+            final @Nullable LogNode log) throws IOException {
+        // Create temp file
+        File tempFile;
+        try {
+            tempFile = scanResources.makeTempFile(tempFileBaseName, /* onlyUseLeafname = */ true);
+        } catch (final IOException e) {
+            throw new IOException("Could not create temporary file: " + e.getMessage());
+        }
+        if (log != null) {
+            log.log("Could not fit InputStream content into max RAM buffer size, saving to temporary file: "
+                    + tempFileBaseName + " -> " + tempFile);
+        }
+
+        // Copy everything read so far and the rest of the InputStream to the temporary file
+        try (OutputStream outputStream = new BufferedOutputStream(new FileOutputStream(tempFile))) {
+            // Write already-read buffered bytes to temp file, if anything was read (buf and overflowBuf always have
+            // the same nullity)
+            if (buf != null && overflowBuf != null) {
+                outputStream.write(buf);
+                outputStream.write(overflowBuf);
+            }
+            // Copy the rest of the InputStream to the file
+            final var copyBuf = new byte[8192];
+            for (int bytesRead; (bytesRead = inputStream.read(copyBuf, 0, copyBuf.length)) > 0;) {
+                outputStream.write(copyBuf, 0, bytesRead);
+            }
+        }
+
+        // Return a new FileSlice for the temporary file
+        return new FileSlice(tempFile, scanResources, log);
+    }
+
+    // ---------------------------------------------------------------------------------------------------------
 
     /**
      * Get a child {@link Slice} from this parent {@link Slice}. The child slice must be smaller than the parent
@@ -170,91 +301,8 @@ public abstract class Slice implements Closeable {
      *             if an inflater cannot be created for this {@link Slice}.
      */
     public InputStream open(final @Nullable Resource resourceToClose) throws IOException {
-        final InputStream rawInputStream = new InputStream() {
-            RandomAccessReader randomAccessReader = randomAccessReader();
-            private long currOff;
-            private long markOff;
-            private final byte[] byteBuf = new byte[1];
-            private final AtomicBoolean closed = new AtomicBoolean();
-
-            @Override
-            public int read() throws IOException {
-                if (closed.get()) {
-                    throw new IOException("Already closed");
-                }
-                return read(byteBuf, 0, 1);
-            }
-
-            // InputStream's default implementation of this method is very slow -- it calls read() for every byte.
-            // This method reads the maximum number of bytes possible in one call.
-            @Override
-            public int read(final byte[] buf, final int off, final int len) throws IOException {
-                if (closed.get()) {
-                    throw new IOException("Already closed");
-                } else if (len == 0) {
-                    return 0;
-                }
-                final var numBytesToRead = Math.min(len, available());
-                if (numBytesToRead < 1) {
-                    return -1;
-                }
-                final var numBytesRead = randomAccessReader.read(currOff, buf, off, numBytesToRead);
-                if (numBytesRead > 0) {
-                    currOff += numBytesRead;
-                }
-                return numBytesRead;
-            }
-
-            @Override
-            public long skip(final long n) throws IOException {
-                if (closed.get()) {
-                    throw new IOException("Already closed");
-                }
-                if (n <= 0L) {
-                    // InputStream#skip returns 0 for a non-positive argument, rather than seeking backwards
-                    return 0L;
-                }
-                // (Compute the number of remaining bytes first, rather than testing currOff + n, so that a huge n
-                // cannot overflow to a negative value)
-                final var numBytesToSkip = Math.min(n, sliceLength - currOff);
-                currOff += numBytesToSkip;
-                return numBytesToSkip;
-            }
-
-            @Override
-            public int available() {
-                return (int) Math.min(Math.max(sliceLength - currOff, 0L), FileUtils.MAX_BUFFER_SIZE);
-            }
-
-            @Override
-            public synchronized void mark(final int readlimit) {
-                // Ignore readlimit
-                markOff = currOff;
-            }
-
-            @Override
-            public synchronized void reset() {
-                currOff = markOff;
-            }
-
-            @Override
-            public boolean markSupported() {
-                return true;
-            }
-
-            @Override
-            public void close() {
-                if (resourceToClose != null) {
-                    try {
-                        resourceToClose.close();
-                    } catch (final Exception e) {
-                        // Ignore
-                    }
-                }
-                closed.getAndSet(true);
-            }
-        };
-        return isDeflatedZipEntry ? nestedJarHandler.openInflaterInputStream(rawInputStream) : rawInputStream;
+        final InputStream rawInputStream = new SliceInputStream(this, resourceToClose);
+        return isDeflatedZipEntry ? scanResources.openInflaterInputStream(rawInputStream) : rawInputStream;
     }
 
     /**

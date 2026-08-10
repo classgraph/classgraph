@@ -12,7 +12,6 @@ import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 
 /** Tests for {@link JarUtils}. */
@@ -152,8 +151,8 @@ public class JarUtilsTest {
         assertThat(JarUtils.leafName("")).isEmpty();
         // A jar extracted from within another jar is written to a temp file whose name carries both a unique prefix
         // and the original leafname, and only the original leafname is wanted here
-        assertThat(JarUtils
-                .leafName("/tmp/ClassGraph--12345" + NestedJarHandler.TEMP_FILENAME_LEAF_SEPARATOR + "inner.jar"))
+        assertThat(
+                JarUtils.leafName("/tmp/ClassGraph--12345" + FileUtils.TEMP_FILENAME_LEAF_SEPARATOR + "inner.jar"))
                 .isEqualTo("inner.jar");
     }
 

@@ -35,7 +35,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import org.jspecify.annotations.Nullable;
 
@@ -355,10 +354,10 @@ public final class JarUtils {
         var leafStartIdx = 1 + (File.separatorChar == '/' ? path.lastIndexOf('/', endIdx)
                 : Math.max(path.lastIndexOf('/', endIdx), path.lastIndexOf(File.separatorChar, endIdx)));
         // In case of temp files (for jars extracted from within jars), remove the temp filename prefix -- see
-        // NestedJarHandler.unzipToTempFile()
-        var sepIdx = path.indexOf(NestedJarHandler.TEMP_FILENAME_LEAF_SEPARATOR);
+        // ScanResources.makeTempFile()
+        var sepIdx = path.indexOf(FileUtils.TEMP_FILENAME_LEAF_SEPARATOR);
         if (sepIdx >= 0) {
-            sepIdx += NestedJarHandler.TEMP_FILENAME_LEAF_SEPARATOR.length();
+            sepIdx += FileUtils.TEMP_FILENAME_LEAF_SEPARATOR.length();
         }
         leafStartIdx = Math.max(leafStartIdx, sepIdx);
         leafStartIdx = Math.min(leafStartIdx, endIdx);

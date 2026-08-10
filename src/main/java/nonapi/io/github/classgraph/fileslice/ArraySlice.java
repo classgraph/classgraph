@@ -31,7 +31,6 @@ package nonapi.io.github.classgraph.fileslice;
 import java.io.IOException;
 import java.util.Arrays;
 
-import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.fileslice.reader.RandomAccessArrayReader;
 import nonapi.io.github.classgraph.fileslice.reader.RandomAccessReader;
 import nonapi.io.github.classgraph.utils.FileUtils;
@@ -55,13 +54,12 @@ public class ArraySlice extends Slice {
      * @param inflatedLengthHint
      *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
      *            zip entry.
-     * @param nestedJarHandler
-     *            the nested jar handler
+     * @param scanResources
+     *            the resources owned by the scan
      */
     private ArraySlice(final ArraySlice parentSlice, final long offset, final long length,
-            final boolean isDeflatedZipEntry, final long inflatedLengthHint,
-            final NestedJarHandler nestedJarHandler) {
-        super(parentSlice, offset, length, isDeflatedZipEntry, inflatedLengthHint, nestedJarHandler);
+            final boolean isDeflatedZipEntry, final long inflatedLengthHint, final ScanResources scanResources) {
+        super(parentSlice, offset, length, isDeflatedZipEntry, inflatedLengthHint, scanResources);
         this.arr = parentSlice.arr;
     }
 
@@ -75,12 +73,12 @@ public class ArraySlice extends Slice {
      * @param inflatedLengthHint
      *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
      *            zip entry.
-     * @param nestedJarHandler
-     *            the nested jar handler
+     * @param scanResources
+     *            the resources owned by the scan
      */
     public ArraySlice(final byte[] arr, final boolean isDeflatedZipEntry, final long inflatedLengthHint,
-            final NestedJarHandler nestedJarHandler) {
-        super(arr.length, isDeflatedZipEntry, inflatedLengthHint, nestedJarHandler);
+            final ScanResources scanResources) {
+        super(arr.length, isDeflatedZipEntry, inflatedLengthHint, scanResources);
         this.arr = arr;
     }
 
@@ -104,7 +102,7 @@ public class ArraySlice extends Slice {
         if (this.isDeflatedZipEntry) {
             throw new IllegalArgumentException("Cannot slice a deflated zip entry");
         }
-        return new ArraySlice(this, offset, length, isDeflatedZipEntry, inflatedLengthHint, nestedJarHandler);
+        return new ArraySlice(this, offset, length, isDeflatedZipEntry, inflatedLengthHint, scanResources);
     }
 
     /**

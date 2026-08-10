@@ -35,9 +35,9 @@ import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.util.Objects;
 
-import nonapi.io.github.classgraph.fileslice.ArraySlice;
 import nonapi.io.github.classgraph.fileslice.FileSlice;
 import nonapi.io.github.classgraph.fileslice.PathSlice;
+import nonapi.io.github.classgraph.fileslice.ScanResources;
 import nonapi.io.github.classgraph.fileslice.Slice;
 import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
@@ -61,27 +61,23 @@ class PhysicalZipFile {
     /** The {@link Slice} for the zipfile. */
     Slice slice;
 
-    /** The nested jar handler. */
-    NestedJarHandler nestedJarHandler;
-
     /**
      * Construct a {@link PhysicalZipFile} from a file on disk.
      *
      * @param file
      *            the file
-     * @param nestedJarHandler
-     *            the nested jar handler
+     * @param scanResources
+     *            the resources owned by the scan
      * @param log
      *            the log node, or null to skip logging
      * @throws IOException
      *             if an I/O exception occurs.
      */
-    PhysicalZipFile(final File file, final NestedJarHandler nestedJarHandler, final @Nullable LogNode log)
+    PhysicalZipFile(final File file, final ScanResources scanResources, final @Nullable LogNode log)
             throws IOException {
-        this.nestedJarHandler = nestedJarHandler;
         this.file = file;
         this.pathStr = FastPathResolver.resolve(FileUtils.currDirPath(), file.getPath());
-        this.slice = new FileSlice(file, nestedJarHandler, log);
+        this.slice = new FileSlice(file, scanResources, log);
     }
 
     /**
@@ -89,42 +85,18 @@ class PhysicalZipFile {
      *
      * @param path
      *            the path
-     * @param nestedJarHandler
-     *            the nested jar handler
+     * @param scanResources
+     *            the resources owned by the scan
      * @param log
      *            the log node, or null to skip logging
      * @throws IOException
      *             if an I/O exception occurs.
      */
-    PhysicalZipFile(final Path path, final NestedJarHandler nestedJarHandler, final @Nullable LogNode log)
+    PhysicalZipFile(final Path path, final ScanResources scanResources, final @Nullable LogNode log)
             throws IOException {
-        this.nestedJarHandler = nestedJarHandler;
         this.path = path;
         this.pathStr = FastPathResolver.resolve(FileUtils.currDirPath(), path.toString());
-        this.slice = new PathSlice(path, nestedJarHandler);
-    }
-
-    /**
-     * Construct a {@link PhysicalZipFile} from a byte array.
-     *
-     * @param arr
-     *            the array containing the zipfile.
-     * @param outermostFile
-     *            the outermost file
-     * @param pathStr
-     *            the path
-     * @param nestedJarHandler
-     *            the nested jar handler
-     * @throws IOException
-     *             if an I/O exception occurs.
-     */
-    PhysicalZipFile(final byte[] arr, final File outermostFile, final String pathStr,
-            final NestedJarHandler nestedJarHandler) throws IOException {
-        this.nestedJarHandler = nestedJarHandler;
-        this.file = outermostFile;
-        this.pathStr = pathStr;
-        this.slice = new ArraySlice(arr, /* isDeflatedZipEntry = */ false, /* inflatedSizeHint = */ 0L,
-                nestedJarHandler);
+        this.slice = new PathSlice(path, scanResources);
     }
 
     /**
@@ -138,21 +110,20 @@ class PhysicalZipFile {
      * @param pathStr
      *            the source URL the InputStream was opened from, or the zip entry path of this entry in the parent
      *            zipfile
-     * @param nestedJarHandler
-     *            the nested jar handler
+     * @param scanResources
+     *            the resources owned by the scan
      * @param log
      *            the log node, or null to skip logging
      * @throws IOException
      *             if an I/O exception occurs.
      */
     PhysicalZipFile(final InputStream inputStream, final long inputStreamLengthHint, final String pathStr,
-            final NestedJarHandler nestedJarHandler, final @Nullable LogNode log) throws IOException {
-        this.nestedJarHandler = nestedJarHandler;
+            final ScanResources scanResources, final @Nullable LogNode log) throws IOException {
         this.pathStr = pathStr;
         // Try downloading the InputStream to a byte array. If this succeeds, this will result in an ArraySlice. If
         // it fails, the InputStream will be spilled to disk, resulting in a FileSlice.
-        this.slice = nestedJarHandler.readAllBytesWithSpilloverToDisk(inputStream, /* tempFileBaseName = */ pathStr,
-                inputStreamLengthHint, log);
+        this.slice = Slice.fromInputStream(inputStream, /* tempFileBaseName = */ pathStr, inputStreamLengthHint,
+                scanResources, log);
         this.file = this.slice instanceof final FileSlice fileSlice ? fileSlice.file : null;
     }
 
