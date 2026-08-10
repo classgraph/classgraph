@@ -305,6 +305,17 @@ public final class FastPathResolver {
             startIdx += 2;
         }
 
+        // A "file:" URL names the local machine either with an empty authority ("file:///path") or with the
+        // authority "localhost" ("file://localhost/path"), and the two mean the same local path (RFC 8089 section
+        // 2). Outside Windows there is no UNC concept, so the authority would otherwise be folded into the path
+        // and "file://localhost/tmp/a" would resolve to "/localhost/tmp/a", which names a different file. On
+        // Windows the authority is left alone, so that it becomes the UNC path "//localhost/tmp/a" -- that is both
+        // what Path#of(URI) produces there and what RFC 8089 appendix B.3 specifies
+        if (isFileOrJarURL && VersionFinder.OS != OperatingSystem.Windows
+                && relativePath.regionMatches(true, startIdx, "//localhost/", 0, 12)) {
+            startIdx += "//localhost".length();
+        }
+
         // Handle Windows paths starting with a drive designation as an absolute path
         if (VersionFinder.OS == OperatingSystem.Windows) {
             if (relativePath.startsWith("//", startIdx) || relativePath.startsWith("\\\\", startIdx)) {

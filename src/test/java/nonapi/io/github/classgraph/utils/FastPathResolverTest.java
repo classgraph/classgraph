@@ -22,6 +22,12 @@ public class FastPathResolverTest {
     private static Method resolveAsWindowsMethod;
 
     /**
+     * {@link FastPathResolver#resolve(String, String)}, loaded in a class loader that saw {@code os.name} set to
+     * Linux, so that the non-Windows branches can be tested on any platform.
+     */
+    private static Method resolveAsLinuxMethod;
+
+    /**
      * A class loader that defines the ClassGraph classes itself rather than delegating them to its parent, so that
      * they get a second, independent copy of their static state. {@code VersionFinder.OS} is a {@code static final}
      * field initialized from the {@code os.name} system property, so a copy of {@link FastPathResolver} loaded here
@@ -67,24 +73,41 @@ public class FastPathResolverTest {
     }
 
     /**
-     * Load a second copy of {@link FastPathResolver} that believes it is running on Windows.
+     * Load a second copy of {@link FastPathResolver} that believes it is running on Windows, and a third that
+     * believes it is running on Linux, so that both sets of branches can be tested whatever the real platform is.
      *
      * @throws Exception
-     *             if the second copy could not be loaded.
+     *             if the extra copies could not be loaded.
      */
     @BeforeAll
-    static void loadResolverAsWindows() throws Exception {
+    static void loadResolverForEachOS() throws Exception {
+        resolveAsWindowsMethod = loadResolverForOS("Windows 10", "Windows");
+        resolveAsLinuxMethod = loadResolverForOS("Linux", "Linux");
+    }
+
+    /**
+     * Load a copy of {@link FastPathResolver} that believes it is running on the named operating system.
+     *
+     * @param osName
+     *            the value to give the {@code os.name} system property while the copy is initialized.
+     * @param expectedOS
+     *            the name that {@code VersionFinder.OS} is expected to take as a result.
+     * @return the copy's {@code resolve(String, String)} method.
+     * @throws Exception
+     *             if the copy could not be loaded.
+     */
+    private static Method loadResolverForOS(final String osName, final String expectedOS) throws Exception {
         final String osNameOrig = System.getProperty("os.name");
         final ClassLoader classLoader = new SeparateStaticStateClassLoader();
         try {
-            System.setProperty("os.name", "Windows 10");
+            System.setProperty("os.name", osName);
             // Class initialization has to happen while the property is set, since VersionFinder.OS is static final
             final Class<?> versionFinderCls = Class.forName(VersionFinder.class.getName(), /* initialize = */ true,
                     classLoader);
-            assertThat(versionFinderCls.getField("OS").get(null)).hasToString("Windows");
+            assertThat(versionFinderCls.getField("OS").get(null)).hasToString(expectedOS);
             final Class<?> resolverCls = Class.forName(FastPathResolver.class.getName(), /* initialize = */ true,
                     classLoader);
-            resolveAsWindowsMethod = resolverCls.getMethod("resolve", String.class, String.class);
+            return resolverCls.getMethod("resolve", String.class, String.class);
         } finally {
             if (osNameOrig != null) {
                 System.setProperty("os.name", osNameOrig);
@@ -102,8 +125,37 @@ public class FastPathResolverTest {
      * @return the resolved path.
      */
     private static String resolveAsWindows(final String resolveBasePath, final String relativePath) {
+        return invokeResolve(resolveAsWindowsMethod, resolveBasePath, relativePath);
+    }
+
+    /**
+     * Resolve a path as if running on Linux.
+     *
+     * @param resolveBasePath
+     *            the base path, or null to resolve against nothing.
+     * @param relativePath
+     *            the path to resolve.
+     * @return the resolved path.
+     */
+    private static String resolveAsLinux(final String resolveBasePath, final String relativePath) {
+        return invokeResolve(resolveAsLinuxMethod, resolveBasePath, relativePath);
+    }
+
+    /**
+     * Invoke one of the reflectively-loaded copies of {@code FastPathResolver#resolve(String, String)}.
+     *
+     * @param resolveMethod
+     *            the copy's resolve method.
+     * @param resolveBasePath
+     *            the base path, or null to resolve against nothing.
+     * @param relativePath
+     *            the path to resolve.
+     * @return the resolved path.
+     */
+    private static String invokeResolve(final Method resolveMethod, final String resolveBasePath,
+            final String relativePath) {
         try {
-            return (String) resolveAsWindowsMethod.invoke(null, resolveBasePath, relativePath);
+            return (String) resolveMethod.invoke(null, resolveBasePath, relativePath);
         } catch (final IllegalAccessException e) {
             throw new IllegalArgumentException(e);
         } catch (final InvocationTargetException e) {
@@ -184,6 +236,25 @@ public class FastPathResolverTest {
         assertThat(resolveAsWindows(null, "file://server/share/a")).isEqualTo("//server/share/a");
         // ... and so does the empty-authority spelling of a UNC path, which has four slashes in total
         assertThat(resolveAsWindows(null, "file:////server/share/a")).isEqualTo("//server/share/a");
+    }
+
+    /**
+     * A {@code "file:"} URL names the local machine either with an empty authority or with the authority
+     * {@code "localhost"}, and both name the same local path (RFC 8089 section 2). Off Windows the authority has to
+     * be dropped, since folding it into the path names a directory that does not exist; on Windows it is kept, so
+     * that it becomes a UNC path, which is what {@code Path#of(URI)} produces there.
+     */
+    @Test
+    public void localhostAuthorityNamesTheLocalMachine() {
+        assertThat(resolveAsLinux(null, "file://localhost/tmp/a")).isEqualTo("/tmp/a");
+        assertThat(resolveAsLinux("/base", "file://localhost/tmp/a")).isEqualTo("/tmp/a");
+        assertThat(resolveAsLinux(null, "jar:file://localhost/tmp/a.jar!/b")).isEqualTo("/tmp/a.jar!/b");
+        // The host name is case-insensitive
+        assertThat(resolveAsLinux(null, "file://LocalHost/tmp/a")).isEqualTo("/tmp/a");
+        // Only the whole host name matches, not a host whose name merely starts with "localhost"
+        assertThat(resolveAsLinux(null, "file://localhostile/tmp/a")).isEqualTo("/localhostile/tmp/a");
+        // On Windows the authority is kept, giving the UNC path that the JDK produces for the same URL
+        assertThat(resolveAsWindows(null, "file://localhost/tmp/a")).isEqualTo("//localhost/tmp/a");
     }
 
     /** On Windows, a bare drive designation is an absolute path, however it is spelled. */
