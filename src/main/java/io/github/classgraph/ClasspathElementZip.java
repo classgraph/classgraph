@@ -143,6 +143,44 @@ class ClasspathElementZip extends ClasspathElement {
         this.nestedJarHandler = nestedJarHandler;
     }
 
+    /**
+     * Schedules the child classpath elements found within this classpath element -- nested lib jars, and the
+     * entries of the manifest's {@code Class-Path} and {@code Bundle-ClassPath} attributes -- for scanning.
+     */
+    private final class ChildClasspathElementScheduler {
+        /** The work queue to add child classpath elements to. */
+        private final WorkQueue<ClasspathEntryWorkUnit> workQueue;
+        /**
+         * The child classpath elements that have already been scheduled, so that no child classpath element is
+         * scheduled twice, and so that this classpath element is not scheduled as a child of itself.
+         */
+        private final Set<String> alreadyScheduled = new HashSet<>();
+        /** The order of the next child classpath element within this classpath element. */
+        private int childClasspathEntryIdx;
+
+        ChildClasspathElementScheduler(final WorkQueue<ClasspathEntryWorkUnit> workQueue) {
+            this.workQueue = workQueue;
+            alreadyScheduled.add(rawPath);
+        }
+
+        /**
+         * Schedule a child classpath element for scanning, unless it has already been scheduled.
+         *
+         * @param childClasspathEltPath
+         *            the path of the child classpath element
+         * @throws InterruptedException
+         *             if the thread was interrupted
+         */
+        void schedule(final String childClasspathEltPath) throws InterruptedException {
+            if (alreadyScheduled.add(childClasspathEltPath)) {
+                workQueue.addWorkUnit(new ClasspathEntryWorkUnit(childClasspathEltPath, getClassLoader(),
+                        /* parentClasspathElement = */ ClasspathElementZip.this,
+                        /* orderWithinParentClasspathElement = */ childClasspathEntryIdx++,
+                        /* packageRootPrefix = */ "", packageRootPrefixes));
+            }
+        }
+    }
+
     @Override
     void open(final WorkQueue<ClasspathEntryWorkUnit> workQueue, final @Nullable LogNode log)
             throws InterruptedException {
@@ -155,15 +193,38 @@ class ClasspathElementZip extends ClasspathElement {
             return;
         }
         final var subLog = log == null ? null : log(classpathElementIdx, "Opening jar: " + rawPath, log);
+
+        final var logicalZipFile = openLogicalZipFile(subLog);
+        if (logicalZipFile == null) {
+            skipClasspathElement = true;
+            return;
+        }
+
+        final var childScheduler = new ChildClasspathElementScheduler(workQueue);
+        addNestedLibJars(logicalZipFile, childScheduler, subLog);
+        addClassPathManifestEntries(logicalZipFile, childScheduler);
+        addBundleClassPathManifestEntries(logicalZipFile, childScheduler);
+    }
+
+    /**
+     * Open the {@link LogicalZipFile} for this classpath element, and record its normalized path and package root.
+     *
+     * @param log
+     *            the log node, or null to skip logging
+     * @return the {@link LogicalZipFile}, or null if the zipfile could not be opened, or if it should not be
+     *         scanned.
+     * @throws InterruptedException
+     *             if the thread was interrupted
+     */
+    private @Nullable LogicalZipFile openLogicalZipFile(final @Nullable LogNode log) throws InterruptedException {
         final var plingIdx = JarUtils.indexOfNestedJarSeparator(rawPath);
         final var outermostZipFilePathResolved = FastPathResolver.resolve(FileUtils.currDirPath(),
                 plingIdx < 0 ? rawPath : rawPath.substring(0, plingIdx));
         if (!scanSpec.jarAcceptReject.isAcceptedAndNotRejected(outermostZipFilePathResolved)) {
-            if (subLog != null) {
-                subLog.log("Skipping jarfile that is rejected or not accepted: " + rawPath);
+            if (log != null) {
+                log.log("Skipping jarfile that is rejected or not accepted: " + rawPath);
             }
-            skipClasspathElement = true;
-            return;
+            return null;
         }
 
         final LogicalZipFile logicalZipFile;
@@ -172,7 +233,7 @@ class ClasspathElementZip extends ClasspathElement {
             final Entry<LogicalZipFile, String> logicalZipFileAndPackageRoot;
             try {
                 logicalZipFileAndPackageRoot = nestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap()
-                        .get(rawPath, subLog);
+                        .get(rawPath, log);
             } catch (final NullSingletonException | NewInstanceException e) {
                 // Generally thrown on the second and subsequent attempt to call .get(), after the first failed, or
                 // newInstance() threw an exception
@@ -190,118 +251,130 @@ class ClasspathElementZip extends ClasspathElement {
                 packageRootPrefix = packageRoot + "/";
             }
         } catch (final IOException | IllegalArgumentException e) {
-            if (subLog != null) {
-                subLog.log("Could not open jarfile " + rawPath + " : " + e);
+            if (log != null) {
+                log.log("Could not open jarfile " + rawPath + " : " + e);
             }
-            skipClasspathElement = true;
-            return;
+            return null;
         }
 
         if (!scanSpec.enableSystemJarsAndModules && logicalZipFile.isJREJar) {
             // Found a rejected JRE jar that was not caught by filtering for rt.jar in ClasspathFinder (the isJREJar
             // value was set by detecting JRE headers in the jar's manifest file)
-            if (subLog != null) {
-                subLog.log("Ignoring JRE jar: " + rawPath);
+            if (log != null) {
+                log.log("Ignoring JRE jar: " + rawPath);
             }
-            skipClasspathElement = true;
-            return;
+            return null;
         }
 
         if (!logicalZipFile.isAcceptedAndNotRejected(scanSpec.jarAcceptReject)) {
-            if (subLog != null) {
-                subLog.log("Skipping jarfile that is rejected or not accepted: " + rawPath);
+            if (log != null) {
+                log.log("Skipping jarfile that is rejected or not accepted: " + rawPath);
             }
-            skipClasspathElement = true;
+            return null;
+        }
+        return logicalZipFile;
+    }
+
+    /**
+     * Automatically add any nested "lib/" dirs to the classpath, since not all classloaders return them as
+     * classpath elements.
+     *
+     * @param logicalZipFile
+     *            the logical zipfile
+     * @param childScheduler
+     *            the child classpath element scheduler
+     * @param log
+     *            the log node, or null to skip logging
+     * @throws InterruptedException
+     *             if the thread was interrupted
+     */
+    private void addNestedLibJars(final LogicalZipFile logicalZipFile,
+            final ChildClasspathElementScheduler childScheduler, final @Nullable LogNode log)
+            throws InterruptedException {
+        if (!scanSpec.scanNestedJars) {
             return;
         }
-
-        // Automatically add any nested "lib/" dirs to classpath, since not all classloaders return them as
-        // classpath elements
-        var childClasspathEntryIdx = 0;
-        if (scanSpec.scanNestedJars) {
-            for (final FastZipEntry zipEntry : logicalZipFile.entries) {
-                for (final String libDirPrefix : ClassLoaderHandlerRegistry.AUTOMATIC_LIB_DIR_PREFIXES) {
-                    // Even if a package root is given, e.g. BOOT-INF/classes, still look in lib/ etc. for jars
-                    if (zipEntry.entryNameUnversioned.startsWith(libDirPrefix)
-                            && zipEntry.entryNameUnversioned.endsWith(".jar")) {
-                        final var entryPath = zipEntry.getPath();
-                        if (subLog != null) {
-                            subLog.log("Found nested lib jar: " + entryPath);
-                        }
-                        workQueue.addWorkUnit(new ClasspathEntryWorkUnit(entryPath, getClassLoader(),
-                                /* parentClasspathElement = */ this,
-                                /* orderWithinParentClasspathElement = */
-                                childClasspathEntryIdx++, /* packageRootPrefix = */ "", packageRootPrefixes));
-                        break;
+        for (final FastZipEntry zipEntry : logicalZipFile.entries) {
+            for (final String libDirPrefix : ClassLoaderHandlerRegistry.AUTOMATIC_LIB_DIR_PREFIXES) {
+                // Even if a package root is given, e.g. BOOT-INF/classes, still look in lib/ etc. for jars
+                if (zipEntry.entryNameUnversioned.startsWith(libDirPrefix)
+                        && zipEntry.entryNameUnversioned.endsWith(".jar")) {
+                    final var entryPath = zipEntry.getPath();
+                    if (log != null) {
+                        log.log("Found nested lib jar: " + entryPath);
                     }
+                    childScheduler.schedule(entryPath);
+                    break;
                 }
             }
         }
+    }
 
-        // Don't add child classpath elements that are identical to this classpath element, or that are duplicates
-        final Set<String> scheduledChildClasspathElements = new HashSet<>();
-        scheduledChildClasspathElements.add(rawPath);
-
-        // Create child classpath elements from values obtained from Class-Path entry in manifest, resolving the
-        // paths relative to the dir or parent jarfile that the jarfile is contained in
-        if (logicalZipFile.classPathManifestEntryValue != null) {
-            // Get parent dir of logical zipfile within grandparent slice, e.g. for a zipfile slice path of
-            // "/path/to/jar1.jar!/lib/jar2.jar", this is "lib", or for "/path/to/jar1.jar", this is "/path/to", or
-            // "" if the jar is in the toplevel dir.
-            final var jarParentDir = FileUtils.getParentDirPath(logicalZipFile.getPathWithinParentZipFileSlice());
-            // Add paths in manifest file's "Class-Path" entry to the classpath, resolving paths relative to the
-            // parent directory or jar
-            for (final String childClassPathEltPathRelative : logicalZipFile.classPathManifestEntryValue
-                    .split(" ")) {
-                if (!childClassPathEltPathRelative.isEmpty()) {
-                    // Resolve Class-Path entry relative to containing dir
-                    final var childClassPathEltPath = FastPathResolver.resolve(jarParentDir,
-                            childClassPathEltPathRelative);
-                    // If this is a nested jar, prepend outer jar prefix
-                    final var parentZipFileSlice = logicalZipFile.getParentZipFileSlice();
-                    final var childClassPathEltPathWithPrefix = parentZipFileSlice == null ? childClassPathEltPath
-                            : parentZipFileSlice.getPath() + (childClassPathEltPath.startsWith("/") ? "!" : "!/")
-                                    + childClassPathEltPath;
-                    // Only add child classpath elements once
-                    if (scheduledChildClasspathElements.add(childClassPathEltPathWithPrefix)) {
-                        // Schedule child classpath element for scanning
-                        workQueue.addWorkUnit( //
-                                new ClasspathEntryWorkUnit(childClassPathEltPathWithPrefix, getClassLoader(),
-                                        /* parentClasspathElement = */ this,
-                                        /* orderWithinParentClasspathElement = */
-                                        childClasspathEntryIdx++, /* packageRootPrefix = */ "",
-                                        packageRootPrefixes));
-                    }
-                }
+    /**
+     * Create child classpath elements from the values of the manifest's {@code Class-Path} attribute, resolving the
+     * paths relative to the dir or parent jarfile that this jarfile is contained in.
+     *
+     * @param logicalZipFile
+     *            the logical zipfile
+     * @param childScheduler
+     *            the child classpath element scheduler
+     * @throws InterruptedException
+     *             if the thread was interrupted
+     */
+    private void addClassPathManifestEntries(final LogicalZipFile logicalZipFile,
+            final ChildClasspathElementScheduler childScheduler) throws InterruptedException {
+        if (logicalZipFile.classPathManifestEntryValue == null) {
+            return;
+        }
+        // Get parent dir of logical zipfile within grandparent slice, e.g. for a zipfile slice path of
+        // "/path/to/jar1.jar!/lib/jar2.jar", this is "lib", or for "/path/to/jar1.jar", this is "/path/to", or
+        // "" if the jar is in the toplevel dir.
+        final var jarParentDir = FileUtils.getParentDirPath(logicalZipFile.getPathWithinParentZipFileSlice());
+        for (final String childClassPathEltPathRelative : logicalZipFile.classPathManifestEntryValue.split(" ")) {
+            if (!childClassPathEltPathRelative.isEmpty()) {
+                // Resolve Class-Path entry relative to containing dir
+                final var childClassPathEltPath = FastPathResolver.resolve(jarParentDir,
+                        childClassPathEltPathRelative);
+                // If this is a nested jar, prepend outer jar prefix
+                final var parentZipFileSlice = logicalZipFile.getParentZipFileSlice();
+                final var childClassPathEltPathWithPrefix = parentZipFileSlice == null ? childClassPathEltPath
+                        : parentZipFileSlice.getPath() + (childClassPathEltPath.startsWith("/") ? "!" : "!/")
+                                + childClassPathEltPath;
+                childScheduler.schedule(childClassPathEltPathWithPrefix);
             }
         }
-        // Add paths in an OSGi bundle jar manifest's "Bundle-ClassPath" entry to the classpath, resolving the paths
-        // relative to the root of the jarfile
-        if (logicalZipFile.bundleClassPathManifestEntryValue != null) {
-            final var zipFilePathPrefix = zipFilePath + "!/";
-            // Class-Path is split on " ", but Bundle-ClassPath is split on ","
-            for (String childBundlePath : logicalZipFile.bundleClassPathManifestEntryValue.split(",")) {
-                // Assume that Bundle-ClassPath paths have to be given relative to jarfile root
-                while (childBundlePath.startsWith("/")) {
-                    childBundlePath = childBundlePath.substring(1);
-                }
-                // Currently the position of "." relative to child classpath entries is ignored (the
-                // Bundle-ClassPath path is treated as if "." is in the first position, since child classpath
-                // entries are always added to the classpath after the parent classpath entry that they were
-                // obtained from).
-                if (!childBundlePath.isEmpty() && !".".equals(childBundlePath)) {
-                    // Resolve Bundle-ClassPath entry within jar
-                    final var childClassPathEltPath = zipFilePathPrefix + FileUtils.sanitizeEntryPath(
-                            childBundlePath, /* removeInitialSlash = */ true, /* removeFinalSlash = */ true);
-                    // Only add child classpath elements once
-                    if (scheduledChildClasspathElements.add(childClassPathEltPath)) {
-                        // Schedule child classpath element for scanning
-                        workQueue.addWorkUnit(new ClasspathEntryWorkUnit(childClassPathEltPath, getClassLoader(),
-                                /* parentClasspathElement = */ this,
-                                /* orderWithinParentClasspathElement = */
-                                childClasspathEntryIdx++, /* packageRootPrefix = */ "", packageRootPrefixes));
-                    }
-                }
+    }
+
+    /**
+     * Add the paths in an OSGi bundle jar manifest's {@code Bundle-ClassPath} attribute to the classpath, resolving
+     * the paths relative to the root of the jarfile.
+     *
+     * @param logicalZipFile
+     *            the logical zipfile
+     * @param childScheduler
+     *            the child classpath element scheduler
+     * @throws InterruptedException
+     *             if the thread was interrupted
+     */
+    private void addBundleClassPathManifestEntries(final LogicalZipFile logicalZipFile,
+            final ChildClasspathElementScheduler childScheduler) throws InterruptedException {
+        if (logicalZipFile.bundleClassPathManifestEntryValue == null) {
+            return;
+        }
+        final var zipFilePathPrefix = zipFilePath + "!/";
+        // Class-Path is split on " ", but Bundle-ClassPath is split on ","
+        for (String childBundlePath : logicalZipFile.bundleClassPathManifestEntryValue.split(",")) {
+            // Assume that Bundle-ClassPath paths have to be given relative to jarfile root
+            while (childBundlePath.startsWith("/")) {
+                childBundlePath = childBundlePath.substring(1);
+            }
+            // Currently the position of "." relative to child classpath entries is ignored (the Bundle-ClassPath
+            // path is treated as if "." is in the first position, since child classpath entries are always added
+            // to the classpath after the parent classpath entry that they were obtained from).
+            if (!childBundlePath.isEmpty() && !".".equals(childBundlePath)) {
+                // Resolve Bundle-ClassPath entry within jar
+                childScheduler.schedule(zipFilePathPrefix + FileUtils.sanitizeEntryPath(childBundlePath,
+                        /* removeInitialSlash = */ true, /* removeFinalSlash = */ true));
             }
         }
     }
@@ -519,72 +592,31 @@ class ClasspathElementZip extends ClasspathElement {
                 ? getVerifiedPackageRootPrefixes(logicalZipFile, subLog)
                 : packageRootPrefixes;
 
-        Set<String> loggedNestedClasspathRootPrefixes = null;
+        final Set<String> loggedNestedClasspathRootPrefixes = new HashSet<>();
         final var parentDirMatchStatusCache = new ParentDirMatchStatusCache();
         for (final FastZipEntry zipEntry : logicalZipFile.entries) {
-            var relativePath = zipEntry.entryNameUnversioned;
+            final var entryName = zipEntry.entryNameUnversioned;
 
-            if (isIgnoredVersionedPath(relativePath)) {
+            if (isIgnoredVersionedPath(entryName)) {
                 if (subLog != null) {
                     subLog.log("Found unexpected versioned entry in jar (the jar's manifest file may be missing "
-                            + "the \"Multi-Release\" key) -- skipping: " + relativePath);
+                            + "the \"Multi-Release\" key) -- skipping: " + entryName);
                 }
                 continue;
             }
 
-            if (isIgnoredDefaultPackageClassfile(isModularJar, relativePath)) {
+            if (isIgnoredDefaultPackageClassfile(isModularJar, entryName)) {
                 continue;
             }
 
-            // Check if the relative path is within a nested classpath root
-            if (nestedClasspathRootPrefixes != null) {
-                // This is O(mn), which is inefficient, but the number of nested classpath roots should be small
-                var reachedNestedRoot = false;
-                for (final String nestedClasspathRoot : nestedClasspathRootPrefixes) {
-                    if (relativePath.startsWith(nestedClasspathRoot)) {
-                        // relativePath has a prefix of nestedClasspathRoot
-                        if (subLog != null) {
-                            if (loggedNestedClasspathRootPrefixes == null) {
-                                loggedNestedClasspathRootPrefixes = new HashSet<>();
-                            }
-                            if (loggedNestedClasspathRootPrefixes.add(nestedClasspathRoot)) {
-                                subLog.log("Reached nested classpath root, stopping recursion to avoid duplicate "
-                                        + "scanning: " + nestedClasspathRoot);
-                            }
-                        }
-                        reachedNestedRoot = true;
-                        break;
-                    }
-                }
-                if (reachedNestedRoot) {
-                    continue;
-                }
-            }
-
-            // Ignore entries without the correct classpath root prefix
-            if (!packageRootPrefix.isEmpty() && !relativePath.startsWith(packageRootPrefix)) {
+            if (isWithinNestedClasspathRoot(entryName, loggedNestedClasspathRootPrefixes, subLog)) {
                 continue;
             }
 
-            // Strip the package root prefix from the relative path
-            if (!packageRootPrefix.isEmpty()) {
-                relativePath = relativePath.substring(packageRootPrefix.length());
-            } else {
-                // Strip any package root prefix from the relative path
-                for (final String packageRoot : verifiedPackageRootPrefixes) {
-                    if (relativePath.startsWith(packageRoot)) {
-                        // Strip package root
-                        relativePath = relativePath.substring(packageRoot.length());
-                        // Strip final slash from package root
-                        final var packageRootWithoutFinalSlash = packageRoot.endsWith("/")
-                                ? packageRoot.substring(0, packageRoot.length() - 1)
-                                : packageRoot;
-                        // Store package root for use by getAllURIs()
-                        strippedAutomaticPackageRootPrefixes.add(packageRootWithoutFinalSlash);
-                        // Only one package root prefix can be stripped from a given path
-                        break;
-                    }
-                }
+            final var relativePath = stripPackageRootPrefix(entryName, verifiedPackageRootPrefixes);
+            if (relativePath == null) {
+                // Entry does not have the required package root prefix
+                continue;
             }
 
             // Accept/reject classpath elements based on file resource paths
@@ -601,18 +633,7 @@ class ClasspathElementZip extends ClasspathElement {
                 continue;
             }
 
-            // Add the ZipEntry path as a Resource
-            final var resource = newResource(zipEntry, relativePath);
-            if (relativePathToResource.putIfAbsent(relativePath, resource) == null) {
-                if (isAcceptedResourcePath(relativePath, parentMatchStatus)) {
-                    // Resource is accepted
-                    addAcceptedResource(resource, parentMatchStatus, /* isClassfileOnly = */ false, subLog);
-                } else if (scanSpec.enableClassInfo && "module-info.class".equals(relativePath)) {
-                    // Add module descriptor as an accepted classfile resource, so that it is scanned, but don't add
-                    // it to the list of resources in the ScanResult, since it is not in an accepted package (#352)
-                    addAcceptedResource(resource, parentMatchStatus, /* isClassfileOnly = */ true, subLog);
-                }
-            }
+            addZipEntryResource(zipEntry, relativePath, parentMatchStatus, subLog);
         }
 
         // Save the last modified time for the zipfile
@@ -622,6 +643,95 @@ class ClasspathElementZip extends ClasspathElement {
         }
 
         finishScanPaths(subLog);
+    }
+
+    /**
+     * Check whether a zip entry is within a nested classpath root, i.e. within a classpath element that is nested
+     * inside this classpath element, and that will therefore be scanned separately.
+     *
+     * @param entryName
+     *            the name of the zip entry
+     * @param loggedNestedClasspathRootPrefixes
+     *            the nested classpath roots that have already been logged, so that each is logged only once
+     * @param log
+     *            the log node, or null to skip logging
+     * @return true if the entry is within a nested classpath root, and should therefore not be scanned
+     */
+    private boolean isWithinNestedClasspathRoot(final String entryName,
+            final Set<String> loggedNestedClasspathRootPrefixes, final @Nullable LogNode log) {
+        if (nestedClasspathRootPrefixes == null) {
+            return false;
+        }
+        // This is O(mn), which is inefficient, but the number of nested classpath roots should be small
+        for (final String nestedClasspathRoot : nestedClasspathRootPrefixes) {
+            if (entryName.startsWith(nestedClasspathRoot)) {
+                if (log != null && loggedNestedClasspathRootPrefixes.add(nestedClasspathRoot)) {
+                    log.log("Reached nested classpath root, stopping recursion to avoid duplicate scanning: "
+                            + nestedClasspathRoot);
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Strip the package root prefix from the name of a zip entry, to give the path of the entry relative to the
+     * package root.
+     *
+     * @param entryName
+     *            the name of the zip entry
+     * @param verifiedPackageRootPrefixes
+     *            the automatic package root prefixes to strip, if this classpath element has no explicit package
+     *            root
+     * @return the path of the entry relative to the package root, or null if the entry is not within the package
+     *         root of this classpath element
+     */
+    private @Nullable String stripPackageRootPrefix(final String entryName,
+            final String[] verifiedPackageRootPrefixes) {
+        if (!packageRootPrefix.isEmpty()) {
+            // Ignore entries without the correct classpath root prefix
+            return entryName.startsWith(packageRootPrefix) ? entryName.substring(packageRootPrefix.length()) : null;
+        }
+        // Strip any automatic package root prefix from the entry name
+        for (final String packageRoot : verifiedPackageRootPrefixes) {
+            if (entryName.startsWith(packageRoot)) {
+                // Strip final slash from package root, and store the package root for use by getAllURIs()
+                strippedAutomaticPackageRootPrefixes
+                        .add(packageRoot.endsWith("/") ? packageRoot.substring(0, packageRoot.length() - 1)
+                                : packageRoot);
+                // Only one package root prefix can be stripped from a given path
+                return entryName.substring(packageRoot.length());
+            }
+        }
+        return entryName;
+    }
+
+    /**
+     * Add a zip entry as a {@link Resource}, and, if the resource is accepted, schedule it for scanning.
+     *
+     * @param zipEntry
+     *            the zip entry
+     * @param relativePath
+     *            the path of the entry relative to the package root
+     * @param parentMatchStatus
+     *            the match status of the parent dir of the entry
+     * @param log
+     *            the log node, or null to skip logging
+     */
+    private void addZipEntryResource(final FastZipEntry zipEntry, final String relativePath,
+            final ScanSpecPathMatch parentMatchStatus, final @Nullable LogNode log) {
+        final var resource = newResource(zipEntry, relativePath);
+        if (relativePathToResource.putIfAbsent(relativePath, resource) == null) {
+            if (isAcceptedResourcePath(relativePath, parentMatchStatus)) {
+                // Resource is accepted
+                addAcceptedResource(resource, parentMatchStatus, /* isClassfileOnly = */ false, log);
+            } else if (scanSpec.enableClassInfo && "module-info.class".equals(relativePath)) {
+                // Add module descriptor as an accepted classfile resource, so that it is scanned, but don't add it
+                // to the list of resources in the ScanResult, since it is not in an accepted package (#352)
+                addAcceptedResource(resource, parentMatchStatus, /* isClassfileOnly = */ true, log);
+            }
+        }
     }
 
     /**
