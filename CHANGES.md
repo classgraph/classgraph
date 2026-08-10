@@ -105,14 +105,24 @@ classInfoList.generateGraphVizDotFile(
 | `generateGraphVizDotFileFromInterClassDependencies(float, float, boolean)` | `generateGraphVizDotFileFromInterClassDependencies(options)` |
 
 The options and their defaults are `layoutSize(10.5f, 8.0f)`, `hideFields()`,
-`hideFieldTypeDependencyEdges()`, `hideMethods()`, `hideMethodTypeDependencyEdges()` and
-`hideAnnotations()` (all shown by default, subject to the corresponding
-`ClassGraph#enable*Info()` call having been made before scanning),
+`hideFieldTypeDependencyEdges()`, `hideMethods()`, `hideMethodTypeDependencyEdges()`,
+`hideAnnotations()` and `hideAnnotationDependencyEdges()` (all shown by default, subject to
+the corresponding `ClassGraph#enable*Info()` call having been made before scanning),
 `useFullyQualifiedNames()` (simple names by default), and `includeExternalClasses()` /
 `excludeExternalClasses()` (by default the inter-class dependency graph follows the scan's
 own `ClassGraph#enableExternalClasses()` setting). Every option is read by
 `generateGraphVizDotFile`; the inter-class dependency graph reads only the layout size and
 the external-class setting.
+
+The three pairs of options are now symmetrical: `hideFields()`, `hideMethods()` and
+`hideAnnotations()` each hide something inside the class boxes, and
+`hideFieldTypeDependencyEdges()`, `hideMethodTypeDependencyEdges()` and
+`hideAnnotationDependencyEdges()` each hide the corresponding edges between the boxes. In
+4.x the single `showAnnotations` flag hid only the annotation edges, and there was no way
+to leave the annotations out of the class boxes; the annotations on a class, and on its
+fields, its methods and their parameters, are now hidden by `hideAnnotations()`, so code
+that passed `showAnnotations = false` to hide the edges needs
+`hideAnnotationDependencyEdges()` instead.
 
 Writing the graph to a file is now `writeGraphVizDotFile` rather than a `File`-typed
 overload of `generateGraphVizDotFile`, so the name says which one returns the .dot file
@@ -1132,6 +1142,12 @@ is fixed on the 4.x branch as well.
   not known to be meta-annotated with `@Inherited`, and `getDefaultParameterValues()` now
   returns the empty list, as its documentation already said it would when there are no
   default values.
+
+* The GraphViz class graph wrote an `ANNOTATIONS` heading into a class box whenever the
+  class carried any annotation at all, but meta-annotations (`java.lang.annotation.*`) are
+  deliberately left out of the listing under that heading, so every annotation class in the
+  graph got a heading with nothing under it. The heading is now written only if at least one
+  annotation will be listed.
 
 Two further bugs found during the port were only reachable through the JSON
 serialization API, which 5.x removes (`AnnotationParameterValue#toString()` threw

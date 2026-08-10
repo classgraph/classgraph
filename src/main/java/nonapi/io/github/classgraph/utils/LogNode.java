@@ -31,6 +31,7 @@ package nonapi.io.github.classgraph.utils;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Collection;
@@ -97,8 +98,12 @@ public final class LogNode {
     private static final SimpleDateFormat dateTimeFormatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZZ",
             Locale.US);
 
-    /** The elapsed time formatter. */
-    private static final DecimalFormat nanoFormatter = new DecimalFormat("0.000000");
+    /**
+     * The elapsed time formatter. Uses the same locale as the date/time formatter, so that logs read the same way
+     * whatever the default locale is -- otherwise the decimal separator would be a comma in some locales.
+     */
+    private static final DecimalFormat nanoFormatter = new DecimalFormat("0.000000",
+            DecimalFormatSymbols.getInstance(Locale.US));
 
     /**
      * If true, log entries are output in realtime, as well as added to the LogNode tree.

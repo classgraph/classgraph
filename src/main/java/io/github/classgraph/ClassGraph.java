@@ -1493,7 +1493,13 @@ public class ClassGraph {
             }
             return scanResult;
 
-        } catch (final InterruptedException | CancellationException e) {
+        } catch (final InterruptedException e) {
+            // Throwing InterruptedException cleared the interrupt status, and this method reports the interruption
+            // as an unchecked exception rather than rethrowing it, so restore the status, otherwise a caller that
+            // catches ClassGraphException sees a thread that no longer looks interrupted
+            Thread.currentThread().interrupt();
+            throw new ClassGraphException("Scan interrupted", e);
+        } catch (final CancellationException e) {
             throw new ClassGraphException("Scan interrupted", e);
         } catch (final ExecutionException e) {
             throw new ClassGraphException("Uncaught exception during scan", InterruptionChecker.getCause(e));
@@ -1552,7 +1558,11 @@ public class ClassGraph {
             }
             return scanResult;
 
-        } catch (final InterruptedException | CancellationException e) {
+        } catch (final InterruptedException e) {
+            // Restore the interrupt status, for the same reason as in scan(ExecutorService, int)
+            Thread.currentThread().interrupt();
+            throw new ClassGraphException("Scan interrupted", e);
+        } catch (final CancellationException e) {
             throw new ClassGraphException("Scan interrupted", e);
         } catch (final ExecutionException e) {
             throw new ClassGraphException("Uncaught exception during scan", InterruptionChecker.getCause(e));

@@ -100,7 +100,7 @@ public final class ReflectionUtils {
         }
         if (obj == null || field == null) {
             if (throwException) {
-                throw new NullPointerException();
+                throw new IllegalArgumentException("Unexpected null argument");
             } else {
                 return null;
             }
@@ -140,7 +140,7 @@ public final class ReflectionUtils {
         }
         if (obj == null || fieldName == null) {
             if (throwException) {
-                throw new NullPointerException();
+                throw new IllegalArgumentException("Unexpected null argument");
             } else {
                 return null;
             }
@@ -180,7 +180,7 @@ public final class ReflectionUtils {
         }
         if (cls == null || fieldName == null) {
             if (throwException) {
-                throw new NullPointerException();
+                throw new IllegalArgumentException("Unexpected null argument");
             } else {
                 return null;
             }

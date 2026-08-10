@@ -365,10 +365,13 @@ public class ClasspathOrder {
         } else {
             pathElementStr = pathElement.toString();
         }
-        pathElementStr = FastPathResolver.resolve(FileUtils.currDirPath(), pathElementStr);
         if (pathElementStr.isEmpty()) {
+            // Check for an empty path element before resolving it, not after: resolving an empty path against the
+            // current directory yields the current directory, which would silently turn an empty classpath entry
+            // into a scan of the whole directory tree below the current directory
             return false;
         }
+        pathElementStr = FastPathResolver.resolve(FileUtils.currDirPath(), pathElementStr);
         URL pathElementURL = null;
         var hasWildcardSuffix = false;
         // Fallback -- call toString() on the path element, then try converting to a URL

@@ -185,6 +185,8 @@ final class GraphvizDotfileGenerator {
      *            whether to show fields
      * @param showMethods
      *            whether to show methods
+     * @param showAnnotations
+     *            whether to show the annotations on the class, its fields, its methods and their parameters
      * @param useSimpleNames
      *            if true, strip package and outer class names from class names
      * @param scanSpec
@@ -193,8 +195,8 @@ final class GraphvizDotfileGenerator {
      *            the buffer to append to
      */
     private static void labelClassNodeHTML(final ClassInfo ci, final String shape, final String boxBgColor,
-            final boolean showFields, final boolean showMethods, final boolean useSimpleNames,
-            final ScanSpec scanSpec, final StringBuilder buf) {
+            final boolean showFields, final boolean showMethods, final boolean showAnnotations,
+            final boolean useSimpleNames, final ScanSpec scanSpec, final StringBuilder buf) {
         buf.append("[shape=").append(shape).append(",style=filled,fillcolor=\"#").append(boxBgColor)
                 .append("\",label=");
         buf.append('<');
@@ -228,14 +230,21 @@ final class GraphvizDotfileGenerator {
 
         // Class annotations
         final var annotationInfo = ci.annotationInfo;
-        if (annotationInfo != null && !annotationInfo.isEmpty()) {
-            buf.append("<tr><td colspan='3' bgcolor='").append(darkerColor)
-                    .append("'><font point-size='12'><b>ANNOTATIONS</b></font></td></tr>");
-            final var annotationInfoSorted = new AnnotationInfoList(annotationInfo);
-            CollectionUtils.sortIfNotEmpty(annotationInfoSorted);
-            for (final AnnotationInfo ai : annotationInfoSorted) {
-                final var annotationName = ai.getName();
-                if (!annotationName.startsWith("java.lang.annotation.")) {
+        if (showAnnotations && annotationInfo != null) {
+            // Meta-annotations are not listed, so the annotations are filtered before the section header is
+            // written -- otherwise an annotation class, whose only annotations are meta-annotations, would get a
+            // section header with nothing under it
+            final var annotationInfoSorted = new AnnotationInfoList(annotationInfo.size());
+            for (final AnnotationInfo ai : annotationInfo) {
+                if (!ai.getName().startsWith("java.lang.annotation.")) {
+                    annotationInfoSorted.add(ai);
+                }
+            }
+            if (!annotationInfoSorted.isEmpty()) {
+                CollectionUtils.sortIfNotEmpty(annotationInfoSorted);
+                buf.append("<tr><td colspan='3' bgcolor='").append(darkerColor)
+                        .append("'><font point-size='12'><b>ANNOTATIONS</b></font></td></tr>");
+                for (final AnnotationInfo ai : annotationInfoSorted) {
                     buf.append("<tr>");
                     buf.append("<td align='center' valign='top'>");
                     htmlEncode(ai.toString(), buf);
@@ -268,7 +277,7 @@ final class GraphvizDotfileGenerator {
 
                     // Field Annotations
                     final var fieldAnnotationInfo = fi.annotationInfo;
-                    if (fieldAnnotationInfo != null) {
+                    if (showAnnotations && fieldAnnotationInfo != null) {
                         for (final AnnotationInfo ai : fieldAnnotationInfo) {
                             if (buf.charAt(buf.length() - 1) != ' ') {
                                 buf.append(' ');
@@ -333,7 +342,7 @@ final class GraphvizDotfileGenerator {
                     // Method annotations
                     buf.append("<td align='right' valign='top'>");
                     final var methodAnnotationInfo = mi.annotationInfo;
-                    if (methodAnnotationInfo != null) {
+                    if (showAnnotations && methodAnnotationInfo != null) {
                         var wrapPos = 0;
                         for (final AnnotationInfo ai : methodAnnotationInfo) {
                             final var ais = ai.toString();
@@ -404,7 +413,7 @@ final class GraphvizDotfileGenerator {
                             // Param annotation
                             final var param = paramInfo.get(i);
                             final var paramAnnotationInfo = param.annotationInfo;
-                            if (paramAnnotationInfo != null) {
+                            if (showAnnotations && paramAnnotationInfo != null) {
                                 for (final AnnotationInfo ai : paramAnnotationInfo) {
                                     final var ais = ai.toString();
                                     if (!ais.isEmpty()) {
@@ -471,7 +480,9 @@ final class GraphvizDotfileGenerator {
      * @param showMethodTypeDependencyEdges
      *            whether to show method type dependency edges
      * @param showAnnotations
-     *            whether to show annotations
+     *            whether to show the annotations on each class, its fields, its methods and their parameters
+     * @param showAnnotationDependencyEdges
+     *            whether to show edges between classes and the annotations on them
      * @param useSimpleNames
      *            if true, strip package and outer class names from class names
      * @param scanSpec
@@ -481,7 +492,7 @@ final class GraphvizDotfileGenerator {
     static String generateGraphVizDotFile(final ClassInfoList classInfoList, final float sizeX, final float sizeY,
             final boolean showFields, final boolean showFieldTypeDependencyEdges, final boolean showMethods,
             final boolean showMethodTypeDependencyEdges, final boolean showAnnotations,
-            final boolean useSimpleNames, final ScanSpec scanSpec) {
+            final boolean showAnnotationDependencyEdges, final boolean useSimpleNames, final ScanSpec scanSpec) {
         final var buf = new StringBuilder(1024 * 1024);
         buf.append("digraph {\n");
         buf.append("size=\"").append(sizeX).append(',').append(sizeY).append("\";\n");
@@ -500,22 +511,22 @@ final class GraphvizDotfileGenerator {
 
         for (final ClassInfo node : standardClassNodes) {
             buf.append('"').append(node.getName()).append('"');
-            labelClassNodeHTML(node, "box", STANDARD_CLASS_COLOR, showFields, showMethods, useSimpleNames, scanSpec,
-                    buf);
+            labelClassNodeHTML(node, "box", STANDARD_CLASS_COLOR, showFields, showMethods, showAnnotations,
+                    useSimpleNames, scanSpec, buf);
             buf.append(";\n");
         }
 
         for (final ClassInfo node : interfaceNodes) {
             buf.append('"').append(node.getName()).append('"');
-            labelClassNodeHTML(node, "diamond", INTERFACE_COLOR, showFields, showMethods, useSimpleNames, scanSpec,
-                    buf);
+            labelClassNodeHTML(node, "diamond", INTERFACE_COLOR, showFields, showMethods, showAnnotations,
+                    useSimpleNames, scanSpec, buf);
             buf.append(";\n");
         }
 
         for (final ClassInfo node : annotationNodes) {
             buf.append('"').append(node.getName()).append('"');
-            labelClassNodeHTML(node, "oval", ANNOTATION_COLOR, showFields, showMethods, useSimpleNames, scanSpec,
-                    buf);
+            labelClassNodeHTML(node, "oval", ANNOTATION_COLOR, showFields, showMethods, showAnnotations,
+                    useSimpleNames, scanSpec, buf);
             buf.append(";\n");
         }
 
@@ -579,7 +590,7 @@ final class GraphvizDotfileGenerator {
                 }
             }
         }
-        if (showAnnotations) {
+        if (showAnnotationDependencyEdges) {
             for (final ClassInfo annotationNode : annotationNodes) {
                 for (final ClassInfo annotatedClassNode : annotationNode.getClassesWithAnnotationDirectOnly()) {
                     if (allVisibleNodes.contains(annotatedClassNode.getName())) {

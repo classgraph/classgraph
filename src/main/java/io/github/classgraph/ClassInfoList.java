@@ -569,7 +569,8 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
         }
         return GraphvizDotfileGenerator.generateGraphVizDotFile(this, options.sizeX, options.sizeY,
                 options.showFields, options.showFieldTypeDependencyEdges, options.showMethods,
-                options.showMethodTypeDependencyEdges, options.showAnnotations, options.useSimpleNames, scanSpec);
+                options.showMethodTypeDependencyEdges, options.showAnnotations,
+                options.showAnnotationDependencyEdges, options.useSimpleNames, scanSpec);
     }
 
     /**

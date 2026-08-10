@@ -7,7 +7,7 @@ import java.net.URI;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tests for {@link URLPathEncoder#normalizeURLPath(String)}.
+ * Tests for {@link URLPathEncoder}.
  *
  * <p>
  * All the paths used here are free of Windows drive letters, so the expected results are the same on every
@@ -77,5 +77,72 @@ public class URLPathEncoderTest {
         assertThat(new URI(URLPathEncoder.normalizeURLPath("/tmp/x.jar")).getPath()).isEqualTo("/tmp/x.jar");
         // A relative path stays relative, so it is opaque rather than hierarchical
         assertThat(new URI(URLPathEncoder.normalizeURLPath("tmp/x.jar")).toString()).isEqualTo("file:tmp/x.jar");
+    }
+
+    /** Characters that are not URL-safe are percent-encoded, and '/' is left alone. */
+    @Test
+    public void unsafeCharactersAreEncoded() {
+        assertThat(URLPathEncoder.encodePath("/tmp/a b.jar")).isEqualTo("/tmp/a%20b.jar");
+        assertThat(URLPathEncoder.encodePath("/tmp/a[1].jar")).isEqualTo("/tmp/a%5b1%5d.jar");
+        // Non-ASCII characters are encoded as their UTF-8 bytes
+        assertThat(URLPathEncoder.encodePath("/tmp/é.jar")).isEqualTo("/tmp/%c3%a9.jar");
+    }
+
+    /** The "safe" and "extra" URL character rules, plus '/', are left as they are. */
+    @Test
+    public void safeCharactersAreNotEncoded() {
+        final var safeChars = "abcXYZ019$-_.+!*'(),/";
+        assertThat(URLPathEncoder.encodePath(safeChars)).isEqualTo(safeChars);
+    }
+
+    /** A ':' is only left alone where it belongs to a URL scheme prefix. */
+    @Test
+    public void colonIsOnlyKeptInASchemePrefix() {
+        assertThat(URLPathEncoder.encodePath("file:/tmp/x.jar")).isEqualTo("file:/tmp/x.jar");
+        assertThat(URLPathEncoder.encodePath("jar:file:/tmp/x.jar")).isEqualTo("jar:file:/tmp/x.jar");
+        assertThat(URLPathEncoder.encodePath("jrt:/java.base")).isEqualTo("jrt:/java.base");
+        // A ':' anywhere else is encoded, since it is not safe in a path segment
+        assertThat(URLPathEncoder.encodePath("/tmp/a:b.jar")).isEqualTo("/tmp/a%3ab.jar");
+    }
+
+    /** Percent-escaped sequences are decoded, in either case, and back into UTF-8 characters. */
+    @Test
+    public void escapedCharactersAreDecoded() {
+        assertThat(URLPathEncoder.decodePath("/tmp/a%20b.jar")).isEqualTo("/tmp/a b.jar");
+        assertThat(URLPathEncoder.decodePath("/tmp/a%5b1%5D.jar")).isEqualTo("/tmp/a[1].jar");
+        assertThat(URLPathEncoder.decodePath("/tmp/%C3%A9.jar")).isEqualTo("/tmp/é.jar");
+        assertThat(URLPathEncoder.decodePath("/tmp/x.jar")).isEqualTo("/tmp/x.jar");
+        assertThat(URLPathEncoder.decodePath("")).isEmpty();
+    }
+
+    /**
+     * {@code '+'} means a space only in the query string, not in the path -- a jar named "a+b.jar" is a real
+     * filename, and decoding its '+' as a space would stop it from being found.
+     */
+    // #468
+    @Test
+    public void plusIsOnlyASpaceInTheQueryString() {
+        assertThat(URLPathEncoder.decodePath("/tmp/a+b.jar")).isEqualTo("/tmp/a+b.jar");
+        assertThat(URLPathEncoder.decodePath("/tmp/a+b.jar?x=1+2")).isEqualTo("/tmp/a+b.jar?x=1 2");
+    }
+
+    /**
+     * A '%' that does not introduce two hexadecimal digits is not an escape sequence, so it is passed through as it
+     * is, rather than decoding to a wrong character or throwing.
+     */
+    @Test
+    public void malformedEscapeSequencesArePassedThrough() {
+        assertThat(URLPathEncoder.decodePath("/tmp/100%zz.jar")).isEqualTo("/tmp/100%zz.jar");
+        // A '%' too close to the end of the string to be followed by two hexadecimal digits is passed through the
+        // same way. This used to drop the '%' but keep the digits after it, silently renaming the path
+        assertThat(URLPathEncoder.decodePath("/tmp/100%2")).isEqualTo("/tmp/100%2");
+        assertThat(URLPathEncoder.decodePath("/tmp/100%")).isEqualTo("/tmp/100%");
+    }
+
+    /** Encoding and then decoding a path returns the original path. */
+    @Test
+    public void encodingThenDecodingRoundTrips() {
+        final var path = "/tmp/a b[1]+é.jar";
+        assertThat(URLPathEncoder.decodePath(URLPathEncoder.encodePath(path))).isEqualTo(path);
     }
 }

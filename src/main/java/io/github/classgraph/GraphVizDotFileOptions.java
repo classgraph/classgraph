@@ -66,8 +66,11 @@ public class GraphVizDotFileOptions {
      */
     boolean showMethodTypeDependencyEdges = true;
 
-    /** Whether to show annotations. */
+    /** Whether to show annotations within class nodes. */
     boolean showAnnotations = true;
+
+    /** Whether to show edges between classes and the annotations on them. */
+    boolean showAnnotationDependencyEdges = true;
 
     /** Whether to strip the package name from class names in type signatures. */
     boolean useSimpleNames = true;
@@ -144,13 +147,23 @@ public class GraphVizDotFileOptions {
     }
 
     /**
-     * Do not show annotations. (Annotations are shown by default, if {@link ClassGraph#enableAnnotationInfo()} was
-     * called before scanning.)
+     * Do not show annotations within class nodes. (Annotations on a class, and on its fields, its methods and their
+     * parameters, are shown by default, if {@link ClassGraph#enableAnnotationInfo()} was called before scanning.)
      *
      * @return this {@link GraphVizDotFileOptions}, for method chaining.
      */
     public GraphVizDotFileOptions hideAnnotations() {
         showAnnotations = false;
+        return this;
+    }
+
+    /**
+     * Do not show edges between classes and the annotations on them. (These edges are shown by default.)
+     *
+     * @return this {@link GraphVizDotFileOptions}, for method chaining.
+     */
+    public GraphVizDotFileOptions hideAnnotationDependencyEdges() {
+        showAnnotationDependencyEdges = false;
         return this;
     }
 
