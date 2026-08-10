@@ -442,67 +442,14 @@ class Scanner implements Callable<ScanResult> {
         }
 
         // If classpath entry object is a URL-formatted string, convert to (or back to) a URL instance.
-        if (classpathEntryObjNormalized instanceof String classpathEntStr) {
+        if (classpathEntryObjNormalized instanceof final String classpathEntStr) {
             final var isURL = JarUtils.URL_SCHEME_PATTERN.matcher(classpathEntStr).matches();
             // A '!' is only a nested jar separator if the path before it names an existing jarfile -- it is
             // otherwise a legal filename character, and must not be treated as a separator (#903)
             final var isMultiSection = JarUtils.indexOfNestedJarSeparator(classpathEntStr) >= 0;
             if (isURL || isMultiSection) {
-                // Encode spaces and hash symbols in classpath entry as they potentially can be invalid when
-                // converted to a URL/URI
-                classpathEntStr = classpathEntStr.replace(" ", "%20").replace("#", "%23");
-                // Convert back to URL (or URI) if this has a URL scheme or if this is a multi-section path (which
-                // needs the "jar:file:" scheme)
-                if (!isURL) {
-                    // Add "file:" scheme if there is no scheme
-                    classpathEntStr = "file:" + classpathEntStr;
-                }
-                if (isMultiSection) {
-                    // Multi-section URL strings that do not already have a URL scheme need to have the "jar:file:"
-                    // scheme
-                    classpathEntStr = "jar:" + classpathEntStr;
-                    // Also "jar:" URLs need at least one instance of "!/" -- if only "!" is used without a
-                    // subsequent "/", replace it
-                    classpathEntStr = classpathEntStr.replaceAll("!([^/])", "!/$1");
-                }
-                try {
-                    // Convert classpath entry to (or back to) a URL.
-                    final var classpathEntryURL = new URL(classpathEntStr);
-                    classpathEntryObjNormalized = classpathEntryURL;
-
-                    // If this is not a multi-section URL, try converting URL to a Path
-                    if (!isMultiSection) {
-                        try {
-                            final var scheme = classpathEntryURL.getProtocol();
-                            if (!"http".equals(scheme) && !"https".equals(scheme)) {
-                                final var classpathEntryURI = classpathEntryURL.toURI();
-                                // See if the URL resolves to a file or directory via the Path API
-                                classpathEntryObjNormalized = Path.of(classpathEntryURI);
-                            }
-                        } catch (final URISyntaxException | IllegalArgumentException | SecurityException
-                                | FileSystemNotFoundException e) {
-                            // This is a custom URL scheme without a backing FileSystem
-                        }
-                    } // else this is a remote jar URL
-
-                } catch (final MalformedURLException e) {
-                    // Try creating URI if URL creation fails, in case there is a URI-only scheme
-                    try {
-                        final var classpathEntryURI = new URI(classpathEntStr);
-                        classpathEntryObjNormalized = classpathEntryURI;
-
-                        final var scheme = classpathEntryURI.getScheme();
-                        if (!"http".equals(scheme) && !"https".equals(scheme)) {
-                            // See if the URI resolves to a file or directory via the Path API
-                            classpathEntryObjNormalized = Path.of(classpathEntryURI);
-                        } // else this is a remote jar URI
-
-                    } catch (final URISyntaxException e1) {
-                        throw new IOException("Malformed URI: " + classpathEntryObjNormalized + " : " + e1);
-                    } catch (final IllegalArgumentException | SecurityException | FileSystemNotFoundException e1) {
-                        // This is a custom URI scheme without a backing FileSystem
-                    }
-                }
+                classpathEntryObjNormalized = normalizeUrlFormattedClasspathEntry(classpathEntStr, isURL,
+                        isMultiSection);
             }
             // Last-ditch effort -- try to convert String to Path
             if (classpathEntryObjNormalized instanceof final String pathStr) {
@@ -533,6 +480,83 @@ class Scanner implements Callable<ScanResult> {
             }
         }
 
+        return classpathEntryObjNormalized;
+    }
+
+    /**
+     * Convert a classpath entry string that has a URL scheme, or that is a multi-section path containing one or
+     * more {@code '!'} nested jar separators, to a {@link Path} if it names a file or directory that the
+     * {@link Path} API can reach, and to a {@link URL} or {@link URI} otherwise.
+     *
+     * @param classpathEntryStr
+     *            the classpath entry string, after resolution by {@link FastPathResolver}.
+     * @param isURL
+     *            whether the classpath entry string already has a URL scheme.
+     * @param isMultiSection
+     *            whether the classpath entry string contains a nested jar separator.
+     * @return the classpath entry as a {@link Path}, {@link URL} or {@link URI}, or the unchanged classpath entry
+     *         string if it could not be converted to any of them.
+     * @throws IOException
+     *             if the classpath entry string is neither a valid URL nor a valid URI.
+     */
+    private static Object normalizeUrlFormattedClasspathEntry(final String classpathEntryStr, final boolean isURL,
+            final boolean isMultiSection) throws IOException {
+        Object classpathEntryObjNormalized = classpathEntryStr;
+
+        // Encode spaces and hash symbols in classpath entry as they potentially can be invalid when converted to a
+        // URL/URI
+        var classpathEntStr = classpathEntryStr.replace(" ", "%20").replace("#", "%23");
+        // Convert back to URL (or URI) if this has a URL scheme or if this is a multi-section path (which needs the
+        // "jar:file:" scheme)
+        if (!isURL) {
+            // Add "file:" scheme if there is no scheme
+            classpathEntStr = "file:" + classpathEntStr;
+        }
+        if (isMultiSection) {
+            // Multi-section URL strings that do not already have a URL scheme need to have the "jar:file:" scheme
+            classpathEntStr = "jar:" + classpathEntStr;
+            // Also "jar:" URLs need at least one instance of "!/" -- if only "!" is used without a subsequent "/",
+            // replace it
+            classpathEntStr = classpathEntStr.replaceAll("!([^/])", "!/$1");
+        }
+        try {
+            // Convert classpath entry to (or back to) a URL.
+            final var classpathEntryURL = new URL(classpathEntStr);
+            classpathEntryObjNormalized = classpathEntryURL;
+
+            // If this is not a multi-section URL, try converting URL to a Path
+            if (!isMultiSection) {
+                try {
+                    final var scheme = classpathEntryURL.getProtocol();
+                    if (!"http".equals(scheme) && !"https".equals(scheme)) {
+                        final var classpathEntryURI = classpathEntryURL.toURI();
+                        // See if the URL resolves to a file or directory via the Path API
+                        classpathEntryObjNormalized = Path.of(classpathEntryURI);
+                    }
+                } catch (final URISyntaxException | IllegalArgumentException | SecurityException
+                        | FileSystemNotFoundException e) {
+                    // This is a custom URL scheme without a backing FileSystem
+                }
+            } // else this is a remote jar URL
+
+        } catch (final MalformedURLException e) {
+            // Try creating URI if URL creation fails, in case there is a URI-only scheme
+            try {
+                final var classpathEntryURI = new URI(classpathEntStr);
+                classpathEntryObjNormalized = classpathEntryURI;
+
+                final var scheme = classpathEntryURI.getScheme();
+                if (!"http".equals(scheme) && !"https".equals(scheme)) {
+                    // See if the URI resolves to a file or directory via the Path API
+                    classpathEntryObjNormalized = Path.of(classpathEntryURI);
+                } // else this is a remote jar URI
+
+            } catch (final URISyntaxException e1) {
+                throw new IOException("Malformed URI: " + classpathEntryObjNormalized + " : " + e1);
+            } catch (final IllegalArgumentException | SecurityException | FileSystemNotFoundException e1) {
+                // This is a custom URI scheme without a backing FileSystem
+            }
+        }
         return classpathEntryObjNormalized;
     }
 
@@ -1016,62 +1040,10 @@ class Scanner implements Callable<ScanResult> {
         final Map<String, PackageInfo> packageNameToPackageInfo = new HashMap<>();
         final Map<String, ModuleInfo> moduleNameToModuleInfo = new HashMap<>();
         if (scanSpec.enableClassInfo) {
-            // Get accepted classfile order
-            final List<ClassfileScanWorkUnit> classfileScanWorkItems = new ArrayList<>();
-            final Set<String> acceptedClassNamesFound = new HashSet<>();
-            for (final ClasspathElement classpathElement : finalClasspathEltOrder) {
-                // Get classfile scan order across all classpath elements
-                for (final Resource resource : classpathElement.acceptedClassfileResources) {
-                    // Create a set of names of all accepted classes found in classpath element paths, and
-                    // double-check that a class is not going to be scanned twice
-                    final var className = JarUtils.classfilePathToClassName(resource.getPath());
-                    if (!acceptedClassNamesFound.add(className) && !"module-info".equals(className)
-                            && !"package-info".equals(className) && !className.endsWith(".package-info")) {
-                        // The class should not be scheduled more than once for scanning, since classpath masking
-                        // was already applied
-                        throw new IllegalArgumentException("Class " + className
-                                + " should not have been scheduled more than once for scanning due to classpath"
-                                + " masking -- please report this bug at:"
-                                + " https://github.com/classgraph/classgraph/issues");
-                    }
-                    // Schedule class for scanning
-                    classfileScanWorkItems
-                            .add(new ClassfileScanWorkUnit(classpathElement, resource, /* isExternal = */ false));
-                }
-            }
-
-            // Scan classfiles in parallel
-            final Queue<Classfile> scannedClassfiles = new ConcurrentLinkedQueue<>();
-            final var classfileWorkUnitProcessor = new ClassfileScannerWorkUnitProcessor(scanSpec,
-                    finalClasspathEltOrder, unscannedModules, Collections.unmodifiableSet(acceptedClassNamesFound),
-                    scannedClassfiles);
-            processWorkUnits(classfileScanWorkItems,
-                    topLevelLog == null ? null : topLevelLog.log("Scanning classfiles"),
-                    classfileWorkUnitProcessor);
-
-            // Link the Classfile objects to produce ClassInfo objects. This needs to be done from a single thread.
-            final var linkLog = topLevelLog == null ? null : topLevelLog.log("Linking related classfiles");
-            while (!scannedClassfiles.isEmpty()) {
-                final var c = scannedClassfiles.remove();
-                c.link(classNameToClassInfo, packageNameToPackageInfo, moduleNameToModuleInfo);
-            }
-
-            // A ClassInfo object is created for every class named as a superclass, interface or annotation of a
-            // scanned class, and scanning is extended upwards to those classes, so the class graph above a scanned
-            // class is complete. A ClassInfo object is deliberately not created for every class named in a type
-            // descriptor or type signature, since that would require every type descriptor and type signature to be
-            // parsed before the ScanResult can be returned, rather than lazily on demand, which would slow down
-            // every scan. The consequence is that ClassRefTypeSignature#getClassInfo() and
-            // AnnotationClassRef#getClassInfo() return null for a class that was not scanned. Call
-            // ClassGraph#enableInterClassDependencies() to get the classes referenced by a scanned class. (#902)
-
-            if (linkLog != null) {
-                linkLog.addElapsedTime();
-            }
-        } else {
-            if (topLevelLog != null) {
-                topLevelLog.log("Classfile scanning is disabled");
-            }
+            scanClassfiles(finalClasspathEltOrder, classNameToClassInfo, packageNameToPackageInfo,
+                    moduleNameToModuleInfo);
+        } else if (topLevelLog != null) {
+            topLevelLog.log("Classfile scanning is disabled");
         }
 
         // Return a new ScanResult
@@ -1091,6 +1063,80 @@ class Scanner implements Callable<ScanResult> {
         }
 
         return scanResult;
+    }
+
+    /**
+     * Scan all accepted classfiles in parallel, then link the resulting {@link Classfile} objects into
+     * {@link ClassInfo}, {@link PackageInfo} and {@link ModuleInfo} objects.
+     *
+     * @param finalClasspathEltOrder
+     *            the final classpath element order
+     * @param classNameToClassInfo
+     *            the map from class name to {@link ClassInfo}, to add scanned classes to
+     * @param packageNameToPackageInfo
+     *            the map from package name to {@link PackageInfo}, to add scanned packages to
+     * @param moduleNameToModuleInfo
+     *            the map from module name to {@link ModuleInfo}, to add scanned modules to
+     * @throws InterruptedException
+     *             if the scan was interrupted
+     * @throws ExecutionException
+     *             if the scan threw an uncaught exception
+     */
+    private void scanClassfiles(final List<ClasspathElement> finalClasspathEltOrder,
+            final Map<String, ClassInfo> classNameToClassInfo,
+            final Map<String, PackageInfo> packageNameToPackageInfo,
+            final Map<String, ModuleInfo> moduleNameToModuleInfo) throws InterruptedException, ExecutionException {
+        // Get accepted classfile order
+        final List<ClassfileScanWorkUnit> classfileScanWorkItems = new ArrayList<>();
+        final Set<String> acceptedClassNamesFound = new HashSet<>();
+        for (final ClasspathElement classpathElement : finalClasspathEltOrder) {
+            // Get classfile scan order across all classpath elements
+            for (final Resource resource : classpathElement.acceptedClassfileResources) {
+                // Create a set of names of all accepted classes found in classpath element paths, and double-check
+                // that a class is not going to be scanned twice
+                final var className = JarUtils.classfilePathToClassName(resource.getPath());
+                if (!acceptedClassNamesFound.add(className) && !"module-info".equals(className)
+                        && !"package-info".equals(className) && !className.endsWith(".package-info")) {
+                    // The class should not be scheduled more than once for scanning, since classpath masking was
+                    // already applied
+                    throw new IllegalArgumentException("Class " + className
+                            + " should not have been scheduled more than once for scanning due to classpath"
+                            + " masking -- please report this bug at:"
+                            + " https://github.com/classgraph/classgraph/issues");
+                }
+                // Schedule class for scanning
+                classfileScanWorkItems
+                        .add(new ClassfileScanWorkUnit(classpathElement, resource, /* isExternal = */ false));
+            }
+        }
+
+        // Scan classfiles in parallel
+        final Queue<Classfile> scannedClassfiles = new ConcurrentLinkedQueue<>();
+        final var classfileWorkUnitProcessor = new ClassfileScannerWorkUnitProcessor(scanSpec,
+                finalClasspathEltOrder, unscannedModules, Collections.unmodifiableSet(acceptedClassNamesFound),
+                scannedClassfiles);
+        processWorkUnits(classfileScanWorkItems,
+                topLevelLog == null ? null : topLevelLog.log("Scanning classfiles"), classfileWorkUnitProcessor);
+
+        // Link the Classfile objects to produce ClassInfo objects. This needs to be done from a single thread.
+        final var linkLog = topLevelLog == null ? null : topLevelLog.log("Linking related classfiles");
+        while (!scannedClassfiles.isEmpty()) {
+            final var c = scannedClassfiles.remove();
+            c.link(classNameToClassInfo, packageNameToPackageInfo, moduleNameToModuleInfo);
+        }
+
+        // A ClassInfo object is created for every class named as a superclass, interface or annotation of a scanned
+        // class, and scanning is extended upwards to those classes, so the class graph above a scanned class is
+        // complete. A ClassInfo object is deliberately not created for every class named in a type descriptor or
+        // type signature, since that would require every type descriptor and type signature to be parsed before the
+        // ScanResult can be returned, rather than lazily on demand, which would slow down every scan. The
+        // consequence is that ClassRefTypeSignature#getClassInfo() and AnnotationClassRef#getClassInfo() return null
+        // for a class that was not scanned. Call ClassGraph#enableInterClassDependencies() to get the classes
+        // referenced by a scanned class. (#902)
+
+        if (linkLog != null) {
+            linkLog.addElapsedTime();
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
