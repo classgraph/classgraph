@@ -1573,9 +1573,12 @@ public class ClassGraph {
                     // Call scanner, but ignore the returned ScanResult
                     new Scanner(/* performScan = */ true, scanSpec, executorService, numParallelTasks,
                             scanResultProcessor, failureHandler, reflectionUtils, topLevelLog).call();
-                } catch (final InterruptedException | CancellationException | ExecutionException e) {
-                    // Call failure handler
-                    failureHandler.onFailure(e);
+                } catch (final Throwable t) {
+                    // Call failure handler. Anything thrown before the Scanner starts running the scan (e.g. by a
+                    // user-supplied classpath element filter, which the Scanner constructor calls) has to be caught
+                    // here too, otherwise it would be thrown on the ExecutorService's thread and lost, and the
+                    // caller would wait forever for a callback that never comes
+                    failureHandler.onFailure(t);
                 }
             }
         });
@@ -1658,7 +1661,13 @@ public class ClassGraph {
             }
             return scanResult;
 
-        } catch (final InterruptedException | CancellationException e) {
+        } catch (final InterruptedException e) {
+            // Throwing InterruptedException cleared the interrupt status, and this method reports the interruption
+            // as an unchecked exception rather than rethrowing it, so restore the status, otherwise a caller that
+            // catches ClassGraphException sees a thread that no longer looks interrupted
+            Thread.currentThread().interrupt();
+            throw new ClassGraphException("Scan interrupted", e);
+        } catch (final CancellationException e) {
             throw new ClassGraphException("Scan interrupted", e);
         } catch (final ExecutionException e) {
             throw new ClassGraphException("Uncaught exception during scan", InterruptionChecker.getCause(e));
@@ -1717,7 +1726,11 @@ public class ClassGraph {
             }
             return scanResult;
 
-        } catch (final InterruptedException | CancellationException e) {
+        } catch (final InterruptedException e) {
+            // Restore the interrupt status, for the same reason as in scan(ExecutorService, int)
+            Thread.currentThread().interrupt();
+            throw new ClassGraphException("Scan interrupted", e);
+        } catch (final CancellationException e) {
             throw new ClassGraphException("Scan interrupted", e);
         } catch (final ExecutionException e) {
             throw new ClassGraphException("Uncaught exception during scan", InterruptionChecker.getCause(e));

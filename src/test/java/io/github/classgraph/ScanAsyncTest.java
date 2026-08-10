@@ -1,0 +1,53 @@
+package io.github.classgraph;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import io.github.classgraph.ClassGraph.FailureHandler;
+import io.github.classgraph.ClassGraph.ScanResultProcessor;
+
+/** Tests for {@link ClassGraph#scanAsync(ExecutorService, int, ScanResultProcessor, FailureHandler)}. */
+public class ScanAsyncTest {
+    /**
+     * A scan that fails before it starts still calls the failure handler. A classpath element filter is called by
+     * the {@link Scanner} constructor, before the scan itself begins, so anything it throws used to be thrown on
+     * the {@link ExecutorService}'s thread and lost, leaving the caller waiting forever for a callback that never
+     * came.
+     */
+    @Test
+    public void aFailedAsyncScanCallsTheFailureHandler(@TempDir final Path tempDir)
+            throws IOException, InterruptedException {
+        Files.write(tempDir.resolve("resource.txt"), "resource".getBytes(StandardCharsets.UTF_8));
+        final AtomicReference<Throwable> failure = new AtomicReference<>();
+        final CountDownLatch done = new CountDownLatch(1);
+        final ExecutorService executorService = Executors.newFixedThreadPool(3);
+        try {
+            new ClassGraph().overrideClasspath(tempDir.toString()).filterClasspathElements(path -> {
+                throw new IllegalStateException("classpath element filter failed");
+            }).scanAsync(executorService, 3, scanResult -> {
+                scanResult.close();
+                done.countDown();
+            }, throwable -> {
+                failure.set(throwable);
+                done.countDown();
+            });
+            assertThat(done.await(60, TimeUnit.SECONDS)).as("the failure handler was called").isTrue();
+        } finally {
+            executorService.shutdown();
+        }
+        assertThat(failure.get()).isInstanceOf(IllegalStateException.class)
+                .hasMessage("classpath element filter failed");
+    }
+}
