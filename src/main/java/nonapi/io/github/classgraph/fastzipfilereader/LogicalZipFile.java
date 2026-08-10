@@ -663,6 +663,8 @@ public class LogicalZipFile extends ZipFileSlice {
                 // https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT
                 // https://github.com/LuaDist/zip/blob/master/proginfo/extrafld.txt
                 var lastModifiedMillis = 0L;
+                // Set if the Info-ZIP Unicode path extra field renames the entry to a directory, or to nothing
+                var renamedToDirectoryEntry = false;
                 if (extraFieldLen > 0) {
                     for (var extraFieldOff = 0; extraFieldOff + 4 < extraFieldLen;) {
                         final var tagOff = filenameEndOff + extraFieldOff;
@@ -728,16 +730,28 @@ public class LogicalZipFile extends ZipFileSlice {
                                 // Replace non-Unicode entry name with Unicode version. The data area of this extra
                                 // field is version(1) + nameCRC32(4) + name, so the name starts 5 bytes into the
                                 // data area (i.e. 9 bytes after the tag), and is (size - 5) bytes long.
+                                final String unicodeEntryName;
                                 try {
-                                    entryNameSanitized = cenReader.readString(tagOff + 9, size - 5);
+                                    unicodeEntryName = cenReader.readString(tagOff + 9, size - 5);
                                 } catch (final IllegalArgumentException e) {
                                     throw new IOException("Malformed extended Unicode entry name for entry: "
                                             + entryNameSanitized);
                                 }
+                                // The replacement name has to be sanitized, and tested for naming a directory,
+                                // exactly as the name it replaces was -- otherwise an entry can carry a path such
+                                // as "pkg/../../x" or "/abs/x" simply by declaring it here
+                                entryNameSanitized = FileUtils.sanitizeEntryPath(unicodeEntryName,
+                                        /* removeInitialSlash = */ true, /* removeFinalSlash = */ false);
+                                renamedToDirectoryEntry = entryNameSanitized.isEmpty()
+                                        || unicodeEntryName.endsWith("/");
                             }
                         }
                         extraFieldOff += 4 + size;
                     }
+                }
+                if (renamedToDirectoryEntry) {
+                    // Skip directory entries, as above -- the Unicode path extra field can rename an entry into one
+                    continue;
                 }
 
                 var lastModifiedTimeMSDOS = 0;
