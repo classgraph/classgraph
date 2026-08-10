@@ -62,10 +62,10 @@ public class Issue897EcjEnumTest {
             assertThat(params).hasSize(3);
 
             // The annotation is on the source-declared Object parameter...
-            assertThat(baseTypeAnnotationNames(params[2])).containsExactly(ANNO);
+            assertThat(baseTypeAnnotationNames(params.get(2))).containsExactly(ANNO);
             // ...and not on either synthetic prefix parameter.
-            assertThat(baseTypeAnnotationNames(params[0])).doesNotContain(ANNO);
-            assertThat(baseTypeAnnotationNames(params[1])).doesNotContain(ANNO);
+            assertThat(baseTypeAnnotationNames(params.get(0))).doesNotContain(ANNO);
+            assertThat(baseTypeAnnotationNames(params.get(1))).doesNotContain(ANNO);
         }
     }
 }

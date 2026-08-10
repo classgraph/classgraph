@@ -35,6 +35,7 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Predicate;
 
 import nonapi.io.github.classgraph.utils.Assert;
 import nonapi.io.github.classgraph.utils.LogNode;
@@ -110,35 +111,19 @@ public class FieldInfoList extends MappableInfoList<FieldInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Filter an {@link FieldInfoList} using a predicate mapping an {@link FieldInfo} object to a boolean, producing
-     * another {@link FieldInfoList} for all items in the list for which the predicate is true.
-     */
-    @FunctionalInterface
-    public interface FieldInfoFilter {
-        /**
-         * Whether or not to allow an {@link FieldInfo} list item through the filter.
-         *
-         * @param fieldInfo
-         *            The {@link FieldInfo} item to filter.
-         * @return Whether or not to allow the item through the filter. If true, the item is copied to the output
-         *         list; if false, it is excluded.
-         */
-        boolean accept(FieldInfo fieldInfo);
-    }
-
-    /**
      * Find the subset of the {@link FieldInfo} objects in this list for which the given filter predicate is true.
      *
      * @param filter
-     *            The {@link FieldInfoFilter} to apply.
+     *            The filter to apply. Only the {@link FieldInfo} objects for which the filter returns true are
+     *            copied to the returned list.
      * @return The subset of the {@link FieldInfo} objects in this list for which the given filter predicate is
      *         true.
      */
-    public FieldInfoList filter(final FieldInfoFilter filter) {
+    public FieldInfoList filter(final Predicate<FieldInfo> filter) {
         Assert.notNull(filter, "filter");
         final FieldInfoList fieldInfoFiltered = new FieldInfoList();
         for (final FieldInfo fieldInfo : this) {
-            if (filter.accept(fieldInfo)) {
+            if (filter.test(fieldInfo)) {
                 fieldInfoFiltered.add(fieldInfo);
             }
         }

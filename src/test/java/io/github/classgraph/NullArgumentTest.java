@@ -185,7 +185,7 @@ class NullArgumentTest {
     @Test
     void typeSignatures() {
         final var typeSignature = scanResult.getClassInfo(ClassInfoList.class.getName()).getMethodInfo("exclude")
-                .get(0).getParameterInfo()[0].getTypeSignatureOrTypeDescriptor();
+                .get(0).getParameterInfo().get(0).getTypeSignatureOrTypeDescriptor();
         rejectsNull(() -> typeSignature.resolveTypeVariables(null));
     }
 
@@ -196,7 +196,7 @@ class NullArgumentTest {
     @Test
     void comparisonsAcceptNull() {
         final var typeSignature = scanResult.getClassInfo(ClassInfoList.class.getName()).getMethodInfo("exclude")
-                .get(0).getParameterInfo()[0].getTypeSignatureOrTypeDescriptor();
+                .get(0).getParameterInfo().get(0).getTypeSignatureOrTypeDescriptor();
         assertThat(typeSignature.equalsIgnoringTypeParams(null)).isFalse();
         assertThat(typeSignature.equals(null)).isFalse();
     }

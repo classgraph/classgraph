@@ -291,7 +291,7 @@ public class AnnotationParameterValue extends ScanResultObject
                 return classRefTypeSignature.getClassName();
             } else if (elementTypeSig instanceof final BaseTypeSignature baseTypeSignature) {
                 // Look up the name of the primitive class, for primitive arrays
-                return baseTypeSignature.getTypeString();
+                return baseTypeSignature.getTypeName();
             }
         } else {
             // Could not find a method with this name -- this is an external class. Find first non-null element in

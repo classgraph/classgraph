@@ -34,7 +34,7 @@ package io.github.classgraph;
  */
 public abstract class ClassRefOrTypeVariableSignature extends ReferenceTypeSignature {
     /** Constructor. */
-    protected ClassRefOrTypeVariableSignature() {
+    ClassRefOrTypeVariableSignature() {
         super();
     }
 }

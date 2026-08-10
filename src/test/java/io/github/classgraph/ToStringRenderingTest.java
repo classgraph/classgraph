@@ -146,11 +146,11 @@ public class ToStringRenderingTest {
                     .getDeclaredMethodInfo("varArgsMethod").get(0);
             assertThat(methodInfo.toString()).contains("int...").doesNotContain("int[]");
             final var paramInfo = methodInfo.getParameterInfo();
-            assertThat(paramInfo[0].getIndex()).isZero();
-            assertThat(paramInfo[0].isVarArgs()).isFalse();
-            assertThat(paramInfo[1].getIndex()).isEqualTo(1);
-            assertThat(paramInfo[1].isVarArgs()).isTrue();
-            assertThat(paramInfo[1].toString()).contains("int...").doesNotContain("int[]");
+            assertThat(paramInfo.get(0).getIndex()).isZero();
+            assertThat(paramInfo.get(0).isVarArgs()).isFalse();
+            assertThat(paramInfo.get(1).getIndex()).isEqualTo(1);
+            assertThat(paramInfo.get(1).isVarArgs()).isTrue();
+            assertThat(paramInfo.get(1).toString()).contains("int...").doesNotContain("int[]");
         }
     }
 
@@ -159,7 +159,7 @@ public class ToStringRenderingTest {
     public void parameterTypeAnnotationIsListedOnce() {
         try (var scanResult = scan()) {
             final var paramInfo = scanResult.getClassInfo(Methods.class.getName())
-                    .getDeclaredMethodInfo("annotatedParamMethod").get(0).getParameterInfo()[0];
+                    .getDeclaredMethodInfo("annotatedParamMethod").get(0).getParameterInfo().get(0);
             final var rendered = paramInfo.toString();
             final var annotationName = "@" + Tu.class.getName();
             final var firstIdx = rendered.indexOf(annotationName);

@@ -45,6 +45,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 import nonapi.io.github.classgraph.classpath.SystemJarFinder;
 import nonapi.io.github.classgraph.concurrency.AutoCloseableExecutorService;
@@ -119,21 +121,9 @@ public class ClassGraph {
         NARCISSUS,
     }
 
-    /**
-     * If you are running on JDK 16+, the JDK enforces strong encapsulation, and ClassGraph may be unable to read
-     * the classpath from your classloader if the classloader does not make the classpath available via a public
-     * method or field.
-     *
-     * <p>
-     * To enable a workaround to this, set this static field to {@link CircumventEncapsulationMethod#NARCISSUS}
-     * before interacting with ClassGraph in any other way, and also include the
-     * <a href="https://github.com/toolfactory/narcissus">Narcissus</a> library on the classpath or module path.
-     *
-     * <p>
-     * Narcissus uses JNI to circumvent encapsulation and field/method access controls. Narcissus employs a native
-     * code library, and is currently only compiled for Linux x86/x64, Windows x86/x64, and Mac OS X x64 bit.
-     */
-    public static CircumventEncapsulationMethod CIRCUMVENT_ENCAPSULATION = CircumventEncapsulationMethod.NONE;
+    /** The method to use to attempt to circumvent encapsulation in JDK 16+. */
+    private static volatile CircumventEncapsulationMethod circumventEncapsulationMethod = //
+            CircumventEncapsulationMethod.NONE;
 
     /**
      * The {@link ReflectionUtils} instance to use for reflective calls during scanning.
@@ -159,6 +149,45 @@ public class ClassGraph {
      */
     public static String getVersion() {
         return VersionFinder.getVersion();
+    }
+
+    /**
+     * Returns the method currently used to attempt to circumvent strong encapsulation, as set by
+     * {@link #setCircumventEncapsulationMethod(CircumventEncapsulationMethod)}. The default is
+     * {@link CircumventEncapsulationMethod#NONE}.
+     *
+     * @return the encapsulation circumvention method.
+     */
+    public static CircumventEncapsulationMethod getCircumventEncapsulationMethod() {
+        return circumventEncapsulationMethod;
+    }
+
+    /**
+     * On JDK 16+, the JDK enforces strong encapsulation, and ClassGraph may be unable to read the classpath from
+     * your classloader if the classloader does not make the classpath available via a public method or field.
+     *
+     * <p>
+     * To enable a workaround for this, call this method with {@link CircumventEncapsulationMethod#NARCISSUS} before
+     * interacting with ClassGraph in any other way, and also include the
+     * <a href="https://github.com/toolfactory/narcissus">Narcissus</a> library on the classpath or module path.
+     *
+     * <p>
+     * Narcissus uses JNI to circumvent encapsulation and field/method access controls. Narcissus employs a native
+     * code library, and is currently only compiled for Linux x86/x64, Windows x86/x64, and Mac OS X x64 bit.
+     *
+     * <p>
+     * This is a global setting, since ClassGraph's reflection driver is chosen when a {@link ClassGraph} instance
+     * is constructed. Changing it has no effect on {@link ClassGraph} instances that already exist.
+     *
+     * @param circumventEncapsulationMethod
+     *            the encapsulation circumvention method to use.
+     * @throws NullPointerException
+     *             if {@code circumventEncapsulationMethod} is null.
+     */
+    public static void setCircumventEncapsulationMethod(
+            final CircumventEncapsulationMethod circumventEncapsulationMethod) {
+        Assert.notNull(circumventEncapsulationMethod, "circumventEncapsulationMethod");
+        ClassGraph.circumventEncapsulationMethod = circumventEncapsulationMethod;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -542,67 +571,36 @@ public class ClassGraph {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Add a classpath element filter. The includeClasspathElement method should return true if the path string
-     * passed to it is a path you want to scan.
-     */
-    @FunctionalInterface
-    public interface ClasspathElementFilter {
-        /**
-         * Whether or not to include a given classpath element in the scan.
-         *
-         * @param classpathElementPathStr
-         *            The path string of a classpath element, normalized so that the path separator is '/'. This
-         *            will usually be a file path, but could be a URL, or it could be a path for a nested jar, where
-         *            the paths are separated using '!', in Java convention. "jar:" and/or "file:" will have been
-         *            stripped from the beginning, if they were present in the classpath.
-         * @return true if the path string passed is a path you want to scan.
-         */
-        boolean includeClasspathElement(String classpathElementPathStr);
-    }
-
-    /**
-     * Add a classpath element URL filter. The includeClasspathElement method should return true if the {@link URL}
-     * passed to it corresponds to a classpath element that you want to scan.
-     */
-    @FunctionalInterface
-    public interface ClasspathElementURLFilter {
-        /**
-         * Whether or not to include a given classpath element in the scan.
-         *
-         * @param classpathElementURL
-         *            The {@link URL} of a classpath element.
-         * @return true if you want to scan the {@link URL}.
-         */
-        boolean includeClasspathElement(URL classpathElementURL);
-    }
-
-    /**
-     * Add a classpath element filter. The provided ClasspathElementFilter should return true if the path string
-     * passed to it is a path you want to scan.
+     * Add a classpath element filter. The provided filter should return true if the path string passed to it is a
+     * path you want to scan. If several filters are added, a classpath element is only scanned if every filter
+     * accepts it.
      *
      * @param classpathElementFilter
-     *            The filter function to use. This function should return true if the classpath element path should
-     *            be scanned, and false if not.
+     *            The filter to apply to the path string of each discovered classpath element. The path string is
+     *            normalized so that the path separator is '/'. It will usually be a file path, but could be a URL,
+     *            or it could be a path for a nested jar, where the paths are separated using '!', in Java
+     *            convention. "jar:" and/or "file:" will have been stripped from the beginning, if they were present
+     *            in the classpath.
      * @return this (for method chaining).
      */
-    public ClassGraph filterClasspathElements(final ClasspathElementFilter classpathElementFilter) {
+    public ClassGraph filterClasspathElements(final Predicate<String> classpathElementFilter) {
         Assert.notNull(classpathElementFilter, "classpathElementFilter");
         scanSpec.filterClasspathElements(classpathElementFilter);
         return this;
     }
 
     /**
-     * Add a classpath element filter. The provided ClasspathElementFilter should return true if the {@link URL}
-     * passed to it is a URL you want to scan.
+     * Add a classpath element {@link URL} filter. The provided filter should return true if the {@link URL} passed
+     * to it is a URL you want to scan. If several filters are added, a classpath element is only scanned if every
+     * filter accepts it.
      *
      * @param classpathElementURLFilter
-     *            The filter function to use. This function should return true if the classpath element {@link URL}
-     *            should be scanned, and false if not.
+     *            The filter to apply to the {@link URL} of each discovered classpath element.
      * @return this (for method chaining).
      */
-    public ClassGraph filterClasspathElementsByURL(final ClasspathElementURLFilter classpathElementURLFilter) {
+    public ClassGraph filterClasspathElementsByURL(final Predicate<URL> classpathElementURLFilter) {
         Assert.notNull(classpathElementURLFilter, "classpathElementURLFilter");
-        scanSpec.filterClasspathElements(classpathElementURLFilter);
+        scanSpec.filterClasspathElementsByURL(classpathElementURLFilter);
         return this;
     }
 
@@ -1382,33 +1380,9 @@ public class ClassGraph {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** A callback used to process the result of a successful asynchronous scan. */
-    @FunctionalInterface
-    public interface ScanResultProcessor {
-        /**
-         * Process the result of an asynchronous scan after scanning has completed.
-         *
-         * @param scanResult
-         *            the {@link ScanResult} to process.
-         */
-        void processScanResult(ScanResult scanResult);
-    }
-
-    /** A callback used to handle failure during an asynchronous scan. */
-    @FunctionalInterface
-    public interface FailureHandler {
-        /**
-         * Called on scanning failure during an asynchronous scan.
-         *
-         * @param throwable
-         *            the {@link Throwable} that was thrown during scanning.
-         */
-        void onFailure(Throwable throwable);
-    }
-
     /**
-     * Asynchronously scans the classpath, calling a {@link ScanResultProcessor} callback on success or a
-     * {@link FailureHandler} callback on failure.
+     * Asynchronously scans the classpath, calling the {@code scanResultProcessor} callback on success or the
+     * {@code failureHandler} callback on failure.
      *
      * @param executorService
      *            A custom {@link ExecutorService} to use for scheduling worker tasks.
@@ -1416,13 +1390,13 @@ public class ClassGraph {
      *            The number of parallel tasks to break the work into during the most CPU-intensive stage of
      *            classpath scanning. Ideally the ExecutorService will have at least this many threads available.
      * @param scanResultProcessor
-     *            A {@link ScanResultProcessor} callback to run on successful scan.
+     *            A callback to run on successful scan. It is passed the {@link ScanResult}, and is responsible for
+     *            closing it.
      * @param failureHandler
-     *            A {@link FailureHandler} callback to run on failed scan. This is passed any {@link Throwable}
-     *            thrown during the scan.
+     *            A callback to run on failed scan. It is passed any {@link Throwable} thrown during the scan.
      */
     public void scanAsync(final ExecutorService executorService, final int numParallelTasks,
-            final ScanResultProcessor scanResultProcessor, final FailureHandler failureHandler) {
+            final Consumer<ScanResult> scanResultProcessor, final Consumer<Throwable> failureHandler) {
         Assert.notNull(executorService, "executorService");
         // If scanResultProcessor is null, the scan won't do anything after completion, and the ScanResult will
         // simply be lost.
@@ -1438,7 +1412,7 @@ public class ClassGraph {
                         scanResultProcessor, failureHandler, reflectionUtils, topLevelLog).call();
             } catch (final InterruptedException | CancellationException | ExecutionException e) {
                 // Call failure handler
-                failureHandler.onFailure(e);
+                failureHandler.accept(e);
             }
         });
     }

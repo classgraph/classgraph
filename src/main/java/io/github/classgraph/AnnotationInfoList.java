@@ -42,6 +42,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Predicate;
 
 import io.github.classgraph.ClassInfo.RelType;
 import nonapi.io.github.classgraph.utils.Assert;
@@ -131,36 +132,20 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Filter an {@link AnnotationInfoList} using a predicate mapping an {@link AnnotationInfo} object to a boolean,
-     * producing another {@link AnnotationInfoList} for all items in the list for which the predicate is true.
-     */
-    @FunctionalInterface
-    public interface AnnotationInfoFilter {
-        /**
-         * Whether or not to allow an {@link AnnotationInfo} list item through the filter.
-         *
-         * @param annotationInfo
-         *            The {@link AnnotationInfo} item to filter.
-         * @return Whether or not to allow the item through the filter. If true, the item is copied to the output
-         *         list; if false, it is excluded.
-         */
-        boolean accept(AnnotationInfo annotationInfo);
-    }
-
-    /**
      * Find the subset of the {@link AnnotationInfo} objects in this list for which the given filter predicate is
      * true.
      *
      * @param filter
-     *            The {@link AnnotationInfoFilter} to apply.
+     *            The filter to apply. Only the {@link AnnotationInfo} objects for which the filter returns true are
+     *            copied to the returned list.
      * @return The subset of the {@link AnnotationInfo} objects in this list for which the given filter predicate is
      *         true.
      */
-    public AnnotationInfoList filter(final AnnotationInfoFilter filter) {
+    public AnnotationInfoList filter(final Predicate<AnnotationInfo> filter) {
         Assert.notNull(filter, "filter");
         final AnnotationInfoList annotationInfoFiltered = new AnnotationInfoList();
         for (final AnnotationInfo resource : this) {
-            if (filter.accept(resource)) {
+            if (filter.test(resource)) {
                 annotationInfoFiltered.add(resource);
             }
         }

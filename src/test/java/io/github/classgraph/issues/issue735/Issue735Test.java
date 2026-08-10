@@ -290,7 +290,7 @@ public class Issue735Test {
     @Test
     void methodParameterTypeIsResolved() {
         final var setT = scanResult.getClassInfo(Generic.class.getName()).getMethodInfo("setT").get(0);
-        assertThat(setT.getParameterInfo()[0].getTypeSignatureOrTypeDescriptor()
+        assertThat(setT.getParameterInfo().get(0).getTypeSignatureOrTypeDescriptor()
                 .resolveTypeVariables(scanResult.getClassInfo(BoundToString.class.getName())).toString())
                 .isEqualTo("java.lang.String");
     }

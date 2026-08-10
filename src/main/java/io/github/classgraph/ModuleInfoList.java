@@ -32,6 +32,7 @@ import static io.github.classgraph.PotentiallyUnmodifiableList.unmodifiable;
 
 import java.io.Serial;
 import java.util.Collection;
+import java.util.function.Predicate;
 
 import nonapi.io.github.classgraph.utils.Assert;
 
@@ -71,35 +72,19 @@ public class ModuleInfoList extends MappableInfoList<ModuleInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Filter an {@link ModuleInfoList} using a predicate mapping an {@link ModuleInfo} object to a boolean,
-     * producing another {@link ModuleInfoList} for all items in the list for which the predicate is true.
-     */
-    @FunctionalInterface
-    public interface ModuleInfoFilter {
-        /**
-         * Whether or not to allow an {@link ModuleInfo} list item through the filter.
-         *
-         * @param moduleInfo
-         *            The {@link ModuleInfo} item to filter.
-         * @return Whether or not to allow the item through the filter. If true, the item is copied to the output
-         *         list; if false, it is excluded.
-         */
-        boolean accept(ModuleInfo moduleInfo);
-    }
-
-    /**
      * Find the subset of the {@link ModuleInfo} objects in this list for which the given filter predicate is true.
      *
      * @param filter
-     *            The {@link ModuleInfoFilter} to apply.
+     *            The filter to apply. Only the {@link ModuleInfo} objects for which the filter returns true are
+     *            copied to the returned list.
      * @return The subset of the {@link ModuleInfo} objects in this list for which the given filter predicate is
      *         true.
      */
-    public ModuleInfoList filter(final ModuleInfoFilter filter) {
+    public ModuleInfoList filter(final Predicate<ModuleInfo> filter) {
         Assert.notNull(filter, "filter");
         final ModuleInfoList moduleInfoFiltered = new ModuleInfoList();
         for (final ModuleInfo moduleInfo : this) {
-            if (filter.accept(moduleInfo)) {
+            if (filter.test(moduleInfo)) {
                 moduleInfoFiltered.add(moduleInfo);
             }
         }

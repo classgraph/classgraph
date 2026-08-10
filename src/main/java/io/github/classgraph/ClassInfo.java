@@ -53,7 +53,6 @@ import java.util.Set;
 
 import io.github.classgraph.Classfile.ClassContainment;
 import io.github.classgraph.Classfile.ClassTypeAnnotationDecorator;
-import io.github.classgraph.MethodInfoList.MethodInfoFilter;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.types.Parser;
@@ -85,7 +84,7 @@ import org.jspecify.annotations.Nullable;
  */
 public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>, HasName {
     /** The name of the class. */
-    protected String name;
+    String name;
 
     /** Class modifier flags, e.g. Modifier.PUBLIC */
     private int modifiers;
@@ -106,7 +105,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     private int classfileMajorVersion;
 
     /** The class type signature string. */
-    protected @Nullable String typeSignatureStr;
+    @Nullable
+    String typeSignatureStr;
 
     /** The class type signature, parsed. */
     private @Nullable ClassTypeSignature typeSignature;
@@ -128,20 +128,21 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * If false, this classfile was matched during scanning (i.e. its classfile contents read), i.e. this class is a
      * accepted (and non-rejected) class in an accepted (and non-rejected) package.
      */
-    protected boolean isExternalClass = true;
+    boolean isExternalClass = true;
 
     /**
      * Set to true when the class is actually scanned (as opposed to just referenced as a superclass, interface or
      * annotation of a scanned class).
      */
-    protected boolean isScannedClass;
+    boolean isScannedClass;
 
     /** The classpath element that this class was found within. */
     @Nullable
     ClasspathElement classpathElement;
 
     /** The {@link Resource} for the classfile of this class. */
-    protected @Nullable Resource classfileResource;
+    @Nullable
+    Resource classfileResource;
 
     /** The classloader this class was obtained from. */
     @Nullable
@@ -245,7 +246,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @param classfileResource
      *            the classfile resource
      */
-    protected ClassInfo(final String name, final int classModifiers, final @Nullable Resource classfileResource) {
+    ClassInfo(final String name, final int classModifiers, final @Nullable Resource classfileResource) {
         super();
         this.name = name;
         if (name.endsWith(";")) {
@@ -3013,7 +3014,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * <p>
      * Constructors are not included -- to find annotated constructors, filter
-     * {@link #getDeclaredMethodAndConstructorInfo()} using {@link MethodInfoList#filter(MethodInfoFilter)}.
+     * {@link #getDeclaredMethodAndConstructorInfo()} using
+     * {@link MethodInfoList#filter(java.util.function.Predicate)}.
      *
      * <p>
      * Requires that {@link ClassGraph#enableMethodInfo()} and {@link ClassGraph#enableAnnotationInfo()} be called
@@ -3047,7 +3049,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * <p>
      * Constructors are not included -- to find annotated constructors, filter
-     * {@link #getDeclaredMethodAndConstructorInfo()} using {@link MethodInfoList#filter(MethodInfoFilter)}.
+     * {@link #getDeclaredMethodAndConstructorInfo()} using
+     * {@link MethodInfoList#filter(java.util.function.Predicate)}.
      *
      * <p>
      * Requires that {@link ClassGraph#enableMethodInfo()} and {@link ClassGraph#enableAnnotationInfo()} be called
@@ -3085,7 +3088,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * <p>
      * Constructors are not included -- to find annotated constructors, filter
-     * {@link #getMethodAndConstructorInfo()} using {@link MethodInfoList#filter(MethodInfoFilter)}.
+     * {@link #getMethodAndConstructorInfo()} using {@link MethodInfoList#filter(java.util.function.Predicate)}.
      *
      * <p>
      * Requires that {@link ClassGraph#enableMethodInfo()} and {@link ClassGraph#enableAnnotationInfo()} be called
@@ -3119,7 +3122,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * <p>
      * Constructors are not included -- to find annotated constructors, filter
-     * {@link #getMethodAndConstructorInfo()} using {@link MethodInfoList#filter(MethodInfoFilter)}.
+     * {@link #getMethodAndConstructorInfo()} using {@link MethodInfoList#filter(java.util.function.Predicate)}.
      *
      * <p>
      * Requires that {@link ClassGraph#enableMethodInfo()} and {@link ClassGraph#enableAnnotationInfo()} be called

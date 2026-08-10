@@ -458,10 +458,8 @@ class Classfile {
                         }
                     }
                 }
-                if (methodInfo.getThrownExceptionNames() != null) {
-                    for (final String thrownExceptionName : methodInfo.getThrownExceptionNames()) {
-                        scheduleScanningIfExternalClass(thrownExceptionName, "method throws", log);
-                    }
+                for (final String thrownExceptionName : methodInfo.getThrownExceptionNames()) {
+                    scheduleScanningIfExternalClass(thrownExceptionName, "method throws", log);
                 }
             }
         }

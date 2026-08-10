@@ -111,10 +111,10 @@ public class Issue897Test {
 
             final var annoName = Anno.class.getName();
             // The annotation must be attached to the Inner2 parameter (the source-declared parameter)...
-            assertThat(typeAnnotationNames(parameterInfo[1].getTypeSignatureOrTypeDescriptor()))
+            assertThat(typeAnnotationNames(parameterInfo.get(1).getTypeSignatureOrTypeDescriptor()))
                     .containsExactly(annoName);
             // ...and not to the compiler-generated enclosing-instance parameter.
-            assertThat(typeAnnotationNames(parameterInfo[0].getTypeSignatureOrTypeDescriptor()))
+            assertThat(typeAnnotationNames(parameterInfo.get(0).getTypeSignatureOrTypeDescriptor()))
                     .doesNotContain(annoName);
         }
     }
@@ -140,7 +140,7 @@ public class Issue897Test {
             // The @Anno must be attached to the List parameter (the source-declared parameter), not the
             // compiler-generated enclosing-instance parameter.
             final var parameterInfo = methodInfo.getParameterInfo();
-            final var listParam = parameterInfo[parameterInfo.length - 1];
+            final var listParam = parameterInfo.get(parameterInfo.size() - 1);
             assertThat(typeAnnotationNames(listParam.getTypeSignatureOrTypeDescriptor()))
                     .contains(Anno.class.getName());
         }

@@ -418,7 +418,7 @@ public class MethodParameterInfo {
      * @param scanResult
      *            the new scan result
      */
-    protected void setScanResult(final @Nullable ScanResult scanResult) {
+    void setScanResult(final @Nullable ScanResult scanResult) {
         this.scanResult = scanResult;
         if (this.annotationInfo != null) {
             for (final AnnotationInfo ai : annotationInfo) {

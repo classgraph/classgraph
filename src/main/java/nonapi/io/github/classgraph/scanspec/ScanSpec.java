@@ -41,9 +41,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.function.Predicate;
 
-import io.github.classgraph.ClassGraph.ClasspathElementFilter;
-import io.github.classgraph.ClassGraph.ClasspathElementURLFilter;
 import io.github.classgraph.ClassInfo;
 import io.github.classgraph.ModulePathInfo;
 import io.github.classgraph.ScanResult;
@@ -223,8 +222,11 @@ public class ScanSpec {
      */
     public @Nullable List<Object> overrideClasspath;
 
-    /** If non-null, a list of filter operations to apply to classpath elements. */
-    public @Nullable List<Object> classpathElementFilters;
+    /** If non-null, a list of filters to apply to classpath element path strings. */
+    public @Nullable List<Predicate<String>> classpathElementPathFilters;
+
+    /** If non-null, a list of filters to apply to classpath element {@link URL}s. */
+    public @Nullable List<Predicate<URL>> classpathElementURLFilters;
 
     /**
      * If true, nested jarfiles (jarfiles within jarfiles) that are extracted during scanning are removed from their
@@ -326,25 +328,35 @@ public class ScanSpec {
     }
 
     /**
-     * Add a classpath element filter. The provided {@link ClasspathElementFilter} or
-     * {@link ClasspathElementURLFilter} should return true if the path string or {@link URL} passed to it is a path
-     * that should be scanned.
+     * Add a classpath element path filter. The provided filter should return true if the path string passed to it
+     * is a path that should be scanned.
      *
-     * @param filterLambda
-     *            The classpath element filter to apply to all discovered classpath elements, to decide which should
-     *            be scanned.
+     * @param filter
+     *            The filter to apply to the path string of all discovered classpath elements, to decide which
+     *            should be scanned.
      */
-    public void filterClasspathElements(final Object filterLambda) {
-        Assert.notNull(filterLambda, "filterLambda");
-        if (!(filterLambda instanceof ClasspathElementFilter
-                || filterLambda instanceof ClasspathElementURLFilter)) {
-            throw new IllegalArgumentException("Not a ClasspathElementFilter or ClasspathElementURLFilter: "
-                    + filterLambda.getClass().getName());
+    public void filterClasspathElements(final Predicate<String> filter) {
+        Assert.notNull(filter, "filter");
+        if (this.classpathElementPathFilters == null) {
+            this.classpathElementPathFilters = new ArrayList<>(2);
         }
-        if (this.classpathElementFilters == null) {
-            this.classpathElementFilters = new ArrayList<>(2);
+        this.classpathElementPathFilters.add(filter);
+    }
+
+    /**
+     * Add a classpath element {@link URL} filter. The provided filter should return true if the {@link URL} passed
+     * to it is a classpath element that should be scanned.
+     *
+     * @param filter
+     *            The filter to apply to the {@link URL} of all discovered classpath elements, to decide which
+     *            should be scanned.
+     */
+    public void filterClasspathElementsByURL(final Predicate<URL> filter) {
+        Assert.notNull(filter, "filter");
+        if (this.classpathElementURLFilters == null) {
+            this.classpathElementURLFilters = new ArrayList<>(2);
         }
-        this.classpathElementFilters.add(filterLambda);
+        this.classpathElementURLFilters.add(filter);
     }
 
     /**

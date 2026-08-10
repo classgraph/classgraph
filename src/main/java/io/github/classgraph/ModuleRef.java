@@ -167,13 +167,13 @@ public class ModuleRef implements Comparable<ModuleRef> {
     }
 
     /**
-     * Get the module location, i.e. {@code getReference().location()}. Returns null for modules that do not have a
-     * location.
+     * Get the module location as a {@link URI}, i.e. {@code getReference().location()}. Returns null for modules
+     * that do not have a location.
      *
-     * @return The module location, i.e. {@code getReference().location()}. Returns null for modules that do not
-     *         have a location.
+     * @return The module location as a {@link URI}, i.e. {@code getReference().location()}. Returns null for
+     *         modules that do not have a location.
      */
-    public @Nullable URI getLocation() {
+    public @Nullable URI getLocationURI() {
         return location;
     }
 

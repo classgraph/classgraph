@@ -40,7 +40,7 @@ import org.jspecify.annotations.Nullable;
  */
 public abstract class ReferenceTypeSignature extends TypeSignature {
     /** Constructor. */
-    protected ReferenceTypeSignature() {
+    ReferenceTypeSignature() {
         super();
     }
 

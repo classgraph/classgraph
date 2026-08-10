@@ -41,7 +41,8 @@ import org.jspecify.annotations.Nullable;
  */
 abstract class ScanResultObject {
     /** The scan result. */
-    protected @Nullable ScanResult scanResult;
+    @Nullable
+    ScanResult scanResult;
 
     /** The associated {@link ClassInfo} object. */
     private @Nullable ClassInfo classInfo;

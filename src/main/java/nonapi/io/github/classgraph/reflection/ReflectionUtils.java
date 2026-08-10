@@ -51,10 +51,11 @@ public final class ReflectionUtils {
 
     /**
      * Constructor. Chooses the reflection driver according to the current value of
-     * {@link ClassGraph#CIRCUMVENT_ENCAPSULATION}, so a new instance must be created after changing that value.
+     * {@link ClassGraph#getCircumventEncapsulationMethod()}, so a new instance must be created after changing that
+     * value.
      */
     public ReflectionUtils() {
-        if (ClassGraph.CIRCUMVENT_ENCAPSULATION == CircumventEncapsulationMethod.NARCISSUS) {
+        if (ClassGraph.getCircumventEncapsulationMethod() == CircumventEncapsulationMethod.NARCISSUS) {
             try {
                 reflectionDriver = new NarcissusReflectionDriver();
             } catch (final Throwable t) {

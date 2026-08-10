@@ -16,13 +16,13 @@ class EncapsulationCircumventionTest {
     /** Reset encapsulation circumvention method after each test. */
     @AfterEach
     void resetAfterEachTest() {
-        ClassGraph.CIRCUMVENT_ENCAPSULATION = CircumventEncapsulationMethod.NONE;
+        ClassGraph.setCircumventEncapsulationMethod(CircumventEncapsulationMethod.NONE);
     }
 
     /** Test Narcissus. */
     @Test
     void testNarcissus() {
-        ClassGraph.CIRCUMVENT_ENCAPSULATION = CircumventEncapsulationMethod.NARCISSUS;
+        ClassGraph.setCircumventEncapsulationMethod(CircumventEncapsulationMethod.NARCISSUS);
         final var reflectionUtils = new ReflectionUtils();
         assertThat(
                 reflectionUtils.getFieldVal(true, reflectionUtils, "reflectionDriver").getClass().getSimpleName())

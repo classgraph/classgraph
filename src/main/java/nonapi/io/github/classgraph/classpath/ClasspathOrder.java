@@ -42,10 +42,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
-import io.github.classgraph.ClassGraph.ClasspathElementFilter;
-import io.github.classgraph.ClassGraph.ClasspathElementURLFilter;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
@@ -219,12 +218,16 @@ public class ClasspathOrder {
      * @return true, if not filtered out
      */
     private boolean filter(final @Nullable URL classpathElementURL, final @Nullable String classpathElementPath) {
-        if (scanSpec.classpathElementFilters != null) {
-            for (final Object filterObj : scanSpec.classpathElementFilters) {
-                if ((classpathElementURL != null && filterObj instanceof final ClasspathElementURLFilter urlFilter
-                        && !urlFilter.includeClasspathElement(classpathElementURL))
-                        || (classpathElementPath != null && filterObj instanceof final ClasspathElementFilter filter
-                                && !filter.includeClasspathElement(classpathElementPath))) {
+        if (classpathElementURL != null && scanSpec.classpathElementURLFilters != null) {
+            for (final Predicate<URL> urlFilter : scanSpec.classpathElementURLFilters) {
+                if (!urlFilter.test(classpathElementURL)) {
+                    return false;
+                }
+            }
+        }
+        if (classpathElementPath != null && scanSpec.classpathElementPathFilters != null) {
+            for (final Predicate<String> pathFilter : scanSpec.classpathElementPathFilters) {
+                if (!pathFilter.test(classpathElementPath)) {
                     return false;
                 }
             }

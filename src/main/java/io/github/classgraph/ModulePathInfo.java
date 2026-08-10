@@ -30,6 +30,7 @@ package io.github.classgraph;
 
 import java.io.File;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -44,57 +45,23 @@ import nonapi.io.github.classgraph.utils.StringUtils;
  * or system modules.
  */
 public class ModulePathInfo {
-    /**
-     * The module path provided on the commandline by the {@code --module-path} or {@code -p} switch, as an ordered
-     * set of module names, in the order they were listed on the commandline.
-     *
-     * <p>
-     * Note that some modules (such as system modules) will not be in this set, as they are added to the module
-     * system automatically by the runtime. Call {@link ClassGraph#getModules()} or {@link ScanResult#getModules()}
-     * to get all modules visible at runtime.
-     */
-    public final Set<String> modulePath = new LinkedHashSet<>();
+    /** The module path provided by the {@code --module-path} or {@code -p} switch. */
+    private final Set<String> modulePath = new LinkedHashSet<>();
 
-    /**
-     * The modules added to the module path on the commandline using the {@code --add-modules} switch, as an ordered
-     * set of module names, in the order they were listed on the commandline. Note that valid module names include
-     * {@code ALL-DEFAULT}, {@code ALL-SYSTEM}, and {@code ALL-MODULE-PATH} (see
-     * <a href="https://openjdk.java.net/jeps/261">JEP 261</a> for info).
-     */
-    public final Set<String> addModules = new LinkedHashSet<>();
+    /** The modules added by the {@code --add-modules} switch. */
+    private final Set<String> addModules = new LinkedHashSet<>();
 
-    /**
-     * The module patch directives listed on the commandline using the {@code --patch-module} switch, as an ordered
-     * set of strings in the format {@code <module>=<file>}, in the order they were listed on the commandline.
-     */
-    public final Set<String> patchModules = new LinkedHashSet<>();
+    /** The module patch directives provided by the {@code --patch-module} switch. */
+    private final Set<String> patchModules = new LinkedHashSet<>();
 
-    /**
-     * The module {@code exports} directives added on the commandline using the {@code --add-exports} switch, as an
-     * ordered set of strings in the format {@code <source-module>/<package>=<target-module>(,<target-module>)*}, in
-     * the order they were listed on the commandline. Additionally, if this {@link ModulePathInfo} object was
-     * obtained from {@link ScanResult#getModulePathInfo()} rather than {@link ClassGraph#getModulePathInfo()}, any
-     * additional {@code Add-Exports} entries found in manifest files during classpath scanning will be appended to
-     * this list, in the format {@code <source-module>/<package>=ALL-UNNAMED}.
-     */
-    public final Set<String> addExports = new LinkedHashSet<>();
+    /** The module {@code exports} directives added by the {@code --add-exports} switch. */
+    private final Set<String> addExports = new LinkedHashSet<>();
 
-    /**
-     * The module {@code opens} directives added on the commandline using the {@code --add-opens} switch, as an
-     * ordered set of strings in the format {@code <source-module>/<package>=<target-module>(,<target-module>)*}, in
-     * the order they were listed on the commandline. Additionally, if this {@link ModulePathInfo} object was
-     * obtained from {@link ScanResult#getModulePathInfo()} rather than {@link ClassGraph#getModulePathInfo()}, any
-     * additional {@code Add-Opens} entries found in manifest files during classpath scanning will be appended to
-     * this list, in the format {@code <source-module>/<package>=ALL-UNNAMED}.
-     */
-    public final Set<String> addOpens = new LinkedHashSet<>();
+    /** The module {@code opens} directives added by the {@code --add-opens} switch. */
+    private final Set<String> addOpens = new LinkedHashSet<>();
 
-    /**
-     * The module {@code reads} directives added on the commandline using the {@code --add-reads} switch, as an
-     * ordered set of strings in the format {@code <source-module>=<target-module>}, in the order they were listed
-     * on the commandline.
-     */
-    public final Set<String> addReads = new LinkedHashSet<>();
+    /** The module {@code reads} directives added by the {@code --add-reads} switch. */
+    private final Set<String> addReads = new LinkedHashSet<>();
 
     /** The fields. */
     private final List<Set<String>> fields = List.of( //
@@ -133,6 +100,108 @@ public class ModulePathInfo {
 
     /** Constructor. */
     public ModulePathInfo() {
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Returns the module path provided on the commandline by the {@code --module-path} or {@code -p} switch, as an
+     * ordered set of module names, in the order they were listed on the commandline.
+     *
+     * <p>
+     * Note that some modules (such as system modules) will not be in this set, as they are added to the module
+     * system automatically by the runtime. Call {@link ClassGraph#getModules()} or {@link ScanResult#getModules()}
+     * to get all modules visible at runtime.
+     *
+     * @return The module path, as an unmodifiable set.
+     */
+    public Set<String> getModulePath() {
+        return Collections.unmodifiableSet(modulePath);
+    }
+
+    /**
+     * Returns the modules added to the module path on the commandline using the {@code --add-modules} switch, as an
+     * ordered set of module names, in the order they were listed on the commandline. Note that valid module names
+     * include {@code ALL-DEFAULT}, {@code ALL-SYSTEM}, and {@code ALL-MODULE-PATH} (see
+     * <a href="https://openjdk.java.net/jeps/261">JEP 261</a> for info).
+     *
+     * @return The added modules, as an unmodifiable set.
+     */
+    public Set<String> getAddModules() {
+        return Collections.unmodifiableSet(addModules);
+    }
+
+    /**
+     * Returns the module patch directives listed on the commandline using the {@code --patch-module} switch, as an
+     * ordered set of strings in the format {@code <module>=<file>}, in the order they were listed on the
+     * commandline.
+     *
+     * @return The module patch directives, as an unmodifiable set.
+     */
+    public Set<String> getPatchModules() {
+        return Collections.unmodifiableSet(patchModules);
+    }
+
+    /**
+     * Returns the module {@code exports} directives added on the commandline using the {@code --add-exports}
+     * switch, as an ordered set of strings in the format
+     * {@code <source-module>/<package>=<target-module>(,<target-module>)*}, in the order they were listed on the
+     * commandline. Additionally, if this {@link ModulePathInfo} object was obtained from
+     * {@link ScanResult#getModulePathInfo()} rather than {@link ClassGraph#getModulePathInfo()}, any additional
+     * {@code Add-Exports} entries found in manifest files during classpath scanning will be appended to this set,
+     * in the format {@code <source-module>/<package>=ALL-UNNAMED}.
+     *
+     * @return The {@code exports} directives, as an unmodifiable set.
+     */
+    public Set<String> getAddExports() {
+        return Collections.unmodifiableSet(addExports);
+    }
+
+    /**
+     * Returns the module {@code opens} directives added on the commandline using the {@code --add-opens} switch, as
+     * an ordered set of strings in the format {@code <source-module>/<package>=<target-module>(,<target-module>)*},
+     * in the order they were listed on the commandline. Additionally, if this {@link ModulePathInfo} object was
+     * obtained from {@link ScanResult#getModulePathInfo()} rather than {@link ClassGraph#getModulePathInfo()}, any
+     * additional {@code Add-Opens} entries found in manifest files during classpath scanning will be appended to
+     * this set, in the format {@code <source-module>/<package>=ALL-UNNAMED}.
+     *
+     * @return The {@code opens} directives, as an unmodifiable set.
+     */
+    public Set<String> getAddOpens() {
+        return Collections.unmodifiableSet(addOpens);
+    }
+
+    /**
+     * Returns the module {@code reads} directives added on the commandline using the {@code --add-reads} switch, as
+     * an ordered set of strings in the format {@code <source-module>=<target-module>}, in the order they were
+     * listed on the commandline.
+     *
+     * @return The {@code reads} directives, as an unmodifiable set.
+     */
+    public Set<String> getAddReads() {
+        return Collections.unmodifiableSet(addReads);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Add an {@code Add-Exports} entry found in a jarfile manifest during scanning.
+     *
+     * @param addExportsEntry
+     *            the entry, in the format {@code <source-module>/<package>=ALL-UNNAMED}.
+     */
+    void addExportsEntry(final String addExportsEntry) {
+        addExports.add(addExportsEntry);
+    }
+
+    /**
+     * Add an {@code Add-Opens} entry found in a jarfile manifest during scanning.
+     *
+     * @param addOpensEntry
+     *            the entry, in the format {@code <source-module>/<package>=ALL-UNNAMED}.
+     */
+    void addOpensEntry(final String addOpensEntry) {
+        addOpens.add(addOpensEntry);
     }
 
     /**

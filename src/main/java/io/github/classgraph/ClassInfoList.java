@@ -39,6 +39,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Predicate;
 
 import io.github.classgraph.ClassInfo.ReachableAndDirectlyRelatedClasses;
 import nonapi.io.github.classgraph.utils.Assert;
@@ -284,35 +285,19 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Filter a {@link ClassInfoList} using a predicate mapping a {@link ClassInfo} object to a boolean, producing
-     * another {@link ClassInfoList} for all items in the list for which the predicate is true.
-     */
-    @FunctionalInterface
-    public interface ClassInfoFilter {
-        /**
-         * Whether or not to allow a {@link ClassInfo} list item through the filter.
-         *
-         * @param classInfo
-         *            The {@link ClassInfo} item to filter.
-         * @return Whether or not to allow the item through the filter. If true, the item is copied to the output
-         *         list; if false, it is excluded.
-         */
-        boolean accept(ClassInfo classInfo);
-    }
-
-    /**
      * Find the subset of this {@link ClassInfoList} for which the given filter predicate is true.
      *
      * @param filter
-     *            The {@link ClassInfoFilter} to apply.
+     *            The filter to apply. Only the {@link ClassInfo} objects for which the filter returns true are
+     *            copied to the returned list.
      * @return The subset of this {@link ClassInfoList} for which the given filter predicate is true.
      */
-    public ClassInfoList filter(final ClassInfoFilter filter) {
+    public ClassInfoList filter(final Predicate<ClassInfo> filter) {
         Assert.notNull(filter, "filter");
         final Set<ClassInfo> reachableClassesFiltered = new LinkedHashSet<>(size());
         final Set<ClassInfo> directlyRelatedClassesFiltered = new LinkedHashSet<>(directlyRelatedClasses.size());
         for (final ClassInfo ci : this) {
-            if (filter.accept(ci)) {
+            if (filter.test(ci)) {
                 reachableClassesFiltered.add(ci);
                 if (directlyRelatedClasses.contains(ci)) {
                     directlyRelatedClassesFiltered.add(ci);
@@ -511,18 +496,20 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      * @param options
      *            the graph options. Only the layout size and the external-class setting have any effect on this
      *            graph.
+     * @return this (for method chaining).
      * @throws IOException
      *             if the file could not be saved.
      * @throws IllegalStateException
      *             if this {@link ClassInfoList} is empty or {@link ClassGraph#enableInterClassDependencies()} was
      *             not called before scanning (since there would be nothing to graph).
      */
-    public void writeGraphVizDotFileFromInterClassDependencies(final File file,
+    public ClassInfoList writeGraphVizDotFileFromInterClassDependencies(final File file,
             final GraphVizDotFileOptions options) throws IOException {
         Assert.notNull(file, "file");
         try (var writer = new PrintWriter(file)) {
             writer.print(generateGraphVizDotFileFromInterClassDependencies(options));
         }
+        return this;
     }
 
     /**
@@ -532,14 +519,15 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      *
      * @param file
      *            the file to save the GraphViz .dot file to.
+     * @return this (for method chaining).
      * @throws IOException
      *             if the file could not be saved.
      * @throws IllegalStateException
      *             if this {@link ClassInfoList} is empty or {@link ClassGraph#enableInterClassDependencies()} was
      *             not called before scanning (since there would be nothing to graph).
      */
-    public void writeGraphVizDotFileFromInterClassDependencies(final File file) throws IOException {
-        writeGraphVizDotFileFromInterClassDependencies(file, new GraphVizDotFileOptions());
+    public ClassInfoList writeGraphVizDotFileFromInterClassDependencies(final File file) throws IOException {
+        return writeGraphVizDotFileFromInterClassDependencies(file, new GraphVizDotFileOptions());
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -614,17 +602,20 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      *            the file to save the GraphViz .dot file to.
      * @param options
      *            the graph options.
+     * @return this (for method chaining).
      * @throws IOException
      *             if the file could not be saved.
      * @throws IllegalStateException
      *             if this {@link ClassInfoList} is empty or {@link ClassGraph#enableClassInfo()} was not called
      *             before scanning (since there would be nothing to graph).
      */
-    public void writeGraphVizDotFile(final File file, final GraphVizDotFileOptions options) throws IOException {
+    public ClassInfoList writeGraphVizDotFile(final File file, final GraphVizDotFileOptions options)
+            throws IOException {
         Assert.notNull(file, "file");
         try (var writer = new PrintWriter(file)) {
             writer.print(generateGraphVizDotFile(options));
         }
+        return this;
     }
 
     /**
@@ -642,14 +633,15 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      *
      * @param file
      *            the file to save the GraphViz .dot file to.
+     * @return this (for method chaining).
      * @throws IOException
      *             if the file could not be saved.
      * @throws IllegalStateException
      *             if this {@link ClassInfoList} is empty or {@link ClassGraph#enableClassInfo()} was not called
      *             before scanning (since there would be nothing to graph).
      */
-    public void writeGraphVizDotFile(final File file) throws IOException {
-        writeGraphVizDotFile(file, new GraphVizDotFileOptions());
+    public ClassInfoList writeGraphVizDotFile(final File file) throws IOException {
+        return writeGraphVizDotFile(file, new GraphVizDotFileOptions());
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -664,14 +656,9 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
         if (this == obj) {
             return true;
         }
-        if (!(obj instanceof final ClassInfoList other)
-                || ((directlyRelatedClasses == null) != (other.directlyRelatedClasses == null))) {
-            return false;
-        }
-        if (directlyRelatedClasses == null) {
-            return super.equals(other);
-        }
-        return super.equals(other) && directlyRelatedClasses.equals(other.directlyRelatedClasses);
+        // directlyRelatedClasses is final, and every constructor assigns it a non-null value
+        return obj instanceof final ClassInfoList other && super.equals(other)
+                && directlyRelatedClasses.equals(other.directlyRelatedClasses);
     }
 
     /*
@@ -681,6 +668,6 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      */
     @Override
     public int hashCode() {
-        return super.hashCode() ^ (directlyRelatedClasses == null ? 0 : directlyRelatedClasses.hashCode());
+        return super.hashCode() ^ directlyRelatedClasses.hashCode();
     }
 }

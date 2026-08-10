@@ -56,9 +56,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.function.Consumer;
 
-import io.github.classgraph.ClassGraph.FailureHandler;
-import io.github.classgraph.ClassGraph.ScanResultProcessor;
 import io.github.classgraph.Classfile.ClassfileFormatException;
 import io.github.classgraph.Classfile.SkipClassException;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
@@ -86,7 +85,7 @@ class Scanner implements Callable<ScanResult> {
     private final ScanSpec scanSpec;
 
     /** If true, performing a scan. If false, only fetching the classpath. */
-    public boolean performScan;
+    private final boolean performScan;
 
     /** The nested jar handler. */
     private final NestedJarHandler nestedJarHandler;
@@ -101,10 +100,10 @@ class Scanner implements Callable<ScanResult> {
     private final int numParallelTasks;
 
     /** The scan result processor, or null if none was provided. */
-    private final @Nullable ScanResultProcessor scanResultProcessor;
+    private final @Nullable Consumer<ScanResult> scanResultProcessor;
 
     /** The failure handler, or null if none was provided. */
-    private final @Nullable FailureHandler failureHandler;
+    private final @Nullable Consumer<Throwable> failureHandler;
 
     /** The toplevel log. */
     private final @Nullable LogNode topLevelLog;
@@ -147,8 +146,8 @@ class Scanner implements Callable<ScanResult> {
      *             if interrupted
      */
     Scanner(final boolean performScan, final ScanSpec scanSpec, final ExecutorService executorService,
-            final int numParallelTasks, final @Nullable ScanResultProcessor scanResultProcessor,
-            final @Nullable FailureHandler failureHandler, final ReflectionUtils reflectionUtils,
+            final int numParallelTasks, final @Nullable Consumer<ScanResult> scanResultProcessor,
+            final @Nullable Consumer<Throwable> failureHandler, final ReflectionUtils reflectionUtils,
             final @Nullable LogNode topLevelLog) throws InterruptedException {
         this.scanSpec = scanSpec;
         this.performScan = performScan;
@@ -887,13 +886,13 @@ class Scanner implements Callable<ScanResult> {
                     if (classpathEltZip.logicalZipFile.addExportsManifestEntryValue != null) {
                         for (final String addExports : JarUtils.smartPathSplit(
                                 classpathEltZip.logicalZipFile.addExportsManifestEntryValue, ' ', scanSpec)) {
-                            scanSpec.modulePathInfo.addExports.add(addExports + "=ALL-UNNAMED");
+                            scanSpec.modulePathInfo.addExportsEntry(addExports + "=ALL-UNNAMED");
                         }
                     }
                     if (classpathEltZip.logicalZipFile.addOpensManifestEntryValue != null) {
                         for (final String addOpens : JarUtils.smartPathSplit(
                                 classpathEltZip.logicalZipFile.addOpensManifestEntryValue, ' ', scanSpec)) {
-                            scanSpec.modulePathInfo.addOpens.add(addOpens + "=ALL-UNNAMED");
+                            scanSpec.modulePathInfo.addOpensEntry(addOpens + "=ALL-UNNAMED");
                         }
                     }
                     // Retrieve Automatic-Module-Name manifest entry, if present
@@ -1197,8 +1196,8 @@ class Scanner implements Callable<ScanResult> {
      * Determine the unique ordered classpath elements, and run a scan looking for file or classfile matches if
      * necessary.
      *
-     * @return the scan result, or null if a {@link FailureHandler} was provided and the scan failed (in which case
-     *         the failure handler was called, and the result is ignored by the caller).
+     * @return the scan result, or null if a failure handler was provided and the scan failed (in which case the
+     *         failure handler was called, and the result is ignored by the caller).
      * @throws InterruptedException
      *             if scanning was interrupted
      * @throws CancellationException
@@ -1222,10 +1221,10 @@ class Scanner implements Callable<ScanResult> {
                 topLevelLog.flush();
             }
 
-            // Call the ScanResultProcessor, if one was provided
+            // Call the scan result processor, if one was provided
             if (scanResultProcessor != null) {
                 try {
-                    scanResultProcessor.processScanResult(scanResult);
+                    scanResultProcessor.accept(scanResult);
                 } catch (final Exception e) {
                     scanResult.close();
                     throw new ExecutionException(e);
@@ -1263,7 +1262,7 @@ class Scanner implements Callable<ScanResult> {
             } else {
                 // Otherwise, call the failure handler
                 try {
-                    failureHandler.onFailure(e);
+                    failureHandler.accept(e);
                 } catch (final Exception f) {
                     // The failure handler failed
                     if (topLevelLog != null) {
@@ -1280,8 +1279,8 @@ class Scanner implements Callable<ScanResult> {
                         // and modules
                         nestedJarHandler.close(topLevelLog);
                     }
-                    // A scan is only given a FailureHandler by ClassGraph#launchAsyncScan, which runs the scanner
-                    // inside a Runnable that catches ExecutionException and passes it to the same FailureHandler.
+                    // A scan is only given a failure handler by ClassGraph#scanAsync, which runs the scanner
+                    // inside a Runnable that catches ExecutionException and passes it to the same handler.
                     // So throwing here offers the handler a second chance to report the failure, this time with the
                     // original scan exception attached as a suppressed exception. If it throws again, the exception
                     // leaves the Runnable and is reported by the executor.

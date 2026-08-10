@@ -34,7 +34,7 @@ public class ReturnedListsAreUnmodifiableTest {
         objects.addAll(classInfo.getDeclaredMethodInfo());
         objects.addAll(classInfo.getAllAnnotationInfo());
         for (final MethodInfo methodInfo : classInfo.getDeclaredMethodInfo()) {
-            objects.addAll(List.of(methodInfo.getParameterInfo()));
+            objects.addAll(methodInfo.getParameterInfo());
             addTypeSignature(methodInfo.getTypeSignatureOrTypeDescriptor(), objects);
         }
         for (final FieldInfo fieldInfo : classInfo.getDeclaredFieldInfo()) {
@@ -188,6 +188,35 @@ public class ReturnedListsAreUnmodifiableTest {
             assertThat(throwsUnsupported(() -> classInfoList.listIterator(1).set(classInfoList.get(0)))).isTrue();
             assertThat(throwsUnsupported(() -> classInfoList.iterator().remove())).isTrue();
             assertThat(throwsUnsupported(() -> classInfoList.subList(0, 1).clear())).isTrue();
+        }
+    }
+
+    /**
+     * A mutation that would not actually change the contents of a returned list should still be rejected, matching
+     * the contract of the unmodifiable views returned by {@link java.util.Collections}.
+     */
+    @Test
+    public void noOpMutatorsAreRejectedOnReturnedLists() {
+        try (var scanResult = new ClassGraph().acceptPackages(ClassWithMembers.class.getPackage().getName())
+                .enableAllInfo().scan()) {
+            // An empty returned list: every mutator is a no-op on it, but must still be rejected
+            final ClassInfoList emptyList = scanResult.getAllClasses().filter(ci -> false);
+            assertThat(emptyList).isEmpty();
+            assertThat(throwsUnsupported(emptyList::clear)).isTrue();
+            assertThat(throwsUnsupported(() -> emptyList.sort(null))).isTrue();
+            assertThat(throwsUnsupported(() -> emptyList.removeIf(ci -> true))).isTrue();
+            assertThat(throwsUnsupported(() -> emptyList.replaceAll(ci -> ci))).isTrue();
+            assertThat(throwsUnsupported(() -> emptyList.addAll(List.of()))).isTrue();
+            assertThat(throwsUnsupported(() -> emptyList.addAll(0, List.of()))).isTrue();
+            assertThat(throwsUnsupported(() -> emptyList.removeAll(List.of()))).isTrue();
+            assertThat(throwsUnsupported(() -> emptyList.retainAll(List.of()))).isTrue();
+
+            // A non-empty returned list, given collection arguments that would not change it
+            final ClassInfoList allClasses = scanResult.getAllClasses();
+            assertThat(allClasses).isNotEmpty();
+            assertThat(throwsUnsupported(() -> allClasses.addAll(List.of()))).isTrue();
+            assertThat(throwsUnsupported(() -> allClasses.removeAll(List.of()))).isTrue();
+            assertThat(throwsUnsupported(() -> allClasses.retainAll(allClasses))).isTrue();
         }
     }
 

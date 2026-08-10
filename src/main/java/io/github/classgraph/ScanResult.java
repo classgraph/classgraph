@@ -1746,7 +1746,7 @@ public final class ScanResult implements Closeable {
      * @throws IllegalStateException
      *             if this {@link ScanResult} has been closed.
      */
-    public long getClasspathContentsLastModifiedTimeMillis() {
+    public long getClasspathContentsLastModifiedMillis() {
         checkNotClosed();
         var maxLastModifiedTime = 0L;
         if (fileToLastModified != null) {

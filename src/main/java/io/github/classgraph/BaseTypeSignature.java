@@ -142,11 +142,11 @@ public class BaseTypeSignature extends TypeSignature {
     }
 
     /**
-     * Get the name of the type as a string.
+     * Get the name of the type, in the same form as {@link Class#getTypeName()}.
      *
      * @return The name of the type, such as "int", "float", or "void".
      */
-    public String getTypeString() {
+    public String getTypeName() {
         return Objects.requireNonNull(typeCharToString(typeSignatureChar));
     }
 
@@ -195,7 +195,7 @@ public class BaseTypeSignature extends TypeSignature {
      */
     @Override
     protected String getClassName() {
-        return getTypeString();
+        return getTypeName();
     }
 
     /*
@@ -287,6 +287,6 @@ public class BaseTypeSignature extends TypeSignature {
                 }
             }
         }
-        buf.append(getTypeString());
+        buf.append(getTypeName());
     }
 }

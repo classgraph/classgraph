@@ -32,11 +32,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import javax.persistence.Entity;
 
+import java.util.function.Predicate;
+
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
-import io.github.classgraph.ClassInfoList.ClassInfoFilter;
 
 @Entity
 public class Issue223Test {
@@ -55,9 +56,9 @@ public class Issue223Test {
                 .enableAllInfo().scan()) {
             // N.B. this anonymous inner class is deliberately not a lambda -- it is itself counted as one of the
             // two inner classes expected below (the other is InnerInterface).
-            final var innerClasses = scanResult.getAllClasses().filter(new ClassInfoFilter() {
+            final var innerClasses = scanResult.getAllClasses().filter(new Predicate<ClassInfo>() {
                 @Override
-                public boolean accept(final ClassInfo ci) {
+                public boolean test(final ClassInfo ci) {
                     return ci.isInnerClass();
                 }
             });

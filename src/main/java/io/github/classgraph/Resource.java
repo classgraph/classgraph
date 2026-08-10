@@ -56,13 +56,15 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     private final ClasspathElement classpathElement;
 
     /** The input stream, or null. */
-    protected @Nullable InputStream inputStream;
+    @Nullable
+    InputStream inputStream;
 
     /** The byte buffer, or null. */
-    protected @Nullable ByteBuffer byteBuffer;
+    @Nullable
+    ByteBuffer byteBuffer;
 
     /** The length, or -1L for unknown. */
-    protected long length;
+    long length;
 
     /** The cached result of toString(), or null if not yet computed. */
     private @Nullable String toString;

@@ -1,0 +1,2 @@
+@MetaAnnotatedPackageAnnotation
+package io.github.classgraph.features.packageannotation;

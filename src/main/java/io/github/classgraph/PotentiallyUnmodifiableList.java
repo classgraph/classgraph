@@ -42,7 +42,14 @@ import java.util.function.UnaryOperator;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A potentially unmodifiable list of objects.
+ * A list of objects that can be frozen in place by calling {@link #makeUnmodifiable()}. Freezing in place, rather
+ * than wrapping the list in {@link Collections#unmodifiableList(List)}, preserves the concrete list type, so that
+ * the utility methods added by subclasses (e.g. {@link ClassInfoList#filter}) remain available to callers.
+ *
+ * <p>
+ * Once frozen, every mutation method throws {@link UnsupportedOperationException}, whether or not the mutation
+ * would actually change the contents of the list -- the same contract as the unmodifiable views returned by
+ * {@link Collections}.
  *
  * @param <T>
  *            the element type
@@ -139,7 +146,7 @@ class PotentiallyUnmodifiableList<T> extends ArrayList<T> {
 
     @Override
     public boolean addAll(final Collection<? extends T> c) {
-        if (!modifiable && !c.isEmpty()) {
+        if (!modifiable) {
             throw new UnsupportedOperationException("List is immutable");
         } else {
             return super.addAll(c);
@@ -148,7 +155,7 @@ class PotentiallyUnmodifiableList<T> extends ArrayList<T> {
 
     @Override
     public boolean addAll(final int index, final Collection<? extends T> c) {
-        if (!modifiable && !c.isEmpty()) {
+        if (!modifiable) {
             throw new UnsupportedOperationException("List is immutable");
         } else {
             return super.addAll(index, c);
@@ -157,7 +164,7 @@ class PotentiallyUnmodifiableList<T> extends ArrayList<T> {
 
     @Override
     public boolean removeAll(final Collection<?> c) {
-        if (!modifiable && !c.isEmpty()) {
+        if (!modifiable) {
             throw new UnsupportedOperationException("List is immutable");
         } else {
             return super.removeAll(c);
@@ -166,7 +173,7 @@ class PotentiallyUnmodifiableList<T> extends ArrayList<T> {
 
     @Override
     public boolean retainAll(final Collection<?> c) {
-        if (!modifiable && !isEmpty()) {
+        if (!modifiable) {
             throw new UnsupportedOperationException("List is immutable");
         } else {
             return super.retainAll(c);
@@ -175,7 +182,7 @@ class PotentiallyUnmodifiableList<T> extends ArrayList<T> {
 
     @Override
     public void clear() {
-        if (!modifiable && !isEmpty()) {
+        if (!modifiable) {
             throw new UnsupportedOperationException("List is immutable");
         } else {
             super.clear();
@@ -225,7 +232,7 @@ class PotentiallyUnmodifiableList<T> extends ArrayList<T> {
 
     @Override
     public void sort(final @Nullable Comparator<? super T> c) {
-        if (!modifiable && !isEmpty()) {
+        if (!modifiable) {
             throw new UnsupportedOperationException("List is immutable");
         } else {
             super.sort(c);
@@ -234,7 +241,7 @@ class PotentiallyUnmodifiableList<T> extends ArrayList<T> {
 
     @Override
     public boolean removeIf(final Predicate<? super T> filter) {
-        if (!modifiable && !isEmpty()) {
+        if (!modifiable) {
             throw new UnsupportedOperationException("List is immutable");
         } else {
             return super.removeIf(filter);
@@ -243,7 +250,7 @@ class PotentiallyUnmodifiableList<T> extends ArrayList<T> {
 
     @Override
     public void replaceAll(final UnaryOperator<T> operator) {
-        if (!modifiable && !isEmpty()) {
+        if (!modifiable) {
             throw new UnsupportedOperationException("List is immutable");
         } else {
             super.replaceAll(operator);

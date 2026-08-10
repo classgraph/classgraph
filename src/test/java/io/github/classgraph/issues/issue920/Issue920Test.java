@@ -21,7 +21,7 @@ public class Issue920Test {
                 .enableClassInfo().enableMethodInfo().scan().getClassInfo("java.io.ObjectOutputStream")
                 .getConstructorInfo();
         for (final MethodInfo constructor : constructors) {
-            if (constructor.getParameterInfo().length == 0) {
+            if (constructor.getParameterInfo().isEmpty()) {
                 // The no args constructor of ObjectOutputStream is protected
                 assertEquals(Modifier.PROTECTED, constructor.getModifiers(),
                         "The no-args constructor of ObjectOutputStream should read as `protected`");

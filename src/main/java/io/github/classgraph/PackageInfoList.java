@@ -32,6 +32,7 @@ import static io.github.classgraph.PotentiallyUnmodifiableList.unmodifiable;
 
 import java.io.Serial;
 import java.util.Collection;
+import java.util.function.Predicate;
 
 import nonapi.io.github.classgraph.utils.Assert;
 
@@ -77,35 +78,19 @@ public class PackageInfoList extends MappableInfoList<PackageInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Filter an {@link PackageInfoList} using a predicate mapping an {@link PackageInfo} object to a boolean,
-     * producing another {@link PackageInfoList} for all items in the list for which the predicate is true.
-     */
-    @FunctionalInterface
-    public interface PackageInfoFilter {
-        /**
-         * Whether or not to allow an {@link PackageInfo} list item through the filter.
-         *
-         * @param packageInfo
-         *            The {@link PackageInfo} item to filter.
-         * @return Whether or not to allow the item through the filter. If true, the item is copied to the output
-         *         list; if false, it is excluded.
-         */
-        boolean accept(PackageInfo packageInfo);
-    }
-
-    /**
      * Find the subset of the {@link PackageInfo} objects in this list for which the given filter predicate is true.
      *
      * @param filter
-     *            The {@link PackageInfoFilter} to apply.
+     *            The filter to apply. Only the {@link PackageInfo} objects for which the filter returns true are
+     *            copied to the returned list.
      * @return The subset of the {@link PackageInfo} objects in this list for which the given filter predicate is
      *         true.
      */
-    public PackageInfoList filter(final PackageInfoFilter filter) {
+    public PackageInfoList filter(final Predicate<PackageInfo> filter) {
         Assert.notNull(filter, "filter");
         final PackageInfoList packageInfoFiltered = new PackageInfoList();
         for (final PackageInfo packageInfo : this) {
-            if (filter.accept(packageInfo)) {
+            if (filter.test(packageInfo)) {
                 packageInfoFiltered.add(packageInfo);
             }
         }

@@ -42,10 +42,11 @@ import org.jspecify.annotations.Nullable;
  */
 public abstract class HierarchicalTypeSignature extends ScanResultObject {
     /** The type annotations on this type, or null if none. */
-    protected @Nullable AnnotationInfoList typeAnnotationInfo;
+    @Nullable
+    AnnotationInfoList typeAnnotationInfo;
 
     /** A hierarchical type signature. */
-    protected HierarchicalTypeSignature() {
+    HierarchicalTypeSignature() {
         super();
     }
 

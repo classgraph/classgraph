@@ -46,6 +46,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
+import java.util.function.Predicate;
 
 import nonapi.io.github.classgraph.utils.Assert;
 import nonapi.io.github.classgraph.utils.CollectionUtils;
@@ -206,7 +207,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
     // -------------------------------------------------------------------------------------------------------------
 
     /** Returns true if a Resource has a path ending in ".class". */
-    private static final ResourceFilter CLASSFILE_FILTER = resource -> {
+    private static final Predicate<Resource> CLASSFILE_FILTER = resource -> {
         final var path = resource.getPath();
         if (!path.endsWith(".class") || path.length() < 7) {
             return false;
@@ -232,7 +233,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      *         ".class".
      */
     public ResourceList nonClassFilesOnly() {
-        return filter(resource -> !CLASSFILE_FILTER.accept(resource));
+        return filter(CLASSFILE_FILTER.negate());
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -279,34 +280,18 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Filter a {@link ResourceList} using a predicate mapping a {@link Resource} object to a boolean, producing
-     * another {@link ResourceList} for all items in the list for which the predicate is true.
-     */
-    @FunctionalInterface
-    public interface ResourceFilter {
-        /**
-         * Whether or not to allow a {@link Resource} list item through the filter.
-         *
-         * @param resource
-         *            The {@link Resource} item to filter.
-         * @return Whether or not to allow the item through the filter. If true, the item is copied to the output
-         *         list; if false, it is excluded.
-         */
-        boolean accept(Resource resource);
-    }
-
-    /**
      * Find the subset of the {@link Resource} objects in this list for which the given filter predicate is true.
      *
      * @param filter
-     *            The {@link ResourceFilter} to apply.
+     *            The filter to apply. Only the {@link Resource} objects for which the filter returns true are
+     *            copied to the returned list.
      * @return The subset of the {@link Resource} objects in this list for which the given filter predicate is true.
      */
-    public ResourceList filter(final ResourceFilter filter) {
+    public ResourceList filter(final Predicate<Resource> filter) {
         Assert.notNull(filter, "filter");
         final var resourcesFiltered = new ResourceList();
         for (final Resource resource : this) {
-            if (filter.accept(resource)) {
+            if (filter.test(resource)) {
                 resourcesFiltered.add(resource);
             }
         }
@@ -340,16 +325,18 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      *
      * @param byteArrayConsumer
      *            The {@link ByteArrayConsumer}.
+     * @return this (for method chaining).
      * @throws IOException
      *             if loading any of the resources, or the consumer itself, throws {@link IOException}.
      */
-    public void forEachByteArray(final ByteArrayConsumer byteArrayConsumer) throws IOException {
+    public ResourceList forEachByteArray(final ByteArrayConsumer byteArrayConsumer) throws IOException {
         Assert.notNull(byteArrayConsumer, "byteArrayConsumer");
         for (final Resource resource : this) {
             try (resource) {
                 byteArrayConsumer.accept(resource, resource.load());
             }
         }
+        return this;
     }
 
     /**
@@ -358,8 +345,9 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      *
      * @param byteArrayConsumer
      *            The {@link ByteArrayConsumer}.
+     * @return this (for method chaining).
      */
-    public void forEachByteArrayIgnoringIOException(final ByteArrayConsumer byteArrayConsumer) {
+    public ResourceList forEachByteArrayIgnoringIOException(final ByteArrayConsumer byteArrayConsumer) {
         Assert.notNull(byteArrayConsumer, "byteArrayConsumer");
         for (final Resource resource : this) {
             try (resource) {
@@ -368,6 +356,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
                 // Ignore
             }
         }
+        return this;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -397,16 +386,18 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      *
      * @param inputStreamConsumer
      *            The {@link InputStreamConsumer}.
+     * @return this (for method chaining).
      * @throws IOException
      *             if opening any of the resources, or the consumer itself, throws {@link IOException}.
      */
-    public void forEachInputStream(final InputStreamConsumer inputStreamConsumer) throws IOException {
+    public ResourceList forEachInputStream(final InputStreamConsumer inputStreamConsumer) throws IOException {
         Assert.notNull(inputStreamConsumer, "inputStreamConsumer");
         for (final Resource resource : this) {
             try (resource) {
                 inputStreamConsumer.accept(resource, resource.open());
             }
         }
+        return this;
     }
 
     /**
@@ -415,8 +406,9 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      *
      * @param inputStreamConsumer
      *            The {@link InputStreamConsumer}.
+     * @return this (for method chaining).
      */
-    public void forEachInputStreamIgnoringIOException(final InputStreamConsumer inputStreamConsumer) {
+    public ResourceList forEachInputStreamIgnoringIOException(final InputStreamConsumer inputStreamConsumer) {
         Assert.notNull(inputStreamConsumer, "inputStreamConsumer");
         for (final Resource resource : this) {
             try (resource) {
@@ -425,6 +417,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
                 // Ignore
             }
         }
+        return this;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -454,16 +447,18 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      *
      * @param byteBufferConsumer
      *            The {@link ByteBufferConsumer}.
+     * @return this (for method chaining).
      * @throws IOException
      *             if reading any of the resources, or the consumer itself, throws {@link IOException}.
      */
-    public void forEachByteBuffer(final ByteBufferConsumer byteBufferConsumer) throws IOException {
+    public ResourceList forEachByteBuffer(final ByteBufferConsumer byteBufferConsumer) throws IOException {
         Assert.notNull(byteBufferConsumer, "byteBufferConsumer");
         for (final Resource resource : this) {
             try (resource) {
                 byteBufferConsumer.accept(resource, resource.read());
             }
         }
+        return this;
     }
 
     /**
@@ -472,8 +467,9 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      *
      * @param byteBufferConsumer
      *            The {@link ByteBufferConsumer}.
+     * @return this (for method chaining).
      */
-    public void forEachByteBufferIgnoringIOException(final ByteBufferConsumer byteBufferConsumer) {
+    public ResourceList forEachByteBufferIgnoringIOException(final ByteBufferConsumer byteBufferConsumer) {
         Assert.notNull(byteBufferConsumer, "byteBufferConsumer");
         for (final Resource resource : this) {
             try (resource) {
@@ -482,6 +478,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
                 // Ignore
             }
         }
+        return this;
     }
 
     // -------------------------------------------------------------------------------------------------------------

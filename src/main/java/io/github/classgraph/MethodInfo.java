@@ -78,7 +78,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
     AnnotationInfo @Nullable [][] parameterAnnotationInfo;
 
     /** Aligned method parameter info. */
-    private MethodParameterInfo @Nullable [] parameterInfo;
+    private @Nullable List<MethodParameterInfo> parameterInfo;
 
     /** True if this method has a body. */
     private boolean hasBody;
@@ -95,7 +95,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
     private @Nullable List<MethodTypeAnnotationDecorator> typeAnnotationDecorators;
 
     /** The names of the exceptions thrown by this method, or null if none. */
-    private String @Nullable [] thrownExceptionNames;
+    private @Nullable List<String> thrownExceptionNames;
 
     /** The exceptions thrown by this method, as a {@link ClassInfoList}. */
     private @Nullable ClassInfoList thrownExceptions;
@@ -150,7 +150,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
         this.minLineNum = minLineNum;
         this.maxLineNum = maxLineNum;
         this.typeAnnotationDecorators = methodTypeAnnotationDecorators;
-        this.thrownExceptionNames = thrownExceptionNames;
+        this.thrownExceptionNames = thrownExceptionNames == null ? null : List.of(thrownExceptionNames);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -365,7 +365,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
     public ClassInfoList getThrownExceptions() {
         synchronized (this) {
             if (thrownExceptions == null && thrownExceptionNames != null) {
-                thrownExceptions = new ClassInfoList(thrownExceptionNames.length);
+                thrownExceptions = new ClassInfoList(thrownExceptionNames.size());
                 for (final String thrownExceptionName : thrownExceptionNames) {
                     final var classInfo = scanResult().getClassInfo(thrownExceptionName);
                     if (classInfo != null) {
@@ -379,12 +379,14 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
     }
 
     /**
-     * Returns the exceptions thrown by the method, as an array.
+     * Returns the names of the exceptions thrown by the method, whether or not those exception classes were
+     * encountered during the scan. Compare with {@link #getThrownExceptions()}, which only lists the exceptions
+     * that were themselves scanned.
      *
-     * @return The exceptions thrown by the method, as an array (the array may be empty).
+     * @return The names of the exceptions thrown by the method, as an unmodifiable list (the list may be empty).
      */
-    public String[] getThrownExceptionNames() {
-        return thrownExceptionNames == null ? new String[0] : thrownExceptionNames;
+    public List<String> getThrownExceptionNames() {
+        return thrownExceptionNames == null ? List.of() : thrownExceptionNames;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -497,9 +499,10 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
     /**
      * Get the available information on method parameters.
      *
-     * @return The {@link MethodParameterInfo} objects for the method parameters, one per parameter.
+     * @return The {@link MethodParameterInfo} objects for the method parameters, one per parameter, as an
+     *         unmodifiable list (the list may be empty).
      */
-    public MethodParameterInfo[] getParameterInfo() {
+    public List<MethodParameterInfo> getParameterInfo() {
         // The four sources of parameter metadata -- the type signature, the type descriptor, the MethodParameters
         // attribute and the parameter annotations -- can disagree on how many parameters a method has, because a
         // compiler may record a parameter it generated in some of them but not the others. JVMS 4.7.9.1 sanctions
@@ -632,16 +635,17 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
                 }
 
                 // Generate MethodParameterInfo entries
-                parameterInfo = new MethodParameterInfo[numParams];
+                final var paramInfoArr = new MethodParameterInfo[numParams];
                 for (var i = 0; i < numParams; i++) {
-                    parameterInfo[i] = new MethodParameterInfo(this, i,
+                    paramInfoArr[i] = new MethodParameterInfo(this, i,
                             paramAnnotationInfoAligned == null ? null : paramAnnotationInfoAligned[i],
                             paramModifiersAligned == null ? 0 : paramModifiersAligned[i],
                             paramTypeDescriptorsAligned == null ? null : paramTypeDescriptorsAligned.get(i),
                             paramTypeSignaturesAligned == null ? null : paramTypeSignaturesAligned.get(i),
                             paramNamesAligned == null ? null : paramNamesAligned[i]);
-                    parameterInfo[i].setScanResult(scanResult);
+                    paramInfoArr[i].setScanResult(scanResult);
                 }
+                parameterInfo = List.of(paramInfoArr);
             }
             return parameterInfo;
         }
@@ -661,10 +665,11 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
         // tack on parameters *after* the variadic parameter, for variable capture with anonymous inner classes
         // (see #260)
         final var allParamInfo = getParameterInfo();
-        for (var i = allParamInfo.length - 1; i >= 0; --i) {
-            final var mods = allParamInfo[i].getModifiers();
+        for (var i = allParamInfo.size() - 1; i >= 0; --i) {
+            final var paramInfo = allParamInfo.get(i);
+            final var mods = paramInfo.getModifiers();
             if ((mods & /* synthetic */ 0x1000) == 0 && (mods & /* mandated */ 0x8000) == 0
-                    && allParamInfo[i].getTypeSignatureOrTypeDescriptor() instanceof ArrayTypeSignature) {
+                    && paramInfo.getTypeSignatureOrTypeDescriptor() instanceof ArrayTypeSignature) {
                 return i;
             }
         }
@@ -979,8 +984,8 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
         final var varArgsParamIndex = getVarArgsParamIndex();
 
         buf.append('(');
-        for (int i = 0, numParams = allParamInfo.length; i < numParams; i++) {
-            final var paramInfo = allParamInfo[i];
+        for (int i = 0, numParams = allParamInfo.size(); i < numParams; i++) {
+            final var paramInfo = allParamInfo.get(i);
             if (i > 0) {
                 buf.append(", ");
             }
@@ -1037,14 +1042,14 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
                 methodType.getThrowsSignatures().get(i).toString(useSimpleNames, buf);
             }
         } else {
-            if (thrownExceptionNames != null && thrownExceptionNames.length > 0) {
+            if (thrownExceptionNames != null && !thrownExceptionNames.isEmpty()) {
                 buf.append(" throws ");
-                for (var i = 0; i < thrownExceptionNames.length; i++) {
+                for (var i = 0; i < thrownExceptionNames.size(); i++) {
                     if (i > 0) {
                         buf.append(", ");
                     }
-                    buf.append(useSimpleNames ? ClassInfo.getSimpleName(thrownExceptionNames[i])
-                            : thrownExceptionNames[i]);
+                    final var thrownExceptionName = thrownExceptionNames.get(i);
+                    buf.append(useSimpleNames ? ClassInfo.getSimpleName(thrownExceptionName) : thrownExceptionName);
                 }
             }
         }

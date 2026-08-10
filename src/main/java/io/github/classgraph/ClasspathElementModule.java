@@ -518,7 +518,7 @@ class ClasspathElementModule extends ClasspathElement {
      */
     @Override
     URI getURI() {
-        final var uri = moduleRef.getLocation();
+        final var uri = moduleRef.getLocationURI();
         if (uri == null) {
             // Some modules have no known module location (ModuleReference#location() can return null)
             throw new IllegalStateException("Module " + getModuleName() + " has a null location");
@@ -540,7 +540,7 @@ class ClasspathElementModule extends ClasspathElement {
     @Nullable
     File getFile() {
         try {
-            final var uri = moduleRef.getLocation();
+            final var uri = moduleRef.getLocationURI();
             // N.B. uri.getScheme() is null for a relative URI, so compare in this order
             if (uri != null && !"jrt".equals(uri.getScheme())) {
                 final File file = new File(uri);

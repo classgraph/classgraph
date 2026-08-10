@@ -81,7 +81,7 @@ public class Issue355Test {
             assertThat(yDeps).contains(x);
 
             // Test array-typed method parameter
-            final var yParam = y.getMethodInfo().get(0).getParameterInfo()[0];
+            final var yParam = y.getMethodInfo().get(0).getParameterInfo().get(0);
             final var paramTypeSignature = (ArrayTypeSignature) yParam.getTypeSignatureOrTypeDescriptor();
             final var arrayClassInfo = paramTypeSignature.getArrayClassInfo();
             assertThat(arrayClassInfo.getElementClassInfo()).isEqualTo(x);

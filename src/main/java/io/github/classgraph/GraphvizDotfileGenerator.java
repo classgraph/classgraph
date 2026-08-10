@@ -313,7 +313,7 @@ final class GraphvizDotfileGenerator {
                 // Don't list static initializer blocks or methods of Object
                 final var mi = methodInfoSorted.get(i);
                 final var name = mi.getName();
-                final var numParam = mi.getParameterInfo().length;
+                final var numParam = mi.getParameterInfo().size();
                 if ("<clinit>".equals(name) || "hashCode".equals(name) && numParam == 0
                         || "toString".equals(name) && numParam == 0 || "equals".equals(name) && numParam == 1
                                 && "boolean (java.lang.Object)".equals(mi.getTypeDescriptor().toString())) {
@@ -390,8 +390,8 @@ final class GraphvizDotfileGenerator {
                     buf.append("<td align='left' valign='top'>");
                     buf.append('(');
                     final var paramInfo = mi.getParameterInfo();
-                    if (paramInfo.length != 0) {
-                        for (int i = 0, wrapPos = 0; i < paramInfo.length; i++) {
+                    if (!paramInfo.isEmpty()) {
+                        for (int i = 0, wrapPos = 0; i < paramInfo.size(); i++) {
                             if (i > 0) {
                                 buf.append(", ");
                                 wrapPos += 2;
@@ -402,7 +402,8 @@ final class GraphvizDotfileGenerator {
                             }
 
                             // Param annotation
-                            final var paramAnnotationInfo = paramInfo[i].annotationInfo;
+                            final var param = paramInfo.get(i);
+                            final var paramAnnotationInfo = param.annotationInfo;
                             if (paramAnnotationInfo != null) {
                                 for (final AnnotationInfo ai : paramAnnotationInfo) {
                                     final var ais = ai.toString();
@@ -423,14 +424,14 @@ final class GraphvizDotfileGenerator {
 
                             // Param type
                             final var paramTypeSig = Objects
-                                    .requireNonNull(paramInfo[i].getTypeSignatureOrTypeDescriptor());
+                                    .requireNonNull(param.getTypeSignatureOrTypeDescriptor());
                             final var paramTypeStr = useSimpleNames ? paramTypeSig.toStringWithSimpleNames()
                                     : paramTypeSig.toString();
                             htmlEncode(paramTypeStr, buf);
                             wrapPos += paramTypeStr.length();
 
                             // Param name
-                            final var paramName = paramInfo[i].getName();
+                            final var paramName = param.getName();
                             if (paramName != null) {
                                 buf.append(" <B>");
                                 htmlEncode(paramName, buf);

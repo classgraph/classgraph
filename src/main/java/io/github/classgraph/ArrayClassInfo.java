@@ -83,9 +83,9 @@ public class ArrayClassInfo extends ClassInfo {
     }
 
     /**
-     * Get the type signature of the class.
+     * Get the type signature of the array class, e.g. the {@link ArrayTypeSignature} for {@code "int[][]"}.
      *
-     * @return The class type signature, if available, otherwise returns null.
+     * @return The array type signature of the class.
      */
     public ArrayTypeSignature getArrayTypeSignature() {
         return arrayTypeSignature;

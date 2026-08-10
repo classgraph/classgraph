@@ -43,28 +43,30 @@ import org.jspecify.annotations.Nullable;
  */
 public abstract class ClassMemberInfo extends ScanResultObject implements HasName {
     /** Defining class name. */
-    protected String declaringClassName;
+    String declaringClassName;
 
     /** The name of the class member. */
-    protected String name;
+    String name;
 
     /** Class member modifiers. */
-    protected int modifiers;
+    int modifiers;
 
     /**
      * The JVM-internal type descriptor (missing type parameters, but including types for synthetic and mandated
      * class member parameters).
      */
-    protected String typeDescriptorStr;
+    String typeDescriptorStr;
 
     /**
      * The type signature (may have type parameter information included, if present and available). Class member
      * parameter types are unaligned.
      */
-    protected @Nullable String typeSignatureStr;
+    @Nullable
+    String typeSignatureStr;
 
     /** The annotation on the class member, if any. */
-    protected @Nullable AnnotationInfoList annotationInfo;
+    @Nullable
+    AnnotationInfoList annotationInfo;
 
     /** The annotation infos, once they are loaded */
     private @Nullable AnnotationInfoList annotationInfoRef;
@@ -85,7 +87,7 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
      * @param annotationInfo
      *            {@link AnnotationInfo} for any annotations on the class member.
      */
-    protected ClassMemberInfo(final String definingClassName, final String memberName, final int modifiers,
+    ClassMemberInfo(final String definingClassName, final String memberName, final int modifiers,
             final String typeDescriptorStr, final @Nullable String typeSignatureStr,
             final @Nullable AnnotationInfoList annotationInfo) {
         super();

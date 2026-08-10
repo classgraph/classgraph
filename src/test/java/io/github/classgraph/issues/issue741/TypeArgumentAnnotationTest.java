@@ -43,7 +43,7 @@ public class TypeArgumentAnnotationTest {
                 .acceptPackages(TypeArgumentAnnotationTest.class.getPackage().getName()).enableAllInfo().scan()) {
             final var cls = scanResult.getClassInfo(TypeArgumentAnnotationTest.class.getName());
             final var method = cls.getMethodInfo().get("setValueList").get(0);
-            final var parameterInfo = method.getParameterInfo()[0];
+            final var parameterInfo = method.getParameterInfo().get(0);
             final var typeArgument = ((ClassRefTypeSignature) parameterInfo.getTypeSignatureOrTypeDescriptor())
                     .getTypeArguments().get(0);
             final var annotationInfoList = typeArgument.getTypeAnnotationInfo();

@@ -281,8 +281,10 @@ compiler's `-Xlint:exports` check is enabled to keep it that way.
 * The `protected` `addTypeAnnotation` methods of `HierarchicalTypeSignature`,
   `TypeSignature` and their subclasses took the internal `Classfile.TypePathNode` type.
 * The constructors of the abstract classes `ClassMemberInfo` and
-  `HierarchicalTypeSignature` were `public`, which is meaningless on an abstract class:
-  they are now `protected`. Subclasses are unaffected.
+  `HierarchicalTypeSignature` were `public`, which is meaningless on an abstract class.
+  They are now package-private, along with the other constructors and fields listed under
+  "Public and `protected` fields are now private, behind getters" below. Subclasses inside
+  ClassGraph are unaffected.
 * `TypeArgument#findReferencedClassNames(Set)` was `public`, while the same method on
   all nine of its sibling type signature classes is `protected`. It is now `protected`
   too. It takes an output set that only the scanner populates, so there was nothing a
@@ -411,6 +413,8 @@ that is not updated will not compile, rather than silently changing meaning.
 | `MethodInfo` / `FieldInfo` `#getAnnotationInfoRepeatable(...)` | `#getAllAnnotationInfoRepeatable(...)` | `#getDirectAnnotationInfoRepeatable(...)` |
 | `MethodParameterInfo#getAnnotationInfo(...)` | `#getAllAnnotationInfo(...)` | `#getDirectAnnotationInfo(...)` |
 | `MethodParameterInfo#getAnnotationInfoRepeatable(...)` | `#getAllAnnotationInfoRepeatable(...)` | `#getDirectAnnotationInfoRepeatable(...)` |
+| `PackageInfo` / `ModuleInfo` `#getAnnotationInfo(...)` | `#getAllAnnotationInfo(...)` | `#getDirectAnnotationInfo(...)` |
+| (none in 4.x) | `PackageInfo` / `ModuleInfo` `#getAllAnnotationInfoRepeatable(...)` | `#getDirectAnnotationInfoRepeatable(...)` |
 | `ScanResult#getSubclasses(Class \| String)` | `ScanResult#getAllSubclasses(...)` | `ScanResult#getDirectSubclasses(...)` |
 | `ScanResult#getSuperclasses(Class \| String)` | `ScanResult#getAllSuperclasses(...)` | `ScanResult#getSuperclass()` on the `ClassInfo` |
 | `ScanResult#getInterfaces(Class \| String)` | `ScanResult#getAllSuperinterfaces(...)` | `ScanResult#getDirectSuperinterfaces(...)` |
@@ -423,8 +427,18 @@ member or method parameter plus the meta-annotations reachable from them (and, f
 class, any `@Inherited` annotation on a superclass) — exactly what 4.x returned.
 `MethodParameterInfo` had only the "all" half of this pair, under the name
 `getAnnotationInfo(...)`; it now has both halves, named like the rest.
-`PackageInfo#getAnnotationInfo(...)` and `ModuleInfo#getAnnotationInfo(...)` keep their
-names, since neither has ever expanded meta-annotations.
+
+`PackageInfo` and `ModuleInfo` had neither half: their `getAnnotationInfo(...)` methods
+returned only the annotations directly present on `package-info.class` /
+`module-info.class`, without saying so in the name, and there was no way to ask for the
+meta-annotations. Both classes now carry the same twelve-method annotation surface as
+`ClassInfo` and the class members, so `getAllAnnotationInfo()` on a package or module
+expands meta-annotations, and `getDirectAnnotationInfo()` is what 4.x's
+`getAnnotationInfo()` returned. **This is a behavior change as well as a rename**: if a
+package annotation is itself annotated, the meta-annotation now shows up in
+`getAllAnnotationInfo()`, and `hasAnnotation()` (which asks the "all" list) now answers
+true for it. Use `getDirectAnnotationInfo(...)` to get 4.x's answer. (`@Inherited` plays
+no part here, since a package and a module have no superclass.)
 
 `.directOnly()` still exists on `ClassInfoList` and `AnnotationInfoList`, so the 4.x
 idiom keeps working; the `getDirect...` methods are just the direct way to ask.
@@ -520,21 +534,32 @@ The abbreviation was only ever there to keep the names short:
 | `MethodParameterInfo#getModifiersStr()` | `MethodParameterInfo#getModifiersString()` |
 | `ArrayClassInfo#getTypeSignatureStr()` | `ArrayClassInfo#getTypeSignatureString()` |
 | `ArrayTypeSignature#getTypeSignatureStr()` | `ArrayTypeSignature#getTypeSignatureString()` |
-| `BaseTypeSignature#getTypeStr()` | `BaseTypeSignature#getTypeString()` |
+| `BaseTypeSignature#getTypeStr()` | `BaseTypeSignature#getTypeName()` (see below) |
 | `ModuleRef#getLocationStr()` | `ModuleRef#getLocationString()` |
+
+`BaseTypeSignature`'s method is the exception: it does not return a signature string, it
+returns the name of a primitive type (`"int"`, `"void"`). It is now `getTypeName()`,
+matching `Class#getTypeName()` and `java.lang.reflect.Type#getTypeName()`, which return
+exactly the same string for the same type.
 
 ### Getters and predicates now say `get...` / `is...`, and milliseconds say `Millis`
 
 | ClassGraph 4.x | ClassGraph 5.x |
 | --- | --- |
 | `Resource#getLastModified()` | `Resource#getLastModifiedMillis()` |
-| `ScanResult#classpathContentsLastModifiedTime()` | `ScanResult#getClasspathContentsLastModifiedTimeMillis()` |
+| `ScanResult#classpathContentsLastModifiedTime()` | `ScanResult#getClasspathContentsLastModifiedMillis()` |
 | `ScanResult#classpathContentsModifiedSinceScan()` | `ScanResult#isClasspathContentsModifiedSinceScan()` |
+| `ModuleRef#getLocation()` | `ModuleRef#getLocationURI()` |
+| `ModuleInfo#getLocation()` | `ModuleInfo#getLocationURI()` |
 
 Both time values were already in milliseconds since the epoch; the names now say so, as
 `FastZipEntry#getLastModifiedTimeMillis()` and `Resource#getLastModifiedMillis()`'s own
 Javadoc already did. The value returned by `Resource#getLastModifiedMillis()` is 0L when
 the last modified time is unknown, as before.
+
+The two `getLocation()` methods return a `URI`, and each sits next to a
+`getLocationString()` and (on `ModuleRef`) a `getLocationFile()` that say in their names
+what they return. `getLocationURI()` completes that set.
 
 ### `AnnotationInfo#getParameterValues(boolean)` is now two methods
 
@@ -620,6 +645,104 @@ came from, and stop being usable once it is closed.
 One consequence inside ClassGraph: `ScanResult#close()` no longer calls `clear()` on the
 cached resource list and resource map before dropping them, since the caller may be holding
 one of them. It drops the references instead, so the collections are still released.
+
+A mutation that would not have changed the contents of the list — `clear()` on an empty
+one, `addAll(List.of())`, `retainAll()` with a collection that already holds everything —
+threw in some of those cases in 4.x and silently did nothing in others. All of them now
+throw, which is what `Collections.unmodifiableList()` does, so the type of the list no
+longer decides whether a no-op write is rejected.
+
+### Arrays returned by the API are now unmodifiable lists
+
+An array return hands the caller a copy of ClassGraph's own array (or, worse, the array
+itself), and nothing in the signature says whether writing to it is safe. These two now
+return unmodifiable `List`s, like every other multi-valued return in the API:
+
+| ClassGraph 4.x | ClassGraph 5.x |
+| --- | --- |
+| `MethodInfo#getParameterInfo()` → `MethodParameterInfo[]` | → `List<MethodParameterInfo>` |
+| `MethodInfo#getThrownExceptionNames()` → `String[]` | → `List<String>` |
+
+`MethodInfo#getThrownExceptions()` already returned a `ClassInfoList` and is unchanged.
+`Resource#load()` still returns `byte[]`: it is file content rather than a collection, and
+each call already returns a fresh array.
+
+### Public and `protected` fields are now private, behind getters
+
+Mutable state that was reachable from outside the class is now private, with a getter that
+returns an unmodifiable view where the value is a collection:
+
+* `ModulePathInfo`'s six `public final Set<String>` fields — `modulePath`, `addModules`,
+  `patchModules`, `addExports`, `addOpens`, `addReads` — are private, and are read through
+  `getModulePath()`, `getAddModules()`, `getPatchModules()`, `getAddExports()`,
+  `getAddOpens()` and `getAddReads()`, each returning an unmodifiable `Set<String>`. In 4.x
+  the sets were `final` but their *contents* were not, so a caller could add entries to
+  ClassGraph's parsed module path.
+* `ClassGraph.CIRCUMVENT_ENCAPSULATION` was a `public static` field holding an enum value.
+  It is now a private `volatile` field behind
+  `ClassGraph#getCircumventEncapsulationMethod()` and
+  `ClassGraph#setCircumventEncapsulationMethod(CircumventEncapsulationMethod)`.
+* The `protected` fields of `ClassInfo` (`name`, `typeSignatureStr`, `isExternalClass`,
+  `isScannedClass`, `classfileResource`), `ClassMemberInfo` (`declaringClassName`, `name`,
+  `modifiers`, `typeDescriptorStr`, `typeSignatureStr`, `annotationInfo`), `Resource`
+  (`inputStream`, `byteBuffer`, `length`) and `HierarchicalTypeSignature`
+  (`typeAnnotationInfo`) are now package-private. Every one of them already had a public
+  getter.
+* The `protected` constructors of `ClassInfo`, `ClassMemberInfo`, `HierarchicalTypeSignature`,
+  `TypeSignature`, `ReferenceTypeSignature`, `ClassRefOrTypeVariableSignature` and
+  `TypeParameter` are now package-private, along with `MethodParameterInfo#setScanResult`.
+  These classes only ever come from a scan — a subclass built outside ClassGraph has no
+  `ScanResult` behind it and throws as soon as it is asked anything — so `protected` was
+  advertising an extension point that never worked.
+
+### Method chaining
+
+Methods that returned `void` but had an obvious receiver to hand back now return it, so
+they can be chained:
+
+* `ResourceList#forEachByteArray`, `#forEachByteArrayIgnoringIOException`,
+  `#forEachInputStream`, `#forEachInputStreamIgnoringIOException`, `#forEachByteBuffer` and
+  `#forEachByteBufferIgnoringIOException` return the `ResourceList`.
+* `ClassInfoList#writeGraphVizDotFile(File)`, `#writeGraphVizDotFile(File,
+  GraphVizDotFileOptions)`, `#writeGraphVizDotFileFromInterClassDependencies(File)` and
+  `#writeGraphVizDotFileFromInterClassDependencies(File, GraphVizDotFileOptions)` return the
+  `ClassInfoList`.
+
+Nothing else changes about these methods; code that ignores the return value is unaffected.
+
+### The callback interfaces have been replaced by `Predicate` and `Consumer`
+
+ClassGraph declared ten single-method interfaces of its own, each one structurally
+identical to a JDK functional interface that has existed since Java 8. They are gone, and
+the methods that took them take the JDK type instead:
+
+| Removed interface | Now takes |
+| --- | --- |
+| `ClassInfoList.ClassInfoFilter` | `Predicate<ClassInfo>` |
+| `AnnotationInfoList.AnnotationInfoFilter` | `Predicate<AnnotationInfo>` |
+| `FieldInfoList.FieldInfoFilter` | `Predicate<FieldInfo>` |
+| `MethodInfoList.MethodInfoFilter` | `Predicate<MethodInfo>` |
+| `PackageInfoList.PackageInfoFilter` | `Predicate<PackageInfo>` |
+| `ModuleInfoList.ModuleInfoFilter` | `Predicate<ModuleInfo>` |
+| `ResourceList.ResourceFilter` | `Predicate<Resource>` |
+| `ClassGraph.ClasspathElementFilter` | `Predicate<String>` |
+| `ClassGraph.ClasspathElementURLFilter` | `Predicate<URL>` |
+| `ClassGraph.ScanResultProcessor` | `Consumer<ScanResult>` |
+| `ClassGraph.FailureHandler` | `Consumer<Throwable>` |
+
+A lambda or method reference passed to any of these methods compiles unchanged, since the
+shape of the argument is the same. What has to change is code that names one of the types
+— an anonymous class, a stored filter in a field, or an implementing class — and the
+method name inside it: the filters' `accept(...)` is `Predicate#test(...)`,
+`ScanResultProcessor#processScanResult(...)` and `FailureHandler#onFailure(...)` are both
+`Consumer#accept(...)`.
+
+In exchange, the JDK's combinators are available: `filter(p.negate())`,
+`filter(p1.and(p2))`, `filter(p1.or(p2))`. `ResourceList#nonClassFilesOnly()` is now
+written as `classFilesOnly`'s predicate, negated.
+
+`ResourceList`'s `ByteArrayConsumer`, `InputStreamConsumer` and `ByteBufferConsumer` are
+**kept**, because their methods throw `IOException` and no JDK functional interface does.
 
 ### `ClassInfoList#getAssignableTo` accepts a class or a class name
 

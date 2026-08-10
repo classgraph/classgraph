@@ -37,6 +37,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Predicate;
 
 import nonapi.io.github.classgraph.utils.Assert;
 import nonapi.io.github.classgraph.utils.LogNode;
@@ -227,35 +228,19 @@ public class MethodInfoList extends InfoList<MethodInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Filter an {@link MethodInfoList} using a predicate mapping an {@link MethodInfo} object to a boolean,
-     * producing another {@link MethodInfoList} for all items in the list for which the predicate is true.
-     */
-    @FunctionalInterface
-    public interface MethodInfoFilter {
-        /**
-         * Whether or not to allow an {@link MethodInfo} list item through the filter.
-         *
-         * @param methodInfo
-         *            The {@link MethodInfo} item to filter.
-         * @return Whether or not to allow the item through the filter. If true, the item is copied to the output
-         *         list; if false, it is excluded.
-         */
-        boolean accept(MethodInfo methodInfo);
-    }
-
-    /**
      * Find the subset of the {@link MethodInfo} objects in this list for which the given filter predicate is true.
      *
      * @param filter
-     *            The {@link MethodInfoFilter} to apply.
+     *            The filter to apply. Only the {@link MethodInfo} objects for which the filter returns true are
+     *            copied to the returned list.
      * @return The subset of the {@link MethodInfo} objects in this list for which the given filter predicate is
      *         true.
      */
-    public MethodInfoList filter(final MethodInfoFilter filter) {
+    public MethodInfoList filter(final Predicate<MethodInfo> filter) {
         Assert.notNull(filter, "filter");
         final MethodInfoList methodInfoFiltered = new MethodInfoList();
         for (final MethodInfo methodInfo : this) {
-            if (filter.accept(methodInfo)) {
+            if (filter.test(methodInfo)) {
                 methodInfoFiltered.add(methodInfo);
             }
         }

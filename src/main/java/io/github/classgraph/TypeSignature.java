@@ -50,7 +50,7 @@ import org.jspecify.annotations.Nullable;
  */
 public abstract class TypeSignature extends HierarchicalTypeSignature {
     /** Constructor. */
-    protected TypeSignature() {
+    TypeSignature() {
         // Empty
     }
 

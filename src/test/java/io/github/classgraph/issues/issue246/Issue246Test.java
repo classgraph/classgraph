@@ -48,7 +48,7 @@ public class Issue246Test {
                     scanResult.getClassInfo(Issue246Test.class.getName()) //
                             .getMethodInfo() //
                             .getSingleMethod("dummyMethodWithParameter") //
-                            .getParameterInfo()[0] //
+                            .getParameterInfo().get(0) //
                             .getAllAnnotationInfo().size());
         }
     }
