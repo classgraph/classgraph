@@ -35,8 +35,12 @@ public class OverrideClasspathPathTest {
         final Path dir0 = Files.createDirectories(tempDir.resolve("classpathElement0"));
         final Path dir1 = Files.createDirectories(tempDir.resolve("classpathElement1"));
 
+        // Classpath entries are canonicalized, so the expected paths have to be canonicalized too -- on macOS the
+        // temp directory is reached through the symlink /var -> /private/var, and on Windows through an 8.3 short
+        // name (C:\Users\RUNNER~1).
         try (ScanResult scanResult = new ClassGraph().overrideClasspath(Arrays.asList(dir0, dir1)).scan()) {
-            assertThat(scanResult.getClasspathFiles()).containsExactly(dir0.toFile(), dir1.toFile());
+            assertThat(scanResult.getClasspathFiles()).containsExactly(dir0.toRealPath().toFile(),
+                    dir1.toRealPath().toFile());
         }
     }
 }
