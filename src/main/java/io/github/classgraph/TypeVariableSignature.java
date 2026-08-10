@@ -30,6 +30,7 @@ package io.github.classgraph;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -284,11 +285,32 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
      */
     @Override
     public boolean equalsIgnoringTypeParams(final TypeSignature other) {
+        return equalsIgnoringTypeParams(other, new HashSet<String>());
+    }
+
+    /**
+     * Compare this type variable to another type signature, ignoring generic type parameters.
+     *
+     * @param other
+     *            the other type signature to compare to, or null.
+     * @param visitedTypeVariableNames
+     *            the names of the type variables whose bounds are already being compared, so that a chain of type
+     *            variable bounds that loops back on itself is not followed forever.
+     * @return true if the two type signatures are equal, ignoring type parameters.
+     */
+    private boolean equalsIgnoringTypeParams(final TypeSignature other,
+            final Set<String> visitedTypeVariableNames) {
         if (other instanceof ClassRefTypeSignature) {
-            if (((ClassRefTypeSignature) other).className.equals("java.lang.Object")) {
+            final ClassRefTypeSignature otherClassRef = (ClassRefTypeSignature) other;
+            if (otherClassRef.className.equals("java.lang.Object")) {
                 // java.lang.Object can be reconciled with any type, so it can be reconciled with
                 // any type variable
                 return true;
+            }
+            if (!visitedTypeVariableNames.add(name)) {
+                // Cyclic type variable bounds ("class C<A extends B, B extends A>") are rejected by javac, but a
+                // classfile can still contain them, so stop rather than following the cycle forever
+                return false;
             }
             // Resolve the type variable against the containing class' type parameters
             TypeParameter typeParameter;
@@ -305,31 +327,16 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
                 // to the class by type inference
                 return true;
             }
-            if (typeParameter.classBound != null) {
-                if (typeParameter.classBound instanceof ClassRefTypeSignature) {
-                    if (typeParameter.classBound.equals(other)) {
-                        // T extends X, and X == other
-                        return true;
-                    }
-                } else if (typeParameter.classBound instanceof TypeVariableSignature) {
-                    // "X" is reconcilable with "Y extends X"
-                    return this.equalsIgnoringTypeParams(typeParameter.classBound);
-                } else /* if (typeParameter.classBound instanceof ArrayTypeSignature) */ {
-                    return false;
-                }
+            // T extends X, and X can be reconciled with 'other'
+            if (typeParameter.classBound != null && boundIsReconcilableWith(typeParameter.classBound, otherClassRef,
+                    visitedTypeVariableNames)) {
+                return true;
             }
+            // T implements X, and X can be reconciled with 'other'
             if (typeParameter.interfaceBounds != null) {
                 for (final ReferenceTypeSignature interfaceBound : typeParameter.interfaceBounds) {
-                    if (interfaceBound instanceof ClassRefTypeSignature) {
-                        if (interfaceBound.equals(other)) {
-                            // T implements X, and X == other
-                            return true;
-                        }
-                    } else if (interfaceBound instanceof TypeVariableSignature) {
-                        // "X" is reconcilable with "Y implements X"
-                        return this.equalsIgnoringTypeParams(interfaceBound);
-                    } else /* if (interfaceBound instanceof ArrayTypeSignature) */ {
-                        return false;
+                    if (boundIsReconcilableWith(interfaceBound, otherClassRef, visitedTypeVariableNames)) {
+                        return true;
                     }
                 }
             }
@@ -344,6 +351,35 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
         // triggered in general, since we only compare type-erased signatures to
         // non-type-erased signatures currently).
         return this.equals(other);
+    }
+
+    /**
+     * Test whether one of the bounds of a type variable can be reconciled with a class reference.
+     *
+     * @param bound
+     *            a class bound or interface bound of the type variable.
+     * @param other
+     *            the class reference.
+     * @param visitedTypeVariableNames
+     *            the names of the type variables whose bounds are already being compared.
+     * @return true if the bound can be reconciled with the class reference.
+     */
+    private static boolean boundIsReconcilableWith(final ReferenceTypeSignature bound,
+            final ClassRefTypeSignature other, final Set<String> visitedTypeVariableNames) {
+        if (bound instanceof ClassRefTypeSignature) {
+            // A type variable with no bound of its own is written into the classfile with java.lang.Object as its
+            // bound, and java.lang.Object can be reconciled with any type. Otherwise the bound is compared with the
+            // class reference, ignoring type arguments, as for any other comparison made by this method.
+            final ClassRefTypeSignature classRefBound = (ClassRefTypeSignature) bound;
+            return classRefBound.className.equals("java.lang.Object")
+                    || classRefBound.equalsIgnoringTypeParams(other);
+        }
+        if (bound instanceof TypeVariableSignature) {
+            // "X" is reconcilable with "Y extends X", so compare the bound's own bounds with the class reference
+            return ((TypeVariableSignature) bound).equalsIgnoringTypeParams(other, visitedTypeVariableNames);
+        }
+        // An array bound is not reconcilable with a class reference
+        return false;
     }
 
     /**
