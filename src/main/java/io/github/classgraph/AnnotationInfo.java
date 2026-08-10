@@ -89,19 +89,27 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     /**
      * Checks if the annotation is inherited.
      *
-     * @return true if this annotation is meta-annotated with {@link Inherited}.
+     * @return true if this annotation is meta-annotated with {@link Inherited}. If the annotation class was not
+     *         scanned, this is not known, so false is returned.
      */
     public boolean isInherited() {
-        return Objects.requireNonNull(getClassInfo()).isInherited;
+        // The annotation class is not scanned for a type annotation declared outside the accepted packages, unlike
+        // a declaration annotation, which always gets at least a placeholder ClassInfo
+        final var classInfo = getClassInfo();
+        return classInfo != null && classInfo.isInherited;
     }
 
     /**
      * Get the default parameter values.
      *
-     * @return the list of default parameter values for this annotation, or the empty list if none.
+     * @return the list of default parameter values for this annotation, or the empty list if none. Default
+     *         parameter values are declared by the annotation class, so if the annotation class was not scanned,
+     *         the empty list is returned.
      */
     public AnnotationParameterValueList getDefaultParameterValues() {
-        return Objects.requireNonNull(getClassInfo()).getAnnotationDefaultParameterValues();
+        final var classInfo = getClassInfo();
+        return classInfo == null ? AnnotationParameterValueList.EMPTY_LIST
+                : classInfo.getAnnotationDefaultParameterValues();
     }
 
     /**

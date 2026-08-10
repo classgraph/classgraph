@@ -1118,6 +1118,18 @@ is fixed on the 4.x branch as well.
   with an explanatory message in that situation. All four now do. This is still the
   behavior on the 4.x branch, where the exception type is part of the released API.
 
+* `AnnotationInfo#isInherited()` and `AnnotationInfo#getDefaultParameterValues()` threw a
+  bare `NullPointerException`, with no message, for an annotation whose own class was not
+  scanned. Both read their answer from the annotation class' `ClassInfo`, and asserted
+  that it was non-null. A declaration annotation always has at least a placeholder
+  `ClassInfo`, because the annotation is recorded in the class graph, but a type
+  annotation does not, so any type annotation declared outside the accepted packages hit
+  this — including JSpecify's `@Nullable`, which made the two methods unusable on most
+  real scans. `isInherited()` now returns false, since an unscanned annotation class is
+  not known to be meta-annotated with `@Inherited`, and `getDefaultParameterValues()` now
+  returns the empty list, as its documentation already said it would when there are no
+  default values.
+
 Two further bugs found during the port were only reachable through the JSON
 serialization API, which 5.x removes (`AnnotationParameterValue#toString()` threw
 `NullPointerException` for a null parameter value, and `ScanResult#fromJSON(String)` did
