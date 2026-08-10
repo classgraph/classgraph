@@ -50,6 +50,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 
 import io.github.classgraph.Classfile.ClassContainment;
 import io.github.classgraph.Classfile.ClassTypeAnnotationDecorator;
@@ -2251,6 +2252,48 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
+     * Get the classes that have this class as a direct field, method or method parameter annotation.
+     *
+     * @param relType
+     *            One of {@link RelType#CLASSES_WITH_FIELD_ANNOTATION},
+     *            {@link RelType#CLASSES_WITH_METHOD_ANNOTATION}, or
+     *            {@link RelType#CLASSES_WITH_METHOD_PARAMETER_ANNOTATION}.
+     * @return A list of classes that declare a field, method or method parameter that is directly annotated (i.e.
+     *         is not meta-annotated) with this annotation, or the empty list if none.
+     */
+    private ClassInfoList getClassesWithFieldOrMethodAnnotationDirectOnly(final RelType relType) {
+        return new ClassInfoList(this.filterClassInfo(relType, /* strictAccept = */ true), /* sortByName = */ true);
+    }
+
+    /**
+     * Get the classes that have this class as a field, method or method parameter annotation, plus the subclasses
+     * of any class whose annotated field or method is non-private, since non-private fields and methods are
+     * inherited.
+     *
+     * @param relType
+     *            One of {@link RelType#CLASSES_WITH_FIELD_ANNOTATION},
+     *            {@link RelType#CLASSES_WITH_METHOD_ANNOTATION}, or
+     *            {@link RelType#CLASSES_WITH_METHOD_PARAMETER_ANNOTATION}.
+     * @param nonprivateRelType
+     *            the corresponding {@code CLASSES_WITH_NONPRIVATE_*} relation type.
+     * @return A list of classes that have a field, method or method parameter with this annotation or
+     *         meta-annotation, or the empty list if none.
+     */
+    private ClassInfoList getClassesWithFieldOrMethodAnnotationAndSubclasses(final RelType relType,
+            final RelType nonprivateRelType) {
+        // Get all classes that have a field or method annotated or meta-annotated with this annotation
+        final Set<ClassInfo> classesWithAnnotation = new HashSet<>(getClassesWithFieldOrMethodAnnotation(relType));
+        // Add subclasses of all classes with a field or method that is non-privately annotated or meta-annotated
+        // with this annotation, since non-private fields and methods are inherited
+        for (final ClassInfo classWithNonprivateAnnotation : getClassesWithFieldOrMethodAnnotation(
+                nonprivateRelType)) {
+            classesWithAnnotation.addAll(classWithNonprivateAnnotation.getAllSubclasses());
+        }
+        return new ClassInfoList(classesWithAnnotation,
+                new HashSet<>(getClassesWithFieldOrMethodAnnotationDirectOnly(relType)), /* sortByName = */ true);
+    }
+
+    /**
      * Get the classes that have this class as a field, method or method parameter annotation.
      *
      * @param relType
@@ -2406,89 +2449,77 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     // Methods
 
     /**
-     * Get the declared methods, constructors, and/or static initializer methods of the class.
+     * Get the methods and/or constructors declared by the class. Static initializer blocks are never returned --
+     * they can only be reached by name, via {@link #getDeclaredMethodInfo(String)}.
      *
-     * @param methodName
-     *            the method name
      * @param getNormalMethods
-     *            whether to get normal methods
+     *            whether to get methods that are not constructors
      * @param getConstructorMethods
-     *            whether to get constructor methods
-     * @param getStaticInitializerMethods
-     *            whether to get static initializer methods
+     *            whether to get constructors
      * @return the declared method info
      */
-    private MethodInfoList getDeclaredMethodInfo(final @Nullable String methodName, final boolean getNormalMethods,
-            final boolean getConstructorMethods, final boolean getStaticInitializerMethods) {
+    private MethodInfoList getDeclaredMethodInfoOfKind(final boolean getNormalMethods,
+            final boolean getConstructorMethods) {
         if (!scanResult().scanSpec.enableMethodInfo) {
             throw new IllegalStateException("Please call ClassGraph#enableMethodInfo() before #scan()");
         }
         if (methodInfo == null) {
             return MethodInfoList.EMPTY_LIST;
         }
-        if (methodName == null) {
-            // If no method name is provided, filter for methods with the right type (normal method / constructor /
-            // static initializer)
-            final MethodInfoList methodInfoList = new MethodInfoList();
-            for (final MethodInfo mi : methodInfo) {
-                final var miName = mi.getName();
-                final var isConstructor = "<init>".equals(miName);
-                // (Currently static initializer methods are never returned by public methods)
-                final var isStaticInitializer = "<clinit>".equals(miName);
-                if ((isConstructor && getConstructorMethods) || (isStaticInitializer && getStaticInitializerMethods)
-                        || (!isConstructor && !isStaticInitializer && getNormalMethods)) {
-                    methodInfoList.add(mi);
-                }
+        final var methodInfoList = new MethodInfoList();
+        for (final MethodInfo mi : methodInfo) {
+            final var miName = mi.getName();
+            final var isConstructor = "<init>".equals(miName);
+            final var isStaticInitializer = "<clinit>".equals(miName);
+            if (isConstructor ? getConstructorMethods : !isStaticInitializer && getNormalMethods) {
+                methodInfoList.add(mi);
             }
-            return unmodifiable(methodInfoList);
-        } else {
-            // If method name is provided, filter for methods whose name matches, and ignore method type
-            var hasMethodWithName = false;
-            for (final MethodInfo f : methodInfo) {
-                if (f.getName().equals(methodName)) {
-                    hasMethodWithName = true;
-                    break;
-                }
-            }
-            if (!hasMethodWithName) {
-                return MethodInfoList.EMPTY_LIST;
-            }
-            final MethodInfoList methodInfoList = new MethodInfoList();
-            for (final MethodInfo mi : methodInfo) {
-                if (mi.getName().equals(methodName)) {
-                    methodInfoList.add(mi);
-                }
-            }
-            return unmodifiable(methodInfoList);
         }
+        return unmodifiable(methodInfoList);
     }
 
     /**
-     * Get the methods, constructors, and/or static initializer methods of the class.
+     * Get the methods declared by the class that have the given name. Unlike
+     * {@link #getDeclaredMethodInfoOfKind(boolean, boolean)}, this ignores the kind of the method, so it can return
+     * constructors ({@code "<init>"}) and static initializer blocks ({@code "<clinit>"}).
      *
      * @param methodName
      *            the method name
-     * @param getNormalMethods
-     *            whether to get normal methods
-     * @param getConstructorMethods
-     *            whether to get constructor methods
-     * @param getStaticInitializerMethods
-     *            whether to get static initializer methods
-     * @return the method info
+     * @return the declared method info
      */
-    private MethodInfoList getMethodInfo(final @Nullable String methodName, final boolean getNormalMethods,
-            final boolean getConstructorMethods, final boolean getStaticInitializerMethods) {
+    private MethodInfoList getDeclaredMethodInfoWithName(final String methodName) {
         if (!scanResult().scanSpec.enableMethodInfo) {
             throw new IllegalStateException("Please call ClassGraph#enableMethodInfo() before #scan()");
         }
-        // Implement method/constructor overriding
-        final MethodInfoList methodInfoList = new MethodInfoList();
+        if (methodInfo == null) {
+            return MethodInfoList.EMPTY_LIST;
+        }
+        final var methodInfoList = new MethodInfoList();
+        for (final MethodInfo mi : methodInfo) {
+            if (mi.getName().equals(methodName)) {
+                methodInfoList.add(mi);
+            }
+        }
+        return methodInfoList.isEmpty() ? MethodInfoList.EMPTY_LIST : unmodifiable(methodInfoList);
+    }
+
+    /**
+     * Merge the declared methods of this class and of its superclasses and interfaces, in method override order,
+     * dropping any method that was already overridden by a method of the same name and type descriptor.
+     *
+     * @param declaredMethodsOf
+     *            returns the declared methods to merge, for one class in the override order
+     * @return the merged method info
+     */
+    private MethodInfoList mergeDeclaredMethodsInOverrideOrder(
+            final Function<ClassInfo, MethodInfoList> declaredMethodsOf) {
+        if (!scanResult().scanSpec.enableMethodInfo) {
+            throw new IllegalStateException("Please call ClassGraph#enableMethodInfo() before #scan()");
+        }
+        final var methodInfoList = new MethodInfoList();
         final Set<Entry<String, String>> nameAndTypeDescriptorSet = new HashSet<>();
         for (final ClassInfo ci : getMethodOverrideOrder()) {
-            // Constructors are not inherited from superclasses
-            final var shouldGetConstructorMethods = ci == this && getConstructorMethods;
-            for (final MethodInfo mi : ci.getDeclaredMethodInfo(methodName, getNormalMethods,
-                    shouldGetConstructorMethods, getStaticInitializerMethods)) {
+            for (final MethodInfo mi : declaredMethodsOf.apply(ci)) {
                 // If method has not been overridden by method of same name and type descriptor
                 if (nameAndTypeDescriptorSet.add(new SimpleEntry<>(mi.getName(), mi.getTypeDescriptorString()))) {
                     // Add method to output order
@@ -2497,6 +2528,36 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             }
         }
         return unmodifiable(methodInfoList);
+    }
+
+    /**
+     * Get the methods and/or constructors of the class, its superclasses and its interfaces. Static initializer
+     * blocks are never returned -- they can only be reached by name, via {@link #getMethodInfo(String)}.
+     *
+     * @param getNormalMethods
+     *            whether to get methods that are not constructors
+     * @param getConstructorMethods
+     *            whether to get constructors
+     * @return the method info
+     */
+    private MethodInfoList getMethodInfoOfKind(final boolean getNormalMethods,
+            final boolean getConstructorMethods) {
+        // Constructors are not inherited from superclasses
+        return mergeDeclaredMethodsInOverrideOrder(
+                ci -> ci.getDeclaredMethodInfoOfKind(getNormalMethods, ci == this && getConstructorMethods));
+    }
+
+    /**
+     * Get the methods of the class, its superclasses and its interfaces that have the given name. Unlike
+     * {@link #getMethodInfoOfKind(boolean, boolean)}, this ignores the kind of the method, so it can return
+     * constructors ({@code "<init>"}) and static initializer blocks ({@code "<clinit>"}).
+     *
+     * @param methodName
+     *            the method name
+     * @return the method info
+     */
+    private MethodInfoList getMethodInfoWithName(final String methodName) {
+        return mergeDeclaredMethodsInOverrideOrder(ci -> ci.getDeclaredMethodInfoWithName(methodName));
     }
 
     /**
@@ -2530,8 +2591,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *             if {@link ClassGraph#enableMethodInfo()} was not called prior to initiating the scan.
      */
     public MethodInfoList getDeclaredMethodInfo() {
-        return getDeclaredMethodInfo(/* methodName = */ null, /* getNormalMethods = */ true,
-                /* getConstructorMethods = */ false, /* getStaticInitializerMethods = */ false);
+        return getDeclaredMethodInfoOfKind(/* getNormalMethods = */ true, /* getConstructorMethods = */ false);
     }
 
     /**
@@ -2565,8 +2625,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *             if {@link ClassGraph#enableMethodInfo()} was not called prior to initiating the scan.
      */
     public MethodInfoList getMethodInfo() {
-        return getMethodInfo(/* methodName = */ null, /* getNormalMethods = */ true,
-                /* getConstructorMethods = */ false, /* getStaticInitializerMethods = */ false);
+        return getMethodInfoOfKind(/* getNormalMethods = */ true, /* getConstructorMethods = */ false);
     }
 
     /**
@@ -2600,8 +2659,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *             if {@link ClassGraph#enableMethodInfo()} was not called prior to initiating the scan.
      */
     public MethodInfoList getDeclaredConstructorInfo() {
-        return getDeclaredMethodInfo(/* methodName = */ null, /* getNormalMethods = */ false,
-                /* getConstructorMethods = */ true, /* getStaticInitializerMethods = */ false);
+        return getDeclaredMethodInfoOfKind(/* getNormalMethods = */ false, /* getConstructorMethods = */ true);
     }
 
     /**
@@ -2635,14 +2693,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *             if {@link ClassGraph#enableMethodInfo()} was not called prior to initiating the scan.
      */
     public MethodInfoList getConstructorInfo() {
-        return getMethodInfo(/* methodName = */ null, /* getNormalMethods = */ false,
-                /* getConstructorMethods = */ true, /* getStaticInitializerMethods = */ false);
+        return getMethodInfoOfKind(/* getNormalMethods = */ false, /* getConstructorMethods = */ true);
     }
 
     /**
      * Returns information on visible methods and constructors declared by this class, but not by its interfaces or
-     * superclasses. Constructors have the method name of {@code "<init>"} and static initializer blocks have the
-     * name of {@code "<clinit>"}. See also:
+     * superclasses. Constructors have the method name of {@code "<init>"}. See also:
      *
      * <ul>
      * <li>{@link #getMethodInfo(String)}
@@ -2664,9 +2720,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * <p>
      * By default only returns information for public methods and constructors, unless
-     * {@link ClassGraph#ignoreMethodVisibility()} was called before the scan. If method visibility is ignored, the
-     * result may include a reference to a private static class initializer block, with a method name of
-     * {@code "<clinit>"}.
+     * {@link ClassGraph#ignoreMethodVisibility()} was called before the scan.
+     *
+     * <p>
+     * Static initializer blocks are not returned. They can only be looked up by name, using
+     * {@link #getDeclaredMethodInfo(String)} with a method name of {@code "<clinit>"}, and only if
+     * {@link ClassGraph#ignoreMethodVisibility()} was called before the scan.
      *
      * @return the list of {@link MethodInfo} objects for visible methods and constructors of this class, or the
      *         empty list if no methods or constructors were found or visible.
@@ -2674,14 +2733,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *             if {@link ClassGraph#enableMethodInfo()} was not called prior to initiating the scan.
      */
     public MethodInfoList getDeclaredMethodAndConstructorInfo() {
-        return getDeclaredMethodInfo(/* methodName = */ null, /* getNormalMethods = */ true,
-                /* getConstructorMethods = */ true, /* getStaticInitializerMethods = */ false);
+        return getDeclaredMethodInfoOfKind(/* getNormalMethods = */ true, /* getConstructorMethods = */ true);
     }
 
     /**
-     * Returns information on visible constructors declared by this class, or by its interfaces or superclasses.
-     * Constructors have the method name of {@code "<init>"} and static initializer blocks have the name of
-     * {@code "<clinit>"}. See also:
+     * Returns information on visible methods and constructors declared by this class, or by its interfaces or
+     * superclasses. Constructors have the method name of {@code "<init>"}. See also:
      *
      * <ul>
      * <li>{@link #getMethodInfo(String)}
@@ -2704,14 +2761,18 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * By default only returns information for public methods, unless {@link ClassGraph#ignoreMethodVisibility()}
      * was called before the scan.
      *
+     * <p>
+     * Static initializer blocks are not returned. They can only be looked up by name, using
+     * {@link #getMethodInfo(String)} with a method name of {@code "<clinit>"}, and only if
+     * {@link ClassGraph#ignoreMethodVisibility()} was called before the scan.
+     *
      * @return the list of {@link MethodInfo} objects for visible methods and constructors of this class, its
      *         interfaces and superclasses, or the empty list if no methods were found.
      * @throws IllegalStateException
      *             if {@link ClassGraph#enableMethodInfo()} was not called prior to initiating the scan.
      */
     public MethodInfoList getMethodAndConstructorInfo() {
-        return getMethodInfo(/* methodName = */ null, /* getNormalMethods = */ true,
-                /* getConstructorMethods = */ true, /* getStaticInitializerMethods = */ false);
+        return getMethodInfoOfKind(/* getNormalMethods = */ true, /* getConstructorMethods = */ true);
     }
 
     /**
@@ -2748,7 +2809,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     public MethodInfoList getDeclaredMethodInfo(final String methodName) {
         Assert.notNull(methodName, "methodName");
-        return getDeclaredMethodInfo(methodName, /* ignored */ false, /* ignored */ false, /* ignored */ false);
+        return getDeclaredMethodInfoWithName(methodName);
     }
 
     /**
@@ -2785,7 +2846,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     public MethodInfoList getMethodInfo(final String methodName) {
         Assert.notNull(methodName, "methodName");
-        return getMethodInfo(methodName, /* ignored */ false, /* ignored */ false, /* ignored */ false);
+        return getMethodInfoWithName(methodName);
     }
 
     /**
@@ -2991,18 +3052,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *             both called before scanning.
      */
     public ClassInfoList getClassesWithMethodAnnotation() {
-        // Get all classes that have a method annotated or meta-annotated with this annotation
-        final Set<ClassInfo> classesWithMethodAnnotation = new HashSet<>(
-                getClassesWithFieldOrMethodAnnotation(RelType.CLASSES_WITH_METHOD_ANNOTATION));
-        // Add subclasses of all classes with a method that is non-privately annotated or meta-annotated with this
-        // annotation (non-private methods are inherited)
-        for (final ClassInfo classWithNonprivateMethodAnnotationOrMetaAnnotation : //
-        getClassesWithFieldOrMethodAnnotation(RelType.CLASSES_WITH_NONPRIVATE_METHOD_ANNOTATION)) {
-            classesWithMethodAnnotation
-                    .addAll(classWithNonprivateMethodAnnotationOrMetaAnnotation.getAllSubclasses());
-        }
-        return new ClassInfoList(classesWithMethodAnnotation,
-                new HashSet<>(getClassesWithMethodAnnotationDirectOnly()), /* sortByName = */ true);
+        return getClassesWithFieldOrMethodAnnotationAndSubclasses(RelType.CLASSES_WITH_METHOD_ANNOTATION,
+                RelType.CLASSES_WITH_NONPRIVATE_METHOD_ANNOTATION);
     }
 
     /**
@@ -3016,18 +3067,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *             both called before scanning.
      */
     public ClassInfoList getClassesWithMethodParameterAnnotation() {
-        // Get all classes that have a method annotated or meta-annotated with this annotation
-        final Set<ClassInfo> classesWithMethodParameterAnnotation = new HashSet<>(
-                getClassesWithFieldOrMethodAnnotation(RelType.CLASSES_WITH_METHOD_PARAMETER_ANNOTATION));
-        // Add subclasses of all classes with a method that is non-privately annotated or meta-annotated with this
-        // annotation (non-private methods are inherited)
-        for (final ClassInfo classWithNonprivateMethodParameterAnnotationOrMetaAnnotation : //
-        getClassesWithFieldOrMethodAnnotation(RelType.CLASSES_WITH_NONPRIVATE_METHOD_PARAMETER_ANNOTATION)) {
-            classesWithMethodParameterAnnotation
-                    .addAll(classWithNonprivateMethodParameterAnnotationOrMetaAnnotation.getAllSubclasses());
-        }
-        return new ClassInfoList(classesWithMethodParameterAnnotation,
-                new HashSet<>(getClassesWithMethodParameterAnnotationDirectOnly()), /* sortByName = */ true);
+        return getClassesWithFieldOrMethodAnnotationAndSubclasses(RelType.CLASSES_WITH_METHOD_PARAMETER_ANNOTATION,
+                RelType.CLASSES_WITH_NONPRIVATE_METHOD_PARAMETER_ANNOTATION);
     }
 
     /**
@@ -3037,9 +3078,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         the requested method annotation, or the empty list if none.
      */
     ClassInfoList getClassesWithMethodAnnotationDirectOnly() {
-        return new ClassInfoList(
-                this.filterClassInfo(RelType.CLASSES_WITH_METHOD_ANNOTATION, /* strictAccept = */ true),
-                /* sortByName = */ true);
+        return getClassesWithFieldOrMethodAnnotationDirectOnly(RelType.CLASSES_WITH_METHOD_ANNOTATION);
     }
 
     /**
@@ -3049,9 +3088,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         meta-annotated) with the requested method annotation, or the empty list if none.
      */
     ClassInfoList getClassesWithMethodParameterAnnotationDirectOnly() {
-        return new ClassInfoList(
-                this.filterClassInfo(RelType.CLASSES_WITH_METHOD_PARAMETER_ANNOTATION, /* strictAccept = */ true),
-                /* sortByName = */ true);
+        return getClassesWithFieldOrMethodAnnotationDirectOnly(RelType.CLASSES_WITH_METHOD_PARAMETER_ANNOTATION);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -3388,18 +3425,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *             both called before scanning.
      */
     public ClassInfoList getClassesWithFieldAnnotation() {
-        // Get all classes that have a field annotated or meta-annotated with this annotation
-        final Set<ClassInfo> classesWithFieldAnnotation = new HashSet<>(
-                getClassesWithFieldOrMethodAnnotation(RelType.CLASSES_WITH_FIELD_ANNOTATION));
-        // Add subclasses of all classes with a field that is non-privately annotated or meta-annotated with this
-        // annotation (non-private fields are inherited)
-        for (final ClassInfo classWithNonprivateFieldAnnotationOrMetaAnnotation : //
-        getClassesWithFieldOrMethodAnnotation(RelType.CLASSES_WITH_NONPRIVATE_FIELD_ANNOTATION)) {
-            classesWithFieldAnnotation
-                    .addAll(classWithNonprivateFieldAnnotationOrMetaAnnotation.getAllSubclasses());
-        }
-        return new ClassInfoList(classesWithFieldAnnotation,
-                new HashSet<>(getClassesWithFieldAnnotationDirectOnly()), /* sortByName = */ true);
+        return getClassesWithFieldOrMethodAnnotationAndSubclasses(RelType.CLASSES_WITH_FIELD_ANNOTATION,
+                RelType.CLASSES_WITH_NONPRIVATE_FIELD_ANNOTATION);
     }
 
     /**
@@ -3409,9 +3436,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *         the requested field annotation, or the empty list if none.
      */
     ClassInfoList getClassesWithFieldAnnotationDirectOnly() {
-        return new ClassInfoList(
-                this.filterClassInfo(RelType.CLASSES_WITH_FIELD_ANNOTATION, /* strictAccept = */ true),
-                /* sortByName = */ true);
+        return getClassesWithFieldOrMethodAnnotationDirectOnly(RelType.CLASSES_WITH_FIELD_ANNOTATION);
     }
 
     // -------------------------------------------------------------------------------------------------------------
