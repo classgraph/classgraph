@@ -299,74 +299,95 @@ class Classfile {
         // Don't extend scanning upwards to Object -- it has no superclass, interfaces or annotations, so scanning
         // it adds nothing to the class graph (the superclass link to Object is recorded from the class name alone,
         // without needing to scan Object itself)
-        if (className != null && !"java.lang.Object".equals(className)
+        if (className == null || "java.lang.Object".equals(className)
         // Don't schedule a class for scanning that was already found to be accepted
-                && !acceptedClassNamesFound.contains(className)
+                || acceptedClassNamesFound.contains(className)
                 // Only schedule each external class once for scanning, across all threads
-                && classNamesScheduledForExtendedScanning.add(className)) {
-            if (scanSpec.classAcceptReject.isRejected(className)) {
-                if (log != null) {
-                    log.log("Cannot extend scanning upwards to external " + relationship + " " + className
-                            + ", since it is rejected");
-                }
-            } else {
-                // Search for the named class' classfile among classpath elements, in classpath order (this is O(N)
-                // for each class, but there shouldn't be too many cases of extending scanning upwards)
-                final var classfilePath = JarUtils.classNameToClassfilePath(className);
-                // First check current classpath element, to avoid iterating through other classpath elements
-                var classResource = classpathElement.getResource(classfilePath);
-                ClasspathElement foundInClasspathElt = null;
-                if (classResource != null) {
-                    // Found the classfile in the current classpath element
-                    foundInClasspathElt = classpathElement;
-                } else {
-                    // Didn't find the classfile in the current classpath element -- iterate through other elements
-                    for (final ClasspathElement classpathOrderElt : classpathOrder) {
-                        if (classpathOrderElt != classpathElement) {
-                            classResource = classpathOrderElt.getResource(classfilePath);
-                            if (classResource != null) {
-                                foundInClasspathElt = classpathOrderElt;
-                                break;
-                            }
-                        }
-                    }
-                }
-                if (classResource == null) {
-                    // The classfile is not in any classpath element that is being scanned. Look in the modules that
-                    // are not being scanned, so that the class graph above an accepted class is still completed
-                    // through classes in system modules, which are not scanned unless they are asked for (#902)
-                    final var workUnit = unscannedModules.findClassfile(className, classfilePath, log);
-                    if (workUnit != null) {
-                        classResource = workUnit.classfileResource();
-                        foundInClasspathElt = workUnit.classpathElement();
-                    }
-                }
-                if (classResource != null) {
-                    // Found class resource
-                    if (log != null) {
-                        // Log the extended scan as a child LogNode of the current class' scan log, since the
-                        // external class is not scanned at the regular place in the classpath element hierarchy
-                        // traversal
-                        classResource.scanLog = log
-                                .log("Extending scanning to external " + relationship
-                                        + (foundInClasspathElt == classpathElement ? " in same classpath element"
-                                                : " in classpath element " + foundInClasspathElt)
-                                        + ": " + className);
-                    }
-                    if (additionalWorkUnits == null) {
-                        additionalWorkUnits = new ArrayList<>();
-                    }
-                    // Schedule class resource for scanning
-                    additionalWorkUnits.add(new ClassfileScanWorkUnit(Objects.requireNonNull(foundInClasspathElt),
-                            classResource, /* isExternalClass = */ true));
-                } else {
-                    if (log != null) {
-                        log.log("External " + relationship + " " + className + " was not found in "
-                                + "non-rejected packages -- cannot extend scanning to this class");
-                    }
+                || !classNamesScheduledForExtendedScanning.add(className)) {
+            return;
+        }
+        if (scanSpec.classAcceptReject.isRejected(className)) {
+            if (log != null) {
+                log.log("Cannot extend scanning upwards to external " + relationship + " " + className
+                        + ", since it is rejected");
+            }
+            return;
+        }
+        final var classfileLocation = findClassfile(className, log);
+        if (classfileLocation == null) {
+            if (log != null) {
+                log.log("External " + relationship + " " + className + " was not found in "
+                        + "non-rejected packages -- cannot extend scanning to this class");
+            }
+            return;
+        }
+        final var classResource = classfileLocation.classfileResource();
+        final var foundInClasspathElt = classfileLocation.classpathElement();
+        if (log != null) {
+            // Log the extended scan as a child LogNode of the current class' scan log, since the external class is
+            // not scanned at the regular place in the classpath element hierarchy traversal
+            classResource.scanLog = log.log("Extending scanning to external " + relationship
+                    + (foundInClasspathElt == classpathElement ? " in same classpath element"
+                            : " in classpath element " + foundInClasspathElt)
+                    + ": " + className);
+        }
+        if (additionalWorkUnits == null) {
+            additionalWorkUnits = new ArrayList<>();
+        }
+        // Schedule class resource for scanning
+        additionalWorkUnits
+                .add(new ClassfileScanWorkUnit(foundInClasspathElt, classResource, /* isExternalClass = */ true));
+    }
+
+    /**
+     * Find the classfile of a named class, searching the classpath elements that are being scanned first, then the
+     * modules that are not being scanned.
+     *
+     * @param className
+     *            the name of the class to find.
+     * @param log
+     *            the log node, or null to skip logging
+     * @return the classfile resource and the classpath element it was found in, or null if the classfile was not
+     *         found.
+     * @throws InterruptedException
+     *             if the thread was interrupted
+     */
+    private @Nullable ClassfileLocation findClassfile(final String className, final @Nullable LogNode log)
+            throws InterruptedException {
+        // Search for the named class' classfile among classpath elements, in classpath order (this is O(N) for each
+        // class, but there shouldn't be too many cases of extending scanning upwards)
+        final var classfilePath = JarUtils.classNameToClassfilePath(className);
+        // First check current classpath element, to avoid iterating through other classpath elements
+        final var classResource = classpathElement.getResource(classfilePath);
+        if (classResource != null) {
+            return new ClassfileLocation(classpathElement, classResource);
+        }
+        // Didn't find the classfile in the current classpath element -- iterate through other elements
+        for (final ClasspathElement classpathOrderElt : classpathOrder) {
+            if (classpathOrderElt != classpathElement) {
+                final var classResourceInOtherElt = classpathOrderElt.getResource(classfilePath);
+                if (classResourceInOtherElt != null) {
+                    return new ClassfileLocation(classpathOrderElt, classResourceInOtherElt);
                 }
             }
         }
+        // The classfile is not in any classpath element that is being scanned. Look in the modules that are not
+        // being scanned, so that the class graph above an accepted class is still completed through classes in
+        // system modules, which are not scanned unless they are asked for (#902)
+        final var workUnit = unscannedModules.findClassfile(className, classfilePath, log);
+        return workUnit == null ? null
+                : new ClassfileLocation(workUnit.classpathElement(), workUnit.classfileResource());
+    }
+
+    /**
+     * The location of a classfile.
+     *
+     * @param classpathElement
+     *            the classpath element the classfile was found in.
+     * @param classfileResource
+     *            the classfile resource.
+     */
+    private record ClassfileLocation(ClasspathElement classpathElement, Resource classfileResource) {
     }
 
     /**
@@ -437,30 +458,10 @@ class Classfile {
                 extendScanningUpwardsFromAnnotationParameterValues(apv.getValue(), log);
             }
         }
-        // Check method annotations and method parameter annotations
+        // Check method annotations, method parameter annotations and thrown exception types
         if (methodInfoList != null) {
             for (final MethodInfo methodInfo : methodInfoList) {
-                if (methodInfo.annotationInfo != null) {
-                    for (final AnnotationInfo methodAnnotationInfo : methodInfo.annotationInfo) {
-                        scheduleScanningIfExternalClass(methodAnnotationInfo.getName(), "method annotation", log);
-                        extendScanningUpwardsFromAnnotationParameterValues(methodAnnotationInfo, log);
-                    }
-                    if (methodInfo.parameterAnnotationInfo != null
-                            && methodInfo.parameterAnnotationInfo.length > 0) {
-                        for (final AnnotationInfo[] paramAnnInfoArr : methodInfo.parameterAnnotationInfo) {
-                            if (paramAnnInfoArr != null && paramAnnInfoArr.length > 0) {
-                                for (final AnnotationInfo paramAnnInfo : paramAnnInfoArr) {
-                                    scheduleScanningIfExternalClass(paramAnnInfo.getName(),
-                                            "method parameter annotation", log);
-                                    extendScanningUpwardsFromAnnotationParameterValues(paramAnnInfo, log);
-                                }
-                            }
-                        }
-                    }
-                }
-                for (final String thrownExceptionName : methodInfo.getThrownExceptionNames()) {
-                    scheduleScanningIfExternalClass(thrownExceptionName, "method throws", log);
-                }
+                extendScanningUpwardsFromMethod(methodInfo, log);
             }
         }
         // Check field annotations
@@ -481,6 +482,41 @@ class Classfile {
                     scheduleScanningIfExternalClass(classContainmentEntry.outerClassName(), "outer class", log);
                 }
             }
+        }
+    }
+
+    /**
+     * Check if scanning needs to be extended upwards to the external annotation classes and thrown exception types
+     * of one of the class' methods.
+     *
+     * @param methodInfo
+     *            the method
+     * @param log
+     *            the log node, or null to skip logging
+     * @throws InterruptedException
+     *             if the thread was interrupted
+     */
+    private void extendScanningUpwardsFromMethod(final MethodInfo methodInfo, final @Nullable LogNode log)
+            throws InterruptedException {
+        if (methodInfo.annotationInfo != null) {
+            for (final AnnotationInfo methodAnnotationInfo : methodInfo.annotationInfo) {
+                scheduleScanningIfExternalClass(methodAnnotationInfo.getName(), "method annotation", log);
+                extendScanningUpwardsFromAnnotationParameterValues(methodAnnotationInfo, log);
+            }
+            if (methodInfo.parameterAnnotationInfo != null) {
+                for (final AnnotationInfo[] paramAnnInfoArr : methodInfo.parameterAnnotationInfo) {
+                    if (paramAnnInfoArr != null) {
+                        for (final AnnotationInfo paramAnnInfo : paramAnnInfoArr) {
+                            scheduleScanningIfExternalClass(paramAnnInfo.getName(), "method parameter annotation",
+                                    log);
+                            extendScanningUpwardsFromAnnotationParameterValues(paramAnnInfo, log);
+                        }
+                    }
+                }
+            }
+        }
+        for (final String thrownExceptionName : methodInfo.getThrownExceptionNames()) {
+            scheduleScanningIfExternalClass(thrownExceptionName, "method throws", log);
         }
     }
 
@@ -510,54 +546,7 @@ class Classfile {
 
         } else {
             // Handle regular classfile
-            classInfo = ClassInfo.addScannedClass(className, classModifiers, isExternalClass, classNameToClassInfo,
-                    classpathElement, classfileResource);
-            classInfo.setClassfileVersion(minorVersion, majorVersion);
-            classInfo.setModifiers(classModifiers);
-            classInfo.setIsInterface(isInterface);
-            classInfo.setIsAnnotation(isAnnotation);
-            classInfo.setIsRecord(isRecord);
-            classInfo.setSourceFile(sourceFile);
-            // An interface's classfile names java.lang.Object as its superclass, but interfaces do not extend
-            // Object, so don't record that link (this matches Class#getSuperclass(), which returns null for an
-            // interface)
-            if (superclassName != null && !(isInterface && "java.lang.Object".equals(superclassName))) {
-                classInfo.addSuperclass(superclassName, classNameToClassInfo);
-            }
-            if (implementedInterfaces != null) {
-                for (final String interfaceName : implementedInterfaces) {
-                    classInfo.addImplementedInterface(interfaceName, classNameToClassInfo);
-                }
-            }
-            if (classAnnotations != null) {
-                for (final AnnotationInfo classAnnotation : classAnnotations) {
-                    classInfo.addClassAnnotation(classAnnotation, classNameToClassInfo);
-                }
-            }
-            if (classContainmentEntries != null) {
-                ClassInfo.addClassContainment(classContainmentEntries, classNameToClassInfo);
-            }
-            if (annotationParamDefaultValues != null) {
-                classInfo.addAnnotationParamDefaultValues(annotationParamDefaultValues);
-            }
-            if (fullyQualifiedDefiningMethodName != null) {
-                classInfo.addFullyQualifiedDefiningMethodName(fullyQualifiedDefiningMethodName);
-            }
-            if (fieldInfoList != null) {
-                classInfo.addFieldInfo(fieldInfoList, classNameToClassInfo);
-            }
-            if (methodInfoList != null) {
-                classInfo.addMethodInfo(methodInfoList, classNameToClassInfo);
-            }
-            if (typeSignatureStr != null) {
-                classInfo.setTypeSignature(typeSignatureStr);
-            }
-            if (refdClassNames != null) {
-                classInfo.addReferencedClassNames(refdClassNames);
-            }
-            if (classTypeAnnotationDecorators != null) {
-                classInfo.addTypeDecorators(classTypeAnnotationDecorators);
-            }
+            classInfo = linkClassInfo(classNameToClassInfo);
         }
 
         // An external class was only read so that an accepted class' own declarations can be reported, so it is not
@@ -604,6 +593,65 @@ class Classfile {
                 moduleInfo.addPackageInfo(packageInfo);
             }
         }
+    }
+
+    /**
+     * Create the {@link ClassInfo} object for this class, and transfer everything that was read from the classfile
+     * into it. Not threadsafe, should be run in a single-threaded context.
+     *
+     * @param classNameToClassInfo
+     *            map from class name to class info
+     * @return the {@link ClassInfo} object for this class.
+     */
+    private ClassInfo linkClassInfo(final Map<String, ClassInfo> classNameToClassInfo) {
+        final var classInfo = ClassInfo.addScannedClass(className, classModifiers, isExternalClass,
+                classNameToClassInfo, classpathElement, classfileResource);
+        classInfo.setClassfileVersion(minorVersion, majorVersion);
+        classInfo.setModifiers(classModifiers);
+        classInfo.setIsInterface(isInterface);
+        classInfo.setIsAnnotation(isAnnotation);
+        classInfo.setIsRecord(isRecord);
+        classInfo.setSourceFile(sourceFile);
+        // An interface's classfile names java.lang.Object as its superclass, but interfaces do not extend Object, so
+        // don't record that link (this matches Class#getSuperclass(), which returns null for an interface)
+        if (superclassName != null && !(isInterface && "java.lang.Object".equals(superclassName))) {
+            classInfo.addSuperclass(superclassName, classNameToClassInfo);
+        }
+        if (implementedInterfaces != null) {
+            for (final String interfaceName : implementedInterfaces) {
+                classInfo.addImplementedInterface(interfaceName, classNameToClassInfo);
+            }
+        }
+        if (classAnnotations != null) {
+            for (final AnnotationInfo classAnnotation : classAnnotations) {
+                classInfo.addClassAnnotation(classAnnotation, classNameToClassInfo);
+            }
+        }
+        if (classContainmentEntries != null) {
+            ClassInfo.addClassContainment(classContainmentEntries, classNameToClassInfo);
+        }
+        if (annotationParamDefaultValues != null) {
+            classInfo.addAnnotationParamDefaultValues(annotationParamDefaultValues);
+        }
+        if (fullyQualifiedDefiningMethodName != null) {
+            classInfo.addFullyQualifiedDefiningMethodName(fullyQualifiedDefiningMethodName);
+        }
+        if (fieldInfoList != null) {
+            classInfo.addFieldInfo(fieldInfoList, classNameToClassInfo);
+        }
+        if (methodInfoList != null) {
+            classInfo.addMethodInfo(methodInfoList, classNameToClassInfo);
+        }
+        if (typeSignatureStr != null) {
+            classInfo.setTypeSignature(typeSignatureStr);
+        }
+        if (refdClassNames != null) {
+            classInfo.addReferencedClassNames(refdClassNames);
+        }
+        if (classTypeAnnotationDecorators != null) {
+            classInfo.addTypeDecorators(classTypeAnnotationDecorators);
+        }
+        return classInfo;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -2497,48 +2545,7 @@ class Classfile {
         }
 
         // Write class info to log
-        final var subLog = log == null ? null
-                : log.log("Found " //
-                        + (isAnnotation ? "annotation class" : isInterface ? "interface class" : "class") //
-                        + " " + className);
-        if (subLog != null) {
-            if (superclassName != null) {
-                subLog.log(
-                        "Super" + (isInterface && !isAnnotation ? "interface" : "class") + ": " + superclassName);
-            }
-            if (implementedInterfaces != null) {
-                subLog.log("Interfaces: " + StringUtils.join(", ", implementedInterfaces));
-            }
-            if (classAnnotations != null) {
-                subLog.log("Class annotations: " + StringUtils.join(", ", classAnnotations));
-            }
-            if (annotationParamDefaultValues != null) {
-                for (final AnnotationParameterValue apv : annotationParamDefaultValues) {
-                    subLog.log("Annotation default param value: " + apv);
-                }
-            }
-            if (fieldInfoList != null) {
-                for (final FieldInfo fieldInfo : fieldInfoList) {
-                    final var modifierStr = fieldInfo.getModifiersString();
-                    subLog.log("Field: " + modifierStr + (modifierStr.isEmpty() ? "" : " ") + fieldInfo.getName());
-                }
-            }
-            if (methodInfoList != null) {
-                for (final MethodInfo methodInfo : methodInfoList) {
-                    final var modifierStr = methodInfo.getModifiersString();
-                    subLog.log(
-                            "Method: " + modifierStr + (modifierStr.isEmpty() ? "" : " ") + methodInfo.getName());
-                }
-            }
-            if (typeSignatureStr != null) {
-                subLog.log("Class type signature: " + typeSignatureStr);
-            }
-            if (refdClassNames != null) {
-                final List<String> refdClassNamesSorted = new ArrayList<>(refdClassNames);
-                CollectionUtils.sortIfNotEmpty(refdClassNamesSorted);
-                subLog.log("Additional referenced class names: " + StringUtils.join(", ", refdClassNamesSorted));
-            }
-        }
+        final var subLog = logParsedClassfile(log);
 
         // Check if any superclasses, interfaces or annotations are external (non-accepted) classes that need to be
         // scheduled for scanning, so that all of the "upwards" direction of the class graph is scanned for any
@@ -2550,5 +2557,57 @@ class Classfile {
                 workQueue.addWorkUnits(additionalWorkUnits);
             }
         }
+    }
+
+    /**
+     * Write everything that was read from the classfile to the log.
+     *
+     * @param log
+     *            the log node, or null to skip logging
+     * @return the log node that the class' details were written to, or null if logging is disabled. Anything else
+     *         that is logged for this class should be logged to this node.
+     */
+    private @Nullable LogNode logParsedClassfile(final @Nullable LogNode log) {
+        if (log == null) {
+            return null;
+        }
+        final var subLog = log.log("Found " //
+                + (isAnnotation ? "annotation class" : isInterface ? "interface class" : "class") //
+                + " " + className);
+        if (superclassName != null) {
+            subLog.log("Super" + (isInterface && !isAnnotation ? "interface" : "class") + ": " + superclassName);
+        }
+        if (implementedInterfaces != null) {
+            subLog.log("Interfaces: " + StringUtils.join(", ", implementedInterfaces));
+        }
+        if (classAnnotations != null) {
+            subLog.log("Class annotations: " + StringUtils.join(", ", classAnnotations));
+        }
+        if (annotationParamDefaultValues != null) {
+            for (final AnnotationParameterValue apv : annotationParamDefaultValues) {
+                subLog.log("Annotation default param value: " + apv);
+            }
+        }
+        if (fieldInfoList != null) {
+            for (final FieldInfo fieldInfo : fieldInfoList) {
+                final var modifierStr = fieldInfo.getModifiersString();
+                subLog.log("Field: " + modifierStr + (modifierStr.isEmpty() ? "" : " ") + fieldInfo.getName());
+            }
+        }
+        if (methodInfoList != null) {
+            for (final MethodInfo methodInfo : methodInfoList) {
+                final var modifierStr = methodInfo.getModifiersString();
+                subLog.log("Method: " + modifierStr + (modifierStr.isEmpty() ? "" : " ") + methodInfo.getName());
+            }
+        }
+        if (typeSignatureStr != null) {
+            subLog.log("Class type signature: " + typeSignatureStr);
+        }
+        if (refdClassNames != null) {
+            final List<String> refdClassNamesSorted = new ArrayList<>(refdClassNames);
+            CollectionUtils.sortIfNotEmpty(refdClassNamesSorted);
+            subLog.log("Additional referenced class names: " + StringUtils.join(", ", refdClassNamesSorted));
+        }
+        return subLog;
     }
 }
