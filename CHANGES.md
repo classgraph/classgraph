@@ -1225,6 +1225,21 @@ is fixed on the 4.x branch as well.
   server as the authority or `file:////server/share` with an empty one, still resolves to
   `//server/share`.
 
+* A `file:` URL naming the local machine by its `localhost` authority —
+  `file://localhost/tmp/a`, which RFC 8089 says means the same as `file:///tmp/a` — resolved
+  to `/localhost/tmp/a` on Linux and macOS, naming a directory that does not exist, so the
+  classpath element was silently dropped. The authority is now dropped, and the URL resolves
+  to `/tmp/a`. On Windows it still resolves to the UNC path `//localhost/tmp/a`, which is
+  what `Path#of(URI)` produces there.
+
+* Every `!` in a resource or classpath element URL was treated as a nested jar separator: a
+  `/` was inserted after it and the URL was given a `jar:` prefix. A jar inside a directory
+  whose name contains a `!` therefore got a URL naming a different, nonexistent path — a
+  resource in `/tmp/with!bang/x.jar` came back as
+  `jar:file:///tmp/with!/bang/x.jar!/pkg/X.class`, and opening it threw
+  `NoSuchFileException`. A `!` is now only treated as a separator when the path before it
+  names an existing file, which is the same rule the scanner uses.
+
 * A URL scheme containing a digit, such as `s3:` or `vfs2:`, was not recognized as a scheme,
   because the pattern that matches custom schemes allowed only letters, `+`, `-` and `.`.
   RFC 3986 allows digits after the first character. Such a URL silently lost one of the
