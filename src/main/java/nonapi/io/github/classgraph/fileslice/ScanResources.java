@@ -57,7 +57,8 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>
  * Once {@link #close(LogNode)} has been called, the methods that register a new resource throw
- * {@link NullPointerException} rather than silently handing out a resource that nothing will ever close.
+ * {@link NullPointerException} rather than silently handing out a resource that nothing will ever close. The
+ * methods that release a resource stay callable, since releasing something twice has to be harmless.
  */
 public class ScanResources {
     /** The {@link ScanSpec}. */
@@ -111,15 +112,19 @@ public class ScanResources {
     }
 
     /**
-     * Mark a {@link Slice} as closed.
+     * Mark a {@link Slice} as closed. Unlike {@link #markSliceAsOpen(Slice)}, this does nothing rather than
+     * throwing once {@link #close(LogNode)} has been called: a slice can be closed after the scan's resources have
+     * been torn down (for example when a {@link io.github.classgraph.Resource} that was still open is closed after
+     * its {@link ScanResult} was closed), and closing something twice has to be harmless.
      *
      * @param slice
      *            the {@link Slice} that was just closed.
-     * @throws NullPointerException
-     *             if {@link #close(LogNode)} has been called
      */
     public void markSliceAsClosed(final Slice slice) {
-        Objects.requireNonNull(openSlices).remove(slice);
+        final var openSlicesCurr = openSlices;
+        if (openSlicesCurr != null) {
+            openSlicesCurr.remove(slice);
+        }
     }
 
     // ---------------------------------------------------------------------------------------------------------

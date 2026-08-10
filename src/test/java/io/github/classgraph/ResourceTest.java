@@ -1,6 +1,7 @@
 package io.github.classgraph;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.IOException;
@@ -150,6 +151,23 @@ public class ResourceTest {
             opened.close();
             opened.close();
         }
+    }
+
+    /**
+     * Closing a resource after the {@link ScanResult} it came from has been closed is a no-op. A resource found by
+     * {@link ScanResult#getResourcesWithPathIgnoringAccept(String)} need not be an accepted resource, so it is not
+     * one of the resources that the {@link ScanResult} closes, and it is still open when the scan result closes.
+     */
+    @Test
+    public void closingAResourceAfterTheScanResultIsClosedIsANoOp() throws IOException {
+        final Resource resource;
+        try (var scanResult = scanTestResourcesDir()) {
+            final var resources = scanResult.getResourcesWithPathIgnoringAccept(TEXT_FILE);
+            assertThat(resources).as("resources with path " + TEXT_FILE).hasSize(1);
+            resource = resources.get(0);
+            resource.open();
+        }
+        assertThatCode(resource::close).doesNotThrowAnyException();
     }
 
     /** A resource in a directory classpath element locates itself and its classpath element on the filesystem. */

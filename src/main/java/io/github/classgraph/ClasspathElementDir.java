@@ -384,8 +384,8 @@ class ClasspathElementDir extends ClasspathElement {
                     }
                     final var slice = pathSlice;
                     if (slice != null) {
+                        // (PathSlice#close() marks the slice as closed)
                         slice.close();
-                        scanResources.markSliceAsClosed(slice);
                         pathSlice = null;
                     }
 
