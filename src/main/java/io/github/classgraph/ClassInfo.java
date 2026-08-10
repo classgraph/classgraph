@@ -2585,8 +2585,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
 
     /**
      * Returns information on visible methods and constructors declared by this class, but not by its interfaces or
-     * superclasses. Constructors have the method name of {@code "<init>"} and static initializer blocks have the
-     * name of {@code "<clinit>"}. See also:
+     * superclasses. Constructors have the method name of {@code "<init>"}. See also:
      *
      * <ul>
      * <li>{@link #getMethodInfo(String)}
@@ -2608,9 +2607,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * <p>
      * By default only returns information for public methods and constructors, unless
-     * {@link ClassGraph#ignoreMethodVisibility()} was called before the scan. If method visibility is ignored, the
-     * result may include a reference to a private static class initializer block, with a method name of
-     * {@code "<clinit>"}.
+     * {@link ClassGraph#ignoreMethodVisibility()} was called before the scan.
+     *
+     * <p>
+     * Static initializer blocks are not returned. They can only be looked up by name, using
+     * {@link #getDeclaredMethodInfo(String)} with a method name of {@code "<clinit>"}, and only if
+     * {@link ClassGraph#ignoreMethodVisibility()} was called before the scan.
      *
      * @return the list of {@link MethodInfo} objects for visible methods and constructors of this class, or the
      *         empty list if no methods or constructors were found or visible.
@@ -2623,9 +2625,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Returns information on visible constructors declared by this class, or by its interfaces or superclasses.
-     * Constructors have the method name of {@code "<init>"} and static initializer blocks have the name of
-     * {@code "<clinit>"}. See also:
+     * Returns information on visible methods and constructors declared by this class, or by its interfaces or
+     * superclasses. Constructors have the method name of {@code "<init>"}. See also:
      *
      * <ul>
      * <li>{@link #getMethodInfo(String)}
@@ -2647,6 +2648,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * <p>
      * By default only returns information for public methods, unless {@link ClassGraph#ignoreMethodVisibility()}
      * was called before the scan.
+     *
+     * <p>
+     * Static initializer blocks are not returned. They can only be looked up by name, using
+     * {@link #getMethodInfo(String)} with a method name of {@code "<clinit>"}, and only if
+     * {@link ClassGraph#ignoreMethodVisibility()} was called before the scan.
      *
      * @return the list of {@link MethodInfo} objects for visible methods and constructors of this class, its
      *         interfaces and superclasses, or the empty list if no methods were found.
