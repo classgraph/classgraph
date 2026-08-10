@@ -45,6 +45,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
+import nonapi.io.github.classgraph.fastzipfilereader.FastZipEntry;
+import nonapi.io.github.classgraph.fastzipfilereader.LogicalZipFile;
 import nonapi.io.github.classgraph.fileslice.reader.ClassfileReader;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.scanspec.ScanSpec.ScanSpecPathMatch;
@@ -276,6 +278,94 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
             }
         }
         return true;
+    }
+
+    /**
+     * Check whether a path is within a multi-release versioned section that should be ignored.
+     *
+     * <p>
+     * A versioned path is only reached here if it was not already resolved by the multi-release machinery: for a
+     * jarfile, {@link FastZipEntry#entryNameUnversioned} has any version prefix stripped, and the module system
+     * strips version prefixes for modules, so a remaining version prefix means either a nested versioned section,
+     * or a versioned section in a jar whose manifest is missing the {@code Multi-Release} key. Directories are not
+     * multi-release at all -- the JVM loads the base version of a class from a directory even when a versioned copy
+     * is present alongside it.
+     *
+     * @param relativePath
+     *            the path of an entry, relative to the root of the classpath element.
+     * @return true if the path is within a versioned section that should be ignored.
+     */
+    protected boolean isIgnoredVersionedPath(final String relativePath) {
+        return !scanSpec.enableMultiReleaseVersions
+                && relativePath.startsWith(LogicalZipFile.MULTI_RELEASE_PATH_PREFIX);
+    }
+
+    /**
+     * Check whether a path is that of a classfile in the default (unnamed) package of a module.
+     *
+     * <p>
+     * A module cannot contain classes in the default package, and {@code module-info.class} is the only classfile
+     * allowed in the root of a module, so any other classfile found there cannot be loaded, and is ignored.
+     *
+     * @param isModule
+     *            true if this classpath element declares a module name.
+     * @param relativePath
+     *            the path of an entry, relative to the package root.
+     * @return true if the entry is a classfile in the default package of a module, and should be ignored.
+     */
+    protected static boolean isIgnoredDefaultPackageClassfile(final boolean isModule, final String relativePath) {
+        return isModule && relativePath.indexOf('/') < 0 && relativePath.endsWith(".class")
+                && !"module-info.class".equals(relativePath);
+    }
+
+    /**
+     * Check whether a resource is accepted, given the accept/reject match status of its parent directory.
+     *
+     * @param relativePath
+     *            the path of the resource, relative to the package root.
+     * @param parentMatchStatus
+     *            the accept/reject match status of the parent directory of the resource.
+     * @return true if the resource is accepted.
+     */
+    protected boolean isAcceptedResourcePath(final String relativePath, final ScanSpecPathMatch parentMatchStatus) {
+        return parentMatchStatus == ScanSpecPathMatch.HAS_ACCEPTED_PATH_PREFIX
+                || parentMatchStatus == ScanSpecPathMatch.AT_ACCEPTED_PATH
+                // A directory that only contains specifically-accepted classes accepts only those classes
+                || (parentMatchStatus == ScanSpecPathMatch.AT_ACCEPTED_CLASS_PACKAGE
+                        && scanSpec.classfileIsSpecificallyAccepted(relativePath));
+    }
+
+    /**
+     * The accept/reject match status of the parent directory of the last relative path that was looked up.
+     *
+     * <p>
+     * The entries of a classpath element are scanned in sorted order, so consecutive entries usually share a parent
+     * directory, and caching the match status of the last parent directory means the match status only has to be
+     * computed once per directory, rather than once per entry.
+     */
+    protected final class ParentDirMatchStatusCache {
+        /** The parent directory of the last relative path that was looked up, or null if there was none. */
+        private @Nullable String prevParentRelativePath;
+
+        /** The match status of {@link #prevParentRelativePath}. */
+        private ScanSpecPathMatch prevParentMatchStatus = ScanSpecPathMatch.NOT_WITHIN_ACCEPTED_PATH;
+
+        /**
+         * Get the accept/reject match status of the parent directory of a relative path.
+         *
+         * @param relativePath
+         *            the path of an entry, relative to the package root.
+         * @return the match status of the parent directory of the entry.
+         */
+        ScanSpecPathMatch getParentMatchStatus(final String relativePath) {
+            final var lastSlashIdx = relativePath.lastIndexOf('/');
+            final var parentRelativePath = lastSlashIdx < 0 ? "/" : relativePath.substring(0, lastSlashIdx + 1);
+            if (!parentRelativePath.equals(prevParentRelativePath)) {
+                prevParentRelativePath = parentRelativePath;
+                prevParentMatchStatus = scanSpec.dirAcceptMatchStatus(parentRelativePath);
+            }
+            return prevParentMatchStatus;
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------

@@ -45,7 +45,6 @@ import nonapi.io.github.classgraph.concurrency.SingletonMap;
 import nonapi.io.github.classgraph.concurrency.SingletonMap.NewInstanceException;
 import nonapi.io.github.classgraph.concurrency.SingletonMap.NullSingletonException;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
-import nonapi.io.github.classgraph.fastzipfilereader.LogicalZipFile;
 import nonapi.io.github.classgraph.fileslice.reader.ClassfileReader;
 import nonapi.io.github.classgraph.recycler.Recycler;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
@@ -353,8 +352,7 @@ class ClasspathElementModule extends ClasspathElement {
             }
             CollectionUtils.sortIfNotEmpty(resourceRelativePaths);
 
-            String prevParentRelativePath = null;
-            ScanSpecPathMatch prevParentMatchStatus = null;
+            final var parentDirMatchStatusCache = new ParentDirMatchStatusCache();
             for (final String relativePath : resourceRelativePaths) {
                 // From ModuleReader#find(): "If the module reader can determine that the name locates a directory
                 // then the resulting URI will end with a slash ('/')." But from the documentation for
@@ -368,13 +366,10 @@ class ClasspathElementModule extends ClasspathElement {
                     continue;
                 }
 
-                // Paths in modules should never start with "META-INF/versions/{version}/", because the module
-                // system should already strip these prefixes away. If they are found, then the jarfile must contain
-                // a path like "META-INF/versions/{version}/META-INF/versions/{version}/", which cannot be valid
-                // (META-INF should only ever exist in the module root), and the nested versioned section should be
-                // ignored.
-                if (!scanSpec.enableMultiReleaseVersions
-                        && relativePath.startsWith(LogicalZipFile.MULTI_RELEASE_PATH_PREFIX)) {
+                // A versioned path in a module must be a nested versioned section, i.e. a path like
+                // "META-INF/versions/{version}/META-INF/versions/{version}/", since META-INF should only ever exist
+                // in the module root
+                if (isIgnoredVersionedPath(relativePath)) {
                     if (subLog != null) {
                         subLog.log(
                                 "Found unexpected nested versioned entry in module -- skipping: " + relativePath);
@@ -382,10 +377,7 @@ class ClasspathElementModule extends ClasspathElement {
                     continue;
                 }
 
-                // If this is a modular jar, ignore all classfiles other than "module-info.class" in the default
-                // package, since these are disallowed.
-                if (isModularJar && relativePath.indexOf('/') < 0 && relativePath.endsWith(".class")
-                        && !"module-info.class".equals(relativePath)) {
+                if (isIgnoredDefaultPackageClassfile(isModularJar, relativePath)) {
                     continue;
                 }
 
@@ -394,20 +386,7 @@ class ClasspathElementModule extends ClasspathElement {
                     continue;
                 }
 
-                // Get match status of the parent directory of this resource's relative path (or reuse the last
-                // match status for speed, if the directory name hasn't changed).
-                final var lastSlashIdx = relativePath.lastIndexOf('/');
-                final var parentRelativePath = lastSlashIdx < 0 ? "/" : relativePath.substring(0, lastSlashIdx + 1);
-                final var parentRelativePathChanged = !parentRelativePath.equals(prevParentRelativePath);
-                final var parentMatchStatus = //
-                        prevParentRelativePath == null || parentRelativePathChanged
-                                ? scanSpec.dirAcceptMatchStatus(parentRelativePath)
-                                // prevParentRelativePath is null on the first iteration, so prevParentMatchStatus
-                                // has always been set by the time it is read
-                                : Objects.requireNonNull(prevParentMatchStatus);
-                prevParentRelativePath = parentRelativePath;
-                prevParentMatchStatus = parentMatchStatus;
-
+                final var parentMatchStatus = parentDirMatchStatusCache.getParentMatchStatus(relativePath);
                 if (parentMatchStatus == ScanSpecPathMatch.HAS_REJECTED_PATH_PREFIX) {
                     // The parent dir or one of its ancestral dirs is rejected
                     if (subLog != null) {
@@ -418,11 +397,7 @@ class ClasspathElementModule extends ClasspathElement {
 
                 // Found non-rejected relative path
                 if (allResourcePaths.add(relativePath)) {
-                    // If resource is accepted
-                    if (parentMatchStatus == ScanSpecPathMatch.HAS_ACCEPTED_PATH_PREFIX
-                            || parentMatchStatus == ScanSpecPathMatch.AT_ACCEPTED_PATH
-                            || (parentMatchStatus == ScanSpecPathMatch.AT_ACCEPTED_CLASS_PACKAGE
-                                    && scanSpec.classfileIsSpecificallyAccepted(relativePath))) {
+                    if (isAcceptedResourcePath(relativePath, parentMatchStatus)) {
                         // Add accepted resource
                         addAcceptedResource(newResource(relativePath), parentMatchStatus,
                                 /* isClassfileOnly = */ false, subLog);

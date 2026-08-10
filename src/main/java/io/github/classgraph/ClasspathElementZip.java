@@ -509,12 +509,9 @@ class ClasspathElementZip extends ClasspathElement {
         final var subLog = log == null ? null
                 : log(classpathElementIdx, "Scanning jarfile classpath element " + getZipFilePath(), log);
 
-        // Determine whether this is a modular jar
-        var moduleName = moduleNameFromModuleDescriptor;
-        if (moduleName == null || moduleName.isEmpty()) {
-            moduleName = moduleNameFromManifestFile;
-        }
-        final var isModularJar = moduleName != null && !moduleName.isEmpty();
+        // A jar is modular only if it declares a module name -- an automatic module name derived from the jar name
+        // does not make the jar modular
+        final var isModularJar = getDeclaredModuleName() != null;
 
         // "classes/" and "test-classes/" are legal package names, so only strip a package root prefix from the
         // relative path of an entry if the prefix is not simply a package with the same name (#929)
@@ -523,17 +520,11 @@ class ClasspathElementZip extends ClasspathElement {
                 : packageRootPrefixes;
 
         Set<String> loggedNestedClasspathRootPrefixes = null;
-        String prevParentRelativePath = null;
-        ScanSpecPathMatch prevParentMatchStatus = null;
+        final var parentDirMatchStatusCache = new ParentDirMatchStatusCache();
         for (final FastZipEntry zipEntry : logicalZipFile.entries) {
             var relativePath = zipEntry.entryNameUnversioned;
 
-            // Paths should never start with "META-INF/versions/{version}/", because either this is a versioned jar,
-            // in which case zipEntry.entryNameUnversioned has the version prefix stripped, or this is an
-            // unversioned jar (e.g. the multi-version flag is not set in the manifest file) and there are some
-            // spurious files in a multi-version path (in which case, they should be ignored).
-            if (!scanSpec.enableMultiReleaseVersions
-                    && relativePath.startsWith(LogicalZipFile.MULTI_RELEASE_PATH_PREFIX)) {
+            if (isIgnoredVersionedPath(relativePath)) {
                 if (subLog != null) {
                     subLog.log("Found unexpected versioned entry in jar (the jar's manifest file may be missing "
                             + "the \"Multi-Release\" key) -- skipping: " + relativePath);
@@ -541,10 +532,7 @@ class ClasspathElementZip extends ClasspathElement {
                 continue;
             }
 
-            // If this is a modular jar, ignore all classfiles other than "module-info.class" in the default
-            // package, since these are disallowed.
-            if (isModularJar && relativePath.indexOf('/') < 0 && relativePath.endsWith(".class")
-                    && !"module-info.class".equals(relativePath)) {
+            if (isIgnoredDefaultPackageClassfile(isModularJar, relativePath)) {
                 continue;
             }
 
@@ -604,20 +592,7 @@ class ClasspathElementZip extends ClasspathElement {
                 continue;
             }
 
-            // Get match status of the parent directory of this ZipEntry file's relative path (or reuse the last
-            // match status for speed, if the directory name hasn't changed).
-            final var lastSlashIdx = relativePath.lastIndexOf('/');
-            final var parentRelativePath = lastSlashIdx < 0 ? "/" : relativePath.substring(0, lastSlashIdx + 1);
-            final var parentRelativePathChanged = !parentRelativePath.equals(prevParentRelativePath);
-            final var parentMatchStatus = //
-                    parentRelativePathChanged ? scanSpec.dirAcceptMatchStatus(parentRelativePath)
-                            // parentRelativePathChanged is always true on the first iteration, since
-                            // prevParentRelativePath starts out null, so prevParentMatchStatus has always been set
-                            // by the time it is read
-                            : Objects.requireNonNull(prevParentMatchStatus);
-            prevParentRelativePath = parentRelativePath;
-            prevParentMatchStatus = parentMatchStatus;
-
+            final var parentMatchStatus = parentDirMatchStatusCache.getParentMatchStatus(relativePath);
             if (parentMatchStatus == ScanSpecPathMatch.HAS_REJECTED_PATH_PREFIX) {
                 // The parent dir or one of its ancestral dirs is rejected
                 if (subLog != null) {
@@ -629,11 +604,7 @@ class ClasspathElementZip extends ClasspathElement {
             // Add the ZipEntry path as a Resource
             final var resource = newResource(zipEntry, relativePath);
             if (relativePathToResource.putIfAbsent(relativePath, resource) == null) {
-                // If resource is accepted
-                if (parentMatchStatus == ScanSpecPathMatch.HAS_ACCEPTED_PATH_PREFIX
-                        || parentMatchStatus == ScanSpecPathMatch.AT_ACCEPTED_PATH
-                        || (parentMatchStatus == ScanSpecPathMatch.AT_ACCEPTED_CLASS_PACKAGE
-                                && scanSpec.classfileIsSpecificallyAccepted(relativePath))) {
+                if (isAcceptedResourcePath(relativePath, parentMatchStatus)) {
                     // Resource is accepted
                     addAcceptedResource(resource, parentMatchStatus, /* isClassfileOnly = */ false, subLog);
                 } else if (scanSpec.enableClassInfo && "module-info.class".equals(relativePath)) {
@@ -654,24 +625,36 @@ class ClasspathElementZip extends ClasspathElement {
     }
 
     /**
-     * Get module name from module descriptor, or get the automatic module name from the manifest file, or derive an
-     * automatic module name from the jar name.
+     * Get the module name declared by the jarfile, either by its {@code module-info.class} module descriptor, or by
+     * the {@code Automatic-Module-Name} attribute of its manifest file.
+     *
+     * @return the declared module name, or null if the jarfile does not declare one.
+     */
+    private @Nullable String getDeclaredModuleName() {
+        if (moduleNameFromModuleDescriptor != null && !moduleNameFromModuleDescriptor.isEmpty()) {
+            return moduleNameFromModuleDescriptor;
+        }
+        return moduleNameFromManifestFile == null || moduleNameFromManifestFile.isEmpty() ? null
+                : moduleNameFromManifestFile;
+    }
+
+    /**
+     * Get the module name declared by the jarfile, or, if it declares none, an automatic module name derived from
+     * the jar name.
      *
      * @return the module name
      */
     @Override
     public @Nullable String getModuleName() {
-        var moduleName = moduleNameFromModuleDescriptor;
-        if (moduleName == null || moduleName.isEmpty()) {
-            moduleName = moduleNameFromManifestFile;
+        final var declaredModuleName = getDeclaredModuleName();
+        if (declaredModuleName != null) {
+            return declaredModuleName;
         }
-        if (moduleName == null || moduleName.isEmpty()) {
-            if (derivedAutomaticModuleName == null) {
-                derivedAutomaticModuleName = JarUtils.derivedAutomaticModuleName(zipFilePath);
-            }
-            moduleName = derivedAutomaticModuleName;
+        if (derivedAutomaticModuleName == null) {
+            derivedAutomaticModuleName = JarUtils.derivedAutomaticModuleName(zipFilePath);
         }
-        return moduleName == null || moduleName.isEmpty() ? null : moduleName;
+        return derivedAutomaticModuleName == null || derivedAutomaticModuleName.isEmpty() ? null
+                : derivedAutomaticModuleName;
     }
 
     /**

@@ -51,7 +51,6 @@ import java.util.Set;
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
-import nonapi.io.github.classgraph.fastzipfilereader.LogicalZipFile;
 import nonapi.io.github.classgraph.fileslice.PathSlice;
 import nonapi.io.github.classgraph.fileslice.ScanResources;
 import nonapi.io.github.classgraph.fileslice.reader.ClassfileReader;
@@ -431,7 +430,6 @@ class ClasspathElementDir extends ClasspathElement {
         if (!dirRelativePathStr.endsWith("/")) {
             dirRelativePathStr += "/";
         }
-        final var isDefaultPackage = "/".equals(dirRelativePathStr);
 
         if (nestedClasspathRootPrefixes != null && nestedClasspathRootPrefixes.contains(dirRelativePathStr)) {
             if (log != null) {
@@ -441,15 +439,11 @@ class ClasspathElementDir extends ClasspathElement {
             return;
         }
 
-        // Ignore versioned sections in a directory classpath element. Multi-release is a jar-only feature: the
-        // "Multi-Release: true" manifest entry is only read from a jar's manifest, and the JVM loads the base
-        // version of a class from a directory even when a versioned copy is present alongside it. So skipping
-        // these here is what makes a directory scan agree with what the JVM would actually load, and no masking
-        // of versioned paths against base paths is needed (unlike in ClasspathElementZip). When
-        // enableMultiReleaseVersions() is set, every version is reported under its own versioned path, which
-        // recursing into these directories already does.
-        if (!scanSpec.enableMultiReleaseVersions
-                && dirRelativePathStr.startsWith(LogicalZipFile.MULTI_RELEASE_PATH_PREFIX)) {
+        // Skipping versioned sections in a directory classpath element is what makes a directory scan agree with
+        // what the JVM would actually load, so no masking of versioned paths against base paths is needed (unlike
+        // in ClasspathElementZip). When enableMultiReleaseVersions() is set, every version is reported under its
+        // own versioned path, which recursing into these directories already does.
+        if (isIgnoredVersionedPath(dirRelativePathStr)) {
             if (log != null) {
                 log.log("Found unexpected nested versioned entry in directory classpath element -- skipping: "
                         + dirRelativePathStr);
@@ -511,10 +505,7 @@ class ClasspathElementDir extends ClasspathElement {
                     pathsIterator.remove();
                     final var subPathRelative = classpathEltPath.relativize(subPath);
                     final var subPathRelativeStr = FastPathResolver.resolve(subPathRelative.toString());
-                    // If this is a modular jar, ignore all classfiles other than "module-info.class" in the default
-                    // package, since these are disallowed.
-                    if (isModularJar && isDefaultPackage && subPathRelativeStr.endsWith(".class")
-                            && !"module-info.class".equals(subPathRelativeStr)) {
+                    if (isIgnoredDefaultPackageClassfile(isModularJar, subPathRelativeStr)) {
                         continue;
                     }
 
@@ -523,11 +514,7 @@ class ClasspathElementDir extends ClasspathElement {
                         return;
                     }
 
-                    // If relative path is accepted
-                    if (parentMatchStatus == ScanSpecPathMatch.HAS_ACCEPTED_PATH_PREFIX
-                            || parentMatchStatus == ScanSpecPathMatch.AT_ACCEPTED_PATH
-                            || (parentMatchStatus == ScanSpecPathMatch.AT_ACCEPTED_CLASS_PACKAGE
-                                    && scanSpec.classfileIsSpecificallyAccepted(subPathRelativeStr))) {
+                    if (isAcceptedResourcePath(subPathRelativeStr, parentMatchStatus)) {
                         // Resource is accepted
                         final var resource = newResource(subPath, subPathRelativeStr, fileAttributes);
                         addAcceptedResource(resource, parentMatchStatus, /* isClassfileOnly = */ false, subLog);
