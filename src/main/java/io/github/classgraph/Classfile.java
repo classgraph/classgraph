@@ -1623,98 +1623,123 @@ class Classfile {
      *             if the classfile is incorrectly formatted.
      */
     private void readFields() throws IOException, ClassfileFormatException {
-        // Fields
         final var fieldCount = reader().readUnsignedShort();
         for (var i = 0; i < fieldCount; i++) {
-            // Info on modifier flags:
-            // http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.5
-            final var fieldModifierFlags = reader().readUnsignedShort();
-            final var isPublicField = (fieldModifierFlags & 0x0001) == 0x0001;
-            final var fieldIsVisible = isPublicField || scanSpec.ignoreFieldVisibility;
-            final var getStaticFinalFieldConstValue = scanSpec.enableStaticFinalFieldConstantInitializerValues
-                    && fieldIsVisible;
-            List<TypeAnnotationDecorator> fieldTypeAnnotationDecorators = null;
-            if (!fieldIsVisible || (!scanSpec.enableFieldInfo && !getStaticFinalFieldConstValue)) {
-                // Skip field
-                reader().readUnsignedShort(); // fieldNameCpIdx
-                reader().readUnsignedShort(); // fieldTypeDescriptorCpIdx
-                final var attributesCount = reader().readUnsignedShort();
-                for (var j = 0; j < attributesCount; j++) {
-                    reader().readUnsignedShort(); // attributeNameCpIdx
-                    final var attributeLength = reader().readInt(); // == 2
-                    reader().skip(attributeLength);
+            readField();
+        }
+    }
+
+    /**
+     * Read one of the class' fields, adding a {@link FieldInfo} to {@link #fieldInfoList} if field info is enabled
+     * and the field is visible.
+     *
+     * @throws IOException
+     *             if an I/O exception occurs.
+     * @throws ClassfileFormatException
+     *             if the classfile is incorrectly formatted.
+     */
+    private void readField() throws IOException, ClassfileFormatException {
+        // Info on modifier flags:
+        // http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.5
+        final var fieldModifierFlags = reader().readUnsignedShort();
+        final var isPublicField = (fieldModifierFlags & 0x0001) == 0x0001;
+        final var fieldIsVisible = isPublicField || scanSpec.ignoreFieldVisibility;
+        final var getStaticFinalFieldConstValue = scanSpec.enableStaticFinalFieldConstantInitializerValues
+                && fieldIsVisible;
+        if (!fieldIsVisible || (!scanSpec.enableFieldInfo && !getStaticFinalFieldConstValue)) {
+            // Skip field
+            reader().skip(4); // name_index, descriptor_index
+            final var attributesCount = reader().readUnsignedShort();
+            for (var i = 0; i < attributesCount; i++) {
+                reader().skip(2); // attribute_name_index
+                final var attributeLength = reader().readInt();
+                reader().skip(attributeLength);
+            }
+            return;
+        }
+
+        final var fieldNameCpIdx = reader().readUnsignedShort();
+        final var fieldName = requireConstantPoolString(getConstantPoolString(fieldNameCpIdx), "field name");
+        final var fieldTypeDescriptorCpIdx = reader().readUnsignedShort();
+        final var fieldTypeDescriptorFirstChar = (char) getConstantPoolStringFirstByte(fieldTypeDescriptorCpIdx);
+        final var fieldTypeDescriptor = requireConstantPoolString(getConstantPoolString(fieldTypeDescriptorCpIdx),
+                "field type descriptor");
+
+        List<TypeAnnotationDecorator> fieldTypeAnnotationDecorators = null;
+        String fieldTypeSignatureStr = null;
+        Object fieldConstValue = null;
+        AnnotationInfoList fieldAnnotationInfo = null;
+        final var attributesCount = reader().readUnsignedShort();
+        for (var i = 0; i < attributesCount; i++) {
+            final var attributeNameCpIdx = reader().readUnsignedShort();
+            final var attributeLength = reader().readInt();
+            // See if field name matches one of the requested names for this class, and if it does, check if
+            // it is initialized with a constant value
+            if (getStaticFinalFieldConstValue && constantPoolStringEquals(attributeNameCpIdx, "ConstantValue")) {
+                // http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.2
+                final var cpIdx = reader().readUnsignedShort();
+                if (cpIdx < 1 || cpIdx >= cpCount) {
+                    throw new ClassfileFormatException("Constant pool index " + cpIdx + ", should be in range [1, "
+                            + (cpCount - 1) + "] -- cannot continue reading class. "
+                            + "Please report this at https://github.com/classgraph/classgraph/issues");
+                }
+                fieldConstValue = getFieldConstantPoolValue(entryTag[cpIdx], fieldTypeDescriptorFirstChar, cpIdx);
+            } else if (fieldIsVisible && constantPoolStringEquals(attributeNameCpIdx, "Signature")) {
+                fieldTypeSignatureStr = getConstantPoolString(reader().readUnsignedShort());
+            } else if (isAnnotationsAttribute(attributeNameCpIdx)) {
+                fieldAnnotationInfo = readAnnotations(fieldAnnotationInfo);
+            } else if (isTypeAnnotationsAttribute(attributeNameCpIdx)) {
+                final var decorators = readFieldTypeAnnotationDecorators();
+                if (decorators != null) {
+                    fieldTypeAnnotationDecorators = decorators;
                 }
             } else {
-                final var fieldNameCpIdx = reader().readUnsignedShort();
-                final var fieldName = requireConstantPoolString(getConstantPoolString(fieldNameCpIdx),
-                        "field name");
-                final var fieldTypeDescriptorCpIdx = reader().readUnsignedShort();
-                final var fieldTypeDescriptorFirstChar = (char) getConstantPoolStringFirstByte(
-                        fieldTypeDescriptorCpIdx);
-                final var fieldTypeDescriptor = requireConstantPoolString(
-                        getConstantPoolString(fieldTypeDescriptorCpIdx), "field type descriptor");
-                String fieldTypeSignatureStr = null;
-                Object fieldConstValue = null;
-                AnnotationInfoList fieldAnnotationInfo = null;
-                final var attributesCount = reader().readUnsignedShort();
-                for (var j = 0; j < attributesCount; j++) {
-                    final var attributeNameCpIdx = reader().readUnsignedShort();
-                    final var attributeLength = reader().readInt(); // == 2
-                    // See if field name matches one of the requested names for this class, and if it does, check if
-                    // it is initialized with a constant value
-                    if (getStaticFinalFieldConstValue
-                            && constantPoolStringEquals(attributeNameCpIdx, "ConstantValue")) {
-                        // http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.2
-                        final var cpIdx = reader().readUnsignedShort();
-                        if (cpIdx < 1 || cpIdx >= cpCount) {
-                            throw new ClassfileFormatException("Constant pool index " + cpIdx
-                                    + ", should be in range [1, " + (cpCount - 1)
-                                    + "] -- cannot continue reading class. "
-                                    + "Please report this at https://github.com/classgraph/classgraph/issues");
-                        }
-                        fieldConstValue = getFieldConstantPoolValue(entryTag[cpIdx], fieldTypeDescriptorFirstChar,
-                                cpIdx);
-                    } else if (fieldIsVisible && constantPoolStringEquals(attributeNameCpIdx, "Signature")) {
-                        fieldTypeSignatureStr = getConstantPoolString(reader().readUnsignedShort());
-                    } else if (isAnnotationsAttribute(attributeNameCpIdx)) {
-                        fieldAnnotationInfo = readAnnotations(fieldAnnotationInfo);
-                    } else if (isTypeAnnotationsAttribute(attributeNameCpIdx)) {
-                        final var annotationCount = reader().readUnsignedShort();
-                        if (annotationCount > 0) {
-                            fieldTypeAnnotationDecorators = new ArrayList<>();
-                            for (var m = 0; m < annotationCount; m++) {
-                                final var targetType = reader().readUnsignedByte();
-                                // 0x13 is the only target_type that JVMS 26 table 4.7.20-A permits in field_info.
-                                // Complete and up to date as of JDK 26.
-                                if (targetType != 0x13) {
-                                    throw new ClassfileFormatException(
-                                            "Class " + className + " has unknown field type annotation target 0x"
-                                                    + Integer.toHexString(targetType)
-                                                    + ": element size unknown, cannot continue reading class. "
-                                                    + "Please report this at "
-                                                    + "https://github.com/classgraph/classgraph/issues");
-                                }
-                                final var typePath = readTypePath();
-                                final var annotationInfo = readAnnotation();
-                                fieldTypeAnnotationDecorators.add(
-                                        typeSignature -> typeSignature.addTypeAnnotation(typePath, annotationInfo));
-                            }
-                        }
-                    } else {
-                        // No match, just skip attribute
-                        reader().skip(attributeLength);
-                    }
-                }
-                if (scanSpec.enableFieldInfo && fieldIsVisible) {
-                    if (fieldInfoList == null) {
-                        fieldInfoList = new FieldInfoList();
-                    }
-                    fieldInfoList.add(new FieldInfo(className, fieldName, fieldModifierFlags, fieldTypeDescriptor,
-                            fieldTypeSignatureStr, fieldConstValue, fieldAnnotationInfo,
-                            fieldTypeAnnotationDecorators));
-                }
+                // No match, just skip attribute
+                reader().skip(attributeLength);
             }
         }
+
+        if (scanSpec.enableFieldInfo && fieldIsVisible) {
+            if (fieldInfoList == null) {
+                fieldInfoList = new FieldInfoList();
+            }
+            fieldInfoList.add(new FieldInfo(className, fieldName, fieldModifierFlags, fieldTypeDescriptor,
+                    fieldTypeSignatureStr, fieldConstValue, fieldAnnotationInfo, fieldTypeAnnotationDecorators));
+        }
+    }
+
+    /**
+     * Read a field's {@code RuntimeVisibleTypeAnnotations} or {@code RuntimeInvisibleTypeAnnotations} attribute.
+     *
+     * @return one decorator per type annotation, which adds the annotation to the annotated type of a field type
+     *         signature, or null if the attribute holds no annotations
+     * @throws IOException
+     *             if an I/O exception occurs.
+     * @throws ClassfileFormatException
+     *             if a type annotation has a target type that is not permitted in a field.
+     */
+    private @Nullable List<TypeAnnotationDecorator> readFieldTypeAnnotationDecorators()
+            throws IOException, ClassfileFormatException {
+        final var annotationCount = reader().readUnsignedShort();
+        if (annotationCount == 0) {
+            return null;
+        }
+        final List<TypeAnnotationDecorator> decorators = new ArrayList<>(annotationCount);
+        for (var i = 0; i < annotationCount; i++) {
+            final var targetType = reader().readUnsignedByte();
+            // 0x13 is the only target_type that JVMS 26 table 4.7.20-A permits in field_info.
+            // Complete and up to date as of JDK 26.
+            if (targetType != 0x13) {
+                throw new ClassfileFormatException("Class " + className
+                        + " has unknown field type annotation target 0x" + Integer.toHexString(targetType)
+                        + ": element size unknown, cannot continue reading class. "
+                        + "Please report this at https://github.com/classgraph/classgraph/issues");
+            }
+            final var typePath = readTypePath();
+            final var annotationInfo = readAnnotation();
+            decorators.add(typeSignature -> typeSignature.addTypeAnnotation(typePath, annotationInfo));
+        }
+        return decorators;
     }
 
     // -------------------------------------------------------------------------------------------------------------
