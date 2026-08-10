@@ -986,6 +986,20 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
         final var displayedName = isConstructor ? declaringClassName : name;
         buf.append(useSimpleNames ? ClassInfo.getSimpleName(displayedName) : displayedName);
 
+        toStringParameterList(useSimpleNames, buf);
+
+        toStringThrowsClause(methodType, useSimpleNames, buf);
+    }
+
+    /**
+     * Append the parenthesized parameter list of the method to the buffer.
+     *
+     * @param useSimpleNames
+     *            if true, strip package and outer class names from class names
+     * @param buf
+     *            the buffer to append to
+     */
+    private void toStringParameterList(final boolean useSimpleNames, final StringBuilder buf) {
         // If at least one param is named, then use placeholder names for unnamed params, otherwise don't show names
         // for any params
         final var allParamInfo = getParameterInfo();
@@ -1047,26 +1061,38 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
             }
         }
         buf.append(')');
+    }
 
-        // when throws signature is present, it includes both generic type variables and class names
-        if (!methodType.getThrowsSignatures().isEmpty()) {
+    /**
+     * Append the {@code throws} clause of the method to the buffer, if the method declares any thrown exceptions.
+     *
+     * @param methodType
+     *            the type signature of the method, or its type descriptor if it has no type signature
+     * @param useSimpleNames
+     *            if true, strip package and outer class names from class names
+     * @param buf
+     *            the buffer to append to
+     */
+    private void toStringThrowsClause(final MethodTypeSignature methodType, final boolean useSimpleNames,
+            final StringBuilder buf) {
+        // When the throws signature is present, it includes both generic type variables and class names
+        final var throwsSignatures = methodType.getThrowsSignatures();
+        if (!throwsSignatures.isEmpty()) {
             buf.append(" throws ");
-            for (var i = 0; i < methodType.getThrowsSignatures().size(); i++) {
+            for (var i = 0; i < throwsSignatures.size(); i++) {
                 if (i > 0) {
                     buf.append(", ");
                 }
-                methodType.getThrowsSignatures().get(i).toString(useSimpleNames, buf);
+                throwsSignatures.get(i).toString(useSimpleNames, buf);
             }
-        } else {
-            if (thrownExceptionNames != null && !thrownExceptionNames.isEmpty()) {
-                buf.append(" throws ");
-                for (var i = 0; i < thrownExceptionNames.size(); i++) {
-                    if (i > 0) {
-                        buf.append(", ");
-                    }
-                    final var thrownExceptionName = thrownExceptionNames.get(i);
-                    buf.append(useSimpleNames ? ClassInfo.getSimpleName(thrownExceptionName) : thrownExceptionName);
+        } else if (thrownExceptionNames != null && !thrownExceptionNames.isEmpty()) {
+            buf.append(" throws ");
+            for (var i = 0; i < thrownExceptionNames.size(); i++) {
+                if (i > 0) {
+                    buf.append(", ");
                 }
+                final var thrownExceptionName = thrownExceptionNames.get(i);
+                buf.append(useSimpleNames ? ClassInfo.getSimpleName(thrownExceptionName) : thrownExceptionName);
             }
         }
     }
