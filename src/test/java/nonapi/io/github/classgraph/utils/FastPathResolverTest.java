@@ -268,13 +268,105 @@ public class FastPathResolverTest {
     @Test
     public void bareDriveDesignationIsAbsoluteOnWindows() {
         assertThat(resolveAsWindows("C:/base", "C:")).isEqualTo("C:");
-        assertThat(resolveAsWindows("C:/base", "C:\\")).isEqualTo("C:");
         assertThat(resolveAsWindows("C:/base", "/C:")).isEqualTo("C:");
-        // The root of a drive keeps its trailing separator, which is what distinguishes it from the bare drive
-        // designation: "C:" names the current directory on drive C:, but "C:/" names the root directory
-        assertThat(resolveAsWindows("C:/base", "C:/")).isEqualTo("C:/");
         // A path on a drive is unaffected
         assertThat(resolveAsWindows("C:/base", "C:\\a\\b")).isEqualTo("C:/a/b");
         assertThat(resolveAsWindows("C:/base", "/C:/a/b")).isEqualTo("C:/a/b");
+    }
+
+    /**
+     * On Windows, the root directory of a drive keeps its final separator, for the same reason that {@code "/"}
+     * does: the separator is the whole of the directory's name. The separator is also what distinguishes the root
+     * from the bare drive designation, since {@code "C:"} names the current directory on drive C.
+     */
+    @Test
+    public void driveRootKeepsItsFinalSeparatorOnWindows() {
+        assertThat(resolveAsWindows("C:/base", "C:/")).isEqualTo("C:/");
+        // Both separators spell the same path, so both must resolve to the same root
+        assertThat(resolveAsWindows("C:/base", "C:\\")).isEqualTo("C:/");
+        // ... as do the doubled and leading-separator spellings, and the "file:" URL spellings
+        assertThat(resolveAsWindows("C:/base", "C://")).isEqualTo("C:/");
+        assertThat(resolveAsWindows("C:/base", "/C:/")).isEqualTo("C:/");
+        assertThat(resolveAsWindows("C:/base", "file:/C:/")).isEqualTo("C:/");
+        assertThat(resolveAsWindows("C:/base", "file:///C:/")).isEqualTo("C:/");
+        assertThat(resolveAsWindows("C:/base", "file:///C:\\")).isEqualTo("C:/");
+        // A drive is only a drive on Windows -- off Windows "C:" is an ordinary relative directory name, so its
+        // trailing separator is stripped like any other directory's
+        assumeTrue(canSimulateLinux, "the resolver cannot be made to believe it is running on Linux on Windows");
+        assertThat(resolveAsLinux(null, "C:/")).isEqualTo("C:");
+        assertThat(resolveAsLinux("/base", "C:/")).isEqualTo("/base/C:");
+    }
+
+    /**
+     * A path consisting of nothing but separators names a root, so it must not be reduced to the empty string. On
+     * Windows a doubled separator is kept doubled, since it may be the start of a UNC path: a degenerate UNC prefix
+     * that names no share is left for the classpath element to fail to open and be logged, rather than being
+     * collapsed to {@code "/"}, which would silently turn it into a scan of the whole current drive.
+     */
+    @Test
+    public void aPathOfNothingButSeparatorsIsARoot() {
+        assertThat(resolveAsWindows(null, "/")).isEqualTo("/");
+        assertThat(resolveAsWindows(null, "\\")).isEqualTo("/");
+        assertThat(resolveAsWindows(null, "file:///")).isEqualTo("/");
+        assertThat(resolveAsWindows(null, "//")).isEqualTo("//");
+        assertThat(resolveAsWindows(null, "///")).isEqualTo("//");
+        assertThat(resolveAsWindows(null, "\\\\")).isEqualTo("//");
+        assertThat(resolveAsWindows(null, "file://")).isEqualTo("//");
+        assertThat(resolveAsWindows(null, "file:////")).isEqualTo("//");
+        // Off Windows there are no UNC paths, so every spelling names the one root directory
+        assumeTrue(canSimulateLinux, "the resolver cannot be made to believe it is running on Linux on Windows");
+        for (final String rootPath : new String[] { "/", "//", "///", "\\", "\\\\", "file://", "file:///",
+                "file:////" }) {
+            assertThat(resolveAsLinux("/base", rootPath)).as(rootPath).isEqualTo("/");
+        }
+    }
+
+    /**
+     * Percent encoding is decoded only when what is left after the scheme prefixes have been stripped is a
+     * filesystem path. A path that is still a URL keeps its encoding, since a decoded remote URL can no longer be
+     * fetched -- it does not even parse as a {@link java.net.URI}.
+     */
+    // #255
+    @Test
+    public void onlyAPathThatStopsBeingAUrlIsPercentDecoded() {
+        // A "jar:" URL wrapping a "file:" URL, or wrapping a bare path, resolves to a filesystem path
+        assertThat(FastPathResolver.resolve("jar:file:/a%20b.jar!/c%20d")).isEqualTo("/a b.jar!/c d");
+        assertThat(FastPathResolver.resolve("jar:/a%20b.jar!/c%20d")).isEqualTo("/a b.jar!/c d");
+        assertThat(FastPathResolver.resolve("file:/a%20b/c")).isEqualTo("/a b/c");
+        // A "jar:" URL wrapping a remote or custom-scheme URL stays a URL, so it keeps its encoding
+        assertThat(FastPathResolver.resolve("jar:http://h/a%20b.jar!/c%20d"))
+                .isEqualTo("http://h/a%20b.jar!/c%20d");
+        assertThat(FastPathResolver.resolve("jar:https://h/a%20b.jar!/c%20d"))
+                .isEqualTo("https://h/a%20b.jar!/c%20d");
+        assertThat(FastPathResolver.resolve("jar:s3://bucket/a%20b.jar!/c")).isEqualTo("s3://bucket/a%20b.jar!/c");
+        // A URL that was never wrapped in "jar:" is unaffected, and so is a bare path, where '%' is just a
+        // character in a filename
+        assertThat(FastPathResolver.resolve("http://h/a%20b.jar")).isEqualTo("http://h/a%20b.jar");
+        assertThat(FastPathResolver.resolve("/plain/a%20b")).isEqualTo("/plain/a%20b");
+    }
+
+    /**
+     * A URL scheme must be at least two characters long, so that a Windows drive designation is never read as a
+     * scheme. Single-letter schemes are unusable in practice for exactly that reason, so nothing is given up: off
+     * Windows a path such as {@code "C:/a/b"} is an ordinary relative path, which will not exist, so the classpath
+     * element is logged and skipped during scanning.
+     */
+    @Test
+    public void aSingleLetterSchemeIsNotAScheme() {
+        // On Windows the drive designation branch handles it, and the drive letter's case is preserved
+        assertThat(resolveAsWindows("C:/base", "C:/a/b")).isEqualTo("C:/a/b");
+        assertThat(resolveAsWindows("C:/base", "c:/a/b")).isEqualTo("c:/a/b");
+        // Both separators spell the same drive-absolute path, so the base path is ignored either way
+        assertThat(resolveAsWindows("C:/base", "C:\\a\\b")).isEqualTo("C:/a/b");
+        // A scheme of two or more characters is still a scheme on every platform
+        assertThat(resolveAsWindows("C:/base", "s3://bucket/key")).isEqualTo("s3://bucket/key");
+
+        assumeTrue(canSimulateLinux, "the resolver cannot be made to believe it is running on Linux on Windows");
+        // Off Windows there are no drives, so what looks like a single-letter scheme is a relative path
+        assertThat(resolveAsLinux("/base", "C:/a/b")).isEqualTo("/base/C:/a/b");
+        assertThat(resolveAsLinux("/base", "x:/a/b")).isEqualTo("/base/x:/a/b");
+        // ... which is the same answer the backslash spelling has always given
+        assertThat(resolveAsLinux("/base", "C:\\a\\b")).isEqualTo("/base/C:/a/b");
+        assertThat(resolveAsLinux("/base", "s3://bucket/key")).isEqualTo("s3://bucket/key");
     }
 }
