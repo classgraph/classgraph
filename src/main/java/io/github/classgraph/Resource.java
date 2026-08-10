@@ -94,27 +94,19 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Convert a URI to URL, catching "jrt:" URIs as invalid.
+     * Convert a URI to a URL.
      *
      * @param uri
      *            the uri
      * @return the URL.
      * @throws IllegalStateException
-     *             if the URI could not be converted to a URL, or the URI had "jrt:" scheme.
+     *             if the URI could not be converted to a URL.
      */
     private static URL uriToURL(final URI uri) {
         try {
             return uri.toURL();
         } catch (final IllegalArgumentException | MalformedURLException e) {
-            // N.B. uri.getScheme() is null for a relative URI, which is one of the cases where toURL() throws
-            if ("jrt".equals(uri.getScheme())) {
-                // Currently URL cannot handle the "jrt:" scheme, used by system modules.
-                throw new IllegalStateException("Could not create URL from URI with \"jrt:\" scheme "
-                        + "(\"jrt:\" is not supported by the URL class without a custom URL protocol handler): "
-                        + uri);
-            } else {
-                throw new IllegalStateException("Could not create URL from URI: " + uri + " -- " + e);
-            }
+            throw new IllegalStateException("Could not create URL from URI: " + uri + " -- " + e);
         }
     }
 
@@ -143,15 +135,12 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     }
 
     /**
-     * Get the {@link URL} representing the resource's location. Use {@link #getURI()} instead if the resource may
-     * have come from a system module, or if this is a jlink'd runtime image, since "jrt:" URI schemes used by
-     * system modules and jlink'd runtime images are not supported by {@link URL}, and this will cause
-     * {@link IllegalStateException} to be thrown.
+     * Get the {@link URL} representing the resource's location.
      *
      * @return A {@link URL} representing the resource's location.
      * @throws IllegalStateException
-     *             if the resource was obtained from a system module or jlink'd runtime image with a "jrt:" location
-     *             URI, or the resource was obtained from a module and the module's location URI is null
+     *             if the resource was obtained from a module and the module's location URI is null, or if the
+     *             location URI could not be converted to a {@link URL}.
      */
     public URL getURL() {
         return uriToURL(getURI());
@@ -169,15 +158,12 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     }
 
     /**
-     * Get the {@link URL} of the classpath element or module that this resource was obtained from. Use
-     * {@link #getClasspathElementURI()} instead if the resource may have come from a system module, or if this is a
-     * jlink'd runtime image, since "jrt:" URI schemes used by system modules and jlink'd runtime images are not
-     * supported by {@link URL}, and this will cause {@link IllegalStateException} to be thrown.
+     * Get the {@link URL} of the classpath element or module that this resource was obtained from.
      *
      * @return The {@link URL} of the classpath element or module that this resource was found within.
      * @throws IllegalStateException
-     *             if the resource was obtained from a system module or jlink'd runtime image with a "jrt:" location
-     *             URI, or the resource was obtained from a module and the module's location URI is null.
+     *             if the resource was obtained from a module and the module's location URI is null, or if the
+     *             location URI could not be converted to a {@link URL}.
      */
     public URL getClasspathElementURL() {
         return uriToURL(getClasspathElementURI());
@@ -363,14 +349,9 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     }
 
     /**
-     * Hash code.
+     * Get the hash code of the resource's URI.
      *
-     * @return the int
-     */
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.Object#hashCode()
+     * @return the hash code.
      */
     @Override
     public int hashCode() {
@@ -378,16 +359,11 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     }
 
     /**
-     * Equals.
+     * Compare this resource with another resource for equality, by URI.
      *
      * @param obj
-     *            the obj
-     * @return true, if successful
-     */
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.Object#equals(java.lang.Object)
+     *            the object to compare with.
+     * @return true if the other object is a {@link Resource} with the same URI.
      */
     @Override
     public boolean equals(final @Nullable Object obj) {
@@ -400,20 +376,15 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     }
 
     /**
-     * Compare to.
+     * Compare this resource with another resource, by URI.
      *
-     * @param o
-     *            the o
-     * @return the int
-     */
-    /*
-     * (non-Javadoc)
-     *
-     * @see java.lang.Comparable#compareTo(java.lang.Object)
+     * @param other
+     *            the resource to compare with.
+     * @return the ordering of this resource's URI relative to the other resource's URI.
      */
     @Override
-    public int compareTo(final Resource o) {
-        return toString().compareTo(o.toString());
+    public int compareTo(final Resource other) {
+        return toString().compareTo(other.toString());
     }
 
     // -------------------------------------------------------------------------------------------------------------

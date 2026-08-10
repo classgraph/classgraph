@@ -3542,17 +3542,13 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get the {@link URL} of the classpath element or module that this class was found within. Use
-     * {@link #getClasspathElementURI()} instead if the resource may have come from a system module, or if this is a
-     * jlink'd runtime image, since "jrt:" URI schemes used by system modules and jlink'd runtime images are not
-     * supported by {@link URL}, and this will cause {@link IllegalStateException} to be thrown.
+     * Get the {@link URL} of the classpath element or module that this class was found within.
      *
      * @return The {@link URL} of the classpath element that this class was found within.
      * @throws IllegalStateException
-     *             if the classpath element URI cannot be converted to a {@link URL} (in particular, if the URI has
-     *             a {@code jrt:/} scheme), or if the classpath element is not known for this class, because this
-     *             {@link ClassInfo} is a placeholder for a class that was referenced by a scanned class but was not
-     *             itself scanned.
+     *             if the classpath element URI cannot be converted to a {@link URL}, or if the classpath element is
+     *             not known for this class, because this {@link ClassInfo} is a placeholder for a class that was
+     *             referenced by a scanned class but was not itself scanned.
      */
     public URL getClasspathElementURL() {
         try {

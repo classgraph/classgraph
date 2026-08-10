@@ -444,9 +444,8 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Returns an ordered list of unique classpath element and module URLs. Will skip any system modules or modules
-     * that are part of a jlink'd runtime image, since {@link URL} does not support the {@code jrt:} {@link URI}
-     * scheme.
+     * Returns an ordered list of unique classpath element and module URLs. Any URI that cannot be converted to a
+     * {@link URL} is skipped.
      *
      * @return The unique classpath element and module URLs.
      * @throws IllegalStateException
@@ -459,7 +458,7 @@ public final class ScanResult implements Closeable {
             try {
                 classpathElementOrderURLs.add(uri.toURL());
             } catch (final IllegalArgumentException | MalformedURLException e) {
-                // Skip "jrt:" URIs and malformed URLs
+                // Skip malformed and relative URIs
             }
         }
         return Collections.unmodifiableList(classpathElementOrderURLs);

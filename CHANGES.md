@@ -1071,6 +1071,18 @@ that, returning the empty list if the class was not found — matching the `Clas
     `Package#toString()` and `Module#toString()` do: `package com.xyz` and `module
     java.base`, rather than the bare name. Call `getName()` for the name alone.
 
+* **`getURL()` works for system modules and jlink'd runtime images.** ClassGraph
+  documented `Resource#getURL()`, `Resource#getClasspathElementURL()`,
+  `ClassInfo#getClasspathElementURL()` and `ResourceList#getURLs()` as throwing
+  `IllegalStateException` for a resource with a `jrt:` location, and told you to use the
+  `getURI()` form instead, on the grounds that `java.net.URL` cannot represent the `jrt:`
+  scheme. That has not been true since JDK 9, which registers a URL protocol handler for
+  `jrt:`, so the URI converts to a URL and the URL opens. Nothing changes at run time —
+  the documented exception could never actually be thrown on a JDK new enough to produce
+  a `jrt:` URI in the first place — but the documentation and the dead special case that
+  went with it are gone, and `ScanResult#getClasspathURLs()` no longer claims to skip
+  system modules.
+
 ## Bug fixes
 
 Bugs found during the port. Each of these is a pre-existing bug in ClassGraph 4.x, and

@@ -175,9 +175,6 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
 
     /**
      * Get the URLs of all resources in this list, by calling {@link Resource#getURL()} for each item in the list.
-     * Note that any resource with a {@code jrt:} URI (e.g. a system resource, or a resource from a jlink'd image)
-     * will cause {@link IllegalStateException} to be thrown, since {@link URL} does not support this scheme, so
-     * {@link #getURIs()} is strongly preferred over {@link #getURLs()}.
      *
      * @return The URLs of all resources in this list.
      * @throws IllegalStateException
