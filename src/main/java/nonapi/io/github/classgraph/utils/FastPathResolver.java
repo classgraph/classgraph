@@ -43,8 +43,12 @@ public final class FastPathResolver {
     /** Match %-encoded characters in URLs. */
     private static final Pattern percentMatcher = Pattern.compile("([%][0-9a-fA-F][0-9a-fA-F])+");
 
-    /** Match custom URLs that are followed by one or two slashes. */
-    private static final Pattern schemeOneOrTwoSlashMatcher = Pattern.compile("^[a-zA-Z+\\-.]+:/{1,2}");
+    /**
+     * Match custom URLs that are followed by one or two slashes. The scheme grammar is the one in RFC 3986: a
+     * letter, then any number of letters, digits, {@code '+'}, {@code '-'} and {@code '.'} -- digits included, so
+     * that a scheme such as {@code "s3:"} is recognized.
+     */
+    private static final Pattern schemeOneOrTwoSlashMatcher = Pattern.compile("^[a-zA-Z][a-zA-Z0-9+\\-.]*:/{1,2}");
 
     /**
      * The separator that Tomcat uses in a {@code "war:"} URL between the path of the WAR file and the path within
@@ -293,6 +297,14 @@ public final class FastPathResolver {
             }
         } while (matchedPrefix);
 
+        // A "file:" URL with an empty authority ("file:///path", which is the spelling that Path#toUri()
+        // produces) has two slashes that are not part of the path. Drop them, so that the path itself is what the
+        // checks below see -- otherwise on Windows the empty authority is read as the start of a UNC path, and
+        // "file:///C:/xyz" resolves to "///C:/xyz", which names neither a drive nor a network share
+        if (isFileOrJarURL && relativePath.startsWith("///", startIdx)) {
+            startIdx += 2;
+        }
+
         // Handle Windows paths starting with a drive designation as an absolute path
         if (VersionFinder.OS == OperatingSystem.Windows) {
             if (relativePath.startsWith("//", startIdx) || relativePath.startsWith("\\\\", startIdx)) {
@@ -300,21 +312,22 @@ public final class FastPathResolver {
                 startIdx += 2;
                 prefix += "//";
                 isAbsolutePath = true;
-            } else if (relativePath.length() - startIdx > 2 && Character.isLetter(relativePath.charAt(startIdx))
+            } else if (relativePath.length() - startIdx >= 2 && Character.isLetter(relativePath.charAt(startIdx))
                     && relativePath.charAt(startIdx + 1) == ':') {
-                // Path like "C:/xyz"
+                // Path like "C:/xyz", or the bare drive designation "C:"
                 isAbsolutePath = true;
-            } else if (relativePath.length() - startIdx > 3
+            } else if (relativePath.length() - startIdx >= 3
                     && (relativePath.charAt(startIdx) == '/' || relativePath.charAt(startIdx) == '\\')
                     && Character.isLetter(relativePath.charAt(startIdx + 1))
                     && relativePath.charAt(startIdx + 2) == ':') {
-                // Path like "/C:/xyz"
+                // Path like "/C:/xyz", or the bare drive designation "/C:"
                 isAbsolutePath = true;
                 startIdx++;
             }
         }
-        // Catch-all for paths starting with separator
-        if (relativePath.length() - startIdx > 1
+        // Catch-all for paths starting with separator. A path consisting of nothing but a separator is the root
+        // path, which is absolute too, so one character is enough here
+        if (relativePath.length() - startIdx >= 1
                 && (relativePath.charAt(startIdx) == '/' || relativePath.charAt(startIdx) == '\\')) {
             isAbsolutePath = true;
         }
@@ -348,9 +361,11 @@ public final class FastPathResolver {
         String pathResolved;
         if (isAbsolutePath || resolveBasePath == null || resolveBasePath.isEmpty()) {
             // There is no base path to resolve against, or path is an absolute path or http(s):// URL
-            // (ignore the base path)
-            pathResolved = FileUtils.sanitizeEntryPath(pathStr, /* removeInitialSlash = */ false,
-                    /* removeFinalSlash = */ true);
+            // (ignore the base path). The root path is the one path whose final separator must not be removed,
+            // since removing it leaves the empty string, which names no directory at all
+            pathResolved = "/".equals(pathStr) ? "/"
+                    : FileUtils.sanitizeEntryPath(pathStr, /* removeInitialSlash = */ false,
+                            /* removeFinalSlash = */ true);
         } else {
             // Path is a relative path -- resolve it relative to the base path
             pathResolved = FileUtils.sanitizeEntryPath(
@@ -358,8 +373,13 @@ public final class FastPathResolver {
                     /* removeInitialSlash = */ false, /* removeFinalSlash = */ true);
         }
 
-        // Add any prefix back, e.g. "https://"
-        return prefix.isEmpty() ? pathResolved : prefix + pathResolved;
+        // Add any prefix back, e.g. "https://". A prefix that already ends with a separator supplies the root
+        // path's own separator, so joining the two must not double it ("C:/" must not become "C://")
+        if (prefix.isEmpty()) {
+            return pathResolved;
+        }
+        return prefix.endsWith("/") && pathResolved.startsWith("/") ? prefix + pathResolved.substring(1)
+                : prefix + pathResolved;
     }
 
     /**
