@@ -30,6 +30,7 @@ package nonapi.io.github.classgraph.classloaderhandler;
 
 import java.io.IOException;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
@@ -59,115 +60,69 @@ class FallbackClassLoaderHandler implements ClassLoaderHandler {
         classLoaderOrder.add(classLoader, log);
     }
 
+    /**
+     * A method or field of a {@link ClassLoader} that may hold classpath entries.
+     *
+     * @param isMethod
+     *            true if this is a method, false if it is a field.
+     * @param name
+     *            the name of the method or field.
+     */
+    private record ClasspathSource(boolean isMethod, String name) {
+    }
+
+    /**
+     * A method of a {@link ClassLoader} that may hold classpath entries.
+     *
+     * @param name
+     *            the method name.
+     * @return the {@link ClasspathSource}.
+     */
+    private static ClasspathSource method(final String name) {
+        return new ClasspathSource(/* isMethod = */ true, name);
+    }
+
+    /**
+     * A field of a {@link ClassLoader} that may hold classpath entries.
+     *
+     * @param name
+     *            the field name.
+     * @return the {@link ClasspathSource}.
+     */
+    private static ClasspathSource field(final String name) {
+        return new ClasspathSource(/* isMethod = */ false, name);
+    }
+
+    /**
+     * The methods and fields that are probed for classpath entries, in the order they are probed -- an unknown
+     * classloader may have more than one of them, and this order becomes the classpath order.
+     */
+    private static final List<ClasspathSource> CLASSPATH_SOURCES = List.of(
+            // Classpaths
+            method("getClassPath"), method("getClasspath"), method("classpath"), method("classPath"), method("cp"),
+            field("classpath"), field("classPath"), field("cp"),
+            // Paths
+            method("getPath"), method("getPaths"), method("path"), method("paths"), field("paths"),
+            // Directories
+            method("getDir"), method("getDirs"), method("dir"), method("dirs"), field("dir"), field("dirs"),
+            // Files
+            method("getFile"), method("getFiles"), method("file"), method("files"), field("file"), field("files"),
+            // Jars
+            method("getJar"), method("getJars"), method("jar"), method("jars"), field("jar"), field("jars"),
+            // URLs
+            method("getURL"), method("getURLs"), method("getUrl"), method("getUrls"), method("url"), method("urls"),
+            field("url"), field("urls"));
+
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
             final ScanSpec scanSpec, final @Nullable LogNode log) {
         var valid = false;
-        valid |= classpathOrder.addClasspathEntryObject(
-                classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getClassPath"), classLoader,
-                scanSpec, log);
-        valid |= classpathOrder.addClasspathEntryObject(
-                classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getClasspath"), classLoader,
-                scanSpec, log);
-        valid |= classpathOrder.addClasspathEntryObject(
-                classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "classpath"), classLoader, scanSpec,
-                log);
-        valid |= classpathOrder.addClasspathEntryObject(
-                classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "classPath"), classLoader, scanSpec,
-                log);
-        valid |= classpathOrder.addClasspathEntryObject(
-                classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "cp"), classLoader, scanSpec, log);
-        valid |= classpathOrder.addClasspathEntryObject(
-                classpathOrder.reflectionUtils.getFieldVal(false, classLoader, "classpath"), classLoader, scanSpec,
-                log);
-        valid |= classpathOrder.addClasspathEntryObject(
-                classpathOrder.reflectionUtils.getFieldVal(false, classLoader, "classPath"), classLoader, scanSpec,
-                log);
-        valid |= classpathOrder.addClasspathEntryObject(
-                classpathOrder.reflectionUtils.getFieldVal(false, classLoader, "cp"), classLoader, scanSpec, log);
-        valid |= classpathOrder.addClasspathEntryObject(
-                classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getPath"), classLoader, scanSpec,
-                log);
-        valid |= classpathOrder.addClasspathEntryObject(
-                classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getPaths"), classLoader, scanSpec,
-                log);
-        valid |= classpathOrder.addClasspathEntryObject(
-                classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "path"), classLoader, scanSpec,
-                log);
-        valid |= classpathOrder.addClasspathEntryObject(
-                classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "paths"), classLoader, scanSpec,
-                log);
-        valid |= classpathOrder.addClasspathEntryObject(
-                classpathOrder.reflectionUtils.getFieldVal(false, classLoader, "paths"), classLoader, scanSpec,
-                log);
-        valid |= classpathOrder.addClasspathEntryObject(
-                classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getDir"), classLoader, scanSpec,
-                log);
-        valid |= classpathOrder.addClasspathEntryObject(
-                classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getDirs"), classLoader, scanSpec,
-                log);
-        valid |= classpathOrder.addClasspathEntryObject(
-                classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "dir"), classLoader, scanSpec, log);
-        valid |= classpathOrder.addClasspathEntryObject(
-                classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "dirs"), classLoader, scanSpec,
-                log);
-        valid |= classpathOrder.addClasspathEntryObject(
-                classpathOrder.reflectionUtils.getFieldVal(false, classLoader, "dir"), classLoader, scanSpec, log);
-        valid |= classpathOrder.addClasspathEntryObject(
-                classpathOrder.reflectionUtils.getFieldVal(false, classLoader, "dirs"), classLoader, scanSpec, log);
-        valid |= classpathOrder.addClasspathEntryObject(
-                classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getFile"), classLoader, scanSpec,
-                log);
-        valid |= classpathOrder.addClasspathEntryObject(
-                classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getFiles"), classLoader, scanSpec,
-                log);
-        valid |= classpathOrder.addClasspathEntryObject(
-                classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "file"), classLoader, scanSpec,
-                log);
-        valid |= classpathOrder.addClasspathEntryObject(
-                classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "files"), classLoader, scanSpec,
-                log);
-        valid |= classpathOrder.addClasspathEntryObject(
-                classpathOrder.reflectionUtils.getFieldVal(false, classLoader, "file"), classLoader, scanSpec, log);
-        valid |= classpathOrder.addClasspathEntryObject(
-                classpathOrder.reflectionUtils.getFieldVal(false, classLoader, "files"), classLoader, scanSpec,
-                log);
-        valid |= classpathOrder.addClasspathEntryObject(
-                classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getJar"), classLoader, scanSpec,
-                log);
-        valid |= classpathOrder.addClasspathEntryObject(
-                classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getJars"), classLoader, scanSpec,
-                log);
-        valid |= classpathOrder.addClasspathEntryObject(
-                classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "jar"), classLoader, scanSpec, log);
-        valid |= classpathOrder.addClasspathEntryObject(
-                classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "jars"), classLoader, scanSpec,
-                log);
-        valid |= classpathOrder.addClasspathEntryObject(
-                classpathOrder.reflectionUtils.getFieldVal(false, classLoader, "jar"), classLoader, scanSpec, log);
-        valid |= classpathOrder.addClasspathEntryObject(
-                classpathOrder.reflectionUtils.getFieldVal(false, classLoader, "jars"), classLoader, scanSpec, log);
-        valid |= classpathOrder.addClasspathEntryObject(
-                classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getURL"), classLoader, scanSpec,
-                log);
-        valid |= classpathOrder.addClasspathEntryObject(
-                classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getURLs"), classLoader, scanSpec,
-                log);
-        valid |= classpathOrder.addClasspathEntryObject(
-                classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getUrl"), classLoader, scanSpec,
-                log);
-        valid |= classpathOrder.addClasspathEntryObject(
-                classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getUrls"), classLoader, scanSpec,
-                log);
-        valid |= classpathOrder.addClasspathEntryObject(
-                classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "url"), classLoader, scanSpec, log);
-        valid |= classpathOrder.addClasspathEntryObject(
-                classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "urls"), classLoader, scanSpec,
-                log);
-        valid |= classpathOrder.addClasspathEntryObject(
-                classpathOrder.reflectionUtils.getFieldVal(false, classLoader, "url"), classLoader, scanSpec, log);
-        valid |= classpathOrder.addClasspathEntryObject(
-                classpathOrder.reflectionUtils.getFieldVal(false, classLoader, "urls"), classLoader, scanSpec, log);
+        for (final ClasspathSource classpathSource : CLASSPATH_SOURCES) {
+            final var classpathEntryObj = classpathSource.isMethod()
+                    ? classpathOrder.reflectionUtils.invokeMethod(false, classLoader, classpathSource.name())
+                    : classpathOrder.reflectionUtils.getFieldVal(false, classLoader, classpathSource.name());
+            valid |= classpathOrder.addClasspathEntryObject(classpathEntryObj, classLoader, scanSpec, log);
+        }
         if (!valid) {
             // None of the known field or method names worked, so fall back to asking the classloader for resources
             // that are present in the root of most classpath elements, and strip the resource path from the
