@@ -1324,7 +1324,25 @@ class Classfile {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Read constant pool entries.
+     * The constant pool indices of the entries that name a referenced class, collected while the constant pool is
+     * being read. Only collected if inter-class dependencies are enabled.
+     *
+     * @param classRefCpIdxs
+     *            the indices of the modified UTF8 entries referenced by class ref (tag 7) entries
+     * @param nameAndTypeCpIdxs
+     *            the indices of the modified UTF8 entries holding the type signature of a name and type (tag 12)
+     *            entry
+     */
+    private record ReferencedClassCpIdxs(List<Integer> classRefCpIdxs, List<Integer> nameAndTypeCpIdxs) {
+        /** Constructor. */
+        ReferencedClassCpIdxs() {
+            this(new ArrayList<>(), new ArrayList<>());
+        }
+    }
+
+    /**
+     * Read constant pool entries, and if inter-class dependencies are enabled, extract the names of the classes
+     * referenced by the constant pool.
      *
      * @param log
      *            The log
@@ -1333,23 +1351,42 @@ class Classfile {
      */
     private void readConstantPoolEntries(final @Nullable LogNode log) throws IOException {
         // Only record class dependency info if inter-class dependencies are enabled
-        List<Integer> classNameCpIdxs = null;
-        List<Integer> typeSignatureIdxs = null;
-        if (scanSpec.enableInterClassDependencies) {
-            classNameCpIdxs = new ArrayList<>();
-            typeSignatureIdxs = new ArrayList<>();
-        }
+        final var referencedClassCpIdxs = scanSpec.enableInterClassDependencies ? new ReferencedClassCpIdxs()
+                : null;
 
-        // Read size of constant pool
+        // Read size of constant pool, and allocate storage for the entries
         cpCount = reader().readUnsignedShort();
-
-        // Allocate storage for constant pool
         entryOffset = new int[cpCount];
         entryTag = new int[cpCount];
         indirectStringRefs = new int[cpCount];
         Arrays.fill(indirectStringRefs, 0, cpCount, -1);
 
-        // Read constant pool entries
+        parseConstantPoolEntries(referencedClassCpIdxs);
+
+        if (referencedClassCpIdxs != null) {
+            // Note that there are some class refs that will not be found this way, e.g. enum classes and class refs
+            // in annotation parameter values, since they are referenced as strings (tag 1) rather than classes
+            // (tag 7) or type signatures (part of tag 12). Therefore, a hybrid approach needs to be applied of
+            // extracting these other class refs from the ClassInfo graph, and combining them with class names
+            // extracted from the constant pool here.
+            final Set<String> refdClassNamesSet = new HashSet<>();
+            refdClassNames = refdClassNamesSet;
+            addClassNamesFromClassRefs(referencedClassCpIdxs.classRefCpIdxs(), refdClassNamesSet);
+            addClassNamesFromTypeSignatures(referencedClassCpIdxs.nameAndTypeCpIdxs(), refdClassNamesSet, log);
+        }
+    }
+
+    /**
+     * Fill in {@link #entryTag}, {@link #entryOffset} and {@link #indirectStringRefs} for each constant pool entry,
+     * without resolving any of the string entries.
+     *
+     * @param referencedClassCpIdxs
+     *            if non-null, the indices of the entries that name a referenced class are collected here
+     * @throws IOException
+     *             Signals that an I/O exception has occurred.
+     */
+    private void parseConstantPoolEntries(final @Nullable ReferencedClassCpIdxs referencedClassCpIdxs)
+            throws IOException {
         for (int i = 1, skipSlot = 0; i < cpCount; i++) {
             if (skipSlot == 1) {
                 // Skip a slot (keeps Scrutinizer happy -- it doesn't like i++ in case 6)
@@ -1385,9 +1422,9 @@ class Classfile {
             case 7 -> {
                 // Forward or backward indirect reference to a modified UTF8 entry
                 indirectStringRefs[i] = reader().readUnsignedShort();
-                if (classNameCpIdxs != null) {
+                if (referencedClassCpIdxs != null) {
                     // If this is a class ref, and inter-class dependencies are enabled, record the dependency
-                    classNameCpIdxs.add(indirectStringRefs[i]);
+                    referencedClassCpIdxs.classRefCpIdxs().add(indirectStringRefs[i]);
                 }
             }
             // String -- forward or backward indirect reference to a modified UTF8 entry
@@ -1399,8 +1436,8 @@ class Classfile {
             case 12 -> {
                 final var nameRef = reader().readUnsignedShort();
                 final var typeRef = reader().readUnsignedShort();
-                if (typeSignatureIdxs != null) {
-                    typeSignatureIdxs.add(typeRef);
+                if (referencedClassCpIdxs != null) {
+                    referencedClassCpIdxs.nameAndTypeCpIdxs().add(typeRef);
                 }
                 indirectStringRefs[i] = (nameRef << 16) | typeRef;
             }
@@ -1422,66 +1459,80 @@ class Classfile {
             }
         }
 
-        // Find classes referenced in the constant pool. Note that there are some class refs that will not be found
-        // this way, e.g. enum classes and class refs in annotation parameter values, since they are referenced as
-        // strings (tag 1) rather than classes (tag 7) or type signatures (part of tag 12). Therefore, a hybrid
-        // approach needs to be applied of extracting these other class refs from the ClassInfo graph, and combining
-        // them with class names extracted from the constant pool here.
-        if (classNameCpIdxs != null) {
-            final Set<String> refdClassNamesSet = new HashSet<>();
-            refdClassNames = refdClassNamesSet;
-            // Get class names from direct class references in constant pool
-            for (final int cpIdx : classNameCpIdxs) {
-                final var refdClassName = getConstantPoolString(cpIdx, /* replaceSlashWithDot = */ true,
-                        /* stripLSemicolon = */ false);
-                if (refdClassName != null) {
-                    if (refdClassName.startsWith("[")) {
-                        // Parse array type signature, e.g. "[Ljava.lang.String;" -- uses '.' rather than '/'
-                        try {
-                            final var typeSig = TypeSignature.parse(refdClassName.replace('.', '/'),
-                                    /* definingClass = */ null);
-                            typeSig.findReferencedClassNames(refdClassNamesSet);
-                        } catch (final ParseException e) {
-                            // Should not happen
-                            throw new ClassfileFormatException("Could not parse class name: " + refdClassName, e);
-                        }
-                    } else {
-                        refdClassNamesSet.add(refdClassName);
+    }
+
+    /**
+     * Add the names of the classes named by class ref (tag 7) constant pool entries to {@code refdClassNames}.
+     *
+     * @param classRefCpIdxs
+     *            the constant pool indices of the modified UTF8 entries referenced by class ref entries
+     * @param refdClassNames
+     *            the set of referenced class names to add to
+     * @throws IOException
+     *             Signals that an I/O exception has occurred.
+     */
+    private void addClassNamesFromClassRefs(final List<Integer> classRefCpIdxs, final Set<String> refdClassNames)
+            throws IOException {
+        for (final int cpIdx : classRefCpIdxs) {
+            final var refdClassName = getConstantPoolString(cpIdx, /* replaceSlashWithDot = */ true,
+                    /* stripLSemicolon = */ false);
+            if (refdClassName != null) {
+                if (refdClassName.startsWith("[")) {
+                    // Parse array type signature, e.g. "[Ljava.lang.String;" -- uses '.' rather than '/'
+                    try {
+                        final var typeSig = TypeSignature.parse(refdClassName.replace('.', '/'),
+                                /* definingClass = */ null);
+                        typeSig.findReferencedClassNames(refdClassNames);
+                    } catch (final ParseException e) {
+                        // Should not happen
+                        throw new ClassfileFormatException("Could not parse class name: " + refdClassName, e);
                     }
+                } else {
+                    refdClassNames.add(refdClassName);
                 }
             }
         }
-        if (typeSignatureIdxs != null) {
-            // classNameCpIdxs and typeSignatureIdxs are both non-null iff inter-class dependencies are enabled, so
-            // refdClassNames was initialized above
-            final var refdClassNamesSet = Objects.requireNonNull(refdClassNames);
-            // Get class names from type signatures in "name and type" entries in constant pool
-            for (final int cpIdx : typeSignatureIdxs) {
-                final var typeSigStr = getConstantPoolString(cpIdx);
-                if (typeSigStr != null) {
-                    try {
-                        if (typeSigStr.startsWith("L") && typeSigStr.endsWith(";")) {
-                            // Parse the class name
-                            final var typeSig = TypeSignature.parse(typeSigStr, /* definingClassName = */ null);
-                            // Extract class names from type signature
-                            typeSig.findReferencedClassNames(refdClassNamesSet);
-                        } else if (typeSigStr.indexOf('(') >= 0 || "<init>".equals(typeSigStr)) {
-                            // Parse the type signature
-                            final var typeSig = MethodTypeSignature.parse(typeSigStr,
-                                    /* definingClassName = */ null);
-                            // Extract class names from type signature
-                            typeSig.findReferencedClassNames(refdClassNamesSet);
-                        } else {
-                            if (log != null) {
-                                log.log("Could not extract referenced class names from constant pool string: "
-                                        + typeSigStr);
-                            }
-                        }
-                    } catch (final ParseException e) {
+    }
+
+    /**
+     * Add the names of the classes named by the type signatures of name and type (tag 12) constant pool entries to
+     * {@code refdClassNames}.
+     *
+     * @param nameAndTypeCpIdxs
+     *            the constant pool indices of the modified UTF8 entries holding the type signatures
+     * @param refdClassNames
+     *            the set of referenced class names to add to
+     * @param log
+     *            The log
+     * @throws IOException
+     *             Signals that an I/O exception has occurred.
+     */
+    private void addClassNamesFromTypeSignatures(final List<Integer> nameAndTypeCpIdxs,
+            final Set<String> refdClassNames, final @Nullable LogNode log) throws IOException {
+        for (final int cpIdx : nameAndTypeCpIdxs) {
+            final var typeSigStr = getConstantPoolString(cpIdx);
+            if (typeSigStr != null) {
+                try {
+                    if (typeSigStr.startsWith("L") && typeSigStr.endsWith(";")) {
+                        // Parse the class name
+                        final var typeSig = TypeSignature.parse(typeSigStr, /* definingClassName = */ null);
+                        // Extract class names from type signature
+                        typeSig.findReferencedClassNames(refdClassNames);
+                    } else if (typeSigStr.indexOf('(') >= 0 || "<init>".equals(typeSigStr)) {
+                        // Parse the type signature
+                        final var typeSig = MethodTypeSignature.parse(typeSigStr, /* definingClassName = */ null);
+                        // Extract class names from type signature
+                        typeSig.findReferencedClassNames(refdClassNames);
+                    } else {
                         if (log != null) {
                             log.log("Could not extract referenced class names from constant pool string: "
-                                    + typeSigStr + " : " + e);
+                                    + typeSigStr);
                         }
+                    }
+                } catch (final ParseException e) {
+                    if (log != null) {
+                        log.log("Could not extract referenced class names from constant pool string: " + typeSigStr
+                                + " : " + e);
                     }
                 }
             }
