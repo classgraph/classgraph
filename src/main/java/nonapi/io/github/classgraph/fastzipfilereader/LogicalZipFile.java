@@ -299,128 +299,147 @@ public class LogicalZipFile extends ZipFileSlice {
 
         // Find field keys (separated by newlines)
         for (var i = 0; i < manifest.length;) {
-            // There cannot be any space after a newline before the manifest key, so key starts immediately
-            var skip = false;
-            if (manifest[i] == (byte) '\n' || manifest[i] == (byte) '\r') {
-                // Skip blank lines
-                skip = true;
-
-            } else if (keyMatchesAtPosition(manifest, IMPLEMENTATION_TITLE_KEY, i)) {
-                final var manifestValueAndEndIdx = getManifestValue(manifest,
-                        i + IMPLEMENTATION_TITLE_KEY.length + 1);
-                if ("Java Runtime Environment".equalsIgnoreCase(manifestValueAndEndIdx.getKey())) {
-                    isJREJar = true;
-                }
-                i = manifestValueAndEndIdx.getValue();
-
-            } else if (keyMatchesAtPosition(manifest, SPECIFICATION_TITLE_KEY, i)) {
-                final var manifestValueAndEndIdx = getManifestValue(manifest,
-                        i + SPECIFICATION_TITLE_KEY.length + 1);
-                if ("Java Platform API Specification".equalsIgnoreCase(manifestValueAndEndIdx.getKey())) {
-                    isJREJar = true;
-                }
-                i = manifestValueAndEndIdx.getValue();
-
-            } else if (keyMatchesAtPosition(manifest, CLASS_PATH_KEY, i)) {
-                final var manifestValueAndEndIdx = getManifestValue(manifest, i + CLASS_PATH_KEY.length + 1);
-                // Add Class-Path manifest entry values to classpath
-                classPathManifestEntryValue = manifestValueAndEndIdx.getKey();
-                if (log != null) {
-                    log.log("Found Class-Path entry in manifest file: " + classPathManifestEntryValue);
-                }
-                i = manifestValueAndEndIdx.getValue();
-
-            } else if (keyMatchesAtPosition(manifest, BUNDLE_CLASSPATH_KEY, i)) {
-                final var manifestValueAndEndIdx = getManifestValue(manifest, i + BUNDLE_CLASSPATH_KEY.length + 1);
-                // Add Bundle-ClassPath manifest entry values to classpath
-                bundleClassPathManifestEntryValue = manifestValueAndEndIdx.getKey();
-                if (log != null) {
-                    log.log("Found Bundle-ClassPath entry in manifest file: " + bundleClassPathManifestEntryValue);
-                }
-                i = manifestValueAndEndIdx.getValue();
-
-            } else if (keyMatchesAtPosition(manifest, SPRING_BOOT_CLASSES_KEY, i)) {
-                final var manifestValueAndEndIdx = getManifestValue(manifest,
-                        i + SPRING_BOOT_CLASSES_KEY.length + 1);
-                final var springBootClassesFieldVal = manifestValueAndEndIdx.getKey();
-                if (!"BOOT-INF/classes".equals(springBootClassesFieldVal)
-                        && !"BOOT-INF/classes/".equals(springBootClassesFieldVal)
-                        && !"WEB-INF/classes".equals(springBootClassesFieldVal)
-                        && !"WEB-INF/classes/".equals(springBootClassesFieldVal)) {
-                    throw new IOException("Spring boot classes are at \"" + springBootClassesFieldVal
-                            + "\" rather than the standard location \"BOOT-INF/classes/\" or \"WEB-INF/classes/\" "
-                            + "-- please report this at https://github.com/classgraph/classgraph/issues");
-                }
-                i = manifestValueAndEndIdx.getValue();
-
-            } else if (keyMatchesAtPosition(manifest, SPRING_BOOT_LIB_KEY, i)) {
-                final var manifestValueAndEndIdx = getManifestValue(manifest, i + SPRING_BOOT_LIB_KEY.length + 1);
-                final var springBootLibFieldVal = manifestValueAndEndIdx.getKey();
-                if (!"BOOT-INF/lib".equals(springBootLibFieldVal) && !"BOOT-INF/lib/".equals(springBootLibFieldVal)
-                        && !"WEB-INF/lib".equals(springBootLibFieldVal)
-                        && !"WEB-INF/lib/".equals(springBootLibFieldVal)) {
-                    throw new IOException("Spring boot lib jars are at \"" + springBootLibFieldVal
-                            + "\" rather than the standard location \"BOOT-INF/lib/\" or \"WEB-INF/lib/\" "
-                            + "-- please report this at https://github.com/classgraph/classgraph/issues");
-                }
-                i = manifestValueAndEndIdx.getValue();
-
-            } else if (keyMatchesAtPosition(manifest, MULTI_RELEASE_KEY, i)) {
-                final var manifestValueAndEndIdx = getManifestValue(manifest, i + MULTI_RELEASE_KEY.length + 1);
-                if ("true".equalsIgnoreCase(manifestValueAndEndIdx.getKey())) {
-                    isMultiReleaseJar = true;
-                }
-                i = manifestValueAndEndIdx.getValue();
-
-            } else if (keyMatchesAtPosition(manifest, ADD_EXPORTS_KEY, i)) {
-                final var manifestValueAndEndIdx = getManifestValue(manifest, i + ADD_EXPORTS_KEY.length + 1);
-                addExportsManifestEntryValue = manifestValueAndEndIdx.getKey();
-                if (log != null) {
-                    log.log("Found Add-Exports entry in manifest file: " + addExportsManifestEntryValue);
-                }
-                i = manifestValueAndEndIdx.getValue();
-
-            } else if (keyMatchesAtPosition(manifest, ADD_OPENS_KEY, i)) {
-                final var manifestValueAndEndIdx = getManifestValue(manifest, i + ADD_OPENS_KEY.length + 1);
-                addOpensManifestEntryValue = manifestValueAndEndIdx.getKey();
-                if (log != null) {
-                    log.log("Found Add-Opens entry in manifest file: " + addOpensManifestEntryValue);
-                }
-                i = manifestValueAndEndIdx.getValue();
-
-            } else if (keyMatchesAtPosition(manifest, AUTOMATIC_MODULE_NAME_KEY, i)) {
-                final var manifestValueAndEndIdx = getManifestValue(manifest,
-                        i + AUTOMATIC_MODULE_NAME_KEY.length + 1);
-                automaticModuleNameManifestEntryValue = manifestValueAndEndIdx.getKey();
-                if (log != null) {
-                    log.log("Found Automatic-Module-Name entry in manifest file: "
-                            + automaticModuleNameManifestEntryValue);
-                }
-                i = manifestValueAndEndIdx.getValue();
-
-            } else {
-
-                // Key name was unrecognized -- skip to next key
-                skip = true;
+            // There cannot be any space after a newline before the manifest key, so key starts immediately.
+            // Blank lines have no key to read.
+            final var isBlankLine = manifest[i] == (byte) '\n' || manifest[i] == (byte) '\r';
+            final var endIdx = isBlankLine ? -1 : parseManifestField(manifest, i, log);
+            if (endIdx >= 0) {
+                i = endIdx;
+                continue;
             }
 
-            if (skip) {
-                // Field key didn't match -- skip to next key (after next newline that is not followed by a space)
-                for (; i < manifest.length - 2; i++) {
-                    if (manifest[i] == (byte) '\r' && manifest[i + 1] == (byte) '\n'
-                            && manifest[i + 2] != (byte) ' ') {
-                        i += 2;
-                        break;
-                    } else if ((manifest[i] == (byte) '\r' || manifest[i] == (byte) '\n')
-                            && manifest[i + 1] != (byte) ' ') {
-                        i++;
-                        break;
-                    }
-                }
-                if (i >= manifest.length - 2) {
+            // Field key didn't match -- skip to next key (after next newline that is not followed by a space)
+            for (; i < manifest.length - 2; i++) {
+                if (manifest[i] == (byte) '\r' && manifest[i + 1] == (byte) '\n' && manifest[i + 2] != (byte) ' ') {
+                    i += 2;
+                    break;
+                } else if ((manifest[i] == (byte) '\r' || manifest[i] == (byte) '\n')
+                        && manifest[i + 1] != (byte) ' ') {
+                    i++;
                     break;
                 }
             }
+            if (i >= manifest.length - 2) {
+                break;
+            }
+        }
+    }
+
+    /**
+     * Read one field of the manifest, if its key is one of the keys that ClassGraph looks for, and record the
+     * field's value.
+     *
+     * @param manifest
+     *            the manifest contents
+     * @param keyStartIdx
+     *            the index of the start of the field key
+     * @param log
+     *            the log node, or null to skip logging
+     * @return the index of the character after the field's value, or -1 if the field key was not recognized
+     * @throws IOException
+     *             if the manifest names a nonstandard Spring Boot layout.
+     */
+    private int parseManifestField(final byte[] manifest, final int keyStartIdx, final @Nullable LogNode log)
+            throws IOException {
+        if (keyMatchesAtPosition(manifest, IMPLEMENTATION_TITLE_KEY, keyStartIdx)) {
+            final var manifestValueAndEndIdx = getManifestValue(manifest,
+                    keyStartIdx + IMPLEMENTATION_TITLE_KEY.length + 1);
+            if ("Java Runtime Environment".equalsIgnoreCase(manifestValueAndEndIdx.getKey())) {
+                isJREJar = true;
+            }
+            return manifestValueAndEndIdx.getValue();
+
+        } else if (keyMatchesAtPosition(manifest, SPECIFICATION_TITLE_KEY, keyStartIdx)) {
+            final var manifestValueAndEndIdx = getManifestValue(manifest,
+                    keyStartIdx + SPECIFICATION_TITLE_KEY.length + 1);
+            if ("Java Platform API Specification".equalsIgnoreCase(manifestValueAndEndIdx.getKey())) {
+                isJREJar = true;
+            }
+            return manifestValueAndEndIdx.getValue();
+
+        } else if (keyMatchesAtPosition(manifest, CLASS_PATH_KEY, keyStartIdx)) {
+            final var manifestValueAndEndIdx = getManifestValue(manifest, keyStartIdx + CLASS_PATH_KEY.length + 1);
+            // Add Class-Path manifest entry values to classpath
+            classPathManifestEntryValue = manifestValueAndEndIdx.getKey();
+            if (log != null) {
+                log.log("Found Class-Path entry in manifest file: " + classPathManifestEntryValue);
+            }
+            return manifestValueAndEndIdx.getValue();
+
+        } else if (keyMatchesAtPosition(manifest, BUNDLE_CLASSPATH_KEY, keyStartIdx)) {
+            final var manifestValueAndEndIdx = getManifestValue(manifest,
+                    keyStartIdx + BUNDLE_CLASSPATH_KEY.length + 1);
+            // Add Bundle-ClassPath manifest entry values to classpath
+            bundleClassPathManifestEntryValue = manifestValueAndEndIdx.getKey();
+            if (log != null) {
+                log.log("Found Bundle-ClassPath entry in manifest file: " + bundleClassPathManifestEntryValue);
+            }
+            return manifestValueAndEndIdx.getValue();
+
+        } else if (keyMatchesAtPosition(manifest, SPRING_BOOT_CLASSES_KEY, keyStartIdx)) {
+            final var manifestValueAndEndIdx = getManifestValue(manifest,
+                    keyStartIdx + SPRING_BOOT_CLASSES_KEY.length + 1);
+            final var springBootClassesFieldVal = manifestValueAndEndIdx.getKey();
+            if (!"BOOT-INF/classes".equals(springBootClassesFieldVal)
+                    && !"BOOT-INF/classes/".equals(springBootClassesFieldVal)
+                    && !"WEB-INF/classes".equals(springBootClassesFieldVal)
+                    && !"WEB-INF/classes/".equals(springBootClassesFieldVal)) {
+                throw new IOException("Spring boot classes are at \"" + springBootClassesFieldVal
+                        + "\" rather than the standard location \"BOOT-INF/classes/\" or \"WEB-INF/classes/\" "
+                        + "-- please report this at https://github.com/classgraph/classgraph/issues");
+            }
+            return manifestValueAndEndIdx.getValue();
+
+        } else if (keyMatchesAtPosition(manifest, SPRING_BOOT_LIB_KEY, keyStartIdx)) {
+            final var manifestValueAndEndIdx = getManifestValue(manifest,
+                    keyStartIdx + SPRING_BOOT_LIB_KEY.length + 1);
+            final var springBootLibFieldVal = manifestValueAndEndIdx.getKey();
+            if (!"BOOT-INF/lib".equals(springBootLibFieldVal) && !"BOOT-INF/lib/".equals(springBootLibFieldVal)
+                    && !"WEB-INF/lib".equals(springBootLibFieldVal)
+                    && !"WEB-INF/lib/".equals(springBootLibFieldVal)) {
+                throw new IOException("Spring boot lib jars are at \"" + springBootLibFieldVal
+                        + "\" rather than the standard location \"BOOT-INF/lib/\" or \"WEB-INF/lib/\" "
+                        + "-- please report this at https://github.com/classgraph/classgraph/issues");
+            }
+            return manifestValueAndEndIdx.getValue();
+
+        } else if (keyMatchesAtPosition(manifest, MULTI_RELEASE_KEY, keyStartIdx)) {
+            final var manifestValueAndEndIdx = getManifestValue(manifest,
+                    keyStartIdx + MULTI_RELEASE_KEY.length + 1);
+            if ("true".equalsIgnoreCase(manifestValueAndEndIdx.getKey())) {
+                isMultiReleaseJar = true;
+            }
+            return manifestValueAndEndIdx.getValue();
+
+        } else if (keyMatchesAtPosition(manifest, ADD_EXPORTS_KEY, keyStartIdx)) {
+            final var manifestValueAndEndIdx = getManifestValue(manifest, keyStartIdx + ADD_EXPORTS_KEY.length + 1);
+            addExportsManifestEntryValue = manifestValueAndEndIdx.getKey();
+            if (log != null) {
+                log.log("Found Add-Exports entry in manifest file: " + addExportsManifestEntryValue);
+            }
+            return manifestValueAndEndIdx.getValue();
+
+        } else if (keyMatchesAtPosition(manifest, ADD_OPENS_KEY, keyStartIdx)) {
+            final var manifestValueAndEndIdx = getManifestValue(manifest, keyStartIdx + ADD_OPENS_KEY.length + 1);
+            addOpensManifestEntryValue = manifestValueAndEndIdx.getKey();
+            if (log != null) {
+                log.log("Found Add-Opens entry in manifest file: " + addOpensManifestEntryValue);
+            }
+            return manifestValueAndEndIdx.getValue();
+
+        } else if (keyMatchesAtPosition(manifest, AUTOMATIC_MODULE_NAME_KEY, keyStartIdx)) {
+            final var manifestValueAndEndIdx = getManifestValue(manifest,
+                    keyStartIdx + AUTOMATIC_MODULE_NAME_KEY.length + 1);
+            automaticModuleNameManifestEntryValue = manifestValueAndEndIdx.getKey();
+            if (log != null) {
+                log.log("Found Automatic-Module-Name entry in manifest file: "
+                        + automaticModuleNameManifestEntryValue);
+            }
+            return manifestValueAndEndIdx.getValue();
+
+        } else {
+            // Key name was unrecognized
+            return -1;
         }
     }
 
