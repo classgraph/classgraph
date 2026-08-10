@@ -68,8 +68,13 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     /** The file attributes for this resource, or 0 if unknown. */
     public final int fileAttributes;
 
-    /** The {@link Slice} for the zip entry's raw data (which can be either stored or deflated). */
-    private Slice slice;
+    /**
+     * The {@link Slice} for the zip entry's raw data (which can be either stored or deflated). Volatile, so that a
+     * {@link Slice} created by one thread is safely published to any other thread that reads this field (two
+     * threads racing to initialize this field each end up with an equivalent {@link Slice}, which is harmless,
+     * since a sub-slice does not own any resources).
+     */
+    private volatile Slice slice;
 
     /**
      * The version code (&gt;= 9), or 8 for the base layer or a non-versioned jar (whether JDK 7 or 8 compatible).

@@ -43,8 +43,13 @@ import nonapi.io.github.classgraph.fileslice.reader.RandomAccessReader;
 import nonapi.io.github.classgraph.utils.FileUtils;
 
 /**
- * A slice of a {@link File}, {@link ByteBuffer} or {@link InputStream}. A single {@link Slice} instance should only
- * be used by a single thread.
+ * A slice of a {@link File}, {@link ByteBuffer} or {@link InputStream}.
+ *
+ * <p>
+ * A {@link Slice} may be shared between threads -- a zipfile's slice is read concurrently by all the threads
+ * scanning that zipfile. It is the objects obtained <i>from</i> a slice that are single-threaded: each call to
+ * {@link #randomAccessReader()} or {@link #open()} returns a new reader or stream with its own read position and
+ * scratch buffers, and each of those must be used by only one thread.
  */
 public abstract class Slice implements Closeable {
     /** The {@link NestedJarHandler}. */
