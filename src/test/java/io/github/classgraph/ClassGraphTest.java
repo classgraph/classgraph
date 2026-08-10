@@ -231,6 +231,22 @@ public class ClassGraphTest {
         }
     }
 
+    /**
+     * A {@link Path} is an {@link Iterable} of its own name elements, so a single {@link Path} is passed to the
+     * {@code Iterable<?>} overload of {@code overrideClasspath()}, rather than to the {@code Object...} overload.
+     * It must still be treated as one classpath entry.
+     */
+    @Test
+    public void aSinglePathIsOneClasspathEntry() {
+        try (var scanResult = new ClassGraph().overrideClasspath(markerDir).scan()) {
+            assertThat(scanResult.getAllResources().getPaths()).containsExactly("marker.txt");
+        }
+        // A list of Paths is still one classpath entry per element
+        try (var scanResult = new ClassGraph().overrideClasspath(List.of(markerDir, classesDir)).scan()) {
+            assertThat(scanResult.getClasspathFiles()).containsExactly(markerDir.toFile(), classesDir.toFile());
+        }
+    }
+
     /** A classpath element is only scanned if every path filter accepts its path. */
     @Test
     public void classpathElementsCanBeFilteredByPath() {

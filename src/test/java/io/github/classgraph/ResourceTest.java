@@ -5,11 +5,16 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.IOException;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
+import java.util.Map;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /**
  * {@link Resource} is the common base of the classpath element-specific resource implementations, and provides the
@@ -204,6 +209,34 @@ public class ResourceTest {
         assumeTrue(FileSystems.getDefault().supportedFileAttributeViews().contains("posix"));
         try (var scanResult = scanTestResourcesDir()) {
             assertThat(resource(scanResult, TEXT_FILE).getPosixFilePermissions()).isNotEmpty();
+        }
+    }
+
+    /**
+     * The POSIX file permissions of a resource in a zipfile are decoded from the Unix mode bits in the zip entry's
+     * external file attributes, so they are readable whatever filesystem the zipfile is stored on.
+     *
+     * @param tempDir
+     *            a temporary directory to write the test zipfile to
+     * @throws IOException
+     *             if the test zipfile cannot be written
+     */
+    @Test
+    public void posixFilePermissionsOfAResourceInAZipComeFromItsModeBits(@TempDir final Path tempDir)
+            throws IOException {
+        // "rwxr-x--x" is 0751 -- a different value in each of the three triplets, so a decoder that read the mode
+        // bits in the wrong order would produce a different permission set
+        final var permissions = PosixFilePermissions.fromString("rwxr-x--x");
+        final var zipPath = tempDir.resolve("posix-file-permissions.jar");
+        try (var zipFileSystem = FileSystems.newFileSystem(URI.create("jar:" + zipPath.toUri()),
+                Map.of("create", "true", "enablePosixFileAttributes", "true"))) {
+            final var entry = zipFileSystem.getPath("/withPermissions.txt");
+            Files.writeString(entry, TEXT_FILE_CONTENT);
+            Files.setPosixFilePermissions(entry, permissions);
+        }
+        try (var scanResult = new ClassGraph().acceptPathsNonRecursive("").overrideClasspath(zipPath).scan()) {
+            assertThat(resource(scanResult, "withPermissions.txt").getPosixFilePermissions())
+                    .isEqualTo(permissions);
         }
     }
 

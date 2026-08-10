@@ -3504,7 +3504,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 return typeSig;
             }
         } catch (final Exception e) {
-            // Ignore
+            // A corrupt classfile can make the type signature unparseable, or can make a type annotation's target
+            // info point outside the type signature it annotates. Fall back to the synthesized type descriptor
+            // rather than propagating, since the descriptor is built from the class, superclass and interface
+            // names, which were read from a different part of the classfile.
         }
         return getTypeDescriptor();
     }
@@ -3862,7 +3865,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         try {
             typeSig = getTypeSignature();
         } catch (final Exception e) {
-            // Ignore
+            // A corrupt classfile can make the type signature unparseable -- render the class as if it were
+            // non-generic, rather than throwing from toString()
         }
         if (typeSig != null) {
             // Generic classes

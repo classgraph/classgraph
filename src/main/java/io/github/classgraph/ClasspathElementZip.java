@@ -67,6 +67,15 @@ import org.jspecify.annotations.Nullable;
 /** A zip/jarfile classpath element. */
 class ClasspathElementZip extends ClasspathElement {
     /**
+     * The POSIX file permissions corresponding to the nine mode bits of a zip entry's external file attributes, in
+     * bit order, from the most significant bit ({@code 0400}) to the least significant ({@code 0001}).
+     */
+    private static final PosixFilePermission[] POSIX_FILE_PERMISSION_BITS = { PosixFilePermission.OWNER_READ,
+            PosixFilePermission.OWNER_WRITE, PosixFilePermission.OWNER_EXECUTE, PosixFilePermission.GROUP_READ,
+            PosixFilePermission.GROUP_WRITE, PosixFilePermission.GROUP_EXECUTE, PosixFilePermission.OTHERS_READ,
+            PosixFilePermission.OTHERS_WRITE, PosixFilePermission.OTHERS_EXECUTE };
+
+    /**
      * The {@link String} representation of the path string, {@link URL}, {@link URI}, or {@link Path} for this
      * zipfile.
      */
@@ -334,37 +343,14 @@ class ClasspathElementZip extends ClasspathElement {
             @Override
             public @Nullable Set<PosixFilePermission> getPosixFilePermissions() {
                 final var fileAttributes = zipEntry.fileAttributes;
-                final Set<PosixFilePermission> perms;
                 if (fileAttributes == 0) {
-                    perms = null;
-                } else {
-                    perms = new HashSet<>();
-                    if ((fileAttributes & 0400) > 0) {
-                        perms.add(PosixFilePermission.OWNER_READ);
-                    }
-                    if ((fileAttributes & 0200) > 0) {
-                        perms.add(PosixFilePermission.OWNER_WRITE);
-                    }
-                    if ((fileAttributes & 0100) > 0) {
-                        perms.add(PosixFilePermission.OWNER_EXECUTE);
-                    }
-                    if ((fileAttributes & 0040) > 0) {
-                        perms.add(PosixFilePermission.GROUP_READ);
-                    }
-                    if ((fileAttributes & 0020) > 0) {
-                        perms.add(PosixFilePermission.GROUP_WRITE);
-                    }
-                    if ((fileAttributes & 0010) > 0) {
-                        perms.add(PosixFilePermission.GROUP_EXECUTE);
-                    }
-                    if ((fileAttributes & 0004) > 0) {
-                        perms.add(PosixFilePermission.OTHERS_READ);
-                    }
-                    if ((fileAttributes & 0002) > 0) {
-                        perms.add(PosixFilePermission.OTHERS_WRITE);
-                    }
-                    if ((fileAttributes & 0001) > 0) {
-                        perms.add(PosixFilePermission.OTHERS_EXECUTE);
+                    // Zip entries written by tools that do not record Unix mode bits have zero file attributes
+                    return null;
+                }
+                final Set<PosixFilePermission> perms = new HashSet<>();
+                for (var i = 0; i < POSIX_FILE_PERMISSION_BITS.length; i++) {
+                    if ((fileAttributes & (0400 >> i)) != 0) {
+                        perms.add(POSIX_FILE_PERMISSION_BITS[i]);
                     }
                 }
                 return perms;

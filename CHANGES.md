@@ -1267,6 +1267,14 @@ is fixed on the 4.x branch as well.
   slashes after its scheme (`s3://bucket/key` became `s3:/bucket/key`), and the part after
   the scheme was treated as a relative path.
 
+* `overrideClasspath()` given a single `Path` split it into its name elements, and treated
+  each one as a separate classpath entry. A `Path` is an `Iterable` of its own name
+  elements, so a lone `Path` argument binds to the `Iterable<?>` overload rather than to
+  the `Object...` overload: `overrideClasspath(Path.of("/opt/lib/app.jar"))` looked for
+  classpath entries named `opt`, `lib` and `app.jar`, each relative to the current
+  directory, found none of them, and scanned nothing. A `Path` is now added as one
+  classpath entry.
+
 Two further bugs found during the port were only reachable through the JSON
 serialization API, which 5.x removes (`AnnotationParameterValue#toString()` threw
 `NullPointerException` for a null parameter value, and `ScanResult#fromJSON(String)` did

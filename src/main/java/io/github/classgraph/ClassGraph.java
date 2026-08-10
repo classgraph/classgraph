@@ -34,6 +34,7 @@ import java.lang.reflect.AccessibleObject;
 import java.net.URI;
 import java.net.URL;
 import java.nio.ByteBuffer;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Callable;
@@ -519,6 +520,9 @@ public class ClassGraph {
      * File or Path. Each element is one classpath entry, and is not split on {@link java.io.File#pathSeparatorChar}
      * -- pass the {@link String} overload for a path that needs splitting.
      *
+     * <p>
+     * A single {@link Path} is treated as one classpath entry, not as a sequence of its name elements.
+     *
      * @param overrideClasspathElements
      *            The classpath entries to scan, one entry per element.
      * @return this (for method chaining).
@@ -528,6 +532,13 @@ public class ClassGraph {
      */
     public ClassGraph overrideClasspath(final Iterable<?> overrideClasspathElements) {
         Assert.notNull(overrideClasspathElements, "overrideClasspathElements");
+        if (overrideClasspathElements instanceof Path) {
+            // A Path is an Iterable of its own name elements, so passing a single Path binds to this overload
+            // rather than to the Object... overload. The name elements of a path are never classpath entries in
+            // their own right, so a Path is added as a single classpath entry.
+            scanSpec.addClasspathOverride(overrideClasspathElements);
+            return this;
+        }
         if (!overrideClasspathElements.iterator().hasNext()) {
             throw new IllegalArgumentException("Can't override classpath with an empty path");
         }

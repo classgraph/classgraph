@@ -2021,8 +2021,12 @@ class Classfile {
                                     }
                                 } else {
                                     // Type in implements clause of interface declaration
-                                    classTypeSignature.getSuperinterfaceSignatures().get(supertypeIndex)
-                                            .addTypeAnnotation(typePath, annotationInfo);
+                                    final var superinterfaceSignatures = classTypeSignature
+                                            .getSuperinterfaceSignatures();
+                                    if (supertypeIndex < superinterfaceSignatures.size()) {
+                                        superinterfaceSignatures.get(supertypeIndex).addTypeAnnotation(typePath,
+                                                annotationInfo);
+                                    }
                                 }
                             }
                             case 0x11 -> {
