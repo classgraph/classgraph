@@ -64,7 +64,7 @@ public abstract class Slice implements Closeable {
     /** The start position of the slice. */
     public final long sliceStartPos;
 
-    /** The length of the slice, or -1L if unknown (for {@link InputStream}). */
+    /** The length of the slice. Never negative -- the constructor rejects a negative length. */
     public long sliceLength;
 
     /**

@@ -101,6 +101,25 @@ public class ClasspathOrderTest {
         assertThat(classpathOrder.getClasspathEntryUniqueResolvedPaths()).containsExactly(jar);
     }
 
+    /**
+     * A {@link Path} classpath entry resolves to the same path as the {@link String} and {@link File} spellings of
+     * the same file, so all three deduplicate against each other. A {@link Path} is converted to a URI before its
+     * string form is taken, so that a path on a non-default filesystem keeps its scheme, which means a local path
+     * arrives at {@link FastPathResolver} in the percent-encoded {@code "file:///"} spelling that
+     * {@link Path#toUri()} produces.
+     */
+    @Test
+    public void pathClasspathEntriesResolveToPlainPaths(@TempDir final Path tempDir) throws IOException {
+        // Include a space in the filename, since Path#toUri() percent-encodes it
+        final var jarPath = tempDir.resolve("x y.jar");
+        final var jar = createFile(jarPath);
+        assertThat(classpathOrder.addClasspathEntry(jarPath, null, scanSpec, null)).isTrue();
+        assertThat(classpathOrder.getClasspathEntryUniqueResolvedPaths()).containsExactly(jar);
+        // The String and File spellings of the same path are now duplicates
+        assertThat(classpathOrder.addClasspathEntry(jar, null, scanSpec, null)).isFalse();
+        assertThat(classpathOrder.addClasspathEntry(jarPath.toFile(), null, scanSpec, null)).isFalse();
+    }
+
     /** A system classpath entry is added as it is, and is also deduplicated. */
     @Test
     public void systemClasspathEntriesAreDeduplicated(@TempDir final Path tempDir) throws IOException {

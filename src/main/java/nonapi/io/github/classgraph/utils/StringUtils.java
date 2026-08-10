@@ -271,29 +271,4 @@ public final class StringUtils {
         join(buf, "", sep, "", iterable);
         return buf.toString();
     }
-
-    /**
-     * Join the string representations of the given items, separated by a separator string. (Unlike
-     * {@link String#join}, the items may be of any type.)
-     *
-     * @param sep
-     *            The separator string.
-     * @param items
-     *            The items to join.
-     * @return The string representation of the joined items.
-     */
-    public static String join(final String sep, final Object... items) {
-        final StringBuilder buf = new StringBuilder();
-        var first = true;
-        for (final Object item : items) {
-            if (first) {
-                first = false;
-            } else {
-                buf.append(sep);
-            }
-            buf.append(item.toString());
-        }
-        return buf.toString();
-    }
-
 }

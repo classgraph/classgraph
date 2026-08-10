@@ -380,13 +380,10 @@ public class ClasspathOrder {
         String pathElementStr;
         if (pathElement instanceof final Path pathElementPath) {
             try {
-                // Path objects have to be converted to URIs before calling .toString(), otherwise scheme is dropped
+                // Path objects have to be converted to URIs before calling .toString(), otherwise the scheme of a
+                // path on a non-default filesystem is dropped. A local path comes back in the "file:///path"
+                // spelling (or "file:///C:/x/y" on Windows), which FastPathResolver turns back into a plain path
                 pathElementStr = pathElementPath.toUri().toString();
-                // Windows paths ("C:\x\y") are encoded as "file:///C:/x/y" by Path.toUri().toString(), but then
-                // Path.of() can't handle paths of the form "///C:/x/y"
-                if (pathElementStr.startsWith("file:///")) {
-                    pathElementStr = pathElementPath.toFile().toString();
-                }
             } catch (IOError | SecurityException e) {
                 pathElementStr = pathElement.toString();
             }

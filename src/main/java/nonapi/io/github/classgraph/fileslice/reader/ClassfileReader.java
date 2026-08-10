@@ -108,7 +108,6 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
      *             If an inflater cannot be opened on the {@link Slice}.
      */
     public ClassfileReader(final Slice slice, final @Nullable Resource resourceToClose) throws IOException {
-        this.classfileLengthHint = (int) slice.sliceLength;
         this.resourceToClose = resourceToClose;
         if (slice.isDeflatedZipEntry) {
             // If this is a deflated slice, need to read from an InflaterInputStream to fill buffer

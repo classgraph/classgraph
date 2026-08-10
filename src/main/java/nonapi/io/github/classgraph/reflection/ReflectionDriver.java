@@ -361,9 +361,6 @@ abstract class ReflectionDriver {
      *             if the field could not be found
      */
     protected Field findInstanceField(final Object obj, final String fieldName) throws Exception {
-        if (obj == null) {
-            throw new IllegalArgumentException("obj cannot be null");
-        }
         return findField(obj.getClass(), obj, fieldName);
     }
 
@@ -444,9 +441,6 @@ abstract class ReflectionDriver {
      */
     protected Method findInstanceMethod(final Object obj, final String methodName, final Class<?>... paramTypes)
             throws Exception {
-        if (obj == null) {
-            throw new IllegalArgumentException("obj cannot be null");
-        }
         return findMethod(obj.getClass(), obj, methodName, paramTypes);
     }
 }

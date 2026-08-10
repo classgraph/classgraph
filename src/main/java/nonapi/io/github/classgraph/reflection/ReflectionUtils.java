@@ -40,7 +40,7 @@ import org.jspecify.annotations.Nullable;
 /** Reflection utility methods that can be used by ClassLoaderHandlers. */
 public final class ReflectionUtils {
     /** The reflection driver to use. */
-    public ReflectionDriver reflectionDriver;
+    private final ReflectionDriver reflectionDriver;
     /** {@code java.security.PrivilegedAction}, or null if it is not available. */
     private @Nullable Class<?> privilegedActionClass;
 
@@ -55,17 +55,16 @@ public final class ReflectionUtils {
      * value.
      */
     public ReflectionUtils() {
+        ReflectionDriver driver = null;
         if (ClassGraph.getCircumventEncapsulationMethod() == CircumventEncapsulationMethod.NARCISSUS) {
             try {
-                reflectionDriver = new NarcissusReflectionDriver();
+                driver = new NarcissusReflectionDriver();
             } catch (final Throwable t) {
                 System.err.println("Could not load Narcissus reflection driver: " + t);
                 // Fall back to standard reflection driver
             }
         }
-        if (reflectionDriver == null) {
-            reflectionDriver = new StandardReflectionDriver();
-        }
+        reflectionDriver = driver != null ? driver : new StandardReflectionDriver();
         try {
             final Class<?> accessControllerClass = reflectionDriver.findClass("java.security.AccessController");
             privilegedActionClass = reflectionDriver.findClass("java.security.PrivilegedAction");
@@ -95,9 +94,6 @@ public final class ReflectionUtils {
      */
     public @Nullable Object getFieldVal(final boolean throwException, final @Nullable Object obj,
             final @Nullable Field field) throws IllegalArgumentException {
-        if (reflectionDriver == null) {
-            throw new RuntimeException("Cannot use reflection after ScanResult has been closed");
-        }
         if (obj == null || field == null) {
             if (throwException) {
                 throw new IllegalArgumentException("Unexpected null argument");
@@ -135,9 +131,6 @@ public final class ReflectionUtils {
      */
     public @Nullable Object getFieldVal(final boolean throwException, final @Nullable Object obj,
             final @Nullable String fieldName) throws IllegalArgumentException {
-        if (reflectionDriver == null) {
-            throw new RuntimeException("Cannot use reflection after ScanResult has been closed");
-        }
         if (obj == null || fieldName == null) {
             if (throwException) {
                 throw new IllegalArgumentException("Unexpected null argument");
@@ -175,9 +168,6 @@ public final class ReflectionUtils {
      */
     public @Nullable Object getStaticFieldVal(final boolean throwException, final @Nullable Class<?> cls,
             final @Nullable String fieldName) throws IllegalArgumentException {
-        if (reflectionDriver == null) {
-            throw new RuntimeException("Cannot use reflection after ScanResult has been closed");
-        }
         if (cls == null || fieldName == null) {
             if (throwException) {
                 throw new IllegalArgumentException("Unexpected null argument");
@@ -214,9 +204,6 @@ public final class ReflectionUtils {
      */
     public @Nullable Object invokeMethod(final boolean throwException, final @Nullable Object obj,
             final @Nullable String methodName) throws IllegalArgumentException {
-        if (reflectionDriver == null) {
-            throw new RuntimeException("Cannot use reflection after ScanResult has been closed");
-        }
         if (obj == null || methodName == null) {
             if (throwException) {
                 throw new IllegalArgumentException("Unexpected null argument");
@@ -258,9 +245,6 @@ public final class ReflectionUtils {
     public @Nullable Object invokeMethod(final boolean throwException, final @Nullable Object obj,
             final @Nullable String methodName, final @Nullable Class<?> argType, final @Nullable Object param)
             throws IllegalArgumentException {
-        if (reflectionDriver == null) {
-            throw new RuntimeException("Cannot use reflection after ScanResult has been closed");
-        }
         if (obj == null || methodName == null || argType == null) {
             if (throwException) {
                 throw new IllegalArgumentException("Unexpected null argument");
@@ -303,9 +287,6 @@ public final class ReflectionUtils {
     public @Nullable Object invokeMethod(final boolean throwException, final @Nullable Object obj,
             final @Nullable String methodName, final Class<?> @Nullable [] argTypes,
             final @Nullable Object @Nullable [] params) throws IllegalArgumentException {
-        if (reflectionDriver == null) {
-            throw new RuntimeException("Cannot use reflection after ScanResult has been closed");
-        }
         if (obj == null || methodName == null || argTypes == null || params == null
                 || argTypes.length != params.length) {
             if (throwException) {
@@ -343,9 +324,6 @@ public final class ReflectionUtils {
      */
     public @Nullable Object invokeStaticMethod(final boolean throwException, final @Nullable Class<?> cls,
             final @Nullable String methodName) throws IllegalArgumentException {
-        if (reflectionDriver == null) {
-            throw new RuntimeException("Cannot use reflection after ScanResult has been closed");
-        }
         if (cls == null || methodName == null) {
             if (throwException) {
                 throw new IllegalArgumentException("Unexpected null argument");
@@ -386,9 +364,6 @@ public final class ReflectionUtils {
     public @Nullable Object invokeStaticMethod(final boolean throwException, final @Nullable Class<?> cls,
             final @Nullable String methodName, final @Nullable Class<?> argType, final @Nullable Object param)
             throws IllegalArgumentException {
-        if (reflectionDriver == null) {
-            throw new RuntimeException("Cannot use reflection after ScanResult has been closed");
-        }
         if (cls == null || methodName == null || argType == null) {
             if (throwException) {
                 throw new IllegalArgumentException("Unexpected null argument");
@@ -415,9 +390,6 @@ public final class ReflectionUtils {
      * @return The class of the requested name, or null if an exception was thrown while trying to load the class.
      */
     public @Nullable Class<?> classForNameOrNull(final String className) {
-        if (reflectionDriver == null) {
-            throw new RuntimeException("Cannot use reflection after ScanResult has been closed");
-        }
         try {
             return reflectionDriver.findClass(className);
         } catch (final Throwable e) {
@@ -436,9 +408,6 @@ public final class ReflectionUtils {
      *         method.
      */
     public @Nullable Method staticMethodForNameOrNull(final String className, final String staticMethodName) {
-        if (reflectionDriver == null) {
-            throw new RuntimeException("Cannot use reflection after ScanResult has been closed");
-        }
         try {
             return reflectionDriver.findStaticMethod(reflectionDriver.findClass(className), staticMethodName);
         } catch (final Throwable e) {

@@ -125,17 +125,14 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
             // Silently fail (should not happen)
         }
         this.superclassSignature = superclassSignature;
-        this.superinterfaceSignatures = interfaces == null || interfaces.isEmpty() ? List.of()
-                : new ArrayList<>(interfaces.size());
-        if (interfaces != null) {
-            for (final ClassInfo iface : interfaces) {
-                try {
-                    final var ifaceSignature = (ClassRefTypeSignature) TypeSignature
-                            .parse("L" + iface.getName().replace('.', '/') + ";", classInfo.getName());
-                    this.superinterfaceSignatures.add(ifaceSignature);
-                } catch (final ParseException e) {
-                    // Silently fail (should not happen)
-                }
+        this.superinterfaceSignatures = interfaces.isEmpty() ? List.of() : new ArrayList<>(interfaces.size());
+        for (final ClassInfo iface : interfaces) {
+            try {
+                final var ifaceSignature = (ClassRefTypeSignature) TypeSignature
+                        .parse("L" + iface.getName().replace('.', '/') + ";", classInfo.getName());
+                this.superinterfaceSignatures.add(ifaceSignature);
+            } catch (final ParseException e) {
+                // Silently fail (should not happen)
             }
         }
         this.throwsSignatures = null;
@@ -198,8 +195,8 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
      * @see io.github.classgraph.ScanResultObject#getClassName()
      */
     @Override
-    protected @Nullable String getClassName() {
-        return classInfo != null ? classInfo.getName() : null;
+    protected String getClassName() {
+        return classInfo.getName();
     }
 
     /*
