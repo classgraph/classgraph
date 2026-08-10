@@ -1323,6 +1323,13 @@ public class ClassGraph {
      * files are memory-mapped using the {@code java.lang.foreign.Arena} API, so that they can be unmapped without
      * calling the terminally-deprecated {@code Unsafe::invokeCleaner} method.
      *
+     * <p>
+     * Whether this is worth enabling depends on the operating system. On Windows it makes scanning 16% to 38%
+     * faster, on every workload measured. On Linux it is up to 10% faster when the files are already in the page
+     * cache, but can be slower when they are not and the jars hold many resources that are not read, since a page
+     * fault reads more than was asked for. On macOS the difference is within the noise. See BENCHMARK.md for the
+     * measurements.
+     *
      * @return this (for method chaining).
      */
     // #939
