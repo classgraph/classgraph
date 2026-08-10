@@ -54,6 +54,11 @@ class StandardReflectionDriver extends ReflectionDriver {
     StandardReflectionDriver() {
     }
 
+    // TODO: once ClassGraph's minimum supported JDK version is 24 or later, this whole code path can be deleted
+    // rather than called reflectively. The SecurityManager is permanently disabled from JDK 24 onwards (JEP 486),
+    // so AccessController#doPrivileged no longer does anything, and doPrivileged(Callable) below can be replaced
+    // by a direct call to the callable.
+
     static {
         // AccessController is deprecated for removal in JDK 17, so it is called reflectively, to avoid a
         // deprecation warning (the build compiles with -Xlint:all -Werror)

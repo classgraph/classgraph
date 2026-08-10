@@ -31,6 +31,7 @@ package nonapi.io.github.classgraph.utils;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
@@ -42,6 +43,7 @@ import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -80,6 +82,12 @@ public final class FileUtils {
      * reserve header words in arrays.
      */
     public static final int MAX_BUFFER_SIZE = Integer.MAX_VALUE - 8;
+
+    /** The default size of a file buffer. */
+    private static final int DEFAULT_BUFFER_SIZE = 16384;
+
+    /** The maximum initial buffer size. */
+    private static final int MAX_INITIAL_BUFFER_SIZE = 16 * 1024 * 1024;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -917,5 +925,63 @@ public final class FileUtils {
          * @return the attributes of the path.
          */
         BasicFileAttributes get(Path path);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Read all the bytes in an {@link InputStream}.
+     *
+     * @param inputStream
+     *            The {@link InputStream}.
+     * @param uncompressedLengthHint
+     *            The length of the data once inflated from the {@link InputStream}, if known, otherwise -1L.
+     * @return The contents of the {@link InputStream} as a byte array.
+     * @throws IOException
+     *             If the contents could not be read.
+     */
+    public static byte[] readAllBytesAsArray(final InputStream inputStream, final long uncompressedLengthHint)
+            throws IOException {
+        if (uncompressedLengthHint > MAX_BUFFER_SIZE) {
+            throw new IOException("InputStream is too large to read");
+        }
+        try (inputStream) {
+            final var bufferSize = uncompressedLengthHint < 1L
+                    // If fileSizeHint is zero or unknown, use default buffer size
+                    ? DEFAULT_BUFFER_SIZE
+                    // fileSizeHint is just a hint -- limit the max allocated buffer size, so that invalid ZipEntry
+                    // lengths do not become a memory allocation attack vector
+                    : Math.min((int) uncompressedLengthHint, MAX_INITIAL_BUFFER_SIZE);
+            var buf = new byte[bufferSize];
+            var totBytesRead = 0;
+            for (int bytesRead;;) {
+                while ((bytesRead = inputStream.read(buf, totBytesRead, buf.length - totBytesRead)) > 0) {
+                    // Fill buffer until nothing more can be read
+                    totBytesRead += bytesRead;
+                }
+                if (bytesRead < 0) {
+                    // Reached end of stream without filling buf
+                    break;
+                }
+
+                // bytesRead == 0: either the buffer was the correct size and the end of the stream has been
+                // reached, or the buffer was too small. Need to try reading one more byte to see which is the case.
+                final var extraByte = inputStream.read();
+                if (extraByte == -1) {
+                    // Reached end of stream
+                    break;
+                }
+
+                // Haven't reached end of stream yet. Need to grow the buffer (double its size), and append the
+                // extra byte that was just read.
+                if (buf.length == MAX_BUFFER_SIZE) {
+                    throw new IOException("InputStream too large to read into array");
+                }
+                buf = Arrays.copyOf(buf, (int) Math.min(buf.length * 2L, MAX_BUFFER_SIZE));
+                buf[totBytesRead++] = (byte) extraByte;
+            }
+            // Return buffer and number of bytes read
+            return totBytesRead == buf.length ? buf : Arrays.copyOf(buf, totBytesRead);
+        }
     }
 }

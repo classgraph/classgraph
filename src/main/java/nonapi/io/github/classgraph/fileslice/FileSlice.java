@@ -279,7 +279,7 @@ public class FileSlice extends Slice {
                 throw new IOException("Uncompressed size is larger than 2GB");
             }
             try (var inputStream = open()) {
-                return NestedJarHandler.readAllBytesAsArray(inputStream, inflatedLengthHint);
+                return FileUtils.readAllBytesAsArray(inputStream, inflatedLengthHint);
             }
         } else {
             // Copy from either RandomAccessFile or MappedByteBuffer to byte array

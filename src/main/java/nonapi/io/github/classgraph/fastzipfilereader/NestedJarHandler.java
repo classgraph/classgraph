@@ -66,6 +66,8 @@ import io.github.classgraph.ModuleRef;
 import io.github.classgraph.ScanResult;
 import nonapi.io.github.classgraph.concurrency.InterruptionChecker;
 import nonapi.io.github.classgraph.concurrency.SingletonMap;
+import nonapi.io.github.classgraph.concurrency.SingletonMap.NewInstanceException;
+import nonapi.io.github.classgraph.concurrency.SingletonMap.NullSingletonException;
 import nonapi.io.github.classgraph.fileslice.ArraySlice;
 import nonapi.io.github.classgraph.fileslice.FileSlice;
 import nonapi.io.github.classgraph.fileslice.Slice;
@@ -194,199 +196,18 @@ public class NestedJarHandler {
      * within the logical zipfile. Set to null by {@link #close(LogNode)}.
      */
     private @Nullable SingletonMap<String, Entry<LogicalZipFile, String>, IOException> //
-    nestedPathToLogicalZipFileAndPackageRootMap = //
-            new SingletonMap<>() {
-                @Override
-                public Entry<LogicalZipFile, String> newInstance(final String nestedJarPathRaw,
-                        final @Nullable LogNode log) throws IOException, InterruptedException {
-                    final var nestedJarPath = FastPathResolver.resolve(nestedJarPathRaw);
-                    // A '!' is only a nested jar separator if the outermost path component names an existing
-                    // jarfile -- it is otherwise a legal filename character (#903)
-                    final var lastPlingIdx = JarUtils.lastIndexOfNestedJarSeparator(nestedJarPath);
-                    if (lastPlingIdx < 0) {
-                        // nestedJarPath is a simple file path or URL (i.e. doesn't have any '!' sections). This is
-                        // also the last frame of recursion for the 'else' clause below.
-
-                        // If the path starts with "http://" or "https://" or any other URI/URL scheme, download the
-                        // jar to a temp file or to a ByteBuffer in RAM. ("jar:" and "file:" have already been
-                        // stripped from any URL/URI.)
-                        final var isURL = JarUtils.URL_SCHEME_PATTERN.matcher(nestedJarPath).matches();
-                        PhysicalZipFile physicalZipFile;
-                        if (isURL) {
-                            final var scheme = nestedJarPath.substring(0, nestedJarPath.indexOf(':'));
-                            if (scanSpec.allowedURLSchemes == null
-                                    || !scanSpec.allowedURLSchemes.contains(scheme)) {
-                                // No URL schemes other than "file:" (with optional "jar:" prefix) allowed (these
-                                // schemes were already stripped by FastPathResolver.resolve(nestedJarPathRaw))
-                                throw new IOException("Scanning of URL scheme \"" + scheme
-                                        + "\" has not been enabled -- cannot scan classpath element: "
-                                        + nestedJarPath);
-                            }
-
-                            // Download jar from URL to a ByteBuffer in RAM, or to a temp file on disk
-                            physicalZipFile = downloadJarFromURL(nestedJarPath, log);
-
-                        } else {
-                            // Jarfile should be a local file -- wrap in a PhysicalZipFile instance
-                            try {
-                                // Get canonical file
-                                final var canonicalFile = new File(nestedJarPath).getCanonicalFile();
-                                // Get or create a PhysicalZipFile instance for the canonical file
-                                physicalZipFile = canonicalFileToPhysicalZipFileMap().get(canonicalFile, log);
-                            } catch (final NullSingletonException | NewInstanceException e) {
-                                // If getting PhysicalZipFile failed, re-wrap in IOException
-                                throw new IOException("Could not get PhysicalZipFile for path " + nestedJarPath
-                                        + " : " + (e.getCause() == null ? e : e.getCause()));
-                            } catch (final SecurityException e) {
-                                // getCanonicalFile() failed (it may have also failed with IOException)
-                                throw new IOException(
-                                        "Path component " + nestedJarPath + " could not be canonicalized: " + e);
-                            }
-                        }
-
-                        // Create a new logical slice of the whole physical zipfile
-                        final ZipFileSlice topLevelSlice = new ZipFileSlice(physicalZipFile);
-                        LogicalZipFile logicalZipFile;
-                        try {
-                            logicalZipFile = zipFileSliceToLogicalZipFileMap().get(topLevelSlice, log);
-                        } catch (final NullSingletonException e) {
-                            throw new IOException("Could not get toplevel slice " + topLevelSlice + " : " + e);
-                        } catch (final NewInstanceException e) {
-                            throw new IOException("Could not get toplevel slice " + topLevelSlice, e);
-                        }
-
-                        // Return new logical zipfile with an empty package root
-                        return new SimpleEntry<>(logicalZipFile, "");
-
-                    } else {
-                        // This path has one or more '!' sections.
-                        final var parentPath = nestedJarPath.substring(0, lastPlingIdx);
-                        var childPath = nestedJarPath.substring(lastPlingIdx + 1);
-                        // "file.jar!/path" -> "file.jar!path"
-                        childPath = FileUtils.sanitizeEntryPath(childPath, /* removeInitialSlash = */ true,
-                                /* removeFinalSlash = */ true);
-
-                        // Recursively remove one '!' section at a time, back towards the beginning of the URL or
-                        // file path. At the last frame of recursion, the toplevel jarfile will be reached and
-                        // returned. The recursion is guaranteed to terminate because parentPath gets one
-                        // '!'-section shorter with each recursion frame.
-                        Entry<LogicalZipFile, String> parentLogicalZipFileAndPackageRoot;
-                        try {
-                            parentLogicalZipFileAndPackageRoot = nestedPathToLogicalZipFileAndPackageRootMap()
-                                    .get(parentPath, log);
-                        } catch (final NullSingletonException e) {
-                            throw new IOException("Could not get parent logical zipfile " + parentPath + " : " + e);
-                        } catch (final NewInstanceException e) {
-                            throw new IOException("Could not get parent logical zipfile " + parentPath, e);
-                        }
-
-                        // Only the last item in a '!'-delimited list can be a non-jar path, so the parent must
-                        // always be a jarfile.
-                        final var parentLogicalZipFile = parentLogicalZipFileAndPackageRoot.getKey();
-
-                        // Look up the child path within the parent zipfile
-                        var isDirectory = false;
-                        while (childPath.endsWith("/")) {
-                            // Child path is definitely a directory, it ends with a slash
-                            isDirectory = true;
-                            childPath = childPath.substring(0, childPath.length() - 1);
-                        }
-                        FastZipEntry childZipEntry = null;
-                        if (!isDirectory) {
-                            // If child path doesn't end with a slash, see if there's a non-directory entry with a
-                            // name matching the child path (LogicalZipFile discards directory entries ending with a
-                            // slash when reading the central directory of a zipfile).
-                            // N.B. We perform an O(N) search here because we assume the number of classpath
-                            // elements containing "!" sections is relatively small compared to the total number of
-                            // entries in all jarfiles (i.e. building a HashMap of entry path to entry for every
-                            // jarfile would generally be more expensive than performing this linear search, and
-                            // unless the classpath is enormous, the overall time performance will not tend towards
-                            // O(N^2).
-                            for (final FastZipEntry entry : parentLogicalZipFile.entries) {
-                                if (entry.entryName.equals(childPath)) {
-                                    childZipEntry = entry;
-                                    break;
-                                }
-                            }
-                        }
-                        if (childZipEntry == null) {
-                            // If there is no non-directory zipfile entry with a name matching the child path, test
-                            // to see if any entries in the zipfile have the child path as a dir prefix
-                            final var childPathPrefix = childPath + "/";
-                            for (final FastZipEntry entry : parentLogicalZipFile.entries) {
-                                if (entry.entryName.startsWith(childPathPrefix)) {
-                                    isDirectory = true;
-                                    break;
-                                }
-                            }
-                        }
-                        // At this point, either isDirectory is true, or childZipEntry is non-null
-
-                        // If path component is a directory, it is a package root
-                        if (isDirectory) {
-                            if (!childPath.isEmpty()) {
-                                // Add directory path to parent jarfile root relative paths set (this has the side
-                                // effect of adding this parent jarfile root to the set of roots for all references
-                                // to the parent path)
-                                if (log != null) {
-                                    log.log("Path " + childPath + " in jarfile " + parentLogicalZipFile
-                                            + " is a directory, not a file -- using as package root");
-                                }
-                                parentLogicalZipFile.classpathRoots.add(childPath);
-                            }
-                            // Return parent logical zipfile, and child path as the package root
-                            return new SimpleEntry<>(parentLogicalZipFile, childPath);
-                        }
-
-                        if (childZipEntry == null /* i.e. if (!isDirectory) */) {
-                            throw new IOException(
-                                    "Path " + childPath + " does not exist in jarfile " + parentLogicalZipFile);
-                        }
-
-                        // Do not extract nested jar, if nested jar scanning is disabled
-                        if (!scanSpec.scanNestedJars) {
-                            throw new IOException(
-                                    "Nested jar scanning is disabled -- skipping nested jar " + nestedJarPath);
-                        }
-
-                        // The child path corresponds to a non-directory zip entry, so it must be a nested jar
-                        // (since non-jar nested files cannot be used on the classpath). Map the nested jar as a new
-                        // ZipFileSlice if it is stored, or inflate it to RAM or to a temporary file if it is
-                        // deflated, then create a new ZipFileSlice over the temporary file or ByteBuffer.
-
-                        // Get zip entry as a ZipFileSlice, possibly inflating to disk or RAM
-
-                        final ZipFileSlice childZipEntrySlice;
-                        try {
-                            childZipEntrySlice = fastZipEntryToZipFileSliceMap().get(childZipEntry, log);
-                        } catch (final NullSingletonException e) {
-                            throw new IOException(
-                                    "Could not get child zip entry slice " + childZipEntry + " : " + e);
-                        } catch (final NewInstanceException e) {
-                            throw new IOException("Could not get child zip entry slice " + childZipEntry, e);
-                        }
-
-                        final var zipSliceLog = log == null ? null
-                                : log.log("Getting zipfile slice " + childZipEntrySlice + " for nested jar "
-                                        + childZipEntry.entryName);
-
-                        // Get or create a new LogicalZipFile for the child zipfile
-                        LogicalZipFile childLogicalZipFile;
-                        try {
-                            childLogicalZipFile = zipFileSliceToLogicalZipFileMap().get(childZipEntrySlice,
-                                    zipSliceLog);
-                        } catch (final NullSingletonException e) {
-                            throw new IOException(
-                                    "Could not get child logical zipfile " + childZipEntrySlice + " : " + e);
-                        } catch (final NewInstanceException e) {
-                            throw new IOException("Could not get child logical zipfile " + childZipEntrySlice, e);
-                        }
-
-                        // Return new logical zipfile with an empty package root
-                        return new SimpleEntry<>(childLogicalZipFile, "");
-                    }
-                }
-            };
+    nestedPathToLogicalZipFileAndPackageRootMap = new SingletonMap<>() {
+        @Override
+        public Entry<LogicalZipFile, String> newInstance(final String nestedJarPathRaw, final @Nullable LogNode log)
+                throws IOException, InterruptedException {
+            final var nestedJarPath = FastPathResolver.resolve(nestedJarPathRaw);
+            // A '!' is only a nested jar separator if the outermost path component names an existing jarfile --
+            // it is otherwise a legal filename character (#903)
+            final var lastPlingIdx = JarUtils.lastIndexOfNestedJarSeparator(nestedJarPath);
+            return lastPlingIdx < 0 ? openTopLevelJar(nestedJarPath, log)
+                    : openNestedJar(nestedJarPath, lastPlingIdx, log);
+        }
+    };
 
     /**
      * Get the map from nested jarfile path to the logical zipfile for the path and the package root within that
@@ -399,6 +220,205 @@ public class NestedJarHandler {
     public SingletonMap<String, Entry<LogicalZipFile, String>, IOException> //
             nestedPathToLogicalZipFileAndPackageRootMap() {
         return Objects.requireNonNull(nestedPathToLogicalZipFileAndPackageRootMap);
+    }
+
+    /**
+     * Open a jarfile whose path has no {@code '!'} sections, i.e. a plain file path or a URL. This is also the last
+     * frame of the recursion in {@link #openNestedJar(String, int, LogNode)}.
+     *
+     * @param nestedJarPath
+     *            the resolved path of the jarfile
+     * @param log
+     *            the log node, or null to skip logging
+     * @return the {@link LogicalZipFile} for the jarfile, paired with an empty package root
+     * @throws IOException
+     *             if the jarfile could not be opened
+     * @throws InterruptedException
+     *             if the thread was interrupted
+     */
+    private Entry<LogicalZipFile, String> openTopLevelJar(final String nestedJarPath, final @Nullable LogNode log)
+            throws IOException, InterruptedException {
+        // If the path starts with "http://" or "https://" or any other URI/URL scheme, download the jar to a temp
+        // file or to a ByteBuffer in RAM. ("jar:" and "file:" have already been stripped from any URL/URI.)
+        final var isURL = JarUtils.URL_SCHEME_PATTERN.matcher(nestedJarPath).matches();
+        PhysicalZipFile physicalZipFile;
+        if (isURL) {
+            final var scheme = nestedJarPath.substring(0, nestedJarPath.indexOf(':'));
+            if (scanSpec.allowedURLSchemes == null || !scanSpec.allowedURLSchemes.contains(scheme)) {
+                // No URL schemes other than "file:" (with optional "jar:" prefix) allowed (these schemes were
+                // already stripped by FastPathResolver.resolve(nestedJarPathRaw))
+                throw new IOException("Scanning of URL scheme \"" + scheme
+                        + "\" has not been enabled -- cannot scan classpath element: " + nestedJarPath);
+            }
+
+            // Download jar from URL to a ByteBuffer in RAM, or to a temp file on disk
+            physicalZipFile = downloadJarFromURL(nestedJarPath, log);
+
+        } else {
+            // Jarfile should be a local file -- wrap in a PhysicalZipFile instance
+            try {
+                // Get canonical file
+                final var canonicalFile = new File(nestedJarPath).getCanonicalFile();
+                // Get or create a PhysicalZipFile instance for the canonical file
+                physicalZipFile = canonicalFileToPhysicalZipFileMap().get(canonicalFile, log);
+            } catch (final NullSingletonException | NewInstanceException e) {
+                // If getting PhysicalZipFile failed, re-wrap in IOException
+                throw new IOException("Could not get PhysicalZipFile for path " + nestedJarPath + " : "
+                        + (e.getCause() == null ? e : e.getCause()));
+            } catch (final SecurityException e) {
+                // getCanonicalFile() failed (it may have also failed with IOException)
+                throw new IOException("Path component " + nestedJarPath + " could not be canonicalized: " + e);
+            }
+        }
+
+        // Create a new logical slice of the whole physical zipfile
+        final ZipFileSlice topLevelSlice = new ZipFileSlice(physicalZipFile);
+        LogicalZipFile logicalZipFile;
+        try {
+            logicalZipFile = zipFileSliceToLogicalZipFileMap().get(topLevelSlice, log);
+        } catch (final NullSingletonException e) {
+            throw new IOException("Could not get toplevel slice " + topLevelSlice + " : " + e);
+        } catch (final NewInstanceException e) {
+            throw new IOException("Could not get toplevel slice " + topLevelSlice, e);
+        }
+
+        // Return new logical zipfile with an empty package root
+        return new SimpleEntry<>(logicalZipFile, "");
+    }
+
+    /**
+     * Open a jarfile whose path has one or more {@code '!'} sections, by recursively resolving the path to the left
+     * of the last {@code '!'}, then looking up the path to the right of it within the jarfile that produced.
+     *
+     * @param nestedJarPath
+     *            the resolved path of the jarfile
+     * @param lastPlingIdx
+     *            the index of the last nested jar separator in {@code nestedJarPath}
+     * @param log
+     *            the log node, or null to skip logging
+     * @return if the child path names a directory, the parent {@link LogicalZipFile} paired with the child path as
+     *         its package root; otherwise the child path names a nested jarfile, so the {@link LogicalZipFile} for
+     *         that nested jarfile, paired with an empty package root
+     * @throws IOException
+     *             if the jarfile could not be opened
+     * @throws InterruptedException
+     *             if the thread was interrupted
+     */
+    private Entry<LogicalZipFile, String> openNestedJar(final String nestedJarPath, final int lastPlingIdx,
+            final @Nullable LogNode log) throws IOException, InterruptedException {
+        final var parentPath = nestedJarPath.substring(0, lastPlingIdx);
+        var childPath = nestedJarPath.substring(lastPlingIdx + 1);
+        // "file.jar!/path" -> "file.jar!path"
+        childPath = FileUtils.sanitizeEntryPath(childPath, /* removeInitialSlash = */ true,
+                /* removeFinalSlash = */ true);
+
+        // Recursively remove one '!' section at a time, back towards the beginning of the URL or file path. At the
+        // last frame of recursion, the toplevel jarfile will be reached and returned. The recursion is guaranteed
+        // to terminate because parentPath gets one '!'-section shorter with each recursion frame.
+        Entry<LogicalZipFile, String> parentLogicalZipFileAndPackageRoot;
+        try {
+            parentLogicalZipFileAndPackageRoot = nestedPathToLogicalZipFileAndPackageRootMap().get(parentPath, log);
+        } catch (final NullSingletonException e) {
+            throw new IOException("Could not get parent logical zipfile " + parentPath + " : " + e);
+        } catch (final NewInstanceException e) {
+            throw new IOException("Could not get parent logical zipfile " + parentPath, e);
+        }
+
+        // Only the last item in a '!'-delimited list can be a non-jar path, so the parent must always be a jarfile.
+        final var parentLogicalZipFile = parentLogicalZipFileAndPackageRoot.getKey();
+
+        // Look up the child path within the parent zipfile
+        var isDirectory = false;
+        while (childPath.endsWith("/")) {
+            // Child path is definitely a directory, it ends with a slash
+            isDirectory = true;
+            childPath = childPath.substring(0, childPath.length() - 1);
+        }
+        FastZipEntry childZipEntry = null;
+        if (!isDirectory) {
+            // If child path doesn't end with a slash, see if there's a non-directory entry with a name matching the
+            // child path (LogicalZipFile discards directory entries ending with a slash when reading the central
+            // directory of a zipfile).
+            // N.B. We perform an O(N) search here because we assume the number of classpath elements containing "!"
+            // sections is relatively small compared to the total number of entries in all jarfiles (i.e. building a
+            // HashMap of entry path to entry for every jarfile would generally be more expensive than performing
+            // this linear search, and unless the classpath is enormous, the overall time performance will not tend
+            // towards O(N^2).
+            for (final FastZipEntry entry : parentLogicalZipFile.entries) {
+                if (entry.entryName.equals(childPath)) {
+                    childZipEntry = entry;
+                    break;
+                }
+            }
+        }
+        if (childZipEntry == null) {
+            // If there is no non-directory zipfile entry with a name matching the child path, test to see if any
+            // entries in the zipfile have the child path as a dir prefix
+            final var childPathPrefix = childPath + "/";
+            for (final FastZipEntry entry : parentLogicalZipFile.entries) {
+                if (entry.entryName.startsWith(childPathPrefix)) {
+                    isDirectory = true;
+                    break;
+                }
+            }
+        }
+        // At this point, either isDirectory is true, or childZipEntry is non-null
+
+        // If path component is a directory, it is a package root
+        if (isDirectory) {
+            if (!childPath.isEmpty()) {
+                // Add directory path to parent jarfile root relative paths set (this has the side effect of adding
+                // this parent jarfile root to the set of roots for all references to the parent path)
+                if (log != null) {
+                    log.log("Path " + childPath + " in jarfile " + parentLogicalZipFile
+                            + " is a directory, not a file -- using as package root");
+                }
+                parentLogicalZipFile.classpathRoots.add(childPath);
+            }
+            // Return parent logical zipfile, and child path as the package root
+            return new SimpleEntry<>(parentLogicalZipFile, childPath);
+        }
+
+        if (childZipEntry == null /* i.e. if (!isDirectory) */) {
+            throw new IOException("Path " + childPath + " does not exist in jarfile " + parentLogicalZipFile);
+        }
+
+        // Do not extract nested jar, if nested jar scanning is disabled
+        if (!scanSpec.scanNestedJars) {
+            throw new IOException("Nested jar scanning is disabled -- skipping nested jar " + nestedJarPath);
+        }
+
+        // The child path corresponds to a non-directory zip entry, so it must be a nested jar (since non-jar nested
+        // files cannot be used on the classpath). Map the nested jar as a new ZipFileSlice if it is stored, or
+        // inflate it to RAM or to a temporary file if it is deflated, then create a new ZipFileSlice over the
+        // temporary file or ByteBuffer.
+
+        // Get zip entry as a ZipFileSlice, possibly inflating to disk or RAM
+        final ZipFileSlice childZipEntrySlice;
+        try {
+            childZipEntrySlice = fastZipEntryToZipFileSliceMap().get(childZipEntry, log);
+        } catch (final NullSingletonException e) {
+            throw new IOException("Could not get child zip entry slice " + childZipEntry + " : " + e);
+        } catch (final NewInstanceException e) {
+            throw new IOException("Could not get child zip entry slice " + childZipEntry, e);
+        }
+
+        final var zipSliceLog = log == null ? null
+                : log.log("Getting zipfile slice " + childZipEntrySlice + " for nested jar "
+                        + childZipEntry.entryName);
+
+        // Get or create a new LogicalZipFile for the child zipfile
+        LogicalZipFile childLogicalZipFile;
+        try {
+            childLogicalZipFile = zipFileSliceToLogicalZipFileMap().get(childZipEntrySlice, zipSliceLog);
+        } catch (final NullSingletonException e) {
+            throw new IOException("Could not get child logical zipfile " + childZipEntrySlice + " : " + e);
+        } catch (final NewInstanceException e) {
+            throw new IOException("Could not get child logical zipfile " + childZipEntrySlice, e);
+        }
+
+        // Return new logical zipfile with an empty package root
+        return new SimpleEntry<>(childLogicalZipFile, "");
     }
 
     /**
@@ -459,12 +479,6 @@ public class NestedJarHandler {
 
     /** The interruption checker. */
     public InterruptionChecker interruptionChecker;
-
-    /** The default size of a file buffer. */
-    private static final int DEFAULT_BUFFER_SIZE = 16384;
-
-    /** The maximum initial buffer size. */
-    private static final int MAX_INITIAL_BUFFER_SIZE = 16 * 1024 * 1024;
 
     /** HTTP(S) timeout, ms. */
     private static final int HTTP_TIMEOUT = 5000;
@@ -794,149 +808,184 @@ public class NestedJarHandler {
                     + "extracted a nested jarfile to a temporary file, since removing the temporary file "
                     + "requires closing the jarfile that was extracted from it");
         }
-        final var recyclableInflater = inflaterRecycler.acquire();
-        final var inflater = recyclableInflater.getInflater();
-        return new InputStream() {
-            // Gen Inflater instance with nowrap set to true (needed by zip entries)
-            private final AtomicBoolean closed = new AtomicBoolean();
-            /**
-             * The staging buffer that deflated bytes are read into from rawInputStream, and then handed to the
-             * inflater as its input. This must never be used as the destination of an inflate() call: the inflater
-             * keeps a reference to its input array, so inflating into this array would overwrite deflated bytes
-             * that the inflater has not consumed yet.
-             */
-            private final byte[] buf = new byte[INFLATE_BUF_SIZE];
-            /** A separate destination buffer for the single-byte read() method. */
-            private final byte[] singleByteBuf = new byte[1];
-            private static final int INFLATE_BUF_SIZE = 8192;
+        return new RecycledInflaterInputStream(rawInputStream, inflaterRecycler);
+    }
 
-            @Override
-            public int read() throws IOException {
-                if (closed.get()) {
-                    throw new IOException("InputStream is already closed");
-                } else if (inflater.finished()) {
-                    return -1;
-                }
-                final var numInflatedBytesRead = read(singleByteBuf, 0, 1);
-                if (numInflatedBytesRead < 0) {
-                    return -1;
-                } else {
-                    return singleByteBuf[0] & 0xff;
-                }
+    /**
+     * An {@link InputStream} that inflates a stream of deflated zip entry data, using an {@link Inflater} borrowed
+     * from a {@link Recycler} and handed back to it when this stream is closed.
+     */
+    private static class RecycledInflaterInputStream extends InputStream {
+        /** The stream of deflated bytes. */
+        private final InputStream rawInputStream;
+
+        /** The recycler to hand the {@link Inflater} back to when this stream is closed. */
+        private final Recycler<RecyclableInflater, RuntimeException> inflaterRecycler;
+
+        /** The borrowed {@link Inflater} wrapper. */
+        private final RecyclableInflater recyclableInflater;
+
+        /** The borrowed {@link Inflater}, created with nowrap set to true (needed by zip entries). */
+        private final Inflater inflater;
+
+        /** True once this stream has been closed. */
+        private final AtomicBoolean closed = new AtomicBoolean();
+
+        /**
+         * The staging buffer that deflated bytes are read into from rawInputStream, and then handed to the inflater
+         * as its input. This must never be used as the destination of an inflate() call: the inflater keeps a
+         * reference to its input array, so inflating into this array would overwrite deflated bytes that the
+         * inflater has not consumed yet.
+         */
+        private final byte[] buf = new byte[INFLATE_BUF_SIZE];
+
+        /** A separate destination buffer for the single-byte read() method. */
+        private final byte[] singleByteBuf = new byte[1];
+
+        /** The size of the staging buffer. */
+        private static final int INFLATE_BUF_SIZE = 8192;
+
+        /**
+         * Constructor.
+         *
+         * @param rawInputStream
+         *            the stream of deflated bytes
+         * @param inflaterRecycler
+         *            the recycler to borrow an {@link Inflater} from, and to hand it back to on close
+         */
+        RecycledInflaterInputStream(final InputStream rawInputStream,
+                final Recycler<RecyclableInflater, RuntimeException> inflaterRecycler) {
+            this.rawInputStream = rawInputStream;
+            this.inflaterRecycler = inflaterRecycler;
+            this.recyclableInflater = inflaterRecycler.acquire();
+            this.inflater = recyclableInflater.getInflater();
+        }
+
+        @Override
+        public int read() throws IOException {
+            if (closed.get()) {
+                throw new IOException("InputStream is already closed");
+            } else if (inflater.finished()) {
+                return -1;
             }
+            final var numInflatedBytesRead = read(singleByteBuf, 0, 1);
+            if (numInflatedBytesRead < 0) {
+                return -1;
+            } else {
+                return singleByteBuf[0] & 0xff;
+            }
+        }
 
-            @Override
-            public int read(final byte[] outBuf, final int off, final int len) throws IOException {
-                if (closed.get()) {
-                    throw new IOException("InputStream is already closed");
-                } else if (len < 0) {
-                    throw new IllegalArgumentException("len cannot be negative");
-                } else if (len == 0) {
-                    return 0;
-                }
-                try {
-                    // Keep fetching data from rawInputStream until buffer is full or inflater has finished
-                    var totInflatedBytes = 0;
-                    while (!inflater.finished() && totInflatedBytes < len) {
-                        final var numInflatedBytes = inflater.inflate(outBuf, off + totInflatedBytes,
-                                len - totInflatedBytes);
-                        if (numInflatedBytes == 0) {
-                            if (inflater.needsDictionary()) {
-                                // Should not happen for jarfiles
-                                throw new IOException("Inflater needs preset dictionary");
-                            } else if (inflater.needsInput()) {
-                                // Read a chunk of data from the raw InputStream
-                                final var numRawBytesRead = rawInputStream.read(buf, 0, buf.length);
-                                if (numRawBytesRead == -1) {
-                                    // An extra dummy byte is needed at the end of the input stream when using the
-                                    // "nowrap" Inflater option. See: ZipFile.ZipFileInflaterInputStream.fill()
-                                    buf[0] = (byte) 0;
-                                    inflater.setInput(buf, 0, 1);
-                                } else {
-                                    // Deflate the chunk of data
-                                    inflater.setInput(buf, 0, numRawBytesRead);
-                                }
+        @Override
+        public int read(final byte[] outBuf, final int off, final int len) throws IOException {
+            if (closed.get()) {
+                throw new IOException("InputStream is already closed");
+            } else if (len < 0) {
+                throw new IllegalArgumentException("len cannot be negative");
+            } else if (len == 0) {
+                return 0;
+            }
+            try {
+                // Keep fetching data from rawInputStream until buffer is full or inflater has finished
+                var totInflatedBytes = 0;
+                while (!inflater.finished() && totInflatedBytes < len) {
+                    final var numInflatedBytes = inflater.inflate(outBuf, off + totInflatedBytes,
+                            len - totInflatedBytes);
+                    if (numInflatedBytes == 0) {
+                        if (inflater.needsDictionary()) {
+                            // Should not happen for jarfiles
+                            throw new IOException("Inflater needs preset dictionary");
+                        } else if (inflater.needsInput()) {
+                            // Read a chunk of data from the raw InputStream
+                            final var numRawBytesRead = rawInputStream.read(buf, 0, buf.length);
+                            if (numRawBytesRead == -1) {
+                                // An extra dummy byte is needed at the end of the input stream when using the
+                                // "nowrap" Inflater option. See: ZipFile.ZipFileInflaterInputStream.fill()
+                                buf[0] = (byte) 0;
+                                inflater.setInput(buf, 0, 1);
+                            } else {
+                                // Deflate the chunk of data
+                                inflater.setInput(buf, 0, numRawBytesRead);
                             }
-                        } else {
-                            totInflatedBytes += numInflatedBytes;
                         }
-                    }
-                    if (totInflatedBytes == 0) {
-                        // If no bytes were inflated, return -1 as required by read() API contract
-                        return -1;
-                    }
-                    return totInflatedBytes;
-
-                } catch (final DataFormatException e) {
-                    throw new ZipException(
-                            e.getMessage() != null ? e.getMessage() : "Invalid deflated zip entry data");
-                }
-            }
-
-            @Override
-            public long skip(final long numToSkip) throws IOException {
-                if (closed.get()) {
-                    throw new IOException("InputStream is already closed");
-                } else if (numToSkip < 0) {
-                    throw new IllegalArgumentException("numToSkip cannot be negative");
-                } else if (numToSkip == 0 || inflater.finished()) {
-                    // (InputStream#skip returns 0 at the end of the stream, it does not return -1)
-                    return 0;
-                }
-                // (Use a separate destination buffer -- buf is the inflater's input buffer, see above)
-                final var skipBuf = new byte[(int) Math.min(numToSkip, INFLATE_BUF_SIZE)];
-                var totBytesSkipped = 0L;
-                while (totBytesSkipped < numToSkip) {
-                    final var readLen = (int) Math.min(numToSkip - totBytesSkipped, skipBuf.length);
-                    final var numBytesRead = read(skipBuf, 0, readLen);
-                    if (numBytesRead > 0) {
-                        totBytesSkipped += numBytesRead;
                     } else {
-                        break;
+                        totInflatedBytes += numInflatedBytes;
                     }
                 }
-                return totBytesSkipped;
-            }
-
-            @Override
-            public int available() throws IOException {
-                if (closed.get()) {
-                    throw new IOException("InputStream is already closed");
+                if (totInflatedBytes == 0) {
+                    // If no bytes were inflated, return -1 as required by read() API contract
+                    return -1;
                 }
-                // We don't know how many bytes are available, but have to return greater than zero if there is
-                // still input, according to the API contract. Hopefully nothing relies on this and ends up reading
-                // just one byte at a time.
-                return inflater.finished() ? 0 : 1;
-            }
+                return totInflatedBytes;
 
-            @Override
-            public synchronized void mark(final int readlimit) {
-                throw new IllegalArgumentException("Not supported");
+            } catch (final DataFormatException e) {
+                throw new ZipException(e.getMessage() != null ? e.getMessage() : "Invalid deflated zip entry data");
             }
+        }
 
-            @Override
-            public synchronized void reset() throws IOException {
-                throw new IllegalArgumentException("Not supported");
+        @Override
+        public long skip(final long numToSkip) throws IOException {
+            if (closed.get()) {
+                throw new IOException("InputStream is already closed");
+            } else if (numToSkip < 0) {
+                throw new IllegalArgumentException("numToSkip cannot be negative");
+            } else if (numToSkip == 0 || inflater.finished()) {
+                // (InputStream#skip returns 0 at the end of the stream, it does not return -1)
+                return 0;
             }
-
-            @Override
-            public boolean markSupported() {
-                return false;
-            }
-
-            @Override
-            public void close() {
-                if (!closed.getAndSet(true)) {
-                    try {
-                        rawInputStream.close();
-                    } catch (final Exception e) {
-                        // Ignore
-                    }
-                    // Reset and recycle inflater instance
-                    inflaterRecycler.recycle(recyclableInflater);
+            // (Use a separate destination buffer -- buf is the inflater's input buffer, see above)
+            final var skipBuf = new byte[(int) Math.min(numToSkip, INFLATE_BUF_SIZE)];
+            var totBytesSkipped = 0L;
+            while (totBytesSkipped < numToSkip) {
+                final var readLen = (int) Math.min(numToSkip - totBytesSkipped, skipBuf.length);
+                final var numBytesRead = read(skipBuf, 0, readLen);
+                if (numBytesRead > 0) {
+                    totBytesSkipped += numBytesRead;
+                } else {
+                    break;
                 }
             }
-        };
+            return totBytesSkipped;
+        }
+
+        @Override
+        public int available() throws IOException {
+            if (closed.get()) {
+                throw new IOException("InputStream is already closed");
+            }
+            // We don't know how many bytes are available, but have to return greater than zero if there is
+            // still input, according to the API contract. Hopefully nothing relies on this and ends up reading
+            // just one byte at a time.
+            return inflater.finished() ? 0 : 1;
+        }
+
+        @Override
+        public synchronized void mark(final int readlimit) {
+            throw new IllegalArgumentException("Not supported");
+        }
+
+        @Override
+        public synchronized void reset() throws IOException {
+            throw new IllegalArgumentException("Not supported");
+        }
+
+        @Override
+        public boolean markSupported() {
+            return false;
+        }
+
+        @Override
+        public void close() {
+            if (!closed.getAndSet(true)) {
+                try {
+                    rawInputStream.close();
+                } catch (final Exception e) {
+                    // Ignore
+                }
+                // Reset and recycle inflater instance
+                inflaterRecycler.recycle(recyclableInflater);
+            }
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1063,62 +1112,6 @@ public class NestedJarHandler {
         return new FileSlice(tempFile, this, log);
     }
 
-    /**
-     * Read all the bytes in an {@link InputStream}.
-     *
-     * @param inputStream
-     *            The {@link InputStream}.
-     * @param uncompressedLengthHint
-     *            The length of the data once inflated from the {@link InputStream}, if known, otherwise -1L.
-     * @return The contents of the {@link InputStream} as a byte array.
-     * @throws IOException
-     *             If the contents could not be read.
-     */
-    public static byte[] readAllBytesAsArray(final InputStream inputStream, final long uncompressedLengthHint)
-            throws IOException {
-        if (uncompressedLengthHint > FileUtils.MAX_BUFFER_SIZE) {
-            throw new IOException("InputStream is too large to read");
-        }
-        try (inputStream) {
-            final var bufferSize = uncompressedLengthHint < 1L
-                    // If fileSizeHint is zero or unknown, use default buffer size
-                    ? DEFAULT_BUFFER_SIZE
-                    // fileSizeHint is just a hint -- limit the max allocated buffer size, so that invalid ZipEntry
-                    // lengths do not become a memory allocation attack vector
-                    : Math.min((int) uncompressedLengthHint, MAX_INITIAL_BUFFER_SIZE);
-            var buf = new byte[bufferSize];
-            var totBytesRead = 0;
-            for (int bytesRead;;) {
-                while ((bytesRead = inputStream.read(buf, totBytesRead, buf.length - totBytesRead)) > 0) {
-                    // Fill buffer until nothing more can be read
-                    totBytesRead += bytesRead;
-                }
-                if (bytesRead < 0) {
-                    // Reached end of stream without filling buf
-                    break;
-                }
-
-                // bytesRead == 0: either the buffer was the correct size and the end of the stream has been
-                // reached, or the buffer was too small. Need to try reading one more byte to see which is the case.
-                final var extraByte = inputStream.read();
-                if (extraByte == -1) {
-                    // Reached end of stream
-                    break;
-                }
-
-                // Haven't reached end of stream yet. Need to grow the buffer (double its size), and append the
-                // extra byte that was just read.
-                if (buf.length == FileUtils.MAX_BUFFER_SIZE) {
-                    throw new IOException("InputStream too large to read into array");
-                }
-                buf = Arrays.copyOf(buf, (int) Math.min(buf.length * 2L, FileUtils.MAX_BUFFER_SIZE));
-                buf[totBytesRead++] = (byte) extraByte;
-            }
-            // Return buffer and number of bytes read
-            return totBytesRead == buf.length ? buf : Arrays.copyOf(buf, totBytesRead);
-        }
-    }
-
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -1212,6 +1205,10 @@ public class NestedJarHandler {
      * System.runFinalization() -- deprecated in JDK 18, so accessed by reflection.
      */
     private static volatile @Nullable Method runFinalizationMethod;
+
+    // TODO: once ClassGraph's minimum supported JDK version is one in which System#runFinalization has been
+    // removed (it was deprecated for removal in JDK 18 by JEP 421), this method and its only call site, in
+    // FileSlice's constructor, can be deleted rather than called reflectively.
 
     /** Call {@code System.runFinalization()}, if it is available in this JDK. */
     public void runFinalizationMethod() {

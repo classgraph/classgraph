@@ -225,7 +225,7 @@ public class PathSlice extends Slice {
                 throw new IOException("Uncompressed size is larger than 2GB");
             }
             try (var inputStream = open()) {
-                return NestedJarHandler.readAllBytesAsArray(inputStream, inflatedLengthHint);
+                return FileUtils.readAllBytesAsArray(inputStream, inflatedLengthHint);
             }
         } else {
             // Copy from FileChannel to byte array
