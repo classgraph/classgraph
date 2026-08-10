@@ -2,7 +2,9 @@ package nonapi.io.github.classgraph.utils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.InvocationTargetException;
@@ -22,9 +24,13 @@ public class FastPathResolverTest {
 
     /**
      * {@link FastPathResolver#resolve(String, String)}, loaded in a class loader that saw {@code os.name} set to
-     * Linux, so that the non-Windows branches can be tested on any platform.
+     * Linux, so that the non-Windows branches can be tested on any platform other than Windows itself (null on
+     * Windows -- see {@link #loadResolverForEachOS()}).
      */
     private static Method resolveAsLinuxMethod;
+
+    /** True if a copy of the resolver that believes it is running on Linux could be loaded. */
+    private static boolean canSimulateLinux;
 
     /**
      * A class loader that defines the ClassGraph classes itself rather than delegating them to its parent, so that
@@ -67,8 +73,8 @@ public class FastPathResolverTest {
     }
 
     /**
-     * Load a second copy of {@link FastPathResolver} that believes it is running on Windows, and a third that
-     * believes it is running on Linux, so that both sets of branches can be tested whatever the real platform is.
+     * Load a second copy of {@link FastPathResolver} that believes it is running on Windows, and, unless the real
+     * platform is Windows, a third that believes it is running on Linux.
      *
      * @throws Exception
      *             if the extra copies could not be loaded.
@@ -76,7 +82,11 @@ public class FastPathResolverTest {
     @BeforeAll
     static void loadResolverForEachOS() throws Exception {
         resolveAsWindowsMethod = loadResolverForOS("Windows 10", "Windows");
-        resolveAsLinuxMethod = loadResolverForOS("Linux", "Linux");
+        // VersionFinder takes a backslash file separator as Windows before it consults os.name, and
+        // File.separatorChar is fixed when the JDK initializes File, so on Windows a copy of the resolver cannot
+        // be made to believe it is running on Linux. The tests that need one are skipped there.
+        canSimulateLinux = File.separatorChar != '\\';
+        resolveAsLinuxMethod = canSimulateLinux ? loadResolverForOS("Linux", "Linux") : null;
     }
 
     /**
@@ -230,11 +240,11 @@ public class FastPathResolverTest {
     /**
      * A {@code "file:"} URL names the local machine either with an empty authority or with the authority
      * {@code "localhost"}, and both name the same local path (RFC 8089 section 2). Off Windows the authority has to
-     * be dropped, since folding it into the path names a directory that does not exist; on Windows it is kept, so
-     * that it becomes a UNC path, which is what {@link java.nio.file.Path#of(java.net.URI)} produces there.
+     * be dropped, since folding it into the path names a directory that does not exist.
      */
     @Test
     public void localhostAuthorityNamesTheLocalMachine() {
+        assumeTrue(canSimulateLinux, "the resolver cannot be made to believe it is running on Linux on Windows");
         assertThat(resolveAsLinux(null, "file://localhost/tmp/a")).isEqualTo("/tmp/a");
         assertThat(resolveAsLinux("/base", "file://localhost/tmp/a")).isEqualTo("/tmp/a");
         assertThat(resolveAsLinux(null, "jar:file://localhost/tmp/a.jar!/b")).isEqualTo("/tmp/a.jar!/b");
@@ -242,7 +252,15 @@ public class FastPathResolverTest {
         assertThat(resolveAsLinux(null, "file://LocalHost/tmp/a")).isEqualTo("/tmp/a");
         // Only the whole host name matches, not a host whose name merely starts with "localhost"
         assertThat(resolveAsLinux(null, "file://localhostile/tmp/a")).isEqualTo("/localhostile/tmp/a");
-        // On Windows the authority is kept, giving the UNC path that the JDK produces for the same URL
+    }
+
+    /**
+     * On Windows the {@code "localhost"} authority of a {@code "file:"} URL is kept, so that it becomes a UNC path
+     * -- which is both what {@link java.nio.file.Path#of(java.net.URI)} produces there and what RFC 8089 appendix
+     * B.3 specifies.
+     */
+    @Test
+    public void localhostAuthorityBecomesAUncPathOnWindows() {
         assertThat(resolveAsWindows(null, "file://localhost/tmp/a")).isEqualTo("//localhost/tmp/a");
     }
 
