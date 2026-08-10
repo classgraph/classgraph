@@ -82,7 +82,7 @@ import org.jspecify.annotations.Nullable;
  * classes, such as {@link ScanResult#getAllClasses()}, if {@link ClassGraph#enableExternalClasses()} was called
  * before scanning.
  */
-public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>, HasName {
+public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>, HasName, HasAnnotations {
     /** The name of the class. */
     String name;
 
@@ -1506,23 +1506,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Checks whether this class has the annotation.
-     *
-     * @param annotation
-     *            the annotation class
-     * @return true if this class has the annotation.
-     * @throws IllegalArgumentException
-     *             if {@code annotation} is not an annotation type.
-     * @throws IllegalStateException
-     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
-     */
-    public boolean hasAnnotation(final Class<? extends Annotation> annotation) {
-        Assert.notNull(annotation, "annotation");
-        Assert.isAnnotation(annotation);
-        return hasAnnotation(annotation.getName());
-    }
-
-    /**
      * Checks whether this class has the named annotation.
      *
      * @param annotationName
@@ -1531,6 +1514,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @throws IllegalStateException
      *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
+    @Override
     public boolean hasAnnotation(final String annotationName) {
         Assert.notNull(annotationName, "annotationName");
         return getAllAnnotations().containsName(annotationName);
@@ -2322,6 +2306,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @throws IllegalStateException
      *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
+    @Override
     public AnnotationInfoList getAllAnnotationInfo() {
         synchronized (this) {
             if (annotationInfoRef != null) {
@@ -2335,206 +2320,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             annotationInfoRef = unmodifiable(AnnotationInfoList.getIndirectAnnotations(annotationInfo, this));
             return annotationInfoRef;
         }
-    }
-
-    /**
-     * Get a list of only the annotations directly present on this class, not the meta-annotations on those
-     * annotations, and not the {@link Inherited} annotations of superclasses, or the empty list if none.
-     *
-     * @return A list of {@link AnnotationInfo} objects for the annotations directly present on this class, or the
-     *         empty list if none.
-     * @throws IllegalStateException
-     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
-     */
-    public AnnotationInfoList getDirectAnnotationInfo() {
-        return getAllAnnotationInfo().directOnly();
-    }
-
-    /**
-     * Get the non-{@link Repeatable} annotation or meta-annotation on this class, or null if the class does not
-     * have the annotation. (Use {@link #getAllAnnotationInfoRepeatable(Class)} for {@link Repeatable} annotations,
-     * or {@link #getDirectAnnotationInfo(Class)} to ignore meta-annotations.)
-     *
-     * <p>
-     * Also handles the {@link Inherited} meta-annotation, which causes an annotation to annotate a class and all of
-     * its subclasses.
-     *
-     * <p>
-     * Note that if you need to get multiple annotations, it is faster to call {@link #getAllAnnotationInfo()}, and
-     * then get the annotations from the returned {@link AnnotationInfoList}, so that the returned list doesn't have
-     * to be built multiple times.
-     *
-     * @param annotation
-     *            the annotation class
-     * @return An {@link AnnotationInfo} object representing the annotation on this class, or null if the class does
-     *         not have the annotation.
-     * @throws IllegalArgumentException
-     *             if {@code annotation} is not an annotation type.
-     * @throws IllegalStateException
-     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
-     */
-    public @Nullable AnnotationInfo getAllAnnotationInfo(final Class<? extends Annotation> annotation) {
-        Assert.notNull(annotation, "annotation");
-        Assert.isAnnotation(annotation);
-        return getAllAnnotationInfo(annotation.getName());
-    }
-
-    /**
-     * Get the named non-{@link Repeatable} annotation or meta-annotation on this class, or null if the class does
-     * not have the named annotation. (Use {@link #getAllAnnotationInfoRepeatable(String)} for {@link Repeatable}
-     * annotations, or {@link #getDirectAnnotationInfo(String)} to ignore meta-annotations.)
-     *
-     * <p>
-     * Also handles the {@link Inherited} meta-annotation, which causes an annotation to annotate a class and all of
-     * its subclasses.
-     *
-     * <p>
-     * If the named annotation can be reached in more than one way -- if it is directly present on the class and is
-     * also a meta-annotation of one of the class' other annotations, for example -- then the one reached most
-     * directly is returned: an annotation directly present on the class, if there is one, otherwise an annotation
-     * inherited from a superclass, otherwise a meta-annotation. Call {@link #getDirectAnnotationInfo(String)} if
-     * you want only the annotation present on the class itself.
-     *
-     * <p>
-     * Note that if you need to get multiple named annotations, it is faster to call
-     * {@link #getAllAnnotationInfo()}, and then get the named annotations from the returned
-     * {@link AnnotationInfoList}, so that the returned list doesn't have to be built multiple times.
-     *
-     * @param annotationName
-     *            the name of the annotation class
-     * @return An {@link AnnotationInfo} object representing the named annotation on this class, or null if the
-     *         class does not have the named annotation.
-     * @throws IllegalStateException
-     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
-     */
-    public @Nullable AnnotationInfo getAllAnnotationInfo(final String annotationName) {
-        Assert.notNull(annotationName, "annotationName");
-        return getAllAnnotationInfo().get(annotationName);
-    }
-
-    /**
-     * Get the non-{@link Repeatable} annotation directly present on this class, or null if the annotation is not
-     * directly present. Meta-annotations, and the {@link Inherited} annotations of superclasses, are ignored. (Use
-     * {@link #getDirectAnnotationInfoRepeatable(Class)} for {@link Repeatable} annotations.)
-     *
-     * @param annotation
-     *            the annotation class
-     * @return An {@link AnnotationInfo} object representing the annotation directly present on this class, or null
-     *         if it is not directly present.
-     * @throws IllegalArgumentException
-     *             if {@code annotation} is not an annotation type.
-     * @throws IllegalStateException
-     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
-     */
-    public @Nullable AnnotationInfo getDirectAnnotationInfo(final Class<? extends Annotation> annotation) {
-        Assert.notNull(annotation, "annotation");
-        Assert.isAnnotation(annotation);
-        return getDirectAnnotationInfo(annotation.getName());
-    }
-
-    /**
-     * Get the named non-{@link Repeatable} annotation directly present on this class, or null if the named
-     * annotation is not directly present. Meta-annotations, and the {@link Inherited} annotations of superclasses,
-     * are ignored. (Use {@link #getDirectAnnotationInfoRepeatable(String)} for {@link Repeatable} annotations.)
-     *
-     * @param annotationName
-     *            the name of the annotation class
-     * @return An {@link AnnotationInfo} object representing the named annotation directly present on this class, or
-     *         null if it is not directly present.
-     * @throws IllegalStateException
-     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
-     */
-    public @Nullable AnnotationInfo getDirectAnnotationInfo(final String annotationName) {
-        Assert.notNull(annotationName, "annotationName");
-        return getDirectAnnotationInfo().get(annotationName);
-    }
-
-    /**
-     * Get the {@link Repeatable} annotation or meta-annotation on this class, or the empty list if the class does
-     * not have the annotation.
-     *
-     * <p>
-     * Also handles the {@link Inherited} meta-annotation, which causes an annotation to annotate a class and all of
-     * its subclasses.
-     *
-     * <p>
-     * Note that if you need to get multiple annotations, it is faster to call {@link #getAllAnnotationInfo()}, and
-     * then get the annotations from the returned {@link AnnotationInfoList}, so that the returned list doesn't have
-     * to be built multiple times.
-     *
-     * @param annotation
-     *            the annotation class
-     * @return An {@link AnnotationInfoList} of all instances of the annotation on this class, or the empty list if
-     *         the class does not have the annotation.
-     * @throws IllegalArgumentException
-     *             if {@code annotation} is not an annotation type.
-     * @throws IllegalStateException
-     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
-     */
-    public AnnotationInfoList getAllAnnotationInfoRepeatable(final Class<? extends Annotation> annotation) {
-        Assert.notNull(annotation, "annotation");
-        Assert.isAnnotation(annotation);
-        return getAllAnnotationInfoRepeatable(annotation.getName());
-    }
-
-    /**
-     * Get the named {@link Repeatable} annotation or meta-annotation on this class, or the empty list if the class
-     * does not have the named annotation.
-     *
-     * <p>
-     * Also handles the {@link Inherited} meta-annotation, which causes an annotation to annotate a class and all of
-     * its subclasses.
-     *
-     * <p>
-     * Note that if you need to get multiple named annotations, it is faster to call
-     * {@link #getAllAnnotationInfo()}, and then get the named annotations from the returned
-     * {@link AnnotationInfoList}, so that the returned list doesn't have to be built multiple times.
-     *
-     * @param annotationName
-     *            the name of the annotation class
-     * @return An {@link AnnotationInfoList} of all instances of the named annotation on this class, or the empty
-     *         list if the class does not have the named annotation.
-     * @throws IllegalStateException
-     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
-     */
-    public AnnotationInfoList getAllAnnotationInfoRepeatable(final String annotationName) {
-        Assert.notNull(annotationName, "annotationName");
-        return getAllAnnotationInfo().getRepeatable(annotationName);
-    }
-
-    /**
-     * Get the {@link Repeatable} annotation directly present on this class, or the empty list if it is not directly
-     * present. Meta-annotations, and the {@link Inherited} annotations of superclasses, are ignored.
-     *
-     * @param annotation
-     *            the annotation class
-     * @return An {@link AnnotationInfoList} of all instances of the annotation directly present on this class, or
-     *         the empty list if it is not directly present.
-     * @throws IllegalArgumentException
-     *             if {@code annotation} is not an annotation type.
-     * @throws IllegalStateException
-     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
-     */
-    public AnnotationInfoList getDirectAnnotationInfoRepeatable(final Class<? extends Annotation> annotation) {
-        Assert.notNull(annotation, "annotation");
-        Assert.isAnnotation(annotation);
-        return getDirectAnnotationInfoRepeatable(annotation.getName());
-    }
-
-    /**
-     * Get the named {@link Repeatable} annotation directly present on this class, or the empty list if it is not
-     * directly present. Meta-annotations, and the {@link Inherited} annotations of superclasses, are ignored.
-     *
-     * @param annotationName
-     *            the name of the annotation class
-     * @return An {@link AnnotationInfoList} of all instances of the named annotation directly present on this
-     *         class, or the empty list if it is not directly present.
-     * @throws IllegalStateException
-     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
-     */
-    public AnnotationInfoList getDirectAnnotationInfoRepeatable(final String annotationName) {
-        Assert.notNull(annotationName, "annotationName");
-        return getDirectAnnotationInfo().getRepeatable(annotationName);
     }
 
     /**

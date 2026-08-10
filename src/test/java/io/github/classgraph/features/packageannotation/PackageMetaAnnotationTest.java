@@ -1,6 +1,7 @@
 package io.github.classgraph.features.packageannotation;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.Objects;
 
@@ -35,6 +36,23 @@ public class PackageMetaAnnotationTest {
 
             assertThat(packageInfo.getAllAnnotationInfoRepeatable(MetaAnnotation.class)).hasSize(1);
             assertThat(packageInfo.getDirectAnnotationInfoRepeatable(MetaAnnotation.class)).isEmpty();
+        }
+    }
+
+    /**
+     * Reading package annotations without calling {@link ClassGraph#enableAnnotationInfo()} should fail loudly,
+     * rather than reporting that the package has no annotations.
+     */
+    @Test
+    public void annotationInfoMustBeEnabled() {
+        final var packageName = PackageMetaAnnotationTest.class.getPackage().getName();
+        try (var scanResult = new ClassGraph().acceptPackages(packageName).ignoreClassVisibility().scan()) {
+            final var packageInfo = Objects.requireNonNull(scanResult.getPackageInfo(packageName));
+
+            assertThatThrownBy(packageInfo::getAllAnnotationInfo).isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("enableAnnotationInfo");
+            assertThatThrownBy(() -> packageInfo.hasAnnotation(MetaAnnotation.class))
+                    .isInstanceOf(IllegalStateException.class);
         }
     }
 }

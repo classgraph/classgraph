@@ -30,8 +30,6 @@ package io.github.classgraph;
 
 import static io.github.classgraph.PotentiallyUnmodifiableList.unmodifiable;
 
-import java.lang.annotation.Annotation;
-import java.lang.annotation.Repeatable;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -43,7 +41,7 @@ import nonapi.io.github.classgraph.utils.CollectionUtils;
 import org.jspecify.annotations.Nullable;
 
 /** Holds metadata about a module encountered during a scan. */
-public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
+public class ModuleInfo implements Comparable<ModuleInfo>, HasName, HasAnnotations {
     /** The name of the module. */
     private final String name;
 
@@ -77,6 +75,9 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
 
     /** Classes in the module, keyed by class name, or null if none. */
     private @Nullable Map<String, ClassInfo> classNameToClassInfo;
+
+    /** The result of the scan that produced this module, set once the scan is complete. */
+    private @Nullable ScanResult scanResult;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -241,6 +242,7 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
      *            the scan result
      */
     void setScanResult(final ScanResult scanResult) {
+        this.scanResult = scanResult;
         final var annotations = annotationInfoSet;
         if (annotations != null) {
             for (final AnnotationInfo ai : annotations) {
@@ -271,8 +273,15 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
      *
      * @return A list of the annotations and meta-annotations on the {@code module-info.class} file, along with any
      *         annotation parameter values, wrapped in {@link AnnotationInfo} objects, or the empty list if none.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
+    @Override
     public AnnotationInfoList getAllAnnotationInfo() {
+        // scanResult is only null if the scan has not completed, which callers cannot observe
+        if (scanResult != null && !scanResult.scanSpec.enableAnnotationInfo) {
+            throw new IllegalStateException("Please call ClassGraph#enableAnnotationInfo() before #scan()");
+        }
         var annotations = annotationInfo;
         if (annotations == null) {
             final var annotationSet = annotationInfoSet;
@@ -288,172 +297,6 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
             annotationInfo = annotations;
         }
         return annotations;
-    }
-
-    /**
-     * Get a list of only the annotations directly present on the {@code module-info.class} file for this module,
-     * not the meta-annotations on those annotations.
-     *
-     * @return A list of the annotations directly present on the {@code module-info.class} file, along with any
-     *         annotation parameter values, wrapped in {@link AnnotationInfo} objects, or the empty list if none.
-     */
-    public AnnotationInfoList getDirectAnnotationInfo() {
-        return getAllAnnotationInfo().directOnly();
-    }
-
-    /**
-     * Get the non-{@link Repeatable} annotation or meta-annotation on this module, or null if the module does not
-     * have the annotation. (Use {@link #getAllAnnotationInfoRepeatable(Class)} for {@link Repeatable} annotations,
-     * or {@link #getDirectAnnotationInfo(Class)} to ignore meta-annotations.)
-     *
-     * @param annotation
-     *            the annotation class
-     * @return An {@link AnnotationInfo} object representing the annotation on this module, or null if the module
-     *         does not have the annotation.
-     * @throws IllegalArgumentException
-     *             if {@code annotation} is not an annotation type.
-     */
-    public @Nullable AnnotationInfo getAllAnnotationInfo(final Class<? extends Annotation> annotation) {
-        Assert.notNull(annotation, "annotation");
-        Assert.isAnnotation(annotation);
-        return getAllAnnotationInfo(annotation.getName());
-    }
-
-    /**
-     * Get the named non-{@link Repeatable} annotation or meta-annotation on this module, or null if the module does
-     * not have the named annotation. (Use {@link #getAllAnnotationInfoRepeatable(String)} for {@link Repeatable}
-     * annotations, or {@link #getDirectAnnotationInfo(String)} to ignore meta-annotations.)
-     *
-     * @param annotationName
-     *            the name of the annotation class
-     * @return An {@link AnnotationInfo} object representing the named annotation on this module, or null if the
-     *         module does not have the named annotation.
-     */
-    public @Nullable AnnotationInfo getAllAnnotationInfo(final String annotationName) {
-        Assert.notNull(annotationName, "annotationName");
-        return getAllAnnotationInfo().get(annotationName);
-    }
-
-    /**
-     * Get the non-{@link Repeatable} annotation directly present on this module, or null if the annotation is not
-     * directly present. Meta-annotations are ignored. (Use {@link #getDirectAnnotationInfoRepeatable(Class)} for
-     * {@link Repeatable} annotations.)
-     *
-     * @param annotation
-     *            the annotation class
-     * @return An {@link AnnotationInfo} object representing the annotation directly present on this module, or null
-     *         if it is not directly present.
-     * @throws IllegalArgumentException
-     *             if {@code annotation} is not an annotation type.
-     */
-    public @Nullable AnnotationInfo getDirectAnnotationInfo(final Class<? extends Annotation> annotation) {
-        Assert.notNull(annotation, "annotation");
-        Assert.isAnnotation(annotation);
-        return getDirectAnnotationInfo(annotation.getName());
-    }
-
-    /**
-     * Get the named non-{@link Repeatable} annotation directly present on this module, or null if the named
-     * annotation is not directly present. Meta-annotations are ignored. (Use
-     * {@link #getDirectAnnotationInfoRepeatable(String)} for {@link Repeatable} annotations.)
-     *
-     * @param annotationName
-     *            the name of the annotation class
-     * @return An {@link AnnotationInfo} object representing the named annotation directly present on this module,
-     *         or null if it is not directly present.
-     */
-    public @Nullable AnnotationInfo getDirectAnnotationInfo(final String annotationName) {
-        Assert.notNull(annotationName, "annotationName");
-        return getDirectAnnotationInfo().get(annotationName);
-    }
-
-    /**
-     * Get the {@link Repeatable} annotation or meta-annotation on this module, or the empty list if the module does
-     * not have the annotation.
-     *
-     * @param annotation
-     *            the annotation class
-     * @return An {@link AnnotationInfoList} of all instances of the annotation on this module, or the empty list if
-     *         the module does not have the annotation.
-     * @throws IllegalArgumentException
-     *             if {@code annotation} is not an annotation type.
-     */
-    public AnnotationInfoList getAllAnnotationInfoRepeatable(final Class<? extends Annotation> annotation) {
-        Assert.notNull(annotation, "annotation");
-        Assert.isAnnotation(annotation);
-        return getAllAnnotationInfoRepeatable(annotation.getName());
-    }
-
-    /**
-     * Get the named {@link Repeatable} annotation or meta-annotation on this module, or the empty list if the
-     * module does not have the named annotation.
-     *
-     * @param annotationName
-     *            the name of the annotation class
-     * @return An {@link AnnotationInfoList} of all instances of the named annotation on this module, or the empty
-     *         list if the module does not have the named annotation.
-     */
-    public AnnotationInfoList getAllAnnotationInfoRepeatable(final String annotationName) {
-        Assert.notNull(annotationName, "annotationName");
-        return getAllAnnotationInfo().getRepeatable(annotationName);
-    }
-
-    /**
-     * Get the {@link Repeatable} annotation directly present on this module, or the empty list if it is not
-     * directly present. Meta-annotations are ignored.
-     *
-     * @param annotation
-     *            the annotation class
-     * @return An {@link AnnotationInfoList} of all instances of the annotation directly present on this module, or
-     *         the empty list if it is not directly present.
-     * @throws IllegalArgumentException
-     *             if {@code annotation} is not an annotation type.
-     */
-    public AnnotationInfoList getDirectAnnotationInfoRepeatable(final Class<? extends Annotation> annotation) {
-        Assert.notNull(annotation, "annotation");
-        Assert.isAnnotation(annotation);
-        return getDirectAnnotationInfoRepeatable(annotation.getName());
-    }
-
-    /**
-     * Get the named {@link Repeatable} annotation directly present on this module, or the empty list if it is not
-     * directly present. Meta-annotations are ignored.
-     *
-     * @param annotationName
-     *            the name of the annotation class
-     * @return An {@link AnnotationInfoList} of all instances of the named annotation directly present on this
-     *         module, or the empty list if it is not directly present.
-     */
-    public AnnotationInfoList getDirectAnnotationInfoRepeatable(final String annotationName) {
-        Assert.notNull(annotationName, "annotationName");
-        return getDirectAnnotationInfo().getRepeatable(annotationName);
-    }
-
-    /**
-     * Check if this module has the annotation.
-     *
-     * @param annotation
-     *            the annotation class
-     * @return true if this module has the annotation.
-     * @throws IllegalArgumentException
-     *             if {@code annotation} is not an annotation type.
-     */
-    public boolean hasAnnotation(final Class<? extends Annotation> annotation) {
-        Assert.notNull(annotation, "annotation");
-        Assert.isAnnotation(annotation);
-        return hasAnnotation(annotation.getName());
-    }
-
-    /**
-     * Check if this module has the named annotation.
-     *
-     * @param annotationName
-     *            the name of the annotation class
-     * @return true if this module has the named annotation.
-     */
-    public boolean hasAnnotation(final String annotationName) {
-        Assert.notNull(annotationName, "annotationName");
-        return getAllAnnotationInfo().containsName(annotationName);
     }
 
     // -------------------------------------------------------------------------------------------------------------

@@ -443,6 +443,23 @@ no part here, since a package and a module have no superclass.)
 `.directOnly()` still exists on `ClassInfoList` and `AnnotationInfoList`, so the 4.x
 idiom keeps working; the `getDirect...` methods are just the direct way to ask.
 
+All twelve of these annotation methods now come from a new public interface,
+`HasAnnotations`, implemented by `ClassInfo`, `FieldInfo`, `MethodInfo`,
+`MethodParameterInfo`, `PackageInfo` and `ModuleInfo` — the ClassGraph counterpart of
+`java.lang.reflect.AnnotatedElement`. This is additive: every method keeps the name and
+signature it had, and existing code compiles unchanged. What it buys you is that a method
+which only cares about annotations can now accept any annotated element:
+
+```java
+static boolean isDeprecated(HasAnnotations element) {
+    return element.hasAnnotation(Deprecated.class);
+}
+```
+
+Only `getAllAnnotationInfo()` is abstract; the other eleven methods are `default`s derived
+from it, which is also how the five implementing classes stopped carrying five copies of
+the same code.
+
 Two overloads were added for symmetry, since every other query on `ScanResult` accepts
 either a `Class<?>` or a class name: `ScanResult#getAllAnnotationsOnClass(Class)` and
 `ScanResult#getDirectAnnotationsOnClass(Class)`.
@@ -586,7 +603,11 @@ no argument involved. 5.x follows the JDK's convention:
 * **`IllegalStateException`** when the failure depends on the state of the receiver, not on
   an argument. This covers, throughout the API:
   * every "Please call `ClassGraph#enableXInfo()` before `#scan()`" guard — on `ClassInfo`,
-    `ClassMemberInfo`, `FieldInfo`, `MethodParameterInfo`, `ClassInfoList` and `ScanResult`;
+    `ClassMemberInfo`, `FieldInfo`, `MethodParameterInfo`, `PackageInfo`, `ModuleInfo`,
+    `ClassInfoList` and `ScanResult`. `PackageInfo` and `ModuleInfo` are new to this list:
+    in 4.x, asking a package or module for its annotations without calling
+    `enableAnnotationInfo()` returned an empty list, so a forgotten call looked like a
+    package with no annotations rather than an error;
   * using a `ScanResult` after it has been closed;
   * asking a class for something it is not — `ClassInfo#getEnumConstants()` on a
     non-enum, `ClassInfo#getAnnotationDefaultParameterValues()` on a non-annotation;
