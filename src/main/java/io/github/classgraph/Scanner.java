@@ -189,82 +189,78 @@ class Scanner implements Callable<ScanResult> {
             final var moduleFinder = classpathFinder.getModuleFinder();
             if (moduleFinder != null) {
                 // Add modules to start of classpath order, before traditional classpath
-                final var systemModuleRefs = moduleFinder.getSystemModuleRefs();
                 final var classLoaderOrderRespectingParentDelegation = classpathFinder
                         .getClassLoaderOrderRespectingParentDelegation();
                 final var defaultClassLoader = classLoaderOrderRespectingParentDelegation != null
                         && classLoaderOrderRespectingParentDelegation.length != 0
                                 ? classLoaderOrderRespectingParentDelegation[0]
                                 : null;
-                if (systemModuleRefs != null) {
-                    for (final ModuleRef systemModuleRef : systemModuleRefs) {
-                        final var moduleName = systemModuleRef.getName();
-                        if (scanSpec.enableSystemJarsAndModules
-                                // If scanning of system modules is enabled, system modules follow the same
-                                // accept/reject rule as any other module, so rejecting one system module leaves the
-                                // rest scannable (#658)
-                                ? scanSpec.moduleAcceptReject.isAcceptedAndNotRejected(moduleName)
-                                // Otherwise only scan specifically accepted system modules
-                                : scanSpec.moduleAcceptReject.isSpecificallyAcceptedAndNotRejected(moduleName)) {
-                            // Create a new ClasspathElementModule
-                            final var classpathElementModule = new ClasspathElementModule(systemModuleRef,
-                                    nestedJarHandler.scanResources.moduleRefToModuleReaderRecyclerMap(),
-                                    new ClasspathEntryWorkUnit(null, defaultClassLoader, null, moduleOrder.size(),
-                                            "", ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES),
-                                    /* isLookupOnly = */ false, scanSpec);
-                            moduleOrder.add(classpathElementModule);
-                            // Open the ClasspathElementModule
-                            classpathElementModule.open(/* ignored */ null, classpathFinderLog);
-                        } else {
-                            // A module that is not being scanned can still have the classfiles of individual
-                            // classes read from it, in order to complete the class graph above an accepted class --
-                            // but not if the module was rejected (#902)
-                            if (!scanSpec.moduleAcceptReject.isRejected(moduleName)) {
-                                unscannedModuleRefs.add(systemModuleRef);
-                            }
-                            if (classpathFinderLog != null) {
-                                classpathFinderLog
-                                        .log("Skipping non-accepted or rejected system module: " + moduleName);
-                            }
-                        }
-                    }
-                }
-                final var nonSystemModuleRefs = moduleFinder.getNonSystemModuleRefs();
-                if (nonSystemModuleRefs != null) {
-                    for (final ModuleRef nonSystemModuleRef : nonSystemModuleRefs) {
-                        var moduleName = nonSystemModuleRef.getName();
-                        if (moduleName == null) {
-                            moduleName = "";
-                        }
-                        if (scanSpec.moduleAcceptReject.isAcceptedAndNotRejected(moduleName)) {
-                            // Create a new ClasspathElementModule
-                            final var classpathElementModule = new ClasspathElementModule(nonSystemModuleRef,
-                                    nestedJarHandler.scanResources.moduleRefToModuleReaderRecyclerMap(),
-                                    new ClasspathEntryWorkUnit(null, defaultClassLoader, null, moduleOrder.size(),
-                                            "", ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES),
-                                    /* isLookupOnly = */ false, scanSpec);
-                            moduleOrder.add(classpathElementModule);
-                            // Open the ClasspathElementModule
-                            classpathElementModule.open(/* ignored */ null, classpathFinderLog);
-                        } else {
-                            // A module that is not being scanned can still have the classfiles of individual
-                            // classes read from it, in order to complete the class graph above an accepted class --
-                            // but not if the module was rejected (#902)
-                            if (!scanSpec.moduleAcceptReject.isRejected(moduleName)) {
-                                unscannedModuleRefs.add(nonSystemModuleRef);
-                            }
-                            if (classpathFinderLog != null) {
-                                classpathFinderLog.log("Skipping non-accepted or rejected module: " + moduleName);
-                            }
-                        }
-                    }
-                }
+                addModules(moduleFinder.getSystemModuleRefs(), /* isSystemModules = */ true, defaultClassLoader,
+                        unscannedModuleRefs, classpathFinderLog);
+                addModules(moduleFinder.getNonSystemModuleRefs(), /* isSystemModules = */ false, defaultClassLoader,
+                        unscannedModuleRefs, classpathFinderLog);
             }
             this.unscannedModules = new UnscannedModules(unscannedModuleRefs,
                     nestedJarHandler.scanResources.moduleRefToModuleReaderRecyclerMap(), scanSpec);
         } catch (final InterruptedException e) {
             nestedJarHandler.close(/* log = */ null);
             throw e;
+        }
+    }
+
+    /**
+     * Add each accepted module to {@link #moduleOrder} as an open {@link ClasspathElementModule}, and add each
+     * module that is neither accepted nor rejected to {@code unscannedModuleRefs}.
+     *
+     * @param moduleRefs
+     *            the modules, or null if none were found
+     * @param isSystemModules
+     *            true if these are the system modules
+     * @param defaultClassLoader
+     *            the classloader to record for each module, or null if there is none
+     * @param unscannedModuleRefs
+     *            the list to add non-accepted, non-rejected modules to
+     * @param classpathFinderLog
+     *            the log node, or null to skip logging
+     * @throws InterruptedException
+     *             if the thread was interrupted while opening a module
+     */
+    private void addModules(final @Nullable List<ModuleRef> moduleRefs, final boolean isSystemModules,
+            final @Nullable ClassLoader defaultClassLoader, final List<ModuleRef> unscannedModuleRefs,
+            final @Nullable LogNode classpathFinderLog) throws InterruptedException {
+        if (moduleRefs == null) {
+            return;
+        }
+        for (final ModuleRef moduleRef : moduleRefs) {
+            final var moduleName = moduleRef.getName();
+            // If scanning of system modules is enabled, system modules follow the same accept/reject rule as any
+            // other module, so rejecting one system module leaves the rest scannable (#658). Otherwise only
+            // specifically accepted system modules are scanned.
+            final var isAccepted = isSystemModules && !scanSpec.enableSystemJarsAndModules
+                    ? scanSpec.moduleAcceptReject.isSpecificallyAcceptedAndNotRejected(moduleName)
+                    : scanSpec.moduleAcceptReject.isAcceptedAndNotRejected(moduleName);
+            if (isAccepted) {
+                // Create a new ClasspathElementModule
+                final var classpathElementModule = new ClasspathElementModule(moduleRef,
+                        nestedJarHandler.scanResources.moduleRefToModuleReaderRecyclerMap(),
+                        new ClasspathEntryWorkUnit(null, defaultClassLoader, null, moduleOrder.size(), "",
+                                ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES),
+                        /* isLookupOnly = */ false, scanSpec);
+                moduleOrder.add(classpathElementModule);
+                // Open the ClasspathElementModule
+                classpathElementModule.open(/* ignored */ null, classpathFinderLog);
+            } else {
+                // A module that is not being scanned can still have the classfiles of individual classes read from
+                // it, in order to complete the class graph above an accepted class -- but not if the module was
+                // rejected (#902)
+                if (!scanSpec.moduleAcceptReject.isRejected(moduleName)) {
+                    unscannedModuleRefs.add(moduleRef);
+                }
+                if (classpathFinderLog != null) {
+                    classpathFinderLog.log("Skipping non-accepted or rejected "
+                            + (isSystemModules ? "system module: " : "module: ") + moduleName);
+                }
+            }
         }
     }
 
