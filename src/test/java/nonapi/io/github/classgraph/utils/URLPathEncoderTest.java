@@ -2,16 +2,21 @@ package nonapi.io.github.classgraph.utils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.io.File;
+import java.io.IOException;
 import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /**
  * Tests for {@link URLPathEncoder}.
  *
  * <p>
- * All the paths used here are free of Windows drive letters, so the expected results are the same on every
- * platform.
+ * Apart from the tests that need a real file on disk, all the paths used here are free of Windows drive letters, so
+ * the expected results are the same on every platform.
  */
 public class URLPathEncoderTest {
     /** A bare absolute path is turned into a "file://" URL. */
@@ -47,14 +52,46 @@ public class URLPathEncoderTest {
     }
 
     /**
-     * A path containing a nested jar separator gets the "jar:" prefix added back.
+     * A path containing a nested jar separator gets the "jar:" prefix added back. The jar has to exist on disk,
+     * since a '!' only counts as a separator if the path before it names a file.
      */
+    // #903
     @Test
-    public void nestedJarPathsGetJarPrefix() {
-        assertThat(URLPathEncoder.normalizeURLPath("/tmp/x.jar!/BOOT-INF/classes"))
-                .isEqualTo("jar:file:///tmp/x.jar!/BOOT-INF/classes");
-        assertThat(URLPathEncoder.normalizeURLPath("file:/tmp/x.jar!/BOOT-INF/classes"))
-                .isEqualTo("jar:file:///tmp/x.jar!/BOOT-INF/classes");
+    public void nestedJarPathsGetJarPrefix(@TempDir final Path tempDir) throws IOException {
+        final var jarPath = slashes(Files.createFile(tempDir.resolve("x.jar")));
+        final var jarUrl = URLPathEncoder.normalizeURLPath(jarPath);
+        assertThat(jarUrl).startsWith("file:///").endsWith("/x.jar");
+        assertThat(URLPathEncoder.normalizeURLPath(jarPath + "!/BOOT-INF/classes"))
+                .isEqualTo("jar:" + jarUrl + "!/BOOT-INF/classes");
+        assertThat(URLPathEncoder.normalizeURLPath("file:" + jarPath + "!/BOOT-INF/classes"))
+                .isEqualTo("jar:" + jarUrl + "!/BOOT-INF/classes");
+    }
+
+    /**
+     * A '!' that is part of a directory or file name is an ordinary character, not a nested jar separator, so no
+     * '/' may be inserted after it -- doing so names a different path, which cannot be opened.
+     */
+    // #903
+    @Test
+    public void bangInADirectoryNameIsNotASeparator(@TempDir final Path tempDir) throws IOException {
+        final var dir = Files.createDirectories(tempDir.resolve("with!bang"));
+        final var jarPath = slashes(Files.createFile(dir.resolve("x.jar")));
+        // The directory itself is not a jarfile, so nothing is nested and no "jar:" prefix is added
+        assertThat(URLPathEncoder.normalizeURLPath(jarPath)).startsWith("file:///").endsWith("/with!bang/x.jar");
+        // Only the '!' that separates the jar from the path within it is a separator
+        assertThat(URLPathEncoder.normalizeURLPath(jarPath + "!/probepkg/Probe.class")).startsWith("jar:file:///")
+                .endsWith("/with!bang/x.jar!/probepkg/Probe.class");
+    }
+
+    /**
+     * The path of a file, with the platform's separator turned into the '/' that URLs use.
+     *
+     * @param path
+     *            the path
+     * @return the path as a string, using '/' as the separator
+     */
+    private static String slashes(final Path path) {
+        return path.toString().replace(File.separatorChar, '/');
     }
 
     /** Schemes that are passed through untouched. */
