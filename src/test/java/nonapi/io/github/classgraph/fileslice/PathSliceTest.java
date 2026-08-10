@@ -10,6 +10,7 @@ import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import nonapi.io.github.classgraph.concurrency.InterruptionChecker;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 
@@ -32,7 +33,7 @@ public class PathSliceTest {
     private static ScanResources scanResources(final boolean memoryMapFiles) {
         final var scanSpec = new ScanSpec();
         scanSpec.memoryMapFiles = memoryMapFiles;
-        return new ScanResources(scanSpec, new ReflectionUtils());
+        return new ScanResources(scanSpec, new ReflectionUtils(), new InterruptionChecker());
     }
 
     /**

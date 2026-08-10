@@ -31,13 +31,11 @@ package nonapi.io.github.classgraph.fastzipfilereader;
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.lang.module.ModuleReader;
 import java.nio.channels.FileChannel;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.Map.Entry;
 import java.util.Objects;
 
-import io.github.classgraph.ModuleRef;
 import io.github.classgraph.ScanResult;
 import nonapi.io.github.classgraph.concurrency.InterruptionChecker;
 import nonapi.io.github.classgraph.concurrency.SingletonMap;
@@ -67,9 +65,6 @@ public class NestedJarHandler {
     /** The {@link ScanSpec}. */
     private final ScanSpec scanSpec;
 
-    /** The interruption checker. */
-    private final InterruptionChecker interruptionChecker;
-
     /**
      * A handler for nested jars.
      *
@@ -83,8 +78,7 @@ public class NestedJarHandler {
     public NestedJarHandler(final ScanSpec scanSpec, final InterruptionChecker interruptionChecker,
             final ReflectionUtils reflectionUtils) {
         this.scanSpec = scanSpec;
-        this.interruptionChecker = interruptionChecker;
-        this.scanResources = new ScanResources(scanSpec, reflectionUtils);
+        this.scanResources = new ScanResources(scanSpec, reflectionUtils, interruptionChecker);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -219,37 +213,6 @@ public class NestedJarHandler {
     public SingletonMap<String, Entry<LogicalZipFile, String>, IOException> //
             nestedPathToLogicalZipFileAndPackageRootMap() {
         return Objects.requireNonNull(nestedPathToLogicalZipFileAndPackageRootMap);
-    }
-
-    /**
-     * A singleton map from a {@link ModuleRef} to a {@link ModuleReader} recycler for the module. Set to null by
-     * {@link #close(LogNode)}.
-     */
-    private @Nullable SingletonMap<ModuleRef, Recycler<ModuleReader, IOException>, IOException> //
-    moduleRefToModuleReaderRecyclerMap = //
-            new SingletonMap<>() {
-                @Override
-                public Recycler<ModuleReader, IOException> newInstance(final ModuleRef moduleRef,
-                        final @Nullable LogNode ignored) {
-                    return new Recycler<>() {
-                        @Override
-                        public ModuleReader newInstance() throws IOException {
-                            return moduleRef.open();
-                        }
-                    };
-                }
-            };
-
-    /**
-     * Get the map from {@link ModuleRef} to {@link ModuleReader} recycler.
-     *
-     * @return the map
-     * @throws NullPointerException
-     *             if {@link #close(LogNode)} has been called
-     */
-    public SingletonMap<ModuleRef, Recycler<ModuleReader, IOException>, IOException> //
-            moduleRefToModuleReaderRecyclerMap() {
-        return Objects.requireNonNull(moduleRefToModuleReaderRecyclerMap);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -493,25 +456,8 @@ public class NestedJarHandler {
      */
     public void close(final @Nullable LogNode log) {
         if (scanResources.beginClose()) {
-            var interrupted = false;
-            final var moduleReaderRecyclerMap = moduleRefToModuleReaderRecyclerMap;
-            if (moduleReaderRecyclerMap != null) {
-                var completedWithoutInterruption = false;
-                while (!completedWithoutInterruption) {
-                    try {
-                        for (final Recycler<ModuleReader, IOException> recycler : //
-                        moduleReaderRecyclerMap.values()) {
-                            recycler.forceClose();
-                        }
-                        completedWithoutInterruption = true;
-                    } catch (final InterruptedException e) {
-                        // Try again if interrupted
-                        interrupted = true;
-                    }
-                }
-                moduleReaderRecyclerMap.clear();
-                moduleRefToModuleReaderRecyclerMap = null;
-            }
+            // Drop the zipfile caches first, so that nothing can hand out a slice of a zipfile that is about to be
+            // closed, then close the resources the caches were backed by
             final var logicalZipFileMap = zipFileSliceToLogicalZipFileMap;
             if (logicalZipFileMap != null) {
                 logicalZipFileMap.clear();
@@ -532,11 +478,8 @@ public class NestedJarHandler {
                 zipFileSliceMap.clear();
                 fastZipEntryToZipFileSliceMap = null;
             }
-            // Close the open slices and the inflater recycler, then delete the temporary files
+            // Close the module readers, the open slices and the inflater recycler, then delete the temporary files
             scanResources.close(log);
-            if (interrupted) {
-                interruptionChecker.interrupt();
-            }
         }
     }
 }

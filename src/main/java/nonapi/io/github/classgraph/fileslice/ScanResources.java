@@ -31,6 +31,7 @@ package nonapi.io.github.classgraph.fileslice;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.module.ModuleReader;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -40,7 +41,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.Inflater;
 
+import io.github.classgraph.ModuleRef;
 import io.github.classgraph.ScanResult;
+import nonapi.io.github.classgraph.concurrency.InterruptionChecker;
+import nonapi.io.github.classgraph.concurrency.SingletonMap;
 import nonapi.io.github.classgraph.recycler.Recycler;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
@@ -51,9 +55,9 @@ import org.jspecify.annotations.Nullable;
 /**
  * The resources that a single scan opens and owns, and that have to be released again when the {@link ScanResult}
  * is closed: the {@link Slice} instances that hold open file handles or memory mappings, the temporary files that
- * extracted nested jars were spilled to, and the pool of {@link Inflater} instances used to inflate deflated zip
- * entries. Also carries the two objects that every part of the reader needs, the {@link ScanSpec} and the
- * {@link ReflectionUtils} instance.
+ * extracted nested jars were spilled to, the pool of {@link Inflater} instances used to inflate deflated zip
+ * entries, and the pool of {@link ModuleReader} instances used to read modules. Also carries the two objects that
+ * every part of the reader needs, the {@link ScanSpec} and the {@link ReflectionUtils} instance.
  *
  * <p>
  * Once {@link #close(LogNode)} has been called, the methods that register a new resource throw
@@ -66,6 +70,9 @@ public class ScanResources {
 
     /** The reflection utils instance. */
     public final ReflectionUtils reflectionUtils;
+
+    /** The interruption checker. */
+    private final InterruptionChecker interruptionChecker;
 
     /** {@link Slice} instances that are currently open. Set to null by {@link #close(LogNode)}. */
     private @Nullable Set<Slice> openSlices = Collections.newSetFromMap(new ConcurrentHashMap<>());
@@ -81,6 +88,24 @@ public class ScanResources {
         }
     };
 
+    /**
+     * A singleton map from a {@link ModuleRef} to a {@link ModuleReader} recycler for the module. Set to null by
+     * {@link #close(LogNode)}.
+     */
+    private @Nullable SingletonMap<ModuleRef, Recycler<ModuleReader, IOException>, IOException> //
+    moduleRefToModuleReaderRecyclerMap = new SingletonMap<>() {
+        @Override
+        public Recycler<ModuleReader, IOException> newInstance(final ModuleRef moduleRef,
+                final @Nullable LogNode ignored) {
+            return new Recycler<>() {
+                @Override
+                public ModuleReader newInstance() throws IOException {
+                    return moduleRef.open();
+                }
+            };
+        }
+    };
+
     /** True once {@link #beginClose()} has been called. */
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
@@ -91,10 +116,28 @@ public class ScanResources {
      *            the {@link ScanSpec}
      * @param reflectionUtils
      *            the {@link ReflectionUtils} instance
+     * @param interruptionChecker
+     *            the interruption checker
      */
-    public ScanResources(final ScanSpec scanSpec, final ReflectionUtils reflectionUtils) {
+    public ScanResources(final ScanSpec scanSpec, final ReflectionUtils reflectionUtils,
+            final InterruptionChecker interruptionChecker) {
         this.scanSpec = scanSpec;
         this.reflectionUtils = reflectionUtils;
+        this.interruptionChecker = interruptionChecker;
+    }
+
+    // ---------------------------------------------------------------------------------------------------------
+
+    /**
+     * Get the map from {@link ModuleRef} to {@link ModuleReader} recycler.
+     *
+     * @return the map
+     * @throws NullPointerException
+     *             if {@link #close(LogNode)} has been called
+     */
+    public SingletonMap<ModuleRef, Recycler<ModuleReader, IOException>, IOException> //
+            moduleRefToModuleReaderRecyclerMap() {
+        return Objects.requireNonNull(moduleRefToModuleReaderRecyclerMap);
     }
 
     // ---------------------------------------------------------------------------------------------------------
@@ -246,13 +289,32 @@ public class ScanResources {
     }
 
     /**
-     * Close all open {@link Slice} instances, discard the pooled {@link Inflater} instances, and delete any
-     * temporary files. Must be preceded by a call to {@link #beginClose()} that returned true.
+     * Close all open {@link Slice} instances, discard the pooled {@link ModuleReader} and {@link Inflater}
+     * instances, and delete any temporary files. Must be preceded by a call to {@link #beginClose()} that returned
+     * true.
      *
      * @param log
      *            the log node, or null to skip logging
      */
     public void close(final @Nullable LogNode log) {
+        var interrupted = false;
+        final var moduleReaderRecyclerMap = moduleRefToModuleReaderRecyclerMap;
+        if (moduleReaderRecyclerMap != null) {
+            var completedWithoutInterruption = false;
+            while (!completedWithoutInterruption) {
+                try {
+                    for (final Recycler<ModuleReader, IOException> recycler : moduleReaderRecyclerMap.values()) {
+                        recycler.forceClose();
+                    }
+                    completedWithoutInterruption = true;
+                } catch (final InterruptedException e) {
+                    // Try again if interrupted
+                    interrupted = true;
+                }
+            }
+            moduleReaderRecyclerMap.clear();
+            moduleRefToModuleReaderRecyclerMap = null;
+        }
         final var openSlicesCurr = openSlices;
         if (openSlicesCurr != null) {
             while (!openSlicesCurr.isEmpty()) {
@@ -284,6 +346,9 @@ public class ScanResources {
                 }
             }
             tempFiles = null;
+        }
+        if (interrupted) {
+            interruptionChecker.interrupt();
         }
     }
 }

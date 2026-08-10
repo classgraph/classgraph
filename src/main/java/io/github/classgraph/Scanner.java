@@ -208,7 +208,7 @@ class Scanner implements Callable<ScanResult> {
                                 : scanSpec.moduleAcceptReject.isSpecificallyAcceptedAndNotRejected(moduleName)) {
                             // Create a new ClasspathElementModule
                             final var classpathElementModule = new ClasspathElementModule(systemModuleRef,
-                                    nestedJarHandler.moduleRefToModuleReaderRecyclerMap(),
+                                    nestedJarHandler.scanResources.moduleRefToModuleReaderRecyclerMap(),
                                     new ClasspathEntryWorkUnit(null, defaultClassLoader, null, moduleOrder.size(),
                                             "", ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES),
                                     /* isLookupOnly = */ false, scanSpec);
@@ -239,7 +239,7 @@ class Scanner implements Callable<ScanResult> {
                         if (scanSpec.moduleAcceptReject.isAcceptedAndNotRejected(moduleName)) {
                             // Create a new ClasspathElementModule
                             final var classpathElementModule = new ClasspathElementModule(nonSystemModuleRef,
-                                    nestedJarHandler.moduleRefToModuleReaderRecyclerMap(),
+                                    nestedJarHandler.scanResources.moduleRefToModuleReaderRecyclerMap(),
                                     new ClasspathEntryWorkUnit(null, defaultClassLoader, null, moduleOrder.size(),
                                             "", ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES),
                                     /* isLookupOnly = */ false, scanSpec);
@@ -261,7 +261,7 @@ class Scanner implements Callable<ScanResult> {
                 }
             }
             this.unscannedModules = new UnscannedModules(unscannedModuleRefs,
-                    nestedJarHandler.moduleRefToModuleReaderRecyclerMap(), scanSpec);
+                    nestedJarHandler.scanResources.moduleRefToModuleReaderRecyclerMap(), scanSpec);
         } catch (final InterruptedException e) {
             nestedJarHandler.close(/* log = */ null);
             throw e;
