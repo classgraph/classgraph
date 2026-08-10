@@ -83,9 +83,7 @@ public final class URLPathEncoder {
             final char c = str.charAt(chrIdx);
             if (c == '%') {
                 // Decode %-escaped char sequence, e.g. %5D
-                if (chrIdx > len - 3) {
-                    // Ignore truncated %-seq at end of string
-                } else {
+                if (chrIdx <= len - 3) {
                     final char c1 = str.charAt(++chrIdx);
                     final int digit1 = c1 >= '0' && c1 <= '9' ? (c1 - '0')
                             : c1 >= 'a' && c1 <= 'f' ? (c1 - 'a' + 10)
@@ -103,6 +101,12 @@ public final class URLPathEncoder {
                     } else {
                         buf.write((byte) ((digit1 << 4) | digit2));
                     }
+                } else {
+                    // A '%' too close to the end of the string to be followed by two hexadecimal digits does not
+                    // introduce an escape sequence, so write it out as it is, the same as the branch above does for
+                    // a '%' that is not followed by two hexadecimal digits. The following characters are then
+                    // handled by the rest of this loop, so nothing is dropped
+                    buf.write((byte) c);
                 }
             } else if (isQuery && c == '+') {
                 buf.write((byte) ' ');

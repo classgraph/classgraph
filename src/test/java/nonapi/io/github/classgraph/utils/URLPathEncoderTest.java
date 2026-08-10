@@ -73,4 +73,17 @@ public class URLPathEncoderTest {
         // A relative path stays relative, so it is opaque rather than hierarchical
         assertThat(new URI(URLPathEncoder.normalizeURLPath("tmp/x.jar")).toString()).isEqualTo("file:tmp/x.jar");
     }
+
+    /**
+     * A '%' that does not introduce two hexadecimal digits is not an escape sequence, so it is passed through as it
+     * is.
+     */
+    @Test
+    public void aPercentThatIsNotAnEscapeSequenceIsPassedThrough() {
+        assertThat(URLPathEncoder.decodePath("/tmp/100%zz.jar")).isEqualTo("/tmp/100%zz.jar");
+        // A '%' too close to the end of the string to be followed by two hexadecimal digits is passed through the
+        // same way. This used to drop the '%' but keep the digits after it, silently renaming the path
+        assertThat(URLPathEncoder.decodePath("/tmp/100%2")).isEqualTo("/tmp/100%2");
+        assertThat(URLPathEncoder.decodePath("/tmp/100%")).isEqualTo("/tmp/100%");
+    }
 }
