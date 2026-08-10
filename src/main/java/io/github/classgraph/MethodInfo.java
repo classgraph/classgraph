@@ -503,6 +503,22 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
      *         unmodifiable list (the list may be empty).
      */
     public List<MethodParameterInfo> getParameterInfo() {
+        synchronized (this) {
+            if (parameterInfo == null) {
+                parameterInfo = buildParameterInfo();
+            }
+            return parameterInfo;
+        }
+    }
+
+    /**
+     * Align the sources of parameter metadata with each other, then build one {@link MethodParameterInfo} per
+     * parameter.
+     *
+     * @return the {@link MethodParameterInfo} objects for the method parameters, one per parameter, as an
+     *         unmodifiable list (the list may be empty).
+     */
+    private List<MethodParameterInfo> buildParameterInfo() {
         // The four sources of parameter metadata -- the type signature, the type descriptor, the MethodParameters
         // attribute and the parameter annotations -- can disagree on how many parameters a method has, because a
         // compiler may record a parameter it generated in some of them but not the others. JVMS 4.7.9.1 sanctions
@@ -517,138 +533,145 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
         // disagree, the shorter sources are right-aligned against the longest one. The synthetic and mandated
         // modifier bits cannot be used to locate those parameters instead, because the MethodParameters attribute
         // that carries them is optional, and Kotlin does not always set them consistently with the alignment.
-        synchronized (this) {
-            if (parameterInfo == null) {
-                // Get param type signatures from the type signature of the method
-                List<TypeSignature> paramTypeSignatures = null;
-                final var typeSig = getTypeSignature();
-                if (typeSig != null) {
-                    paramTypeSignatures = typeSig.getParameterTypeSignatures();
-                }
 
-                // If there is no type signature (i.e. if this is not a generic method), fall back to the type
-                // descriptor (N.B. the type descriptor is basically junk, because the compiler may prepend
-                // `synthetic` and/or `bridge` parameters automatically, without providing any modifiers for the
-                // method, so that it is impossible to know how many parameters have been prepended -- see #660.)
-                List<TypeSignature> paramTypeDescriptors = null;
-                try {
-                    final var typeDesc = getTypeDescriptor();
-                    if (typeDesc != null) {
-                        paramTypeDescriptors = typeDesc.getParameterTypeSignatures();
-                    }
-                } catch (final Exception e) {
-                    // Ignore any IllegalArgumentExceptions triggered when type annotations are not able to be
-                    // aligned with parameters, when there is a `synthetic`, `bridge` or `mandated` parameter added
-                    // to the first parameter position.
-                }
-
-                // Find the max length of all the parameter information sources
-                var numParams = paramTypeSignatures == null ? 0 : paramTypeSignatures.size();
-                if (paramTypeDescriptors != null && paramTypeDescriptors.size() > numParams) {
-                    numParams = paramTypeDescriptors.size();
-                }
-                if (parameterNames != null && parameterNames.length > numParams) {
-                    numParams = parameterNames.length;
-                }
-                if (parameterModifiers != null && parameterModifiers.length > numParams) {
-                    numParams = parameterModifiers.length;
-                }
-                if (parameterAnnotationInfo != null && parameterAnnotationInfo.length > numParams) {
-                    numParams = parameterAnnotationInfo.length;
-                }
-
-                // "Right-align" all parameter info, i.e. assume that any automatically-added implicit parameters
-                // were added at the beginning of the parameter list, not the end.
-
-                @Nullable
-                String @Nullable [] paramNamesAligned = null;
-                if (parameterNames != null && parameterNames.length > 0) {
-                    if (parameterNames.length == numParams) {
-                        // No alignment necessary
-                        paramNamesAligned = parameterNames;
-                    } else {
-                        // Right-align when not the right length
-                        paramNamesAligned = new @Nullable String[numParams];
-                        for (int i = 0,
-                                lenDiff = numParams - parameterNames.length; i < parameterNames.length; i++) {
-                            paramNamesAligned[lenDiff + i] = parameterNames[i];
-                        }
-                    }
-                }
-                int[] paramModifiersAligned = null;
-                if (parameterModifiers != null && parameterModifiers.length > 0) {
-                    if (parameterModifiers.length == numParams) {
-                        // No alignment necessary
-                        paramModifiersAligned = parameterModifiers;
-                    } else {
-                        // Right-align when not the right length
-                        paramModifiersAligned = new int[numParams];
-                        for (int i = 0, lenDiff = numParams
-                                - parameterModifiers.length; i < parameterModifiers.length; i++) {
-                            paramModifiersAligned[lenDiff + i] = parameterModifiers[i];
-                        }
-                    }
-                }
-                AnnotationInfo[][] paramAnnotationInfoAligned = null;
-                if (parameterAnnotationInfo != null && parameterAnnotationInfo.length > 0) {
-                    if (parameterAnnotationInfo.length == numParams) {
-                        // No alignment necessary
-                        paramAnnotationInfoAligned = parameterAnnotationInfo;
-                    } else {
-                        // Right-align when not the right length
-                        paramAnnotationInfoAligned = new AnnotationInfo[numParams][];
-                        for (int i = 0, lenDiff = numParams
-                                - parameterAnnotationInfo.length; i < parameterAnnotationInfo.length; i++) {
-                            paramAnnotationInfoAligned[lenDiff + i] = parameterAnnotationInfo[i];
-                        }
-                    }
-                }
-                List<TypeSignature> paramTypeSignaturesAligned = null;
-                if (paramTypeSignatures != null && !paramTypeSignatures.isEmpty()) {
-                    if (paramTypeSignatures.size() == numParams) {
-                        // No alignment necessary
-                        paramTypeSignaturesAligned = paramTypeSignatures;
-                    } else {
-                        // Right-align when not the right length
-                        paramTypeSignaturesAligned = new ArrayList<>(numParams);
-                        for (int i = 0, lenDiff = numParams - paramTypeSignatures.size(); i < lenDiff; i++) {
-                            // Left-pad with nulls
-                            paramTypeSignaturesAligned.add(null);
-                        }
-                        paramTypeSignaturesAligned.addAll(paramTypeSignatures);
-                    }
-                }
-                List<TypeSignature> paramTypeDescriptorsAligned = null;
-                if (paramTypeDescriptors != null && !paramTypeDescriptors.isEmpty()) {
-                    if (paramTypeDescriptors.size() == numParams) {
-                        // No alignment necessary
-                        paramTypeDescriptorsAligned = paramTypeDescriptors;
-                    } else {
-                        // Right-align when not the right length
-                        paramTypeDescriptorsAligned = new ArrayList<>(numParams);
-                        for (int i = 0, lenDiff = numParams - paramTypeDescriptors.size(); i < lenDiff; i++) {
-                            // Left-pad with nulls
-                            paramTypeDescriptorsAligned.add(null);
-                        }
-                        paramTypeDescriptorsAligned.addAll(paramTypeDescriptors);
-                    }
-                }
-
-                // Generate MethodParameterInfo entries
-                final var paramInfoArr = new MethodParameterInfo[numParams];
-                for (var i = 0; i < numParams; i++) {
-                    paramInfoArr[i] = new MethodParameterInfo(this, i,
-                            paramAnnotationInfoAligned == null ? null : paramAnnotationInfoAligned[i],
-                            paramModifiersAligned == null ? 0 : paramModifiersAligned[i],
-                            paramTypeDescriptorsAligned == null ? null : paramTypeDescriptorsAligned.get(i),
-                            paramTypeSignaturesAligned == null ? null : paramTypeSignaturesAligned.get(i),
-                            paramNamesAligned == null ? null : paramNamesAligned[i]);
-                    paramInfoArr[i].setScanResult(scanResult);
-                }
-                parameterInfo = List.of(paramInfoArr);
-            }
-            return parameterInfo;
+        // Get param type signatures from the type signature of the method
+        List<TypeSignature> paramTypeSignatures = null;
+        final var typeSig = getTypeSignature();
+        if (typeSig != null) {
+            paramTypeSignatures = typeSig.getParameterTypeSignatures();
         }
+
+        // If there is no type signature (i.e. if this is not a generic method), fall back to the type descriptor
+        // (N.B. the type descriptor is basically junk, because the compiler may prepend `synthetic` and/or `bridge`
+        // parameters automatically, without providing any modifiers for the method, so that it is impossible to
+        // know how many parameters have been prepended -- see #660.)
+        List<TypeSignature> paramTypeDescriptors = null;
+        try {
+            final var typeDesc = getTypeDescriptor();
+            if (typeDesc != null) {
+                paramTypeDescriptors = typeDesc.getParameterTypeSignatures();
+            }
+        } catch (final Exception e) {
+            // Ignore any IllegalArgumentExceptions triggered when type annotations are not able to be aligned with
+            // parameters, when there is a `synthetic`, `bridge` or `mandated` parameter added to the first
+            // parameter position.
+        }
+
+        // Find the max length of all the parameter information sources
+        var numParams = paramTypeSignatures == null ? 0 : paramTypeSignatures.size();
+        if (paramTypeDescriptors != null) {
+            numParams = Math.max(numParams, paramTypeDescriptors.size());
+        }
+        if (parameterNames != null) {
+            numParams = Math.max(numParams, parameterNames.length);
+        }
+        if (parameterModifiers != null) {
+            numParams = Math.max(numParams, parameterModifiers.length);
+        }
+        if (parameterAnnotationInfo != null) {
+            numParams = Math.max(numParams, parameterAnnotationInfo.length);
+        }
+
+        // Right-align all the parameter information sources against the longest of them
+        final var paramNamesAligned = rightAlign(parameterNames, numParams);
+        final var paramModifiersAligned = rightAlign(parameterModifiers, numParams);
+        final var paramAnnotationInfoAligned = rightAlign(parameterAnnotationInfo, numParams);
+        final var paramTypeSignaturesAligned = rightAlign(paramTypeSignatures, numParams);
+        final var paramTypeDescriptorsAligned = rightAlign(paramTypeDescriptors, numParams);
+
+        // Generate MethodParameterInfo entries
+        final var paramInfoArr = new MethodParameterInfo[numParams];
+        for (var i = 0; i < numParams; i++) {
+            paramInfoArr[i] = new MethodParameterInfo(this, i,
+                    paramAnnotationInfoAligned == null ? null : paramAnnotationInfoAligned[i],
+                    paramModifiersAligned == null ? 0 : paramModifiersAligned[i],
+                    paramTypeDescriptorsAligned == null ? null : paramTypeDescriptorsAligned.get(i),
+                    paramTypeSignaturesAligned == null ? null : paramTypeSignaturesAligned.get(i),
+                    paramNamesAligned == null ? null : paramNamesAligned[i]);
+            paramInfoArr[i].setScanResult(scanResult);
+        }
+        return List.of(paramInfoArr);
+    }
+
+    /**
+     * Right-align one source of parameter metadata against the parameter count, i.e. assume that any implicit
+     * parameters the compiler added were added at the beginning of the parameter list, not the end. The padding
+     * added at the beginning consists of null entries.
+     *
+     * @param values
+     *            the values, one per parameter, or null if this source of parameter metadata is not available.
+     *            There are never more values than parameters.
+     * @param numParams
+     *            the number of parameters.
+     * @return the right-aligned values, or null if {@code values} is null or empty.
+     */
+    private static <T extends @Nullable Object> T @Nullable [] rightAlign(final T @Nullable [] values,
+            final int numParams) {
+        if (values == null || values.length == 0) {
+            return null;
+        }
+        if (values.length == numParams) {
+            // No alignment necessary
+            return values;
+        }
+        final var lenDiff = numParams - values.length;
+        final var aligned = Arrays.copyOf(values, numParams);
+        System.arraycopy(values, 0, aligned, lenDiff, values.length);
+        Arrays.fill(aligned, 0, lenDiff, null);
+        return aligned;
+    }
+
+    /**
+     * Right-align the parameter modifiers against the parameter count. The padding added at the beginning consists
+     * of zero modifier bits.
+     *
+     * @param values
+     *            the modifiers, one per parameter, or null if the {@code MethodParameters} attribute is not
+     *            present. There are never more values than parameters.
+     * @param numParams
+     *            the number of parameters.
+     * @return the right-aligned modifiers, or null if {@code values} is null or empty.
+     */
+    private static int @Nullable [] rightAlign(final int @Nullable [] values, final int numParams) {
+        if (values == null || values.length == 0) {
+            return null;
+        }
+        if (values.length == numParams) {
+            // No alignment necessary
+            return values;
+        }
+        final var aligned = new int[numParams];
+        System.arraycopy(values, 0, aligned, numParams - values.length, values.length);
+        return aligned;
+    }
+
+    /**
+     * Right-align a list of parameter types against the parameter count. The padding added at the beginning
+     * consists of null entries.
+     *
+     * @param values
+     *            the types, one per parameter, or null if this source of parameter metadata is not available. There
+     *            are never more values than parameters.
+     * @param numParams
+     *            the number of parameters.
+     * @return the right-aligned types, or null if {@code values} is null or empty.
+     */
+    private static @Nullable List<TypeSignature> rightAlign(final @Nullable List<TypeSignature> values,
+            final int numParams) {
+        if (values == null || values.isEmpty()) {
+            return null;
+        }
+        if (values.size() == numParams) {
+            // No alignment necessary
+            return values;
+        }
+        final List<TypeSignature> aligned = new ArrayList<>(numParams);
+        for (var i = values.size(); i < numParams; i++) {
+            // Left-pad with nulls
+            aligned.add(null);
+        }
+        aligned.addAll(values);
+        return aligned;
     }
 
     /**
