@@ -1200,6 +1200,28 @@ is fixed on the 4.x branch as well.
   waiting for it, and the caller waited forever for a callback that never came. The failure
   handler is now called for anything thrown during the scan.
 
+* The root path, `/`, was not recognized as an absolute path, because the check for a
+  leading separator required a separator plus at least one more character. A classpath
+  entry of `/` was therefore resolved against the current directory rather than being taken
+  as it was written, and when there was no base path to resolve against, it came out as the
+  empty string, which names no directory at all. The root path now resolves to itself. The
+  same check gave a bare Windows drive designation (`C:`, or `/C:` as spelled in a URL) the
+  same treatment; that is now absolute too, matching `C:\`, which already was.
+
+* A `file:` URL with an empty authority — `file:///C:/a/b`, which is the spelling that
+  `Path#toUri()` produces — resolved to `///C:/a/b` on Windows, which names neither a drive
+  nor a network share, so the classpath element was unusable. The two slashes of the empty
+  authority were read as the start of a UNC path. They are now dropped, and `file:///C:/a/b`
+  resolves to `C:/a/b`. A real UNC path, whether spelled `file://server/share` with the
+  server as the authority or `file:////server/share` with an empty one, still resolves to
+  `//server/share`.
+
+* A URL scheme containing a digit, such as `s3:` or `vfs2:`, was not recognized as a scheme,
+  because the pattern that matches custom schemes allowed only letters, `+`, `-` and `.`.
+  RFC 3986 allows digits after the first character. Such a URL silently lost one of the
+  slashes after its scheme (`s3://bucket/key` became `s3:/bucket/key`), and the part after
+  the scheme was treated as a relative path.
+
 Two further bugs found during the port were only reachable through the JSON
 serialization API, which 5.x removes (`AnnotationParameterValue#toString()` threw
 `NullPointerException` for a null parameter value, and `ScanResult#fromJSON(String)` did
