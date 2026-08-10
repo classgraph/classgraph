@@ -544,13 +544,18 @@ public class NestedJarHandler {
     }
 
     /**
-     * Mark a {@link Slice} as closed.
-     * 
+     * Mark a {@link Slice} as closed. Does nothing once {@link #close(LogNode)} has been called: a slice can be
+     * closed after the {@link ScanResult} has been closed (for example when a {@link io.github.classgraph.Resource}
+     * that was still open is then closed), and closing something twice has to be harmless.
+     *
      * @param slice
      *            the {@link Slice} to close.
      */
     public void markSliceAsClosed(final Slice slice) {
-        openSlices.remove(slice);
+        final Set<Slice> openSlicesCurr = openSlices;
+        if (openSlicesCurr != null) {
+            openSlicesCurr.remove(slice);
+        }
     }
 
     /**

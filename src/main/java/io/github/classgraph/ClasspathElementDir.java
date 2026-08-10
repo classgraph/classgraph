@@ -386,8 +386,8 @@ class ClasspathElementDir extends ClasspathElement {
                         byteBuffer = null;
                     }
                     if (pathSlice != null) {
+                        // (PathSlice#close() marks the slice as closed)
                         pathSlice.close();
-                        nestedJarHandler.markSliceAsClosed(pathSlice);
                         pathSlice = null;
                     }
 
