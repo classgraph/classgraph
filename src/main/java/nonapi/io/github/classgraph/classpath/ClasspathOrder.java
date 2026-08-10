@@ -205,22 +205,54 @@ public class ClasspathOrder {
     }
 
     /**
+     * Convert a resolved classpath element path back into a {@link URL}, so that it can be tested against the user's
+     * {@link URL} filters.
+     *
+     * @param classpathElementPath
+     *            the resolved classpath element path
+     * @return the {@link URL} of the classpath element, or null if the path could not be converted to a {@link URL}
+     */
+    private static URL toURL(final String classpathElementPath) {
+        try {
+            final int nestedPathIdx = classpathElementPath.indexOf("!/");
+            if (nestedPathIdx < 0) {
+                return new File(classpathElementPath).toURI().toURL();
+            }
+            // A nested path "outer.jar!/inner" becomes the jar URL "jar:file:/outer.jar!/inner"
+            return new URL("jar:" + new File(classpathElementPath.substring(0, nestedPathIdx)).toURI()
+                    + classpathElementPath.substring(nestedPathIdx));
+        } catch (final MalformedURLException | IllegalArgumentException | IOError | SecurityException e) {
+            return null;
+        }
+    }
+
+    /**
      * Test to see if a classpath element has been filtered out by the user.
-     * 
+     *
      * @param classpathElementURL
-     *            the classpath element URL
+     *            the classpath element URL, or null if the classpath element was not given as a URL
      * @param classpathElementPath
      *            the classpath element path
      * @return true, if not filtered out
      */
     private boolean filter(final URL classpathElementURL, final String classpathElementPath) {
         if (scanSpec.classpathElementFilters != null) {
+            URL urlForFilters = classpathElementURL;
             for (final Object filterObj : scanSpec.classpathElementFilters) {
-                if ((classpathElementURL != null && filterObj instanceof ClasspathElementURLFilter
-                        && !((ClasspathElementURLFilter) filterObj).includeClasspathElement(classpathElementURL))
-                        || (classpathElementPath != null && filterObj instanceof ClasspathElementFilter
-                                && !((ClasspathElementFilter) filterObj)
-                                        .includeClasspathElement(classpathElementPath))) {
+                if (filterObj instanceof ClasspathElementURLFilter) {
+                    if (urlForFilters == null && classpathElementPath != null) {
+                        // FastPathResolver strips the scheme from "file:" and "jar:file:" classpath elements, so
+                        // for those the URL has to be reconstituted from the resolved path before the URL filters
+                        // can be applied to it
+                        urlForFilters = toURL(classpathElementPath);
+                    }
+                    if (urlForFilters != null
+                            && !((ClasspathElementURLFilter) filterObj).includeClasspathElement(urlForFilters)) {
+                        return false;
+                    }
+                }
+                if (classpathElementPath != null && filterObj instanceof ClasspathElementFilter
+                        && !((ClasspathElementFilter) filterObj).includeClasspathElement(classpathElementPath)) {
                     return false;
                 }
             }
@@ -359,10 +391,13 @@ public class ClasspathOrder {
         } else {
             pathElementStr = pathElement.toString();
         }
-        pathElementStr = FastPathResolver.resolve(FileUtils.currDirPath(), pathElementStr);
         if (pathElementStr.isEmpty()) {
+            // Check for an empty path element before resolving it, not after: resolving an empty path against the
+            // current directory yields the current directory, which would silently turn an empty classpath entry
+            // into a scan of the whole directory tree below the current directory
             return false;
         }
+        pathElementStr = FastPathResolver.resolve(FileUtils.currDirPath(), pathElementStr);
         URL pathElementURL = null;
         boolean hasWildcardSuffix = false;
         // Fallback -- call toString() on the path element, then try converting to a URL
