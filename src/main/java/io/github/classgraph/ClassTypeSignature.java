@@ -423,12 +423,13 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
      */
     static ClassTypeSignature parse(final String typeDescriptor, final ClassInfo classInfo) throws ParseException {
         final Parser parser = new Parser(typeDescriptor);
-        // The defining class name is used to resolve type variables using the defining class' type descriptor. But
-        // here we are parsing the defining class' type descriptor, so it can't contain variables that point to
-        // itself => just use null as the defining class name.
-        final @Nullable String definingClassNameNull = null;
-        final var typeParameters = TypeParameter.parseList(parser, definingClassNameNull);
-        final var superclassSignature = ClassRefTypeSignature.parse(parser, definingClassNameNull);
+        // A class type signature can refer to the class' own type variables, both in the bounds of its type
+        // parameters (e.g. "class C<T extends Number, U extends T>") and in the type arguments of its superclass
+        // and superinterfaces (e.g. "class C<T> extends ArrayList<T>"), so the class itself is the defining class
+        // of any type variable in the signature
+        final var definingClassName = classInfo.getName();
+        final var typeParameters = TypeParameter.parseList(parser, definingClassName);
+        final var superclassSignature = ClassRefTypeSignature.parse(parser, definingClassName);
         final List<ClassRefTypeSignature> superinterfaceSignatures;
         if (parser.hasMore()) {
             superinterfaceSignatures = new ArrayList<>();
@@ -437,7 +438,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
                     // Illegal "throws" suffix in class type signature -- fall through
                     break;
                 }
-                final var superinterfaceSignature = ClassRefTypeSignature.parse(parser, definingClassNameNull);
+                final var superinterfaceSignature = ClassRefTypeSignature.parse(parser, definingClassName);
                 if (superinterfaceSignature == null) {
                     throw new ParseException(parser, "Could not parse superinterface signature");
                 }

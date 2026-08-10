@@ -1149,6 +1149,28 @@ is fixed on the 4.x branch as well.
   graph got a heading with nothing under it. The heading is now written only if at least one
   annotation will be listed.
 
+* A type variable that a class' own type signature refers to -- in the bound of another of
+  its type parameters (`class C<T extends Number, U extends T>`), or in a type argument of
+  its superclass or one of its superinterfaces (`class C<T> extends ArrayList<T>`) -- was
+  parsed without recording which class declares it, on the grounds that a class' signature
+  cannot refer to its own type variables. It can, in exactly those two places.
+  `TypeVariableSignature#resolve()` therefore could not find the declaration, and returned
+  an unbounded type parameter with only the variable's name, and
+  `TypeVariableSignature#toStringWithTypeBound()` printed the name with no bound. Both now
+  resolve against the declaring class.
+
+* `TypeSignature#equalsIgnoringTypeParams(TypeSignature)` gave the wrong answer for a type
+  variable compared with a class reference, in three ways. A type variable with no bound of
+  its own is written into the classfile with `java.lang.Object` as its bound, which was
+  compared against the class reference like any other bound, so an unbounded type variable
+  could not be reconciled with any class -- although the comparison the other way round,
+  against a `java.lang.Object` class reference, always succeeded. A type variable bounded by
+  another type variable (`U extends T`) compared itself against its own bound instead of
+  against the class reference, which was false unless the two variables were spelled the
+  same. And the bound was compared with `equals()` rather than `equalsIgnoringTypeParams()`,
+  so a bound of `List<String>` was not reconcilable with `List<Integer>`, even though the
+  method's whole purpose is to ignore type arguments.
+
 Two further bugs found during the port were only reachable through the JSON
 serialization API, which 5.x removes (`AnnotationParameterValue#toString()` threw
 `NullPointerException` for a null parameter value, and `ScanResult#fromJSON(String)` did
