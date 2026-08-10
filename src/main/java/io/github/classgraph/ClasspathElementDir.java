@@ -47,7 +47,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
@@ -282,9 +281,6 @@ class ClasspathElementDir extends ClasspathElement {
             /** The {@link PathSlice} opened on the file. */
             private @Nullable PathSlice pathSlice;
 
-            /** True if the resource is open. */
-            private final AtomicBoolean isOpen = new AtomicBoolean();
-
             @Override
             public long getLength() {
                 if (length == NOT_YET_LOADED_LENGTH) {
@@ -333,20 +329,6 @@ class ClasspathElementDir extends ClasspathElement {
                 return posixFilePermissions;
             }
 
-            protected void checkCanOpen() {
-                if (skipClasspathElement) {
-                    // Shouldn't happen
-                    throw new IllegalStateException("Classpath element could not be opened");
-                }
-                if (isOpen.getAndSet(true)) {
-                    throw new IllegalStateException(
-                            "Resource is already open -- cannot open it again without first calling close()");
-                }
-                if (scanResult != null && scanResult.isClosed()) {
-                    throw new IllegalStateException("Cannot open a resource after the ScanResult is closed");
-                }
-            }
-
             @Override
             public ByteBuffer read() throws IOException {
                 byteBuffer = openAndCreateSlice().read();
@@ -377,7 +359,7 @@ class ClasspathElementDir extends ClasspathElement {
 
             @Override
             public void close() {
-                if (isOpen.getAndSet(false)) {
+                if (markClosed()) {
                     if (byteBuffer != null) {
                         // Any ByteBuffer ref should be a duplicate, so it doesn't need to be cleaned
                         byteBuffer = null;

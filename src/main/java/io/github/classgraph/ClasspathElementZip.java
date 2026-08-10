@@ -45,7 +45,6 @@ import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
@@ -321,9 +320,6 @@ class ClasspathElementZip extends ClasspathElement {
      */
     private Resource newResource(final FastZipEntry zipEntry, final String pathRelativeToPackageRoot) {
         return new Resource(this, zipEntry.uncompressedSize) {
-            /** True if the resource is open. */
-            private final AtomicBoolean isOpen = new AtomicBoolean();
-
             /**
              * Path with package root prefix and/or any Spring Boot prefix ("BOOT-INF/classes/" or
              * "WEB-INF/classes/") removed.
@@ -386,20 +382,6 @@ class ClasspathElementZip extends ClasspathElement {
                 return perms;
             }
 
-            protected void checkCanOpen() {
-                if (skipClasspathElement) {
-                    // Shouldn't happen
-                    throw new IllegalStateException("Classpath element could not be opened");
-                }
-                if (isOpen.getAndSet(true)) {
-                    throw new IllegalStateException(
-                            "Resource is already open -- cannot open it again without first calling close()");
-                }
-                if (scanResult != null && scanResult.isClosed()) {
-                    throw new IllegalStateException("Cannot open a resource after the ScanResult is closed");
-                }
-            }
-
             @Override
             ClassfileReader openClassfile() throws IOException {
                 return new ClassfileReader(open(), this);
@@ -444,7 +426,7 @@ class ClasspathElementZip extends ClasspathElement {
 
             @Override
             public void close() {
-                if (isOpen.getAndSet(false)) {
+                if (markClosed()) {
                     if (byteBuffer != null) {
                         // ByteBuffer should be a duplicate or slice, or should wrap an array, so it doesn't need to
                         // be unmapped

@@ -40,6 +40,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.ZipEntry;
 
 import nonapi.io.github.classgraph.fileslice.reader.ClassfileReader;
@@ -54,6 +55,9 @@ import org.jspecify.annotations.Nullable;
 public abstract class Resource implements Closeable, Comparable<Resource> {
     /** The classpath element this resource was obtained from. */
     private final ClasspathElement classpathElement;
+
+    /** True if this resource is currently open. */
+    private final AtomicBoolean isOpen = new AtomicBoolean();
 
     /** The input stream, or null. */
     @Nullable
@@ -89,6 +93,41 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     Resource(final ClasspathElement classpathElement, final long length) {
         this.classpathElement = classpathElement;
         this.length = length;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Check that this resource can be opened, and mark it as open. Called by the subclass methods that open the
+     * resource.
+     *
+     * @throws IllegalStateException
+     *             if the classpath element could not be opened, or this resource is already open, or the
+     *             {@link ScanResult} that this resource came from has been closed.
+     */
+    void checkCanOpen() {
+        if (classpathElement.skipClasspathElement) {
+            // Shouldn't happen
+            throw new IllegalStateException("Classpath element could not be opened");
+        }
+        if (isOpen.getAndSet(true)) {
+            throw new IllegalStateException(
+                    "Resource is already open -- cannot open it again without first calling close()");
+        }
+        final var scanResult = classpathElement.scanResult;
+        if (scanResult != null && scanResult.isClosed()) {
+            throw new IllegalStateException("Cannot open a resource after the ScanResult is closed");
+        }
+    }
+
+    /**
+     * Mark this resource as closed. Called by the subclass implementations of {@link #close()}, to guard against
+     * releasing the same resources twice.
+     *
+     * @return true if this resource was open, and has now been marked as closed; false if it was already closed.
+     */
+    boolean markClosed() {
+        return isOpen.getAndSet(false);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -394,7 +433,7 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
      */
     @Override
     public void close() {
-        // Override in subclasses, and call super.close(), then at end, markAsClosed()
+        // Subclasses override this, guarding the body with markClosed() and calling super.close() at the end
         final var in = inputStream;
         if (in != null) {
             try {

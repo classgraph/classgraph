@@ -39,7 +39,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import nonapi.io.github.classgraph.concurrency.SingletonMap;
@@ -163,9 +162,6 @@ class ClasspathElementModule extends ClasspathElement {
             /** The module reader, or null if no module reader is currently acquired. */
             private @Nullable ModuleReader moduleReader;
 
-            /** True if the resource is open. */
-            private final AtomicBoolean isOpen = new AtomicBoolean();
-
             @Override
             public String getPath() {
                 return resourcePath;
@@ -179,20 +175,6 @@ class ClasspathElementModule extends ClasspathElement {
             @Override
             public @Nullable Set<PosixFilePermission> getPosixFilePermissions() {
                 return null; // N/A
-            }
-
-            protected void checkCanOpen() {
-                if (skipClasspathElement) {
-                    // Shouldn't happen
-                    throw new IllegalStateException("Classpath element could not be opened");
-                }
-                if (isOpen.getAndSet(true)) {
-                    throw new IllegalStateException(
-                            "Resource is already open -- cannot open it again without first calling close()");
-                }
-                if (scanResult != null && scanResult.isClosed()) {
-                    throw new IllegalStateException("Cannot open a resource after the ScanResult is closed");
-                }
             }
 
             @Override
@@ -282,7 +264,7 @@ class ClasspathElementModule extends ClasspathElement {
 
             @Override
             public void close() {
-                if (isOpen.getAndSet(false)) {
+                if (markClosed()) {
                     final var reader = moduleReader;
                     if (reader != null) {
                         final var buf = byteBuffer;

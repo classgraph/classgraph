@@ -984,16 +984,14 @@ class Scanner implements Callable<ScanResult> {
      *
      * @param finalClasspathEltOrder
      *            the final classpath elt order
-     * @param finalClasspathEltOrderStrs
-     *            the final classpath elt order strs
      * @return the scan result
      * @throws InterruptedException
      *             if the scan was interrupted
      * @throws ExecutionException
      *             if the scan threw an uncaught exception
      */
-    private ScanResult performScan(final List<ClasspathElement> finalClasspathEltOrder,
-            final List<String> finalClasspathEltOrderStrs) throws InterruptedException, ExecutionException {
+    private ScanResult performScan(final List<ClasspathElement> finalClasspathEltOrder)
+            throws InterruptedException, ExecutionException {
         // Mask duplicate resources (remove any resource that is the same file as a resource that was already found
         // in an earlier classpath element)
         maskDuplicateResources(finalClasspathEltOrder,
@@ -1077,9 +1075,9 @@ class Scanner implements Callable<ScanResult> {
         }
 
         // Return a new ScanResult
-        final var scanResult = new ScanResult(scanSpec, finalClasspathEltOrder, finalClasspathEltOrderStrs,
-                classNameToClassInfo, packageNameToPackageInfo, moduleNameToModuleInfo, fileToLastModified,
-                nestedJarHandler, topLevelLog);
+        final var scanResult = new ScanResult(scanSpec, finalClasspathEltOrder, classNameToClassInfo,
+                packageNameToPackageInfo, moduleNameToModuleInfo, fileToLastModified, nestedJarHandler,
+                topLevelLog);
 
         // Set the ScanResult in each classpath element, so that the classpath elements can determine when the
         // ScanResult is closed
@@ -1144,12 +1142,10 @@ class Scanner implements Callable<ScanResult> {
                 : topLevelLog.log("Final classpath element order:");
         final var numElts = moduleOrder.size() + classpathEltOrder.size();
         final List<ClasspathElement> finalClasspathEltOrder = new ArrayList<>(numElts);
-        final List<String> finalClasspathEltOrderStrs = new ArrayList<>(numElts);
         var classpathOrderIdx = 0;
         for (final ClasspathElementModule classpathElt : moduleOrder) {
             classpathElt.classpathElementIdx = classpathOrderIdx++;
             finalClasspathEltOrder.add(classpathElt);
-            finalClasspathEltOrderStrs.add(classpathElt.toString());
             if (classpathOrderLog != null) {
                 final var moduleRef = classpathElt.getModuleRef();
                 classpathOrderLog.log(moduleRef.toString());
@@ -1158,7 +1154,6 @@ class Scanner implements Callable<ScanResult> {
         for (final ClasspathElement classpathElt : classpathEltOrder) {
             classpathElt.classpathElementIdx = classpathOrderIdx++;
             finalClasspathEltOrder.add(classpathElt);
-            finalClasspathEltOrderStrs.add(classpathElt.toString());
             if (classpathOrderLog != null) {
                 classpathOrderLog.log(classpathElt.toString());
             }
@@ -1183,13 +1178,13 @@ class Scanner implements Callable<ScanResult> {
 
         if (performScan) {
             // Scan classpath / modules, producing a ScanResult.
-            return performScan(finalClasspathEltOrderFiltered, finalClasspathEltOrderStrs);
+            return performScan(finalClasspathEltOrderFiltered);
         } else {
             // Only getting classpath -- return a placeholder ScanResult to hold classpath elements
             if (topLevelLog != null) {
                 topLevelLog.log("Only returning classpath elements (not performing a scan)");
             }
-            return new ScanResult(scanSpec, finalClasspathEltOrderFiltered, finalClasspathEltOrderStrs,
+            return new ScanResult(scanSpec, finalClasspathEltOrderFiltered,
                     /* classNameToClassInfo = */ new HashMap<>(), /* packageNameToPackageInfo = */ new HashMap<>(),
                     /* moduleNameToModuleInfo = */ new HashMap<>(), /* fileToLastModified = */ null,
                     nestedJarHandler, topLevelLog);

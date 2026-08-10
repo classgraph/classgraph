@@ -66,9 +66,6 @@ import org.jspecify.annotations.Nullable;
  * have finished with the result of a scan.
  */
 public final class ScanResult implements Closeable {
-    /** The order of raw classpath elements. */
-    private List<String> rawClasspathEltOrderStrs;
-
     /**
      * The order of classpath elements, after inner jars have been extracted to temporary files, etc.
      */
@@ -198,8 +195,6 @@ public final class ScanResult implements Closeable {
      *            the scan spec
      * @param classpathOrder
      *            the classpath order
-     * @param rawClasspathEltOrderStrs
-     *            the raw classpath element order
      * @param classNameToClassInfo
      *            a map from class name to class info
      * @param packageNameToPackageInfo
@@ -214,13 +209,12 @@ public final class ScanResult implements Closeable {
      *            the toplevel log
      */
     ScanResult(final ScanSpec scanSpec, final List<ClasspathElement> classpathOrder,
-            final List<String> rawClasspathEltOrderStrs, final Map<String, ClassInfo> classNameToClassInfo,
+            final Map<String, ClassInfo> classNameToClassInfo,
             final Map<String, PackageInfo> packageNameToPackageInfo,
             final Map<String, ModuleInfo> moduleNameToModuleInfo,
             final @Nullable Map<File, Long> fileToLastModified, final NestedJarHandler nestedJarHandler,
             final @Nullable LogNode topLevelLog) {
         this.scanSpec = scanSpec;
-        this.rawClasspathEltOrderStrs = rawClasspathEltOrderStrs;
         this.classpathOrder = classpathOrder;
         this.fileToLastModified = fileToLastModified;
         this.classNameToClassInfo = classNameToClassInfo;
