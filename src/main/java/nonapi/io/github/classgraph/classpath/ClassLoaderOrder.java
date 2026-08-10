@@ -172,8 +172,11 @@ public class ClassLoaderOrder {
         // Don't delegate to a classloader twice
         if (delegatedTo.add(classLoader)) {
             add(classLoader, log);
-            // Recurse to get delegation order (note: may be wrong if multiple ClassLoaderHandlers can handle this
-            // classloader)
+            // Recurse to get delegation order. When more than one handler can handle this classloader, they are
+            // called in ClassLoaderHandlerRegistry order, which lists the container-specific handlers before the
+            // general ones, so a handler that knows the container's real delegation order gets to place the parent
+            // and child classloaders first; the handlers that run after it can only add classloaders that the
+            // earlier handler did not already place.
             for (final ClassLoaderHandlerRegistryEntry entry : getClassLoaderHandlerRegistryEntries(classLoader,
                     /* Don't log twice -- also logged by add method above */ null)) {
                 entry.findClassLoaderOrder(classLoader, this, log);

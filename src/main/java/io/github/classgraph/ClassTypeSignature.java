@@ -444,14 +444,13 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
         }
         final List<ClassRefOrTypeVariableSignature> throwsSignatures;
         if (parser.peek() == '^') {
-            // There is an illegal "throws" suffix at the end of this class type signature. Scala adds these if you
-            // tag a class with "@throws" (#495). Classes with this sort of type signature are rejected by javac and
-            // javap, and they will throw GenericSignatureFormatError if you call getClass().getGenericSuperclass()
-            // on a subclass. But the JVM ignores type signatures due to type erasure, and Scala seems to rely on
-            // this -- or at the very least, the Scala team never noticed the issue, because the classes work fine
-            // at runtime if you live in a Scala-only world. Since this issue is probably widespread in the Scala
-            // world, it's probably better to accept these invalid type signatures, and actually parse out any
-            // "throws" suffixes, rather than throwing an exception and refusing to parse the type signature.
+            // There is an illegal "throws" suffix at the end of this class type signature. The JVMS ClassSignature
+            // production has no ThrowsSignature, but the Scala compiler emits one when a class is tagged with
+            // "@throws" (#495). javac and javap reject such a signature, and getClass().getGenericSuperclass() on a
+            // subclass throws GenericSignatureFormatError -- but the JVM itself never reads type signatures, so the
+            // classes run fine, and Scala has kept emitting them. ClassGraph therefore parses the suffix, records
+            // the classes it names as referenced, and renders it as "@throws(...)", rather than refusing to parse a
+            // signature that a real compiler produces.
             throwsSignatures = new ArrayList<>();
             while (parser.peek() == '^') {
                 parser.expect('^');

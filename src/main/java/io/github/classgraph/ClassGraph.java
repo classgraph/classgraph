@@ -53,6 +53,7 @@ import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.AcceptReject;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.Assert;
+import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.VersionFinder;
@@ -149,8 +150,6 @@ public class ClassGraph {
     /** Construct a ClassGraph instance. */
     public ClassGraph() {
         reflectionUtils = new ReflectionUtils();
-        // Initialize ScanResult, if this is the first call to ClassGraph constructor
-        ScanResult.init(reflectionUtils);
     }
 
     /**
@@ -439,7 +438,8 @@ public class ClassGraph {
     /**
      * Remove temporary files, including nested jarfiles (jarfiles within jarfiles, which have to be extracted
      * during scanning in order to be read) from their temporary directory as soon as the scan has completed. The
-     * default is for temporary files to be removed by the {@link ScanResult} finalizer, or on JVM exit.
+     * default is for temporary files to be removed when the {@link ScanResult} is closed, or failing that, on JVM
+     * exit.
      *
      * <p>
      * N.B. if the scan did extract a nested jarfile to a temporary file, then removing that temporary file requires
@@ -1305,6 +1305,10 @@ public class ClassGraph {
     // #939
     public ClassGraph enableMemoryMapping() {
         scanSpec.enableMemoryMapping = true;
+        // Memory mapping is the only thing that makes ClassGraph allocate direct ByteBuffers, and those buffers are
+        // freed when the ScanResult is closed, so load the classes needed to free them now, while this classloader
+        // is certainly still alive
+        FileUtils.warmUpDirectByteBufferClosing(reflectionUtils);
         return this;
     }
 

@@ -75,9 +75,12 @@ public final class JarUtils {
             "jar:", "file:", "http://", "https://", //
             // Tomcat serves a non-exploded WAR file through its own "war:" URL protocol (#925)
             "war:", //
-            // Allow for escaping of ':' characters in paths, which probably goes beyond what the spec would allow
-            // for, but would make sense, since File.separatorChar will never be '\\' when File.pathSeparatorChar is
-            // ':'
+            // Allow for escaping of ':' characters in paths. This is a ClassGraph extension -- the JDK splits
+            // java.class.path on File.pathSeparator with no escape syntax at all -- but it is safe, because
+            // File.separatorChar is '/' on every platform whose File.pathSeparatorChar is ':', so a backslash
+            // before a colon is never part of the path syntax there. The cost is that a classpath entry that
+            // genuinely ends in a backslash (a legal, if bizarre, filename character on Unix) is joined to the
+            // entry that follows it instead of being split from it.
             "\\:" //
     };
 

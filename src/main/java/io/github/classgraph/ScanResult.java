@@ -35,7 +35,6 @@ import java.lang.ref.WeakReference;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -187,41 +186,6 @@ public final class ScanResult implements Closeable {
     // #233
     private static final Set<WeakReference<ScanResult>> nonClosedWeakReferences = Collections
             .newSetFromMap(new ConcurrentHashMap<>());
-
-    /** If true, ScanResult#staticInit() has been run. */
-    private static final AtomicBoolean initialized = new AtomicBoolean(false);
-
-    // -------------------------------------------------------------------------------------------------------------
-    // Shutdown hook init code
-
-    /**
-     * Static initialization (warm up classloading), called when the ClassGraph class is initialized.
-     *
-     * @param reflectionUtils
-     *            the {@link ReflectionUtils} instance to use for pre-loading classes
-     */
-    static void init(final ReflectionUtils reflectionUtils) {
-        if (!initialized.getAndSet(true)) {
-            // Pre-load non-system classes necessary for calling scanResult.close(), so that classes that need to be
-            // loaded to close resources are already loaded and cached. This was originally for use in a shutdown
-            // hook (#331), which has now been removed, but it is probably still a good idea to ensure that classes
-            // needed to free/unmap DirectByteBuffer instances are available at init. We achieve this by allocating
-            // a small direct ByteBuffer and then freeing it.
-            final var arena = FileUtils.openArena(reflectionUtils);
-            if (arena != null) {
-                // On JDK 22+, direct ByteBuffers are allocated and memory-mapped using the java.lang.foreign.Arena
-                // API, and freed/unmapped by closing the arena that created them, rather than by calling the
-                // terminally-deprecated method Unsafe::invokeCleaner (#939) -- warm up the reflective arena code
-                // paths
-                FileUtils.allocateDirectByteBufferUsingArena(arena, 32, reflectionUtils);
-                FileUtils.closeArena(arena, reflectionUtils, /* log = */ null);
-            } else {
-                // On JDK less than 22, the only problematic classes are the PrivilegedAction anonymous inner
-                // classes used by FileUtils::closeDirectByteBuffer
-                FileUtils.closeDirectByteBuffer(ByteBuffer.allocateDirect(32), reflectionUtils, /* log = */ null);
-            }
-        }
-    }
 
     // -------------------------------------------------------------------------------------------------------------
     // Constructor
@@ -1575,10 +1539,11 @@ public final class ScanResult implements Closeable {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Free any temporary files created by extracting jars or files from within jars. Without calling this method,
-     * the temporary files created by extracting the inner jars will be removed in a finalizer, called by the
-     * garbage collector (or at JVM shutdown). If you don't want to experience long GC pauses, make sure you call
-     * this close method when you have finished with the {@link ScanResult}.
+     * Close this {@link ScanResult}, releasing the memory it holds, closing any open jarfiles, and deleting any
+     * temporary files created by extracting jars from within jars. Temporary files that are still present when the
+     * JVM exits are deleted then, via {@link java.io.File#deleteOnExit()}, but open jarfiles and memory-mapped
+     * buffers are only released by this method -- so a program that scans repeatedly without closing its
+     * {@link ScanResult}s will hold those resources until it exits.
      */
     @Override
     public void close() {

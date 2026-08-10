@@ -498,22 +498,20 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
      * @return The {@link MethodParameterInfo} objects for the method parameters, one per parameter.
      */
     public MethodParameterInfo[] getParameterInfo() {
-        // Kotlin is very inconsistent about the arity of each of the parameter metadata types, see:
-        // https://github.com/classgraph/classgraph/issues/175#issuecomment-363031510
-        // As a workaround, we assume that any synthetic / mandated parameters must come first in the parameter
-        // list, when the arities don't match, and we right-align the metadata fields. This is probably the safest
-        // assumption across JVM languages, even though this convention is by no means the only possibility.
-        // (Unfortunately we can't just rely on the modifier bits to find synthetic / mandated parameters, because
-        // these bits are not always available, and even when they are, they don't always give the right alignment,
-        // at least for Kotlin- generated code).
-
-        // Actually the Java spec says specifically: "The signature and descriptor of a given method or constructor
-        // may not correspond exactly, due to compiler-generated artifacts. In particular, the number of
-        // TypeSignatures that encode formal arguments in MethodTypeSignature may be less than the number of
-        // ParameterDescriptors in MethodDescriptor."
-
-        // This was also triggered by an implicit param in Guava 28.2 (#660).
-
+        // The four sources of parameter metadata -- the type signature, the type descriptor, the MethodParameters
+        // attribute and the parameter annotations -- can disagree on how many parameters a method has, because a
+        // compiler may record a parameter it generated in some of them but not the others. JVMS 4.7.9.1 sanctions
+        // this: "there is no assurance that the number of formal parameter types in the method signature is the
+        // same as the number of parameter descriptors in the method descriptor", the example given being an
+        // implicitly declared constructor parameter that appears in the descriptor but not in the signature.
+        //
+        // In every case seen so far the extra parameters are at the front -- the enclosing instance of an inner
+        // class constructor, the name and ordinal of an enum constructor, an implicit parameter in Guava 28.2
+        // (#660), and the parameters Kotlin adds, which it records with varying arity in each source (#175, see
+        // https://github.com/classgraph/classgraph/issues/175#issuecomment-363031510). So when the arities
+        // disagree, the shorter sources are right-aligned against the longest one. The synthetic and mandated
+        // modifier bits cannot be used to locate those parameters instead, because the MethodParameters attribute
+        // that carries them is optional, and Kotlin does not always set them consistently with the alignment.
         synchronized (this) {
             if (parameterInfo == null) {
                 // Get param type signatures from the type signature of the method

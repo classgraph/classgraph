@@ -35,9 +35,10 @@ import nonapi.io.github.classgraph.utils.VersionFinder.OperatingSystem;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Resolve relative paths and URLs/URIs against a base path in a way that is faster than Java's URL/URI parser (and
- * much faster than Path), while aiming for cross-platform compatibility, and hopefully in particular being robust
- * to the many forms of Windows path weirdness.
+ * Resolve relative paths and URLs/URIs against a base path, faster than Java's URL/URI parser and much faster than
+ * {@link java.nio.file.Path}. Handles the path forms of every supported platform, including the several ways a
+ * Windows path can be written (drive letters, UNC paths, backslash separators, and the {@code "file:"} URL
+ * spellings of each).
  */
 public final class FastPathResolver {
     /** Match %-encoded characters in URLs. */

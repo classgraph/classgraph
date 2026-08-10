@@ -812,6 +812,31 @@ that, returning the empty list if the class was not found — matching the `Clas
   unmodifiable empty list. Adding to the returned list never affected the scan result, so
   the only change is that it now throws `UnsupportedOperationException`.
 
+* **Method annotations wrap in the class graph .dot file.** In the node for a class,
+  each method is a row of three cells — its annotations, its name, and its parameters —
+  and the parameter cell already wrapped onto continuation rows once it passed a
+  threshold, while the annotation cell was written on a single line however long it got.
+  A class with heavily annotated methods therefore produced a node many times wider than
+  it needed to be. The annotation cell now wraps at the same width, onto continuation
+  rows that leave the name and parameter cells empty. Only the layout of the generated
+  .dot file changes; the same annotations, methods and parameters are listed.
+
+* **`enableMemoryMapping()` now loads the classes needed to release memory-mapped
+  buffers, rather than the `ClassGraph` constructor doing it.** Releasing a mapped buffer
+  when a `ScanResult` is closed needs classes that ClassGraph defines lazily, and closing
+  can happen long after the scan, by which time the classloader that loaded ClassGraph
+  may no longer be able to define anything — in a container that has already torn down
+  the enclosing classloader, closing would fail with `NoClassDefFoundError`. Loading them
+  ahead of time avoids that. 4.x did this work in the `ClassGraph` constructor, so every
+  user paid for it whether or not they memory-mapped anything: on a JDK with
+  `java.lang.foreign` it loaded roughly 35 further classes on the first `new ClassGraph()`.
+  Since memory mapping is the only thing that makes ClassGraph allocate such buffers, and
+  it is opt-in, the work has moved to `enableMemoryMapping()`. A program that does not
+  call that method no longer loads any of those classes. One further consequence: on JDK
+  17 to 21, where the buffer cleaner is reached reflectively, a security manager that
+  denies the reflective access made the `ClassGraph` constructor throw; now only
+  `enableMemoryMapping()` can throw for that reason.
+
 * **`toString()` now follows the JDK's own rendering of the same thing, wherever the JDK
   renders it.** ClassGraph's `toString()` methods are meant to read as Java source
   declarations, and several of them had drifted from the corresponding JDK method. Five
@@ -916,6 +941,15 @@ is fixed on the 4.x branch as well.
   from, and the application classloader did not cause the non-system modules to be
   scanned, which it does load from. See the behavior change above; only the part that
   applies to `addClassLoader()` is new in 5.x.
+
+* `ScanResult#close()`, `ClassGraph#removeTemporaryFilesAfterScan()` and the scan spec all
+  documented that temporary files are removed by a `ScanResult` finalizer if `close()` is
+  not called. There is no finalizer, and there has not been one for a long time: temporary
+  files are registered with `File#deleteOnExit()` when they are created, so they survive
+  until the JVM exits. The documentation now says so. Nothing about when the files are
+  actually deleted has changed — only the description of it, which mattered because it
+  told readers that an uncollected `ScanResult` would eventually be cleaned up by the
+  garbage collector, and it will not be.
 
 Two further bugs found during the port were only reachable through the JSON
 serialization API, which 5.x removes (`AnnotationParameterValue#toString()` threw

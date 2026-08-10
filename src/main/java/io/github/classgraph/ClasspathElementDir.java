@@ -463,9 +463,13 @@ class ClasspathElementDir extends ClasspathElement {
             return;
         }
 
-        // Ignore versioned sections in exploded jars -- they are only supposed to be used in jars.
-        // TODO: is it necessary to support multi-versioned exploded jars anyway? If so, all the paths in a
-        // directory classpath entry will have to be pre-scanned and masked, as happens in ClasspathElementZip.
+        // Ignore versioned sections in a directory classpath element. Multi-release is a jar-only feature: the
+        // "Multi-Release: true" manifest entry is only read from a jar's manifest, and the JVM loads the base
+        // version of a class from a directory even when a versioned copy is present alongside it. So skipping
+        // these here is what makes a directory scan agree with what the JVM would actually load, and no masking
+        // of versioned paths against base paths is needed (unlike in ClasspathElementZip). When
+        // enableMultiReleaseVersions() is set, every version is reported under its own versioned path, which
+        // recursing into these directories already does.
         if (!scanSpec.enableMultiReleaseVersions
                 && dirRelativePathStr.startsWith(LogicalZipFile.MULTI_RELEASE_PATH_PREFIX)) {
             if (log != null) {

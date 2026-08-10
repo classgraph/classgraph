@@ -1269,7 +1269,8 @@ class Classfile {
             // newest tag is CONSTANT_Dynamic (17), added in Java SE 11; no tag has been added since. If a future
             // JDK adds a tag, an entry of unknown size follows it, so parsing has to fail (below).
             switch (entryTag[i]) {
-            // Impossible, probably buffer underflow
+            // Tag 0 is not a valid constant pool tag in any version of the JVMS, so reaching it means either the
+            // classfile is corrupt, or the reader has lost alignment with the start of a constant pool entry
             case 0 -> throw new ClassfileFormatException("Invalid constant pool tag 0 in classfile " + relativePath
                     + " (possible buffer underflow issue). Please report this at "
                     + "https://github.com/classgraph/classgraph/issues");

@@ -92,7 +92,9 @@ public class AutoCloseableExecutorService extends ThreadPoolExecutor implements 
             // Prevent new tasks being submitted
             shutdown();
         } catch (final SecurityException e) {
-            // Ignore for now (caught again if shutdownNow() fails)
+            // A security manager denied shutdown(). Nothing needs reporting here: the executor cannot terminate
+            // without it, so awaitTermination() below times out, and shutdownNow() is then denied for the same
+            // reason -- that is where the failure is thrown.
         }
         var terminated = false;
         try {

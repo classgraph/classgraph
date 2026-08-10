@@ -28,29 +28,54 @@
  */
 package io.github.classgraph.issues.issue141;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import io.github.classgraph.ClassGraph;
+
 /**
+ * A classfile that cannot be parsed does not stop the scan -- it is skipped, and every other class in the same
+ * classpath element is still returned.
+ *
  * @author wuetherich
  */
 public class Issue141Test {
-    // Disabled because ClassGraph no longer stops if an invalid classfile is found (the classfile is simply
-    // skipped)
+    /** The package directory that both classfiles are written to. */
+    private static final String PKG_DIR = "io/github/classgraph/issues/issue141";
 
-    // @Test
-    // public void issue141Test() throws IOException {
-    // // resolve and download org.ow2.asm:asm:6.0_BETA (which contains a
-    // module-info.class)
-    // final File resolvedFile = MavenResolvers.createMavenResolver(null,
-    // null).resolve("org.ow2.asm", "asm", null,
-    // null, "6.0_BETA");
-    // assertThat(resolvedFile).isFile();
-    //
-    // // create a new custom class loader
-    // final ClassLoader classLoader = new URLClassLoader(new URL[] {
-    // resolvedFile.toURI().toURL() }, null);
-    //
-    // // scan the classpath
-    // try (ScanResult scanResult = new
-    // ClassGraph().overrideClassLoaders(classLoader).enableClassInfo().scan()) {
-    // }
-    // }
+    /** A class to copy into the scanned directory as a valid classfile. */
+    public static class Good {
+    }
+
+    /**
+     * Scan a directory containing the classfile of {@link Good} and an unparseable classfile alongside it.
+     *
+     * @param tempDir
+     *            the directory to write the two classfiles to.
+     * @throws IOException
+     *             if the classfiles could not be written.
+     */
+    @Test
+    void unparseableClassfileIsSkippedRatherThanStoppingTheScan(@TempDir final Path tempDir) throws IOException {
+        final var pkgDir = Files.createDirectories(tempDir.resolve(PKG_DIR));
+        final var goodClassfileName = Good.class.getName().substring(Good.class.getName().lastIndexOf('.') + 1)
+                + ".class";
+        try (var goodClassfile = Good.class.getResourceAsStream(goodClassfileName)) {
+            assertThat(goodClassfile).as("classfile of " + Good.class.getName()).isNotNull();
+            Files.write(pkgDir.resolve(goodClassfileName), goodClassfile.readAllBytes());
+        }
+        // Not a classfile at all -- it does not even start with the 0xCAFEBABE magic number
+        Files.write(pkgDir.resolve("Bad.class"), "This is not a classfile".getBytes(StandardCharsets.UTF_8));
+
+        try (var scanResult = new ClassGraph().overrideClasspath(tempDir.toString()).enableClassInfo().scan()) {
+            assertThat(scanResult.getAllClasses().getNames()).containsExactly(Good.class.getName());
+        }
+    }
 }

@@ -1280,8 +1280,11 @@ class Scanner implements Callable<ScanResult> {
                         // and modules
                         nestedJarHandler.close(topLevelLog);
                     }
-                    // Throw a new ExecutionException (although this will probably be ignored, since any job with a
-                    // FailureHandler was started with ExecutorService::execute rather than ExecutorService::submit)
+                    // A scan is only given a FailureHandler by ClassGraph#launchAsyncScan, which runs the scanner
+                    // inside a Runnable that catches ExecutionException and passes it to the same FailureHandler.
+                    // So throwing here offers the handler a second chance to report the failure, this time with the
+                    // original scan exception attached as a suppressed exception. If it throws again, the exception
+                    // leaves the Runnable and is reported by the executor.
                     throw failureHandlerException;
                 }
             }

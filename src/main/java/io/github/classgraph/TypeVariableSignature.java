@@ -352,9 +352,9 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
             // bound during type erasure, not some other class in the class hierarchy)
             return false;
         }
-        // Technically I think type variables are never equal to each other, due to capturing, but just compare the
-        // variable name for equality here (this should never get triggered in general, since we only compare
-        // type-erased signatures to non-type-erased signatures currently).
+        // 'other' is a type variable too. Two type variables are reconcilable if they are written the same way:
+        // capture conversion can make two occurrences of one type variable denote different types, but this method
+        // compares signatures as they are written, not the types they denote at any particular use site.
         return this.equals(other);
     }
 

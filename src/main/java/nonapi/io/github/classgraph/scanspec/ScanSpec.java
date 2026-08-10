@@ -229,7 +229,7 @@ public class ScanSpec {
     /**
      * If true, nested jarfiles (jarfiles within jarfiles) that are extracted during scanning are removed from their
      * temporary directory (e.g. /tmp/ClassGraph-8JX2u4w) after the scan has completed. If false, temporary files
-     * are removed by the {@link ScanResult} finalizer, or on JVM exit.
+     * are removed when the {@link ScanResult} is closed, or failing that, on JVM exit.
      */
     public boolean removeTemporaryFilesAfterScan;
 

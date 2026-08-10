@@ -47,8 +47,8 @@ final class GraphvizDotfileGenerator {
     /** The color for annotations. */
     private static final String ANNOTATION_COLOR = "f3c9ff";
 
-    /** The wrap width for method parameters. */
-    private static final int PARAM_WRAP_WIDTH = 40;
+    /** The wrap width for method annotations and method parameters. */
+    private static final int WRAP_WIDTH = 40;
 
     /** Which characters are Unicode whitespace. */
     private static final BitSet IS_UNICODE_WHITESPACE = new BitSet(1 << 16);
@@ -331,15 +331,23 @@ final class GraphvizDotfileGenerator {
                     buf.append("<tr>");
 
                     // Method annotations
-                    // TODO: wrap this cell if the contents get too long
                     buf.append("<td align='right' valign='top'>");
                     final var methodAnnotationInfo = mi.annotationInfo;
                     if (methodAnnotationInfo != null) {
+                        var wrapPos = 0;
                         for (final AnnotationInfo ai : methodAnnotationInfo) {
-                            if (buf.charAt(buf.length() - 1) != ' ') {
+                            final var ais = ai.toString();
+                            if (wrapPos > WRAP_WIDTH) {
+                                // Continue the annotations in the same column of a new row, leaving the method
+                                // name and parameter columns of that row empty
+                                buf.append("</td><td></td><td></td></tr>" + "<tr><td align='right' valign='top'>");
+                                wrapPos = 0;
+                            } else if (buf.charAt(buf.length() - 1) != ' ') {
                                 buf.append(' ');
+                                wrapPos++;
                             }
-                            htmlEncode(ai.toString(), buf);
+                            htmlEncode(ais, buf);
+                            wrapPos += ais.length();
                         }
                     }
 
@@ -388,7 +396,7 @@ final class GraphvizDotfileGenerator {
                                 buf.append(", ");
                                 wrapPos += 2;
                             }
-                            if (wrapPos > PARAM_WRAP_WIDTH) {
+                            if (wrapPos > WRAP_WIDTH) {
                                 buf.append("</td></tr><tr><td></td><td></td><td align='left' valign='top'>");
                                 wrapPos = 0;
                             }
@@ -404,7 +412,7 @@ final class GraphvizDotfileGenerator {
                                         }
                                         htmlEncode(ais, buf);
                                         wrapPos += 1 + ais.length();
-                                        if (wrapPos > PARAM_WRAP_WIDTH) {
+                                        if (wrapPos > WRAP_WIDTH) {
                                             buf.append("</td></tr><tr><td></td><td></td>"
                                                     + "<td align='left' valign='top'>");
                                             wrapPos = 0;

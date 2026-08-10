@@ -139,9 +139,10 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
         final var bundleWiring = classpathOrder.reflectionUtils.getFieldVal(false, classLoader, "m_wiring");
         addBundle(bundleWiring, classLoader, classpathOrder, bundles, scanSpec, log);
 
-        // Deal with any other bundles we might be wired to. TODO: Use the ScanSpec to narrow down the list of wires
-        // that we follow.
-
+        // Deal with any other bundles we might be wired to. Every wire has to be followed: a wire says nothing
+        // about what it provides until its bundle revision has been resolved to a content location, and by then
+        // addBundle has done all the work that skipping the wire would have saved. Bundles the user does not want
+        // are dropped by ClasspathOrder#addClasspathEntry, which applies the scan spec's classpath element filters.
         final List<?> requiredWires = (List<?>) classpathOrder.reflectionUtils.invokeMethod(false, bundleWiring,
                 "getRequiredWires", String.class, null);
         if (requiredWires != null) {

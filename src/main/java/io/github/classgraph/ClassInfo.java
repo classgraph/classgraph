@@ -3472,8 +3472,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Get the parsed type signature for the class.
      *
-     * @return The parsed type signature for the class, including any generic type parameters, or null if not
-     *         available (probably indicating the class is not generic).
+     * @return The parsed type signature for the class, including any generic type parameters, or null if the class
+     *         has no {@code Signature} attribute, which is the case unless the class declaration uses type
+     *         variables or parameterized types -- in its own type parameters, its superclass, or its interfaces.
      * @throws IllegalArgumentException
      *             if the class type signature cannot be parsed (this should only be thrown in the case of classfile
      *             corruption, or a compiler bug that causes an invalid type signature to be written to the
@@ -3505,18 +3506,20 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Get the type signature string for the class.
      *
-     * @return The type signature string for the class, including any generic type parameters, or null if not
-     *         available (probably indicating the class is not generic).
+     * @return The type signature string for the class, including any generic type parameters, or null if the class
+     *         has no {@code Signature} attribute, which is the case unless the class declaration uses type
+     *         variables or parameterized types -- in its own type parameters, its superclass, or its interfaces.
      */
     public @Nullable String getTypeSignatureString() {
         return typeSignatureStr;
     }
 
     /**
-     * Returns the parsed type signature for this class, possibly including type parameters. If the type signature
-     * is not present for this class, indicating that this is not a generic class, then a type descriptor will be
-     * synthesized and returned, as if there were a type descriptor (classfiles may have a type signature but do not
-     * contain a type descriptor). May include type annotations on the superclass or interface(s).
+     * Returns the parsed type signature for this class, possibly including type parameters. If the class has no
+     * {@code Signature} attribute, i.e. if neither the class nor its superclass or interfaces use type variables or
+     * parameterized types, then a type descriptor is synthesized from the class, superclass and interface names and
+     * returned instead (a classfile may have a class type signature, but never has a class type descriptor). May
+     * include type annotations on the superclass or interface(s).
      *
      * @return The parsed generic type signature for the class, or if not available, the synthetic type descriptor
      *         for the class.

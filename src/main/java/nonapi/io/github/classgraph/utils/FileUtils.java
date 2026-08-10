@@ -45,6 +45,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.utils.VersionFinder.OperatingSystem;
@@ -113,8 +114,9 @@ public final class FileUtils {
                 }
             }
             if (path == null) {
-                // user.dir should probably always be set. But just in case it is not, try reading the actual
-                // current directory at the time ClassGraph is first invoked.
+                // "user.dir" is one of the system properties that System#getProperties() guarantees, but reading it
+                // can still fail: a security manager can deny the read, and an application can replace the system
+                // properties wholesale with a set that omits it. Fall back on the directory the JVM is running in.
                 try {
                     path = Path.of("");
                 } catch (final InvalidPathException e) {
@@ -791,6 +793,40 @@ public final class FileUtils {
                 log.log("Could not close arena: " + e);
             }
             return false;
+        }
+    }
+
+    /** True once {@link #warmUpDirectByteBufferClosing(ReflectionUtils)} has run. */
+    private static final AtomicBoolean warmedUp = new AtomicBoolean(false);
+
+    /**
+     * Load the classes needed to free or unmap a direct {@link ByteBuffer}, by allocating a small direct
+     * {@link ByteBuffer} and immediately freeing it again.
+     *
+     * <p>
+     * Freeing a direct {@link ByteBuffer} happens when a {@code ScanResult} is closed, which may be long after the
+     * scan itself, and possibly from a shutdown hook or a container's teardown code, by which time the classloader
+     * that loaded ClassGraph may no longer be able to load anything -- one report had a Maven plugin's Plexus
+     * {@code ClassRealm} already closed, so the lambda class implementing the buffer-freeing code could not be
+     * defined, and closing threw {@link NoClassDefFoundError}. Loading those classes up front, while the
+     * classloader is certainly still alive, means closing needs no classes that are not already loaded.
+     *
+     * @param reflectionUtils
+     *            the {@link ReflectionUtils} instance to use.
+     */
+    // #331
+    public static void warmUpDirectByteBufferClosing(final ReflectionUtils reflectionUtils) {
+        if (!warmedUp.getAndSet(true)) {
+            final var arena = openArena(reflectionUtils);
+            if (arena != null) {
+                // On JDK 22+, direct ByteBuffers are freed by closing the arena that allocated them
+                allocateDirectByteBufferUsingArena(arena, 32, reflectionUtils);
+                closeArena(arena, reflectionUtils, /* log = */ null);
+            } else {
+                // On JDK 17-21, buffers are freed by Unsafe::invokeCleaner, reached through the lambdas in
+                // closeDirectByteBuffer -- those lambda classes are what needs to be defined ahead of time
+                closeDirectByteBuffer(ByteBuffer.allocateDirect(32), reflectionUtils, /* log = */ null);
+            }
         }
     }
 
