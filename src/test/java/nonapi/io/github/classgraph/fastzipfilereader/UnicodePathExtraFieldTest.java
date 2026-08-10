@@ -21,11 +21,14 @@ import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 
 /**
- * Tests that the entry name in an Info-ZIP Unicode path extra field (tag 0x7075) is read in full.
+ * Tests for the entry name held in an Info-ZIP Unicode path extra field (tag 0x7075), which replaces the entry's
+ * own name.
  *
  * <p>
  * The extra field's data area is {@code version(1) + nameCRC32(4) + name}, so the name is {@code size - 5} bytes
  * long. It used to be read as {@code size - 9} bytes, which dropped the last four bytes of every such entry name.
+ * The replacement name also used to be used as read, skipping the sanitization and directory-entry check that the
+ * name it replaces goes through.
  */
 public class UnicodePathExtraFieldTest {
     /** The entry name stored in the normal zip entry name field. */
@@ -35,12 +38,14 @@ public class UnicodePathExtraFieldTest {
     private static final String UNICODE_NAME = "testpkg/unicode.txt";
 
     /**
-     * Build an Info-ZIP Unicode path extra field (tag 0x7075) holding {@link #UNICODE_NAME}.
+     * Build an Info-ZIP Unicode path extra field (tag 0x7075) holding the given entry name.
      *
+     * @param unicodeName
+     *            the entry name to store in the extra field
      * @return the extra field bytes
      */
-    private static byte[] makeUnicodePathExtraField() {
-        final byte[] nameBytes = UNICODE_NAME.getBytes(StandardCharsets.UTF_8);
+    private static byte[] makeUnicodePathExtraField(final String unicodeName) {
+        final byte[] nameBytes = unicodeName.getBytes(StandardCharsets.UTF_8);
         final ByteArrayOutputStream buf = new ByteArrayOutputStream();
         // Header ID 0x7075, little-endian
         buf.write(0x75);
@@ -61,17 +66,32 @@ public class UnicodePathExtraFieldTest {
         return buf.toByteArray();
     }
 
-    /** An entry name held in a Unicode path extra field must not be truncated. */
-    @Test
-    public void unicodePathExtraFieldNameIsNotTruncated(@TempDir final File tempDir) throws Exception {
-        final File jarFile = new File(tempDir, "unicode-path.jar");
+    /**
+     * Write a jar whose entries each carry a Unicode path extra field, and return the entry names ClassGraph reads
+     * back from its central directory.
+     *
+     * @param tempDir
+     *            the directory to write the jar into
+     * @param jarName
+     *            the name of the jar to write
+     * @param legacyAndUnicodeNames
+     *            for each entry, the name stored in the entry name field, then the name stored in the extra field
+     * @return the entry names read back from the jar
+     * @throws Exception
+     *             if the jar could not be written or read
+     */
+    private static List<String> entryNamesReadBack(final File tempDir, final String jarName,
+            final String[][] legacyAndUnicodeNames) throws Exception {
+        final File jarFile = new File(tempDir, jarName);
         try (OutputStream fileOut = new FileOutputStream(jarFile);
                 ZipOutputStream zipOut = new ZipOutputStream(fileOut)) {
-            final ZipEntry entry = new ZipEntry(LEGACY_NAME);
-            entry.setExtra(makeUnicodePathExtraField());
-            zipOut.putNextEntry(entry);
-            zipOut.write("contents".getBytes(StandardCharsets.UTF_8));
-            zipOut.closeEntry();
+            for (final String[] names : legacyAndUnicodeNames) {
+                final ZipEntry entry = new ZipEntry(names[0]);
+                entry.setExtra(makeUnicodePathExtraField(names[1]));
+                zipOut.putNextEntry(entry);
+                zipOut.write("contents".getBytes(StandardCharsets.UTF_8));
+                zipOut.closeEntry();
+            }
         }
 
         final NestedJarHandler nestedJarHandler = new NestedJarHandler(new ScanSpec(), new InterruptionChecker(),
@@ -87,6 +107,41 @@ public class UnicodePathExtraFieldTest {
             // The jarfile must not be left open, otherwise the temporary directory cannot be deleted on Windows
             nestedJarHandler.close(/* log = */ null);
         }
-        assertThat(entryNames).containsExactly(UNICODE_NAME);
+        return entryNames;
+    }
+
+    /** An entry name held in a Unicode path extra field must not be truncated. */
+    @Test
+    public void unicodePathExtraFieldNameIsNotTruncated(@TempDir final File tempDir) throws Exception {
+        assertThat(
+                entryNamesReadBack(tempDir, "unicode-path.jar", new String[][] { { LEGACY_NAME, UNICODE_NAME } }))
+                        .containsExactly(UNICODE_NAME);
+    }
+
+    /**
+     * An entry name held in a Unicode path extra field replaces the entry's own name, so it has to be sanitized in
+     * the same way -- otherwise an entry can carry a path that escapes its package root, or that is absolute,
+     * simply by declaring it in an extra field.
+     */
+    @Test
+    public void unicodePathExtraFieldNameIsSanitized(@TempDir final File tempDir) throws Exception {
+        assertThat(entryNamesReadBack(tempDir, "unsanitized-unicode-path.jar",
+                new String[][] { { "pkg/dots.txt", "pkg/../../escaped/dots.txt" },
+                        { "pkg/absolute.txt", "/absolute.txt" }, { "pkg/doubled.txt", "pkg//doubled.txt" },
+                        { "pkg/dot.txt", "pkg/./dot.txt" } }))
+                                .containsExactly("escaped/dots.txt", "absolute.txt", "pkg/doubled.txt",
+                                        "pkg/dot.txt");
+    }
+
+    /**
+     * A Unicode path extra field can rename a file entry into a directory entry, or into nothing at all. Directory
+     * entries are not listed, so such an entry is dropped rather than being listed under an empty or
+     * separator-terminated name.
+     */
+    @Test
+    public void unicodePathExtraFieldCanRenameAnEntryToADirectory(@TempDir final File tempDir) throws Exception {
+        assertThat(entryNamesReadBack(tempDir, "directory-unicode-path.jar", new String[][] {
+                { "pkg/dir.txt", "pkg/dir/" }, { "pkg/root.txt", "/" }, { "pkg/kept.txt", "pkg/kept.txt" } }))
+                        .containsExactly("pkg/kept.txt");
     }
 }
