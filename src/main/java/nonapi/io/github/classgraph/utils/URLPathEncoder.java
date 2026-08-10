@@ -200,80 +200,93 @@ public final class URLPathEncoder {
      * @return the URL string
      */
     public static String normalizeURLPath(final String urlPath) {
-        var urlPathNormalized = urlPath;
-        var hasNestedJarSeparator = false;
-        if (!urlPathNormalized.startsWith("jrt:") && !urlPathNormalized.startsWith("http://")
-                && !urlPathNormalized.startsWith("https://")) {
+        if (urlPath.startsWith("jrt:") || urlPath.startsWith("http://") || urlPath.startsWith("https://")) {
+            // These schemes do not name a file, so there is no file path to normalize
+            return encodePath(urlPath);
+        }
+        var urlPathNormalized = stripJarAndFilePrefixes(urlPath);
 
-            // Strip "jar:" and/or "file:", if already present
-            if (urlPathNormalized.startsWith("jar:")) {
-                urlPathNormalized = urlPathNormalized.substring(4);
-            }
-            if (urlPathNormalized.startsWith("file:")) {
-                urlPathNormalized = urlPathNormalized.substring(5);
-                // "file:" may be followed by an empty authority, i.e. "file://" or "file:///". Collapse the run of
-                // leading slashes down to one, so that the "file://" prefix added below cannot produce a path with
-                // a run of slashes in it, e.g. "file://///tmp/x.jar".
-                var numLeadingSlashes = 0;
-                while (numLeadingSlashes < urlPathNormalized.length()
-                        && urlPathNormalized.charAt(numLeadingSlashes) == '/') {
-                    numLeadingSlashes++;
-                }
-                if (numLeadingSlashes > 1) {
-                    urlPathNormalized = urlPathNormalized.substring(numLeadingSlashes - 1);
-                }
-            }
+        // A '!' is only a nested jar separator if it really separates a jarfile from a path within it -- it is an
+        // ordinary filename character otherwise, and a path such as "/dir!bang/x.jar" must not be rewritten to
+        // "/dir!/bang/x.jar", which names a different file and cannot be opened. Everything before the outermost
+        // separator is left exactly as it is; from the separator onwards, every '!' is a separator, and each needs
+        // the '/' after it that the "jar:" URL scheme requires
+        // #903
+        final var nestedJarSepIdx = JarUtils.indexOfNestedJarSeparator(urlPathNormalized);
+        final var hasNestedJarSeparator = nestedJarSepIdx >= 0;
+        if (hasNestedJarSeparator) {
+            urlPathNormalized = urlPathNormalized.substring(0, nestedJarSepIdx) + urlPathNormalized
+                    .substring(nestedJarSepIdx).replace("/!", "!").replace("!/", "!").replace("!", "!/");
+        }
 
-            // A '!' is only a nested jar separator if it really separates a jarfile from a path within it -- it is
-            // an ordinary filename character otherwise, and a path such as "/dir!bang/x.jar" must not be rewritten
-            // to "/dir!/bang/x.jar", which names a different file and cannot be opened. Everything before the
-            // outermost separator is left exactly as it is; from the separator onwards, every '!' is a separator,
-            // and each needs the '/' after it that the "jar:" URL scheme requires
-            // #903
-            final var nestedJarSepIdx = JarUtils.indexOfNestedJarSeparator(urlPathNormalized);
-            hasNestedJarSeparator = nestedJarSepIdx >= 0;
-            if (hasNestedJarSeparator) {
-                urlPathNormalized = urlPathNormalized.substring(0, nestedJarSepIdx) + urlPathNormalized
-                        .substring(nestedJarSepIdx).replace("/!", "!").replace("!/", "!").replace("!", "!/");
-            }
+        urlPathNormalized = toFileURL(urlPathNormalized);
 
-            // On Windows, remove drive prefix from path, if present (otherwise the ':' after the drive letter will
-            // be escaped as %3A)
-            var windowsDrivePrefix = "";
-            if (VersionFinder.OS == OperatingSystem.Windows) {
-                if (urlPathNormalized.length() >= 2 && Character.isLetter(urlPathNormalized.charAt(0))
-                        && urlPathNormalized.charAt(1) == ':') {
-                    // Path of form "C:/xyz"
-                    windowsDrivePrefix = urlPathNormalized.substring(0, 2);
-                    urlPathNormalized = urlPathNormalized.substring(2);
-                } else if (urlPathNormalized.length() >= 3 && urlPathNormalized.charAt(0) == '/'
-                        && Character.isLetter(urlPathNormalized.charAt(1)) && urlPathNormalized.charAt(2) == ':') {
-                    // Path of form "/C:/xyz"
-                    windowsDrivePrefix = urlPathNormalized.substring(1, 3);
-                    urlPathNormalized = urlPathNormalized.substring(3);
-                }
-            }
-
-            // Prepend "file:///" to absolute paths and "file:" to relative paths
-            if (windowsDrivePrefix.isEmpty()) {
-                // There is no Windows drive
-                if (urlPathNormalized.startsWith("/")) {
-                    // Absolute path: file:///xyz
-                    urlPathNormalized = "file://" + urlPathNormalized;
-                } else {
-                    // Relative path: file:xyz
-                    urlPathNormalized = "file:" + urlPathNormalized;
-                }
-            } else {
-                // There is a Windows drive, path must be absolute
-                urlPathNormalized = "file:///" + windowsDrivePrefix + urlPathNormalized;
-            }
-
-            // Prepend "jar:" if the path really does name something nested inside a jarfile
-            if (hasNestedJarSeparator && !urlPathNormalized.startsWith("jar:")) {
-                urlPathNormalized = "jar:" + urlPathNormalized;
-            }
+        // Prepend "jar:" if the path really does name something nested inside a jarfile
+        if (hasNestedJarSeparator) {
+            urlPathNormalized = "jar:" + urlPathNormalized;
         }
         return encodePath(urlPathNormalized);
+    }
+
+    /**
+     * Strip the {@code "jar:"} and {@code "file:"} scheme prefixes from a URL path, if present, leaving a plain
+     * file path.
+     *
+     * @param urlPath
+     *            the URL path.
+     * @return the path with the scheme prefixes removed.
+     */
+    private static String stripJarAndFilePrefixes(final String urlPath) {
+        var path = urlPath;
+        if (path.startsWith("jar:")) {
+            path = path.substring(4);
+        }
+        if (path.startsWith("file:")) {
+            path = path.substring(5);
+            // "file:" may be followed by an empty authority, i.e. "file://" or "file:///". Collapse the run of
+            // leading slashes down to one, so that the "file://" prefix added by toFileURL() cannot produce a path
+            // with a run of slashes in it, e.g. "file://///tmp/x.jar".
+            var numLeadingSlashes = 0;
+            while (numLeadingSlashes < path.length() && path.charAt(numLeadingSlashes) == '/') {
+                numLeadingSlashes++;
+            }
+            if (numLeadingSlashes > 1) {
+                path = path.substring(numLeadingSlashes - 1);
+            }
+        }
+        return path;
+    }
+
+    /**
+     * Turn a plain file path into a {@code "file:"} URL, prepending {@code "file:///"} to absolute paths and
+     * {@code "file:"} to relative paths.
+     *
+     * @param path
+     *            the file path.
+     * @return the {@code "file:"} URL.
+     */
+    private static String toFileURL(final String path) {
+        // On Windows, remove the drive prefix from the path, if present (otherwise the ':' after the drive letter
+        // would be escaped as %3A)
+        var windowsDrivePrefix = "";
+        var pathWithoutDrive = path;
+        if (VersionFinder.OS == OperatingSystem.Windows) {
+            if (path.length() >= 2 && Character.isLetter(path.charAt(0)) && path.charAt(1) == ':') {
+                // Path of form "C:/xyz"
+                windowsDrivePrefix = path.substring(0, 2);
+                pathWithoutDrive = path.substring(2);
+            } else if (path.length() >= 3 && path.charAt(0) == '/' && Character.isLetter(path.charAt(1))
+                    && path.charAt(2) == ':') {
+                // Path of form "/C:/xyz"
+                windowsDrivePrefix = path.substring(1, 3);
+                pathWithoutDrive = path.substring(3);
+            }
+        }
+        if (!windowsDrivePrefix.isEmpty()) {
+            // There is a Windows drive, so the path must be absolute
+            return "file:///" + windowsDrivePrefix + pathWithoutDrive;
+        }
+        // Absolute path: file:///xyz -- relative path: file:xyz
+        return pathWithoutDrive.startsWith("/") ? "file://" + pathWithoutDrive : "file:" + pathWithoutDrive;
     }
 }

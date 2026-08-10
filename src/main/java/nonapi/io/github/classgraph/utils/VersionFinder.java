@@ -182,77 +182,121 @@ public final class VersionFinder {
      * @return the version number of ClassGraph.
      */
     public static synchronized String getVersion() {
-        // Try to get version number from pom.xml (available when running in Eclipse)
+        // Each source is tried in turn, from the most specific to the most general
+        var version = versionFromPomXml();
+        if (version == null) {
+            version = versionFromMavenProperties();
+        }
+        if (version == null) {
+            version = versionFromPackage();
+        }
+        return version == null ? "unknown" : version;
+    }
+
+    /**
+     * Trim a version string, mapping null and the empty string to null, so that an absent version and a blank one
+     * are treated the same way.
+     *
+     * @param version
+     *            the version string, or null.
+     * @return the trimmed version string, or null if there was no non-blank version.
+     */
+    private static @Nullable String trimVersion(final @Nullable String version) {
+        if (version == null) {
+            return null;
+        }
+        final var versionTrimmed = version.trim();
+        return versionTrimmed.isEmpty() ? null : versionTrimmed;
+    }
+
+    /**
+     * Get the version number from the {@code pom.xml} of the project that ClassGraph was built from. This is only
+     * available when running from a build directory rather than a jar, e.g. in Eclipse.
+     *
+     * @return the version number, or null if it could not be read.
+     */
+    private static @Nullable String versionFromPomXml() {
         final Class<?> cls = ClassGraph.class;
         try {
             final var className = cls.getName();
             final var classpathResource = cls.getResource("/" + JarUtils.classNameToClassfilePath(className));
-            if (classpathResource != null) {
-                final var absolutePackagePath = Path.of(classpathResource.toURI()).getParent();
-                final var packagePathSegments = className.length() - className.replace(".", "").length();
-                // Remove package segments from path
-                var path = absolutePackagePath;
-                for (var i = 0; i < packagePathSegments && path != null; i++) {
-                    path = path.getParent();
-                }
-                // Remove up to two more levels for "bin" or "target/classes"
-                for (var i = 0; i < 3 && path != null; i++, path = path.getParent()) {
-                    final var pom = path.resolve("pom.xml");
-                    try (var is = Files.newInputStream(pom)) {
-                        final var doc = getSecureDocumentBuilderFactory().newDocumentBuilder().parse(is);
-                        doc.getDocumentElement().normalize();
-                        var version = (String) getSecureXPathFactory().newXPath().compile("/project/version")
-                                .evaluate(doc, XPathConstants.STRING);
-                        if (version != null) {
-                            version = version.trim();
-                            if (!version.isEmpty()) {
-                                return version;
-                            }
-                        }
-                    } catch (final IOException e) {
-                        // Not found
-                    }
-                }
+            if (classpathResource == null) {
+                return null;
             }
-        } catch (final Exception e) {
-            // Ignore
-        }
-
-        // Try to get version number from maven properties in jar's META-INF directory
-        try (var is = cls.getResourceAsStream(
-                "/META-INF/maven/" + MAVEN_PACKAGE + "/" + MAVEN_ARTIFACT + "/pom.properties")) {
-            if (is != null) {
-                final Properties p = new Properties();
-                p.load(is);
-                final var version = p.getProperty("version", "").trim();
-                if (!version.isEmpty()) {
+            // Remove the package segments from the path of the package directory, to get the package root
+            var path = Path.of(classpathResource.toURI()).getParent();
+            final var packagePathSegments = className.length() - className.replace(".", "").length();
+            for (var i = 0; i < packagePathSegments && path != null; i++) {
+                path = path.getParent();
+            }
+            // Look for the pom.xml in the package root, and up to two levels above it ("bin" or "target/classes")
+            for (var i = 0; i < 3 && path != null; i++, path = path.getParent()) {
+                final var version = versionFromPomXml(path.resolve("pom.xml"));
+                if (version != null) {
                     return version;
                 }
             }
-        } catch (final IOException e) {
-            // Ignore
+        } catch (final Exception e) {
+            // Ignore -- the classfile is not in a directory, or its URI is not a valid path
         }
+        return null;
+    }
 
-        // Fallback to using Java API (version number is obtained from MANIFEST.MF)
-        final var pkg = cls.getPackage();
-        if (pkg != null) {
-            var version = pkg.getImplementationVersion();
-            if (version == null) {
-                version = "";
-            }
-            version = version.trim();
-            if (version.isEmpty()) {
-                version = pkg.getSpecificationVersion();
-                if (version == null) {
-                    version = "";
-                }
-                version = version.trim();
-            }
-            if (!version.isEmpty()) {
-                return version;
-            }
+    /**
+     * Read the {@code /project/version} element of a {@code pom.xml} file.
+     *
+     * @param pom
+     *            the path of the {@code pom.xml} file.
+     * @return the version number, or null if the file does not exist or has no non-blank version element.
+     * @throws Exception
+     *             if the file exists but could not be parsed, or the XML parser or XPath factory could not be
+     *             configured. The caller abandons the {@code pom.xml} search in that case, rather than trying the
+     *             enclosing directories.
+     */
+    private static @Nullable String versionFromPomXml(final Path pom) throws Exception {
+        try (var inputStream = Files.newInputStream(pom)) {
+            final var doc = getSecureDocumentBuilderFactory().newDocumentBuilder().parse(inputStream);
+            doc.getDocumentElement().normalize();
+            return trimVersion((String) getSecureXPathFactory().newXPath().compile("/project/version").evaluate(doc,
+                    XPathConstants.STRING));
+        } catch (final IOException e) {
+            // There is no pom.xml in this directory
+            return null;
         }
-        return "unknown";
+    }
+
+    /**
+     * Get the version number from the Maven {@code pom.properties} in the jar's {@code META-INF} directory.
+     *
+     * @return the version number, or null if it could not be read.
+     */
+    private static @Nullable String versionFromMavenProperties() {
+        try (var inputStream = ClassGraph.class.getResourceAsStream(
+                "/META-INF/maven/" + MAVEN_PACKAGE + "/" + MAVEN_ARTIFACT + "/pom.properties")) {
+            if (inputStream != null) {
+                final var properties = new Properties();
+                properties.load(inputStream);
+                return trimVersion(properties.getProperty("version"));
+            }
+        } catch (final IOException e) {
+            // Ignore -- the properties file is absent or unreadable
+        }
+        return null;
+    }
+
+    /**
+     * Get the version number from the {@link Package} of {@link ClassGraph}, which the JDK reads from the jar's
+     * {@code MANIFEST.MF}.
+     *
+     * @return the version number, or null if it could not be read.
+     */
+    private static @Nullable String versionFromPackage() {
+        final var pkg = ClassGraph.class.getPackage();
+        if (pkg == null) {
+            return null;
+        }
+        final var implementationVersion = trimVersion(pkg.getImplementationVersion());
+        return implementationVersion != null ? implementationVersion : trimVersion(pkg.getSpecificationVersion());
     }
 
     /**

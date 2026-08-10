@@ -136,80 +136,119 @@ public final class JarUtils {
         if (pathStr == null || pathStr.isEmpty()) {
             return new String[0];
         }
-        if (separatorChar != ':') {
-            // The fast path for Windows (which uses ';' as a path separator), or for separator other than ':'
-            final List<String> partsFiltered = new ArrayList<>();
-            for (final String part : pathStr.split(String.valueOf(separatorChar))) {
-                final var partFiltered = part.trim();
-                if (!partFiltered.isEmpty()) {
-                    partsFiltered.add(partFiltered);
-                }
+        return separatorChar == ':' ? splitOnColon(pathStr, scanSpec) : splitOnSeparator(pathStr, separatorChar);
+    }
+
+    /**
+     * Split a path on a separator char other than ':', which needs no special handling, since no URL scheme ends in
+     * it. This is the path taken on Windows, where the separator is ';'.
+     *
+     * @param pathStr
+     *            The path to split.
+     * @param separatorChar
+     *            The separator char to use.
+     * @return The non-empty path element substrings, trimmed.
+     */
+    private static String[] splitOnSeparator(final String pathStr, final char separatorChar) {
+        final List<String> partsFiltered = new ArrayList<>();
+        for (final String part : pathStr.split(String.valueOf(separatorChar))) {
+            final var partFiltered = part.trim();
+            if (!partFiltered.isEmpty()) {
+                partsFiltered.add(partFiltered);
             }
-            return partsFiltered.toArray(String[]::new);
-        } else {
-            // If the separator char is ':', don't split on URL protocol boundaries. This will allow for HTTP(S)
-            // jars to be given in java.class.path. (The JRE may not even support them, but we may as well do so.)
-            final Set<Integer> splitPoints = new HashSet<>();
-            for (var i = -1;;) {
-                // A ':' escaped as "\:" is part of a path element, not a separator (this is the escaping applied by
-                // appendPathElt, and undone by the DOUBLE_BACKSHLASH_WITH_COLON unescape below)
-                var foundNonPathSeparator = i > 0 && pathStr.charAt(i - 1) == '\\';
-                for (var j = 0; !foundNonPathSeparator && j < UNIX_NON_PATH_SEPARATORS.length; j++) {
-                    // Skip ':' characters in the middle of non-path-separators such as "http://"
-                    final var startIdx = i - UNIX_NON_PATH_SEPARATOR_COLON_POSITIONS[j];
-                    if (pathStr.regionMatches(true, startIdx, UNIX_NON_PATH_SEPARATORS[j], 0,
-                            UNIX_NON_PATH_SEPARATORS[j].length())
-                            && (startIdx == 0 || pathStr.charAt(startIdx - 1) == ':')) {
-                        // Don't treat the "jar:" in the middle of "x.jar:y.jar" as a URL scheme
-                        foundNonPathSeparator = true;
-                        break;
-                    }
-                }
-                if (!foundNonPathSeparator && scanSpec != null && scanSpec.allowedURLSchemes != null
-                        && !scanSpec.allowedURLSchemes.isEmpty()) {
-                    // If custom URL schemes have been registered, allow those to be used as delimiters too
-                    for (final String scheme : scanSpec.allowedURLSchemes) {
-                        // Skip schemes already handled by the faster matching code above
-                        if (!"http".equals(scheme) && !"https".equals(scheme) && !"jar".equals(scheme)
-                                && !"file".equals(scheme) && !"war".equals(scheme)) {
-                            final var schemeLen = scheme.length();
-                            final var startIdx = i - schemeLen;
-                            if (pathStr.regionMatches(true, startIdx, scheme, 0, schemeLen)
-                                    && (startIdx == 0 || pathStr.charAt(startIdx - 1) == ':')) {
-                                foundNonPathSeparator = true;
-                                break;
-                            }
-                        }
-                    }
-                }
-                if (!foundNonPathSeparator) {
-                    // The ':' character is a valid path separator
-                    splitPoints.add(i);
-                }
-                // Search for next ':' character
-                i = pathStr.indexOf(':', i + 1);
-                if (i < 0) {
-                    // Add end of string marker once last ':' has been found
-                    splitPoints.add(pathStr.length());
-                    break;
-                }
-            }
-            final List<Integer> splitPointsSorted = new ArrayList<>(splitPoints);
-            CollectionUtils.sortIfNotEmpty(splitPointsSorted);
-            final List<String> parts = new ArrayList<>();
-            for (var i = 1; i < splitPointsSorted.size(); i++) {
-                final int idx0 = splitPointsSorted.get(i - 1);
-                final int idx1 = splitPointsSorted.get(i);
-                // Trim, and unescape "\\:"
-                var part = pathStr.substring(idx0 + 1, idx1).trim();
-                part = DOUBLE_BACKSHLASH_WITH_COLON.matcher(part).replaceAll(":");
-                // Remove empty path components
-                if (!part.isEmpty()) {
-                    parts.add(part);
-                }
-            }
-            return parts.toArray(String[]::new);
         }
+        return partsFiltered.toArray(String[]::new);
+    }
+
+    /**
+     * Split a path on ':', skipping the colons that end a URL scheme, so that HTTP(S) jars can be given in
+     * {@code java.class.path}. (The JRE may not even support them, but we may as well do so.)
+     *
+     * @param pathStr
+     *            The path to split.
+     * @param scanSpec
+     *            the scan spec, or null
+     * @return The non-empty path element substrings, trimmed and unescaped.
+     */
+    private static String[] splitOnColon(final String pathStr, final @Nullable ScanSpec scanSpec) {
+        // Find the ':' characters that really are path separators. The position before the start of the string and
+        // the position after its end are both split points, so that the first and last parts are included.
+        final Set<Integer> splitPoints = new HashSet<>();
+        for (var i = -1;;) {
+            if (!isSchemeOrEscapedColon(pathStr, i, scanSpec)) {
+                splitPoints.add(i);
+            }
+            // Search for next ':' character
+            i = pathStr.indexOf(':', i + 1);
+            if (i < 0) {
+                // Add end of string marker once last ':' has been found
+                splitPoints.add(pathStr.length());
+                break;
+            }
+        }
+        final List<Integer> splitPointsSorted = new ArrayList<>(splitPoints);
+        CollectionUtils.sortIfNotEmpty(splitPointsSorted);
+        final List<String> parts = new ArrayList<>();
+        for (var i = 1; i < splitPointsSorted.size(); i++) {
+            final int idx0 = splitPointsSorted.get(i - 1);
+            final int idx1 = splitPointsSorted.get(i);
+            // Trim, and unescape "\\:"
+            var part = pathStr.substring(idx0 + 1, idx1).trim();
+            part = DOUBLE_BACKSHLASH_WITH_COLON.matcher(part).replaceAll(":");
+            // Remove empty path components
+            if (!part.isEmpty()) {
+                parts.add(part);
+            }
+        }
+        return parts.toArray(String[]::new);
+    }
+
+    /**
+     * Test whether a ':' in a path is part of a path element rather than a separator between two path elements,
+     * either because it ends a URL scheme such as {@code "http:"}, or because it was escaped as {@code "\:"}.
+     *
+     * @param pathStr
+     *            The path being split.
+     * @param colonIdx
+     *            The index of the ':' character, or -1 for the position before the start of the path (which is
+     *            never a scheme colon, since a scheme needs at least one character before its colon).
+     * @param scanSpec
+     *            the scan spec, or null
+     * @return true if the ':' is part of a path element, so the path must not be split there.
+     */
+    private static boolean isSchemeOrEscapedColon(final String pathStr, final int colonIdx,
+            final @Nullable ScanSpec scanSpec) {
+        // A ':' escaped as "\:" is part of a path element, not a separator (this is the escaping applied by
+        // appendPathElt, and undone by the DOUBLE_BACKSHLASH_WITH_COLON unescape in splitOnColon)
+        if (colonIdx > 0 && pathStr.charAt(colonIdx - 1) == '\\') {
+            return true;
+        }
+        for (var j = 0; j < UNIX_NON_PATH_SEPARATORS.length; j++) {
+            // Skip ':' characters in the middle of non-path-separators such as "http://"
+            final var startIdx = colonIdx - UNIX_NON_PATH_SEPARATOR_COLON_POSITIONS[j];
+            if (pathStr.regionMatches(true, startIdx, UNIX_NON_PATH_SEPARATORS[j], 0,
+                    UNIX_NON_PATH_SEPARATORS[j].length())
+                    // Don't treat the "jar:" in the middle of "x.jar:y.jar" as a URL scheme
+                    && (startIdx == 0 || pathStr.charAt(startIdx - 1) == ':')) {
+                return true;
+            }
+        }
+        if (scanSpec == null || scanSpec.allowedURLSchemes == null || scanSpec.allowedURLSchemes.isEmpty()) {
+            return false;
+        }
+        // If custom URL schemes have been registered, allow those to be used as delimiters too
+        for (final String scheme : scanSpec.allowedURLSchemes) {
+            // Skip schemes already handled by the faster matching code above
+            if (!"http".equals(scheme) && !"https".equals(scheme) && !"jar".equals(scheme) && !"file".equals(scheme)
+                    && !"war".equals(scheme)) {
+                final var startIdx = colonIdx - scheme.length();
+                if (pathStr.regionMatches(true, startIdx, scheme, 0, scheme.length())
+                        && (startIdx == 0 || pathStr.charAt(startIdx - 1) == ':')) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     // -------------------------------------------------------------------------------------------------------------
