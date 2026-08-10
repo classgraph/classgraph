@@ -265,14 +265,21 @@ final class GraphvizDotfileGenerator {
 
         // Class annotations
         final AnnotationInfoList annotationInfo = ci.annotationInfo;
-        if (annotationInfo != null && !annotationInfo.isEmpty()) {
-            buf.append("<tr><td colspan='3' bgcolor='").append(darkerColor)
-                    .append("'><font point-size='12'><b>ANNOTATIONS</b></font></td></tr>");
-            final AnnotationInfoList annotationInfoSorted = new AnnotationInfoList(annotationInfo);
-            CollectionUtils.sortIfNotEmpty(annotationInfoSorted);
-            for (final AnnotationInfo ai : annotationInfoSorted) {
-                final String annotationName = ai.getName();
-                if (!annotationName.startsWith("java.lang.annotation.")) {
+        if (annotationInfo != null) {
+            // Meta-annotations are not listed, so the annotations are filtered before the section header is
+            // written -- otherwise an annotation class, whose only annotations are meta-annotations, would get a
+            // section header with nothing under it
+            final AnnotationInfoList annotationInfoSorted = new AnnotationInfoList(annotationInfo.size());
+            for (final AnnotationInfo ai : annotationInfo) {
+                if (!ai.getName().startsWith("java.lang.annotation.")) {
+                    annotationInfoSorted.add(ai);
+                }
+            }
+            if (!annotationInfoSorted.isEmpty()) {
+                CollectionUtils.sortIfNotEmpty(annotationInfoSorted);
+                buf.append("<tr><td colspan='3' bgcolor='").append(darkerColor)
+                        .append("'><font point-size='12'><b>ANNOTATIONS</b></font></td></tr>");
+                for (final AnnotationInfo ai : annotationInfoSorted) {
                     buf.append("<tr>");
                     buf.append("<td align='center' valign='top'>");
                     htmlEncode(ai.toString(), buf);
