@@ -153,6 +153,12 @@ class Scanner implements Callable<ScanResult> {
         this.performScan = performScan;
         scanSpec.sortPrefixes();
         scanSpec.log(topLevelLog);
+        if (scanSpec.memoryMapFiles) {
+            // Memory mapping is the only thing that makes ClassGraph allocate direct ByteBuffers, and those buffers
+            // are freed when the ScanResult is closed, which can happen long after the scan -- so load the classes
+            // needed to free them now, while the classloader that loaded ClassGraph is certainly still alive (#331)
+            FileUtils.warmUpDirectByteBufferClosing(reflectionUtils);
+        }
         if (topLevelLog != null) {
             if (scanSpec.pathAcceptReject != null
                     && scanSpec.packagePrefixAcceptReject.isSpecificallyAccepted("")) {

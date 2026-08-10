@@ -1,7 +1,7 @@
 name: Memory mapping benchmark
 
 # Not an active workflow -- it is kept here, outside .github/workflows, so that it does not run on
-# every push. It measures how much difference enableMemoryMapping() makes on each of the three
+# every push. It measures how much difference memory mapping makes on each of the three
 # major operating systems; the numbers it produced are in BENCHMARK.md. To take the measurements
 # again, copy this file into .github/workflows, push the branch named below, collect the
 # artifacts, then remove it again.

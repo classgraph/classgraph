@@ -16,10 +16,8 @@ public class LockProbe {
             final Path jar = dir.resolve("probe.jar");
             Files.copy(Path.of(args[0]), jar);
 
-            var classGraph = new ClassGraph().overrideClasspath(jar.toString()).enableClassInfo();
-            if (memoryMapping) {
-                classGraph = classGraph.enableMemoryMapping();
-            }
+            final ClassGraph classGraph = new ClassGraph().overrideClasspath(jar.toString()).enableClassInfo();
+            setMemoryMapping(classGraph, memoryMapping);
             final ScanResult scanResult = classGraph.scan();
             System.out.printf("memoryMapping=%-5s  classes=%d%n", memoryMapping,
                     scanResult.getAllClasses().size());
@@ -72,6 +70,27 @@ public class LockProbe {
             Files.delete(dir);
         } catch (final Exception e) {
             // Ignore
+        }
+    }
+
+    /**
+     * Turn memory mapping on or off. ClassGraph chooses this by platform and offers no API to change it, so the
+     * scan spec's testing override is reached reflectively here -- setting it explicitly also means this benchmark
+     * measures both arms on Windows, where mapping is otherwise always on.
+     *
+     * @param classGraph
+     *            the ClassGraph instance to configure
+     * @param memoryMapping
+     *            whether to memory-map files
+     */
+    private static void setMemoryMapping(final ClassGraph classGraph, final boolean memoryMapping) {
+        try {
+            final java.lang.reflect.Field scanSpecField = ClassGraph.class.getDeclaredField("scanSpec");
+            scanSpecField.setAccessible(true);
+            final Object scanSpec = scanSpecField.get(classGraph);
+            scanSpec.getClass().getField("memoryMapFiles").setBoolean(scanSpec, memoryMapping);
+        } catch (final ReflectiveOperationException e) {
+            throw new RuntimeException("Could not set memory mapping", e);
         }
     }
 }

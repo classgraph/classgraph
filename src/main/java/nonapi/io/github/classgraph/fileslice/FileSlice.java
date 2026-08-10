@@ -37,7 +37,6 @@ import java.nio.channels.FileChannel;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import io.github.classgraph.ClassGraph;
 import nonapi.io.github.classgraph.fileslice.reader.RandomAccessByteBufferReader;
 import nonapi.io.github.classgraph.fileslice.reader.RandomAccessFileChannelReader;
 import nonapi.io.github.classgraph.fileslice.reader.RandomAccessReader;
@@ -139,7 +138,7 @@ public class FileSlice extends Slice {
         this.fileLength = file.length();
         this.isTopLevelFileSlice = true;
 
-        if (scanResources.scanSpec.enableMemoryMapping) {
+        if (scanResources.scanSpec.memoryMapFiles) {
             // Memory-map the whole file, if it can be mapped -- otherwise fall through and use the
             // RandomAccessFile API instead
             final var mapping = FileMapping.map(Objects.requireNonNull(fileChannel), fileLength, scanResources,
@@ -242,8 +241,8 @@ public class FileSlice extends Slice {
     }
 
     /**
-     * Read the slice into a {@link ByteBuffer} (or memory-map the slice to a {@link MappedByteBuffer}, if
-     * {@link ClassGraph#enableMemoryMapping()} was called.)
+     * Read the slice into a {@link ByteBuffer} (or memory-map the slice to a {@link MappedByteBuffer}, on a
+     * platform where files are memory-mapped).
      *
      * @return the byte buffer
      * @throws IOException

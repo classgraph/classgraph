@@ -786,6 +786,27 @@ not found in the scan result. `getAssignableTo(Class<?>)` and `getAssignableTo(S
 that, returning the empty list if the class was not found — matching the `Class<?>` /
 `String` overload pair that the rest of the query API already offers.
 
+### `enableMemoryMapping()` has been removed; ClassGraph now decides by platform
+
+Reading jarfiles through a `MappedByteBuffer` rather than through positioned `FileChannel`
+reads was an opt-in that a user had no way of evaluating without benchmarking their own
+workload. It has now been benchmarked on all three major platforms, on two JDKs, against
+three corpora, warm and cold — the numbers, the method and the tools are in BENCHMARK.md.
+The result is one-sided: on Windows, mapping is 16% to 38% faster on every workload
+measured, with the two ranges not even overlapping; on Linux it is at best about 10%
+faster warm, and up to 37% *slower* on a cold page cache when the jars hold many resources
+that are not read, since a page fault reads more than was asked for; on macOS it is within
+the noise in both directions.
+
+So ClassGraph now memory-maps on Windows and reads through the channel everywhere else,
+and `enableMemoryMapping()` is gone. Remove the call; there is nothing to replace it with.
+A program that called it gets what it asked for on Windows, and, on Linux and macOS,
+loses a setting that was as likely to cost time as to save it.
+
+One consequence for Windows users: the classes needed to release a mapped buffer when a
+`ScanResult` is closed are now loaded at the start of every scan, since every scan maps.
+On Linux and macOS they are not loaded at all.
+
 ## Behavior changes
 
 * **Malformed classfiles are now reported rather than silently producing null names.**
@@ -993,8 +1014,8 @@ that, returning the empty list if the class was not found — matching the `Clas
   rows that leave the name and parameter cells empty. Only the layout of the generated
   .dot file changes; the same annotations, methods and parameters are listed.
 
-* **`enableMemoryMapping()` now loads the classes needed to release memory-mapped
-  buffers, rather than the `ClassGraph` constructor doing it.** Releasing a mapped buffer
+* **The classes needed to release memory-mapped buffers are loaded at the start of a
+  scan that maps, rather than by the `ClassGraph` constructor.** Releasing a mapped buffer
   when a `ScanResult` is closed needs classes that ClassGraph defines lazily, and closing
   can happen long after the scan, by which time the classloader that loaded ClassGraph
   may no longer be able to define anything — in a container that has already torn down
@@ -1003,18 +1024,18 @@ that, returning the empty list if the class was not found — matching the `Clas
   user paid for it whether or not they memory-mapped anything: on a JDK with
   `java.lang.foreign` it loaded roughly 35 further classes on the first `new ClassGraph()`.
   Since memory mapping is the only thing that makes ClassGraph allocate such buffers, and
-  it is opt-in, the work has moved to `enableMemoryMapping()`. A program that does not
-  call that method no longer loads any of those classes. One further consequence: on JDK
-  17 to 21, where the buffer cleaner is reached reflectively, a security manager that
-  denies the reflective access made the `ClassGraph` constructor throw; now only
-  `enableMemoryMapping()` can throw for that reason.
+  mapping now happens on Windows only, the work has moved to the start of the scan and is
+  skipped entirely on Linux and macOS. One further consequence: on JDK 17 to 21, where the
+  buffer cleaner is reached reflectively, a security manager that denies the reflective
+  access made the `ClassGraph` constructor throw; now only a scan on Windows can throw for
+  that reason.
 
-* **`enableMemoryMapping()` now also applies to a jar reached through a `Path`.** A jar
-  at a URL whose scheme is backed by a `FileSystem` provider — as opposed to a jar on
-  disk, or one downloaded from an `http(s):` URL — is read through the `Path` API, and
-  that path never memory-mapped, whatever the setting said. It now maps such a jar too,
-  as long as the provider's `FileChannel` supports mapping, and falls back to reading
-  through the channel if it does not. Resources in a directory classpath element are
+* **Memory mapping now also applies to a jar reached through a `Path`.** A jar at a URL
+  whose scheme is backed by a `FileSystem` provider — as opposed to a jar on disk, or one
+  downloaded from an `http(s):` URL — is read through the `Path` API, and that path never
+  memory-mapped, whatever the setting said. On a platform where ClassGraph maps, it now
+  maps such a jar too, as long as the provider's `FileChannel` supports mapping, and falls
+  back to reading through the channel if it does not. Resources in a directory classpath element are
   still read rather than mapped: they are read once and then closed, and mapping and
   unmapping each one costs several times more than reading it.
 

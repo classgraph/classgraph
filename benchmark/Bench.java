@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Measures how much difference {@code ClassGraph#enableMemoryMapping()} makes to scan time.
+ * Measures how much difference memory-mapping jarfiles makes to scan time.
  *
  * Both arms run in the same JVM, alternating, and the order within each pair is swapped every other pair, so
  * that JIT warmup and machine drift affect the two arms equally.
@@ -75,7 +75,7 @@ public class Bench {
      * Run one scan.
      *
      * @param memoryMapping
-     *            whether to call {@code enableMemoryMapping()}
+     *            whether to memory-map files
      * @return how many milliseconds the scan took
      * @throws IOException
      *             if the corpus could not be evicted from the page cache
@@ -87,10 +87,8 @@ public class Bench {
             evict();
         }
         final long startTime = System.nanoTime();
-        var classGraph = new ClassGraph().overrideClasspath(classpath).enableAllInfo();
-        if (memoryMapping) {
-            classGraph = classGraph.enableMemoryMapping();
-        }
+        final ClassGraph classGraph = new ClassGraph().overrideClasspath(classpath).enableAllInfo();
+        setMemoryMapping(classGraph, memoryMapping);
         try (ScanResult scanResult = classGraph.scan()) {
             numClasses = scanResult.getAllClasses().size();
         }
@@ -126,5 +124,26 @@ public class Bench {
         Collections.sort(sorted);
         System.out.printf("  %s n=%2d  min=%.0f  median=%.0f  max=%.0f ms%n", label, sorted.size(), sorted.get(0),
                 sorted.get(sorted.size() / 2), sorted.get(sorted.size() - 1));
+    }
+
+    /**
+     * Turn memory mapping on or off. ClassGraph chooses this by platform and offers no API to change it, so the
+     * scan spec's testing override is reached reflectively here -- setting it explicitly also means this benchmark
+     * measures both arms on Windows, where mapping is otherwise always on.
+     *
+     * @param classGraph
+     *            the ClassGraph instance to configure
+     * @param memoryMapping
+     *            whether to memory-map files
+     */
+    private static void setMemoryMapping(final ClassGraph classGraph, final boolean memoryMapping) {
+        try {
+            final java.lang.reflect.Field scanSpecField = ClassGraph.class.getDeclaredField("scanSpec");
+            scanSpecField.setAccessible(true);
+            final Object scanSpec = scanSpecField.get(classGraph);
+            scanSpec.getClass().getField("memoryMapFiles").setBoolean(scanSpec, memoryMapping);
+        } catch (final ReflectiveOperationException e) {
+            throw new RuntimeException("Could not set memory mapping", e);
+        }
     }
 }

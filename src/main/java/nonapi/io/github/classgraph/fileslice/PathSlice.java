@@ -37,7 +37,6 @@ import java.nio.file.StandardOpenOption;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import io.github.classgraph.ClassGraph;
 import nonapi.io.github.classgraph.fileslice.reader.RandomAccessByteBufferReader;
 import nonapi.io.github.classgraph.fileslice.reader.RandomAccessFileChannelReader;
 import nonapi.io.github.classgraph.fileslice.reader.RandomAccessReader;
@@ -130,17 +129,17 @@ public class PathSlice extends Slice {
      *            the resources owned by the scan
      * @param checkAccess
      *            whether it is needed to check read access and if it is a file
-     * @param memoryMapIfEnabled
-     *            if true, and {@link ClassGraph#enableMemoryMapping()} was called, memory-map the whole file. Only
-     *            pass true for a file that is read many times at random offsets, such as a zipfile -- for a file
-     *            that is read once and then closed, mapping and unmapping the file costs more than reading it.
+     * @param memoryMapWholeFile
+     *            if true, and files are memory-mapped on this platform, memory-map the whole file. Only pass true
+     *            for a file that is read many times at random offsets, such as a zipfile -- for a file that is read
+     *            once and then closed, mapping and unmapping the file costs more than reading it.
      * @param log
      *            the log node, or null to skip logging
      * @throws IOException
      *             if the file cannot be opened.
      */
     public PathSlice(final Path path, final ScanResources scanResources, final boolean checkAccess,
-            final boolean memoryMapIfEnabled, final @Nullable LogNode log) throws IOException {
+            final boolean memoryMapWholeFile, final @Nullable LogNode log) throws IOException {
         super(0L, /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L, scanResources);
 
         if (checkAccess) {
@@ -157,7 +156,7 @@ public class PathSlice extends Slice {
         // Had to use 0L for sliceLength in call to super, since FileChannel wasn't open yet => update sliceLength
         this.sliceLength = fileLength;
 
-        if (memoryMapIfEnabled && scanResources.scanSpec.enableMemoryMapping) {
+        if (memoryMapWholeFile && scanResources.scanSpec.memoryMapFiles) {
             // Memory-map the whole file, if it can be mapped -- otherwise fall through and read through the
             // FileChannel API instead
             final var mapping = FileMapping.map(fileChannelOpened, fileLength, scanResources, path, log);
@@ -183,7 +182,7 @@ public class PathSlice extends Slice {
      */
     public PathSlice(final Path path, final ScanResources scanResources, final @Nullable LogNode log)
             throws IOException {
-        this(path, scanResources, /* checkAccess = */ true, /* memoryMapIfEnabled = */ true, log);
+        this(path, scanResources, /* checkAccess = */ true, /* memoryMapWholeFile = */ true, log);
     }
 
     /**
@@ -259,8 +258,8 @@ public class PathSlice extends Slice {
     }
 
     /**
-     * Read the slice into a {@link ByteBuffer} (or memory-map the slice to a {@link MappedByteBuffer}, if
-     * {@link ClassGraph#enableMemoryMapping()} was called and this slice is part of a zipfile).
+     * Read the slice into a {@link ByteBuffer} (or memory-map the slice to a {@link MappedByteBuffer}, on a
+     * platform where files are memory-mapped, if this slice is part of a zipfile).
      *
      * @return the byte buffer
      * @throws IOException

@@ -51,6 +51,8 @@ import nonapi.io.github.classgraph.scanspec.AcceptReject.AcceptRejectPrefix;
 import nonapi.io.github.classgraph.scanspec.AcceptReject.AcceptRejectWholeString;
 import nonapi.io.github.classgraph.utils.Assert;
 import nonapi.io.github.classgraph.utils.LogNode;
+import nonapi.io.github.classgraph.utils.VersionFinder;
+import nonapi.io.github.classgraph.utils.VersionFinder.OperatingSystem;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -273,8 +275,14 @@ public class ScanSpec {
 
     /**
      * If true, use a {@link MappedByteBuffer} rather than the {@link FileChannel} API to access file content.
+     *
+     * <p>
+     * Memory mapping is measurably faster on Windows and is not on Linux or macOS, where it can even be slower, so
+     * it is turned on for Windows only and there is no API to change it (see BENCHMARK.md for the measurements).
+     * This field is public so that tests can override the platform's choice and exercise both paths whatever
+     * platform they are running on.
      */
-    public boolean enableMemoryMapping;
+    public boolean memoryMapFiles = VersionFinder.OS == OperatingSystem.Windows;
 
     /** If true, all multi-release versions of a resource are found. */
     public boolean enableMultiReleaseVersions;

@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.ClassGraph;
+import io.github.classgraph.ScanSpecAccess;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.VersionFinder;
@@ -27,13 +28,18 @@ import nonapi.io.github.classgraph.utils.VersionFinder;
  */
 public class Issue939Test {
     /**
-     * Scanning a jar with memory mapping enabled works on all JDK versions (via an arena on JDK 22+).
+     * Scanning a jar with memory mapping works on all JDK versions (via an arena on JDK 22+), and the mapping is
+     * unmapped again when the {@link io.github.classgraph.ScanResult} is closed.
      */
     @Test
-    public void scanJarWithMemoryMappingEnabled() {
-        try (var scanResult = new ClassGraph().enableClassInfo().enableMemoryMapping()
+    public void scanJarWithMemoryMapping() {
+        final var classGraph = new ClassGraph().enableClassInfo()
                 .acceptPackages("org.springframework.boot.loader.util")
-                .overrideClasspath(Issue939Test.class.getClassLoader().getResource("issue209.jar")).scan()) {
+                .overrideClasspath(Issue939Test.class.getClassLoader().getResource("issue209.jar"));
+        // Files are memory-mapped on Windows only, so the platform's choice is overridden here to exercise the
+        // mapping path whatever platform this test runs on
+        ScanSpecAccess.scanSpecOf(classGraph).memoryMapFiles = true;
+        try (var scanResult = classGraph.scan()) {
             assertThat(scanResult.getAllClasses().getNames())
                     .contains("org.springframework.boot.loader.util.SystemPropertyUtils");
         }

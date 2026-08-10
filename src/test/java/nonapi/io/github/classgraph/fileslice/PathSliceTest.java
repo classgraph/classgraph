@@ -14,7 +14,7 @@ import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 
 /**
- * Tests that a {@link PathSlice} for a whole file is memory-mapped when {@code enableMemoryMapping()} was called,
+ * Tests that a {@link PathSlice} for a whole file is memory-mapped when the scan spec says files are memory-mapped,
  * and that a mapped slice reads back the same content as an unmapped one.
  */
 public class PathSliceTest {
@@ -24,13 +24,14 @@ public class PathSliceTest {
     /**
      * Create the resources owned by a scan.
      *
-     * @param enableMemoryMapping
-     *            the value of {@code ScanSpec#enableMemoryMapping}
+     * @param memoryMapFiles
+     *            the value to override {@code ScanSpec#memoryMapFiles} with, so that both paths are tested whatever
+     *            the platform's own choice is
      * @return the scan resources
      */
-    private static ScanResources scanResources(final boolean enableMemoryMapping) {
+    private static ScanResources scanResources(final boolean memoryMapFiles) {
         final var scanSpec = new ScanSpec();
-        scanSpec.enableMemoryMapping = enableMemoryMapping;
+        scanSpec.memoryMapFiles = memoryMapFiles;
         return new ScanResources(scanSpec, new ReflectionUtils());
     }
 
@@ -53,7 +54,7 @@ public class PathSliceTest {
     @Test
     public void aWholeFileSliceIsMemoryMappedIfMappingIsEnabled(@TempDir final Path tempDir) throws IOException {
         final var file = writeTestFile(tempDir);
-        final var scanResources = scanResources(/* enableMemoryMapping = */ true);
+        final var scanResources = scanResources(/* memoryMapFiles = */ true);
         final var slice = new PathSlice(file, scanResources, /* log = */ null);
         try {
             // A mapped slice is read from a direct ByteBuffer, an unmapped slice from a heap ByteBuffer
@@ -72,7 +73,7 @@ public class PathSliceTest {
     @Test
     public void aSubSliceOfAMappedSliceReadsTheRightRange(@TempDir final Path tempDir) throws IOException {
         final var file = writeTestFile(tempDir);
-        final var scanResources = scanResources(/* enableMemoryMapping = */ true);
+        final var scanResources = scanResources(/* memoryMapFiles = */ true);
         final var slice = new PathSlice(file, scanResources, /* log = */ null);
         try {
             final var subSlice = slice.slice(10, 5, /* isDeflatedZipEntry = */ false,
@@ -92,7 +93,7 @@ public class PathSliceTest {
     @Test
     public void aWholeFileSliceIsNotMappedIfMappingIsDisabled(@TempDir final Path tempDir) throws IOException {
         final var file = writeTestFile(tempDir);
-        final var scanResources = scanResources(/* enableMemoryMapping = */ false);
+        final var scanResources = scanResources(/* memoryMapFiles = */ false);
         final var slice = new PathSlice(file, scanResources, /* log = */ null);
         try {
             assertThat(slice.read().isDirect()).isFalse();
@@ -109,9 +110,9 @@ public class PathSliceTest {
     @Test
     public void aResourceSliceIsNotMemoryMapped(@TempDir final Path tempDir) throws IOException {
         final var file = writeTestFile(tempDir);
-        final var scanResources = scanResources(/* enableMemoryMapping = */ true);
+        final var scanResources = scanResources(/* memoryMapFiles = */ true);
         final var slice = new PathSlice(file, scanResources, /* checkAccess = */ false,
-                /* memoryMapIfEnabled = */ false, /* log = */ null);
+                /* memoryMapWholeFile = */ false, /* log = */ null);
         try {
             assertThat(slice.read().isDirect()).isFalse();
             assertThat(slice.load()).isEqualTo(CONTENT);

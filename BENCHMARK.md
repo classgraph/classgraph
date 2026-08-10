@@ -1,9 +1,11 @@
 # Memory mapping benchmark
 
-`ClassGraph#enableMemoryMapping()` asks ClassGraph to read jarfiles through `FileChannel#map` rather than
-through positioned `FileChannel#read` calls. It has always been off by default. This file records what that
-option is actually worth on each of the three major operating systems, so that the decision to keep it, remove
-it, or turn it on by default rests on measurements rather than on folklore.
+ClassGraph can read jarfiles through `FileChannel#map` rather than through positioned `FileChannel#read` calls.
+In 4.x this was an opt-in, `ClassGraph#enableMemoryMapping()`, and it was off by default. This file records what
+mapping is actually worth on each of the three major operating systems, so that the decision to keep the option,
+remove it, or turn mapping on by default rests on measurements rather than on folklore. The measurements are
+what led to the 5.0 behavior: the option is gone, and ClassGraph maps on Windows and reads through the channel
+everywhere else.
 
 ## How the numbers were produced
 
@@ -36,7 +38,7 @@ branch it names. `benchmark/evict.py` is what drops a file from the Linux page c
 
 ## Warm page cache, median milliseconds
 
-Lower is better. `off` is mapping disabled, `on` is `enableMemoryMapping()`.
+Lower is better. `off` is mapping disabled, `on` is mapping enabled.
 
 | Platform | corpus off → on | mixed off → on | huge off → on |
 |---|---|---|---|
@@ -150,13 +152,15 @@ Memory mapping earns its place on Windows and nowhere else:
 - **Linux:** 0% to 10% faster warm, a wash cold, and up to 37% *slower* cold on a resource-heavy classpath.
 - **macOS:** inside the noise, in both directions.
 
-So the option should not be removed — that would give up the Windows win — and it should not become the default
-everywhere, because that regresses the cold, resource-heavy Linux case, which is the one users notice.
+Mapping everywhere is wrong, because it regresses the cold, resource-heavy Linux case, which is the one users
+notice. Mapping nowhere is wrong too, because it gives up a win on Windows that is larger than anything else in
+this file. And leaving it to the user as an opt-in asks a question no one can answer without repeating this
+whole exercise on their own workload.
 
-It stays **opt-in and off by default**, with the Windows result documented so that anyone scanning on Windows
-knows to turn it on.
+So in 5.0 **ClassGraph memory-maps on Windows and reads through the channel on every other platform**, and
+`ClassGraph#enableMemoryMapping()` has been removed. There is nothing to configure.
 
 The measurement that would change this: a bare-metal Windows machine with local NVMe showing the same gap. The
 Windows numbers here come from a GitHub Actions VM with network-backed storage and only one sample, so it is not
 yet clear whether Windows is genuinely slower at positioned reads or whether the virtualized disk exaggerates
-it. If bare metal reproduces the gap, turning mapping on by default on Windows only becomes the right call.
+it. If bare metal shows no gap, the right call becomes reading through the channel everywhere.
