@@ -873,7 +873,10 @@ class Scanner implements Callable<ScanResult> {
             if (classpathElt instanceof ClasspathElementDir) {
                 // Separate out ClasspathElementFileDir and ClasspathElementPathDir elements from other types
                 final File file = classpathElt.getFile();
-                final String path = file == null ? classpathElt.toString() : file.getPath();
+                // File#getPath() uses the platform separator, so on Windows the path is separated by '\', but
+                // nested classpath root prefixes are matched against '/'-separated relative paths
+                final String path = file == null ? classpathElt.toString()
+                        : file.getPath().replace(File.separatorChar, '/');
                 classpathEltDirs.add(new SimpleEntry<>(path, classpathElt));
 
             } else if (classpathElt instanceof ClasspathElementZip) {
