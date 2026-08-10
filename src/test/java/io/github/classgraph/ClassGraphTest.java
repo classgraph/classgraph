@@ -237,13 +237,16 @@ public class ClassGraphTest {
      * It must still be treated as one classpath entry.
      */
     @Test
-    public void aSinglePathIsOneClasspathEntry() {
+    public void aSinglePathIsOneClasspathEntry() throws IOException {
         try (var scanResult = new ClassGraph().overrideClasspath(markerDir).scan()) {
             assertThat(scanResult.getAllResources().getPaths()).containsExactly("marker.txt");
         }
-        // A list of Paths is still one classpath entry per element
+        // A list of Paths is still one classpath entry per element. Classpath entries are canonicalized, so the
+        // expected paths have to be canonicalized too -- on macOS the temp directory is reached through the symlink
+        // /var -> /private/var, and on Windows through an 8.3 short name (C:\Users\RUNNER~1).
         try (var scanResult = new ClassGraph().overrideClasspath(List.of(markerDir, classesDir)).scan()) {
-            assertThat(scanResult.getClasspathFiles()).containsExactly(markerDir.toFile(), classesDir.toFile());
+            assertThat(scanResult.getClasspathFiles()).containsExactly(markerDir.toRealPath().toFile(),
+                    classesDir.toRealPath().toFile());
         }
     }
 
