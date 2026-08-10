@@ -396,7 +396,10 @@ class ClasspathElementDir extends ClasspathElement {
 
             private PathSlice openAndCreateSlice() throws IOException {
                 checkCanOpen();
-                final var slice = new PathSlice(resourcePath, false, 0L, scanResources, false);
+                // (A resource in a directory classpath element is read once and then closed, so it is not worth
+                // memory-mapping it, even if ClassGraph#enableMemoryMapping() was called)
+                final var slice = new PathSlice(resourcePath, scanResources, /* checkAccess = */ false,
+                        /* memoryMapIfEnabled = */ false, /* log = */ null);
                 pathSlice = slice;
                 length = slice.sliceLength;
                 return slice;

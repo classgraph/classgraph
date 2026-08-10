@@ -1009,6 +1009,15 @@ that, returning the empty list if the class was not found — matching the `Clas
   denies the reflective access made the `ClassGraph` constructor throw; now only
   `enableMemoryMapping()` can throw for that reason.
 
+* **`enableMemoryMapping()` now also applies to a jar reached through a `Path`.** A jar
+  at a URL whose scheme is backed by a `FileSystem` provider — as opposed to a jar on
+  disk, or one downloaded from an `http(s):` URL — is read through the `Path` API, and
+  that path never memory-mapped, whatever the setting said. It now maps such a jar too,
+  as long as the provider's `FileChannel` supports mapping, and falls back to reading
+  through the channel if it does not. Resources in a directory classpath element are
+  still read rather than mapped: they are read once and then closed, and mapping and
+  unmapping each one costs several times more than reading it.
+
 * **`toString()` now follows the JDK's own rendering of the same thing, wherever the JDK
   renders it.** ClassGraph's `toString()` methods are meant to read as Java source
   declarations, and several of them had drifted from the corresponding JDK method. Five

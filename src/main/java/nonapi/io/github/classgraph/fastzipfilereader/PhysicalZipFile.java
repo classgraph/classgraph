@@ -96,7 +96,7 @@ class PhysicalZipFile {
             throws IOException {
         this.path = path;
         this.pathStr = FastPathResolver.resolve(FileUtils.currDirPath(), path.toString());
-        this.slice = new PathSlice(path, scanResources);
+        this.slice = new PathSlice(path, scanResources, log);
     }
 
     /**

@@ -34,7 +34,6 @@ import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
-import java.nio.channels.FileChannel.MapMode;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -44,7 +43,6 @@ import nonapi.io.github.classgraph.fileslice.reader.RandomAccessFileChannelReade
 import nonapi.io.github.classgraph.fileslice.reader.RandomAccessReader;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
-import nonapi.io.github.classgraph.utils.VersionFinder;
 import org.jspecify.annotations.Nullable;
 
 /** A {@link File} slice. */
@@ -65,13 +63,10 @@ public class FileSlice extends Slice {
     private @Nullable ByteBuffer backingByteBuffer;
 
     /**
-     * The {@code java.lang.foreign.Arena} (JDK 22+) used to memory-map the file, if any. Typed as {@link Object},
-     * since ClassGraph needs to compile and run on JDK 17+. Closing the arena unmaps {@link #backingByteBuffer},
-     * without needing to call the terminally-deprecated {@code Unsafe::invokeCleaner} method. Only set for toplevel
-     * file slices, which own the mapping (sub slices just duplicate the backing byte buffer).
+     * The memory mapping of the file, if it was memory-mapped. Only set for toplevel file slices, which own the
+     * mapping (sub slices just duplicate the backing byte buffer).
      */
-    // #939
-    private @Nullable Object arena;
+    private @Nullable FileMapping fileMapping;
 
     /** True if this is a top level file slice. */
     private final boolean isTopLevelFileSlice;
@@ -144,65 +139,17 @@ public class FileSlice extends Slice {
         this.fileLength = file.length();
         this.isTopLevelFileSlice = true;
 
-        // (Files larger than MAX_BUFFER_SIZE cannot be memory-mapped to a single ByteBuffer -- for those, fall
-        // through and use the RandomAccessFile API instead)
-        if (scanResources.scanSpec.enableMemoryMapping && fileLength <= FileUtils.MAX_BUFFER_SIZE) {
-            // On JDK 22+, memory-map the file using the java.lang.foreign.Arena API, so that the mapped ByteBuffer
-            // can be unmapped by closing the arena when this slice is closed, rather than by calling the
-            // terminally-deprecated method Unsafe::invokeCleaner (#939). (openArena returns null on JDK older than
-            // 22.)
-            arena = FileUtils.openArena(scanResources.reflectionUtils);
-            try {
-                // Try mapping file (some operating systems throw OutOfMemoryError if file can't be mapped, some
-                // throw IOException)
-                backingByteBuffer = mapFile();
-            } catch (IOException | OutOfMemoryError e) {
-                // Try running garbage collection then try mapping the file again
-                System.gc();
-                FileUtils.runFinalization(scanResources.reflectionUtils);
-                try {
-                    backingByteBuffer = mapFile();
-                } catch (IOException | OutOfMemoryError e2) {
-                    if (log != null) {
-                        log.log("File " + file + " cannot be memory mapped: " + e2
-                                + " (using RandomAccessFile API instead)");
-                    }
-                    // Fall through -- RandomAccessFile API will be used instead
-                }
-            }
-            if (backingByteBuffer == null && arena != null) {
-                // The arena ended up not being used to map the file -- close it again
-                FileUtils.closeArena(arena, scanResources.reflectionUtils, log);
-                arena = null;
-            }
+        if (scanResources.scanSpec.enableMemoryMapping) {
+            // Memory-map the whole file, if it can be mapped -- otherwise fall through and use the
+            // RandomAccessFile API instead
+            final var mapping = FileMapping.map(Objects.requireNonNull(fileChannel), fileLength, scanResources,
+                    file, log);
+            fileMapping = mapping;
+            backingByteBuffer = mapping == null ? null : mapping.byteBuffer;
         }
 
         // Mark toplevel slice as open
         scanResources.markSliceAsOpen(this);
-    }
-
-    /**
-     * Memory-map the file to a {@link ByteBuffer}, using an {@code Arena} to perform the mapping on JDK 22+, or
-     * {@link FileChannel#map(MapMode, long, long)} on older JDK versions.
-     *
-     * @return the mapped byte buffer, or null if the arena-based mapping API could not be invoked reflectively.
-     * @throws IOException
-     *             if an I/O exception occurred while mapping the file (mapping may succeed if retried after garbage
-     *             collection).
-     */
-    private @Nullable ByteBuffer mapFile() throws IOException {
-        final var openFileChannel = Objects.requireNonNull(fileChannel);
-        if (arena != null) {
-            return FileUtils.mapFileUsingArena(arena, openFileChannel, 0L, fileLength,
-                    scanResources.reflectionUtils);
-        }
-        if (VersionFinder.JAVA_MAJOR_VERSION >= 22) {
-            // An arena could not be opened, even though the arena API should be available -- don't fall back to
-            // FileChannel#map, since the resulting MappedByteBuffer could only be unmapped by the garbage collector
-            // (Unsafe::invokeCleaner is not used on JDK 22+, see #939) -- use the RandomAccessFile API instead
-            return null;
-        }
-        return openFileChannel.map(MapMode.READ_ONLY, 0L, fileLength);
     }
 
     /**
@@ -327,17 +274,12 @@ public class FileSlice extends Slice {
     @Override
     public void close() {
         if (!isClosed.getAndSet(true)) {
-            if (isTopLevelFileSlice && backingByteBuffer != null) {
-                // Only unmap the backing ByteBuffer in the toplevel file slice, so that it is only closed once
-                // (also duplicates of mapped ByteBuffers cannot be closed by the cleaner API)
-                if (arena != null) {
-                    // JDK 22+: unmap the ByteBuffer by closing the arena that was used to map it (#939)
-                    FileUtils.closeArena(arena, scanResources.reflectionUtils, /* log = */ null);
-                    arena = null;
-                } else {
-                    FileUtils.closeDirectByteBuffer(backingByteBuffer, scanResources.reflectionUtils,
-                            /* log = */ null);
-                }
+            final var mapping = fileMapping;
+            if (mapping != null) {
+                // Only the toplevel file slice has a FileMapping, so the file is only unmapped once (also
+                // duplicates of mapped ByteBuffers cannot be closed by the cleaner API)
+                mapping.unmap(scanResources);
+                fileMapping = null;
             }
             backingByteBuffer = null;
             fileChannel = null;

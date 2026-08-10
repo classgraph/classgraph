@@ -30,15 +30,19 @@ package nonapi.io.github.classgraph.fileslice;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import io.github.classgraph.ClassGraph;
+import nonapi.io.github.classgraph.fileslice.reader.RandomAccessByteBufferReader;
 import nonapi.io.github.classgraph.fileslice.reader.RandomAccessFileChannelReader;
 import nonapi.io.github.classgraph.fileslice.reader.RandomAccessReader;
 import nonapi.io.github.classgraph.utils.FileUtils;
+import nonapi.io.github.classgraph.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
 /** A {@link Path} slice. */
@@ -67,6 +71,15 @@ public class PathSlice extends Slice {
 
     /** True if this is a top level file slice. */
     private final boolean isTopLevelFileSlice;
+
+    /**
+     * The memory mapping of the file, if it was memory-mapped. Only set for toplevel file slices, which own the
+     * mapping (sub slices just duplicate the backing byte buffer).
+     */
+    private @Nullable FileMapping fileMapping;
+
+    /** The backing byte buffer, if the file was memory-mapped. */
+    private @Nullable ByteBuffer backingByteBuffer;
 
     /** True if {@link #close} has been called. */
     private final AtomicBoolean isClosed = new AtomicBoolean();
@@ -97,6 +110,13 @@ public class PathSlice extends Slice {
         this.fileLength = parentSlice.fileLength;
         this.isTopLevelFileSlice = false;
 
+        if (parentSlice.backingByteBuffer != null) {
+            // Duplicate and slice the backing byte buffer, if there is one
+            this.backingByteBuffer = parentSlice.backingByteBuffer.duplicate();
+            this.backingByteBuffer.position((int) sliceStartPos);
+            this.backingByteBuffer.limit((int) (sliceStartPos + sliceLength));
+        }
+
         // Only mark toplevel file slices as open (sub slices don't need to be marked as open since they don't need
         // to be closed, they just copy the resource references of the toplevel slice)
     }
@@ -106,41 +126,22 @@ public class PathSlice extends Slice {
      *
      * @param path
      *            the path
-     * @param isDeflatedZipEntry
-     *            true if this is a deflated zip entry
-     * @param inflatedLengthHint
-     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
-     *            zip entry.
-     * @param scanResources
-     *            the resources owned by the scan
-     * @throws IOException
-     *             if the file cannot be opened.
-     */
-    public PathSlice(final Path path, final boolean isDeflatedZipEntry, final long inflatedLengthHint,
-            final ScanResources scanResources) throws IOException {
-        this(path, isDeflatedZipEntry, inflatedLengthHint, scanResources, true);
-    }
-
-    /**
-     * Constructor for toplevel file slice.
-     *
-     * @param path
-     *            the path
-     * @param isDeflatedZipEntry
-     *            true if this is a deflated zip entry
-     * @param inflatedLengthHint
-     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
-     *            zip entry.
      * @param scanResources
      *            the resources owned by the scan
      * @param checkAccess
      *            whether it is needed to check read access and if it is a file
+     * @param memoryMapIfEnabled
+     *            if true, and {@link ClassGraph#enableMemoryMapping()} was called, memory-map the whole file. Only
+     *            pass true for a file that is read many times at random offsets, such as a zipfile -- for a file
+     *            that is read once and then closed, mapping and unmapping the file costs more than reading it.
+     * @param log
+     *            the log node, or null to skip logging
      * @throws IOException
      *             if the file cannot be opened.
      */
-    public PathSlice(final Path path, final boolean isDeflatedZipEntry, final long inflatedLengthHint,
-            final ScanResources scanResources, final boolean checkAccess) throws IOException {
-        super(0L, isDeflatedZipEntry, inflatedLengthHint, scanResources);
+    public PathSlice(final Path path, final ScanResources scanResources, final boolean checkAccess,
+            final boolean memoryMapIfEnabled, final @Nullable LogNode log) throws IOException {
+        super(0L, /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L, scanResources);
 
         if (checkAccess) {
             // Make sure the File is readable and is a regular file
@@ -156,22 +157,33 @@ public class PathSlice extends Slice {
         // Had to use 0L for sliceLength in call to super, since FileChannel wasn't open yet => update sliceLength
         this.sliceLength = fileLength;
 
+        if (memoryMapIfEnabled && scanResources.scanSpec.enableMemoryMapping) {
+            // Memory-map the whole file, if it can be mapped -- otherwise fall through and read through the
+            // FileChannel API instead
+            final var mapping = FileMapping.map(fileChannelOpened, fileLength, scanResources, path, log);
+            fileMapping = mapping;
+            backingByteBuffer = mapping == null ? null : mapping.byteBuffer;
+        }
+
         // Mark toplevel slice as open
         scanResources.markSliceAsOpen(this);
     }
 
     /**
-     * Constructor for toplevel file slice.
+     * Constructor for a toplevel slice of a whole zipfile.
      *
      * @param path
      *            the path
      * @param scanResources
      *            the resources owned by the scan
+     * @param log
+     *            the log node, or null to skip logging
      * @throws IOException
      *             if the file cannot be opened.
      */
-    public PathSlice(final Path path, final ScanResources scanResources) throws IOException {
-        this(path, /* isDeflatedZipEntry = */ false, /* inflatedSizeHint = */ 0L, scanResources);
+    public PathSlice(final Path path, final ScanResources scanResources, final @Nullable LogNode log)
+            throws IOException {
+        this(path, scanResources, /* checkAccess = */ true, /* memoryMapIfEnabled = */ true, log);
     }
 
     /**
@@ -204,8 +216,14 @@ public class PathSlice extends Slice {
      */
     @Override
     public RandomAccessReader randomAccessReader() {
-        // Return a RandomAccessReader that uses the FileChannel
-        return new RandomAccessFileChannelReader(fileChannel(), sliceStartPos, sliceLength);
+        final var mappedByteBuffer = backingByteBuffer;
+        if (mappedByteBuffer == null) {
+            // If file was not mmap'd, return a RandomAccessReader that uses the FileChannel
+            return new RandomAccessFileChannelReader(fileChannel(), sliceStartPos, sliceLength);
+        } else {
+            // If file was mmap'd, return a RandomAccessReader that uses the ByteBuffer
+            return new RandomAccessByteBufferReader(mappedByteBuffer, sliceStartPos, sliceLength);
+        }
     }
 
     /**
@@ -241,8 +259,8 @@ public class PathSlice extends Slice {
     }
 
     /**
-     * Read the slice into a {@link ByteBuffer}. (A {@link PathSlice} is never memory-mapped, unlike a
-     * {@link FileSlice} -- the content is always copied into a heap {@link ByteBuffer}.)
+     * Read the slice into a {@link ByteBuffer} (or memory-map the slice to a {@link MappedByteBuffer}, if
+     * {@link ClassGraph#enableMemoryMapping()} was called and this slice is part of a zipfile).
      *
      * @return the byte buffer
      * @throws IOException
@@ -250,6 +268,7 @@ public class PathSlice extends Slice {
      */
     @Override
     public ByteBuffer read() throws IOException {
+        final var mappedByteBuffer = backingByteBuffer;
         if (isDeflatedZipEntry) {
             // Inflate to RAM if deflated (unfortunately there is no lazy-loading ByteBuffer that will decompress
             // partial streams on demand, so we have to decompress the whole zip entry)
@@ -257,20 +276,33 @@ public class PathSlice extends Slice {
                 throw new IOException("Uncompressed size is larger than 2GB");
             }
             return ByteBuffer.wrap(load());
+        } else if (mappedByteBuffer == null) {
+            // Copy from FileChannel to byte array, then wrap in a ByteBuffer
+            if (sliceLength > FileUtils.MAX_BUFFER_SIZE) {
+                throw new IOException("File is larger than 2GB");
+            }
+            return ByteBuffer.wrap(load());
+        } else {
+            // PathSlice is backed with a MappedByteBuffer -- duplicate it and return it (low-cost operation)
+            return mappedByteBuffer.duplicate();
         }
-        // Copy from FileChannel to byte array, then wrap in a ByteBuffer
-        if (sliceLength > FileUtils.MAX_BUFFER_SIZE) {
-            throw new IOException("File is larger than 2GB");
-        }
-        return ByteBuffer.wrap(load());
     }
 
     /**
-     * Close the slice, closing the {@link FileChannel} if this is the toplevel slice.
+     * Close the slice, unmapping any backing {@link MappedByteBuffer} and closing the {@link FileChannel} if this
+     * is the toplevel slice.
      */
     @Override
     public void close() {
         if (!isClosed.getAndSet(true)) {
+            final var mapping = fileMapping;
+            if (mapping != null) {
+                // Only the toplevel file slice has a FileMapping, so the file is only unmapped once (also
+                // duplicates of mapped ByteBuffers cannot be closed by the cleaner API)
+                mapping.unmap(scanResources);
+                fileMapping = null;
+            }
+            backingByteBuffer = null;
             final var fileChannelCurr = fileChannel;
             if (isTopLevelFileSlice && fileChannelCurr != null) {
                 // Only close the FileChannel in the toplevel file slice, so that it is only closed once (sub slices
