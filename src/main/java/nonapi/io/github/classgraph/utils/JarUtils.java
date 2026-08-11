@@ -373,15 +373,21 @@ public final class JarUtils {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Returns the leafname of a path, after first stripping off everything after the first '!', if present.
-     * 
+     * Returns the leafname of a path, after first stripping off everything from the nested jar separator ('!')
+     * onwards, if present, so that the leafname of a path within a jarfile is the name of the jarfile itself.
+     *
      * @param path
      *            A file path.
      * @return The leafname of the path.
      */
     public static String leafName(final String path) {
-        final int bangIdx = path.indexOf('!');
-        final int endIdx = bangIdx >= 0 ? bangIdx : path.length();
+        // Only a '!' that separates a jarfile from a path within it ends the leafname -- a '!' is an ordinary
+        // filename character otherwise. Ending the leafname at the first '!' regardless meant that the leafname of
+        // a jar in a directory whose name contains a '!' was the directory name rather than the jar name, so the
+        // jar matched no accept or reject criterion and was silently skipped
+        // #903
+        final int nestedJarSepIdx = indexOfNestedJarSeparator(path);
+        final int endIdx = nestedJarSepIdx >= 0 ? nestedJarSepIdx : path.length();
         int leafStartIdx = 1 + (File.separatorChar == '/' ? path.lastIndexOf('/', endIdx)
                 : Math.max(path.lastIndexOf('/', endIdx), path.lastIndexOf(File.separatorChar, endIdx)));
         // In case of temp files (for jars extracted from within jars), remove the temp filename prefix -- see
