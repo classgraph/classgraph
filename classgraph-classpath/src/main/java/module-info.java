@@ -53,9 +53,11 @@ module io.github.classgraph.classpath {
 
     // N.B. make sure the "Import-Package" entries in the manifest (in pom.xml) match these "requires" statements.
 
-    // The shared helper classes. This is "requires transitive" because they appear in signatures that the modules
-    // above this one use, e.g. the LogNode passed to the classpath finder
-    requires transitive io.github.classgraph.base;
+    // The archive reader, used to read the Class-Path: manifest entry of each jarfile found on the classpath, so
+    // that the classpath can be expanded with the jarfiles it references. This is "requires transitive" because
+    // the shared helper classes and the archive reader both appear in signatures that the module above this one
+    // uses
+    requires transitive io.github.classgraph.vfs;
     // ModulePathInfo requires java.management
     requires java.management;
 

@@ -32,13 +32,13 @@
 	<dependencies>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
-			<artifactId>classgraph-vfs</artifactId>
+			<artifactId>classgraph-classpath</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<!-- Test dependencies: -->
-		<!-- Narcissus is an optional dependency of classgraph-classpath, so it is not inherited here. The tests
-		     that check what can be reached only with Narcissus installed need it on the test classpath. -->
+		<!-- Narcissus is an optional dependency of classgraph-base, so it is not inherited here. The tests that
+		     check what can be reached only with Narcissus installed need it on the test classpath. -->
 		<dependency>
 			<groupId>io.github.toolfactory</groupId>
 			<artifactId>narcissus</artifactId>

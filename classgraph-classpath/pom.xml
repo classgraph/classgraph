@@ -29,7 +29,7 @@
 		     for import, and they are not covered by the project's API compatibility guarantees. -->
 		<osgiExportPackage>io.github.classgraph.classpath;version="${project.version}",nonapi.io.github.classgraph.classpathspec;x-internal:=true,nonapi.io.github.classgraph.classpath;x-internal:=true,nonapi.io.github.classgraph.classloaderhandler;x-internal:=true</osgiExportPackage>
 		<osgiImportPackage>nonapi.io.github.classgraph.utils,nonapi.io.github.classgraph.reflection,org.jspecify.annotations;resolution:="optional"</osgiImportPackage>
-		<osgiDependencies>io.github.classgraph.base,java.management</osgiDependencies>
+		<osgiDependencies>io.github.classgraph.vfs,java.management</osgiDependencies>
 
 		<!-- This module produces a jar, so it needs its resources and the modular copy of its Javadoc -->
 		<maven.antrun.skip>false</maven.antrun.skip>
@@ -40,7 +40,7 @@
 	<dependencies>
 		<dependency>
 			<groupId>io.github.classgraph</groupId>
-			<artifactId>classgraph-base</artifactId>
+			<artifactId>classgraph-vfs</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 	</dependencies>

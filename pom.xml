@@ -15,8 +15,8 @@
 
 	<modules>
 		<module>classgraph-base</module>
-		<module>classgraph-classpath</module>
 		<module>classgraph-vfs</module>
+		<module>classgraph-classpath</module>
 		<module>classgraph</module>
 		<module>classgraph-viz</module>
 	</modules>

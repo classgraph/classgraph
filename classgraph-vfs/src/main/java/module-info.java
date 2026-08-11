@@ -47,18 +47,18 @@ module io.github.classgraph.vfs {
 
     // The nonapi packages are the internals of ClassGraph. They are only exported to the modules that are built on
     // top of this one, and they are not covered by the project's API compatibility guarantees.
-    exports nonapi.io.github.classgraph.concurrency to io.github.classgraph;
-    exports nonapi.io.github.classgraph.fastzipfilereader to io.github.classgraph;
-    exports nonapi.io.github.classgraph.fileslice to io.github.classgraph;
-    exports nonapi.io.github.classgraph.fileslice.reader to io.github.classgraph;
-    exports nonapi.io.github.classgraph.recycler to io.github.classgraph;
-    exports nonapi.io.github.classgraph.vfsspec to io.github.classgraph;
+    exports nonapi.io.github.classgraph.concurrency to io.github.classgraph, io.github.classgraph.classpath;
+    exports nonapi.io.github.classgraph.fastzipfilereader to io.github.classgraph, io.github.classgraph.classpath;
+    exports nonapi.io.github.classgraph.fileslice to io.github.classgraph, io.github.classgraph.classpath;
+    exports nonapi.io.github.classgraph.fileslice.reader to io.github.classgraph, io.github.classgraph.classpath;
+    exports nonapi.io.github.classgraph.recycler to io.github.classgraph, io.github.classgraph.classpath;
+    exports nonapi.io.github.classgraph.vfsspec to io.github.classgraph, io.github.classgraph.classpath;
 
     // N.B. make sure the "Import-Package" entries in the manifest (in pom.xml) match these "requires" statements.
 
-    // The classpath finder is "requires transitive" because a caller that reads an archive found by the classpath
-    // finder needs both APIs
-    requires transitive io.github.classgraph.classpath;
+    // The shared helper classes. This is "requires transitive" because they appear in signatures that the modules
+    // above this one use, e.g. the LogNode passed to the archive reader
+    requires transitive io.github.classgraph.base;
 
     // JSpecify nullability annotations are only needed at compile time. This deliberately is not "requires
     // transitive", even though the annotations appear in exported signatures: that would force every modular
