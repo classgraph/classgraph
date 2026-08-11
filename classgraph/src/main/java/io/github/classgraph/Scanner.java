@@ -48,6 +48,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Queue;
@@ -1305,8 +1306,8 @@ class Scanner implements Callable<ScanResult> {
 
             // Log total time after scan completes, and flush log
             if (topLevelLog != null) {
-                topLevelLog.log("~",
-                        String.format("Total time: %.3f sec", (System.currentTimeMillis() - scanStart) * .001));
+                topLevelLog.log("~", String.format(Locale.US, "Total time: %.3f sec",
+                        (System.currentTimeMillis() - scanStart) * .001));
                 topLevelLog.flush();
             }
 

@@ -90,7 +90,7 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
      *            the containerClassLoader object
      * @return Collection of path objects as a {@link URL} or {@link String}.
      */
-    private static Collection<Object> getPaths(final Object containerClassLoader) {
+    private static Collection<Object> getPaths(final @Nullable Object containerClassLoader) {
         if (containerClassLoader == null) {
             return List.of();
         }
@@ -159,28 +159,26 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
      */
     @SuppressWarnings("unchecked")
     private static Collection<Object> callGetUrls(final Object container, final String methodName) {
-        if (container != null) {
-            try {
-                final var results = (Collection<Object>) ReflectionUtils.invokeMethod(false, container, methodName);
-                if (results != null && !results.isEmpty()) {
-                    final Collection<Object> allUrls = new HashSet<>();
-                    for (final Object result : results) {
-                        if (result instanceof final Collection<?> resultCollection) {
-                            // SmartClassPath returns collection of collection of URLs.
-                            for (final Object url : resultCollection) {
-                                if (url != null) {
-                                    allUrls.add(url);
-                                }
+        try {
+            final var results = (Collection<Object>) ReflectionUtils.invokeMethod(false, container, methodName);
+            if (results != null && !results.isEmpty()) {
+                final Collection<Object> allUrls = new HashSet<>();
+                for (final Object result : results) {
+                    if (result instanceof final Collection<?> resultCollection) {
+                        // SmartClassPath returns collection of collection of URLs.
+                        for (final Object url : resultCollection) {
+                            if (url != null) {
+                                allUrls.add(url);
                             }
-                        } else if (result != null) {
-                            allUrls.add(result);
                         }
+                    } else if (result != null) {
+                        allUrls.add(result);
                     }
-                    return allUrls;
                 }
-            } catch (final UnsupportedOperationException e) {
-                /* ignore */
+                return allUrls;
             }
+        } catch (final UnsupportedOperationException e) {
+            /* ignore */
         }
         return List.of();
     }

@@ -91,10 +91,8 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
         // PathResourceLoader has root field, which is a Path object
         final var root = ReflectionUtils.getFieldVal(false, resourceLoader, "root");
 
-        classpathOrderOut.addClasspathEntry(loadJarPathFromClassicVFS(root, classpathOrderOut), classLoader,
-                classpathSpec, log);
-        classpathOrderOut.addClasspathEntry(loadJarPathFromNewVFS(root, classpathOrderOut), classLoader,
-                classpathSpec, log);
+        classpathOrderOut.addClasspathEntry(loadJarPathFromClassicVFS(root), classLoader, classpathSpec, log);
+        classpathOrderOut.addClasspathEntry(loadJarPathFromNewVFS(root), classLoader, classpathSpec, log);
         classpathOrderOut.addClasspathEntry(ReflectionUtils.getFieldVal(false, resourceLoader, "fileOfJar"),
                 classLoader, classpathSpec, log);
     }
@@ -108,12 +106,9 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
      *
      * @param root
      *            The root object to get the JAR path from, or null.
-     * @param classpathOrderOut
-     *            The ClasspathOrder object for updating the classpath order.
      * @return The {@link File} of the JAR file, or null if the path couldn't be found.
      */
-    private static @Nullable File loadJarPathFromNewVFS(final @Nullable Object root,
-            final ClasspathOrder classpathOrderOut) {
+    private static @Nullable File loadJarPathFromNewVFS(final @Nullable Object root) {
         if (root == null) {
             return null;
         }
@@ -186,7 +181,7 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
      * @throws ClassNotFoundException
      *             if the class is not visible to the given classloader.
      */
-    private static Class<?> loadJBossVFS(final ClassLoader classLoader) throws ClassNotFoundException {
+    private static Class<?> loadJBossVFS(final @Nullable ClassLoader classLoader) throws ClassNotFoundException {
         return Class.forName("org.jboss.vfs.VFS", true, classLoader);
     }
 
@@ -199,12 +194,9 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
      *
      * @param root
      *            The root object to get the JAR path from, or null.
-     * @param classpathOrderOut
-     *            The ClasspathOrder object for updating the classpath order.
      * @return The {@link File} or {@link Path} of the JAR file, or null if the VFS path couldn't be found.
      */
-    private static @Nullable Object loadJarPathFromClassicVFS(final @Nullable Object root,
-            final ClasspathOrder classpathOrderOut) {
+    private static @Nullable Object loadJarPathFromClassicVFS(final @Nullable Object root) {
         if (root == null) {
             return null;
         }

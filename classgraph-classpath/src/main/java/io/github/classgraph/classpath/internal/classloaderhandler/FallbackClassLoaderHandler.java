@@ -202,7 +202,7 @@ class FallbackClassLoaderHandler implements ClassLoaderHandler {
      *            the path of the resource.
      * @return the URLs of the resource, or the empty set if the resource could not be found.
      */
-    private static Set<String> getResourceURLs(final ClassLoader classLoader, final String resourcePath) {
+    private static Set<String> getResourceURLs(final @Nullable ClassLoader classLoader, final String resourcePath) {
         if (classLoader == null) {
             return Set.of();
         }

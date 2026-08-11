@@ -33,6 +33,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 import io.github.classgraph.base.internal.utils.FastPathResolver;
 import io.github.classgraph.base.internal.utils.FileUtils;
@@ -139,7 +140,7 @@ public final class ClasspathExpander {
             final var libDirPath = dirPath.resolve(libDirPrefix);
             if (FileUtils.canReadAndIsDir(libDirPath)) {
                 try (var stream = Files.newDirectoryStream(libDirPath,
-                        filePath -> filePath.toString().toLowerCase().endsWith(".jar")
+                        filePath -> filePath.toString().toLowerCase(Locale.ROOT).endsWith(".jar")
                                 && Files.isRegularFile(filePath))) {
                     for (final Path filePath : stream) {
                         libJars.add(filePath);

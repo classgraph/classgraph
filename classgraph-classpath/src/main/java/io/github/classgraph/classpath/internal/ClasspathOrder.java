@@ -476,11 +476,8 @@ public class ClasspathOrder {
     }
 
     /**
-     * Add every file in a directory to the classpath, for a wildcarded classpath entry of the form {@code
-     *
-
-    <dir>
-     * /*} (allowable for local classpaths as of JDK 6).
+     * Add every file in a directory to the classpath, for a wildcarded classpath entry, i.e. a directory path with
+     * a {@code "/*"} suffix (allowable for local classpaths as of JDK 6).
      *
      * @param baseDirPath
      *            the path of the directory, i.e. the classpath entry with the {@code "/*"} suffix removed.
