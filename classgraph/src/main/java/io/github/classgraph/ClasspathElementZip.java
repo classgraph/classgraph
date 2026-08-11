@@ -47,7 +47,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
-import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
 import nonapi.io.github.classgraph.concurrency.SingletonMap.NewInstanceException;
 import nonapi.io.github.classgraph.concurrency.SingletonMap.NullSingletonException;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
@@ -57,6 +56,8 @@ import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.fileslice.reader.ClassfileReader;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.scanspec.ScanSpec.ScanSpecPathMatch;
+import nonapi.io.github.classgraph.classpath.ClasspathExpander;
+import nonapi.io.github.classgraph.classpath.ClasspathExpander.ChildEntry;
 import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.JarUtils;
@@ -200,10 +201,16 @@ class ClasspathElementZip extends ClasspathElement {
             return;
         }
 
+        // Schedule the child classpath entries in the order they were found, since the classpath order determines
+        // which of two copies of the same class masks the other
         final var childScheduler = new ChildClasspathElementScheduler(workQueue);
-        addNestedLibJars(logicalZipFile, childScheduler, subLog);
-        addClassPathManifestEntries(logicalZipFile, childScheduler);
-        addBundleClassPathManifestEntries(logicalZipFile, childScheduler);
+        for (final ChildEntry childEntry : ClasspathExpander.childEntries(logicalZipFile, zipFilePath,
+                vfsScanSpec.scanNestedJars)) {
+            if (subLog != null) {
+                subLog.log(childEntry.origin().getLogMessage() + ": " + childEntry.path());
+            }
+            childScheduler.schedule(childEntry.path());
+        }
     }
 
     /**
@@ -273,110 +280,6 @@ class ClasspathElementZip extends ClasspathElement {
             return null;
         }
         return logicalZipFile;
-    }
-
-    /**
-     * Automatically add any nested "lib/" dirs to the classpath, since not all classloaders return them as
-     * classpath elements.
-     *
-     * @param logicalZipFile
-     *            the logical zipfile
-     * @param childScheduler
-     *            the child classpath element scheduler
-     * @param log
-     *            the log node, or null to skip logging
-     * @throws InterruptedException
-     *             if the thread was interrupted
-     */
-    private void addNestedLibJars(final LogicalZipFile logicalZipFile,
-            final ChildClasspathElementScheduler childScheduler, final @Nullable LogNode log)
-            throws InterruptedException {
-        if (!vfsScanSpec.scanNestedJars) {
-            return;
-        }
-        for (final FastZipEntry zipEntry : logicalZipFile.entries) {
-            for (final String libDirPrefix : ClassLoaderHandlerRegistry.AUTOMATIC_LIB_DIR_PREFIXES) {
-                // Even if a package root is given, e.g. BOOT-INF/classes, still look in lib/ etc. for jars
-                if (zipEntry.entryNameUnversioned.startsWith(libDirPrefix)
-                        && zipEntry.entryNameUnversioned.endsWith(".jar")) {
-                    final var entryPath = zipEntry.getPath();
-                    if (log != null) {
-                        log.log("Found nested lib jar: " + entryPath);
-                    }
-                    childScheduler.schedule(entryPath);
-                    break;
-                }
-            }
-        }
-    }
-
-    /**
-     * Create child classpath elements from the values of the manifest's {@code Class-Path} attribute, resolving the
-     * paths relative to the dir or parent jarfile that this jarfile is contained in.
-     *
-     * @param logicalZipFile
-     *            the logical zipfile
-     * @param childScheduler
-     *            the child classpath element scheduler
-     * @throws InterruptedException
-     *             if the thread was interrupted
-     */
-    private void addClassPathManifestEntries(final LogicalZipFile logicalZipFile,
-            final ChildClasspathElementScheduler childScheduler) throws InterruptedException {
-        if (logicalZipFile.classPathManifestEntryValue == null) {
-            return;
-        }
-        // Get parent dir of logical zipfile within grandparent slice, e.g. for a zipfile slice path of
-        // "/path/to/jar1.jar!/lib/jar2.jar", this is "lib", or for "/path/to/jar1.jar", this is "/path/to", or
-        // "" if the jar is in the toplevel dir.
-        final var jarParentDir = FileUtils.getParentDirPath(logicalZipFile.getPathWithinParentZipFileSlice());
-        for (final String childClassPathEltPathRelative : logicalZipFile.classPathManifestEntryValue.split(" ")) {
-            if (!childClassPathEltPathRelative.isEmpty()) {
-                // Resolve Class-Path entry relative to containing dir
-                final var childClassPathEltPath = FastPathResolver.resolve(jarParentDir,
-                        childClassPathEltPathRelative);
-                // If this is a nested jar, prepend outer jar prefix
-                final var parentZipFileSlice = logicalZipFile.getParentZipFileSlice();
-                final var childClassPathEltPathWithPrefix = parentZipFileSlice == null ? childClassPathEltPath
-                        : parentZipFileSlice.getPath() + (childClassPathEltPath.startsWith("/") ? "!" : "!/")
-                                + childClassPathEltPath;
-                childScheduler.schedule(childClassPathEltPathWithPrefix);
-            }
-        }
-    }
-
-    /**
-     * Add the paths in an OSGi bundle jar manifest's {@code Bundle-ClassPath} attribute to the classpath, resolving
-     * the paths relative to the root of the jarfile.
-     *
-     * @param logicalZipFile
-     *            the logical zipfile
-     * @param childScheduler
-     *            the child classpath element scheduler
-     * @throws InterruptedException
-     *             if the thread was interrupted
-     */
-    private void addBundleClassPathManifestEntries(final LogicalZipFile logicalZipFile,
-            final ChildClasspathElementScheduler childScheduler) throws InterruptedException {
-        if (logicalZipFile.bundleClassPathManifestEntryValue == null) {
-            return;
-        }
-        final var zipFilePathPrefix = zipFilePath + "!/";
-        // Class-Path is split on " ", but Bundle-ClassPath is split on ","
-        for (String childBundlePath : logicalZipFile.bundleClassPathManifestEntryValue.split(",")) {
-            // Assume that Bundle-ClassPath paths have to be given relative to jarfile root
-            while (childBundlePath.startsWith("/")) {
-                childBundlePath = childBundlePath.substring(1);
-            }
-            // Currently the position of "." relative to child classpath entries is ignored (the Bundle-ClassPath
-            // path is treated as if "." is in the first position, since child classpath entries are always added
-            // to the classpath after the parent classpath entry that they were obtained from).
-            if (!childBundlePath.isEmpty() && !".".equals(childBundlePath)) {
-                // Resolve Bundle-ClassPath entry within jar
-                childScheduler.schedule(zipFilePathPrefix + FileUtils.sanitizeEntryPath(childBundlePath,
-                        /* removeInitialSlash = */ true, /* removeFinalSlash = */ true));
-            }
-        }
     }
 
     /**

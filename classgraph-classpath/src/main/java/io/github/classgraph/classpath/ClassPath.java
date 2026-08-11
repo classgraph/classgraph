@@ -34,12 +34,19 @@ import java.util.Collections;
 import java.util.List;
 
 import nonapi.io.github.classgraph.classpath.ClasspathFinder;
+import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 
 /**
  * Where a JVM loads its classes and resources from: the classpath elements and the modules that were found by a
  * {@link ClassPathFinder}.
+ *
+ * <p>
+ * Finding the classpath opens the jarfiles on it, in order to read their manifests. {@link #close()} closes them
+ * again, and deletes any temporary files that were needed to open a jarfile nested inside another jarfile, so a
+ * {@link ClassPath} is best obtained in a try-with-resources statement. The classpath elements and the modules can
+ * still be read after {@link #close()} has been called.
  */
-public class ClassPath {
+public class ClassPath implements AutoCloseable {
     /** The classpath elements, in the order the classloaders would search them. */
     private final List<ClassPathEntry> entries;
 
@@ -52,21 +59,25 @@ public class ClassPath {
     /** The module path switches the JVM was launched with. */
     private final ModulePathInfo modulePathInfo;
 
+    /** The jarfiles that were opened to read their manifests. */
+    private final NestedJarHandler nestedJarHandler;
+
     /**
      * Constructor.
      *
+     * @param entries
+     *            the classpath elements, in the order the classloaders would search them.
      * @param classpathFinder
      *            the classpath finder that found the classpath.
      * @param modulePathInfo
      *            the module path switches the JVM was launched with.
+     * @param nestedJarHandler
+     *            the jarfiles that were opened to read their manifests.
      */
-    ClassPath(final ClasspathFinder classpathFinder, final ModulePathInfo modulePathInfo) {
-        final List<ClassPathEntry> entriesTmp = new ArrayList<>();
-        for (final var entry : classpathFinder.getClasspathOrder().getOrder()) {
-            entriesTmp.add(new ClassPathEntry(entry.classpathEntryObj.toString(), entry.getClassLoaderString(),
-                    List.of(entry.packageRootPrefixes)));
-        }
-        this.entries = Collections.unmodifiableList(entriesTmp);
+    ClassPath(final List<ClassPathEntry> entries, final ClasspathFinder classpathFinder,
+            final ModulePathInfo modulePathInfo, final NestedJarHandler nestedJarHandler) {
+        this.entries = List.copyOf(entries);
+        this.nestedJarHandler = nestedJarHandler;
 
         final var moduleFinder = classpathFinder.getModuleFinder();
         final var systemModulesTmp = moduleFinder == null ? null : moduleFinder.getSystemModuleReferences();
@@ -80,8 +91,21 @@ public class ClassPath {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Returns the classpath elements, in the order the classloaders would search them. Elements reached through
-     * more than one classloader are listed once, at the position of the first classloader that reaches them.
+     * Closes the jarfiles that were opened to read their manifests, and deletes any temporary files that were
+     * needed to open a jarfile nested inside another jarfile. The classpath elements and the modules can still be
+     * read afterwards. Calling this more than once has no further effect.
+     */
+    @Override
+    public void close() {
+        nestedJarHandler.close(null);
+    }
+
+    /**
+     * Returns the classpath elements, in the order the classloaders would search them, including the elements that
+     * a jarfile on the classpath declares: the jarfiles in its automatic lib dirs, and the entries of its
+     * manifest's {@code Class-Path} and {@code Bundle-ClassPath} attributes. An element that is reached more than
+     * once is listed only at the first position it is reached at, which is the position that decides which copy of
+     * a duplicated class is loaded.
      *
      * @return the classpath elements, as an unmodifiable list.
      */

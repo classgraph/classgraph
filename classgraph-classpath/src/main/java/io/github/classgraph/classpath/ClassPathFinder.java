@@ -29,14 +29,19 @@
 package io.github.classgraph.classpath;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 import nonapi.io.github.classgraph.classpath.ClasspathFinder;
+import nonapi.io.github.classgraph.concurrency.InterruptionChecker;
+import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.classpathspec.ClassLoaderAndModuleLayerSpec;
 import nonapi.io.github.classgraph.classpathspec.ClassPathSpec;
 import nonapi.io.github.classgraph.utils.Assert;
 import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
+import nonapi.io.github.classgraph.vfsspec.VfsScanSpec;
 
 /**
  * Finds the classpath and the module path of the running JVM: where its classes and resources would be loaded from,
@@ -58,6 +63,9 @@ import nonapi.io.github.classgraph.utils.LogNode;
 public class ClassPathFinder {
     /** Everything except the classloaders and module layers the caller named. */
     private final ClassPathSpec classPathSpec = new ClassPathSpec();
+
+    /** How the jarfiles on the classpath are read, in order to find the classpath elements they declare. */
+    private final VfsScanSpec vfsScanSpec = new VfsScanSpec();
 
     /**
      * The classloaders and module layers the caller named. These are held separately from the {@link ClassPathSpec}
@@ -84,6 +92,24 @@ public class ClassPathFinder {
      */
     public ClassPathFinder verbose() {
         this.verbose = true;
+        return this;
+    }
+
+    /**
+     * Allow classpath elements to be named by a URL with the given scheme, e.g. {@code "http"}. Only {@code file:}
+     * URLs are allowed by default. A classpath element with a scheme that has not been enabled is still reported,
+     * but the jarfile it names is not read, so the classpath elements that it declares are not found.
+     *
+     * @param scheme
+     *            the URL scheme, without the {@code ':'}, e.g. {@code "http"}.
+     * @return this (for method chaining).
+     * @throws IllegalArgumentException
+     *             if the scheme is empty, contains a {@code ':'}, or is {@code "jrt"} or {@code "file"} (which are
+     *             always handled).
+     */
+    public ClassPathFinder enableURLScheme(final String scheme) {
+        classPathSpec.enableURLScheme(scheme);
+        vfsScanSpec.enableURLScheme(scheme);
         return this;
     }
 
@@ -266,17 +292,45 @@ public class ClassPathFinder {
      * Find the classpath elements and the modules.
      *
      * <p>
-     * Nothing that is found is opened or checked for existence, so this is fast, and a returned classpath element
+     * The jarfiles on the classpath are opened, so that the classpath elements they declare can be added to the
+     * result: the jarfiles in their automatic lib dirs, and the entries of their manifests' {@code Class-Path} and
+     * {@code Bundle-ClassPath} attributes. Each of those can declare more of them, so this is recursive. Close the
+     * returned {@link ClassPath} to close the jarfiles again.
+     *
+     * <p>
+     * A classpath element that could not be opened, or that is not a jarfile, is still reported -- a classloader
      * may name a jarfile or directory that is not there.
      *
      * @return the classpath.
+     * @throws IllegalStateException
+     *             if the thread was interrupted while the jarfiles were being read.
      */
     public ClassPath find() {
         final var log = verbose ? new LogNode() : null;
         try {
             final var classpathFinder = new ClasspathFinder(classPathSpec, classLoaderAndModuleLayerSpec,
                     new ReflectionUtils(), log);
-            return new ClassPath(classpathFinder, classPathSpec.modulePathInfo);
+
+            // The classpath elements that the classloaders declared
+            final List<ClassPathEntry> classLoaderEntries = new ArrayList<>();
+            for (final var entry : classpathFinder.getClasspathOrder().getOrder()) {
+                classLoaderEntries.add(new ClassPathEntry(entry.classpathEntryObj.toString(),
+                        entry.getClassLoaderString(), List.of(entry.packageRootPrefixes)));
+            }
+
+            // Add the classpath elements that those in turn declare, by reading their manifests
+            final var nestedJarHandler = new NestedJarHandler(vfsScanSpec, new InterruptionChecker(),
+                    new ReflectionUtils());
+            try {
+                final var expandedEntries = ClassPathExpansion.expand(classLoaderEntries, vfsScanSpec,
+                        nestedJarHandler, log);
+                return new ClassPath(expandedEntries, classpathFinder, classPathSpec.modulePathInfo,
+                        nestedJarHandler);
+            } catch (final InterruptedException e) {
+                nestedJarHandler.close(log);
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("Interrupted while reading the jarfiles on the classpath", e);
+            }
         } finally {
             if (log != null) {
                 log.flush();

@@ -39,8 +39,10 @@ classpath elements in the order the classloaders would search them, the modules 
 system and non-system, and the module path switches the JVM was launched with:
 
 ```java
-for (ClassPathEntry entry : new ClassPathFinder().find().getEntries()) {
-    System.out.println(entry.location());
+try (ClassPath classPath = new ClassPathFinder().find()) {
+    for (ClassPathEntry entry : classPath.getEntries()) {
+        System.out.println(entry.location());
+    }
 }
 ```
 
@@ -49,12 +51,24 @@ for (ClassPathEntry entry : new ClassPathFinder().find().getEntries()) {
 `ignoreParentClassLoaders`, `overrideModuleLayers`, `addModuleLayer`, `ignoreModules`,
 `verbose`), and finds classpath elements from the same custom container classloaders.
 
-It reports where classes and resources *would be* loaded from: nothing is opened, and
-nothing is checked for existence, so an entry may name a jar or directory that is not
-there, and a nested jar is reported in the `outer.jar!/inner.jar` form rather than being
-extracted. `ClassGraph#getClasspathFiles()` and friends still do the extra work of opening
-each element, dropping the ones that are not there, and stripping package roots, so they
-are what to use when the classpath elements need to be real.
+The classpath it returns is the full, expanded classpath. A jarfile can add more elements
+to the classpath than the classloader listed: the jarfiles in its automatic lib dirs
+(`lib/`, `BOOT-INF/lib/`, `WEB-INF/lib/` and so on), and the entries of its manifest's
+`Class-Path` and `Bundle-ClassPath` attributes. Each of those can add more in turn, so the
+finder follows them recursively, and reports each element directly after the element that
+declared it, which is the order a classloader would search them in. An element that is
+reached more than once is listed only at the first position it is reached at, since that is
+the position that decides which copy of a duplicated class wins.
+
+Reading those manifests means opening the jarfiles on the classpath, so `ClassPath` is now
+`AutoCloseable`, and closing it closes them again. The entries can still be read after it
+has been closed.
+
+The finder reports where classes and resources *would be* loaded from, so an element that
+is named but is not there is still reported, and a nested jar is reported in the
+`outer.jar!/inner.jar` form rather than being extracted. `ClassGraph#getClasspathFiles()`
+and friends still drop the elements that are not there and strip package roots, so they are
+what to use when the classpath elements need to be real files.
 
 `ModulePathInfo` has moved from `io.github.classgraph` to `io.github.classgraph.classpath`
 as part of this, and is reachable both from `ScanResult#getModulePathInfo()` as before, and

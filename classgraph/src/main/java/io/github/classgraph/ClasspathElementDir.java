@@ -49,7 +49,7 @@ import java.util.Objects;
 import java.util.Set;
 
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
-import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
+import nonapi.io.github.classgraph.classpath.ClasspathExpander;
 import nonapi.io.github.classgraph.concurrency.WorkQueue;
 import nonapi.io.github.classgraph.fileslice.PathSlice;
 import nonapi.io.github.classgraph.fileslice.ScanResources;
@@ -107,28 +107,17 @@ class ClasspathElementDir extends ClasspathElement {
             return;
         }
         try {
-            // Auto-add nested lib dirs
+            // Auto-add nested lib dirs. The child classpath entries are added in the order they were found,
+            // since the classpath order determines which of two copies of the same class masks the other.
             var childClasspathEntryIdx = 0;
-            for (final String libDirPrefix : ClassLoaderHandlerRegistry.AUTOMATIC_LIB_DIR_PREFIXES) {
-                final var libDirPath = classpathEltPath.resolve(libDirPrefix);
-                if (FileUtils.canReadAndIsDir(libDirPath)) {
-                    // Add all jarfiles within the lib dir as child classpath entries
-                    try (var stream = Files.newDirectoryStream(libDirPath,
-                            filePath -> filePath.toString().toLowerCase().endsWith(".jar")
-                                    && Files.isRegularFile(filePath))) {
-                        for (final Path filePath : stream) {
-                            if (log != null) {
-                                log(classpathElementIdx, "Found lib jar: " + filePath, log);
-                            }
-                            workQueue.addWorkUnit(new ClasspathEntryWorkUnit(filePath, getClassLoaderString(),
-                                    /* parentClasspathElement = */ this,
-                                    /* orderWithinParentClasspathElement = */ childClasspathEntryIdx++,
-                                    /* packageRootPrefix = */ "", packageRootPrefixes));
-                        }
-                    } catch (final IOException e) {
-                        // Ignore -- thrown by Files.newDirectoryStream
-                    }
+            for (final Path libJarPath : ClasspathExpander.libJarsInDir(classpathEltPath)) {
+                if (log != null) {
+                    log(classpathElementIdx, "Found lib jar: " + libJarPath, log);
                 }
+                workQueue.addWorkUnit(new ClasspathEntryWorkUnit(libJarPath, getClassLoaderString(),
+                        /* parentClasspathElement = */ this,
+                        /* orderWithinParentClasspathElement = */ childClasspathEntryIdx++,
+                        /* packageRootPrefix = */ "", packageRootPrefixes));
             }
             // Only look for package roots if the package root is empty
             if (packageRootPrefix.isEmpty()) {
