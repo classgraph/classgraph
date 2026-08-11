@@ -1702,8 +1702,9 @@ is fixed on the 4.x branch as well.
   resolved was left unresolved by the other. This was reachable through a nested jar
   entry (`outer.jar!/inner.jar`), whose outer jar is a string rather than a `Path` and so
   never passes through the scanner's normalization at all. All three call sites now share
-  one routine, which resolves the path fully and falls back to `File#getCanonicalFile()`
-  only when the file does not exist.
+  one routine, which resolves the path fully; for a path that does not yet exist, it
+  resolves the closest ancestor directory that does exist and appends the rest of the path
+  to it, so a missing file gets the same path it would have had if it had been created.
 
 Two further bugs found during the port were only reachable through the JSON
 serialization API, which 5.x removes (`AnnotationParameterValue#toString()` threw
