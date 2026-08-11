@@ -231,16 +231,17 @@ public final class URLPathEncoder {
             }
             if (urlPathNormalized.startsWith("file:")) {
                 urlPathNormalized = urlPathNormalized.substring(5);
-                // "file:" may be followed by an empty authority, i.e. "file://" or "file:///". Collapse the run
-                // of leading slashes down to one, so that the "file://" prefix added below cannot produce a path
-                // with a run of slashes in it, e.g. "file://///tmp/x.jar".
-                int numLeadingSlashes = 0;
-                while (numLeadingSlashes < urlPathNormalized.length()
-                        && urlPathNormalized.charAt(numLeadingSlashes) == '/') {
-                    numLeadingSlashes++;
-                }
-                if (numLeadingSlashes > 1) {
-                    urlPathNormalized = urlPathNormalized.substring(numLeadingSlashes - 1);
+                // "file:" may be followed by an authority, which is not part of the path. Drop the two slashes
+                // that introduce it, so that the "file://" prefix added below cannot produce a path with a run of
+                // slashes in it, e.g. "file://///tmp/x.jar". Exactly two slashes are dropped, so that the
+                // remaining "//" of a UNC path is kept: "file:////server/share/x" leaves "//server/share/x",
+                // which names the share it came from, rather than the local path "/server/share/x", which does not
+                if (urlPathNormalized.startsWith("///")) {
+                    urlPathNormalized = urlPathNormalized.substring(2);
+                } else if (urlPathNormalized.startsWith("//")) {
+                    // Only two slashes, so what follows is either an authority naming the local machine or, in the
+                    // spelling some classloaders use, the path itself. Either way one slash is enough
+                    urlPathNormalized = urlPathNormalized.substring(1);
                 }
             }
 

@@ -42,6 +42,20 @@ public class URLPathEncoderTest {
         assertThat(URLPathEncoder.normalizeURLPath("file:///tmp/x.jar")).isEqualTo("file:///tmp/x.jar");
     }
 
+    /**
+     * The {@code "//"} that starts a UNC path is part of the path, not the empty authority in front of it, so it
+     * has to survive. Collapsing every leading slash down to one turned {@code "file:////server/share/x"} into
+     * {@code "file:///server/share/x"}, which names a local path rather than the share it came from.
+     */
+    @Test
+    public void aUNCPathKeepsTheSlashesThatStartIt() {
+        assertThat(URLPathEncoder.normalizeURLPath("file:////server/share/x.jar"))
+                .isEqualTo("file:////server/share/x.jar");
+        // The same path with no "file:" prefix already reaches this spelling, and still does
+        assertThat(URLPathEncoder.normalizeURLPath("//server/share/x.jar"))
+                .isEqualTo("file:////server/share/x.jar");
+    }
+
     /** A "jar:file:" prefix is stripped by both branches in turn. */
     @Test
     public void jarAndFileSchemePrefixesAreBothStripped() {
