@@ -1210,12 +1210,15 @@ class Scanner implements Callable<ScanResult> {
                     }
                 });
 
-        // Filter out classpath elements that do not contain required accepted paths.
+        // Filter out classpath elements that contain a rejected resource path, or that do not contain a required
+        // accepted resource path
         List<ClasspathElement> finalClasspathEltOrderFiltered = finalClasspathEltOrder;
-        if (!scanSpec.classpathElementResourcePathAcceptReject.acceptIsEmpty()) {
+        if (!scanSpec.classpathElementResourcePathAcceptReject.acceptAndRejectAreEmpty()) {
+            final boolean acceptIsEmpty = scanSpec.classpathElementResourcePathAcceptReject.acceptIsEmpty();
             finalClasspathEltOrderFiltered = new ArrayList<>(finalClasspathEltOrder.size());
             for (final ClasspathElement classpathElement : finalClasspathEltOrder) {
-                if (classpathElement.containsSpecificallyAcceptedClasspathElementResourcePath) {
+                if (!classpathElement.containsRejectedClasspathElementResourcePath && (acceptIsEmpty
+                        || classpathElement.containsSpecificallyAcceptedClasspathElementResourcePath)) {
                     finalClasspathEltOrderFiltered.add(classpathElement);
                 }
             }

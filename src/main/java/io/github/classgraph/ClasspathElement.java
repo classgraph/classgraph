@@ -75,6 +75,9 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
     /** True if classpath element contains a specifically-accepted resource path. */
     boolean containsSpecificallyAcceptedClasspathElementResourcePath;
 
+    /** True if classpath element contains a rejected resource path, so the whole element must not be scanned. */
+    boolean containsRejectedClasspathElementResourcePath;
+
     /**
      * True if this classpath element is referenced directly from the classpath, as opposed to only being
      * referenced from the {@code Class-Path} manifest entry (or lib dir) of another classpath element.
@@ -249,7 +252,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      *            the relative path
      * @param log
      *            the log
-     * @return true if path should be scanned
+     * @return true if scanning of this classpath element should continue
      */
     protected boolean checkResourcePathAcceptReject(final String relativePath, final LogNode log) {
         // Accept/reject classpath elements based on file resource paths
@@ -258,6 +261,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
                 if (log != null) {
                     log.log("Reached rejected classpath element resource path, stopping scanning: " + relativePath);
                 }
+                containsRejectedClasspathElementResourcePath = true;
                 return false;
             }
             if (scanSpec.classpathElementResourcePathAcceptReject.isSpecificallyAccepted(relativePath)) {

@@ -188,22 +188,17 @@ public class MethodInfoList extends InfoList<MethodInfo> {
      *             if there are two or more methods with the given name.
      */
     public MethodInfo getSingleMethod(final String methodName) {
-        int numMethodsWithName = 0;
-        MethodInfo lastFoundMethod = null;
+        MethodInfo foundMethod = null;
         for (final MethodInfo mi : this) {
             if (mi.getName().equals(methodName)) {
-                numMethodsWithName++;
-                lastFoundMethod = mi;
+                if (foundMethod != null) {
+                    throw new IllegalArgumentException("There are multiple methods named \"" + methodName
+                            + "\" in class " + mi.getClassName());
+                }
+                foundMethod = mi;
             }
         }
-        if (numMethodsWithName == 0) {
-            return null;
-        } else if (numMethodsWithName == 1) {
-            return lastFoundMethod;
-        } else {
-            throw new IllegalArgumentException("There are multiple methods named \"" + methodName + "\" in class "
-                    + iterator().next().getClassInfo().getName());
-        }
+        return foundMethod;
     }
 
     // -------------------------------------------------------------------------------------------------------------

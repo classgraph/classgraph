@@ -1499,9 +1499,9 @@ public class ClassGraph {
         scanSpec.enableStaticFinalFieldConstantInitializerValues = false;
         scanSpec.enableAnnotationInfo = false;
         scanSpec.enableInterClassDependencies = false;
-        // N.B. this field has the opposite polarity to the others in this block -- annotation info is not read,
-        // so runtime-invisible annotations should be disabled, not enabled
-        scanSpec.disableRuntimeInvisibleAnnotations = true;
+        // N.B. disableRuntimeInvisibleAnnotations is deliberately not set here -- it is only read when
+        // enableAnnotationInfo is true, which this method has just disabled, so setting it would have no effect
+        // on this scan, but would remain set if the caller subsequently re-enabled annotation info
         scanSpec.enableExternalClasses = false;
         scanSpec.enableSystemJarsAndModules = false;
         return this;
