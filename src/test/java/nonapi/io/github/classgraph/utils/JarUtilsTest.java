@@ -7,6 +7,8 @@ import java.io.File;
 
 import org.junit.jupiter.api.Test;
 
+import nonapi.io.github.classgraph.scanspec.ScanSpec;
+
 /** Tests for {@link JarUtils}. */
 public class JarUtilsTest {
     /**
@@ -64,5 +66,38 @@ public class JarUtilsTest {
     public void urlPathElementsAreNotSplitAtTheirScheme() {
         assertThat(JarUtils.smartPathSplit("http://domain/jar1.jar:https://domain/jar2.jar", ':', null))
                 .containsExactly("http://domain/jar1.jar", "https://domain/jar2.jar");
+    }
+
+    /**
+     * Path elements are trimmed, so whitespace between a separator and a URL scheme is not part of the path
+     * element, and does not stop the scheme from being recognized.
+     */
+    @Test
+    public void whitespaceBeforeAURLSchemeDoesNotHideIt() {
+        final ScanSpec scanSpec = new ScanSpec();
+        scanSpec.enableURLScheme("s3");
+
+        assertThat(JarUtils.smartPathSplit("/a/jar1.jar: http://domain/jar2.jar", ':', null))
+                .containsExactly("/a/jar1.jar", "http://domain/jar2.jar");
+        assertThat(JarUtils.smartPathSplit(" http://domain/jar1.jar:/a/jar2.jar", ':', null))
+                .containsExactly("http://domain/jar1.jar", "/a/jar2.jar");
+        assertThat(JarUtils.smartPathSplit("/a/jar1.jar:  jar:file:/a/jar2.jar!/", ':', null))
+                .containsExactly("/a/jar1.jar", "jar:file:/a/jar2.jar!/");
+        assertThat(JarUtils.smartPathSplit("/a/jar1.jar: s3://bucket/jar2.jar", ':', scanSpec))
+                .containsExactly("/a/jar1.jar", "s3://bucket/jar2.jar");
+
+        // Whitespace in the middle of a path element still does not make what follows it a scheme
+        assertThat(JarUtils.smartPathSplit("/a dir/http:x", ':', null)).containsExactly("/a dir/http", "x");
+    }
+
+    /**
+     * The separator is searched for literally, so a separator that happens to be a regular expression
+     * metacharacter splits the path where it occurs, and nowhere else.
+     */
+    @Test
+    public void aSeparatorThatIsARegexMetacharacterIsMatchedLiterally() {
+        assertThat(JarUtils.smartPathSplit("/a/jar1.jar|/a/jar2.jar", '|', null)).containsExactly("/a/jar1.jar",
+                "/a/jar2.jar");
+        assertThat(JarUtils.smartPathSplit("a.b.c", '.', null)).containsExactly("a", "b", "c");
     }
 }

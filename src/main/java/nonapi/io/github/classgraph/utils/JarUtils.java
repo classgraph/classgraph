@@ -134,13 +134,21 @@ public final class JarUtils {
             return new String[0];
         }
         if (separatorChar != ':') {
-            // The fast path for Windows (which uses ';' as a path separator), or for separator other than ':'
+            // The fast path for Windows (which uses ';' as a path separator), or for separator other than ':'.
+            // N.B. the separator is searched for literally, rather than with String#split(), whose argument is a
+            // regular expression -- a separator that is a regex metacharacter would otherwise split on the wrong
+            // thing
             final List<String> partsFiltered = new ArrayList<>();
-            for (final String part : pathStr.split(String.valueOf(separatorChar))) {
-                final String partFiltered = part.trim();
+            for (int startIdx = 0; startIdx <= pathStr.length();) {
+                int endIdx = pathStr.indexOf(separatorChar, startIdx);
+                if (endIdx < 0) {
+                    endIdx = pathStr.length();
+                }
+                final String partFiltered = pathStr.substring(startIdx, endIdx).trim();
                 if (!partFiltered.isEmpty()) {
                     partsFiltered.add(partFiltered);
                 }
+                startIdx = endIdx + 1;
             }
             return partsFiltered.toArray(new String[0]);
         } else {
@@ -156,8 +164,7 @@ public final class JarUtils {
                     // Skip ':' characters in the middle of non-path-separators such as "http://"
                     final int startIdx = i - UNIX_NON_PATH_SEPARATOR_COLON_POSITIONS[j];
                     if (pathStr.regionMatches(true, startIdx, UNIX_NON_PATH_SEPARATORS[j], 0,
-                            UNIX_NON_PATH_SEPARATORS[j].length())
-                            && (startIdx == 0 || pathStr.charAt(startIdx - 1) == ':')) {
+                            UNIX_NON_PATH_SEPARATORS[j].length()) && startsAPathElement(pathStr, startIdx)) {
                         // Don't treat the "jar:" in the middle of "x.jar:y.jar" as a URL scheme
                         foundNonPathSeparator = true;
                         break;
@@ -173,7 +180,7 @@ public final class JarUtils {
                             final int schemeLen = scheme.length();
                             final int startIdx = i - schemeLen;
                             if (pathStr.regionMatches(true, startIdx, scheme, 0, schemeLen)
-                                    && (startIdx == 0 || pathStr.charAt(startIdx - 1) == ':')) {
+                                    && startsAPathElement(pathStr, startIdx)) {
                                 foundNonPathSeparator = true;
                                 break;
                             }
@@ -208,6 +215,33 @@ public final class JarUtils {
             }
             return parts.toArray(new String[0]);
         }
+    }
+
+    /**
+     * Test whether an index is at the start of a path element, i.e. whether everything between it and the previous
+     * separator (or the start of the path) is whitespace. Whitespace is skipped because the path elements are
+     * trimmed, so {@code "x.jar: http://domain/y.jar"} has to be read the same way as
+     * {@code "x.jar:http://domain/y.jar"} -- otherwise the space would hide the URL scheme, and the path would be
+     * split at the scheme's colon.
+     *
+     * @param pathStr
+     *            The path being split.
+     * @param startIdx
+     *            The index to test.
+     * @return true if a path element starts at the given index.
+     */
+    private static boolean startsAPathElement(final String pathStr, final int startIdx) {
+        for (int i = startIdx - 1; i >= 0; i--) {
+            final char c = pathStr.charAt(i);
+            if (c == ':') {
+                return true;
+            }
+            // Anything above ' ' is not trimmed off the path element, so it is part of the element
+            if (c > ' ') {
+                return false;
+            }
+        }
+        return true;
     }
 
     // -------------------------------------------------------------------------------------------------------------
