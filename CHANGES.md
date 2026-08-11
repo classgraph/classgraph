@@ -1732,7 +1732,11 @@ is fixed on the 4.x branch as well.
   `file:////server/share/x`, with an empty authority and the server in the path, which
   reads back as the UNC path it came from. Both spellings are permitted by RFC 8089
   appendix E.3.2, but only the second round-trips. A jar on a UNC share was not affected,
-  and no path that is not a UNC path changes.
+  and no path that is not a UNC path changes. Separately, the URL normalization that jar
+  classpath elements go through collapsed every run of leading slashes after `file:` down
+  to one, so a UNC jar path handed to it in the four-slash spelling came back naming a
+  local path instead of the share; it now drops the two slashes that introduce the URI
+  authority and leaves the rest of the path alone.
 
 Two further bugs found during the port were only reachable through the JSON
 serialization API, which 5.x removes (`AnnotationParameterValue#toString()` threw

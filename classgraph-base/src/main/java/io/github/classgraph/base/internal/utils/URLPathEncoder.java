@@ -272,15 +272,17 @@ public final class URLPathEncoder {
         }
         if (path.startsWith("file:")) {
             path = path.substring(5);
-            // "file:" may be followed by an empty authority, i.e. "file://" or "file:///". Collapse the run of
-            // leading slashes down to one, so that the "file://" prefix added by toFileURL() cannot produce a path
-            // with a run of slashes in it, e.g. "file://///tmp/x.jar".
-            var numLeadingSlashes = 0;
-            while (numLeadingSlashes < path.length() && path.charAt(numLeadingSlashes) == '/') {
-                numLeadingSlashes++;
-            }
-            if (numLeadingSlashes > 1) {
-                path = path.substring(numLeadingSlashes - 1);
+            // "file:" may be followed by an authority, which is not part of the path. Drop the two slashes that
+            // introduce it, so that the "file://" prefix added by toFileURL() cannot produce a path with a run of
+            // slashes in it, e.g. "file://///tmp/x.jar". Exactly two slashes are dropped, so that the remaining
+            // "//" of a UNC path is kept: "file:////server/share/x" leaves "//server/share/x", which names the
+            // share it came from, rather than the local path "/server/share/x", which does not
+            if (path.startsWith("///")) {
+                path = path.substring(2);
+            } else if (path.startsWith("//")) {
+                // Only two slashes, so what follows is either an authority naming the local machine or, in the
+                // spelling some classloaders use, the path itself. Either way one slash is enough
+                path = path.substring(1);
             }
         }
         return path;
