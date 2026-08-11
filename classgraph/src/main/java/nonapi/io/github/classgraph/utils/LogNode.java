@@ -41,7 +41,6 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 
-import io.github.classgraph.ClassGraph;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -60,8 +59,18 @@ public final class LogNode {
         }
     }
 
+    /**
+     * The name of the logger that verbose log output is written to. This is a documented, user-visible name that
+     * callers configure their logging framework with, so it is spelled out here rather than derived from a class
+     * literal -- the class it names lives in a different module.
+     */
+    private static final String LOGGER_NAME = "io.github.classgraph.ClassGraph";
+
+    /** The name that log entries are tagged with. */
+    private static final String LOG_ENTRY_TAG = "ClassGraph";
+
     /** The logger. */
-    private static final Logger log = Logger.getLogger(ClassGraph.class.getName());
+    private static final Logger log = Logger.getLogger(LOGGER_NAME);
 
     /**
      * The timestamp at which the log node was created (relative to some arbitrary system timepoint).
@@ -187,7 +196,7 @@ public final class LogNode {
             final StringBuilder buf) {
         buf.append(timeStampStr);
         buf.append('\t');
-        buf.append(ClassGraph.class.getSimpleName());
+        buf.append(LOG_ENTRY_TAG);
         buf.append('\t');
         final var numDashes = 2 * (indentLevel - 1);
         for (var i = 0; i < numDashes; i++) {

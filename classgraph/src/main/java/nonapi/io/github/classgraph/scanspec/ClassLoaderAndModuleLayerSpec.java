@@ -32,7 +32,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import io.github.classgraph.ScanResult;
 import nonapi.io.github.classgraph.utils.Assert;
 import nonapi.io.github.classgraph.utils.LogNode;
 import org.jspecify.annotations.Nullable;
@@ -42,10 +41,10 @@ import org.jspecify.annotations.Nullable;
  * to or instead of the ones found in the environment.
  *
  * <p>
- * These are deliberately not part of {@link ScanSpec}: a {@link ScanResult} holds its {@link ScanSpec} for as long
- * as the caller holds the {@link ScanResult}, and a scan must not keep a classloader alive. This object is held
+ * These are deliberately not part of {@link ScanSpec}: a {@code ScanResult} holds its {@link ScanSpec} for as long
+ * as the caller holds the {@code ScanResult}, and a scan must not keep a classloader alive. This object is held
  * only by the {@code ClassGraph} instance the caller built the scan with, and by the scan itself while it runs; it
- * is unreachable from the {@link ScanResult}.
+ * is unreachable from the {@code ScanResult}.
  */
 public class ClassLoaderAndModuleLayerSpec {
     /**

@@ -37,7 +37,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import io.github.classgraph.ClassGraph;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
@@ -69,7 +68,7 @@ public class ClassLoaderOrder {
 
     /**
      * The set of all parent {@link ClassLoader} instances that have been delegated to so far, to enable
-     * {@link ClassGraph#ignoreParentClassLoaders()}.
+     * {@code ClassGraph#ignoreParentClassLoaders()}.
      */
     private final Set<ClassLoader> allParentClassLoaders = Collections.newSetFromMap(new IdentityHashMap<>());
 

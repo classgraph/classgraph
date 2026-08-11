@@ -42,7 +42,6 @@ import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathFactory;
 import javax.xml.xpath.XPathFactoryConfigurationException;
 
-import io.github.classgraph.ClassGraph;
 import org.jspecify.annotations.Nullable;
 
 /** Finds the version number of ClassGraph, and the version of the JDK. */
@@ -223,7 +222,7 @@ public final class VersionFinder {
      * @return the version number, or null if it could not be read.
      */
     private static @Nullable String versionFromPomXml() {
-        final Class<?> cls = ClassGraph.class;
+        final Class<?> cls = VersionFinder.class;
         try {
             final var className = cls.getName();
             final var classpathResource = cls.getResource("/" + JarUtils.classNameToClassfilePath(className));
@@ -286,7 +285,7 @@ public final class VersionFinder {
      * @return the version number, or null if it could not be read.
      */
     private static @Nullable String versionFromMavenProperties() {
-        try (var inputStream = ClassGraph.class.getResourceAsStream(
+        try (var inputStream = VersionFinder.class.getResourceAsStream(
                 "/META-INF/maven/" + MAVEN_PACKAGE + "/" + MAVEN_ARTIFACT + "/pom.properties")) {
             if (inputStream != null) {
                 final var properties = new Properties();
@@ -300,13 +299,13 @@ public final class VersionFinder {
     }
 
     /**
-     * Get the version number from the {@link Package} of {@link ClassGraph}, which the JDK reads from the jar's
+     * Get the version number from this class' {@link Package}, which the JDK reads from the jar's
      * {@code MANIFEST.MF}.
      *
      * @return the version number, or null if it could not be read.
      */
     private static @Nullable String versionFromPackage() {
-        final var pkg = ClassGraph.class.getPackage();
+        final var pkg = VersionFinder.class.getPackage();
         if (pkg == null) {
             return null;
         }

@@ -40,9 +40,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
-import nonapi.io.github.classgraph.concurrency.SingletonMap;
-import nonapi.io.github.classgraph.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -50,15 +49,12 @@ import org.jspecify.annotations.Nullable;
  * available and least restricted in the current runtime.
  */
 abstract class ReflectionDriver {
-    /** Caches the methods and fields of each class that has been reflected on. */
-    private final SingletonMap<Class<?>, ClassMemberCache, Exception> classToClassMemberCache //
-            = new SingletonMap<>() {
-                @Override
-                public ClassMemberCache newInstance(final Class<?> cls, final @Nullable LogNode log)
-                        throws Exception, InterruptedException {
-                    return new ClassMemberCache(cls);
-                }
-            };
+    /**
+     * Caches the methods and fields of each class that has been reflected on. No driver's
+     * {@link #getDeclaredMethods(Class)} or {@link #getDeclaredFields(Class)} reflects on a class through this
+     * cache, so building an entry can never recursively update the map.
+     */
+    private final Map<Class<?>, ClassMemberCache> classToClassMemberCache = new ConcurrentHashMap<>();
 
     /** Constructor. */
     ReflectionDriver() {
@@ -77,10 +73,8 @@ abstract class ReflectionDriver {
          *
          * @param cls
          *            the class to cache the members of
-         * @throws Exception
-         *             if the class' members could not be enumerated
          */
-        private ClassMemberCache(final Class<?> cls) throws Exception {
+        private ClassMemberCache(final Class<?> cls) {
             // Iterate from class to its superclasses, and find initial interfaces to start traversing from
             final Set<Class<?>> visited = new HashSet<>();
             final LinkedList<Class<?>> interfaceQueue = new LinkedList<>();
@@ -145,6 +139,18 @@ abstract class ReflectionDriver {
             // name in superclasses
             fieldNameToField.putIfAbsent(field.getName(), field);
         }
+    }
+
+    /**
+     * Get the cached methods and fields of a class, building the cache entry if this is the first time the class
+     * has been reflected on.
+     *
+     * @param cls
+     *            the class
+     * @return the class' cached members
+     */
+    private ClassMemberCache classMemberCache(final Class<?> cls) {
+        return classToClassMemberCache.computeIfAbsent(cls, ClassMemberCache::new);
     }
 
     /**
@@ -322,7 +328,7 @@ abstract class ReflectionDriver {
      */
     protected Field findField(final Class<?> cls, final @Nullable Object obj, final String fieldName)
             throws Exception {
-        final var field = classToClassMemberCache.get(cls, /* log = */ null).fieldNameToField.get(fieldName);
+        final var field = classMemberCache(cls).fieldNameToField.get(fieldName);
         if (field != null) {
             if (!isAccessible(obj, field)) {
                 // If field was found but is not accessible, try making it accessible and then returning it (may
@@ -381,7 +387,7 @@ abstract class ReflectionDriver {
      */
     protected Method findMethod(final Class<?> cls, final @Nullable Object obj, final String methodName,
             final Class<?>... paramTypes) throws Exception {
-        final var methodsForName = classToClassMemberCache.get(cls, null).methodNameToMethods.get(methodName);
+        final var methodsForName = classMemberCache(cls).methodNameToMethods.get(methodName);
         if (methodsForName != null) {
             // Return the first method that matches the signature that is already accessible
             var found = false;

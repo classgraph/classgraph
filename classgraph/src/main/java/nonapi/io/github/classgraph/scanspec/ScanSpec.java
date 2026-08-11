@@ -42,9 +42,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.function.Predicate;
 
-import io.github.classgraph.ClassInfo;
 import io.github.classgraph.ModulePathInfo;
-import io.github.classgraph.ScanResult;
 import nonapi.io.github.classgraph.scanspec.AcceptReject.AcceptRejectLeafname;
 import nonapi.io.github.classgraph.scanspec.AcceptReject.AcceptRejectPrefix;
 import nonapi.io.github.classgraph.scanspec.AcceptReject.AcceptRejectWholeString;
@@ -114,24 +112,24 @@ public class ScanSpec {
     /** If true, scan modules. */
     public boolean scanModules = true;
 
-    /** If true, scan classfile bytecodes, producing {@link ClassInfo} objects. */
+    /** If true, scan classfile bytecodes, producing {@code ClassInfo} objects. */
     public boolean enableClassInfo;
 
     /**
      * If true, enables the saving of field info during the scan. This information can be obtained using
-     * {@link ClassInfo#getFieldInfo()}. By default, field info is not scanned, for efficiency.
+     * {@code ClassInfo#getFieldInfo()}. By default, field info is not scanned, for efficiency.
      */
     public boolean enableFieldInfo;
 
     /**
      * If true, enables the saving of method info during the scan. This information can be obtained using
-     * {@link ClassInfo#getMethodInfo()}. By default, method info is not scanned, for efficiency.
+     * {@code ClassInfo#getMethodInfo()}. By default, method info is not scanned, for efficiency.
      */
     public boolean enableMethodInfo;
 
     /**
      * If true, enables the saving of annotation info (for class, field, method or method parameter annotations)
-     * during the scan. This information can be obtained using {@link ClassInfo#getAllAnnotationInfo()} etc. By
+     * during the scan. This information can be obtained using {@code ClassInfo#getAllAnnotationInfo()} etc. By
      * default, annotation info is not scanned, for efficiency.
      */
     public boolean enableAnnotationInfo;
@@ -209,7 +207,7 @@ public class ScanSpec {
     /**
      * If true, nested jarfiles (jarfiles within jarfiles) that are extracted during scanning are removed from their
      * temporary directory (e.g. /tmp/ClassGraph-8JX2u4w) after the scan has completed. If false, temporary files
-     * are removed when the {@link ScanResult} is closed, or failing that, on JVM exit.
+     * are removed when the {@code ScanResult} is closed, or failing that, on JVM exit.
      */
     public boolean removeTemporaryFilesAfterScan;
 
@@ -336,13 +334,13 @@ public class ScanSpec {
     }
 
     /**
-     * Throw {@link IllegalStateException} naming the {@link io.github.classgraph.ClassGraph} method that has to be
-     * called before the scan, if the scan option it sets was not enabled.
+     * Throw {@link IllegalStateException} naming the {@code ClassGraph} method that has to be called before the
+     * scan, if the scan option it sets was not enabled.
      *
      * @param enabled
      *            whether the scan option was enabled.
      * @param enablerMethodName
-     *            the name of the {@link io.github.classgraph.ClassGraph} method that enables the scan option.
+     *            the name of the {@code ClassGraph} method that enables the scan option.
      * @throws IllegalStateException
      *             if the scan option was not enabled.
      */
