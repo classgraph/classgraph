@@ -146,7 +146,7 @@ class ClasspathElementZip extends ClasspathElement {
 
     /**
      * Schedules the child classpath elements found within this classpath element -- nested lib jars, and the
-     * entries of the manifest's {@code Class-Path} and {@code Bundle-Classpath} attributes -- for scanning.
+     * entries of the manifest's {@code Class-Path} and {@code Bundle-ClassPath} attributes -- for scanning.
      */
     private final class ChildClasspathElementScheduler {
         /** The work queue to add child classpath elements to. */

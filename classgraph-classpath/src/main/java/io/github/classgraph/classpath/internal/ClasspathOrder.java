@@ -314,7 +314,9 @@ public class ClasspathOrder {
                                 ? new URL("file:" + pathElementStrWithoutSuffix)
                                 : pathElement instanceof URI ? new URI("file:" + pathElementStrWithoutSuffix)
                                         : pathElementStrWithoutSuffix;
-                    } catch (MalformedURLException | URISyntaxException | InvalidPathException e2) {
+                    } catch (MalformedURLException | URISyntaxException e2) {
+                        // (Path.of() is not retried, since prefixing an invalid path with "file:" cannot fix it --
+                        // the Path degrades to a path string, as a File does)
                         return false;
                     }
                 }
@@ -478,7 +480,7 @@ public class ClasspathOrder {
      * a {@code "/*"} suffix (allowable for local classpaths as of JDK 6).
      *
      * @param baseDirPath
-     *            the path of the directory, i.e. the classpath entry with the {@code "/*"} suffix removed.
+     *            the resolved path of the directory, i.e. the classpath entry with the {@code "/*"} suffix removed.
      * @param classLoader
      *            the ClassLoader that this classpath element was obtained from.
      * @param log
@@ -489,13 +491,12 @@ public class ClasspathOrder {
             final @Nullable LogNode log) {
         // A wildcarded classpath entry is only ever reached as a path string, never as a URL, so there is no URL to
         // apply the user's URL filters to
-        final var baseDirPathResolved = FastPathResolver.resolveFilePath(FileUtils.currDirPath(), baseDirPath);
-        if (!passesFilters(/* pathElementURL = */ null, baseDirPath, baseDirPathResolved, log)) {
+        if (!passesFilters(/* pathElementURL = */ null, baseDirPath, baseDirPath, log)) {
             return false;
         }
 
         // Check the path before the "/*" suffix is a directory
-        final var baseDir = new File(baseDirPathResolved);
+        final var baseDir = new File(baseDirPath);
         if (!baseDir.exists()) {
             if (log != null) {
                 log.log("Directory does not exist for wildcard classpath element: " + baseDirPath);
@@ -604,21 +605,21 @@ public class ClasspathOrder {
             }
             return false;
         }
-        final var pathElementResolved = FastPathResolver.resolveFilePath(FileUtils.currDirPath(), pathElementStr);
-        if (!passesFilters(pathElementURL, pathElementStr, pathElementResolved, log)) {
+        // (pathElementStr was already resolved above, so there is nothing left to resolve here)
+        if (!passesFilters(pathElementURL, pathElementStr, pathElementStr, log)) {
             return false;
         }
-        if (pathElementResolved.startsWith("//")) {
+        if (pathElementStr.startsWith("//")) {
             // Handle Windows UNC paths (#705). File supports UNC paths directly:
             // https://wiki.eclipse.org/Eclipse/UNC_Paths#Programming_with_UNC_paths
             try {
-                return addClasspathEntryAndLog(new File(pathElementResolved), pathElementStr, pathElementResolved,
+                return addClasspathEntryAndLog(new File(pathElementStr), pathElementStr, pathElementStr,
                         classLoader, log);
             } catch (final Exception e) {
                 // Fall through, and add the path as a string rather than as a File
             }
         }
-        return addClasspathEntryAndLog(pathElementResolved, pathElementStr, pathElementResolved, classLoader, log);
+        return addClasspathEntryAndLog(pathElementStr, pathElementStr, pathElementStr, classLoader, log);
     }
 
     /**

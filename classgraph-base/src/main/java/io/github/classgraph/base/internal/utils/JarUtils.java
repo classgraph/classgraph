@@ -66,8 +66,8 @@ public final class JarUtils {
     /** The Constant TRAILING_DOTS. */
     private static final Pattern TRAILING_DOTS = Pattern.compile("\\.$");
 
-    /** The Constant DOUBLE_BACKSHLASH_WITH_COLON. */
-    private static final Pattern DOUBLE_BACKSHLASH_WITH_COLON = Pattern.compile("\\\\:");
+    /** The Constant DOUBLE_BACKSLASH_WITH_COLON. */
+    private static final Pattern DOUBLE_BACKSLASH_WITH_COLON = Pattern.compile("\\\\:");
 
     /**
      * On everything but Windows, where the path separator is ':', need to treat the colon in these substrings as
@@ -230,7 +230,7 @@ public final class JarUtils {
             final int idx1 = splitPointsSorted.get(i);
             // Trim, and unescape "\\:"
             var part = pathStr.substring(idx0 + 1, idx1).trim();
-            part = DOUBLE_BACKSHLASH_WITH_COLON.matcher(part).replaceAll(":");
+            part = DOUBLE_BACKSLASH_WITH_COLON.matcher(part).replaceAll(":");
             // Remove empty path components
             if (!part.isEmpty()) {
                 parts.add(part);
@@ -255,7 +255,7 @@ public final class JarUtils {
     private static boolean isSchemeOrEscapedColon(final String pathStr, final int colonIdx,
             final @Nullable Set<String> allowedURLSchemes) {
         // A ':' escaped as "\:" is part of a path element, not a separator (this is the escaping applied by
-        // appendPathElt, and undone by the DOUBLE_BACKSHLASH_WITH_COLON unescape in splitOnColon)
+        // appendPathElt, and undone by the DOUBLE_BACKSLASH_WITH_COLON unescape in splitOnColon)
         if (colonIdx > 0 && pathStr.charAt(colonIdx - 1) == '\\') {
             return true;
         }

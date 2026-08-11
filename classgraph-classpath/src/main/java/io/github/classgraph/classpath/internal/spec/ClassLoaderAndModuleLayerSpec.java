@@ -81,6 +81,9 @@ public class ClassLoaderAndModuleLayerSpec {
      * Add a classloader to the list of classloaders to scan. (This only works if {@code overrideClasspath()} is not
      * called.)
      *
+     * <p>
+     * This call is ignored if it is called before {@link #overrideClassLoaders(ClassLoader...)}.
+     *
      * @param classLoader
      *            The classloader to add.
      */

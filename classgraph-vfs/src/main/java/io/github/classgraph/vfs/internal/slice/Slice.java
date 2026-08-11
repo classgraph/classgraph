@@ -190,7 +190,8 @@ public abstract class Slice implements Closeable {
                     if (overflowBufBytesUsed == 1) {
                         // We were able to read one more byte, so we're still not at the end of the stream, and we
                         // need to spill to disk, because buf is full
-                        return spillToDisk(inputStream, tempFileBaseName, buf, overflowBuf, scanResources, log);
+                        return spillToDisk(inputStream, tempFileBaseName, buf, bufBytesUsed, overflowBuf,
+                                scanResources, log);
                     }
                     // else (overflowBufBytesUsed == -1), so reached the end of the stream => don't spill to disk
                 }
@@ -206,8 +207,8 @@ public abstract class Slice implements Closeable {
 
             }
             // inputStreamLengthHint is longer than vfsScanSpec.maxBufferedJarRAMSize, so immediately spill to disk
-            return spillToDisk(inputStream, tempFileBaseName, /* buf = */ null, /* overflowBuf = */ null,
-                    scanResources, log);
+            return spillToDisk(inputStream, tempFileBaseName, /* buf = */ null, /* bufBytesUsed = */ 0,
+                    /* overflowBuf = */ null, scanResources, log);
         }
     }
 
@@ -220,6 +221,8 @@ public abstract class Slice implements Closeable {
      *            The stem to base the temporary filename on.
      * @param buf
      *            The first buffer to write to the beginning of the file, or null if none.
+     * @param bufBytesUsed
+     *            The number of bytes of {@code buf} that were filled.
      * @param overflowBuf
      *            The second buffer to write to the beginning of the file, or null if none. (Should have same
      *            nullity as buf.)
@@ -232,8 +235,8 @@ public abstract class Slice implements Closeable {
      *             If anything went wrong creating or writing to the temp file.
      */
     private static FileSlice spillToDisk(final InputStream inputStream, final String tempFileBaseName,
-            final byte @Nullable [] buf, final byte @Nullable [] overflowBuf, final ScanResources scanResources,
-            final @Nullable LogNode log) throws IOException {
+            final byte @Nullable [] buf, final int bufBytesUsed, final byte @Nullable [] overflowBuf,
+            final ScanResources scanResources, final @Nullable LogNode log) throws IOException {
         // Create temp file
         File tempFile;
         try {
@@ -253,7 +256,7 @@ public abstract class Slice implements Closeable {
             // Write already-read buffered bytes to temp file, if anything was read (buf and overflowBuf always have
             // the same nullity)
             if (buf != null && overflowBuf != null) {
-                outputStream.write(buf);
+                outputStream.write(buf, 0, bufBytesUsed);
                 outputStream.write(overflowBuf);
             }
             // Copy the rest of the InputStream to the file

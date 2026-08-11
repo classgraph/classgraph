@@ -131,11 +131,9 @@ public class ModuleFinder {
             final Set<ModuleLayer> parentLayers, final Deque<ModuleLayer> layerOrderOut) {
         if (layerVisited.add(layer)) {
             final var parents = layer.parents();
-            if (parents != null) {
-                parentLayers.addAll(parents);
-                for (final ModuleLayer parent : parents) {
-                    findLayerOrder(parent, layerVisited, parentLayers, layerOrderOut);
-                }
+            parentLayers.addAll(parents);
+            for (final ModuleLayer parent : parents) {
+                findLayerOrder(parent, layerVisited, parentLayers, layerOrderOut);
             }
             layerOrderOut.push(layer);
         }
@@ -162,15 +160,11 @@ public class ModuleFinder {
         final Deque<ModuleLayer> layerOrder = new ArrayDeque<>();
         final Set<ModuleLayer> parentLayers = new HashSet<>();
         for (final ModuleLayer layer : layers) {
-            if (layer != null) {
-                findLayerOrder(layer, /* layerVisited = */ new HashSet<>(), parentLayers, layerOrder);
-            }
+            findLayerOrder(layer, /* layerVisited = */ new HashSet<>(), parentLayers, layerOrder);
         }
         if (classLoaderAndModuleLayerSpec.addedModuleLayers != null) {
             for (final ModuleLayer layer : classLoaderAndModuleLayerSpec.addedModuleLayers) {
-                if (layer != null) {
-                    findLayerOrder(layer, /* layerVisited = */ new HashSet<>(), parentLayers, layerOrder);
-                }
+                findLayerOrder(layer, /* layerVisited = */ new HashSet<>(), parentLayers, layerOrder);
             }
         }
 
@@ -191,25 +185,19 @@ public class ModuleFinder {
         final Set<ModuleReference> addedModules = new HashSet<>();
         final List<ModuleReference> moduleOrder = new ArrayList<>();
         for (final ModuleLayer layer : layerOrderFinal) {
-            final var configuration = layer.configuration();
-            if (configuration != null) {
-                // Get ModuleReferences from layer configuration
-                final var modules = configuration.modules();
-                if (modules != null) {
-                    final List<ModuleReference> modulesInLayer = new ArrayList<>();
-                    for (final ResolvedModule module : modules) {
-                        final var moduleReference = module.reference();
-                        // A module that is resolved in more than one layer is only listed once, in the first layer
-                        // that resolves it
-                        if (moduleReference != null && addedModules.add(moduleReference)) {
-                            modulesInLayer.add(moduleReference);
-                        }
-                    }
-                    // Sort modules in layer by name
-                    CollectionUtils.sortIfNotEmpty(modulesInLayer, BY_NAME_THEN_LOCATION);
-                    moduleOrder.addAll(modulesInLayer);
+            // Get ModuleReferences from layer configuration
+            final List<ModuleReference> modulesInLayer = new ArrayList<>();
+            for (final ResolvedModule module : layer.configuration().modules()) {
+                final var moduleReference = module.reference();
+                // A module that is resolved in more than one layer is only listed once, in the first layer
+                // that resolves it
+                if (addedModules.add(moduleReference)) {
+                    modulesInLayer.add(moduleReference);
                 }
             }
+            // Sort modules in layer by name
+            CollectionUtils.sortIfNotEmpty(modulesInLayer, BY_NAME_THEN_LOCATION);
+            moduleOrder.addAll(modulesInLayer);
         }
         return moduleOrder;
     }
@@ -231,16 +219,14 @@ public class ModuleFinder {
             final ClasspathSpec classpathSpec, final ClassLoaderAndModuleLayerSpec classLoaderAndModuleLayerSpec,
             final boolean scanNonSystemModules) {
         final LinkedHashSet<ModuleLayer> layers = new LinkedHashSet<>();
-        if (callStack != null) {
-            for (final Class<?> stackFrameClass : callStack) {
-                final var layer = stackFrameClass.getModule().getLayer();
-                if (layer != null) {
-                    layers.add(layer);
-                } else if (scanNonSystemModules) {
-                    // getLayer() returns null for unnamed modules -- in that case the classes are on
-                    // java.class.path, so java.class.path has to be scanned to find them
-                    forceScanJavaClassPath = true;
-                }
+        for (final Class<?> stackFrameClass : callStack) {
+            final var layer = stackFrameClass.getModule().getLayer();
+            if (layer != null) {
+                layers.add(layer);
+            } else if (scanNonSystemModules) {
+                // getLayer() returns null for unnamed modules -- in that case the classes are on
+                // java.class.path, so java.class.path has to be scanned to find them
+                forceScanJavaClassPath = true;
             }
         }
         // Add system modules from boot layer, if they weren't already found in stacktrace
@@ -275,7 +261,7 @@ public class ModuleFinder {
         final var overrideModuleLayers = classLoaderAndModuleLayerSpec.overrideModuleLayers;
         if (overrideModuleLayers == null) {
             // Find module references for classes on the callstack, and from the boot layer
-            if (callStack != null && callStack.length > 0) {
+            if (callStack.length > 0) {
                 allModuleReferences = findModuleReferencesFromCallstack(callStack, classpathSpec,
                         classLoaderAndModuleLayerSpec, scanNonSystemModules);
             }

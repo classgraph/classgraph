@@ -256,9 +256,7 @@ public class ClassLoaderProbe {
             addOverriddenClasspathEntries(overrideClasspath, classpathSpec, classLoaderAndModuleLayerSpec,
                     defaultClassLoader, classLoaderProbeLog);
             classLoaderOrderRespectingParentDelegation = contextClassLoaders;
-        }
-
-        if (overrideClasspath == null) {
+        } else {
             // Need to record the classloader delegation order, in particular to respect parent-last delegation
             // order, since this is not the default (issue #267).
             classLoaderOrderRespectingParentDelegation = addClassLoaderClasspathEntries(classpathSpec,
@@ -405,7 +403,6 @@ public class ClassLoaderProbe {
         if (pathElements.length > 0) {
             final var sysPropLog = log == null ? null : log.log("Getting classpath entries from java.class.path");
             for (final String pathElement : pathElements) {
-                // pathElement is not also listed in an ignored parent classloader
                 final var pathElementResolved = FastPathResolver.resolveFilePath(FileUtils.currDirPath(),
                         pathElement);
                 classpathOrder.addClasspathEntry(pathElementResolved, defaultClassLoader, sysPropLog);

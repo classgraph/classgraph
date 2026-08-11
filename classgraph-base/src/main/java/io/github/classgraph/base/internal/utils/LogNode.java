@@ -84,7 +84,7 @@ public final class LogNode {
     private final @Nullable String msg;
 
     /** The stacktrace, if this log entry was due to an exception. */
-    private @Nullable String stackTrace;
+    private final @Nullable String stackTrace;
 
     /**
      * The time between when this log entry was created and addElapsedTime() was called.
@@ -283,7 +283,7 @@ public final class LogNode {
      */
     private LogNode addChild(final String sortKey, final @Nullable String msg, final long elapsedTimeNanos,
             final @Nullable Throwable exception) {
-        final var newSortKey = sortKeyPrefix + "\t" + (sortKey == null ? "" : sortKey) + "\t"
+        final var newSortKey = sortKeyPrefix + "\t" + sortKey + "\t"
                 + String.format(Locale.US, "%09d", sortKeyUniqueSuffix.getAndIncrement());
         final LogNode newChild = new LogNode(newSortKey, msg, elapsedTimeNanos, exception);
         newChild.parent = this;

@@ -103,7 +103,7 @@ public class Classpath implements AutoCloseable {
     /**
      * Returns the classpath elements, in the order the classloaders would search them, including the elements that
      * a jarfile on the classpath declares: the jarfiles in its automatic lib dirs, and the entries of its
-     * manifest's {@code Class-Path} and {@code Bundle-Classpath} attributes. An element that is reached more than
+     * manifest's {@code Class-Path} and {@code Bundle-ClassPath} attributes. An element that is reached more than
      * once is listed only at the first position it is reached at, which is the position that decides which copy of
      * a duplicated class is loaded.
      *

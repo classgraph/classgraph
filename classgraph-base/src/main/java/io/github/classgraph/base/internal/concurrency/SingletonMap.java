@@ -223,8 +223,7 @@ public abstract class SingletonMap<K, V, E extends Exception> {
      * @param log
      *            The log.
      * @return The non-null singleton instance, if {@link #newInstance(Object, LogNode)} returned a non-null
-     *         instance on this call or a previous call, otherwise throws {@link NullPointerException} if this call
-     *         or a previous call to {@link #newInstance(Object, LogNode)} returned null.
+     *         instance on this call or a previous call.
      * @throws E
      *             If {@link #newInstance(Object, LogNode)} threw an exception.
      * @throws InterruptedException
@@ -302,8 +301,7 @@ public abstract class SingletonMap<K, V, E extends Exception> {
      * @param log
      *            The log.
      * @return The non-null singleton instance, if {@link #newInstance(Object, LogNode)} returned a non-null
-     *         instance on this call or a previous call, otherwise throws {@link NullPointerException} if this call
-     *         or a previous call to {@link #newInstance(Object, LogNode)} returned null.
+     *         instance on this call or a previous call.
      * @throws E
      *             If {@link #newInstance(Object, LogNode)} threw an exception.
      * @throws InterruptedException
@@ -348,14 +346,15 @@ public abstract class SingletonMap<K, V, E extends Exception> {
     }
 
     /**
-     * Get the map entries.
+     * Get the map entries. Unlike {@link #values()}, an entry whose newInstance() returned null is included, with a
+     * null value.
      *
      * @return the map entries.
      * @throws InterruptedException
      *             if interrupted.
      */
-    public List<Entry<K, V>> entries() throws InterruptedException {
-        final List<Entry<K, V>> entries = new ArrayList<>(map.size());
+    public List<Entry<K, @Nullable V>> entries() throws InterruptedException {
+        final List<Entry<K, @Nullable V>> entries = new ArrayList<>(map.size());
         for (final Entry<K, SingletonHolder<V>> ent : map.entrySet()) {
             entries.add(new SimpleEntry<>(ent.getKey(), ent.getValue().get()));
         }

@@ -137,11 +137,9 @@ final class JarURLDownloader {
             }
         }
         try (final CloseableUrlConnection urlConn = new CloseableUrlConnection(url)) {
-            var contentLengthHint = -1L;
             urlConn.conn.setConnectTimeout(HTTP_TIMEOUT);
             urlConn.conn.connect();
             if (urlConn.httpConn != null) {
-                // Get content length from HTTP headers, if available
                 if (urlConn.httpConn.getResponseCode() != HttpURLConnection.HTTP_OK) {
                     throw new IOException(
                             "Got response code " + urlConn.httpConn.getResponseCode() + " for URL " + url);
@@ -160,7 +158,7 @@ final class JarURLDownloader {
                 }
             }
             // Try to read content length hint
-            contentLengthHint = urlConn.conn.getContentLengthLong();
+            var contentLengthHint = urlConn.conn.getContentLengthLong();
             if (contentLengthHint < -1L) {
                 contentLengthHint = -1L;
             }

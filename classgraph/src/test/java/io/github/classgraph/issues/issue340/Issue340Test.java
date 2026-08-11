@@ -29,7 +29,7 @@ public class Issue340Test {
 
         try (var scanResult = new ClassGraph()
                 .overrideClasspath(getClass().getClassLoader().getResource("issue340.jar").getPath()).scan()) {
-            // issue340.jar contains Bundle-Classpath that points to jar2 and jar4. jar2 has a Class-Path entry that
+            // issue340.jar contains Bundle-ClassPath that points to jar2 and jar4. jar2 has a Class-Path entry that
             // points to jar1; jar4 has a Class-Path entry that points to jar3. jar2 and jar4 also have an invalid
             // Class-Path entry that tries to escape the parent jar root. jar1 and jar2 are deflated, jar3 and jar4
             // are stored.

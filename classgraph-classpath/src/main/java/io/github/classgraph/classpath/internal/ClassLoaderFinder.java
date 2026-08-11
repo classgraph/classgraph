@@ -65,7 +65,7 @@ public class ClassLoaderFinder {
         final LinkedHashSet<ClassLoader> classLoadersUnique;
         final @Nullable LogNode classLoadersFoundLog;
         if (classLoaderAndModuleLayerSpec.overrideClassLoaders == null) {
-            classLoadersUnique = findDefaultClassLoaders(classLoaderAndModuleLayerSpec, log);
+            classLoadersUnique = findDefaultClassLoaders(classLoaderAndModuleLayerSpec);
             classLoadersFoundLog = log == null ? null : log.log("Found ClassLoaders:");
         } else {
             // ClassLoaders were overridden
@@ -93,12 +93,10 @@ public class ClassLoaderFinder {
      *
      * @param classLoaderAndModuleLayerSpec
      *            The classloaders and module layers the caller asked to be scanned.
-     * @param log
-     *            The log.
      * @return The classloaders, in the order they should be scanned in.
      */
     private static LinkedHashSet<ClassLoader> findDefaultClassLoaders(
-            final ClassLoaderAndModuleLayerSpec classLoaderAndModuleLayerSpec, final @Nullable LogNode log) {
+            final ClassLoaderAndModuleLayerSpec classLoaderAndModuleLayerSpec) {
         final LinkedHashSet<ClassLoader> classLoadersUnique = new LinkedHashSet<>();
 
         // Get thread context classloader (this is the first classloader to try, since a context classloader can
@@ -131,17 +129,13 @@ public class ClassLoaderFinder {
         // entries from the platform classloader.
 
         // Find classloaders for classes on callstack, in case any were missed
-        try {
-            final var callStack = CallStackReader.getClassContext();
-            for (var i = callStack.length - 1; i >= 0; --i) {
-                final var callerClassLoader = callStack[i].getClassLoader();
-                if (callerClassLoader != null) {
-                    classLoadersUnique.add(callerClassLoader);
-                }
-            }
-        } catch (final IllegalArgumentException e) {
-            if (log != null) {
-                log.log("Could not get call stack", e);
+        // (CallStackReader#getClassContext falls back to naming just itself, rather than throwing, if the call
+        // stack cannot be read)
+        final var callStack = CallStackReader.getClassContext();
+        for (var i = callStack.length - 1; i >= 0; --i) {
+            final var callerClassLoader = callStack[i].getClassLoader();
+            if (callerClassLoader != null) {
+                classLoadersUnique.add(callerClassLoader);
             }
         }
 

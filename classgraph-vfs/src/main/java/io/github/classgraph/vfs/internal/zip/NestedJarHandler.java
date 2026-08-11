@@ -263,7 +263,7 @@ public class NestedJarHandler {
                         cause);
             } catch (final SecurityException e) {
                 // getCanonicalFile() failed (it may have also failed with IOException)
-                throw new IOException("Path component " + nestedJarPath + " could not be canonicalized: " + e);
+                throw new IOException("Path component " + nestedJarPath + " could not be canonicalized: " + e, e);
             }
         }
 

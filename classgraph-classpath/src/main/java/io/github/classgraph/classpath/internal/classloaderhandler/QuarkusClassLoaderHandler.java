@@ -213,7 +213,8 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
      * Get the automatic package root prefixes for classpath elements obtained from this classloader.
      *
      * <p>
-     * Classpath elements from this classloader may be Spring-Boot executable jars or wars.
+     * Classpath elements from this classloader can be in any of the common build-tool or packaged-archive layouts,
+     * so the default package root prefixes are looked for.
      *
      * @return the package root prefixes.
      */

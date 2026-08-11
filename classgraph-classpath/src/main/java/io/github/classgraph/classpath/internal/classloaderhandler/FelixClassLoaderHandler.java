@@ -43,7 +43,7 @@ import org.jspecify.annotations.Nullable;
  * Custom Class Loader Handler for OSGi Felix ClassLoader.
  *
  * <p>
- * The handler adds the bundle jar and all associated Bundle-Classpath jars into the classpath to be scanned.
+ * The handler adds the bundle jar and all associated Bundle-ClassPath jars into the classpath to be scanned.
  *
  * @author elrufaie
  */
@@ -151,7 +151,8 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
      * Get the automatic package root prefixes for classpath elements obtained from this classloader.
      *
      * <p>
-     * Classpath elements from this classloader may be Spring-Boot executable jars or wars.
+     * Classpath elements from this classloader can be in any of the common build-tool or packaged-archive layouts,
+     * so the default package root prefixes are looked for.
      *
      * @return the package root prefixes.
      */

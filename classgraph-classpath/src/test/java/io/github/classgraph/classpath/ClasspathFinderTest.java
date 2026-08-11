@@ -247,12 +247,12 @@ public class ClasspathFinderTest {
     }
 
     /**
-     * The classpath elements named by an OSGi bundle jar's {@code Bundle-Classpath} manifest entry are part of the
+     * The classpath elements named by an OSGi bundle jar's {@code Bundle-ClassPath} manifest entry are part of the
      * classpath. Those paths are relative to the root of the bundle jar, so they are reported in the nested form.
      */
     @Test
     public void bundleClassPathEntriesAreAddedToTheClasspath(@TempDir final Path tempDir) throws IOException {
-        final var bundle = writeJarWithManifest(tempDir.resolve("bundle.jar"), "Bundle-Classpath",
+        final var bundle = writeJarWithManifest(tempDir.resolve("bundle.jar"), "Bundle-ClassPath",
                 ".,embedded.jar");
         try (var classpath = new ClasspathFinder().overrideClasspath((Object) bundle).find()) {
             assertThat(classpath.getLocations()).containsExactly(locationOf(bundle),

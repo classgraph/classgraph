@@ -50,7 +50,7 @@ import org.jspecify.annotations.Nullable;
 /**
  * Expands the classpath elements that the classloaders declared with the classpath elements that those in turn
  * declare: the jarfiles in their automatic lib dirs, and the entries of their manifests' {@code Class-Path} and
- * {@code Bundle-Classpath} attributes. Each of those can declare more of them, so this is recursive.
+ * {@code Bundle-ClassPath} attributes. Each of those can declare more of them, so this is recursive.
  *
  * <p>
  * The expanded classpath is in the order a classloader would search it: each classpath element is followed by the
@@ -211,7 +211,7 @@ final class ClasspathExpansion {
             // The path was not changed by canonicalization, which is the usual case
             return childPath;
         }
-        // A Bundle-Classpath entry is a path within the jarfile, so it starts with the path of the jarfile itself
+        // A Bundle-ClassPath entry is a path within the jarfile, so it starts with the path of the jarfile itself
         if (childPath.startsWith(canonicalJarPath)) {
             return reachedJarPath + childPath.substring(canonicalJarPath.length());
         }

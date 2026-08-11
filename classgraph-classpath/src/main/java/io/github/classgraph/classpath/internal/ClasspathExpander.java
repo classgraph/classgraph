@@ -43,7 +43,7 @@ import io.github.classgraph.vfs.internal.zip.LogicalZipFile;
 
 /**
  * Finds the classpath entries that a jarfile adds to the classpath: the jarfiles in its automatic lib dirs, and the
- * entries of its manifest's {@code Class-Path} and {@code Bundle-Classpath} attributes.
+ * entries of its manifest's {@code Class-Path} and {@code Bundle-ClassPath} attributes.
  *
  * <p>
  * A classpath is not complete until these have been resolved, since each of them can in turn declare more of them.
@@ -71,8 +71,8 @@ public final class ClasspathExpander {
         /** An entry of the manifest's {@code Class-Path} attribute. */
         CLASS_PATH_MANIFEST_ENTRY("Found Class-Path manifest entry"),
 
-        /** An entry of the manifest's {@code Bundle-Classpath} attribute. */
-        BUNDLE_CLASS_PATH_MANIFEST_ENTRY("Found Bundle-Classpath manifest entry");
+        /** An entry of the manifest's {@code Bundle-ClassPath} attribute. */
+        BUNDLE_CLASS_PATH_MANIFEST_ENTRY("Found Bundle-ClassPath manifest entry");
 
         /** The text to log when an entry with this origin is found. */
         private final String logMessage;
@@ -209,7 +209,7 @@ public final class ClasspathExpander {
     }
 
     /**
-     * Add the entries of an OSGi bundle jar manifest's {@code Bundle-Classpath} attribute, resolving the paths
+     * Add the entries of an OSGi bundle jar manifest's {@code Bundle-ClassPath} attribute, resolving the paths
      * relative to the root of the jarfile.
      *
      * @param logicalZipFile
@@ -225,17 +225,17 @@ public final class ClasspathExpander {
             return;
         }
         final var zipFilePathPrefix = zipFilePathResolved + "!/";
-        // Class-Path is split on " ", but Bundle-Classpath is split on ","
+        // Class-Path is split on " ", but Bundle-ClassPath is split on ","
         for (String childBundlePath : logicalZipFile.bundleClassPathManifestEntryValue.split(",")) {
-            // Assume that Bundle-Classpath paths have to be given relative to jarfile root
+            // Assume that Bundle-ClassPath paths have to be given relative to jarfile root
             while (childBundlePath.startsWith("/")) {
                 childBundlePath = childBundlePath.substring(1);
             }
-            // Currently the position of "." relative to child classpath entries is ignored (the Bundle-Classpath
+            // Currently the position of "." relative to child classpath entries is ignored (the Bundle-ClassPath
             // path is treated as if "." is in the first position, since child classpath entries are always added
             // to the classpath after the parent classpath entry that they were obtained from).
             if (!childBundlePath.isEmpty() && !".".equals(childBundlePath)) {
-                // Resolve Bundle-Classpath entry within jar
+                // Resolve Bundle-ClassPath entry within jar
                 childEntries.add(new ChildEntry(
                         zipFilePathPrefix + FileUtils.sanitizeEntryPath(childBundlePath,
                                 /* removeInitialSlash = */ true, /* removeFinalSlash = */ true),

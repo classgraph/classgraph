@@ -29,7 +29,7 @@ public class ClassTypeSignatureTest {
 
     /** A generic class with a bounded type parameter, a generic superclass and a generic interface. */
     public static class Sub<T extends Number & Comparable<T>> extends Base<T> implements Iface<T>, Serializable {
-        /** Serialization version. */
+        /** serialVersionUID. */
         @Serial
         private static final long serialVersionUID = 1L;
     }

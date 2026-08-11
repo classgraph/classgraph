@@ -57,28 +57,8 @@ public final class VersionFinder {
     /** The operating system type. */
     public static final OperatingSystem OS;
 
-    /** Java version string (null if the {@code "java.version"} property is unreadable). */
-    public static final @Nullable String JAVA_VERSION = getProperty("java.version");
-
     /** Java major version -- 17 for "17.0.4", 21 for "21-ea", etc. */
-    public static final int JAVA_MAJOR_VERSION;
-
-    /** Java minor version -- 0 for "11.0.4" */
-    public static final int JAVA_MINOR_VERSION;
-
-    /** Java sub version -- 4 for "11.0.4" */
-    public static final int JAVA_SUB_VERSION;
-
-    /** Java is EA release -- true for "11-ea", etc. */
-    public static final boolean JAVA_IS_EA_VERSION;
-
-    static {
-        final var version = Runtime.version();
-        JAVA_MAJOR_VERSION = version.feature();
-        JAVA_MINOR_VERSION = version.interim();
-        JAVA_SUB_VERSION = version.update();
-        JAVA_IS_EA_VERSION = version.pre().isPresent();
-    }
+    public static final int JAVA_MAJOR_VERSION = Runtime.version().feature();
 
     /** The operating system type. */
     public enum OperatingSystem {

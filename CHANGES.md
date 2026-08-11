@@ -1070,7 +1070,9 @@ returns an unmodifiable view where the value is a collection:
   `getModulePath()`, `getAddModules()`, `getPatchModules()`, `getAddExports()`,
   `getAddOpens()` and `getAddReads()`, each returning an unmodifiable `Set<String>`. In 4.x
   the sets were `final` but their *contents* were not, so a caller could add entries to
-  ClassGraph's parsed module path.
+  ClassGraph's parsed module path. Each getter returns a snapshot taken while holding the
+  instance's lock, so a scan thread recording an `Add-Exports` or `Add-Opens` manifest entry
+  cannot disturb a set that the caller is still iterating.
 * The `protected` fields of `ClassInfo` (`name`, `typeSignatureStr`, `isExternalClass`,
   `isScannedClass`, `classfileResource`), `ClassMemberInfo` (`declaringClassName`, `name`,
   `modifiers`, `typeDescriptorStr`, `typeSignatureStr`, `annotationInfo`), `Resource`

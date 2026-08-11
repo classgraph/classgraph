@@ -29,7 +29,6 @@
 package io.github.classgraph.base.internal.reflection;
 
 import java.lang.reflect.AccessibleObject;
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
@@ -46,9 +45,6 @@ class NarcissusReflectionDriver extends ReflectionDriver {
 
     /** {@code Narcissus#findClass(String)}. */
     private final Method findClass;
-
-    /** {@code Narcissus#getDeclaredConstructors(Class)}. */
-    private final Method getDeclaredConstructors;
 
     /** {@code Narcissus#getDeclaredFields(Class)}. */
     private final Method getDeclaredFields;
@@ -90,7 +86,6 @@ class NarcissusReflectionDriver extends ReflectionDriver {
         // Look up needed methods
         findClass = drv.findStaticMethod(narcissusClass, "findClass", String.class);
         getDeclaredMethods = drv.findStaticMethod(narcissusClass, "getDeclaredMethods", Class.class);
-        getDeclaredConstructors = drv.findStaticMethod(narcissusClass, "getDeclaredConstructors", Class.class);
         getDeclaredFields = drv.findStaticMethod(narcissusClass, "getDeclaredFields", Class.class);
         getField = drv.findStaticMethod(narcissusClass, "getField", Object.class, Field.class);
         setField = drv.findStaticMethod(narcissusClass, "setField", Object.class, Field.class, Object.class);
@@ -120,12 +115,6 @@ class NarcissusReflectionDriver extends ReflectionDriver {
     @Override
     Method[] getDeclaredMethods(final Class<?> cls) throws Exception {
         return (Method[]) getDeclaredMethods.invoke(null, cls);
-    }
-
-    @SuppressWarnings("unchecked")
-    @Override
-    <T> Constructor<T>[] getDeclaredConstructors(final Class<T> cls) throws Exception {
-        return (Constructor<T>[]) getDeclaredConstructors.invoke(null, cls);
     }
 
     @Override

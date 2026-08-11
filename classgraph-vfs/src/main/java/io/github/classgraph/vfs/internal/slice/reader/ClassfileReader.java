@@ -144,11 +144,8 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
      *            the {@link InputStream} to read from.
      * @param resourceToClose
      *            the underlying resource to close when {@link ClassfileReader#close()} is called, or null.
-     * @throws IOException
-     *             If an inflater cannot be opened on the {@link Slice}.
      */
-    public ClassfileReader(final InputStream inputStream, final @Nullable Closeable resourceToClose)
-            throws IOException {
+    public ClassfileReader(final InputStream inputStream, final @Nullable Closeable resourceToClose) {
         inflaterInputStream = inputStream;
         arr = new byte[INITIAL_BUF_SIZE];
         this.resourceToClose = resourceToClose;

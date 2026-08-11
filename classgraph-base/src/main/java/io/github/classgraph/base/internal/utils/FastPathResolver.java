@@ -198,7 +198,6 @@ public final class FastPathResolver {
             } else {
                 // Fast path -- no '%', or a path that stays a URL and so keeps its percent encoding
                 translateSeparator(path, 0, len, /* stripFinalSeparator = */ true, buf);
-                return buf.toString();
             }
             return buf.toString();
         }
@@ -492,7 +491,7 @@ public final class FastPathResolver {
         // See: http://stackoverflow.com/a/17870390/3950982
         // https://weblogs.java.net/blog/kohsuke/archive/2007/04/how_to_convert.html
 
-        if (relativePathRaw == null || relativePathRaw.isEmpty()) {
+        if (relativePathRaw.isEmpty()) {
             return resolveBasePath == null ? "" : resolveBasePath;
         }
 

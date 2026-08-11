@@ -86,6 +86,9 @@ public class ArchiveReader implements Closeable {
     /** The log node, or null if not logging. */
     private @Nullable LogNode log;
 
+    /** True once {@link #close()} has been called. */
+    private volatile boolean closed;
+
     /** Constructor. */
     public ArchiveReader() {
         this.nestedJarHandler = new NestedJarHandler(vfsScanSpec, new InterruptionChecker());
@@ -195,6 +198,9 @@ public class ArchiveReader implements Closeable {
      */
     public Archive open(final String path) throws IOException {
         Assert.notNull(path, "path");
+        if (closed) {
+            throw new IOException("Cannot open " + path + " after the ArchiveReader has been closed");
+        }
         // computeIfAbsent is not used, because the mapping function must not itself open other jarfiles (the
         // enclosing jarfiles of a nested one are opened on the way to it, which would be a recursive update)
         final var alreadyOpened = archives.get(path);
@@ -219,9 +225,6 @@ public class ArchiveReader implements Closeable {
         } catch (final InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IOException("Interrupted while opening " + path);
-        } catch (final NullPointerException e) {
-            // The nested jar handler's caches are set to null by close()
-            throw new IOException("Cannot open " + path + " after the ArchiveReader has been closed");
         }
     }
 
@@ -236,6 +239,7 @@ public class ArchiveReader implements Closeable {
      */
     @Override
     public void close() {
+        closed = true;
         archives.clear();
         nestedJarHandler.close(log);
         final var logCurr = log;

@@ -114,8 +114,7 @@ public class ModulePathInfo {
      * @return The module path, as an unmodifiable set.
      */
     public Set<String> getModulePath() {
-        readCommandLineArguments();
-        return Collections.unmodifiableSet(modulePath);
+        return snapshot(modulePath);
     }
 
     /**
@@ -127,8 +126,7 @@ public class ModulePathInfo {
      * @return The added modules, as an unmodifiable set.
      */
     public Set<String> getAddModules() {
-        readCommandLineArguments();
-        return Collections.unmodifiableSet(addModules);
+        return snapshot(addModules);
     }
 
     /**
@@ -139,8 +137,7 @@ public class ModulePathInfo {
      * @return The module patch directives, as an unmodifiable set.
      */
     public Set<String> getPatchModules() {
-        readCommandLineArguments();
-        return Collections.unmodifiableSet(patchModules);
+        return snapshot(patchModules);
     }
 
     /**
@@ -153,8 +150,7 @@ public class ModulePathInfo {
      * @return The {@code exports} directives, as an unmodifiable set.
      */
     public Set<String> getAddExports() {
-        readCommandLineArguments();
-        return Collections.unmodifiableSet(addExports);
+        return snapshot(addExports);
     }
 
     /**
@@ -167,8 +163,7 @@ public class ModulePathInfo {
      * @return The {@code opens} directives, as an unmodifiable set.
      */
     public Set<String> getAddOpens() {
-        readCommandLineArguments();
-        return Collections.unmodifiableSet(addOpens);
+        return snapshot(addOpens);
     }
 
     /**
@@ -179,8 +174,7 @@ public class ModulePathInfo {
      * @return The {@code reads} directives, as an unmodifiable set.
      */
     public Set<String> getAddReads() {
-        readCommandLineArguments();
-        return Collections.unmodifiableSet(addReads);
+        return snapshot(addReads);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -191,7 +185,7 @@ public class ModulePathInfo {
      * @param addExportsEntry
      *            the entry, in the format {@code <source-module>/<package>=ALL-UNNAMED}.
      */
-    public void addExportsEntry(final String addExportsEntry) {
+    public synchronized void addExportsEntry(final String addExportsEntry) {
         addExports.add(addExportsEntry);
     }
 
@@ -201,8 +195,26 @@ public class ModulePathInfo {
      * @param addOpensEntry
      *            the entry, in the format {@code <source-module>/<package>=ALL-UNNAMED}.
      */
-    public void addOpensEntry(final String addOpensEntry) {
+    public synchronized void addOpensEntry(final String addOpensEntry) {
         addOpens.add(addOpensEntry);
+    }
+
+    /**
+     * Read the commandline arguments if they have not been read yet, then return an unmodifiable copy of one of the
+     * field sets.
+     *
+     * <p>
+     * A copy rather than an unmodifiable view, since {@link #addExportsEntry(String)} and
+     * {@link #addOpensEntry(String)} can be called from a scan thread while the caller is still iterating the
+     * returned set, and the field sets are plain {@link LinkedHashSet}s.
+     *
+     * @param field
+     *            the field set to snapshot.
+     * @return the snapshot.
+     */
+    private synchronized Set<String> snapshot(final Set<String> field) {
+        readCommandLineArguments();
+        return Collections.unmodifiableSet(new LinkedHashSet<>(field));
     }
 
     /**

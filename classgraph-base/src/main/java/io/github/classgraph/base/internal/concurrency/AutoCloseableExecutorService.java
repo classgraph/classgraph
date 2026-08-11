@@ -61,7 +61,7 @@ public class AutoCloseableExecutorService extends ThreadPoolExecutor implements 
      *            the Throwable
      */
     @Override
-    public void afterExecute(final Runnable runnable, final Throwable throwable) {
+    protected void afterExecute(final Runnable runnable, final Throwable throwable) {
         super.afterExecute(runnable, throwable);
         if (throwable != null) {
             // Wrap the throwable in an ExecutionException (execute() does not do this)

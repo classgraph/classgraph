@@ -99,8 +99,8 @@ class FallbackClassLoaderHandler implements ClassLoaderHandler {
      */
     private static final List<ClasspathSource> CLASSPATH_SOURCES = List.of(
             // Classpaths
-            method("getClassPath"), method("getClasspath"), method("classpath"), method("classpath"), method("cp"),
-            field("classpath"), field("classpath"), field("cp"),
+            method("getClassPath"), method("getClasspath"), method("classpath"), method("classPath"), method("cp"),
+            field("classpath"), field("classPath"), field("cp"),
             // Paths
             method("getPath"), method("getPaths"), method("path"), method("paths"), field("paths"),
             // Directories

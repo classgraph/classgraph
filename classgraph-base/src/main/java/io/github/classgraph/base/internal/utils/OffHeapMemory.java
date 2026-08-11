@@ -83,12 +83,9 @@ public final class OffHeapMemory {
             // https://github.com/classgraph/classgraph/issues/899 and:
             // https://github.com/classgraph/classgraph/issues/939
             try {
-                Class<?> unsafeClass;
-                try {
-                    unsafeClass = Class.forName("sun.misc.Unsafe");
-                } catch (final ReflectiveOperationException | LinkageError e) {
-                    throw new RuntimeException("Could not get class sun.misc.Unsafe", e);
-                }
+                // A JVM with no sun.misc.Unsafe throws ClassNotFoundException or LinkageError here, which is
+                // caught below, leaving the fields null -- closeDirectByteBufferImpl() then logs and returns false
+                final var unsafeClass = Class.forName("sun.misc.Unsafe");
                 final var theUnsafeField = unsafeClass.getDeclaredField("theUnsafe");
                 theUnsafeField.setAccessible(true);
                 theUnsafe = theUnsafeField.get(null);

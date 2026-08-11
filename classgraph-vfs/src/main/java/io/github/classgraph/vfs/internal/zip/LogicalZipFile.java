@@ -71,7 +71,7 @@ public class LogicalZipFile extends ZipFileSlice {
     public @Nullable String classpathManifestEntryValue;
 
     /**
-     * The value of the "Bundle-Classpath" manifest entry, if present in the manifest, else null.
+     * The value of the "Bundle-ClassPath" manifest entry, if present in the manifest, else null.
      */
     public @Nullable String bundleClassPathManifestEntryValue;
 
@@ -98,7 +98,7 @@ public class LogicalZipFile extends ZipFileSlice {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** {@code "META_INF/"}. */
+    /** {@code "META-INF/"}. */
     static final String META_INF_PATH_PREFIX = "META-INF/";
 
     /** {@code "META-INF/MANIFEST.MF"}. */
@@ -116,8 +116,8 @@ public class LogicalZipFile extends ZipFileSlice {
     /** The {@code "Class-Path"} manifest key. */
     private static final byte[] CLASS_PATH_KEY = manifestKeyToBytes("Class-Path");
 
-    /** The {@code "Bundle-Classpath"} manifest key. */
-    private static final byte[] BUNDLE_CLASSPATH_KEY = manifestKeyToBytes("Bundle-Classpath");
+    /** The {@code "Bundle-ClassPath"} manifest key. */
+    private static final byte[] BUNDLE_CLASSPATH_KEY = manifestKeyToBytes("Bundle-ClassPath");
 
     /** The {@code "Spring-Boot-Classes"} manifest key. */
     private static final byte[] SPRING_BOOT_CLASSES_KEY = manifestKeyToBytes("Spring-Boot-Classes");
@@ -370,10 +370,10 @@ public class LogicalZipFile extends ZipFileSlice {
         } else if (keyMatchesAtPosition(manifest, BUNDLE_CLASSPATH_KEY, keyStartIdx)) {
             final var manifestValueAndEndIdx = getManifestValue(manifest,
                     keyStartIdx + BUNDLE_CLASSPATH_KEY.length + 1);
-            // Add Bundle-Classpath manifest entry values to classpath
+            // Add Bundle-ClassPath manifest entry values to classpath
             bundleClassPathManifestEntryValue = manifestValueAndEndIdx.getKey();
             if (log != null) {
-                log.log("Found Bundle-Classpath entry in manifest file: " + bundleClassPathManifestEntryValue);
+                log.log("Found Bundle-ClassPath entry in manifest file: " + bundleClassPathManifestEntryValue);
             }
             return manifestValueAndEndIdx.getValue();
 
@@ -725,7 +725,9 @@ public class LogicalZipFile extends ZipFileSlice {
     private static void readExtraFields(final RandomAccessReader cenReader, final long extraFieldStartOff,
             final int extraFieldLen, final EntryFields entryFields, final @Nullable LogNode log)
             throws IOException {
-        for (var extraFieldOff = 0; extraFieldOff + 4 < extraFieldLen;) {
+        // The loop bound is "<=", not "<", because a field with a zero-length payload is just the 4-byte header,
+        // so the last field in the area can end exactly at extraFieldLen
+        for (var extraFieldOff = 0; extraFieldOff + 4 <= extraFieldLen;) {
             final var tagOff = extraFieldStartOff + extraFieldOff;
             final var tag = cenReader.readUnsignedShort(tagOff);
             final var size = cenReader.readUnsignedShort(tagOff + 2);
@@ -738,7 +740,6 @@ public class LogicalZipFile extends ZipFileSlice {
             }
             if (tag == 1 && size >= 20) {
                 readZip64ExtraField(cenReader, tagOff, size, entryFields);
-                break;
 
             } else if (tag == 0x5455 && size >= 5) {
                 // Extended Unix timestamp

@@ -109,6 +109,11 @@ public final class ArraySlice extends Slice {
     /**
      * Load the slice as a byte array.
      *
+     * <p>
+     * When the slice covers the whole of the backing array and the entry is not deflated, the backing array itself
+     * is returned rather than a copy, so a caller that writes to the returned array changes what every later read
+     * of the same slice sees.
+     *
      * @return the byte[]
      * @throws IOException
      *             Signals that an I/O exception has occurred.

@@ -31,6 +31,7 @@ package io.github.classgraph.vfs.internal.slice;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.github.classgraph.base.internal.utils.FileUtils;
@@ -92,7 +93,10 @@ class SliceInputStream extends InputStream {
     public int read(final byte[] buf, final int off, final int len) throws IOException {
         if (closed.get()) {
             throw new IOException("Already closed");
-        } else if (len == 0) {
+        }
+        // InputStream#read(byte[], int, int) requires these to be checked before anything is read
+        Objects.checkFromIndexSize(off, len, buf.length);
+        if (len == 0) {
             return 0;
         }
         final var numBytesToRead = Math.min(len, available());
@@ -134,7 +138,10 @@ class SliceInputStream extends InputStream {
     }
 
     @Override
-    public synchronized void reset() {
+    public synchronized void reset() throws IOException {
+        if (closed.get()) {
+            throw new IOException("Already closed");
+        }
         currOff = markOff;
     }
 

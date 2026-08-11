@@ -29,7 +29,6 @@
 package io.github.classgraph.base.internal.reflection;
 
 import java.lang.reflect.AccessibleObject;
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
@@ -83,12 +82,6 @@ class StandardReflectionDriver extends ReflectionDriver {
     @Override
     Method[] getDeclaredMethods(final Class<?> cls) throws Exception {
         return cls.getDeclaredMethods();
-    }
-
-    @SuppressWarnings("unchecked")
-    @Override
-    <T> Constructor<T>[] getDeclaredConstructors(final Class<T> cls) throws Exception {
-        return (Constructor<T>[]) cls.getDeclaredConstructors();
     }
 
     @Override

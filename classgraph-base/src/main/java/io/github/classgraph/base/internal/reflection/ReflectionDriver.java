@@ -29,7 +29,6 @@
 package io.github.classgraph.base.internal.reflection;
 
 import java.lang.reflect.AccessibleObject;
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -174,19 +173,6 @@ abstract class ReflectionDriver {
      *             if the methods could not be read
      */
     abstract Method[] getDeclaredMethods(Class<?> cls) throws Exception;
-
-    /**
-     * Get declared constructors for class.
-     *
-     * @param <T>
-     *            the generic type
-     * @param cls
-     *            the class
-     * @return the declared constructors
-     * @throws Exception
-     *             if the constructors could not be read
-     */
-    abstract <T> Constructor<T>[] getDeclaredConstructors(Class<T> cls) throws Exception;
 
     /**
      * Get declared fields for class.

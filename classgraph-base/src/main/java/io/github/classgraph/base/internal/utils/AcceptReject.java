@@ -801,8 +801,9 @@ public abstract class AcceptReject {
             buf.append('"');
             for (var i = 0; i < item.length(); i++) {
                 final var c = item.charAt(i);
-                if (c == '"') {
-                    buf.append("\\\"");
+                if (c == '"' || c == '\\') {
+                    buf.append('\\');
+                    buf.append(c);
                 } else {
                     buf.append(c);
                 }

@@ -293,7 +293,7 @@ public class ClasspathFinder {
      * <p>
      * The jarfiles on the classpath are opened, so that the classpath elements they declare can be added to the
      * result: the jarfiles in their automatic lib dirs, and the entries of their manifests' {@code Class-Path} and
-     * {@code Bundle-Classpath} attributes. Each of those can declare more of them, so this is recursive. Close the
+     * {@code Bundle-ClassPath} attributes. Each of those can declare more of them, so this is recursive. Close the
      * returned {@link Classpath} to close the jarfiles again.
      *
      * <p>
@@ -318,15 +318,21 @@ public class ClasspathFinder {
 
             // Add the classpath elements that those in turn declare, by reading their manifests
             final var nestedJarHandler = new NestedJarHandler(vfsScanSpec, new InterruptionChecker());
+            var classpath = (Classpath) null;
             try {
                 final var expandedEntries = ClasspathExpansion.expand(classLoaderEntries, vfsScanSpec,
                         nestedJarHandler, log);
-                return new Classpath(expandedEntries, classLoaderProbe, classpathSpec.modulePathInfo,
+                classpath = new Classpath(expandedEntries, classLoaderProbe, classpathSpec.modulePathInfo,
                         nestedJarHandler);
+                return classpath;
             } catch (final InterruptedException e) {
-                nestedJarHandler.close(log);
                 Thread.currentThread().interrupt();
                 throw new IllegalStateException("Interrupted while reading the jarfiles on the classpath", e);
+            } finally {
+                if (classpath == null) {
+                    // Ownership of the open jarfiles was not passed to a Classpath, so close them here
+                    nestedJarHandler.close(log);
+                }
             }
         } finally {
             if (log != null) {

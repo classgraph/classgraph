@@ -33,7 +33,7 @@ package io.github.classgraph.classpath.internal.classloaderhandler;
 import java.io.File;
 import java.net.URL;
 import java.util.Collection;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 
 import io.github.classgraph.base.internal.reflection.ReflectionUtils;
@@ -161,7 +161,9 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
         try {
             final var results = (Collection<Object>) ReflectionUtils.invokeMethod(false, container, methodName);
             if (results != null && !results.isEmpty()) {
-                final Collection<Object> allUrls = new HashSet<>();
+                // Classpath order decides which copy of a duplicated class is loaded, so keep the order the
+                // container returned rather than letting it depend on the hash order of the URL objects
+                final Collection<Object> allUrls = new LinkedHashSet<>();
                 for (final Object result : results) {
                     if (result instanceof final Collection<?> resultCollection) {
                         // SmartClassPath returns collection of collection of URLs.
@@ -201,13 +203,13 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
                     classpathOrder.addClasspathEntry(path, classLoader, log);
                 }
             } else {
-                // "getClassPath" didn't work... reverting to looping over "classpath" elements.
+                // "getClassPath" didn't work... reverting to looping over "classPath" elements.
                 @SuppressWarnings("unchecked")
-                final var classpathElements = (List<Object>) ReflectionUtils.getFieldVal(false, smartClassPath,
-                        "classpath");
-                if (classpathElements != null && !classpathElements.isEmpty()) {
-                    for (final Object classpathElement : classpathElements) {
-                        final var subPaths = getPaths(classpathElement);
+                final var classPathElements = (List<Object>) ReflectionUtils.getFieldVal(false, smartClassPath,
+                        "classPath");
+                if (classPathElements != null && !classPathElements.isEmpty()) {
+                    for (final Object classPathElement : classPathElements) {
+                        final var subPaths = getPaths(classPathElement);
                         for (final Object path : subPaths) {
                             classpathOrder.addClasspathEntry(path, classLoader, log);
                         }
@@ -221,7 +223,8 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
      * Get the automatic package root prefixes for classpath elements obtained from this classloader.
      *
      * <p>
-     * Classpath elements from this classloader may be Spring-Boot executable jars or wars.
+     * Classpath elements from this classloader can be in any of the common build-tool or packaged-archive layouts,
+     * so the default package root prefixes are looked for.
      *
      * @return the package root prefixes.
      */

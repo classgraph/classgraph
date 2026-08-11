@@ -59,7 +59,7 @@ class PhysicalZipFile {
     private final String pathStr;
 
     /** The {@link Slice} for the zipfile. */
-    Slice slice;
+    final Slice slice;
 
     /**
      * Construct a {@link PhysicalZipFile} from a file on disk.

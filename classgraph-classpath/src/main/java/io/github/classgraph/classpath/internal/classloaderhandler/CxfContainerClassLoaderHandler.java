@@ -75,7 +75,8 @@ class CxfContainerClassLoaderHandler implements ClassLoaderHandler {
      * Get the automatic package root prefixes for classpath elements obtained from this classloader.
      *
      * <p>
-     * Classpath elements from this classloader may be Spring-Boot executable jars or wars.
+     * This classloader does not contribute any classpath elements of its own, so these prefixes are never applied
+     * to anything.
      *
      * @return the package root prefixes.
      */
