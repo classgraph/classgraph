@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import org.jboss.modules.ModuleClassLoader;
 import org.junit.jupiter.api.Test;
 
-import io.github.classgraph.ClassGraph;
+import io.github.classgraph.classpath.ClasspathFinder;
 
 /**
  * Test that {@code JBossClassLoaderHandler} does not throw when a {@code ModuleClassLoader} does not have the
@@ -14,14 +14,13 @@ import io.github.classgraph.ClassGraph;
  */
 public class JBossModuleClassLoaderTest {
     /**
-     * Scanning with a ModuleClassLoader that has no getPaths() method should not throw.
+     * Finding the classpath of a ModuleClassLoader that has no getPaths() method should not throw.
      */
     @Test
     public void moduleClassLoaderWithoutGetPaths() {
         assertThatCode(() -> {
-            try (var scanResult = new ClassGraph().overrideClassLoaders(new ModuleClassLoader())
-                    .acceptPackages("io.github.classgraph.classpath.internal.classloaderhandler").scan()) {
-                scanResult.getAllClasses();
+            try (var classpath = new ClasspathFinder().overrideClassLoaders(new ModuleClassLoader()).find()) {
+                classpath.getEntries();
             }
         }).doesNotThrowAnyException();
     }

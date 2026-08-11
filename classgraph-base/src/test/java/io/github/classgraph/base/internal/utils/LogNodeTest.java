@@ -12,12 +12,12 @@ import java.util.logging.Logger;
 
 import org.junit.jupiter.api.Test;
 
-import io.github.classgraph.ClassGraph;
-
 /** Tests for {@link LogNode}. */
 public class LogNodeTest {
-    /** The logger that {@link LogNode} writes to. */
-    private static final Logger LOGGER = Logger.getLogger(ClassGraph.class.getName());
+    /**
+     * The logger that {@link LogNode} writes to. Named here as a string, since {@link LogNode} names it that way.
+     */
+    private static final Logger LOGGER = Logger.getLogger("io.github.classgraph.ClassGraph");
 
     /** A {@link Handler} that records the messages logged to it, rather than printing them. */
     private static class RecordingHandler extends Handler {

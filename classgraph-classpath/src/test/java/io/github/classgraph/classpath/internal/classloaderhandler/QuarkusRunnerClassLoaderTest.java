@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 
 import org.junit.jupiter.api.Test;
 
-import io.github.classgraph.ClassGraph;
+import io.github.classgraph.classpath.ClasspathFinder;
 import io.quarkus.bootstrap.runner.RunnerClassLoader;
 
 /**
@@ -14,14 +14,13 @@ import io.quarkus.bootstrap.runner.RunnerClassLoader;
  */
 public class QuarkusRunnerClassLoaderTest {
     /**
-     * Scanning with a RunnerClassLoader that has no resourceDirectoryMap field should not throw.
+     * Finding the classpath of a RunnerClassLoader that has no resourceDirectoryMap field should not throw.
      */
     @Test
     public void runnerClassLoaderWithoutResourceDirectoryMap() {
         assertThatCode(() -> {
-            try (var scanResult = new ClassGraph().overrideClassLoaders(new RunnerClassLoader())
-                    .acceptPackages("io.github.classgraph.classpath.internal.classloaderhandler").scan()) {
-                scanResult.getAllClasses();
+            try (var classpath = new ClasspathFinder().overrideClassLoaders(new RunnerClassLoader()).find()) {
+                classpath.getEntries();
             }
         }).doesNotThrowAnyException();
     }
