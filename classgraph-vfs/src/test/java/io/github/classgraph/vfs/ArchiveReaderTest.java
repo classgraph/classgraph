@@ -98,7 +98,10 @@ public class ArchiveReaderTest {
 
         try (var archiveReader = new ArchiveReader()) {
             final var archive = archiveReader.open(jarFile.getPath());
-            assertThat(archive.getPath()).isEqualTo(jarFile.getPath().replace(File.separatorChar, '/'));
+            // The path is canonicalized, so that the same jarfile reached by two different paths is only opened
+            // once. On Windows that expands an 8.3 short name, and on macOS it resolves a symlink, so the path of
+            // the temp directory is not necessarily the path it is reported as.
+            assertThat(archive.getPath()).isEqualTo(jarFile.getCanonicalPath().replace(File.separatorChar, '/'));
             assertThat(archive.getPackageRoot()).isEmpty();
             assertThat(archive.getEntries()).extracting(ArchiveEntry::getName)
                     .containsExactlyInAnyOrder("META-INF/MANIFEST.MF", "com/xyz/widget.txt");
