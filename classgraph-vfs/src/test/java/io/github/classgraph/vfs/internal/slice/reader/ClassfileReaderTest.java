@@ -7,6 +7,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -51,7 +52,40 @@ public class ClassfileReaderTest {
         DEFLATED,
 
         /** A module, read from a plain {@link java.io.InputStream}. */
-        INPUT_STREAM
+        INPUT_STREAM,
+
+        /**
+         * A module whose {@link java.io.InputStream} never transfers more than one byte per read, which
+         * {@link java.io.InputStream#read(byte[], int, int)} is permitted to do, and which the channel-backed
+         * streams that modules and directories are read through really can do.
+         */
+        INPUT_STREAM_SHORT_READS
+    }
+
+    /**
+     * An {@link InputStream} that never transfers more than one byte per read, however many were asked for.
+     */
+    private static final class ShortReadInputStream extends InputStream {
+        private final InputStream wrapped;
+
+        ShortReadInputStream(final InputStream wrapped) {
+            this.wrapped = wrapped;
+        }
+
+        @Override
+        public int read() throws IOException {
+            return wrapped.read();
+        }
+
+        @Override
+        public int read(final byte[] buf, final int off, final int len) throws IOException {
+            return len == 0 ? 0 : wrapped.read(buf, off, 1);
+        }
+
+        @Override
+        public void close() throws IOException {
+            wrapped.close();
+        }
     }
 
     /** A byte pattern with a different value in every byte, so that byte order mistakes show up. */
@@ -153,6 +187,9 @@ public class ClassfileReaderTest {
             return new ClassfileReader(
                     new ArraySlice(deflate(content), /* isDeflatedZipEntry = */ true,
                             /* inflatedLengthHint = */ content.length, scanResources),
+                    /* resourceToClose = */ null);
+        case INPUT_STREAM_SHORT_READS:
+            return new ClassfileReader(new ShortReadInputStream(new ByteArrayInputStream(content)),
                     /* resourceToClose = */ null);
         default:
             return new ClassfileReader(new ByteArrayInputStream(content), /* resourceToClose = */ null);
