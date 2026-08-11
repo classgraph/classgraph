@@ -96,7 +96,19 @@ public class RandomAccessFileChannelReader implements RandomAccessReader {
             final Buffer db = FileSlice.toBuffer(dstBuf);
             db.position(dstBufStart);
             db.limit(dstBufStart + numBytes);
-            final int numBytesRead = fileChannel.read(dstBuf, srcStart);
+            // FileChannel#read is not required to transfer the whole of the requested range in a single call,
+            // and a read from a network filesystem can be short, so keep reading until the requested number of
+            // bytes has been read or the end of the file is reached. (Every caller treats a short read as a
+            // truncated file, so a short read that is not at the end of the file has to be completed here.)
+            int numBytesRead = 0;
+            while (numBytesRead < numBytes) {
+                final int numBytesReadThisCall = fileChannel.read(dstBuf, srcStart + numBytesRead);
+                if (numBytesReadThisCall <= 0) {
+                    // -1 => end of file; 0 => the destination buffer has no space left
+                    break;
+                }
+                numBytesRead += numBytesReadThisCall;
+            }
             return numBytesRead == 0 ? -1 : numBytesRead;
 
         } catch (BufferUnderflowException | IndexOutOfBoundsException e) {

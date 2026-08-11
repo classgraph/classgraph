@@ -574,8 +574,10 @@ public final class FileUtils {
      *
      * <p>
      * {@link Path#toRealPath(java.nio.file.LinkOption...)} is used rather than {@link File#getCanonicalFile()},
-     * since on Windows the latter resolves neither directory symlinks and junctions nor 8.3 short names (e.g.
-     * {@code C:\Users\RUNNER~1} for {@code C:\Users\runneradmin}).
+     * since on Windows the latter does not resolve a symlink or a junction, whereas on Linux and macOS it does,
+     * so the same layout would otherwise be canonicalized one way on Windows and another way everywhere else.
+     * (Both methods do expand a Windows 8.3 short name, such as {@code C:\Users\RUNNER~1} for
+     * {@code C:\Users\runneradmin}.)
      *
      * <p>
      * {@link Path#toRealPath(java.nio.file.LinkOption...)} requires the file to exist, so for a path that does not

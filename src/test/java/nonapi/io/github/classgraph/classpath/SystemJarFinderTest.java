@@ -129,8 +129,12 @@ public class SystemJarFinderTest {
 
         final String symlinkPathResolved = FastPathResolver.resolve(FileUtils.currDirPath(),
                 symlinkedJar.toFile().getPath());
+        // Canonicalize the file the symlink points at, rather than the symlink itself: on Windows,
+        // File#getCanonicalPath does not follow a symlink (it only expands an 8.3 short name such as
+        // "RUNNER~1"), whereas the Path#toRealPath that ClassGraph canonicalizes with follows it on every
+        // platform. There is no symlink in the path of the target, so the two agree on it everywhere.
         final String canonicalPathResolved = FastPathResolver.resolve(FileUtils.currDirPath(),
-                symlinkedJar.toFile().getCanonicalPath());
+                realJar.toFile().getCanonicalPath());
         assertThat(canonicalPathResolved).isNotEqualTo(symlinkPathResolved);
         assertThat(libOrExtJars).containsExactlyInAnyOrder(symlinkPathResolved, canonicalPathResolved);
         assertThat(rtJars).isEmpty();
