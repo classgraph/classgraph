@@ -383,19 +383,29 @@ The driver is now chosen once per JVM rather than once per `ClassGraph` instance
 longer matters when in the lifetime of your program ClassGraph is first used.
 
 Adding Narcissus can therefore change what a scan finds, which is the reason to add it. The
-JDK's own application classloader keeps its classpath in a private `ucp` field, and standard
+JDK's own classloaders keep their classpath in a private `ucp` field, and standard
 reflection cannot read it on JDK 16+, so ClassGraph falls back to the `java.class.path`
-system property. Two things that property does not cover:
+system property. Three things that property does not cover:
 
 * **Classpath entries added after startup**, by a Java agent calling
-  `Instrumentation#appendToSystemClassLoaderSearch(JarFile)`. `java.class.path` is fixed
-  when the JVM starts, so without Narcissus these entries are invisible, and the classes in
-  them are missing from the scan.
+  `Instrumentation#appendToSystemClassLoaderSearch(JarFile)`. Its javadoc says outright that
+  this "does not change the value of `java.class.path`", so without Narcissus these entries
+  are invisible, and the classes in them are missing from the scan.
+* **Entries appended to the boot classpath**, with `-Xbootclasspath/a` or with the
+  `Boot-Class-Path` attribute of a Java agent's manifest. The JVM keeps these in a *saved*
+  property that is removed before the application can read the system properties, so the
+  only record of them is the `ucp` field of the bootstrap classloader — which is itself not
+  reachable through `ClassLoader#getParent()`, since that returns null for the platform
+  classloader. ClassGraph 5.x splices the bootstrap classloader into the classloader
+  delegation order when it has entries to contribute, so these are now scanned (they were
+  missed entirely in 4.x). They are scanned whether or not
+  `ClassGraph#enableSystemJarsAndModules()` was called, since they are the application's own
+  jars rather than part of the JDK.
 * **The parents of a classloader you pass to `ClassGraph#overrideClassLoaders`**. Overriding
   the classloaders means the `java.class.path` fallback does not apply, so if a parent is
   one of the JDK's own classloaders, its entries can only be reached through `ucp`.
 
-If ClassGraph cannot see classes that you know are on the classpath, and either of these
+If ClassGraph cannot see classes that you know are on the classpath, and any of these
 applies to you, adding Narcissus is likely to be the fix. The same goes for a
 strongly-encapsulated third-party classloader that keeps its classpath in a private field.
 
@@ -418,8 +428,10 @@ non-overlapping sources.
 
 This does not affect whether **system** classes are scanned, which is still controlled only
 by `ClassGraph#enableSystemJarsAndModules()`. System classes come from modules, read through
-the JPMS API, which is a separate mechanism from the `ucp` field; and in any case the
-platform and boot classloaders have no `ucp` to read on a modern JDK.
+the JPMS API, which is a separate mechanism from the `ucp` field. The platform classloader
+has no `ucp` at all on a modern JDK, and the bootstrap classloader has one only when the
+boot classpath was appended to, in which case it contains only what was appended, never the
+JDK's own classes.
 
 ### `acceptLibOrExtJars` and `rejectLibOrExtJars` have been removed
 
