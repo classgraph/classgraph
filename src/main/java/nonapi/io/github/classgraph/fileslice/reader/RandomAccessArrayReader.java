@@ -67,15 +67,32 @@ public class RandomAccessArrayReader implements RandomAccessReader {
         this.sliceLength = sliceLength;
     }
 
+    /**
+     * Check that a read stays within the slice, so that it cannot read the bytes that surround the slice in the
+     * array. (A zipfile can ask for a read at any offset, since offsets are read from the zipfile itself.)
+     *
+     * @param offset
+     *            the offset to read from, relative to the start of the slice
+     * @param numBytes
+     *            the number of bytes to read
+     * @throws IOException
+     *             if the read would run past either end of the slice
+     */
+    private void checkInBounds(final long offset, final int numBytes) throws IOException {
+        // Compare by subtraction rather than addition, so that a large offset plus a large numBytes cannot
+        // overflow and slip past the check
+        if (offset < 0L || numBytes < 0 || numBytes > sliceLength - offset) {
+            throw new IOException("Read index out of bounds");
+        }
+    }
+
     @Override
     public int read(final long srcOffset, final byte[] dstArr, final int dstArrStart, final int numBytes)
             throws IOException {
         if (numBytes == 0) {
             return 0;
         }
-        if (srcOffset < 0L || numBytes < 0 || numBytes > sliceLength - srcOffset) {
-            throw new IOException("Read index out of bounds");
-        }
+        checkInBounds(srcOffset, numBytes);
         try {
             final int numBytesToRead = Math.max(Math.min(numBytes, dstArr.length - dstArrStart), 0);
             if (numBytesToRead == 0) {
@@ -95,9 +112,7 @@ public class RandomAccessArrayReader implements RandomAccessReader {
         if (numBytes == 0) {
             return 0;
         }
-        if (srcOffset < 0L || numBytes < 0 || numBytes > sliceLength - srcOffset) {
-            throw new IOException("Read index out of bounds");
-        }
+        checkInBounds(srcOffset, numBytes);
         try {
             final int numBytesToRead = Math.max(Math.min(numBytes, dstBuf.capacity() - dstBufStart), 0);
             if (numBytesToRead == 0) {
@@ -116,12 +131,14 @@ public class RandomAccessArrayReader implements RandomAccessReader {
 
     @Override
     public byte readByte(final long offset) throws IOException {
+        checkInBounds(offset, 1);
         final int idx = sliceStartPos + (int) offset;
         return arr[idx];
     }
 
     @Override
     public int readUnsignedByte(final long offset) throws IOException {
+        checkInBounds(offset, 1);
         final int idx = sliceStartPos + (int) offset;
         return arr[idx] & 0xff;
     }
@@ -133,6 +150,7 @@ public class RandomAccessArrayReader implements RandomAccessReader {
 
     @Override
     public int readUnsignedShort(final long offset) throws IOException {
+        checkInBounds(offset, 2);
         final int idx = sliceStartPos + (int) offset;
         return ((arr[idx + 1] & 0xff) << 8) //
                 | (arr[idx] & 0xff);
@@ -140,6 +158,7 @@ public class RandomAccessArrayReader implements RandomAccessReader {
 
     @Override
     public int readInt(final long offset) throws IOException {
+        checkInBounds(offset, 4);
         final int idx = sliceStartPos + (int) offset;
         return ((arr[idx + 3] & 0xff) << 24) //
                 | ((arr[idx + 2] & 0xff) << 16) //
@@ -154,6 +173,7 @@ public class RandomAccessArrayReader implements RandomAccessReader {
 
     @Override
     public long readLong(final long offset) throws IOException {
+        checkInBounds(offset, 8);
         final int idx = sliceStartPos + (int) offset;
         return ((arr[idx + 7] & 0xffL) << 56) //
                 | ((arr[idx + 6] & 0xffL) << 48) //
@@ -168,6 +188,8 @@ public class RandomAccessArrayReader implements RandomAccessReader {
     @Override
     public String readString(final long offset, final int numBytes, final boolean replaceSlashWithDot,
             final boolean stripLSemicolon) throws IOException {
+        // (StringUtils#readString range-checks against the whole array, so the slice has to be checked here)
+        checkInBounds(offset, numBytes);
         final int idx = sliceStartPos + (int) offset;
         return StringUtils.readString(arr, idx, numBytes, replaceSlashWithDot, stripLSemicolon);
     }

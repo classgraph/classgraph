@@ -72,15 +72,32 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
         FileSlice.toBuffer(this.byteBuffer).limit(this.sliceStartPos + this.sliceLength);
     }
 
+    /**
+     * Check that a read stays within the slice, so that it cannot read the bytes that surround the slice in the
+     * buffer. (A zipfile can ask for a read at any offset, since offsets are read from the zipfile itself.)
+     *
+     * @param offset
+     *            the offset to read from, relative to the start of the slice
+     * @param numBytes
+     *            the number of bytes to read
+     * @throws IOException
+     *             if the read would run past either end of the slice
+     */
+    private void checkInBounds(final long offset, final int numBytes) throws IOException {
+        // Compare by subtraction rather than addition, so that a large offset plus a large numBytes cannot
+        // overflow and slip past the check
+        if (offset < 0L || numBytes < 0 || numBytes > sliceLength - offset) {
+            throw new IOException("Read index out of bounds");
+        }
+    }
+
     @Override
     public int read(final long srcOffset, final byte[] dstArr, final int dstArrStart, final int numBytes)
             throws IOException {
         if (numBytes == 0) {
             return 0;
         }
-        if (srcOffset < 0L || numBytes < 0 || numBytes > sliceLength - srcOffset) {
-            throw new IOException("Read index out of bounds");
-        }
+        checkInBounds(srcOffset, numBytes);
         try {
             final int numBytesToRead = Math.max(Math.min(numBytes, dstArr.length - dstArrStart), 0);
             if (numBytesToRead == 0) {
@@ -103,9 +120,7 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
         if (numBytes == 0) {
             return 0;
         }
-        if (srcOffset < 0L || numBytes < 0 || numBytes > sliceLength - srcOffset) {
-            throw new IOException("Read index out of bounds");
-        }
+        checkInBounds(srcOffset, numBytes);
         try {
             final int numBytesToRead = Math.max(Math.min(numBytes, dstBuf.capacity() - dstBufStart), 0);
             if (numBytesToRead == 0) {
@@ -114,12 +129,19 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
             final int srcStart = (int) (sliceStartPos + srcOffset);
             final Buffer bb = FileSlice.toBuffer(byteBuffer);
             final Buffer db = FileSlice.toBuffer(dstBuf);
-            bb.position(srcStart);
-            db.position(dstBufStart);
-            db.limit(dstBufStart + numBytesToRead);
-            dstBuf.put(byteBuffer);
-            bb.limit(sliceStartPos + sliceLength);
-            bb.position(sliceStartPos);
+            try {
+                bb.position(srcStart);
+                // Limit the source to the bytes that were asked for, otherwise the rest of the slice is copied
+                // too, overflowing the destination
+                bb.limit(srcStart + numBytesToRead);
+                db.position(dstBufStart);
+                db.limit(dstBufStart + numBytesToRead);
+                dstBuf.put(byteBuffer);
+            } finally {
+                // Restore the window on the slice, even if the read failed, since the reader can be read again
+                bb.limit(sliceStartPos + sliceLength);
+                bb.position(sliceStartPos);
+            }
             return numBytesToRead;
         } catch (BufferUnderflowException | IndexOutOfBoundsException | ReadOnlyBufferException e) {
             throw new IOException("Read index out of bounds");
@@ -128,12 +150,14 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
 
     @Override
     public byte readByte(final long offset) throws IOException {
+        checkInBounds(offset, 1);
         final int idx = (int) (sliceStartPos + offset);
         return byteBuffer.get(idx);
     }
 
     @Override
     public int readUnsignedByte(final long offset) throws IOException {
+        checkInBounds(offset, 1);
         final int idx = (int) (sliceStartPos + offset);
         return byteBuffer.get(idx) & 0xff;
     }
@@ -146,12 +170,14 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
 
     @Override
     public short readShort(final long offset) throws IOException {
+        checkInBounds(offset, 2);
         final int idx = (int) (sliceStartPos + offset);
         return byteBuffer.getShort(idx);
     }
 
     @Override
     public int readInt(final long offset) throws IOException {
+        checkInBounds(offset, 4);
         final int idx = (int) (sliceStartPos + offset);
         return byteBuffer.getInt(idx);
     }
@@ -163,6 +189,7 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
 
     @Override
     public long readLong(final long offset) throws IOException {
+        checkInBounds(offset, 8);
         final int idx = (int) (sliceStartPos + offset);
         return byteBuffer.getLong(idx);
     }
