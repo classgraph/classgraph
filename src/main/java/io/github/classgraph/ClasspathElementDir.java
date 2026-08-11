@@ -120,7 +120,7 @@ class ClasspathElementDir extends ClasspathElement {
                             if (log != null) {
                                 log(classpathElementIdx, "Found lib jar: " + filePath, log);
                             }
-                            workQueue.addWorkUnit(new ClasspathEntryWorkUnit(filePath, getClassLoader(),
+                            workQueue.addWorkUnit(new ClasspathEntryWorkUnit(filePath, getClassLoaderString(),
                                     /* parentClasspathElement = */ this,
                                     /* orderWithinParentClasspathElement = */ childClasspathEntryIdx++,
                                     /* packageRootPrefix = */ "", packageRootPrefixes));
@@ -150,7 +150,7 @@ class ClasspathElementDir extends ClasspathElement {
                         if (log != null) {
                             log(classpathElementIdx, "Found package root: " + packageRootPrefix, log);
                         }
-                        workQueue.addWorkUnit(new ClasspathEntryWorkUnit(packageRoot, getClassLoader(),
+                        workQueue.addWorkUnit(new ClasspathEntryWorkUnit(packageRoot, getClassLoaderString(),
                                 /* parentClasspathElement = */ this,
                                 /* orderWithinParentClasspathElement = */ childClasspathEntryIdx++,
                                 packageRootPrefix, packageRootPrefixes));

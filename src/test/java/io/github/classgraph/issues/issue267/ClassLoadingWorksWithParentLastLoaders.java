@@ -68,14 +68,15 @@ public class ClassLoadingWorksWithParentLastLoaders {
             final var classInfo = scanResult.getAllClasses()
                     .filter(classInfo1 -> "A".equals(classInfo1.getSimpleName())).get(0);
 
-            // ClassGraph finds "A" through the RestartClass Loader, and reports that classloader, so that the class
-            // can be loaded through the same classloader that it was found with
-            final var classInfoClassLoader = classInfo.getClassLoader();
-            assertThat(classInfoClassLoader).isNotNull();
-            assertThat(classInfoClassLoader.getClass().getSimpleName()).isEqualTo(expectedClassLoader);
+            // ClassGraph finds "A" through the RestartClass Loader, and reports that classloader (as a string, so
+            // that a scan cannot keep a classloader alive), rather than reporting the parent classloader
+            final var restartClassLoader = ClassLoadingWorksWithParentLastLoaders.class.getClassLoader();
+            assertThat(classInfo.getClassLoaderString()).isEqualTo(restartClassLoader.toString());
 
+            // Loading classes is the caller's responsibility, so load "A" through the classloader that ClassGraph
+            // reported, and check that this gives the same class that the RestartClass Loader already loaded
             final var aClassLoadedThroughReportedClassLoader = Class.forName(classInfo.getName(),
-                    /* initialize = */ false, classInfoClassLoader);
+                    /* initialize = */ false, restartClassLoader);
             assertThat(aClassLoadedThroughReportedClassLoader.getClassLoader().getClass().getSimpleName())
                     .isEqualTo(expectedClassLoader);
             // and thus assignable

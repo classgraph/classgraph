@@ -173,7 +173,7 @@ class ClasspathElementZip extends ClasspathElement {
          */
         void schedule(final String childClasspathEltPath) throws InterruptedException {
             if (alreadyScheduled.add(childClasspathEltPath)) {
-                workQueue.addWorkUnit(new ClasspathEntryWorkUnit(childClasspathEltPath, getClassLoader(),
+                workQueue.addWorkUnit(new ClasspathEntryWorkUnit(childClasspathEltPath, getClassLoaderString(),
                         /* parentClasspathElement = */ ClasspathElementZip.this,
                         /* orderWithinParentClasspathElement = */ childClasspathEntryIdx++,
                         /* packageRootPrefix = */ "", packageRootPrefixes));

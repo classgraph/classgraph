@@ -30,7 +30,6 @@ package nonapi.io.github.classgraph.classpath;
 
 import java.io.File;
 import java.io.IOError;
-import java.lang.ref.WeakReference;
 import java.lang.reflect.Array;
 import java.net.MalformedURLException;
 import java.net.URI;
@@ -41,6 +40,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
@@ -107,7 +107,7 @@ public class ClasspathOrder {
     }
 
     /**
-     * A classpath element and the {@link ClassLoader} it was obtained from.
+     * A classpath element and the string form of the {@link ClassLoader} it was obtained from.
      */
     public static class ClasspathEntry {
         /**
@@ -116,10 +116,11 @@ public class ClasspathOrder {
         public final Object classpathEntryObj;
 
         /**
-         * The classloader the classpath element was obtained from, or a reference to null if unknown. This is a
-         * weak reference, so that finding the classpath does not keep a classloader alive.
+         * The string form of the classloader the classpath element was obtained from, or null if unknown. Only the
+         * string is kept, not the classloader itself, so that finding the classpath does not keep a classloader
+         * alive.
          */
-        private final WeakReference<ClassLoader> classLoaderRef;
+        private final @Nullable String classLoaderStr;
 
         /**
          * The automatic package root prefixes to look for within this classpath element, as declared by the
@@ -140,17 +141,17 @@ public class ClasspathOrder {
         public ClasspathEntry(final Object classpathEntryObj, final @Nullable ClassLoader classLoader,
                 final String[] packageRootPrefixes) {
             this.classpathEntryObj = classpathEntryObj;
-            this.classLoaderRef = new WeakReference<>(classLoader);
+            this.classLoaderStr = Objects.toString(classLoader, null);
             this.packageRootPrefixes = packageRootPrefixes;
         }
 
         /**
-         * Get the classloader the classpath element was obtained from.
+         * Get the string form of the classloader the classpath element was obtained from.
          *
-         * @return the classloader, or null if it was unknown or has since been garbage collected.
+         * @return the string form of the classloader, or null if it was unknown.
          */
-        public @Nullable ClassLoader getClassLoader() {
-            return classLoaderRef.get();
+        public @Nullable String getClassLoaderString() {
+            return classLoaderStr;
         }
 
         @Override
@@ -171,7 +172,7 @@ public class ClasspathOrder {
 
         @Override
         public String toString() {
-            return classpathEntryObj + " [" + classLoaderRef.get() + "]";
+            return classpathEntryObj + " [" + classLoaderStr + "]";
         }
     }
 

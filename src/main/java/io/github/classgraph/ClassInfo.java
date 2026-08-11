@@ -3647,20 +3647,18 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * The classloader that this class was found under. ClassGraph does not load classes itself, so if you need a
-     * {@link Class} reference for this class, load it yourself with this classloader, e.g.
-     * {@code Class.forName(classInfo.getName(), false, classInfo.getClassLoader())}.
+     * The string form ({@link Object#toString()}) of the classloader that this class was found under. This is the
+     * same string that the verbose scanning log shows for the classpath element, so it can be used to work out
+     * which classloader a class came from -- but it is only an identifier, not the classloader itself: ClassGraph
+     * reads classfiles directly rather than through a classloader, and drops every classloader reference once the
+     * classpath has been found, so that a scan cannot keep a classloader alive.
      *
-     * <p>
-     * The classloader is referenced weakly, so that a scan cannot keep a classloader alive. If you need to load
-     * classes from a classloader you built yourself, keep your own reference to it for as long as you need it.
-     *
-     * @return The classloader that this class was found under. Returns null if the classloader is not known, e.g.
-     *         because this class was not itself accepted, but was referenced by an accepted class, or because the
-     *         classloader has been garbage collected.
+     * @return The string form of the classloader that this class was found under. Returns null if the classloader
+     *         is not known, e.g. because this class was not itself accepted, but was referenced by an accepted
+     *         class, or because the class was found in a module loaded by the bootstrap classloader.
      */
-    public @Nullable ClassLoader getClassLoader() {
-        return classpathElement == null ? null : classpathElement.getClassLoader();
+    public @Nullable String getClassLoaderString() {
+        return classpathElement == null ? null : classpathElement.getClassLoaderString();
     }
 
     // -------------------------------------------------------------------------------------------------------------

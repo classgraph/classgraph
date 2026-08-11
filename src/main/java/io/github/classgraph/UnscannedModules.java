@@ -34,6 +34,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import io.github.classgraph.Scanner.ClassfileScanWorkUnit;
@@ -185,8 +186,8 @@ class UnscannedModules {
         var classpathElement = moduleRefToClasspathElement.get(moduleRef);
         if (classpathElement == null) {
             classpathElement = new ClasspathElementModule(moduleRef, moduleRefToModuleReaderRecyclerMap,
-                    new ClasspathEntryWorkUnit(null, moduleRef.getClassLoader(), null, 0, "",
-                            ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES),
+                    new ClasspathEntryWorkUnit(null, Objects.toString(moduleRef.getClassLoader(), null), null, 0,
+                            "", ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES),
                     /* isLookupOnly = */ true, scanSpec);
             classpathElement.open(/* workQueue = */ null, log);
             moduleRefToClasspathElement.put(moduleRef, classpathElement);

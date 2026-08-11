@@ -37,7 +37,8 @@ import java.net.URLClassLoader;
 import org.junit.jupiter.api.Test;
 
 /**
- * Loading classes is the caller's responsibility in 5.x, so a scan must not keep a classloader alive: once the
+ * Loading classes is the caller's responsibility in 5.x, and classpath elements are read directly rather than
+ * through a classloader, so a scan keeps no classloader reference of its own past classpath finding: once the
  * caller drops their own reference to a classloader they supplied, it must become collectable, even while the
  * {@link ScanResult} and the {@link ClassInfo} objects it produced are still reachable.
  */
@@ -76,6 +77,7 @@ public class ClassLoaderNotRetainedTest {
         // Deliberately not a try-with-resources local: the reference has to be droppable before the assertions
         var classLoader = new URLClassLoader(codeSourceUrl);
         final var classLoaderRef = new WeakReference<ClassLoader>(classLoader);
+        final var classLoaderStr = classLoader.toString();
 
         // The ClassGraph instance is not stored in a local either, since it holds the supplied classloader for as
         // long as it is alive, so that the same instance can be scanned with more than once
@@ -84,9 +86,8 @@ public class ClassLoaderNotRetainedTest {
         try {
             final var classInfo = scanResult.getClassInfo(SCANNED_CLASS_NAME);
             assertThat(classInfo).as("the scan should have found " + SCANNED_CLASS_NAME).isNotNull();
-            assertThat(classInfo.getClassLoader())
-                    .as("while the caller still holds the classloader, it should be reported")
-                    .isSameAs(classLoader);
+            assertThat(classInfo.getClassLoaderString())
+                    .as("the classloader the class was found under should be reported").isEqualTo(classLoaderStr);
 
             // Drop the test's own reference. The ScanResult and the ClassInfo object stay reachable.
             classLoader.close();
@@ -94,9 +95,9 @@ public class ClassLoaderNotRetainedTest {
 
             assertThat(awaitCollection(classLoaderRef)).as("the scan must not keep the supplied classloader alive")
                     .isTrue();
-            assertThat(classInfo.getClassLoader())
-                    .as("once collected, the classloader must be reported as unknown rather than resurrected")
-                    .isNull();
+            assertThat(classInfo.getClassLoaderString())
+                    .as("the reported classloader string must not depend on the classloader still being alive")
+                    .isEqualTo(classLoaderStr);
         } finally {
             scanResult.close();
         }

@@ -30,8 +30,6 @@ package io.github.classgraph;
 
 import java.io.File;
 import java.io.IOException;
-import java.lang.ref.Reference;
-import java.lang.ref.WeakReference;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -50,6 +48,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -85,17 +84,6 @@ class Scanner implements Callable<ScanResult> {
 
     /** The scan spec. */
     private final ScanSpec scanSpec;
-
-    /**
-     * The classloaders and module layers the caller asked to be scanned. This is the only strong reference to those
-     * classloaders that ClassGraph itself creates: everything downstream of classpath finding refers to
-     * classloaders weakly, so this field is what keeps a classloader that the caller has no other reference to
-     * (e.g. {@code new ClassGraph().overrideClassLoaders(new URLClassLoader(urls)).scan()}) alive until the scan
-     * ends. A {@link ScanResult} does not reference the {@link Scanner}, so the reference does not outlive the
-     * scan. Nothing reads this field after the constructor, so {@link #call()} holds it with a
-     * {@link Reference#reachabilityFence(Object)} for the duration of the scan.
-     */
-    private final ClassLoaderAndModuleLayerSpec classLoaderAndModuleLayerSpec;
 
     /** If true, performing a scan. If false, only fetching the classpath. */
     private final boolean performScan;
@@ -172,7 +160,6 @@ class Scanner implements Callable<ScanResult> {
             final @Nullable Consumer<Throwable> failureHandler, final ReflectionUtils reflectionUtils,
             final @Nullable LogNode topLevelLog) throws InterruptedException {
         this.scanSpec = scanSpec;
-        this.classLoaderAndModuleLayerSpec = classLoaderAndModuleLayerSpec;
         this.performScan = performScan;
         scanSpec.sortPrefixes();
         scanSpec.log(topLevelLog);
@@ -203,8 +190,9 @@ class Scanner implements Callable<ScanResult> {
         this.topLevelLog = topLevelLog;
 
         final var classpathFinderLog = topLevelLog == null ? null : topLevelLog.log("Finding classpath");
-        // The ClasspathFinder is deliberately not stored in a field: it holds strong references to the classloaders
-        // that were used to find the classpath, and those must not be kept alive for the duration of the scan
+        // The ClasspathFinder is deliberately not stored in a field: it holds the classloaders that were used to
+        // find the classpath, and those must not be kept alive for the duration of the scan. It is the last thing
+        // in a scan to hold a classloader at all -- from here on, only the string form of each classloader is kept
         final var classpathFinder = new ClasspathFinder(scanSpec, classLoaderAndModuleLayerSpec, reflectionUtils,
                 classpathFinderLog);
 
@@ -218,14 +206,16 @@ class Scanner implements Callable<ScanResult> {
                 // Add modules to start of classpath order, before traditional classpath
                 final var classLoaderOrderRespectingParentDelegation = classpathFinder
                         .getClassLoaderOrderRespectingParentDelegation();
-                final var defaultClassLoader = classLoaderOrderRespectingParentDelegation != null
-                        && classLoaderOrderRespectingParentDelegation.length != 0
-                                ? classLoaderOrderRespectingParentDelegation[0]
-                                : null;
-                addModules(moduleFinder.getSystemModuleRefs(), /* isSystemModules = */ true, defaultClassLoader,
+                final var defaultClassLoaderStr = Objects
+                        .toString(classLoaderOrderRespectingParentDelegation != null
+                                && classLoaderOrderRespectingParentDelegation.length != 0
+                                        ? classLoaderOrderRespectingParentDelegation[0]
+                                        : null,
+                                null);
+                addModules(moduleFinder.getSystemModuleRefs(), /* isSystemModules = */ true, defaultClassLoaderStr,
                         unscannedModuleRefs, classpathFinderLog);
-                addModules(moduleFinder.getNonSystemModuleRefs(), /* isSystemModules = */ false, defaultClassLoader,
-                        unscannedModuleRefs, classpathFinderLog);
+                addModules(moduleFinder.getNonSystemModuleRefs(), /* isSystemModules = */ false,
+                        defaultClassLoaderStr, unscannedModuleRefs, classpathFinderLog);
             }
             this.unscannedModules = new UnscannedModules(unscannedModuleRefs,
                     nestedJarHandler.scanResources.moduleRefToModuleReaderRecyclerMap(), scanSpec);
@@ -235,7 +225,7 @@ class Scanner implements Callable<ScanResult> {
             this.rawClasspathEntryWorkUnits = new ArrayList<>();
             for (final var rawClasspathEntry : classpathFinder.getClasspathOrder().getOrder()) {
                 rawClasspathEntryWorkUnits.add(new ClasspathEntryWorkUnit(rawClasspathEntry.classpathEntryObj,
-                        rawClasspathEntry.getClassLoader(), /* parentClasspathElement = */ null,
+                        rawClasspathEntry.getClassLoaderString(), /* parentClasspathElement = */ null,
                         // classpathElementIdxWithinParent is the original classpath index, for toplevel classpath
                         // elements
                         /* classpathElementIdxWithinParent = */ rawClasspathEntryWorkUnits.size(),
@@ -255,8 +245,8 @@ class Scanner implements Callable<ScanResult> {
      *            the modules, or null if none were found
      * @param isSystemModules
      *            true if these are the system modules
-     * @param defaultClassLoader
-     *            the classloader to record for each module, or null if there is none
+     * @param defaultClassLoaderStr
+     *            the string form of the classloader to record for each module, or null if there is none
      * @param unscannedModuleRefs
      *            the list to add non-accepted, non-rejected modules to
      * @param classpathFinderLog
@@ -265,7 +255,7 @@ class Scanner implements Callable<ScanResult> {
      *             if the thread was interrupted while opening a module
      */
     private void addModules(final @Nullable List<ModuleRef> moduleRefs, final boolean isSystemModules,
-            final @Nullable ClassLoader defaultClassLoader, final List<ModuleRef> unscannedModuleRefs,
+            final @Nullable String defaultClassLoaderStr, final List<ModuleRef> unscannedModuleRefs,
             final @Nullable LogNode classpathFinderLog) throws InterruptedException {
         if (moduleRefs == null) {
             return;
@@ -282,7 +272,7 @@ class Scanner implements Callable<ScanResult> {
                 // Create a new ClasspathElementModule
                 final var classpathElementModule = new ClasspathElementModule(moduleRef,
                         nestedJarHandler.scanResources.moduleRefToModuleReaderRecyclerMap(),
-                        new ClasspathEntryWorkUnit(null, defaultClassLoader, null, moduleOrder.size(), "",
+                        new ClasspathEntryWorkUnit(null, defaultClassLoaderStr, null, moduleOrder.size(), "",
                                 ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES),
                         /* isLookupOnly = */ false, scanSpec);
                 moduleOrder.add(classpathElementModule);
@@ -398,10 +388,10 @@ class Scanner implements Callable<ScanResult> {
         Object classpathEntryObj;
 
         /**
-         * The classloader the classpath entry object was obtained from, or a reference to null if unknown. This is
-         * a weak reference, so that scanning does not keep a classloader alive.
+         * The string form of the classloader the classpath entry object was obtained from, or null if unknown. Only
+         * the string is kept, not the classloader itself, so that scanning does not keep a classloader alive.
          */
-        private final WeakReference<ClassLoader> classLoaderRef;
+        final @Nullable String classLoaderStr;
 
         /** The parent classpath element, or null if this is a toplevel entry. */
         final @Nullable ClasspathElement parentClasspathElement;
@@ -423,8 +413,8 @@ class Scanner implements Callable<ScanResult> {
          *
          * @param classpathEntryObj
          *            the raw classpath entry object
-         * @param classLoader
-         *            the classloader the classpath entry object was obtained from
+         * @param classLoaderStr
+         *            the string form of the classloader the classpath entry object was obtained from
          * @param parentClasspathElement
          *            the parent classpath element
          * @param classpathElementIdxWithinParent
@@ -435,25 +425,15 @@ class Scanner implements Callable<ScanResult> {
          *            the automatic package root prefixes to look for within this classpath element
          */
         public ClasspathEntryWorkUnit(final @Nullable Object classpathEntryObj,
-                final @Nullable ClassLoader classLoader, final @Nullable ClasspathElement parentClasspathElement,
+                final @Nullable String classLoaderStr, final @Nullable ClasspathElement parentClasspathElement,
                 final int classpathElementIdxWithinParent, final String packageRootPrefix,
                 final String[] packageRootPrefixes) {
             this.classpathEntryObj = classpathEntryObj;
-            this.classLoaderRef = new WeakReference<>(classLoader);
+            this.classLoaderStr = classLoaderStr;
             this.parentClasspathElement = parentClasspathElement;
             this.classpathElementIdxWithinParent = classpathElementIdxWithinParent;
             this.packageRootPrefix = packageRootPrefix;
             this.packageRootPrefixes = packageRootPrefixes;
-        }
-
-        /**
-         * Get the classloader the classpath entry object was obtained from.
-         *
-         * @return the classloader, or null if it was unknown or has since been garbage collected.
-         */
-        @Nullable
-        ClassLoader getClassLoader() {
-            return classLoaderRef.get();
         }
     }
 
@@ -726,7 +706,7 @@ class Scanner implements Callable<ScanResult> {
                     parentClasspathElement.childClasspathElements.add(classpathElement);
                 }
                 classpathElement.addReference(parentClasspathElement == null,
-                        workUnit.classpathElementIdxWithinParent, workUnit.getClassLoader());
+                        workUnit.classpathElementIdxWithinParent, workUnit.classLoaderStr);
 
             } catch (final Exception e) {
                 if (log != null) {
@@ -1378,12 +1358,6 @@ class Scanner implements Callable<ScanResult> {
                     throw failureHandlerException;
                 }
             }
-        } finally {
-            // classLoaderAndModuleLayerSpec is written by the constructor and never read again, so without this
-            // fence the JIT would be free to treat the Scanner as unreachable partway through the scan, and the
-            // caller's classloaders could be collected while they are still being scanned -- everything downstream
-            // of classpath finding refers to classloaders weakly, so this field is the only thing keeping them alive
-            Reference.reachabilityFence(classLoaderAndModuleLayerSpec);
         }
 
         if (removeTemporaryFilesAfterScan) {

@@ -190,20 +190,21 @@ annotation instance has been removed, along with the classloader that did the lo
 | `ClassGraph#initializeLoadedClasses()` |
 | The public class `ClassGraphClassLoader` |
 
-Load classes yourself instead, with the classloader that the class was found under, which
-`ClassInfo` now reports:
+Load classes yourself instead, with a classloader you hold:
 
 ```java
 ClassInfo classInfo = scanResult.getClassInfo("com.xyz.Widget");
-Class<?> cls = Class.forName(classInfo.getName(), /* initialize = */ false, classInfo.getClassLoader());
+Class<?> cls = Class.forName(classInfo.getName(), /* initialize = */ false, myClassLoader);
 ```
 
-`ClassInfo#getClassLoader()` is new in 5.x. It returns the classloader that the classfile
-was found under during the scan, or null if the class was never scanned (e.g. a superclass
-outside the accepted packages), or if the classloader has since been garbage collected —
-see "Classloaders are no longer retained after a scan", below. Reflection then gives you
-methods, fields, constructors, enum constants and annotation instances directly, from the
-JDK, with the JDK's semantics.
+Reflection then gives you methods, fields, constructors, enum constants and annotation
+instances directly, from the JDK, with the JDK's semantics.
+
+ClassGraph no longer hands you the classloader a class was found under —
+`ClassInfo#getClassLoader()` has been removed, and a scan does not keep a classloader
+reference at all. To find out which classloader a class came from, for logging or for
+choosing which loader to load it with, `ClassInfo#getClassLoaderString()` reports that
+classloader's `toString()`; see "Classloaders are no longer retained after a scan", below.
 
 Why this went away, given that it was one of the older parts of the API:
 
@@ -231,49 +232,46 @@ for enum constant names, and `MethodInfo`/`FieldInfo` for signatures and modifie
 
 ### Classloaders are no longer retained after a scan
 
-Now that loading classes is the caller's job, ClassGraph treats a classloader as something
-it borrows for the length of a scan, not something it keeps. A classloader can hold a large
-amount of memory — every class it has loaded, and everything those classes reference — so a
-leaked classloader reference is one of the more expensive kinds of leak, and one of the
-harder ones to track down. In 4.x, several references outlived the scan: every `ClassInfo`
-object held the classloader its class was found under, every classpath element held the
-classloader it came from, and the `ScanSpec` inside the `ScanResult` held the classloader
-and module-layer lists the caller had supplied.
+Now that loading classes is the caller's job, ClassGraph uses a classloader for exactly one
+thing: asking it which files, directories and URLs are on its classpath. Those are then
+read directly, not through the classloader, so once they have been extracted the
+classloader is dropped, and only its `toString()` is kept, as an identifier.
 
-In 5.x:
+This matters because a classloader can hold a large amount of memory — every class it has
+loaded, and everything those classes reference — so a leaked classloader reference is one
+of the more expensive kinds of leak, and one of the harder ones to track down. In 4.x,
+several references outlived the scan: every `ClassInfo` object held the classloader its
+class was found under, every classpath element held the classloader it came from, and the
+`ScanSpec` inside the `ScanResult` held the classloader and module-layer lists the caller
+had supplied.
 
-* Every classloader reference that can outlive classpath finding is a **weak** reference.
-  Nothing ClassGraph returns to you will keep a classloader alive.
-* The classloaders and module layers you supply with `ClassGraph#addClassLoader()`,
-  `#overrideClassLoaders()`, `#addModuleLayer()` and `#overrideModuleLayers()` are held by
-  the `ClassGraph` instance and, strongly, for the duration of the scan, so a classloader
-  you construct inline cannot be collected mid-scan. They are not reachable from the
-  `ScanResult`.
-* The machinery that finds the classpath — which necessarily walks classloaders — is
-  discarded as soon as the classpath has been found, before scanning starts.
+In 5.x, nothing a scan produces — no `ScanResult`, `ClassInfo`, `ClasspathElement` or
+`Resource` — holds a classloader, weakly or otherwise, so nothing ClassGraph returns to you
+can keep a classloader alive. The classloaders and module layers you supply with
+`ClassGraph#addClassLoader()`, `#overrideClassLoaders()`, `#addModuleLayer()` and
+`#overrideModuleLayers()` are held by the `ClassGraph` instance itself, so that the same
+instance can be scanned with more than once; they are not reachable from the `ScanResult`.
 
-What this means for you: **if you scan with a classloader you built yourself, keep your own
-reference to it for as long as you intend to load classes from it.**
+`ClassInfo#getClassLoaderString()` replaces 4.x's `ClassInfo#getClassLoader()`. It returns
+the `toString()` of the classloader the classfile was found under — the same string the
+verbose scanning log shows for the classpath element — or null if the class was not itself
+scanned (e.g. a superclass outside the accepted packages), or was found in a module loaded
+by the bootstrap classloader. It is an identifier, useful for logging and for working out
+where a class came from; to load the class, use a classloader you hold yourself:
 
 ```java
-// Keep your own reference to the classloader, so it is still alive when you load from it
 try (URLClassLoader classLoader = new URLClassLoader(urls);
         ScanResult scanResult = new ClassGraph().overrideClassLoaders(classLoader)
                 .enableAllInfo().scan()) {
     ClassInfo classInfo = scanResult.getClassInfo("com.xyz.Widget");
-    Class<?> cls = Class.forName(classInfo.getName(), false, classInfo.getClassLoader());
+    Class<?> cls = Class.forName(classInfo.getName(), false, classLoader);
 }
 ```
-
-If you drop your reference and the classloader is collected, `ClassInfo#getClassLoader()`
-starts returning null rather than resurrecting it. In practice the classloaders ClassGraph
-finds for itself (the context classloader, the system classloader, and their ancestors) are
-reachable for the life of the JVM anyway, so this only affects classloaders you create.
 
 There is one deliberate exception: `ModuleRef` still holds its `ModuleLayer` and that
 layer's classloader strongly, and `ModuleRef` is reachable from `ModuleInfo`. A
 `ModuleLayer` pins the classloaders of the modules it defines regardless of what ClassGraph
-does, so making that reference weak would not release anything; `ModuleRef#getLayer()` and
+does, so dropping that reference would not release anything; `ModuleRef#getLayer()` and
 `#getClassLoader()` remain part of the public API.
 
 ### Module APIs are now strongly typed
