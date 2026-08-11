@@ -34,7 +34,7 @@ import java.io.File;
 import java.net.URL;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 
 import nonapi.io.github.classgraph.classpath.ClassLoaderFinder;
@@ -169,7 +169,9 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
                 final Collection<Object> results = (Collection<Object>) reflectionUtils.invokeMethod(false,
                         container, methodName);
                 if (results != null && !results.isEmpty()) {
-                    final Collection<Object> allUrls = new HashSet<>();
+                    // Classpath order decides which copy of a duplicated class is loaded, so keep the order the
+                    // container returned rather than letting it depend on the hash order of the URL objects
+                    final Collection<Object> allUrls = new LinkedHashSet<>();
                     for (final Object result : results) {
                         if (result instanceof Collection) {
                             // SmartClassPath returns collection of collection of URLs.

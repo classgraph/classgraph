@@ -979,7 +979,7 @@ public class NestedJarHandler {
                         // We were able to read one more byte, so we're still not at the end of the
                         // stream,
                         // and we need to spill to disk, because buf is full
-                        return spillToDisk(inptStream, tempFileBaseName, buf, overflowBuf, log);
+                        return spillToDisk(inptStream, tempFileBaseName, buf, bufBytesUsed, overflowBuf, log);
                     }
                     // else (overflowBufBytesUsed == -1), so reached the end of the stream => don't
                     // spill to disk
@@ -998,7 +998,8 @@ public class NestedJarHandler {
             }
             // inputStreamLengthHint is longer than scanSpec.maxJarRamSize, so immediately
             // spill to disk
-            return spillToDisk(inptStream, tempFileBaseName, /* buf = */ null, /* overflowBuf = */ null, log);
+            return spillToDisk(inptStream, tempFileBaseName, /* buf = */ null, /* bufBytesUsed = */ 0,
+                    /* overflowBuf = */ null, log);
         }
     }
 
@@ -1011,6 +1012,8 @@ public class NestedJarHandler {
      *            The stem to base the temporary filename on.
      * @param buf
      *            The first buffer to write to the beginning of the file, or null if none.
+     * @param bufBytesUsed
+     *            The number of bytes of {@code buf} that were filled.
      * @param overflowBuf
      *            The second buffer to write to the beginning of the file, or null if none. (Should have same
      *            nullity as buf.)
@@ -1021,7 +1024,7 @@ public class NestedJarHandler {
      *             If anything went wrong creating or writing to the temp file.
      */
     private FileSlice spillToDisk(final InputStream inputStream, final String tempFileBaseName, final byte[] buf,
-            final byte[] overflowBuf, final LogNode log) throws IOException {
+            final int bufBytesUsed, final byte[] overflowBuf, final LogNode log) throws IOException {
         // Create temp file
         File tempFile;
         try {
@@ -1039,9 +1042,10 @@ public class NestedJarHandler {
         // Copy everything read so far and the rest of the InputStream to the temporary
         // file
         try (OutputStream outputStream = new BufferedOutputStream(new FileOutputStream(tempFile))) {
-            // Write already-read buffered bytes to temp file, if anything was read
-            if (buf != null) {
-                outputStream.write(buf);
+            // Write already-read buffered bytes to temp file, if anything was read (buf and overflowBuf always
+            // have the same nullity)
+            if (buf != null && overflowBuf != null) {
+                outputStream.write(buf, 0, bufBytesUsed);
                 outputStream.write(overflowBuf);
             }
             // Copy the rest of the InputStream to the file

@@ -669,7 +669,7 @@ public class LogicalZipFile extends ZipFileSlice {
                 // Set if the Info-ZIP Unicode path extra field renames the entry to a directory, or to nothing
                 boolean renamedToDirectoryEntry = false;
                 if (extraFieldLen > 0) {
-                    for (int extraFieldOff = 0; extraFieldOff + 4 < extraFieldLen;) {
+                    for (int extraFieldOff = 0; extraFieldOff + 4 <= extraFieldLen;) {
                         final long tagOff = filenameEndOff + extraFieldOff;
                         final int tag = cenReader.readUnsignedShort(tagOff);
                         final int size = cenReader.readUnsignedShort(tagOff + 2);
@@ -706,7 +706,6 @@ public class LogicalZipFile extends ZipFileSlice {
                                             + entryNameSanitized);
                                 }
                             }
-                            break;
 
                         } else if (tag == 0x5455 && size >= 5) {
                             // Extended Unix timestamp

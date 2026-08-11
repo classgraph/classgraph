@@ -682,12 +682,9 @@ public final class FileUtils {
             // See: https://github.com/classgraph/classgraph/issues/899
             // and: https://github.com/classgraph/classgraph/issues/939
             try {
-                Class<?> unsafeClass;
-                try {
-                    unsafeClass = Class.forName("sun.misc.Unsafe");
-                } catch (final ReflectiveOperationException | LinkageError e) {
-                    throw new RuntimeException("Could not get class sun.misc.Unsafe", e);
-                }
+                // A JVM with no sun.misc.Unsafe throws ClassNotFoundException or LinkageError here, which is
+                // caught below, leaving the fields null -- closeDirectByteBuffer() then returns false
+                final Class<?> unsafeClass = Class.forName("sun.misc.Unsafe");
                 final Field theUnsafeField = unsafeClass.getDeclaredField("theUnsafe");
                 theUnsafeField.setAccessible(true);
                 theUnsafe = theUnsafeField.get(null);

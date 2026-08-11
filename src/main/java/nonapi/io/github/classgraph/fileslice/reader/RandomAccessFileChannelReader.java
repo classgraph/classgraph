@@ -92,16 +92,22 @@ public class RandomAccessFileChannelReader implements RandomAccessReader {
             if (srcOffset < 0L || numBytes < 0 || numBytes > sliceLength - srcOffset) {
                 throw new IOException("Read index out of bounds");
             }
+            // Read no more than the destination has room for, as the array-backed and ByteBuffer-backed readers
+            // also do, rather than letting ByteBuffer#limit throw IllegalArgumentException
+            final int numBytesToRead = Math.max(Math.min(numBytes, dstBuf.capacity() - dstBufStart), 0);
+            if (numBytesToRead == 0) {
+                return -1;
+            }
             final long srcStart = sliceStartPos + srcOffset;
             final Buffer db = FileSlice.toBuffer(dstBuf);
             db.position(dstBufStart);
-            db.limit(dstBufStart + numBytes);
+            db.limit(dstBufStart + numBytesToRead);
             // FileChannel#read is not required to transfer the whole of the requested range in a single call,
             // and a read from a network filesystem can be short, so keep reading until the requested number of
             // bytes has been read or the end of the file is reached. (Every caller treats a short read as a
             // truncated file, so a short read that is not at the end of the file has to be completed here.)
             int numBytesRead = 0;
-            while (numBytesRead < numBytes) {
+            while (numBytesRead < numBytesToRead) {
                 final int numBytesReadThisCall = fileChannel.read(dstBuf, srcStart + numBytesRead);
                 if (numBytesReadThisCall <= 0) {
                     // -1 => end of file; 0 => the destination buffer has no space left
