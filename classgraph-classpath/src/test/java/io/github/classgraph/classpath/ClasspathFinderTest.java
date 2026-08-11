@@ -2,6 +2,7 @@ package io.github.classgraph.classpath;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assumptions.abort;
 
 import java.io.File;
 import java.io.IOException;
@@ -190,6 +191,32 @@ public class ClasspathFinderTest {
         try (var classpath = new ClasspathFinder().overrideClasspath(first, other).find()) {
             assertThat(classpath.getLocations()).containsExactly(locationOf(first), locationOf(middle),
                     locationOf(last), locationOf(other));
+        }
+    }
+
+    /**
+     * The classpath elements that a jarfile names are reported relative to the path the jarfile was reached at, not
+     * relative to the path the jarfile has once symlinks have been resolved. Otherwise the same jarfile reached
+     * through a symlink and directly would be reported as two different classpath elements.
+     */
+    @Test
+    public void manifestClassPathEntriesAreResolvedRelativeToThePathTheJarWasReachedAt(@TempDir final Path tempDir)
+            throws IOException {
+        final var dir = Files.createDirectory(tempDir.resolve("real"));
+        writeJarWithManifest(dir.resolve("named.jar"));
+        writeJarWithManifest(dir.resolve("names-another.jar"), "Class-Path", "named.jar");
+        final Path linkedDir;
+        try {
+            linkedDir = Files.createSymbolicLink(tempDir.resolve("link"), dir);
+        } catch (IOException | UnsupportedOperationException | SecurityException e) {
+            // Creating a symlink needs a privilege that is not granted by default on Windows
+            abort("Symlinks cannot be created: " + e);
+            return;
+        }
+        final var namesAnotherViaLink = linkedDir.resolve("names-another.jar").toFile();
+        try (var classpath = new ClasspathFinder().overrideClasspath((Object) namesAnotherViaLink).find()) {
+            assertThat(classpath.getLocations()).containsExactly(locationOf(namesAnotherViaLink),
+                    locationOf(linkedDir.resolve("named.jar").toFile()));
         }
     }
 
