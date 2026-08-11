@@ -399,6 +399,23 @@ If ClassGraph cannot see classes that you know are on the classpath, and either 
 applies to you, adding Narcissus is likely to be the fix. The same goes for a
 strongly-encapsulated third-party classloader that keeps its classpath in a private field.
 
+Reading `ucp` is not a duplicate of reading the module path. Anything loaded from the class
+path is a member of its classloader's **unnamed module**, and the unnamed module cannot be
+enumerated through the JPMS API: it has no name and no `ModuleDescriptor`
+(`Module#getDescriptor()` returns null for it), and it is in no module layer
+(`Module#getLayer()` "always returns null when invoked on an unnamed module", since "a module
+layer contains named modules"). Listing the contents of a module means going through a
+`ModuleReader`, which is opened from a `ModuleReference`, which always carries a
+`ModuleDescriptor` — so no `ModuleReader` exists for the unnamed module, and the class path
+can only be read from the classloader. This holds even for a jar that *does* contain a
+`module-info.class`: on the class path the descriptor is ignored and the jar's classes go into
+the unnamed module, rather than becoming a named module. (Placing that same jar on the
+**module path** is what makes it a named module, and a plain jar there becomes an automatic
+module.)
+
+Going the other way, module path entries never appear in `ucp`, so the two are separate,
+non-overlapping sources.
+
 This does not affect whether **system** classes are scanned, which is still controlled only
 by `ClassGraph#enableSystemJarsAndModules()`. System classes come from modules, read through
 the JPMS API, which is a separate mechanism from the `ucp` field; and in any case the
