@@ -190,6 +190,28 @@ class RandomAccessFileChannelReaderTest {
         }
     }
 
+    /**
+     * The destination buffer can have less room left than the caller asked for. The array-backed and
+     * ByteBuffer-backed readers read only as much as there is room for, so this reader has to as well, rather than
+     * letting {@link java.nio.ByteBuffer#limit(int)} throw {@link IllegalArgumentException}.
+     */
+    @Test
+    void readIsClampedToTheSpaceLeftInTheDestinationBuffer(@TempDir final Path tmpDir) throws IOException {
+        final var file = writeTestFile(tmpDir, 64);
+        try (var fileChannel = FileChannel.open(file, StandardOpenOption.READ)) {
+            final var reader = new RandomAccessFileChannelReader(fileChannel, 0L, 64L);
+            final var dstBuf = ByteBuffer.allocate(8);
+
+            // Only 4 of the 64 requested bytes fit after position 4
+            assertThat(reader.read(0, dstBuf, 4, 64)).isEqualTo(4);
+            assertThat(dstBuf.get(4)).isEqualTo((byte) 0);
+            assertThat(dstBuf.get(7)).isEqualTo((byte) 3);
+
+            // No room left at all
+            assertThat(reader.read(0, dstBuf, 8, 64)).isEqualTo(-1);
+        }
+    }
+
     /** Reading up to the end of the file must still stop at the end of the file. */
     @Test
     void readPastEndOfFileStopsAtEndOfFile(@TempDir final Path tmpDir) throws IOException {
