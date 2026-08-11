@@ -3,10 +3,10 @@ name: Java CI
 on:
   pull_request:
     branches:
-      - latest
+      - main
   push:
     branches:
-      - latest
+      - main
 
 jobs:
   build:
