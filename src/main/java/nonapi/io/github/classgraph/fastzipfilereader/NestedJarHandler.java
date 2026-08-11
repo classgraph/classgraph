@@ -29,6 +29,7 @@
 package nonapi.io.github.classgraph.fastzipfilereader;
 
 import java.io.BufferedOutputStream;
+import java.io.EOFException;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -767,6 +768,11 @@ public class NestedJarHandler {
             private final byte[] buf = new byte[INFLATE_BUF_SIZE];
             /** A separate destination buffer for the single-byte read() method. */
             private final byte[] singleByteBuf = new byte[1];
+            /**
+             * True once the end of rawInputStream has been reached, and the dummy byte required by the
+             * "nowrap" option has been handed to the inflater.
+             */
+            private boolean suppliedDummyByte;
             private static final int INFLATE_BUF_SIZE = 8192;
 
             @Override
@@ -808,6 +814,15 @@ public class NestedJarHandler {
                                 // Read a chunk of data from the raw InputStream
                                 final int numRawBytesRead = rawInputStream.read(buf, 0, buf.length);
                                 if (numRawBytesRead == -1) {
+                                    if (suppliedDummyByte) {
+                                        // The inflater wants more input, but the dummy byte below has
+                                        // already been supplied and the raw stream is exhausted, so the
+                                        // deflated data was truncated. Without this check, a fresh dummy
+                                        // byte would be supplied on every iteration, and this loop would
+                                        // never terminate.
+                                        throw new EOFException("Unexpected end of deflated zip entry data");
+                                    }
+                                    suppliedDummyByte = true;
                                     // An extra dummy byte is needed at the end of the input stream when
                                     // using the "nowrap" Inflater option.
                                     // See: ZipFile.ZipFileInflaterInputStream.fill()
@@ -871,14 +886,18 @@ public class NestedJarHandler {
                 return inflater.finished() ? 0 : 1;
             }
 
+            /**
+             * Mark is not supported by this stream, so this is a no-op, as required by the
+             * {@link InputStream} contract when {@link #markSupported()} returns false.
+             */
             @Override
             public synchronized void mark(final int readlimit) {
-                throw new IllegalArgumentException("Not supported");
+                // No-op
             }
 
             @Override
             public synchronized void reset() throws IOException {
-                throw new IllegalArgumentException("Not supported");
+                throw new IOException("mark/reset not supported");
             }
 
             @Override
