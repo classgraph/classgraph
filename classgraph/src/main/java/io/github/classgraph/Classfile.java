@@ -745,7 +745,7 @@ class Classfile {
                 + "https://github.com/classgraph/classgraph/issues");
         }
         if (cpIdxToUse < 1 || cpIdxToUse >= cpCount) {
-            throw new ClassfileFormatException("Constant pool index " + cpIdx + ", should be in range [1, "
+            throw new ClassfileFormatException("Constant pool index " + cpIdxToUse + ", should be in range [1, "
                     + (cpCount - 1) + "] -- cannot continue reading class. "
                     + "Please report this at https://github.com/classgraph/classgraph/issues");
         }
@@ -1652,7 +1652,8 @@ class Classfile {
         // Interfaces
         final var interfaceCount = reader().readUnsignedShort();
         for (var i = 0; i < interfaceCount; i++) {
-            final var interfaceName = getConstantPoolClassName(reader().readUnsignedShort());
+            final var interfaceName = requireConstantPoolString(
+                    getConstantPoolClassName(reader().readUnsignedShort()), "interface name");
             if (implementedInterfaces == null) {
                 implementedInterfaces = new ArrayList<>();
             }

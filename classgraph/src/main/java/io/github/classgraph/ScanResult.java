@@ -1563,7 +1563,7 @@ public final class ScanResult implements Closeable {
      * @return A list of all annotation classes found during the scan, or the empty list if none.
      * @throws IllegalStateException
      *             if this {@link ScanResult} has been closed, or if {@link ClassGraph#enableClassInfo()} and
-     *             {@link ClassGraph#enableAnnotationInfo()} were not all called before scanning.
+     *             {@link ClassGraph#enableAnnotationInfo()} were not both called before scanning.
      */
     public ClassInfoList getAllAnnotations() {
         checkAnnotationInfoEnabled();
@@ -1577,7 +1577,7 @@ public final class ScanResult implements Closeable {
      * @return A list of all accepted interfaces found during the scan, or the empty list if none.
      * @throws IllegalStateException
      *             if this {@link ScanResult} has been closed, or if {@link ClassGraph#enableClassInfo()} and
-     *             {@link ClassGraph#enableAnnotationInfo()} were not all called before scanning.
+     *             {@link ClassGraph#enableAnnotationInfo()} were not both called before scanning.
      */
     public ClassInfoList getAllInterfacesAndAnnotations() {
         checkAnnotationInfoEnabled();
@@ -1608,10 +1608,10 @@ public final class ScanResult implements Closeable {
      *
      * @param annotations
      *            The class annotations or meta-annotations.
-     * @return A list of all non-annotation classes that were found with any of the class annotations during the
+     * @return A list of all non-annotation classes that were found with all of the class annotations during the
      *         scan, or the empty list if none.
      * @throws IllegalArgumentException
-     *             if {@code cls} is not an annotation type.
+     *             if any of {@code annotations} is not an annotation type.
      * @throws IllegalStateException
      *             if this {@link ScanResult} has been closed, or if {@link ClassGraph#enableClassInfo()} and
      *             {@link ClassGraph#enableAnnotationInfo()} were not both called before scanning.
@@ -1635,7 +1635,7 @@ public final class ScanResult implements Closeable {
      * @return A list of all non-annotation classes that were found with any of the class annotations during the
      *         scan, or the empty list if none.
      * @throws IllegalArgumentException
-     *             if {@code cls} is not an annotation type.
+     *             if any of {@code annotations} is not an annotation type.
      * @throws IllegalStateException
      *             if this {@link ScanResult} has been closed, or if {@link ClassGraph#enableClassInfo()} and
      *             {@link ClassGraph#enableAnnotationInfo()} were not both called before scanning.
@@ -1660,7 +1660,7 @@ public final class ScanResult implements Closeable {
      *         or the empty list if none.
      * @throws IllegalStateException
      *             if this {@link ScanResult} has been closed, or if {@link ClassGraph#enableClassInfo()} and
-     *             {@link ClassGraph#enableAnnotationInfo()} were not all called before scanning.
+     *             {@link ClassGraph#enableAnnotationInfo()} were not both called before scanning.
      */
     public ClassInfoList getClassesWithAnnotation(final String annotationName) {
         checkAnnotationInfoEnabled();
@@ -1736,7 +1736,7 @@ public final class ScanResult implements Closeable {
      * @return A list of all annotations and meta-annotations on the named class, or the empty list if none.
      * @throws IllegalStateException
      *             if this {@link ScanResult} has been closed, or if {@link ClassGraph#enableClassInfo()} and
-     *             {@link ClassGraph#enableAnnotationInfo()} were not all called before scanning.
+     *             {@link ClassGraph#enableAnnotationInfo()} were not both called before scanning.
      */
     public ClassInfoList getAllAnnotationsOnClass(final String className) {
         checkAnnotationInfoEnabled();
@@ -1771,7 +1771,7 @@ public final class ScanResult implements Closeable {
      * @return A list of the annotations directly present on the named class, or the empty list if none.
      * @throws IllegalStateException
      *             if this {@link ScanResult} has been closed, or if {@link ClassGraph#enableClassInfo()} and
-     *             {@link ClassGraph#enableAnnotationInfo()} were not all called before scanning.
+     *             {@link ClassGraph#enableAnnotationInfo()} were not both called before scanning.
      */
     public ClassInfoList getDirectAnnotationsOnClass(final String className) {
         checkAnnotationInfoEnabled();

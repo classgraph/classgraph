@@ -207,22 +207,17 @@ public class MethodInfoList extends InfoList<MethodInfo> {
      */
     public @Nullable MethodInfo getSingleMethod(final String methodName) {
         Assert.notNull(methodName, "methodName");
-        var numMethodsWithName = 0;
-        MethodInfo lastFoundMethod = null;
+        MethodInfo foundMethod = null;
         for (final MethodInfo mi : this) {
             if (mi.getName().equals(methodName)) {
-                numMethodsWithName++;
-                lastFoundMethod = mi;
+                if (foundMethod != null) {
+                    throw new IllegalArgumentException("There are multiple methods named \"" + methodName
+                            + "\" in class " + mi.getClassName());
+                }
+                foundMethod = mi;
             }
         }
-        if (numMethodsWithName == 0) {
-            return null;
-        } else if (numMethodsWithName == 1) {
-            return lastFoundMethod;
-        } else {
-            throw new IllegalArgumentException("There are multiple methods named \"" + methodName + "\" in class "
-                    + Objects.requireNonNull(iterator().next().getClassInfo()).getName());
-        }
+        return foundMethod;
     }
 
     // -------------------------------------------------------------------------------------------------------------

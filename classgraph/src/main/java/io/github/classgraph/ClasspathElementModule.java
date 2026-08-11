@@ -224,7 +224,7 @@ class ClasspathElementModule extends ClasspathElement {
                     moduleReaderRecycler().recycle(localModuleReader);
                 }
             } catch (final IOException e) {
-                throw new RuntimeException(e);
+                throw new IllegalStateException("Could not get URI for " + this + " : " + e);
             }
         }
 
@@ -404,7 +404,8 @@ class ClasspathElementModule extends ClasspathElement {
 
                 // Accept/reject classpath elements based on file resource paths
                 if (!checkResourcePathAcceptReject(relativePath, log)) {
-                    continue;
+                    // The whole classpath element is rejected, so stop scanning the rest of it
+                    break;
                 }
 
                 final var parentMatchStatus = parentDirMatchStatusCache.getParentMatchStatus(relativePath);

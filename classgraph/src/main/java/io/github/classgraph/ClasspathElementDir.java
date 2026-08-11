@@ -693,6 +693,10 @@ class ClasspathElementDir extends ClasspathElement {
             try {
                 if (getFileAttributes.get(subPath).isDirectory()) {
                     scanPathRecursively(subPath, subLog);
+                    if (containsRejectedClasspathElementResourcePath) {
+                        // The whole classpath element is rejected, so stop scanning the rest of it
+                        return;
+                    }
                 }
             } catch (final SecurityException e) {
                 if (subLog != null) {
@@ -715,9 +719,6 @@ class ClasspathElementDir extends ClasspathElement {
      */
     @Override
     void scanPaths(final @Nullable LogNode log) {
-        if (!checkResourcePathAcceptReject(classpathEltPath.toString(), log)) {
-            skipClasspathElement = true;
-        }
         if (skipClasspathElement) {
             return;
         }

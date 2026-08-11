@@ -1254,12 +1254,15 @@ class Scanner implements Callable<ScanResult> {
                 // Scan the paths within the classpath element
                 (classpathElement, workQueueIgnored, pathScanLog) -> classpathElement.scanPaths(pathScanLog));
 
-        // Filter out classpath elements that do not contain required accepted paths.
+        // Filter out classpath elements that contain a rejected resource path, or that do not contain a required
+        // accepted resource path
         var finalClasspathEltOrderFiltered = finalClasspathEltOrder;
-        if (!scanSpec.classpathElementResourcePathAcceptReject.acceptIsEmpty()) {
+        if (!scanSpec.classpathElementResourcePathAcceptReject.acceptAndRejectAreEmpty()) {
+            final var acceptIsEmpty = scanSpec.classpathElementResourcePathAcceptReject.acceptIsEmpty();
             finalClasspathEltOrderFiltered = new ArrayList<>(finalClasspathEltOrder.size());
             for (final ClasspathElement classpathElement : finalClasspathEltOrder) {
-                if (classpathElement.containsSpecificallyAcceptedClasspathElementResourcePath) {
+                if (!classpathElement.containsRejectedClasspathElementResourcePath && (acceptIsEmpty
+                        || classpathElement.containsSpecificallyAcceptedClasspathElementResourcePath)) {
                     finalClasspathEltOrderFiltered.add(classpathElement);
                 }
             }
@@ -1298,7 +1301,7 @@ class Scanner implements Callable<ScanResult> {
     @Override
     public @Nullable ScanResult call() throws InterruptedException, CancellationException, ExecutionException {
         ScanResult scanResult = null;
-        final var scanStart = System.currentTimeMillis();
+        final var scanStart = System.nanoTime();
         var removeTemporaryFilesAfterScan = scanSpec.removeTemporaryFilesAfterScan;
         try {
             // Perform the scan
@@ -1306,8 +1309,8 @@ class Scanner implements Callable<ScanResult> {
 
             // Log total time after scan completes, and flush log
             if (topLevelLog != null) {
-                topLevelLog.log("~", String.format(Locale.US, "Total time: %.3f sec",
-                        (System.currentTimeMillis() - scanStart) * .001));
+                topLevelLog.log("~",
+                        String.format(Locale.US, "Total time: %.3f sec", (System.nanoTime() - scanStart) * 1.0e-9));
                 topLevelLog.flush();
             }
 

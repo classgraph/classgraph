@@ -2021,7 +2021,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         if (superClasses == null || superClasses.isEmpty()) {
             return null;
         } else if (superClasses.size() > 1) {
-            throw new IllegalArgumentException("More than one superclass: " + superClasses);
+            throw new IllegalStateException("More than one superclass: " + superClasses);
         } else {
             return superClasses.iterator().next();
         }
@@ -3255,8 +3255,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * @param fieldName
      *            The field name.
-     * @return the {@link FieldInfo} object for the named field of this class or its superclasses, or the empty list
-     *         if no fields were found or visible.
+     * @return the {@link FieldInfo} object for the named field of this class or its superclasses, or null if the
+     *         field was not found or is not visible.
      * @throws IllegalStateException
      *             if {@link ClassGraph#enableFieldInfo()} was not called prior to initiating the scan.
      */

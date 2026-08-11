@@ -330,6 +330,26 @@ public class ClassGraphTest {
         }
     }
 
+    /**
+     * Rejecting a resource path rejects the whole classpath element that contains it, not just that one resource.
+     */
+    @Test
+    public void classpathElementsContainingARejectedResourceAreNotScanned() {
+        // classesDir contains res/indir.txt, so none of classesDir is scanned, but the jar still is
+        try (var scanResult = new ClassGraph().overrideClasspath(classesDir.toString(), jarFile.toString())
+                .rejectClasspathElementsContainingResourcePath("res/indir.txt").scan()) {
+            assertThat(scanResult.getAllResources().getPaths()).containsExactlyInAnyOrder("res/injar.txt",
+                    "com/xyz/cgfixture/InJar.class");
+            assertThat(scanResult.getClasspathURIs()).doesNotContain(classesDir.toUri());
+        }
+        // Both classpath elements contain a classfile under com/, so neither is scanned
+        try (var scanResult = new ClassGraph().overrideClasspath(classesDir.toString(), jarFile.toString())
+                .rejectClasspathElementsContainingResourcePath("com/**").scan()) {
+            assertThat(scanResult.getAllResources()).isEmpty();
+            assertThat(scanResult.getClasspathURIs()).isEmpty();
+        }
+    }
+
     /** Paths can be rejected, but rejecting the package root would leave nothing to scan. */
     @Test
     public void pathsCanBeRejected() {

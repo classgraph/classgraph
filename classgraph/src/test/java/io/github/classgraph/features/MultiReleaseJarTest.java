@@ -3,6 +3,8 @@ package io.github.classgraph.features;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.net.URL;
 import java.net.URLClassLoader;
 
@@ -107,6 +109,29 @@ public class MultiReleaseJarTest {
             assertThat(java8ClassResource).hasSize(1);
             assertThatThrownBy(() -> scanResult.getClassInfo("mrj.Cls"))
                     .isInstanceOfAny(IllegalStateException.class);
+        }
+    }
+
+    /** A CLASS-retained, and therefore runtime-invisible, annotation. */
+    @Retention(RetentionPolicy.CLASS)
+    public @interface ClassRetained {
+    }
+
+    /** A class annotated with a runtime-invisible annotation. */
+    @ClassRetained
+    public static class ClassRetainedAnnotated {
+    }
+
+    /**
+     * `enableMultiReleaseVersions` and `enableAllInfo` cancel each other out, whichever order they are called in,
+     * so calling `enableAllInfo` last must not leave runtime-invisible annotations hidden.
+     */
+    @Test
+    public void enableAllInfoAfterEnableMultiReleaseVersions() {
+        try (var scanResult = new ClassGraph().acceptPackages(MultiReleaseJarTest.class.getPackage().getName())
+                .enableMultiReleaseVersions().enableAllInfo().scan()) {
+            assertThat(scanResult.getClassesWithAnnotation(ClassRetained.class).getNames())
+                    .containsOnly(ClassRetainedAnnotated.class.getName());
         }
     }
 }

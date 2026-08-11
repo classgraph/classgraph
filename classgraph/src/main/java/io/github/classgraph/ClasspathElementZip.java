@@ -510,9 +510,6 @@ class ClasspathElementZip extends ClasspathElement {
         if (this.logicalZipFile == null) {
             skipClasspathElement = true;
         }
-        if (!checkResourcePathAcceptReject(getZipFilePath(), log)) {
-            skipClasspathElement = true;
-        }
         if (skipClasspathElement) {
             return;
         }
@@ -565,7 +562,8 @@ class ClasspathElementZip extends ClasspathElement {
 
             // Accept/reject classpath elements based on file resource paths
             if (!checkResourcePathAcceptReject(relativePath, subLog)) {
-                continue;
+                // The whole classpath element is rejected, so stop scanning the rest of it
+                break;
             }
 
             final var parentMatchStatus = parentDirMatchStatusCache.getParentMatchStatus(relativePath);

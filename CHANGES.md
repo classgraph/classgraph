@@ -1797,6 +1797,39 @@ is fixed on the 4.x branch as well.
   is now escaped as `&#x5C;`, the numeric character reference, which GraphViz does
   understand.
 
+* `rejectClasspathElementsContainingResourcePath()` rejected only the matching resource,
+  not the classpath element that contained it. The method is documented to stop the whole
+  classpath element from being scanned, and originally did, but the element-level skip was
+  lost in 4.8.150 (November 2022) while fixing an unrelated problem -- an I/O error while
+  reading one directory entry used the same flag to abort the scan of the entire classpath
+  element, and in removing that, the flag stopped being set for a rejected resource path as
+  well. What replaced it tested the classpath element's own absolute path against the
+  reject criteria, which can never match, because those criteria are matched against
+  relative resource paths. So from then on, a rejected element was scanned in full apart
+  from the one resource that matched, and it stayed in `ScanResult#getClasspathURIs()` and
+  friends. Rejecting a resource path now excludes the whole classpath element again, as
+  documented: scanning of that element stops at the rejected resource, and the element is
+  left out of the scan result and out of the reported classpath. The accept side
+  (`acceptClasspathElementsContainingResourcePath()`) was unaffected, and is unchanged.
+
+* `enableMultiReleaseVersions()` permanently switched off runtime-invisible (`CLASS`
+  retention) annotations. The method turns off the parts of a scan that do not make sense
+  when every version of a multi-release class is scanned, annotation info among them, and
+  it did that partly by setting the internal flag that suppresses runtime-invisible
+  annotations. That flag is only read when annotation info is enabled, so it had no effect
+  on the scan the method was configuring, but it survived a later
+  `enableAnnotationInfo()` or `enableAllInfo()` on the same `ClassGraph` instance: a scan
+  configured as `enableMultiReleaseVersions().enableAllInfo()` silently returned no
+  `CLASS`-retention annotations. The flag is no longer set.
+
+* `MethodInfoList#getSingleMethod(String)` named the wrong class in the exception it
+  throws when the list holds more than one method with the requested name. It built the
+  message from the first element of the list, which need not be one of the methods that
+  the name matched, so for a subclass' method list the message reported the subclass
+  although the overloads were declared by the superclass. It now names the class that
+  declares the overloads. The method also threw `NullPointerException` rather than
+  `IllegalArgumentException` if that first element had no `ClassInfo`.
+
 Two further bugs found during the port were only reachable through the JSON
 serialization API, which 5.x removes (`AnnotationParameterValue#toString()` threw
 `NullPointerException` for a null parameter value, and `ScanResult#fromJSON(String)` did
