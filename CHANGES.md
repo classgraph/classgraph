@@ -1706,6 +1706,20 @@ is fixed on the 4.x branch as well.
   resolves the closest ancestor directory that does exist and appends the rest of the path
   to it, so a missing file gets the same path it would have had if it had been created.
 
+* A classpath entry that reached a directory through a symlink followed by `".."` was
+  scanned as the wrong directory, or was not scanned at all. A `".."` in a classpath entry
+  was resolved textually, by deleting the segment before it, which is not what the
+  filesystem does: after a symlinked directory, `".."` names the parent of the directory
+  the symlink points at, not the parent of the symlink. Given `link -> real/other`, the
+  classpath entry `link/../classes` names `real/classes` to the JVM's own classloader, but
+  ClassGraph resolved it to `classes` beside the symlink, and scanned that directory if it
+  happened to exist, or nothing at all if it did not. A `".."` in a classpath entry that
+  names a file on disk is now left for the filesystem to resolve. Everything after a
+  nested jar separator (`outer.jar!/...`) is still collapsed textually, since an archive
+  has no symlinks and no filesystem to ask, and collapsing there is what stops an entry
+  name from escaping the archive it is in. The `".."` clamping applied to a `Class-Path:`
+  manifest entry is also unchanged.
+
 Two further bugs found during the port were only reachable through the JSON
 serialization API, which 5.x removes (`AnnotationParameterValue#toString()` threw
 `NullPointerException` for a null parameter value, and `ScanResult#fromJSON(String)` did

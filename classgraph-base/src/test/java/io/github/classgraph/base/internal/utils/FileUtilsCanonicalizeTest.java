@@ -3,6 +3,7 @@ package io.github.classgraph.base.internal.utils;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assumptions.abort;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
@@ -99,6 +100,31 @@ public class FileUtilsCanonicalizeTest {
                 .isEqualTo(realDir.toRealPath().resolve("does-not-exist"));
         assertThat(FileUtils.canonicalize(missingViaLink.toFile()))
                 .isEqualTo(realDir.toRealPath().resolve("does-not-exist").toFile());
+    }
+
+    /**
+     * A {@code ".."} that follows a symlinked directory names the parent of the directory the symlink points at,
+     * not the parent of the symlink. The filesystem is the only thing that knows this, so the {@code ".."} must not
+     * be collapsed before the part of the path that exists has been resolved.
+     *
+     * @param tempDir
+     *            a temporary directory
+     * @throws IOException
+     *             if the directory could not be created
+     */
+    @Test
+    public void aParentSegmentAfterASymlinkIsResolvedByTheFilesystem(@TempDir final Path tempDir)
+            throws IOException {
+        final var realDir = Files.createDirectory(tempDir.resolve("real"));
+        final var innerDir = Files.createDirectory(realDir.resolve("inner"));
+        final var linkedDir = createSymbolicLinkOrSkip(tempDir.resolve("link"), innerDir);
+
+        // "link/.." is "real", not tempDir -- which is what the system canonicalizer says too
+        assertThat(FileUtils.canonicalize(linkedDir.resolve(".."))).isEqualTo(realDir.toRealPath());
+        assertThat(FileUtils.canonicalize(linkedDir.resolve("../missing")))
+                .isEqualTo(realDir.toRealPath().resolve("missing"));
+        assertThat(FileUtils.canonicalize(new File(linkedDir.toFile(), "../missing")))
+                .isEqualTo(realDir.toRealPath().resolve("missing").toFile());
     }
 
     /**

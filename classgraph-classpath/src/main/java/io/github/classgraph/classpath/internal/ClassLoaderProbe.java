@@ -406,7 +406,8 @@ public class ClassLoaderProbe {
             final var sysPropLog = log == null ? null : log.log("Getting classpath entries from java.class.path");
             for (final String pathElement : pathElements) {
                 // pathElement is not also listed in an ignored parent classloader
-                final var pathElementResolved = FastPathResolver.resolve(FileUtils.currDirPath(), pathElement);
+                final var pathElementResolved = FastPathResolver.resolveFilePath(FileUtils.currDirPath(),
+                        pathElement);
                 classpathOrder.addClasspathEntry(pathElementResolved, defaultClassLoader, classpathSpec,
                         sysPropLog);
             }

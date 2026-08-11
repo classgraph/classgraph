@@ -326,7 +326,7 @@ public class ClasspathOrder {
                 return true;
             }
         } else {
-            final var pathElementStrResolved = FastPathResolver.resolve(FileUtils.currDirPath(),
+            final var pathElementStrResolved = FastPathResolver.resolveFilePath(FileUtils.currDirPath(),
                     pathElementStrWithoutSuffix);
             if (classpathEntryUniqueResolvedPaths.add(pathElementStrResolved)) {
                 order.add(new Entry(pathElementStrResolved, classLoader, currPackageRootPrefixes));
@@ -496,7 +496,7 @@ public class ClasspathOrder {
             final ClasspathSpec classpathSpec, final @Nullable LogNode log) {
         // A wildcarded classpath entry is only ever reached as a path string, never as a URL, so there is no URL to
         // apply the user's URL filters to
-        final var baseDirPathResolved = FastPathResolver.resolve(FileUtils.currDirPath(), baseDirPath);
+        final var baseDirPathResolved = FastPathResolver.resolveFilePath(FileUtils.currDirPath(), baseDirPath);
         if (!passesFilters(/* pathElementURL = */ null, baseDirPath, baseDirPathResolved, log)) {
             return false;
         }
@@ -534,7 +534,8 @@ public class ClasspathOrder {
             if (!".".equals(name) && !"..".equals(name)) {
                 // Add each directory entry as a classpath element
                 final var fileInDirPath = fileInDir.getPath();
-                final var fileInDirPathResolved = FastPathResolver.resolve(FileUtils.currDirPath(), fileInDirPath);
+                final var fileInDirPathResolved = FastPathResolver.resolveFilePath(FileUtils.currDirPath(),
+                        fileInDirPath);
                 addClasspathEntryAndLog(fileInDirPathResolved, fileInDirPath, fileInDirPathResolved, classLoader,
                         classpathSpec, dirLog);
             }
@@ -570,7 +571,7 @@ public class ClasspathOrder {
             // into a scan of the whole directory tree below the current directory
             return false;
         }
-        pathElementStr = FastPathResolver.resolve(FileUtils.currDirPath(), pathElementStr);
+        pathElementStr = FastPathResolver.resolveFilePath(FileUtils.currDirPath(), pathElementStr);
         URL pathElementURL = null;
         var hasWildcardSuffix = false;
         if (pathElementStr.endsWith("/*") || pathElementStr.endsWith("\\*")) {
@@ -613,7 +614,7 @@ public class ClasspathOrder {
             }
             return false;
         }
-        final var pathElementResolved = FastPathResolver.resolve(FileUtils.currDirPath(), pathElementStr);
+        final var pathElementResolved = FastPathResolver.resolveFilePath(FileUtils.currDirPath(), pathElementStr);
         if (!passesFilters(pathElementURL, pathElementStr, pathElementResolved, log)) {
             return false;
         }
