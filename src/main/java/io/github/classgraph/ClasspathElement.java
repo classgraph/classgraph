@@ -31,7 +31,6 @@ package io.github.classgraph;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -304,30 +303,6 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the canonical path of a directory, resolving symlinks (and, on Windows, junctions and 8.3 short names).
-     *
-     * <p>
-     * {@link Path#toRealPath(java.nio.file.LinkOption...)} is used rather than {@link File#getCanonicalPath()},
-     * since on Windows the latter resolves neither directory symlinks and junctions nor 8.3 short names (e.g.
-     * {@code C:\Users\RUNNER~1} for {@code C:\Users\runneradmin}). {@link File#getCanonicalPath()} is used as a
-     * fallback, since {@link Path#toRealPath(java.nio.file.LinkOption...)} requires the directory to exist.
-     *
-     * @param dir
-     *            the directory.
-     * @return the canonical path of the directory.
-     * @throws IOException
-     *             if the path could not be canonicalized.
-     */
-    private static String canonicalizeDirPath(final File dir) throws IOException {
-        try {
-            return dir.toPath().toRealPath().toString();
-        } catch (final IOException | RuntimeException e) {
-            // The directory does not exist, or the path is not valid for the default filesystem
-            return dir.getCanonicalPath();
-        }
-    }
-
-    /**
      * Get a key that identifies the file that a resource's {@link URI} refers to, for comparing two resources to
      * see if they are the same file.
      *
@@ -369,7 +344,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
             final String parentDirPath = parentDir.getPath();
             String canonicalParentDirPath = canonicalDirPathCache.get(parentDirPath);
             if (canonicalParentDirPath == null) {
-                canonicalParentDirPath = canonicalizeDirPath(parentDir);
+                canonicalParentDirPath = FileUtils.canonicalize(parentDir).getPath();
                 canonicalDirPathCache.put(parentDirPath, canonicalParentDirPath);
             }
             return canonicalParentDirPath + File.separatorChar + file.getName() + nestedPath;

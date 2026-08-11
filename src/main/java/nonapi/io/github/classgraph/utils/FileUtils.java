@@ -508,6 +508,58 @@ public final class FileUtils {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Canonicalize a {@link File}, resolving symlinks (and, on Windows, junctions and 8.3 short names), so that a
+     * file reached through two different paths is given the same canonical path everywhere in ClassGraph.
+     *
+     * <p>
+     * {@link Path#toRealPath(java.nio.file.LinkOption...)} is used rather than {@link File#getCanonicalFile()},
+     * since on Windows the latter resolves neither directory symlinks and junctions nor 8.3 short names (e.g.
+     * {@code C:\Users\RUNNER~1} for {@code C:\Users\runneradmin}). {@link File#getCanonicalFile()} is used as a
+     * fallback, since {@link Path#toRealPath(java.nio.file.LinkOption...)} requires the file to exist.
+     *
+     * @param file
+     *            A {@link File}.
+     * @return the canonical form of the file.
+     * @throws IOException
+     *             if the file could not be canonicalized.
+     */
+    public static File canonicalize(final File file) throws IOException {
+        try {
+            return file.toPath().toRealPath().toFile();
+        } catch (final IOException | RuntimeException e) {
+            // The file does not exist, or the path is not valid for the default filesystem
+            return file.getCanonicalFile();
+        }
+    }
+
+    /**
+     * Canonicalize a {@link Path}, resolving symlinks (and, on Windows, junctions and 8.3 short names), so that a
+     * file reached through two different paths is given the same canonical path everywhere in ClassGraph. See
+     * {@link #canonicalize(File)}.
+     *
+     * @param path
+     *            A {@link Path}.
+     * @return the canonical form of the path.
+     * @throws IOException
+     *             if the path could not be canonicalized.
+     */
+    public static Path canonicalize(final Path path) throws IOException {
+        try {
+            return path.toRealPath();
+        } catch (final IOException | RuntimeException e) {
+            // The path does not exist -- fall back to File#getCanonicalFile(), which does not require the file to
+            // exist, but which is only available for paths on the default filesystem
+            try {
+                return path.toFile().getCanonicalFile().toPath();
+            } catch (final UnsupportedOperationException e2) {
+                throw new IOException("Could not canonicalize path: " + path, e);
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
      * Get the parent dir path.
      *
      * @param path

@@ -500,11 +500,9 @@ class Scanner implements Callable<ScanResult> {
         // Canonicalize Path objects so the same file is opened only once
         if (classpathEntryObjNormalized instanceof Path) {
             try {
-                // Canonicalize path, to avoid duplication
-                // Throws  IOException if the file does not exist or an I/O error occurs
-                classpathEntryObjNormalized = ((Path) classpathEntryObjNormalized).toRealPath();
+                classpathEntryObjNormalized = FileUtils.canonicalize((Path) classpathEntryObjNormalized);
             } catch (final IOException | SecurityException e) {
-                // Ignore
+                // The path could not be canonicalized -- use it as given
             }
         }
 

@@ -1,0 +1,130 @@
+package nonapi.io.github.classgraph.utils;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assumptions.abort;
+
+import java.io.IOException;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Collections;
+import java.util.Map;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+/**
+ * Tests the canonicalization of file and directory paths. Every part of ClassGraph has to give the same canonical
+ * path for a file, otherwise the same file reached through two different paths is opened twice, and is reported
+ * under two different paths.
+ */
+public class FileUtilsCanonicalizeTest {
+    /** The content of the test file. */
+    private static final byte[] CONTENT = "content".getBytes(StandardCharsets.UTF_8);
+
+    /**
+     * Create a symlink, or skip the test if the filesystem does not allow it (creating a symlink needs a privilege
+     * that is not granted by default on Windows).
+     *
+     * @param link
+     *            the symlink to create
+     * @param target
+     *            the target of the symlink
+     * @return the symlink
+     */
+    private static Path createSymbolicLinkOrSkip(final Path link, final Path target) {
+        try {
+            return Files.createSymbolicLink(link, target);
+        } catch (IOException | UnsupportedOperationException | SecurityException e) {
+            abort("Symlinks cannot be created: " + e);
+            return link;
+        }
+    }
+
+    /**
+     * A file reached through a symlink is canonicalized to the path of the file the symlink points at, whether it
+     * is passed as a {@link java.io.File} or as a {@link Path}.
+     *
+     * @param tempDir
+     *            a temporary directory
+     * @throws IOException
+     *             if the file could not be written
+     */
+    @Test
+    public void aSymlinkedFileIsCanonicalizedToItsTarget(@TempDir final Path tempDir) throws IOException {
+        final Path realFile = Files.write(tempDir.resolve("real.bin"), CONTENT);
+        final Path link = createSymbolicLinkOrSkip(tempDir.resolve("link.bin"), realFile);
+
+        assertThat(FileUtils.canonicalize(link)).isEqualTo(realFile.toRealPath());
+        assertThat(FileUtils.canonicalize(link.toFile())).isEqualTo(realFile.toRealPath().toFile());
+    }
+
+    /**
+     * A file reached through a symlinked parent directory is canonicalized to the path of the file within the
+     * directory the symlink points at.
+     *
+     * @param tempDir
+     *            a temporary directory
+     * @throws IOException
+     *             if the file could not be written
+     */
+    @Test
+    public void aFileInASymlinkedDirIsCanonicalizedToItsTarget(@TempDir final Path tempDir) throws IOException {
+        final Path realDir = Files.createDirectory(tempDir.resolve("real"));
+        final Path realFile = Files.write(realDir.resolve("file.bin"), CONTENT);
+        final Path linkedDir = createSymbolicLinkOrSkip(tempDir.resolve("link"), realDir);
+
+        assertThat(FileUtils.canonicalize(linkedDir.resolve("file.bin"))).isEqualTo(realFile.toRealPath());
+        assertThat(FileUtils.canonicalize(linkedDir.toFile())).isEqualTo(realDir.toRealPath().toFile());
+    }
+
+    /**
+     * A path that does not exist cannot be resolved by {@link Path#toRealPath(java.nio.file.LinkOption...)}, but is
+     * still normalized, and any symlink in the part of the path that does exist is still resolved.
+     *
+     * @param tempDir
+     *            a temporary directory
+     * @throws IOException
+     *             if the directory could not be created
+     */
+    @Test
+    public void aPathThatDoesNotExistIsStillNormalized(@TempDir final Path tempDir) throws IOException {
+        final Path realDir = Files.createDirectory(tempDir.resolve("real"));
+        final Path linkedDir = createSymbolicLinkOrSkip(tempDir.resolve("link"), realDir);
+        final Path missingViaLink = linkedDir.resolve("sub/../does-not-exist");
+
+        assertThat(FileUtils.canonicalize(missingViaLink))
+                .isEqualTo(realDir.toRealPath().resolve("does-not-exist"));
+        assertThat(FileUtils.canonicalize(missingViaLink.toFile()))
+                .isEqualTo(realDir.toRealPath().resolve("does-not-exist").toFile());
+    }
+
+    /**
+     * A path inside a zipfile is canonicalized through its own filesystem. It cannot be converted to a
+     * {@link java.io.File}, so if it does not exist, there is no fallback, and canonicalization fails.
+     *
+     * @param tempDir
+     *            a temporary directory
+     * @throws IOException
+     *             if the zipfile could not be created or written to
+     */
+    @Test
+    public void thePathsInsideAZipfileAreCanonicalizedThroughTheirOwnFilesystem(@TempDir final Path tempDir)
+            throws IOException {
+        final URI zipURI = URI.create("jar:" + tempDir.resolve("test.zip").toUri());
+        final Map<String, String> createOption = Collections.singletonMap("create", "true");
+        try (FileSystem zipFileSystem = FileSystems.newFileSystem(zipURI, createOption)) {
+            Files.createDirectory(zipFileSystem.getPath("/dir"));
+            final Path fileInZip = Files.write(zipFileSystem.getPath("/dir/file.bin"), CONTENT);
+            final Path missingInZip = zipFileSystem.getPath("/dir/does-not-exist");
+
+            assertThat(FileUtils.canonicalize(zipFileSystem.getPath("/dir/../dir/file.bin"))).isEqualTo(fileInZip);
+            assertThatThrownBy(() -> FileUtils.canonicalize(missingInZip)).isInstanceOf(IOException.class)
+                    .hasMessage("Could not canonicalize path: " + missingInZip);
+        }
+    }
+}

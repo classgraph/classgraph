@@ -203,8 +203,9 @@ public class NestedJarHandler {
                         } else {
                             // Jarfile should be a local file -- wrap in a PhysicalZipFile instance
                             try {
-                                // Get canonical file
-                                final File canonicalFile = new File(nestedJarPath).getCanonicalFile();
+                                // Get canonical file, so that the same jarfile reached through two
+                                // different paths is opened once
+                                final File canonicalFile = FileUtils.canonicalize(new File(nestedJarPath));
                                 // Get or create a PhysicalZipFile instance for the canonical file
                                 physicalZipFile = canonicalFileToPhysicalZipFileMap.get(canonicalFile, log);
                             } catch (final NullSingletonException | NewInstanceException e) {
@@ -212,7 +213,7 @@ public class NestedJarHandler {
                                 throw new IOException("Could not get PhysicalZipFile for path " + nestedJarPath
                                         + " : " + (e.getCause() == null ? e : e.getCause()));
                             } catch (final SecurityException e) {
-                                // getCanonicalFile() failed (it may have also failed with IOException)
+                                // canonicalize() failed (it may have also failed with IOException)
                                 throw new IOException(
                                         "Path component " + nestedJarPath + " could not be canonicalized: " + e);
                             }
