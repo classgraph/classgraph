@@ -25,11 +25,11 @@ public class RecordTest {
     @Test
     public void recordJar() throws Exception {
         try (var classLoader = new URLClassLoader(new URL[] { jarURL });
-                var scanResult = new ClassGraph().overrideClassLoaders(classLoader).enableAllInfo().scan()) {
+                var scanResult = new ClassGraph().overrideClassLoaders(classLoader).acceptPackages("pkg")
+                        .enableAllInfo().scan()) {
             final var classInfoList = scanResult.getAllRecords();
-            assertThat(classInfoList).isNotEmpty();
-            final var classInfo = classInfoList.get(0);
-            final var fieldInfo = classInfo.getFieldInfo("x");
+            assertThat(classInfoList.getNames()).containsExactly("pkg.Record");
+            final var fieldInfo = classInfoList.get(0).getFieldInfo("x");
             assertThat(fieldInfo).isNotNull();
         }
     }

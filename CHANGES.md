@@ -357,6 +357,31 @@ The differences to be aware of when porting:
 * `ModuleReader#close()` throws `IOException`, whereas `ModuleReaderProxy#close()`
   swallowed it.
 
+### Narcissus is now used automatically, and the reflection driver can no longer be selected
+
+Since JDK 16 the JDK enforces strong encapsulation, so ClassGraph may be unable to read the
+classpath from a classloader that keeps it in a private field. The workaround is the
+[Narcissus](https://github.com/toolfactory/narcissus) library, which reads fields and
+invokes methods through JNI, where Java's access checks do not apply.
+
+In 4.x you had to add Narcissus to your project *and* select it in code. In 5.x, adding it
+to your project is the whole of it: ClassGraph looks for Narcissus reflectively when it
+starts up, and uses it as its reflection driver if it is present and its native library
+loads. If it is absent, ClassGraph uses standard reflection, silently, as before. If it is
+present but its native library will not load, ClassGraph prints a message to `System.err`
+and falls back to standard reflection.
+
+So the API for selecting a driver is gone, with nothing to replace it:
+
+| Removed in 5.x | Use instead |
+| --- | --- |
+| `ClassGraph.CircumventEncapsulationMethod` (enum) | Nothing — add Narcissus as a dependency |
+| `ClassGraph#getCircumventEncapsulationMethod()` | Nothing |
+| `ClassGraph#setCircumventEncapsulationMethod(CircumventEncapsulationMethod)` | Nothing |
+
+The driver is now chosen once per JVM rather than once per `ClassGraph` instance, so it no
+longer matters when in the lifetime of your program ClassGraph is first used.
+
 ### `acceptLibOrExtJars` and `rejectLibOrExtJars` have been removed
 
 These two methods accepted or rejected jars found in the JRE/JDK `lib/` and `ext/`
@@ -808,10 +833,6 @@ returns an unmodifiable view where the value is a collection:
   `getAddOpens()` and `getAddReads()`, each returning an unmodifiable `Set<String>`. In 4.x
   the sets were `final` but their *contents* were not, so a caller could add entries to
   ClassGraph's parsed module path.
-* `ClassGraph.CIRCUMVENT_ENCAPSULATION` was a `public static` field holding an enum value.
-  It is now a private `volatile` field behind
-  `ClassGraph#getCircumventEncapsulationMethod()` and
-  `ClassGraph#setCircumventEncapsulationMethod(CircumventEncapsulationMethod)`.
 * The `protected` fields of `ClassInfo` (`name`, `typeSignatureStr`, `isExternalClass`,
   `isScannedClass`, `classfileResource`), `ClassMemberInfo` (`declaringClassName`, `name`,
   `modifiers`, `typeDescriptorStr`, `typeSignatureStr`, `annotationInfo`), `Resource`

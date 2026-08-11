@@ -30,31 +30,44 @@ package nonapi.io.github.classgraph.reflection;
 
 import java.lang.reflect.Field;
 
-import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ClassGraph.CircumventEncapsulationMethod;
 import org.jspecify.annotations.Nullable;
 
 /** Reflection utility methods that can be used by ClassLoaderHandlers. */
 public final class ReflectionUtils {
-    /** The reflection driver to use. */
-    private final ReflectionDriver reflectionDriver;
+    /**
+     * The reflection driver, chosen once per JVM: the Narcissus driver if the Narcissus library is on the classpath
+     * or module path and its native library loaded, otherwise the standard reflection driver.
+     */
+    private static final ReflectionDriver REFLECTION_DRIVER = findReflectionDriver();
+
+    /** Constructor. */
+    public ReflectionUtils() {
+        // Empty
+    }
 
     /**
-     * Constructor. Chooses the reflection driver according to the current value of
-     * {@link ClassGraph#getCircumventEncapsulationMethod()}, so a new instance must be created after changing that
-     * value.
+     * Find the reflection driver to use.
+     *
+     * <p>
+     * On JDK 16+, the JDK enforces strong encapsulation, so the standard reflection driver may be unable to read
+     * the classpath from a classloader that does not expose it via a public method or field. Adding the
+     * <a href="https://github.com/toolfactory/narcissus">Narcissus</a> library to the project works around this:
+     * Narcissus reads fields and invokes methods through JNI, which is not subject to Java's access controls.
+     * Narcissus is looked up reflectively, so ClassGraph has no compile-time or runtime dependency on it.
+     *
+     * @return the reflection driver.
      */
-    public ReflectionUtils() {
-        ReflectionDriver driver = null;
-        if (ClassGraph.getCircumventEncapsulationMethod() == CircumventEncapsulationMethod.NARCISSUS) {
-            try {
-                driver = new NarcissusReflectionDriver();
-            } catch (final Throwable t) {
-                System.err.println("Could not load Narcissus reflection driver: " + t);
-                // Fall back to standard reflection driver
-            }
+    private static ReflectionDriver findReflectionDriver() {
+        try {
+            return new NarcissusReflectionDriver();
+        } catch (final ClassNotFoundException | NoClassDefFoundError e) {
+            // Narcissus is not on the classpath or module path -- this is the usual case, so don't log anything
+        } catch (final Throwable t) {
+            // Narcissus is present, but could not be used (most likely its native library has not been compiled
+            // for this platform or architecture). This is worth reporting, since it was added deliberately.
+            System.err.println("ClassGraph could not use the Narcissus reflection driver: " + t);
         }
-        reflectionDriver = driver != null ? driver : new StandardReflectionDriver();
+        return new StandardReflectionDriver();
     }
 
     /**
@@ -84,7 +97,7 @@ public final class ReflectionUtils {
             }
         }
         try {
-            return reflectionDriver.getField(obj, field);
+            return REFLECTION_DRIVER.getField(obj, field);
         } catch (final Throwable e) {
             if (throwException) {
                 throw new IllegalArgumentException(
@@ -121,7 +134,7 @@ public final class ReflectionUtils {
             }
         }
         try {
-            return reflectionDriver.getField(obj, reflectionDriver.findInstanceField(obj, fieldName));
+            return REFLECTION_DRIVER.getField(obj, REFLECTION_DRIVER.findInstanceField(obj, fieldName));
         } catch (final Throwable e) {
             if (throwException) {
                 throw new IllegalArgumentException("Can't read field " + obj.getClass().getName() + "." + fieldName,
@@ -158,7 +171,7 @@ public final class ReflectionUtils {
             }
         }
         try {
-            return reflectionDriver.getStaticField(reflectionDriver.findStaticField(cls, fieldName));
+            return REFLECTION_DRIVER.getStaticField(REFLECTION_DRIVER.findStaticField(cls, fieldName));
         } catch (final Throwable e) {
             if (throwException) {
                 throw new IllegalArgumentException("Can't read field " + cls.getName() + "." + fieldName, e);
@@ -194,7 +207,7 @@ public final class ReflectionUtils {
             }
         }
         try {
-            return reflectionDriver.invokeMethod(obj, reflectionDriver.findInstanceMethod(obj, methodName));
+            return REFLECTION_DRIVER.invokeMethod(obj, REFLECTION_DRIVER.findInstanceMethod(obj, methodName));
         } catch (final Throwable e) {
             if (throwException) {
                 throw new IllegalArgumentException("Method \"" + methodName + "\" could not be invoked", e);
@@ -235,8 +248,8 @@ public final class ReflectionUtils {
             }
         }
         try {
-            return reflectionDriver.invokeMethod(obj, reflectionDriver.findInstanceMethod(obj, methodName, argType),
-                    param);
+            return REFLECTION_DRIVER.invokeMethod(obj,
+                    REFLECTION_DRIVER.findInstanceMethod(obj, methodName, argType), param);
         } catch (final Throwable e) {
             if (throwException) {
                 throw new IllegalArgumentException("Method \"" + methodName + "\" could not be invoked", e);
@@ -278,8 +291,8 @@ public final class ReflectionUtils {
             }
         }
         try {
-            return reflectionDriver.invokeMethod(obj,
-                    reflectionDriver.findInstanceMethod(obj, methodName, argTypes), params);
+            return REFLECTION_DRIVER.invokeMethod(obj,
+                    REFLECTION_DRIVER.findInstanceMethod(obj, methodName, argTypes), params);
         } catch (final Throwable e) {
             if (throwException) {
                 throw new IllegalArgumentException("Method \"" + methodName + "\" could not be invoked", e);
@@ -314,7 +327,7 @@ public final class ReflectionUtils {
             }
         }
         try {
-            return reflectionDriver.invokeStaticMethod(reflectionDriver.findStaticMethod(cls, methodName));
+            return REFLECTION_DRIVER.invokeStaticMethod(REFLECTION_DRIVER.findStaticMethod(cls, methodName));
         } catch (final Throwable e) {
             if (throwException) {
                 throw new IllegalArgumentException("Method \"" + methodName + "\" could not be invoked", e);
@@ -354,8 +367,8 @@ public final class ReflectionUtils {
             }
         }
         try {
-            return reflectionDriver.invokeStaticMethod(reflectionDriver.findStaticMethod(cls, methodName, argType),
-                    param);
+            return REFLECTION_DRIVER
+                    .invokeStaticMethod(REFLECTION_DRIVER.findStaticMethod(cls, methodName, argType), param);
         } catch (final Throwable e) {
             if (throwException) {
                 throw new IllegalArgumentException("Method \"" + methodName + "\" could not be invoked", e);
@@ -373,7 +386,7 @@ public final class ReflectionUtils {
      */
     public @Nullable Class<?> classForNameOrNull(final String className) {
         try {
-            return reflectionDriver.findClass(className);
+            return REFLECTION_DRIVER.findClass(className);
         } catch (final Throwable e) {
             return null;
         }

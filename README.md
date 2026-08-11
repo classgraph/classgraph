@@ -109,22 +109,21 @@ The JDK has enforced strong encapsulation since JDK 16, so it is always in force
 
 If ClassGraph cannot find your classes, and the same code worked under ClassGraph 4.x on JDK 15 or earlier, you have probably run into this problem.
 
-ClassGraph can use either of the following libraries to silently circumvent all of Java's security mechanisms (visibility/access checks, security manager restrictions, and strong encapsulation), in order to read the classpath from private fields and methods of classloaders.
+The fix is to add [Narcissus](https://github.com/toolfactory/narcissus) to your project as an extra dependency:
 
-* Narcissus by Luke Hutchison (@lukehutch), author of ClassGraph
-* JVM-Driver by Roberto Gentili (@burningwave), author of [Burningwave Core](https://github.com/burningwave/core).
+```xml
+<dependency>
+    <groupId>io.github.toolfactory</groupId>
+    <artifactId>narcissus</artifactId>
+    <version>1.0.11</version>
+</dependency>
+```
 
-**To clarify, you do *only* need to use Narcissus or JVM-driver if ClassGraph cannot find the classpath elements from your classloader, due to the enforcement of strong encapsulation, or if it is problematic that you are getting reflection access warnings on the console.**
+There is nothing else to configure. ClassGraph looks for Narcissus on the classpath and module path when it starts up, and uses it as its reflection driver if it is there, so that it can read the classpath from private fields and methods of classloaders. Narcissus reads fields and invokes methods through JNI, which is not subject to Java's visibility and access checks or to strong encapsulation.
 
-To use one of these libraries:
+Narcissus includes a native library, and currently only Linux x86/x64, Windows x86/x64, and Mac OS X x64 are supported -- feel free to contribute native code builds for other platforms or architectures. If Narcissus is present but its native library will not load, ClassGraph prints a message to `System.err` and falls back to standard reflection.
 
-* Upgrade ClassGraph to the latest version
-* Either:
-  1. Add the [Narcissus](https://github.com/toolfactory/narcissus) library to your project as an extra dependency (this includes a native library, and only Linux x86/x64, Windows x86/x64, and Mac OS X x64 are currently supported -- feel free to contribute native code builds for other platforms or architectures).
-  2. Set `ClassGraph.CIRCUMVENT_ENCAPSULATION = CircumventEncapsulationMethod.NARCISSUS;` before interacting with ClassGraph in any other way (this will load the Narcissus library as ClassGraph's reflection driver).
-* Or:
-  1. Add the [JVM-Driver](https://github.com/toolfactory/jvm-driver) library to your project as an extra dependency (this uses only Java code and works to bypass encapsulation without native code for all JDK versions between 8 and 18).
-  2. Set `ClassGraph.CIRCUMVENT_ENCAPSULATION = CircumventEncapsulationMethod.JVM_DRIVER;` before interacting with ClassGraph in any other way (this will load the JVM-Driver library as ClassGraph's reflection driver).
+**To clarify, you only need to add Narcissus if ClassGraph cannot find the classpath elements from your classloader, due to the enforcement of strong encapsulation, or if it is problematic that you are getting reflection access warnings on the console.**
 
 Strong encapsulation is just the first step of trying to lock down Java's internals, so further restrictions are possible (e.g. it is likely that `setAccessible(true)` will fail in future JDK releases, even within a module, and probably the JNI API will be locked down soon, making Narcissus require a commandline flag to work). Therefore, **please convince your upstream runtime environment maintainers to expose the full classpath from their classloader using a public method or field, otherwise ClassGraph may stop working for your runtime environment in the future.**
 

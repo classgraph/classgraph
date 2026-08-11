@@ -2,31 +2,22 @@ package io.github.classgraph.features;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ClassGraph.CircumventEncapsulationMethod;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 
 /**
- * Encapsulation circumvention test.
+ * Encapsulation circumvention test. Narcissus is an optional dependency of this project, so it is on the test
+ * classpath, and ClassGraph should pick it up as its reflection driver without being asked to.
  */
 class EncapsulationCircumventionTest {
-    /** Reset encapsulation circumvention method after each test. */
-    @AfterEach
-    void resetAfterEachTest() {
-        ClassGraph.setCircumventEncapsulationMethod(CircumventEncapsulationMethod.NONE);
-    }
-
-    /** Test Narcissus. */
+    /** Narcissus is used as the reflection driver when it is on the classpath. */
     @Test
-    void testNarcissus() {
-        ClassGraph.setCircumventEncapsulationMethod(CircumventEncapsulationMethod.NARCISSUS);
+    void narcissusIsUsedWhenItIsAvailable() {
         final var reflectionUtils = new ReflectionUtils();
-        assertThat(
-                reflectionUtils.getFieldVal(true, reflectionUtils, "reflectionDriver").getClass().getSimpleName())
-                .isEqualTo("NarcissusReflectionDriver");
+        assertThat(reflectionUtils.getStaticFieldVal(true, ReflectionUtils.class, "REFLECTION_DRIVER").getClass()
+                .getSimpleName()).isEqualTo("NarcissusReflectionDriver");
         try (var scanResult = new ClassGraph()
                 .acceptPackages(EncapsulationCircumventionTest.class.getPackage().getName()).enableAllInfo()
                 .scan()) {
