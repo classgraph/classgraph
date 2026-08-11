@@ -31,8 +31,8 @@ package io.github.classgraph;
 import static io.github.classgraph.PotentiallyUnmodifiableList.unmodifiable;
 
 import java.io.IOException;
-import java.io.Serial;
 import java.io.InputStream;
+import java.io.Serial;
 import java.net.URI;
 import java.net.URL;
 import java.nio.ByteBuffer;

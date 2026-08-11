@@ -35,8 +35,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import org.jspecify.annotations.Nullable;
-
 import io.github.classgraph.base.internal.concurrency.SingletonMap.NewInstanceException;
 import io.github.classgraph.base.internal.concurrency.SingletonMap.NullSingletonException;
 import io.github.classgraph.base.internal.utils.FastPathResolver;
@@ -47,6 +45,7 @@ import io.github.classgraph.classpath.internal.ClasspathExpander;
 import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
 import io.github.classgraph.vfs.internal.zip.LogicalZipFile;
 import io.github.classgraph.vfs.internal.zip.NestedJarHandler;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Expands the classpath elements that the classloaders declared with the classpath elements that those in turn

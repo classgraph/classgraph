@@ -31,8 +31,8 @@ package io.github.classgraph;
 import java.lang.annotation.Repeatable;
 import java.lang.reflect.Modifier;
 import java.util.List;
-import java.util.Objects;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 import io.github.classgraph.ClassInfo.RelType;

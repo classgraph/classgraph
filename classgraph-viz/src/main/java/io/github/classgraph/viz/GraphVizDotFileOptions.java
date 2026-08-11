@@ -28,11 +28,10 @@
  */
 package io.github.classgraph.viz;
 
-import org.jspecify.annotations.Nullable;
-
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfoList;
 import io.github.classgraph.ScanResult;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Options for the GraphViz .dot file generators in {@link GraphVizDotFile}. A freshly constructed instance holds

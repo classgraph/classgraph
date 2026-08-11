@@ -15,8 +15,8 @@ import java.util.Collections;
 import java.util.Optional;
 import java.util.stream.Stream;
 
-import org.junit.jupiter.api.Test;
 import org.jspecify.annotations.Nullable;
+import org.junit.jupiter.api.Test;
 
 /**
  * Tests for the calls into the module system. Some {@link ModuleReader} implementations in the wild break the
