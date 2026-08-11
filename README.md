@@ -78,10 +78,12 @@ ClassGraph provides a number of important capabilities to the JVM ecosystem:
 * ClassGraph handles more [classpath specification mechanisms](https://github.com/classgraph/classgraph/wiki/Classpath-specification-mechanisms) found in the wild than any other classpath scanner, making code that depends upon ClassGraph maximally portable.
 * ClassGraph can scan the classpath and module path either at runtime or [at build time](https://github.com/classgraph/classgraph/wiki/Build-Time-Scanning) (e.g. to implement annotation processing for Android).
 * ClassGraph can [find classes that are duplicated or defined more than once in the classpath or module path](https://github.com/classgraph/classgraph/wiki/Code-examples#find-all-duplicate-class-definitions-in-the-classpath-or-module-path), which can help find the cause of strange class resolution behaviors.
-* ClassGraph can [create GraphViz visualizations of the class graph structure](https://github.com/classgraph/classgraph/wiki/GraphViz-API), which can help with code understanding: (click to enlarge; [see graph legend here](https://github.com/classgraph/classgraph/blob/v5/classgraph-viz/src/test/java/com/xyz/classgraph-fig-legend.png))
+* ClassGraph can [create GraphViz visualizations of the class graph structure](https://github.com/classgraph/classgraph/wiki/GraphViz-API), which can help with code understanding: (click to enlarge; [see graph legend here](https://github.com/classgraph/classgraph/blob/ed02ae909247589640f7a31d623ef3be7c6d857c/classgraph-viz/src/test/java/com/xyz/classgraph-fig-legend.png))
 
+<!-- The figure URLs below name a commit rather than a branch, so that renaming or deleting a branch,
+     or moving these images within the repo, cannot break them. -->
 <p align="center">
-  <a href="https://raw.githubusercontent.com/classgraph/classgraph/v5/classgraph-viz/src/test/java/com/xyz/classgraph-fig.png"><img src="https://raw.githubusercontent.com/classgraph/classgraph/v5/classgraph-viz/src/test/java/com/xyz/classgraph-fig.png" width="898" height="685" alt="Class graph visualization"/></a>
+  <a href="https://raw.githubusercontent.com/classgraph/classgraph/ed02ae909247589640f7a31d623ef3be7c6d857c/classgraph-viz/src/test/java/com/xyz/classgraph-fig.png"><img src="https://raw.githubusercontent.com/classgraph/classgraph/ed02ae909247589640f7a31d623ef3be7c6d857c/classgraph-viz/src/test/java/com/xyz/classgraph-fig.png" width="898" height="685" alt="Class graph visualization"/></a>
 </p>
 
 ## Downloading
