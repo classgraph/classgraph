@@ -32,7 +32,6 @@ import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.classpath.internal.ClassLoaderOrder;
 import io.github.classgraph.classpath.internal.ClasspathOrder;
-import io.github.classgraph.classpath.internal.spec.ClasspathSpec;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -60,7 +59,7 @@ class EquinoxContextFinderClassLoaderHandler implements ClassLoaderHandler {
 
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-            final ClasspathSpec classpathSpec, final @Nullable LogNode log) {
+            final @Nullable LogNode log) {
         // Nothing to handle -- embedded parentContextClassLoader will be used instead.
     }
 

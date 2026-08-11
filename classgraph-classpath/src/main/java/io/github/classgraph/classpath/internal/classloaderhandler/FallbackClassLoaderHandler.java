@@ -37,7 +37,6 @@ import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.classpath.internal.ClassLoaderOrder;
 import io.github.classgraph.classpath.internal.ClasspathOrder;
-import io.github.classgraph.classpath.internal.spec.ClasspathSpec;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -116,26 +115,26 @@ class FallbackClassLoaderHandler implements ClassLoaderHandler {
 
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-            final ClasspathSpec classpathSpec, final @Nullable LogNode log) {
+            final @Nullable LogNode log) {
         var valid = false;
         for (final ClasspathSource classpathSource : CLASSPATH_SOURCES) {
             final var classpathEntryObj = classpathSource.isMethod()
                     ? ReflectionUtils.invokeMethod(false, classLoader, classpathSource.name())
                     : ReflectionUtils.getFieldVal(false, classLoader, classpathSource.name());
-            valid |= classpathOrder.addClasspathEntryObject(classpathEntryObj, classLoader, classpathSpec, log);
+            valid |= classpathOrder.addClasspathEntryObject(classpathEntryObj, classLoader, log);
         }
         // An unknown classloader may hold a jdk.internal.loader.URLClassPath, which none of the names above find,
         // since it is not itself a classpath entry -- its own fields have to be read to get at the entries
         final var ucp = URLClassPathReader.getUcp(classLoader);
         if (ucp != null) {
-            URLClassPathReader.addAllClasspathEntries(ucp, classLoader, classpathOrder, classpathSpec, log);
+            URLClassPathReader.addAllClasspathEntries(ucp, classLoader, classpathOrder, log);
             valid = true;
         }
         if (!valid) {
             // None of the known field or method names worked, so fall back to asking the classloader for resources
             // that are present in the root of most classpath elements, and strip the resource path from the
             // returned URLs to get the classpath element itself (#892)
-            valid = findClasspathOrderByProbingForResources(classLoader, classpathOrder, classpathSpec, log);
+            valid = findClasspathOrderByProbingForResources(classLoader, classpathOrder, log);
         }
         if (log != null) {
             log.log("FallbackClassLoaderHandler " + (valid ? "found" : "did not find")
@@ -164,14 +163,12 @@ class FallbackClassLoaderHandler implements ClassLoaderHandler {
      *            the {@link ClassLoader} to probe.
      * @param classpathOrder
      *            a {@link ClasspathOrder} object to update.
-     * @param classpathSpec
-     *            the {@link ClasspathSpec}.
      * @param log
      *            the log node, or null to skip logging
      * @return true if any classpath entries were found.
      */
     private static boolean findClasspathOrderByProbingForResources(final ClassLoader classLoader,
-            final ClasspathOrder classpathOrder, final ClasspathSpec classpathSpec, final @Nullable LogNode log) {
+            final ClasspathOrder classpathOrder, final @Nullable LogNode log) {
         final var probeLog = log == null ? null
                 : log.log("Probing for classpath elements using " + classLoader.getClass().getName()
                         + "#getResources(String)");
@@ -185,7 +182,7 @@ class FallbackClassLoaderHandler implements ClassLoaderHandler {
                 }
                 final var classpathEntry = stripResourcePath(resourceURL, resourcePath);
                 if (classpathEntry != null) {
-                    valid |= classpathOrder.addClasspathEntry(classpathEntry, classLoader, classpathSpec, probeLog);
+                    valid |= classpathOrder.addClasspathEntry(classpathEntry, classLoader, probeLog);
                 }
             }
         }

@@ -31,7 +31,6 @@ package io.github.classgraph.classpath.internal.classloaderhandler;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.classpath.internal.ClassLoaderOrder;
 import io.github.classgraph.classpath.internal.ClasspathOrder;
-import io.github.classgraph.classpath.internal.spec.ClasspathSpec;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -102,13 +101,10 @@ interface ClassLoaderHandler {
      *            the {@link ClassLoader} to find the classpath entries order for.
      * @param classpathOrder
      *            a {@link ClasspathOrder} object to update.
-     * @param classpathSpec
-     *            the {@link ClasspathSpec}.
      * @param log
      *            the log node, or null to skip logging
      */
-    void findClasspathOrder(ClassLoader classLoader, ClasspathOrder classpathOrder, ClasspathSpec classpathSpec,
-            @Nullable LogNode log);
+    void findClasspathOrder(ClassLoader classLoader, ClasspathOrder classpathOrder, @Nullable LogNode log);
 
     /**
      * The automatic package root prefixes (e.g. {@code "BOOT-INF/classes/"}) to look for and strip within classpath

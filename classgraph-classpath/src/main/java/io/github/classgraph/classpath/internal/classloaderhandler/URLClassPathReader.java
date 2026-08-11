@@ -36,7 +36,6 @@ import java.util.Map;
 import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.classpath.internal.ClasspathOrder;
-import io.github.classgraph.classpath.internal.spec.ClasspathSpec;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -102,16 +101,14 @@ final class URLClassPathReader {
      *            the classloader the {@code URLClassPath} was obtained from.
      * @param classpathOrder
      *            the classpath order to add to.
-     * @param classpathSpec
-     *            the scan spec.
      * @param log
      *            the log node, or null to skip logging.
      */
     static void addAllClasspathEntries(final Object ucp, final ClassLoader classLoader,
-            final ClasspathOrder classpathOrder, final ClasspathSpec classpathSpec, final @Nullable LogNode log) {
+            final ClasspathOrder classpathOrder, final @Nullable LogNode log) {
         classpathOrder.addClasspathEntryObject(ReflectionUtils.invokeMethod(false, ucp, "getURLs"), classLoader,
-                classpathSpec, log);
-        addUnlistedClasspathEntries(ucp, classLoader, classpathOrder, classpathSpec, log);
+                log);
+        addUnlistedClasspathEntries(ucp, classLoader, classpathOrder, log);
     }
 
     /**
@@ -124,13 +121,11 @@ final class URLClassPathReader {
      *            the classloader the {@code URLClassPath} was obtained from.
      * @param classpathOrder
      *            the classpath order to add to.
-     * @param classpathSpec
-     *            the scan spec.
      * @param log
      *            the log node, or null to skip logging.
      */
     static void addUnlistedClasspathEntries(final Object ucp, final ClassLoader classLoader,
-            final ClasspathOrder classpathOrder, final ClasspathSpec classpathSpec, final @Nullable LogNode log) {
+            final ClasspathOrder classpathOrder, final @Nullable LogNode log) {
 
         // The JDK adds to and removes from this deque while holding the deque's own monitor, so hold it too
         final var unopenedUrls = ReflectionUtils.getFieldVal(false, ucp, "unopenedUrls");
@@ -139,7 +134,7 @@ final class URLClassPathReader {
             synchronized (unopenedUrls) {
                 unopenedUrlsCopy = new ArrayList<>(unopenedUrlsCollection);
             }
-            classpathOrder.addClasspathEntryObject(unopenedUrlsCopy, classLoader, classpathSpec, log);
+            classpathOrder.addClasspathEntryObject(unopenedUrlsCopy, classLoader, log);
         }
 
         // The JDK adds to this map while holding the URLClassPath's own monitor, so hold that too. (These two
@@ -150,6 +145,6 @@ final class URLClassPathReader {
                 openedUrls.addAll(lmap.keySet());
             }
         }
-        classpathOrder.addClasspathEntryObject(openedUrls, classLoader, classpathSpec, log);
+        classpathOrder.addClasspathEntryObject(openedUrls, classLoader, log);
     }
 }

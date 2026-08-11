@@ -81,15 +81,15 @@ public class ClasspathOrderTest {
      */
     @Test
     public void nullAndEmptyClasspathEntriesAreRejected() {
-        assertThat(classpathOrder.addClasspathEntry(null, null, classpathSpec, null)).isFalse();
-        assertThat(classpathOrder.addClasspathEntry("", null, classpathSpec, null)).isFalse();
-        assertThat(classpathOrder.addClasspathEntry(new File(""), null, classpathSpec, null)).isFalse();
-        assertThat(classpathOrder.addClasspathEntries(null, null, classpathSpec, null)).isFalse();
-        assertThat(classpathOrder.addClasspathEntries(List.of(), null, classpathSpec, null)).isFalse();
-        assertThat(classpathOrder.addClasspathPathStr(null, null, classpathSpec, null)).isFalse();
-        assertThat(classpathOrder.addClasspathPathStr("", null, classpathSpec, null)).isFalse();
+        assertThat(classpathOrder.addClasspathEntry(null, null, null)).isFalse();
+        assertThat(classpathOrder.addClasspathEntry("", null, null)).isFalse();
+        assertThat(classpathOrder.addClasspathEntry(new File(""), null, null)).isFalse();
+        assertThat(classpathOrder.addClasspathEntries(null, null, null)).isFalse();
+        assertThat(classpathOrder.addClasspathEntries(List.of(), null, null)).isFalse();
+        assertThat(classpathOrder.addClasspathPathStr(null, null, null)).isFalse();
+        assertThat(classpathOrder.addClasspathPathStr("", null, null)).isFalse();
         // A path string that contains only separators splits into no path elements at all
-        assertThat(classpathOrder.addClasspathPathStr(File.pathSeparator, null, classpathSpec, null)).isFalse();
+        assertThat(classpathOrder.addClasspathPathStr(File.pathSeparator, null, null)).isFalse();
         assertThat(classpathOrder.getOrder()).isEmpty();
     }
 
@@ -97,8 +97,8 @@ public class ClasspathOrderTest {
     @Test
     public void duplicateClasspathEntriesAreIgnored(@TempDir final Path tempDir) throws IOException {
         final var jar = createFile(tempDir.resolve("x.jar"));
-        assertThat(classpathOrder.addClasspathEntry(jar, null, classpathSpec, null)).isTrue();
-        assertThat(classpathOrder.addClasspathEntry(jar, null, classpathSpec, null)).isFalse();
+        assertThat(classpathOrder.addClasspathEntry(jar, null, null)).isTrue();
+        assertThat(classpathOrder.addClasspathEntry(jar, null, null)).isFalse();
         assertThat(entryObjects()).containsExactly(jar);
         assertThat(classpathOrder.getClasspathEntryUniqueResolvedPaths()).containsExactly(jar);
     }
@@ -115,11 +115,11 @@ public class ClasspathOrderTest {
         // Include a space in the filename, since Path#toUri() percent-encodes it
         final var jarPath = tempDir.resolve("x y.jar");
         final var jar = createFile(jarPath);
-        assertThat(classpathOrder.addClasspathEntry(jarPath, null, classpathSpec, null)).isTrue();
+        assertThat(classpathOrder.addClasspathEntry(jarPath, null, null)).isTrue();
         assertThat(classpathOrder.getClasspathEntryUniqueResolvedPaths()).containsExactly(jar);
         // The String and File spellings of the same path are now duplicates
-        assertThat(classpathOrder.addClasspathEntry(jar, null, classpathSpec, null)).isFalse();
-        assertThat(classpathOrder.addClasspathEntry(jarPath.toFile(), null, classpathSpec, null)).isFalse();
+        assertThat(classpathOrder.addClasspathEntry(jar, null, null)).isFalse();
+        assertThat(classpathOrder.addClasspathEntry(jarPath.toFile(), null, null)).isFalse();
     }
 
     /**
@@ -130,10 +130,9 @@ public class ClasspathOrderTest {
     @Test
     public void automaticPackageRootSuffixesAreStripped(@TempDir final Path tempDir) throws IOException {
         final var jar = createFile(tempDir.resolve("x.jar"));
-        assertThat(classpathOrder.addClasspathEntry(jar + "!/BOOT-INF/classes", null, classpathSpec, null))
-                .isTrue();
+        assertThat(classpathOrder.addClasspathEntry(jar + "!/BOOT-INF/classes", null, null)).isTrue();
         // The same jar without the package root suffix is now a duplicate
-        assertThat(classpathOrder.addClasspathEntry(jar, null, classpathSpec, null)).isFalse();
+        assertThat(classpathOrder.addClasspathEntry(jar, null, null)).isFalse();
         assertThat(entryObjects()).containsExactly(jar);
     }
 
@@ -145,9 +144,9 @@ public class ClasspathOrderTest {
     public void packageRootPrefixesAreRecordedOnEachEntry(@TempDir final Path tempDir) throws IOException {
         final var customPrefixes = new String[] { "custom/" };
         classpathOrder.setPackageRootPrefixes(customPrefixes);
-        classpathOrder.addClasspathEntry(createFile(tempDir.resolve("a.jar")), null, classpathSpec, null);
+        classpathOrder.addClasspathEntry(createFile(tempDir.resolve("a.jar")), null, null);
         classpathOrder.setPackageRootPrefixes(null);
-        classpathOrder.addClasspathEntry(createFile(tempDir.resolve("b.jar")), null, classpathSpec, null);
+        classpathOrder.addClasspathEntry(createFile(tempDir.resolve("b.jar")), null, null);
 
         assertThat(classpathOrder.getOrder()).hasSize(2);
         assertThat(classpathOrder.getOrder().get(0).packageRootPrefixes).isSameAs(customPrefixes);
@@ -156,7 +155,7 @@ public class ClasspathOrderTest {
         // The prefixes in force when the entry was added decide which suffix is stripped from it
         final var jar = createFile(tempDir.resolve("c.jar"));
         classpathOrder.setPackageRootPrefixes(customPrefixes);
-        assertThat(classpathOrder.addClasspathEntry(jar + "!/custom", null, classpathSpec, null)).isTrue();
+        assertThat(classpathOrder.addClasspathEntry(jar + "!/custom", null, null)).isTrue();
         assertThat(entryObjects()).endsWith(jar);
     }
 
@@ -165,7 +164,7 @@ public class ClasspathOrderTest {
     public void wildcardDirectoriesAreExpanded(@TempDir final Path tempDir) throws IOException {
         final var jarA = createFile(tempDir.resolve("a.jar"));
         final var jarB = createFile(tempDir.resolve("b.jar"));
-        assertThat(classpathOrder.addClasspathEntry(tempDir + "/*", null, classpathSpec, null)).isTrue();
+        assertThat(classpathOrder.addClasspathEntry(tempDir + "/*", null, null)).isTrue();
         assertThat(entryObjects()).containsExactlyInAnyOrder(jarA, jarB);
     }
 
@@ -173,11 +172,10 @@ public class ClasspathOrderTest {
     @Test
     public void wildcardsOnAnythingButADirectoryAreRejected(@TempDir final Path tempDir) throws IOException {
         final var jar = createFile(tempDir.resolve("a.jar"));
-        assertThat(classpathOrder.addClasspathEntry(tempDir + "/does-not-exist/*", null, classpathSpec, null))
-                .isFalse();
-        assertThat(classpathOrder.addClasspathEntry(jar + "/*", null, classpathSpec, null)).isFalse();
+        assertThat(classpathOrder.addClasspathEntry(tempDir + "/does-not-exist/*", null, null)).isFalse();
+        assertThat(classpathOrder.addClasspathEntry(jar + "/*", null, null)).isFalse();
         // A '*' is only a wildcard as a "/*" suffix, not as a glob in the middle of the path
-        assertThat(classpathOrder.addClasspathEntry(tempDir + "/*/a.jar", null, classpathSpec, null)).isFalse();
+        assertThat(classpathOrder.addClasspathEntry(tempDir + "/*/a.jar", null, null)).isFalse();
         assertThat(classpathOrder.getOrder()).isEmpty();
     }
 
@@ -189,7 +187,7 @@ public class ClasspathOrderTest {
     @Test
     @EnabledOnOs(OS.WINDOWS)
     public void uncPathsAreAddedAsFilesOnWindows() {
-        assertThat(classpathOrder.addClasspathEntry("//server/share/a.jar", null, classpathSpec, null)).isTrue();
+        assertThat(classpathOrder.addClasspathEntry("//server/share/a.jar", null, null)).isTrue();
         assertThat(entryObjects()).containsExactly(new File("//server/share/a.jar"));
     }
 
@@ -200,7 +198,7 @@ public class ClasspathOrderTest {
     @Test
     @DisabledOnOs(OS.WINDOWS)
     public void uncPathsAreOrdinaryPathsOutsideWindows() {
-        assertThat(classpathOrder.addClasspathEntry("//server/share/a.jar", null, classpathSpec, null)).isTrue();
+        assertThat(classpathOrder.addClasspathEntry("//server/share/a.jar", null, null)).isTrue();
         assertThat(entryObjects()).containsExactly("/server/share/a.jar");
     }
 
@@ -210,8 +208,8 @@ public class ClasspathOrderTest {
         final var jarA = createFile(tempDir.resolve("a.jar"));
         final var jarB = createFile(tempDir.resolve("b.jar"));
         classpathSpec.filterClasspathElements(path -> !path.endsWith("b.jar"));
-        assertThat(classpathOrder.addClasspathEntry(jarA, null, classpathSpec, null)).isTrue();
-        assertThat(classpathOrder.addClasspathEntry(jarB, null, classpathSpec, null)).isFalse();
+        assertThat(classpathOrder.addClasspathEntry(jarA, null, null)).isTrue();
+        assertThat(classpathOrder.addClasspathEntry(jarB, null, null)).isFalse();
         assertThat(entryObjects()).containsExactly(jarA);
     }
 
@@ -219,10 +217,10 @@ public class ClasspathOrderTest {
     @Test
     public void urlFiltersRejectClasspathElements() throws Exception {
         classpathSpec.filterClasspathElementsByURL(url -> !"example.com".equals(url.getHost()));
-        assertThat(classpathOrder.addClasspathEntry(URI.create("http://example.com/a.jar").toURL(), null,
-                classpathSpec, null)).isFalse();
-        assertThat(classpathOrder.addClasspathEntry(URI.create("http://example.org/b.jar").toURL(), null,
-                classpathSpec, null)).isTrue();
+        assertThat(classpathOrder.addClasspathEntry(URI.create("http://example.com/a.jar").toURL(), null, null))
+                .isFalse();
+        assertThat(classpathOrder.addClasspathEntry(URI.create("http://example.org/b.jar").toURL(), null, null))
+                .isTrue();
         assertThat(entryObjects()).hasSize(1);
         assertThat(entryObjects().get(0)).isInstanceOf(URL.class).hasToString("http://example.org/b.jar");
     }
@@ -230,11 +228,10 @@ public class ClasspathOrderTest {
     /** A URL classpath entry is kept as a {@link URL}, so that its scheme can be handled during scanning. */
     @Test
     public void urlClasspathEntriesAreKeptAsURLs() throws Exception {
-        assertThat(classpathOrder.addClasspathEntry(URI.create("http://example.com/a.jar").toURL(), null,
-                classpathSpec, null)).isTrue();
+        assertThat(classpathOrder.addClasspathEntry(URI.create("http://example.com/a.jar").toURL(), null, null))
+                .isTrue();
         // The same URL is a duplicate, whether it arrives as a URL or as a string
-        assertThat(classpathOrder.addClasspathEntry("http://example.com/a.jar", null, classpathSpec, null))
-                .isFalse();
+        assertThat(classpathOrder.addClasspathEntry("http://example.com/a.jar", null, null)).isFalse();
         assertThat(entryObjects()).hasSize(1);
         assertThat(entryObjects().get(0)).isInstanceOf(URL.class);
     }
@@ -243,7 +240,7 @@ public class ClasspathOrderTest {
     @Test
     public void fileClasspathEntriesAreRecordedAsPathStrings(@TempDir final Path tempDir) throws IOException {
         final var jar = createFile(tempDir.resolve("a.jar"));
-        assertThat(classpathOrder.addClasspathEntry(new File(jar), null, classpathSpec, null)).isTrue();
+        assertThat(classpathOrder.addClasspathEntry(new File(jar), null, null)).isTrue();
         assertThat(entryObjects()).containsExactly(jar);
     }
 
@@ -252,8 +249,7 @@ public class ClasspathOrderTest {
     public void delimitedClasspathStringsAreSplit(@TempDir final Path tempDir) throws IOException {
         final var jarA = createFile(tempDir.resolve("a.jar"));
         final var jarB = createFile(tempDir.resolve("b.jar"));
-        assertThat(classpathOrder.addClasspathPathStr(jarA + File.pathSeparator + jarB, null, classpathSpec, null))
-                .isTrue();
+        assertThat(classpathOrder.addClasspathPathStr(jarA + File.pathSeparator + jarB, null, null)).isTrue();
         assertThat(entryObjects()).containsExactly(jarA, jarB);
     }
 
@@ -265,19 +261,14 @@ public class ClasspathOrderTest {
         final var jarC = createFile(tempDir.resolve("c.jar"));
         final var jarD = createFile(tempDir.resolve("d.jar"));
 
-        assertThat(classpathOrder.addClasspathEntryObject(new String[] { jarA }, null, classpathSpec, null))
-                .isTrue();
-        assertThat(classpathOrder.addClasspathEntryObject(List.of(new File(jarB)), null, classpathSpec, null))
-                .isTrue();
+        assertThat(classpathOrder.addClasspathEntryObject(new String[] { jarA }, null, null)).isTrue();
+        assertThat(classpathOrder.addClasspathEntryObject(List.of(new File(jarB)), null, null)).isTrue();
         // An object of no recognized type has toString() called on it, which may yield a delimited path string
-        assertThat(
-                classpathOrder.addClasspathEntryObject(jarC + File.pathSeparator + jarD, null, classpathSpec, null))
-                .isTrue();
-        assertThat(classpathOrder.addClasspathEntryObject(null, null, classpathSpec, null)).isFalse();
+        assertThat(classpathOrder.addClasspathEntryObject(jarC + File.pathSeparator + jarD, null, null)).isTrue();
+        assertThat(classpathOrder.addClasspathEntryObject(null, null, null)).isFalse();
         // A path string is reported as valid whenever it splits into at least one path element, whether or not any
         // of those elements were added, so a whole array of duplicates is still reported as valid
-        assertThat(classpathOrder.addClasspathEntryObject(new String[] { jarA }, null, classpathSpec, null))
-                .isTrue();
+        assertThat(classpathOrder.addClasspathEntryObject(new String[] { jarA }, null, null)).isTrue();
 
         assertThat(entryObjects()).containsExactly(jarA, jarB, jarC, jarD);
     }

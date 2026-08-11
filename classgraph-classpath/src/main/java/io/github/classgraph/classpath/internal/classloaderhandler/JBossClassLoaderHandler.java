@@ -42,7 +42,6 @@ import io.github.classgraph.base.internal.utils.FileUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.classpath.internal.ClassLoaderOrder;
 import io.github.classgraph.classpath.internal.ClasspathOrder;
-import io.github.classgraph.classpath.internal.spec.ClasspathSpec;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -77,24 +76,21 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
      *            the classloader
      * @param classpathOrderOut
      *            the classpath order
-     * @param classpathSpec
-     *            the scan spec
      * @param log
      *            the log node, or null to skip logging
      */
     private static void handleResourceLoader(final @Nullable Object resourceLoader, final ClassLoader classLoader,
-            final ClasspathOrder classpathOrderOut, final ClasspathSpec classpathSpec,
-            final @Nullable LogNode log) {
+            final ClasspathOrder classpathOrderOut, final @Nullable LogNode log) {
         if (resourceLoader == null) {
             return;
         }
         // PathResourceLoader has root field, which is a Path object
         final var root = ReflectionUtils.getFieldVal(false, resourceLoader, "root");
 
-        classpathOrderOut.addClasspathEntry(loadJarPathFromClassicVFS(root), classLoader, classpathSpec, log);
-        classpathOrderOut.addClasspathEntry(loadJarPathFromNewVFS(root), classLoader, classpathSpec, log);
+        classpathOrderOut.addClasspathEntry(loadJarPathFromClassicVFS(root), classLoader, log);
+        classpathOrderOut.addClasspathEntry(loadJarPathFromNewVFS(root), classLoader, log);
         classpathOrderOut.addClasspathEntry(ReflectionUtils.getFieldVal(false, resourceLoader, "fileOfJar"),
-                classLoader, classpathSpec, log);
+                classLoader, log);
     }
 
     /**
@@ -236,14 +232,11 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
      *            the classloader
      * @param classpathOrderOut
      *            the classpath order
-     * @param classpathSpec
-     *            the scan spec
      * @param log
      *            the log node, or null to skip logging
      */
     private static void handleRealModule(final @Nullable Object module, final Set<@Nullable Object> visitedModules,
-            final ClassLoader classLoader, final ClasspathOrder classpathOrderOut,
-            final ClasspathSpec classpathSpec, final @Nullable LogNode log) {
+            final ClassLoader classLoader, final ClasspathOrder classpathOrderOut, final @Nullable LogNode log) {
         if (!visitedModules.add(module)) {
             // Avoid extracting paths from the same module more than once
             return;
@@ -266,7 +259,7 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
                 // if
                 // (!resourceLoader.getClass().getSimpleName().equals("NativeLibraryResourceLoader"))
                 // {
-                handleResourceLoader(resourceLoader, moduleLoader, classpathOrderOut, classpathSpec, log);
+                handleResourceLoader(resourceLoader, moduleLoader, classpathOrderOut, log);
                 // }
             }
         }
@@ -274,7 +267,7 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
 
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-            final ClasspathSpec classpathSpec, final @Nullable LogNode log) {
+            final @Nullable LogNode log) {
         final var module = ReflectionUtils.invokeMethod(false, classLoader, "getModule");
         final var callerModuleLoader = ReflectionUtils.invokeMethod(false, module, "getCallerModuleLoader");
         final Set<@Nullable Object> visitedModules = new HashSet<>();
@@ -287,7 +280,7 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
             final var val = ent.getValue();
             // type Module
             final var realModule = ReflectionUtils.invokeMethod(false, val, "getModule");
-            handleRealModule(realModule, visitedModules, classLoader, classpathOrder, classpathSpec, log);
+            handleRealModule(realModule, visitedModules, classLoader, classpathOrder, log);
         }
         // type Map<String, List<LocalLoader>>
         @SuppressWarnings("unchecked")
@@ -300,7 +293,7 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
                 final var moduleClassLoader = ReflectionUtils.getFieldVal(false, localLoader, "this$0");
                 // type Module
                 final var realModule = ReflectionUtils.getFieldVal(false, moduleClassLoader, "module");
-                handleRealModule(realModule, visitedModules, classLoader, classpathOrder, classpathSpec, log);
+                handleRealModule(realModule, visitedModules, classLoader, classpathOrder, log);
             }
         }
     }

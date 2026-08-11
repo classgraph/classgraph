@@ -35,7 +35,6 @@ import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.classpath.internal.ClassLoaderOrder;
 import io.github.classgraph.classpath.internal.ClasspathOrder;
-import io.github.classgraph.classpath.internal.spec.ClasspathSpec;
 import org.jspecify.annotations.Nullable;
 
 /** Extract classpath entries from the Tomcat/Catalina WebappClassLoaderBase. */
@@ -93,7 +92,7 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
 
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-            final ClasspathSpec classpathSpec, final @Nullable LogNode log) {
+            final @Nullable LogNode log) {
         // type StandardRoot (implements WebResourceRoot)
         var resources = ReflectionUtils.invokeMethod(false, classLoader, "getResources");
         if (resources == null) {
@@ -104,7 +103,7 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
         }
         // type List<URL>
         final var baseURLs = ReflectionUtils.invokeMethod(false, resources, "getBaseUrls");
-        classpathOrder.addClasspathEntryObject(baseURLs, classLoader, classpathSpec, log);
+        classpathOrder.addClasspathEntryObject(baseURLs, classLoader, log);
         // type List<List<WebResourceSet>> members: preResources, mainResources, classResources, jarResources,
         // postResources
         @SuppressWarnings("unchecked")
@@ -117,14 +116,14 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
                 // EmptyResourceSet}
                 for (final Object webResourceSet : webResourceSetList) {
                     if (webResourceSet != null) {
-                        addWebResourceSet(webResourceSet, classLoader, classpathOrder, classpathSpec, log);
+                        addWebResourceSet(webResourceSet, classLoader, classpathOrder, log);
                     }
                 }
             }
         }
         // This may or may not duplicate the above
         final var urls = ReflectionUtils.invokeMethod(false, classLoader, "getURLs");
-        classpathOrder.addClasspathEntryObject(urls, classLoader, classpathSpec, log);
+        classpathOrder.addClasspathEntryObject(urls, classLoader, log);
     }
 
     /**
@@ -137,13 +136,11 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
      *            the classloader the {@code WebResourceSet} was found in.
      * @param classpathOrder
      *            the classpath order to add the classpath entry to.
-     * @param classpathSpec
-     *            the scan spec.
      * @param log
      *            the log.
      */
     private static void addWebResourceSet(final Object webResourceSet, final ClassLoader classLoader,
-            final ClasspathOrder classpathOrder, final ClasspathSpec classpathSpec, final @Nullable LogNode log) {
+            final ClasspathOrder classpathOrder, final @Nullable LogNode log) {
         // For DirResourceSet
         final var file = (File) ReflectionUtils.invokeMethod(false, webResourceSet, "getFileBase");
         var base = file == null ? null : file.getPath();
@@ -177,9 +174,9 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
         if (internalPath != null && !internalPath.isEmpty() && !"/".equals(internalPath)) {
             classpathOrder.addClasspathEntryObject(
                     base + (isJar ? "!" : "") + (internalPath.startsWith("/") ? internalPath : "/" + internalPath),
-                    classLoader, classpathSpec, log);
+                    classLoader, log);
         } else {
-            classpathOrder.addClasspathEntryObject(base, classLoader, classpathSpec, log);
+            classpathOrder.addClasspathEntryObject(base, classLoader, log);
         }
     }
 

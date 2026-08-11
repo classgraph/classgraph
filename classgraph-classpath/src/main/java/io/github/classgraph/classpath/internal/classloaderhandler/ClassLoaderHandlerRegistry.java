@@ -33,7 +33,6 @@ import java.util.List;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.classpath.internal.ClassLoaderOrder;
 import io.github.classgraph.classpath.internal.ClasspathOrder;
-import io.github.classgraph.classpath.internal.spec.ClasspathSpec;
 import org.jspecify.annotations.Nullable;
 
 /** The registry for ClassLoaderHandler classes. */
@@ -219,21 +218,19 @@ public final class ClassLoaderHandlerRegistry {
         }
 
         /**
-         * Call {@code findClasspathOrder(ClassLoader, ClasspathOrder, ClasspathSpec, LogNode)} on the associated
+         * Call {@code findClasspathOrder(ClassLoader, ClasspathOrder, LogNode)} on the associated
          * {@link ClassLoaderHandler}.
          *
          * @param classLoader
          *            the {@link ClassLoader}.
          * @param classpathOrder
          *            a {@link ClasspathOrder} object.
-         * @param classpathSpec
-         *            the {@link ClasspathSpec}.
          * @param log
          *            the log node, or null to skip logging
          */
         public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-                final ClasspathSpec classpathSpec, final @Nullable LogNode log) {
-            classLoaderHandler.findClasspathOrder(classLoader, classpathOrder, classpathSpec, log);
+                final @Nullable LogNode log) {
+            classLoaderHandler.findClasspathOrder(classLoader, classpathOrder, log);
         }
     }
 }

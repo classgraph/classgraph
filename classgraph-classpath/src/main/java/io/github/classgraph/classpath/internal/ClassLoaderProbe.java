@@ -303,7 +303,7 @@ public class ClassLoaderProbe {
         final var overrideLog = log == null ? null : log.log("Overriding classpath with: " + overrideClasspath);
         // The classloader is only recorded for each classpath entry, it is not used to find the entries, so just
         // use defaultClassLoader as a placeholder here
-        classpathOrder.addClasspathEntries(overrideClasspath, defaultClassLoader, classpathSpec, overrideLog);
+        classpathOrder.addClasspathEntries(overrideClasspath, defaultClassLoader, overrideLog);
         if (overrideLog != null) {
             overrideLog.log("WARNING: when the classpath is overridden, there is no guarantee that the classes "
                     + "found by classpath scanning will be the same as the classes loaded by the "
@@ -377,7 +377,7 @@ public class ClassLoaderProbe {
                     classpathOrder.setPackageRootPrefixes(classLoaderHandlerRegistryEntry.getPackageRootPrefixes());
                     try {
                         classLoaderHandlerRegistryEntry.findClasspathOrder(classLoader, classpathOrder,
-                                classpathSpec, classloaderHandlerLog);
+                                classloaderHandlerLog);
                     } finally {
                         classpathOrder.setPackageRootPrefixes(null);
                     }
@@ -408,8 +408,7 @@ public class ClassLoaderProbe {
                 // pathElement is not also listed in an ignored parent classloader
                 final var pathElementResolved = FastPathResolver.resolveFilePath(FileUtils.currDirPath(),
                         pathElement);
-                classpathOrder.addClasspathEntry(pathElementResolved, defaultClassLoader, classpathSpec,
-                        sysPropLog);
+                classpathOrder.addClasspathEntry(pathElementResolved, defaultClassLoader, sysPropLog);
             }
         }
     }

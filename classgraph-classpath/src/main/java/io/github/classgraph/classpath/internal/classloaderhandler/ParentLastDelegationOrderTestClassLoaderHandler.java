@@ -32,7 +32,6 @@ import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.classpath.internal.ClassLoaderOrder;
 import io.github.classgraph.classpath.internal.ClasspathOrder;
-import io.github.classgraph.classpath.internal.spec.ClasspathSpec;
 import org.jspecify.annotations.Nullable;
 
 /** ClassLoaderHandler that is used to test PARENT_LAST delegation order. */
@@ -57,10 +56,10 @@ class ParentLastDelegationOrderTestClassLoaderHandler implements ClassLoaderHand
 
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-            final ClasspathSpec classpathSpec, final @Nullable LogNode log) {
+            final @Nullable LogNode log) {
         final var classpath = (String) ReflectionUtils.invokeMethod(/* throwException = */ true, classLoader,
                 "getClasspath");
-        classpathOrder.addClasspathEntry(classpath, classLoader, classpathSpec, log);
+        classpathOrder.addClasspathEntry(classpath, classLoader, log);
     }
 
     /**
