@@ -30,6 +30,7 @@ package nonapi.io.github.classgraph.utils;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 
 import nonapi.io.github.classgraph.utils.VersionFinder.OperatingSystem;
@@ -181,6 +182,34 @@ public final class URLPathEncoder {
             }
         }
         return encodedPath.toString();
+    }
+
+    /**
+     * Move the server of a UNC path out of the authority of a {@code "file:"} URI and back into its path, so that
+     * the URI names the same file after it is converted to a {@link java.net.URL} and opened.
+     *
+     * <p>
+     * {@link java.nio.file.Path#toUri()} renders the UNC path {@code \\server\share\x} as
+     * {@code file://server/share/x}, putting the server in the URI authority. {@link java.net.URL} reads that back
+     * as the local path {@code \share\x}, dropping the server, so opening it fails or, worse, reads a different
+     * file. {@link java.io.File#toURI()} renders the same path as {@code file:////server/share/x}, with an empty
+     * authority and the server in the path, and that does read back as the UNC path it came from. Both spellings
+     * are permitted (RFC 8089 appendix E.3.2); only the second one round-trips.
+     *
+     * <p>
+     * A URI with no authority is returned unchanged, so this is a no-op for every path that is not a UNC path.
+     *
+     * @param uri
+     *            the URI
+     * @return the URI, with any UNC server moved from the authority into the path
+     */
+    public static URI moveUNCServerIntoPath(final URI uri) {
+        final String authority = uri.getRawAuthority();
+        if (authority == null || authority.isEmpty() || !"file".equals(uri.getScheme())) {
+            return uri;
+        }
+        final String path = uri.getRawPath();
+        return URI.create("file:////" + authority + (path == null ? "" : path));
     }
 
     /**

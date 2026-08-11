@@ -13,7 +13,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 /**
  * A classpath entry that reaches a directory through a symlink followed by {@code ".."} has to be scanned as the
- * directory the filesystem reaches through it, which is the directory the JVM's own classloader loads classes from.
+ * directory the platform reaches through it, which is the directory the JVM's own classloader loads classes from.
  */
 public class SymlinkedClasspathEntryTest {
     /**
@@ -36,9 +36,15 @@ public class SymlinkedClasspathEntryTest {
     }
 
     /**
-     * After a symlinked directory, {@code ".."} names the parent of the directory the symlink points at, not the
-     * parent of the symlink, so the classpath entry {@code "link/../classes"} names {@code "real/classes"} and not
-     * {@code "classes"}. Only the filesystem knows this, so the {@code ".."} must not be collapsed textually.
+     * A classpath entry containing a {@code ".."} after a symlinked directory must be scanned as the directory the
+     * platform reaches through it, which is the directory the JVM's own classloader loads classes from. The two
+     * platforms differ, and each is checked against itself here: on Linux and macOS the filesystem resolves the
+     * {@code ".."}, so {@code "link/../classes"} is {@code "real/classes"}, while on Windows the path APIs collapse
+     * it lexically, so it is the {@code "classes"} directory beside the symlink. Both were confirmed by running
+     * {@code java -cp "link/../classes"} on all three platforms.
+     *
+     * <p>
+     * The two directories hold differently named files, so the scan result says which of them was reached.
      *
      * @param tempDir
      *            a temporary directory
@@ -46,21 +52,27 @@ public class SymlinkedClasspathEntryTest {
      *             if the directory tree could not be created
      */
     @Test
-    public void aClasspathEntryIsResolvedTheWayTheFilesystemResolvesIt(@TempDir final Path tempDir)
+    public void aClasspathEntryIsResolvedTheWayThePlatformResolvesIt(@TempDir final Path tempDir)
             throws IOException {
-        // tempDir/real/classes/resource.txt, tempDir/real/other, and tempDir/link -> tempDir/real/other
+        // tempDir/real/classes/in-real.txt, tempDir/real/other, tempDir/link -> tempDir/real/other, and a second
+        // "classes" directory beside the symlink, which is the one a Windows classloader reaches
         final Path realDir = Files.createDirectory(tempDir.resolve("real"));
-        final Path classesDir = Files.createDirectory(realDir.resolve("classes"));
-        Files.write(classesDir.resolve("resource.txt"), "content".getBytes(StandardCharsets.UTF_8));
+        final Path realClassesDir = Files.createDirectory(realDir.resolve("classes"));
+        Files.write(realClassesDir.resolve("in-real.txt"), "content".getBytes(StandardCharsets.UTF_8));
         final Path linkedDir = createSymbolicLinkOrSkip(tempDir.resolve("link"),
                 Files.createDirectory(realDir.resolve("other")));
-        // A decoy at tempDir/classes, which is what the classpath entry would name if ".." were collapsed textually
-        Files.createDirectory(tempDir.resolve("classes"));
+        final Path besideLinkClassesDir = Files.createDirectory(tempDir.resolve("classes"));
+        Files.write(besideLinkClassesDir.resolve("beside-link.txt"), "content".getBytes(StandardCharsets.UTF_8));
 
-        final String classpathEntry = linkedDir.resolve("../classes").toString();
-        try (ScanResult scanResult = new ClassGraph().overrideClasspath(classpathEntry).scan()) {
-            assertThat(scanResult.getAllResources().getPaths()).containsExactly("resource.txt");
-            assertThat(scanResult.getClasspathFiles()).containsExactly(classesDir.toRealPath().toFile());
+        final Path classpathEntry = linkedDir.resolve("../classes");
+        // Whichever of the two directories this platform reaches, that is the one that has to be scanned
+        final Path expectedDir = classpathEntry.toRealPath();
+        final String expectedResource = expectedDir.equals(realClassesDir.toRealPath()) ? "in-real.txt"
+                : "beside-link.txt";
+
+        try (ScanResult scanResult = new ClassGraph().overrideClasspath(classpathEntry.toString()).scan()) {
+            assertThat(scanResult.getAllResources().getPaths()).containsExactly(expectedResource);
+            assertThat(scanResult.getClasspathFiles()).containsExactly(expectedDir.toFile());
         }
     }
 }

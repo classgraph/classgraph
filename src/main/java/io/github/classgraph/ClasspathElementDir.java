@@ -63,6 +63,7 @@ import nonapi.io.github.classgraph.scanspec.ScanSpec.ScanSpecPathMatch;
 import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
+import nonapi.io.github.classgraph.utils.URLPathEncoder;
 import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /** A directory classpath element, using the {@link Path} API. */
@@ -668,7 +669,9 @@ class ClasspathElementDir extends ClasspathElement {
     @Override
     URI getURI() {
         try {
-            return classpathEltPath.toUri();
+            // On Windows, Path#toUri() puts the server of a UNC path in the URI authority, where java.net.URL
+            // does not find it again
+            return URLPathEncoder.moveUNCServerIntoPath(classpathEltPath.toUri());
         } catch (IOError | SecurityException e) {
             throw new IllegalArgumentException("Could not convert to URI: " + classpathEltPath);
         }
@@ -688,7 +691,7 @@ class ClasspathElementDir extends ClasspathElement {
     public String toString() {
         try {
             // Path.toString() does not include the URI scheme for some reason
-            return classpathEltPath.toUri().toString();
+            return getURI().toString();
         } catch (IOError | SecurityException e) {
             return classpathEltPath.toString();
         }

@@ -261,10 +261,12 @@ public final class FastPathResolver {
      *
      * <p>
      * This differs from {@link #resolve(String, String)} in that a {@code ".."} segment in the outermost section of
-     * the path is left in the resolved path, for the filesystem to resolve when the path is canonicalized. Only the
-     * filesystem knows what such a segment means: after a symlinked directory, {@code ".."} names the parent of the
-     * directory the symlink points at, not the parent of the symlink, so collapsing it textually would name a
-     * different file than the one the JVM reaches through the same path. Everything after a nested jar separator is
+     * the path is left in the resolved path, for the platform to resolve when the path is canonicalized. Only the
+     * platform knows what such a segment means, and the platforms differ: on Linux and macOS the filesystem
+     * resolves it, so after a symlinked directory {@code ".."} names the parent of the directory the symlink points
+     * at rather than the parent of the symlink, while on Windows the path APIs collapse it lexically. Collapsing it
+     * here would name a different file than the one the JVM reaches through the same path on Linux and macOS, so
+     * each platform is left to resolve it its own way. Everything after a nested jar separator is
      * an entry name within an archive, which has no symlinks and no filesystem to ask, so a {@code ".."} there is
      * still collapsed, and still cannot climb out of the archive it is in.
      *
