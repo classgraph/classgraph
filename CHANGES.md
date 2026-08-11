@@ -1707,18 +1707,32 @@ is fixed on the 4.x branch as well.
   to it, so a missing file gets the same path it would have had if it had been created.
 
 * A classpath entry that reached a directory through a symlink followed by `".."` was
-  scanned as the wrong directory, or was not scanned at all. A `".."` in a classpath entry
-  was resolved textually, by deleting the segment before it, which is not what the
-  filesystem does: after a symlinked directory, `".."` names the parent of the directory
-  the symlink points at, not the parent of the symlink. Given `link -> real/other`, the
-  classpath entry `link/../classes` names `real/classes` to the JVM's own classloader, but
-  ClassGraph resolved it to `classes` beside the symlink, and scanned that directory if it
-  happened to exist, or nothing at all if it did not. A `".."` in a classpath entry that
-  names a file on disk is now left for the filesystem to resolve. Everything after a
-  nested jar separator (`outer.jar!/...`) is still collapsed textually, since an archive
-  has no symlinks and no filesystem to ask, and collapsing there is what stops an entry
-  name from escaping the archive it is in. The `".."` clamping applied to a `Class-Path:`
-  manifest entry is also unchanged.
+  scanned as the wrong directory, or was not scanned at all, on Linux and macOS. A `".."`
+  in a classpath entry was resolved textually, by deleting the segment before it. That is
+  what the Windows path APIs do, but not what the Linux and macOS filesystems do: there,
+  after a symlinked directory, `".."` names the parent of the directory the symlink points
+  at, not the parent of the symlink. Given `link -> real/other`, the classpath entry
+  `link/../classes` names `real/classes` to the JVM's own classloader on Linux and macOS,
+  but ClassGraph resolved it to `classes` beside the symlink, and scanned that directory
+  if it happened to exist, or nothing at all if it did not. A `".."` in a classpath entry
+  that names a file on disk is now left for the platform to resolve, so ClassGraph reaches
+  the same directory as the classloader it is running beside, on each platform. (The two
+  behaviours were confirmed by running `java -cp "link/../classes"` on all three.)
+  Everything after a nested jar separator (`outer.jar!/...`) is still collapsed textually,
+  since an archive has no symlinks and no filesystem to ask, and collapsing there is what
+  stops an entry name from escaping the archive it is in. The `".."` clamping applied to a
+  `Class-Path:` manifest entry is also unchanged.
+
+* On Windows, a resource in a directory on a UNC network share could not be opened through
+  the URL that `Resource#getURL()` returned. The URL for a directory classpath element came
+  from `Path#toUri()`, which renders the UNC path `\\server\share\x` as
+  `file://server/share/x`, putting the server in the URI authority; `java.net.URL` reads
+  that back as the local path `\share\x`, so opening it either failed or, if a path of that
+  name happened to exist locally, silently read the wrong file. The URL is now spelled
+  `file:////server/share/x`, with an empty authority and the server in the path, which
+  reads back as the UNC path it came from. Both spellings are permitted by RFC 8089
+  appendix E.3.2, but only the second round-trips. A jar on a UNC share was not affected,
+  and no path that is not a UNC path changes.
 
 Two further bugs found during the port were only reachable through the JSON
 serialization API, which 5.x removes (`AnnotationParameterValue#toString()` threw

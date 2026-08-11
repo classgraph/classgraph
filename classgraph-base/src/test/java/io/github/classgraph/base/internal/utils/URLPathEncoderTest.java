@@ -182,4 +182,35 @@ public class URLPathEncoderTest {
         final var path = "/tmp/a b[1]+é.jar";
         assertThat(URLPathEncoder.decodePath(URLPathEncoder.encodePath(path))).isEqualTo(path);
     }
+
+    /**
+     * The server of a UNC path has to be in the path of a {@code "file:"} URI, not in its authority, otherwise
+     * {@link java.net.URL} reads the URI back as a local path with the server dropped. Verified on Windows: opening
+     * {@code file://server/share/x} fails with {@code FileNotFoundException: \share\x}, while
+     * {@code file:////server/share/x} reads the file the UNC path names.
+     */
+    @Test
+    public void aUNCServerIsMovedFromTheAuthorityIntoThePath() {
+        assertThat(URLPathEncoder.moveUNCServerIntoPath(URI.create("file://server/share/x")))
+                .isEqualTo(URI.create("file:////server/share/x"));
+        // A directory URI keeps its trailing slash
+        assertThat(URLPathEncoder.moveUNCServerIntoPath(URI.create("file://server/share/dir/")))
+                .isEqualTo(URI.create("file:////server/share/dir/"));
+        // Percent escapes in the path are carried over as they are, rather than being decoded or double-encoded
+        assertThat(URLPathEncoder.moveUNCServerIntoPath(URI.create("file://server/share/a%20b")))
+                .isEqualTo(URI.create("file:////server/share/a%20b"));
+    }
+
+    /** A URI that has no authority to move is returned unchanged, whatever its scheme. */
+    @Test
+    public void aURIWithNoAuthorityIsUnchanged() {
+        for (final var uri : new String[] { "file:///tmp/x.jar", "file:/tmp/x.jar", "file:////server/share/x",
+                "jar:file:///tmp/x.jar!/a/b", "jrt:/java.base/java/lang/Object.class" }) {
+            assertThat(URLPathEncoder.moveUNCServerIntoPath(URI.create(uri))).isEqualTo(URI.create(uri));
+        }
+        // Only a "file:" URI names a path on the local filesystem, so an authority is left alone for any other
+        // scheme -- there it is a real host, not a UNC server
+        assertThat(URLPathEncoder.moveUNCServerIntoPath(URI.create("https://host/a/b")))
+                .isEqualTo(URI.create("https://host/a/b"));
+    }
 }

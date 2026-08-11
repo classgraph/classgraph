@@ -167,13 +167,14 @@ public final class FileUtils {
      *            If true, remove any '/' character(s) from the end of the returned path.
      * @param collapseParentSegmentsInFirstSection
      *            If true, a ".." segment before the first nested jar separator removes the segment before it, as it
-     *            does in every later section. If false, a ".." segment there is left in the path for the filesystem
+     *            does in every later section. If false, a ".." segment there is left in the path for the platform
      *            to resolve. Pass false only for the first section of a path that names a file on disk, where the
-     *            two differ: after a symlinked directory, ".." names the parent of the directory the symlink points
-     *            at, not the parent of the symlink, so collapsing it here would name a different file than the one
-     *            the path reaches. Every later section is a path within an archive, which has no symlinks and no
-     *            filesystem to ask, so ".." there is always collapsed -- that is what stops a "zip slip" entry name
-     *            from escaping the archive.
+     *            two can differ: on Linux and macOS, after a symlinked directory, ".." names the parent of the
+     *            directory the symlink points at, not the parent of the symlink, so collapsing it here would name a
+     *            different file than the one the path reaches (on Windows the path APIs collapse it lexically, so
+     *            the two agree there). Every later section is a path within an archive, which has no symlinks and
+     *            no filesystem to ask, so ".." there is always collapsed -- that is what stops a "zip slip" entry
+     *            name from escaping the archive.
      * @return The sanitized path.
      */
     public static String sanitizeEntryPath(final String path, final boolean removeInitialSlash,
@@ -610,10 +611,12 @@ public final class FileUtils {
      * same path as if the missing part of it were created.
      *
      * <p>
-     * A {@code ".."} segment is resolved by the filesystem as far as the filesystem can reach, and only lexically
-     * beyond that. The two do not agree: after a symlinked directory, {@code ".."} names the parent of the
-     * directory the symlink points at, not the parent of the symlink. Nothing below the closest existing ancestor
-     * exists, so nothing there can be a symlink, which is what makes it safe to resolve the rest lexically.
+     * A {@code ".."} segment is resolved by the platform as far as the platform can reach, and only lexically
+     * beyond that. On Linux and macOS the two do not agree, since the filesystem resolves such a segment: after a
+     * symlinked directory, {@code ".."} names the parent of the directory the symlink points at, not the parent of
+     * the symlink. (On Windows the path APIs collapse it lexically, so there is nothing to disagree about there.)
+     * Nothing below the closest existing ancestor exists, so nothing there can be a symlink, which is what makes it
+     * safe to resolve the rest lexically.
      *
      * @param path
      *            A {@link Path}.

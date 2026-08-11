@@ -53,6 +53,7 @@ import io.github.classgraph.base.internal.concurrency.WorkQueue;
 import io.github.classgraph.base.internal.utils.FastPathResolver;
 import io.github.classgraph.base.internal.utils.FileUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
+import io.github.classgraph.base.internal.utils.URLPathEncoder;
 import io.github.classgraph.classpath.internal.ClasspathExpander;
 import io.github.classgraph.internal.scanspec.ScanSpec;
 import io.github.classgraph.internal.scanspec.ScanSpec.ScanSpecPathMatch;
@@ -762,7 +763,9 @@ class ClasspathElementDir extends ClasspathElement {
     @Override
     URI getURI() {
         try {
-            return classpathEltPath.toUri();
+            // On Windows, Path#toUri() puts the server of a UNC path in the URI authority, where java.net.URL
+            // does not find it again
+            return URLPathEncoder.moveUNCServerIntoPath(classpathEltPath.toUri());
         } catch (IOError | SecurityException e) {
             throw new IllegalStateException("Could not convert to URI: " + classpathEltPath);
         }
@@ -782,7 +785,7 @@ class ClasspathElementDir extends ClasspathElement {
     public String toString() {
         try {
             // Path.toString() does not include the URI scheme for some reason
-            return classpathEltPath.toUri().toString();
+            return getURI().toString();
         } catch (IOError | SecurityException e) {
             return classpathEltPath.toString();
         }

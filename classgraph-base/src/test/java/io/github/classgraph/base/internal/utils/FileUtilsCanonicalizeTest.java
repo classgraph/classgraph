@@ -12,6 +12,8 @@ import java.nio.file.Path;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
@@ -103,9 +105,12 @@ public class FileUtilsCanonicalizeTest {
     }
 
     /**
-     * A {@code ".."} that follows a symlinked directory names the parent of the directory the symlink points at,
-     * not the parent of the symlink. The filesystem is the only thing that knows this, so the {@code ".."} must not
-     * be collapsed before the part of the path that exists has been resolved.
+     * A {@code ".."} that follows a symlinked directory is left for the platform to resolve, since the two
+     * platforms resolve it differently and each has to agree with the classloader running on it. On Linux and macOS
+     * the filesystem resolves it, so {@code "link/.."} names the parent of the directory the symlink points at; on
+     * Windows the path APIs collapse it lexically, so it names the parent of the symlink itself. Verified on all
+     * three: {@code java -cp "link/../classes"} loads classes from {@code "real/classes"} on Linux and macOS, and
+     * from the {@code "classes"} directory beside the symlink on Windows.
      *
      * @param tempDir
      *            a temporary directory
@@ -113,13 +118,40 @@ public class FileUtilsCanonicalizeTest {
      *             if the directory could not be created
      */
     @Test
+    public void aParentSegmentAfterASymlinkIsResolvedByThePlatform(@TempDir final Path tempDir) throws IOException {
+        final var realDir = Files.createDirectory(tempDir.resolve("real"));
+        final var innerDir = Files.createDirectory(realDir.resolve("inner"));
+        final var linkedDir = createSymbolicLinkOrSkip(tempDir.resolve("link"), innerDir);
+
+        // Whatever this platform says "link/.." is, canonicalize() has to say the same
+        final var parentViaLink = linkedDir.resolve("..").toRealPath();
+        assertThat(FileUtils.canonicalize(linkedDir.resolve(".."))).isEqualTo(parentViaLink);
+        // A path below it does not exist, so it takes the closest-existing-ancestor branch instead, which has to
+        // reach the same directory rather than collapsing the ".." on its own
+        assertThat(FileUtils.canonicalize(linkedDir.resolve("../missing")))
+                .isEqualTo(parentViaLink.resolve("missing"));
+        assertThat(FileUtils.canonicalize(new File(linkedDir.toFile(), "../missing")))
+                .isEqualTo(parentViaLink.resolve("missing").toFile());
+    }
+
+    /**
+     * On Linux and macOS, {@code "link/.."} is the parent of the directory the symlink points at, so it must not be
+     * collapsed lexically. (On Windows the path APIs collapse it before the filesystem sees it, so the same
+     * assertion does not hold there -- see {@link #aParentSegmentAfterASymlinkIsResolvedByThePlatform(Path)}.)
+     *
+     * @param tempDir
+     *            a temporary directory
+     * @throws IOException
+     *             if the directory could not be created
+     */
+    @Test
+    @DisabledOnOs(OS.WINDOWS)
     public void aParentSegmentAfterASymlinkIsResolvedByTheFilesystem(@TempDir final Path tempDir)
             throws IOException {
         final var realDir = Files.createDirectory(tempDir.resolve("real"));
         final var innerDir = Files.createDirectory(realDir.resolve("inner"));
         final var linkedDir = createSymbolicLinkOrSkip(tempDir.resolve("link"), innerDir);
 
-        // "link/.." is "real", not tempDir -- which is what the system canonicalizer says too
         assertThat(FileUtils.canonicalize(linkedDir.resolve(".."))).isEqualTo(realDir.toRealPath());
         assertThat(FileUtils.canonicalize(linkedDir.resolve("../missing")))
                 .isEqualTo(realDir.toRealPath().resolve("missing"));
