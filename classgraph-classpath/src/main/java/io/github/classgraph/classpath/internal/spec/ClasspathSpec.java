@@ -38,8 +38,8 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.function.Predicate;
 
-import io.github.classgraph.base.internal.utils.AcceptReject.AcceptRejectWholeString;
 import io.github.classgraph.base.internal.utils.AcceptReject;
+import io.github.classgraph.base.internal.utils.AcceptReject.AcceptRejectWholeString;
 import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.classpath.ModulePathInfo;
@@ -54,10 +54,17 @@ import org.jspecify.annotations.Nullable;
  * accepted, and so on) belong in the specs of the libraries layered on top of this one.
  */
 public class ClasspathSpec {
+    /**
+     * The accept/reject criteria of this spec. Each of them adds itself to this list as it is created, so that
+     * {@link #sortPrefixes()} cannot miss one. N.B. this has to be declared before them, so that it exists by the
+     * time the first of them is created.
+     */
+    private final List<AcceptReject> acceptRejects = new ArrayList<>();
+
     /** Module accept/reject criteria (with separator '.'). */
     // N.B. this is read here, and not just by the scanner, because the module path is searched if any module is
     // specifically accepted, even when system jars and modules are not otherwise scanned.
-    public AcceptRejectWholeString moduleAcceptReject = new AcceptRejectWholeString('.');
+    public final AcceptRejectWholeString moduleAcceptReject = register(new AcceptRejectWholeString('.'));
 
     /**
      * If true, search the module path.
@@ -190,17 +197,26 @@ public class ClasspathSpec {
 
     // -----------------------------------------------------------------------------------------------------------
 
+    /**
+     * Record an accept/reject criterion, so that {@link #sortPrefixes()} sorts it. Called from the field
+     * initializers, so that a criterion cannot be added without being sorted.
+     *
+     * @param <T>
+     *            the type of the accept/reject criterion.
+     * @param acceptReject
+     *            the accept/reject criterion.
+     * @return the same accept/reject criterion.
+     */
+    private <T extends AcceptReject> T register(final T acceptReject) {
+        acceptRejects.add(acceptReject);
+        return acceptReject;
+    }
+
     /** Sort prefixes to ensure correct accept/reject evaluation. */
     // #167
     public void sortPrefixes() {
-        for (final Field field : ClasspathSpec.class.getDeclaredFields()) {
-            if (AcceptReject.class.isAssignableFrom(field.getType())) {
-                try {
-                    ((AcceptReject) field.get(this)).sortPrefixes();
-                } catch (final ReflectiveOperationException e) {
-                    throw new RuntimeException("Field is not accessible: " + field, e);
-                }
-            }
+        for (final AcceptReject acceptReject : acceptRejects) {
+            acceptReject.sortPrefixes();
         }
     }
 

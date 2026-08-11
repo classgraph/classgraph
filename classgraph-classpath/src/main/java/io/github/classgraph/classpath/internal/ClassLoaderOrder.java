@@ -39,8 +39,8 @@ import java.util.Set;
 
 import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
-import io.github.classgraph.classpath.internal.classloaderhandler.ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry;
 import io.github.classgraph.classpath.internal.classloaderhandler.ClassLoaderHandlerRegistry;
+import io.github.classgraph.classpath.internal.classloaderhandler.ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry;
 import org.jspecify.annotations.Nullable;
 
 /** A class to find all unique classloaders. */

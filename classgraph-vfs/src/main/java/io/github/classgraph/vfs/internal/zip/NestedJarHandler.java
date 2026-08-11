@@ -37,9 +37,9 @@ import java.util.Map.Entry;
 import java.util.Objects;
 
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
+import io.github.classgraph.base.internal.concurrency.SingletonMap;
 import io.github.classgraph.base.internal.concurrency.SingletonMap.NewInstanceException;
 import io.github.classgraph.base.internal.concurrency.SingletonMap.NullSingletonException;
-import io.github.classgraph.base.internal.concurrency.SingletonMap;
 import io.github.classgraph.base.internal.recycler.Recycler;
 import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.base.internal.utils.FastPathResolver;

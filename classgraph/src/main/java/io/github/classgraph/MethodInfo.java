@@ -45,8 +45,8 @@ import io.github.classgraph.Classfile.MethodTypeAnnotationDecorator;
 import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.internal.types.ParseException;
-import io.github.classgraph.internal.types.TypeUtils.ModifierType;
 import io.github.classgraph.internal.types.TypeUtils;
+import io.github.classgraph.internal.types.TypeUtils.ModifierType;
 import org.jspecify.annotations.Nullable;
 
 /**
