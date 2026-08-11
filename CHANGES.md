@@ -404,6 +404,16 @@ system property. Three things that property does not cover:
 * **The parents of a classloader you pass to `ClassGraph#overrideClassLoaders`**. Overriding
   the classloaders means the `java.class.path` fallback does not apply, so if a parent is
   one of the JDK's own classloaders, its entries can only be reached through `ucp`.
+* **Entries that a search path holds only in its internal bookkeeping.** A `ucp` is a
+  `jdk.internal.loader.URLClassPath`, which records its entries in three separate fields, and
+  the only one of them that any public API exposes is the one `getURLs()` copies. Entries
+  expanded from the `Class-Path` manifest attribute of a jar the JVM has opened go into the
+  other two and are never added to the one `getURLs()` returns. This is not limited to the
+  JDK's own classloaders: it applies equally to a plain `java.net.URLClassLoader`, whose
+  `getURLs()` is just a call through to the same field. ClassGraph 5.x reads all three fields.
+  In practice ClassGraph expands the `Class-Path` attribute itself, so those particular
+  entries are ones it already had; reading the other two fields is what stops anything that
+  reaches a search path by some other route from being missed.
 
 If ClassGraph cannot see classes that you know are on the classpath, and any of these
 applies to you, adding Narcissus is likely to be the fix. The same goes for a

@@ -60,6 +60,8 @@ class URLClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
             final ScanSpec scanSpec, final @Nullable LogNode log) {
+        // Call the public getURLs() method rather than reading the URLClassPath's `path` field that backs it, since
+        // a subclass may override getURLs() to return something else
         final var urls = ((URLClassLoader) classLoader).getURLs();
         if (urls != null) {
             for (final URL url : urls) {
@@ -67,6 +69,12 @@ class URLClassLoaderHandler implements ClassLoaderHandler {
                     classpathOrder.addClasspathEntry(url, classLoader, scanSpec, log);
                 }
             }
+        }
+        // getURLs() returns only the entries of the URLClassPath's `path` field, and entries expanded from the
+        // Class-Path manifest attribute of an opened jar are never added to it, so read those separately
+        final var ucp = URLClassPathReader.getUcp(classLoader, classpathOrder.reflectionUtils);
+        if (ucp != null) {
+            URLClassPathReader.addUnlistedClasspathEntries(ucp, classLoader, classpathOrder, scanSpec, log);
         }
     }
 

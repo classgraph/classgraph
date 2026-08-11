@@ -1,13 +1,17 @@
 package io.github.classgraph.features;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.jar.Attributes;
 import java.util.jar.JarOutputStream;
@@ -18,13 +22,16 @@ import java.util.zip.ZipOutputStream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import io.github.classgraph.ClassGraph;
+import nonapi.io.github.classgraph.reflection.ReflectionUtils;
+
 /**
  * A classpath entry that is listed in no system property, and is reachable only through the internal
- * {@code URLClassPath} field of one of the JDK's own classloaders, is still found and scanned.
+ * {@code URLClassPath} field of a classloader, is still found and scanned.
  *
  * <p>
- * There are two ways to produce such an entry, and both of them need a JVM that was launched with the right command
- * line option, so each test runs a child JVM and reads back what it found.
+ * Two of the three ways to produce such an entry need a JVM that was launched with the right command line option,
+ * so those tests run a child JVM and read back what it found.
  */
 // #537
 class HiddenClasspathEntryTest {
@@ -150,5 +157,61 @@ class HiddenClasspathEntryTest {
         final var appendedJarFile = buildResourceJar(tempDir, "boot-appended.jar");
         final var output = runChildJvm(List.of("-Xbootclasspath/a:" + appendedJarFile));
         assertThat(output).as("Child JVM output:%n%s", output).contains("FOUND=true");
+    }
+
+    /**
+     * Add a URL to the {@code unopenedUrls} field of a classloader's {@code jdk.internal.loader.URLClassPath},
+     * without adding it to the {@code path} field that {@link URLClassLoader#getURLs()} returns.
+     *
+     * <p>
+     * This is the state the JDK itself produces when it expands the {@code Class-Path} manifest attribute of a jar
+     * it has opened, but ClassGraph expands that attribute itself, so an entry that got there by that route would
+     * be found either way. Putting an entry there directly is the only way to check that the field is really read.
+     *
+     * @param classLoader
+     *            the classloader whose {@code URLClassPath} should be modified.
+     * @param url
+     *            the URL to add.
+     * @return true if the field was found and modified.
+     */
+    @SuppressWarnings("unchecked")
+    private static boolean addUnlistedURL(final URLClassLoader classLoader, final URL url) {
+        final var reflectionUtils = new ReflectionUtils();
+        final var ucp = reflectionUtils.getFieldVal(false, classLoader, "ucp");
+        if (ucp == null) {
+            return false;
+        }
+        final var unopenedUrls = reflectionUtils.getFieldVal(false, ucp, "unopenedUrls");
+        if (!(unopenedUrls instanceof Collection)) {
+            return false;
+        }
+        synchronized (unopenedUrls) {
+            ((Collection<URL>) unopenedUrls).add(url);
+        }
+        return true;
+    }
+
+    /**
+     * A classpath entry that a classloader's {@code URLClassPath} holds only in the internal fields that
+     * {@link URLClassLoader#getURLs()} does not expose is still found and scanned.
+     *
+     * @param tempDir
+     *            the temp dir.
+     * @throws Exception
+     *             if the test jar could not be created.
+     */
+    @Test
+    void entryHeldOnlyInTheURLClassPathInternalsIsScanned(@TempDir final File tempDir) throws Exception {
+        final var unlistedJarFile = buildResourceJar(tempDir, "unlisted.jar");
+        try (var classLoader = new URLClassLoader(new URL[0], /* parent = */ null)) {
+            assumeTrue(addUnlistedURL(classLoader, unlistedJarFile.toURI().toURL()),
+                    "Could not reach the URLClassPath internals");
+            // The jar is in no system property and is not returned by getURLs(), so this is the only way to find it
+            assertThat(classLoader.getURLs()).isEmpty();
+            try (var scanResult = new ClassGraph().overrideClassLoaders(classLoader).acceptPaths(RESOURCE_DIR)
+                    .scan()) {
+                assertThat(scanResult.getResourcesWithPath(RESOURCE_PATH)).isNotEmpty();
+            }
+        }
     }
 }

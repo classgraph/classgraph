@@ -123,6 +123,13 @@ class FallbackClassLoaderHandler implements ClassLoaderHandler {
                     : classpathOrder.reflectionUtils.getFieldVal(false, classLoader, classpathSource.name());
             valid |= classpathOrder.addClasspathEntryObject(classpathEntryObj, classLoader, scanSpec, log);
         }
+        // An unknown classloader may hold a jdk.internal.loader.URLClassPath, which none of the names above find,
+        // since it is not itself a classpath entry -- its own fields have to be read to get at the entries
+        final var ucp = URLClassPathReader.getUcp(classLoader, classpathOrder.reflectionUtils);
+        if (ucp != null) {
+            URLClassPathReader.addAllClasspathEntries(ucp, classLoader, classpathOrder, scanSpec, log);
+            valid = true;
+        }
         if (!valid) {
             // None of the known field or method names worked, so fall back to asking the classloader for resources
             // that are present in the root of most classpath elements, and strip the resource path from the
