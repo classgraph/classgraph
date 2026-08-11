@@ -55,13 +55,10 @@ class PlexusClassWorldsClassRealmClassLoaderHandler extends URLClassLoaderHandle
      *
      * @param classRealmInstance
      *            the ClassRealm instance
-     * @param reflectionUtils
-     *            the reflection utils instance
      * @return true if classloader uses a parent-first strategy
      */
-    private static boolean isParentFirstStrategy(final ClassLoader classRealmInstance,
-            final ReflectionUtils reflectionUtils) {
-        final var strategy = reflectionUtils.getFieldVal(false, classRealmInstance, "strategy");
+    private static boolean isParentFirstStrategy(final ClassLoader classRealmInstance) {
+        final var strategy = ReflectionUtils.getFieldVal(false, classRealmInstance, "strategy");
         if (strategy != null) {
             final var strategyClassName = strategy.getClass().getName();
             if ("org.codehaus.plexus.classworlds.strategy.SelfFirstStrategy".equals(strategyClassName)
@@ -78,21 +75,20 @@ class PlexusClassWorldsClassRealmClassLoaderHandler extends URLClassLoaderHandle
     public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
             final @Nullable LogNode log) {
         // From ClassRealm#loadClassFromImport(String) -> getImportClassLoader(String)
-        final var foreignImports = classLoaderOrder.reflectionUtils.getFieldVal(false, classLoader,
-                "foreignImports");
+        final var foreignImports = ReflectionUtils.getFieldVal(false, classLoader, "foreignImports");
         if (foreignImports != null) {
             @SuppressWarnings("unchecked")
             final var foreignImportEntries = (SortedSet<Object>) foreignImports;
             for (final Object entry : foreignImportEntries) {
-                final var foreignImportClassLoader = (ClassLoader) classLoaderOrder.reflectionUtils
-                        .invokeMethod(false, entry, "getClassLoader");
+                final var foreignImportClassLoader = (ClassLoader) ReflectionUtils.invokeMethod(false, entry,
+                        "getClassLoader");
                 // Treat foreign import classloader as if it is a parent classloader
                 classLoaderOrder.delegateTo(foreignImportClassLoader, /* isParent = */ true, log);
             }
         }
 
         // Get delegation order -- different strategies have different delegation orders
-        final var isParentFirst = isParentFirstStrategy(classLoader, classLoaderOrder.reflectionUtils);
+        final var isParentFirst = isParentFirstStrategy(classLoader);
 
         // From ClassRealm#loadClassFromSelf(String) -> findLoadedClass(String) for self-first strategy
         if (!isParentFirst) {
@@ -103,8 +99,8 @@ class PlexusClassWorldsClassRealmClassLoaderHandler extends URLClassLoaderHandle
         // From ClassRealm#loadClassFromParent -- N.B. we are ignoring parentImports, which is used to filter a
         // class name before deciding whether or not to call the parent classloader (so ClassGraph will be able to
         // load classes by name that are not imported from the parent classloader).
-        final var parentClassLoader = (ClassLoader) classLoaderOrder.reflectionUtils.invokeMethod(false,
-                classLoader, "getParentClassLoader");
+        final var parentClassLoader = (ClassLoader) ReflectionUtils.invokeMethod(false, classLoader,
+                "getParentClassLoader");
         classLoaderOrder.delegateTo(parentClassLoader, /* isParent = */ true, log);
         classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
 

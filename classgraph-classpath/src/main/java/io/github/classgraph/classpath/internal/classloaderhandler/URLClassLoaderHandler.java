@@ -72,7 +72,7 @@ class URLClassLoaderHandler implements ClassLoaderHandler {
         }
         // getURLs() returns only the entries of the URLClassPath's `path` field, and entries expanded from the
         // Class-Path manifest attribute of an opened jar are never added to it, so read those separately
-        final var ucp = URLClassPathReader.getUcp(classLoader, classpathOrder.reflectionUtils);
+        final var ucp = URLClassPathReader.getUcp(classLoader);
         if (ucp != null) {
             URLClassPathReader.addUnlistedClasspathEntries(ucp, classLoader, classpathOrder, classpathSpec, log);
         }

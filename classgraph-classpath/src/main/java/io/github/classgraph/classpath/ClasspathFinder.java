@@ -33,7 +33,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
-import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.base.internal.utils.JarUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
@@ -308,8 +307,7 @@ public class ClasspathFinder {
     public Classpath find() {
         final var log = verbose ? new LogNode() : null;
         try {
-            final var classLoaderProbe = new ClassLoaderProbe(classpathSpec, classLoaderAndModuleLayerSpec,
-                    new ReflectionUtils(), log);
+            final var classLoaderProbe = new ClassLoaderProbe(classpathSpec, classLoaderAndModuleLayerSpec, log);
 
             // The classpath elements that the classloaders declared
             final List<ClasspathEntry> classLoaderEntries = new ArrayList<>();
@@ -319,8 +317,7 @@ public class ClasspathFinder {
             }
 
             // Add the classpath elements that those in turn declare, by reading their manifests
-            final var nestedJarHandler = new NestedJarHandler(vfsScanSpec, new InterruptionChecker(),
-                    new ReflectionUtils());
+            final var nestedJarHandler = new NestedJarHandler(vfsScanSpec, new InterruptionChecker());
             try {
                 final var expandedEntries = ClasspathExpansion.expand(classLoaderEntries, vfsScanSpec,
                         nestedJarHandler, log);

@@ -34,6 +34,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
 
+import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.classpath.internal.ClassLoaderOrder;
 import io.github.classgraph.classpath.internal.ClasspathOrder;
@@ -108,17 +109,16 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
     private static void findClasspathOrderForQuarkusClassloader(final ClassLoader classLoader,
             final ClasspathOrder classpathOrder, final ClasspathSpec classpathSpec, final @Nullable LogNode log) {
 
-        final var elements = findQuarkusClassLoaderElements(classLoader, classpathOrder);
+        final var elements = findQuarkusClassLoaderElements(classLoader);
 
         for (final Object element : elements) {
             final var elementClassName = element.getClass().getName();
             final var fieldName = PRE_311_RESOURCE_BASED_ELEMENTS.get(elementClassName);
             if (fieldName != null) {
-                classpathOrder.addClasspathEntry(
-                        classpathOrder.reflectionUtils.getFieldVal(false, element, fieldName), classLoader,
-                        classpathSpec, log);
+                classpathOrder.addClasspathEntry(ReflectionUtils.getFieldVal(false, element, fieldName),
+                        classLoader, classpathSpec, log);
             } else {
-                final var rootPath = classpathOrder.reflectionUtils.invokeMethod(false, element, "getRoot");
+                final var rootPath = ReflectionUtils.invokeMethod(false, element, "getRoot");
                 if (rootPath instanceof Path) {
                     classpathOrder.addClasspathEntry(rootPath, classLoader, classpathSpec, log);
                 }
@@ -132,21 +132,17 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
      *
      * @param classLoader
      *            the classloader
-     * @param classpathOrder
-     *            the classpath order (used only for its reflection utils instance)
      * @return the classpath elements (empty if none of the fields were found).
      */
     @SuppressWarnings("unchecked")
-    private static Collection<Object> findQuarkusClassLoaderElements(final ClassLoader classLoader,
-            final ClasspathOrder classpathOrder) {
-        var elements = (Collection<Object>) classpathOrder.reflectionUtils.getFieldVal(false, classLoader,
-                "elements");
+    private static Collection<Object> findQuarkusClassLoaderElements(final ClassLoader classLoader) {
+        var elements = (Collection<Object>) ReflectionUtils.getFieldVal(false, classLoader, "elements");
         if (elements == null) {
             elements = new ArrayList<>();
             // Since 3.16.x
             for (final String fieldName : new String[] { "normalPriorityElements", "lesserPriorityElements" }) {
-                final var fieldVal = (Collection<Object>) classpathOrder.reflectionUtils.getFieldVal(false,
-                        classLoader, fieldName);
+                final var fieldVal = (Collection<Object>) ReflectionUtils.getFieldVal(false, classLoader,
+                        fieldName);
                 if (fieldVal == null) {
                     continue;
                 }
@@ -171,8 +167,8 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
     @SuppressWarnings("unchecked")
     private static void findClasspathOrderForRuntimeClassloader(final ClassLoader classLoader,
             final ClasspathOrder classpathOrder, final ClasspathSpec classpathSpec, final @Nullable LogNode log) {
-        final var applicationClassDirectories = (Collection<Path>) classpathOrder.reflectionUtils.getFieldVal(false,
-                classLoader, "applicationClassDirectories");
+        final var applicationClassDirectories = (Collection<Path>) ReflectionUtils.getFieldVal(false, classLoader,
+                "applicationClassDirectories");
         if (applicationClassDirectories != null) {
             for (final Path path : applicationClassDirectories) {
                 try {
@@ -204,8 +200,8 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
             final ClasspathOrder classpathOrder, final ClasspathSpec classpathSpec, final @Nullable LogNode log) {
         // (getFieldVal returns null if the field is not present -- Quarkus renames these fields between releases,
         // so don't assume the field was found)
-        final var resourceDirectoryMap = (Map<String, Object[]>) classpathOrder.reflectionUtils.getFieldVal(false,
-                classLoader, "resourceDirectoryMap");
+        final var resourceDirectoryMap = (Map<String, Object[]>) ReflectionUtils.getFieldVal(false, classLoader,
+                "resourceDirectoryMap");
         if (resourceDirectoryMap == null) {
             return;
         }
@@ -213,9 +209,8 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
             for (final Object element : elementArray) {
                 final var elementClassName = element.getClass().getName();
                 if ("io.quarkus.bootstrap.runner.JarResource".equals(elementClassName)) {
-                    classpathOrder.addClasspathEntry(
-                            classpathOrder.reflectionUtils.getFieldVal(false, element, "jarPath"), classLoader,
-                            classpathSpec, log);
+                    classpathOrder.addClasspathEntry(ReflectionUtils.getFieldVal(false, element, "jarPath"),
+                            classLoader, classpathSpec, log);
                 }
             }
         }

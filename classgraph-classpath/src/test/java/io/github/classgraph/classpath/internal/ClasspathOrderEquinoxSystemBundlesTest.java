@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
 
-import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.classpath.internal.spec.ClasspathSpec;
 
 /**
@@ -18,7 +17,7 @@ public class ClasspathOrderEquinoxSystemBundlesTest {
      * @return a new {@link ClasspathOrder}.
      */
     private static ClasspathOrder newClasspathOrder() {
-        return new ClasspathOrder(new ClasspathSpec(), new ReflectionUtils());
+        return new ClasspathOrder(new ClasspathSpec());
     }
 
     /**

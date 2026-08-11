@@ -14,7 +14,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
-import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.vfs.internal.ScanResources;
 import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
 
@@ -45,7 +44,7 @@ public class SliceTest {
     private static ScanResources scanResources(final int maxBufferedJarRAMSize) {
         final var vfsScanSpec = new VfsScanSpec();
         vfsScanSpec.maxBufferedJarRAMSize = maxBufferedJarRAMSize;
-        return new ScanResources(vfsScanSpec, new ReflectionUtils(), new InterruptionChecker());
+        return new ScanResources(vfsScanSpec, new InterruptionChecker());
     }
 
     /**

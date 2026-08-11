@@ -1691,6 +1691,20 @@ is fixed on the 4.x branch as well.
   classloaders that the application classloader delegates to contribute only system jars
   and modules, which are not scanned unless `enableSystemJarsAndModules()` is called.
 
+* On Windows, the same jarfile reached through two different paths was opened twice, and
+  reported under two different paths. ClassGraph canonicalizes every path it is given, so
+  that a file has one identity no matter how it is reached, but it was doing so with two
+  different APIs: `Path#toRealPath()` where a classpath element is normalized and where a
+  resource's file identity is computed, and `File#getCanonicalFile()` where a jarfile is
+  opened. The two agree on Linux and macOS, but on Windows `File#getCanonicalFile()`
+  resolves neither directory symlinks and junctions nor 8.3 short names (e.g.
+  `C:\Users\RUNNER~1` for `C:\Users\runneradmin`), so a path that one call site had already
+  resolved was left unresolved by the other. This was reachable through a nested jar
+  entry (`outer.jar!/inner.jar`), whose outer jar is a string rather than a `Path` and so
+  never passes through the scanner's normalization at all. All three call sites now share
+  one routine, which resolves the path fully and falls back to `File#getCanonicalFile()`
+  only when the file does not exist.
+
 Two further bugs found during the port were only reachable through the JSON
 serialization API, which 5.x removes (`AnnotationParameterValue#toString()` threw
 `NullPointerException` for a null parameter value, and `ScanResult#fromJSON(String)` did

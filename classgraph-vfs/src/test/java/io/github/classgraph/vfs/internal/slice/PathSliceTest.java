@@ -11,7 +11,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
-import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.vfs.internal.ScanResources;
 import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
 
@@ -34,7 +33,7 @@ public class PathSliceTest {
     private static ScanResources scanResources(final boolean memoryMapFiles) {
         final var vfsScanSpec = new VfsScanSpec();
         vfsScanSpec.memoryMapFiles = memoryMapFiles;
-        return new ScanResources(vfsScanSpec, new ReflectionUtils(), new InterruptionChecker());
+        return new ScanResources(vfsScanSpec, new InterruptionChecker());
     }
 
     /**

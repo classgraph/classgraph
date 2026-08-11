@@ -15,7 +15,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
-import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
 
 /**
@@ -91,8 +90,7 @@ public class UnicodePathExtraFieldTest {
             }
         }
 
-        final var nestedJarHandler = new NestedJarHandler(new VfsScanSpec(), new InterruptionChecker(),
-                new ReflectionUtils());
+        final var nestedJarHandler = new NestedJarHandler(new VfsScanSpec(), new InterruptionChecker());
         final List<String> entryNames = new ArrayList<>();
         try {
             final var logicalZipFileAndPackageRoot = nestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap()

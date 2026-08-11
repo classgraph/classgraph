@@ -67,7 +67,6 @@ import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import io.github.classgraph.base.internal.concurrency.SingletonMap;
 import io.github.classgraph.base.internal.concurrency.WorkQueue;
 import io.github.classgraph.base.internal.concurrency.WorkQueue.WorkUnitProcessor;
-import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
 import io.github.classgraph.base.internal.utils.FastPathResolver;
 import io.github.classgraph.base.internal.utils.FileUtils;
@@ -147,8 +146,6 @@ class Scanner implements Callable<ScanResult> {
      *            the scan result processor
      * @param failureHandler
      *            the failure handler
-     * @param reflectionUtils
-     *            the {@link ReflectionUtils} instance
      * @param topLevelLog
      *            the log
      *
@@ -159,8 +156,8 @@ class Scanner implements Callable<ScanResult> {
             final ClassLoaderAndModuleLayerSpec classLoaderAndModuleLayerSpec,
             final ExecutorService executorService, final int numParallelTasks,
             final @Nullable Consumer<ScanResult> scanResultProcessor,
-            final @Nullable Consumer<Throwable> failureHandler, final ReflectionUtils reflectionUtils,
-            final @Nullable LogNode topLevelLog) throws InterruptedException {
+            final @Nullable Consumer<Throwable> failureHandler, final @Nullable LogNode topLevelLog)
+            throws InterruptedException {
         this.scanSpec = scanSpec;
         this.performScan = performScan;
         scanSpec.sortPrefixes();
@@ -170,7 +167,7 @@ class Scanner implements Callable<ScanResult> {
             // Memory mapping is the only thing that makes ClassGraph allocate direct ByteBuffers, and those buffers
             // are freed when the ScanResult is closed, which can happen long after the scan -- so load the classes
             // needed to free them now, while the classloader that loaded ClassGraph is certainly still alive (#331)
-            OffHeapMemory.warmUpDirectByteBufferClosing(reflectionUtils);
+            OffHeapMemory.warmUpDirectByteBufferClosing();
         }
         if (topLevelLog != null) {
             if (scanSpec.pathAcceptReject != null
@@ -185,7 +182,7 @@ class Scanner implements Callable<ScanResult> {
         this.interruptionChecker = executorService instanceof final AutoCloseableExecutorService autoCloseableExecSvc
                 ? autoCloseableExecSvc.interruptionChecker
                 : new InterruptionChecker();
-        this.nestedJarHandler = new NestedJarHandler(scanSpec.vfsScanSpec, interruptionChecker, reflectionUtils);
+        this.nestedJarHandler = new NestedJarHandler(scanSpec.vfsScanSpec, interruptionChecker);
         this.numParallelTasks = numParallelTasks;
         this.scanResultProcessor = scanResultProcessor;
         this.failureHandler = failureHandler;
@@ -196,7 +193,7 @@ class Scanner implements Callable<ScanResult> {
         // find the classpath, and those must not be kept alive for the duration of the scan. It is the last thing
         // in a scan to hold a classloader at all -- from here on, only the string form of each classloader is kept
         final var classLoaderProbe = new ClassLoaderProbe(scanSpec.classpathSpec, classLoaderAndModuleLayerSpec,
-                reflectionUtils, classLoaderProbeLog);
+                classLoaderProbeLog);
 
         try {
             this.moduleOrder = new ArrayList<>();
@@ -500,11 +497,9 @@ class Scanner implements Callable<ScanResult> {
         // Canonicalize Path objects so the same file is opened only once
         if (classpathEntryObjNormalized instanceof final Path normalizedPath) {
             try {
-                // Canonicalize path, to avoid duplication. Throws IOException if the file does not exist or an I/O
-                // error occurs
-                classpathEntryObjNormalized = normalizedPath.toRealPath();
+                classpathEntryObjNormalized = FileUtils.canonicalize(normalizedPath);
             } catch (final IOException | SecurityException e) {
-                // Ignore
+                // The path could not be canonicalized -- use it as given
             }
         }
 

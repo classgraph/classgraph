@@ -32,6 +32,7 @@ import java.lang.reflect.Array;
 import java.util.HashSet;
 import java.util.Set;
 
+import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.classpath.internal.ClassLoaderOrder;
 import io.github.classgraph.classpath.internal.ClasspathOrder;
@@ -84,12 +85,11 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
         // Don't get stuck in infinite loop
         if (bundlefile != null && path.add(bundlefile)) {
             // type File
-            final var baseFile = classpathOrderOut.reflectionUtils.getFieldVal(false, bundlefile, "basefile");
+            final var baseFile = ReflectionUtils.getFieldVal(false, bundlefile, "basefile");
             if (baseFile != null) {
                 var foundClassPathElement = false;
                 for (final String fieldName : FIELD_NAMES) {
-                    final var fieldVal = classpathOrderOut.reflectionUtils.getFieldVal(false, bundlefile,
-                            fieldName);
+                    final var fieldVal = ReflectionUtils.getFieldVal(false, bundlefile, fieldName);
                     if (fieldVal != null) {
                         foundClassPathElement = true;
                         // We found the base file and a classpath element, e.g. "bin/"
@@ -98,8 +98,8 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
                         if ("org.eclipse.osgi.storage.bundlefile.NestedDirBundleFile"
                                 .equals(bundlefile.getClass().getName())) {
                             // Handle nested ZipBundleFile with "!/" separator
-                            final var baseBundleFile = classpathOrderOut.reflectionUtils.getFieldVal(false,
-                                    bundlefile, "baseBundleFile");
+                            final var baseBundleFile = ReflectionUtils.getFieldVal(false, bundlefile,
+                                    "baseBundleFile");
                             if (baseBundleFile != null && "org.eclipse.osgi.storage.bundlefile.ZipBundleFile"
                                     .equals(baseBundleFile.getClass().getName())) {
                                 base = baseBundleFile;
@@ -117,10 +117,10 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
                 }
 
             }
-            addBundleFile(classpathOrderOut.reflectionUtils.getFieldVal(false, bundlefile, "wrapped"), path,
-                    classLoader, classpathOrderOut, classpathSpec, log);
-            addBundleFile(classpathOrderOut.reflectionUtils.getFieldVal(false, bundlefile, "next"), path,
-                    classLoader, classpathOrderOut, classpathSpec, log);
+            addBundleFile(ReflectionUtils.getFieldVal(false, bundlefile, "wrapped"), path, classLoader,
+                    classpathOrderOut, classpathSpec, log);
+            addBundleFile(ReflectionUtils.getFieldVal(false, bundlefile, "next"), path, classLoader,
+                    classpathOrderOut, classpathSpec, log);
         }
     }
 
@@ -142,13 +142,13 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
             final ClasspathOrder classpathOrderOut, final ClasspathSpec classpathSpec,
             final @Nullable LogNode log) {
         // type ClasspathEntry[]
-        final var entries = classpathOrderOut.reflectionUtils.getFieldVal(false, owner, "entries");
+        final var entries = ReflectionUtils.getFieldVal(false, owner, "entries");
         if (entries != null) {
             for (int i = 0, n = Array.getLength(entries); i < n; i++) {
                 // type ClasspathEntry
                 final var entry = Array.get(entries, i);
                 // type BundleFile
-                final var bundlefile = classpathOrderOut.reflectionUtils.getFieldVal(false, entry, "bundlefile");
+                final var bundlefile = ReflectionUtils.getFieldVal(false, entry, "bundlefile");
                 addBundleFile(bundlefile, new HashSet<>(), classLoader, classpathOrderOut, classpathSpec, log);
             }
         }
@@ -158,11 +158,11 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
             final ClasspathSpec classpathSpec, final @Nullable LogNode log) {
         // type ClasspathManager
-        final var manager = classpathOrder.reflectionUtils.getFieldVal(false, classLoader, "manager");
+        final var manager = ReflectionUtils.getFieldVal(false, classLoader, "manager");
         addClasspathEntries(manager, classLoader, classpathOrder, classpathSpec, log);
 
         // type FragmentClasspath[]
-        final var fragments = classpathOrder.reflectionUtils.getFieldVal(false, manager, "fragments");
+        final var fragments = ReflectionUtils.getFieldVal(false, manager, "fragments");
         if (fragments != null) {
             for (int f = 0, fragLength = Array.getLength(fragments); f < fragLength; f++) {
                 // type FragmentClasspath
@@ -173,38 +173,33 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
         // Only read system bundles once per scan (all bundles should give the same results for this).
         if (classpathOrder.tryAddEquinoxSystemBundles()) {
             // type BundleLoader
-            final var delegate = classpathOrder.reflectionUtils.getFieldVal(false, classLoader, "delegate");
+            final var delegate = ReflectionUtils.getFieldVal(false, classLoader, "delegate");
             // type EquinoxContainer
-            final var container = classpathOrder.reflectionUtils.getFieldVal(false, delegate, "container");
+            final var container = ReflectionUtils.getFieldVal(false, delegate, "container");
             // type Storage
-            final var storage = classpathOrder.reflectionUtils.getFieldVal(false, container, "storage");
+            final var storage = ReflectionUtils.getFieldVal(false, container, "storage");
             // type ModuleContainer
-            final var moduleContainer = classpathOrder.reflectionUtils.getFieldVal(false, storage,
-                    "moduleContainer");
+            final var moduleContainer = ReflectionUtils.getFieldVal(false, storage, "moduleContainer");
             // type ModuleDatabase
-            final var moduleDatabase = classpathOrder.reflectionUtils.getFieldVal(false, moduleContainer,
-                    "moduleDatabase");
+            final var moduleDatabase = ReflectionUtils.getFieldVal(false, moduleContainer, "moduleDatabase");
             // type HashMap<Integer, EquinoxModule>
-            final var modulesById = classpathOrder.reflectionUtils.getFieldVal(false, moduleDatabase,
-                    "modulesById");
+            final var modulesById = ReflectionUtils.getFieldVal(false, moduleDatabase, "modulesById");
             // type EquinoxSystemModule (module 0 is always the system module)
-            final var module0 = classpathOrder.reflectionUtils.invokeMethod(false, modulesById, "get", Object.class,
-                    0L);
+            final var module0 = ReflectionUtils.invokeMethod(false, modulesById, "get", Object.class, 0L);
             // type Bundle
-            final var bundle = classpathOrder.reflectionUtils.invokeMethod(false, module0, "getBundle");
+            final var bundle = ReflectionUtils.invokeMethod(false, module0, "getBundle");
             // type BundleContext
-            final var bundleContext = classpathOrder.reflectionUtils.invokeMethod(false, bundle,
-                    "getBundleContext");
+            final var bundleContext = ReflectionUtils.invokeMethod(false, bundle, "getBundleContext");
             // type Bundle[]
-            final var bundles = classpathOrder.reflectionUtils.invokeMethod(false, bundleContext, "getBundles");
+            final var bundles = ReflectionUtils.invokeMethod(false, bundleContext, "getBundles");
             if (bundles != null) {
                 for (int i = 0, n = Array.getLength(bundles); i < n; i++) {
                     // type EquinoxBundle
                     final var equinoxBundle = Array.get(bundles, i);
                     // type EquinoxModule
-                    final var module = classpathOrder.reflectionUtils.getFieldVal(false, equinoxBundle, "module");
+                    final var module = ReflectionUtils.getFieldVal(false, equinoxBundle, "module");
                     // type String
-                    var location = (String) classpathOrder.reflectionUtils.getFieldVal(false, module, "location");
+                    var location = (String) ReflectionUtils.getFieldVal(false, module, "location");
                     if (location != null) {
                         final var fileIdx = location.indexOf("file:");
                         if (fileIdx >= 0) {

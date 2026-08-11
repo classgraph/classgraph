@@ -15,7 +15,6 @@ import java.util.TreeSet;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.classpath.internal.spec.ClassLoaderAndModuleLayerSpec;
 import io.github.classgraph.classpath.internal.spec.ClasspathSpec;
@@ -40,7 +39,7 @@ public class ClassLoaderProbeTest {
 
         // Act
         final var classLoaderProbe = new ClassLoaderProbe(classpathSpec, classLoaderAndModuleLayerSpec,
-                new ReflectionUtils(), new LogNode());
+                new LogNode());
         final var moduleFinder = classLoaderProbe.getModuleFinder();
 
         // Assert
@@ -75,7 +74,7 @@ public class ClassLoaderProbeTest {
 
         // Act
         final var classLoaderProbe = new ClassLoaderProbe(classpathSpec, classLoaderAndModuleLayerSpec,
-                new ReflectionUtils(), new LogNode());
+                new LogNode());
         final var moduleFinder = classLoaderProbe.getModuleFinder();
 
         // Assert
@@ -131,7 +130,7 @@ public class ClassLoaderProbeTest {
         classLoaderAndModuleLayerSpec.overrideClassLoaders(ClassLoader.getSystemClassLoader());
 
         final var classLoaderProbe = new ClassLoaderProbe(classpathSpec, classLoaderAndModuleLayerSpec,
-                new ReflectionUtils(), new LogNode());
+                new LogNode());
 
         assertTrue(resolvedPaths(classLoaderProbe).contains(testClasspathElement()),
                 "java.class.path should have been scanned");
@@ -152,7 +151,7 @@ public class ClassLoaderProbeTest {
         classLoaderAndModuleLayerSpec.overrideClassLoaders(ClassLoader.getPlatformClassLoader());
 
         final var classLoaderProbe = new ClassLoaderProbe(classpathSpec, classLoaderAndModuleLayerSpec,
-                new ReflectionUtils(), new LogNode());
+                new LogNode());
 
         final var moduleFinder = classLoaderProbe.getModuleFinder();
         assertNotNull(moduleFinder, "Modules should have been searched for");
@@ -173,7 +172,7 @@ public class ClassLoaderProbeTest {
         classLoaderAndModuleLayerSpec.addClassLoader(ClassLoader.getPlatformClassLoader());
 
         final var classLoaderProbe = new ClassLoaderProbe(classpathSpec, classLoaderAndModuleLayerSpec,
-                new ReflectionUtils(), new LogNode());
+                new LogNode());
 
         final var moduleFinder = classLoaderProbe.getModuleFinder();
         assertNotNull(moduleFinder, "Modules should have been searched for");

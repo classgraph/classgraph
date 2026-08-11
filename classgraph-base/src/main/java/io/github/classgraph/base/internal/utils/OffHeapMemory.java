@@ -160,14 +160,11 @@ public final class OffHeapMemory {
      *
      * @param byteBuffer
      *            The {@link ByteBuffer} to close/unmap.
-     * @param reflectionUtils
-     *            The reflection utils (the cleaner method has to be looked up and invoked reflectively).
      * @param log
      *            The log.
      * @return True if the byteBuffer was closed/unmapped.
      */
-    public static boolean closeDirectByteBuffer(final ByteBuffer byteBuffer, final ReflectionUtils reflectionUtils,
-            final @Nullable LogNode log) {
+    public static boolean closeDirectByteBuffer(final ByteBuffer byteBuffer, final @Nullable LogNode log) {
         if (byteBuffer != null && byteBuffer.isDirect()) {
             // Double-checked locking, so that two threads calling this for the first time concurrently cannot both
             // run the lookup and race on the static fields it assigns
@@ -200,31 +197,27 @@ public final class OffHeapMemory {
 
     /**
      * Open a new shared {@code java.lang.foreign.Arena} (JDK 22+), which can be used to allocate direct
-     * {@link ByteBuffer}s ({@link #allocateDirectByteBufferUsingArena(Object, long, ReflectionUtils)}) and to
-     * memory-map files to {@link ByteBuffer}s
-     * ({@link #mapFileUsingArena(Object, FileChannel, long, long, ReflectionUtils)}). Closing the arena
-     * ({@link #closeArena(Object, ReflectionUtils, LogNode)}) frees or unmaps all {@link ByteBuffer}s obtained from
-     * it, which on JDK 22+ replaces the use of the terminally-deprecated {@code Unsafe::invokeCleaner} method.
+     * {@link ByteBuffer}s ({@link #allocateDirectByteBufferUsingArena(Object, long)}) and to memory-map files to
+     * {@link ByteBuffer}s ({@link #mapFileUsingArena(Object, FileChannel, long, long)}). Closing the arena
+     * ({@link #closeArena(Object, LogNode)}) frees or unmaps all {@link ByteBuffer}s obtained from it, which on JDK
+     * 22+ replaces the use of the terminally-deprecated {@code Unsafe::invokeCleaner} method.
      *
-     * @param reflectionUtils
-     *            the reflection utils (the {@code java.lang.foreign} API has to be invoked using reflection, since
-     *            ClassGraph needs to compile and run on JDK 17+)
      * @return a new shared {@code Arena} instance, or null if the arena API is not available (JDK older than 22).
      */
     // #939
-    public static @Nullable Object openArena(final ReflectionUtils reflectionUtils) {
+    public static @Nullable Object openArena() {
         if (VersionFinder.JAVA_MAJOR_VERSION < 22) {
             // The java.lang.foreign API was only finalized in JDK 22 (the preview versions of the API in JDK 19-21
             // cannot be invoked reflectively without --enable-preview)
             return null;
         }
-        final Class<?> arenaClass = reflectionUtils.classForNameOrNull(ARENA_CLASS_NAME);
+        final Class<?> arenaClass = ReflectionUtils.classForNameOrNull(ARENA_CLASS_NAME);
         if (arenaClass == null) {
             return null;
         }
         // Invoke Arena.ofShared() -- a shared arena is needed rather than a confined arena, since the ByteBuffers
         // obtained from the arena may be read and closed by multiple threads
-        return reflectionUtils.invokeStaticMethod(/* throwException = */ false, arenaClass, "ofShared");
+        return ReflectionUtils.invokeStaticMethod(/* throwException = */ false, arenaClass, "ofShared");
     }
 
     /**
@@ -232,20 +225,17 @@ public final class OffHeapMemory {
      * arena.
      *
      * @param arena
-     *            an arena obtained from {@link #openArena(ReflectionUtils)}.
+     *            an arena obtained from {@link #openArena()}.
      * @param size
      *            the number of bytes to allocate.
-     * @param reflectionUtils
-     *            the reflection utils
      * @return the allocated {@link ByteBuffer}, or null if the buffer could not be allocated.
      */
-    public static @Nullable ByteBuffer allocateDirectByteBufferUsingArena(final Object arena, final long size,
-            final ReflectionUtils reflectionUtils) {
+    public static @Nullable ByteBuffer allocateDirectByteBufferUsingArena(final Object arena, final long size) {
         // Invoke arena.allocate(size).asByteBuffer()
-        final var memorySegment = reflectionUtils.invokeMethod(/* throwException = */ false, arena, "allocate",
+        final var memorySegment = ReflectionUtils.invokeMethod(/* throwException = */ false, arena, "allocate",
                 long.class, size);
         return memorySegment == null ? null
-                : (ByteBuffer) reflectionUtils.invokeMethod(/* throwException = */ false, memorySegment,
+                : (ByteBuffer) ReflectionUtils.invokeMethod(/* throwException = */ false, memorySegment,
                         "asByteBuffer");
     }
 
@@ -254,7 +244,7 @@ public final class OffHeapMemory {
      * 22+). The buffer is unmapped by closing the arena.
      *
      * @param arena
-     *            an arena obtained from {@link #openArena(ReflectionUtils)}.
+     *            an arena obtained from {@link #openArena()}.
      * @param fileChannel
      *            the file channel to map.
      * @param position
@@ -262,8 +252,6 @@ public final class OffHeapMemory {
      * @param size
      *            the size of the region to map (must not be larger than {@link FileUtils#MAX_BUFFER_SIZE}, since
      *            the mapped memory segment has to be projected to a single {@link ByteBuffer}).
-     * @param reflectionUtils
-     *            the reflection utils
      * @return the mapped {@link ByteBuffer}, or null if the arena-based mapping API could not be invoked
      *         reflectively.
      * @throws IOException
@@ -271,18 +259,18 @@ public final class OffHeapMemory {
      *             collection, see FileSlice).
      */
     public static @Nullable ByteBuffer mapFileUsingArena(final Object arena, final FileChannel fileChannel,
-            final long position, final long size, final ReflectionUtils reflectionUtils) throws IOException {
-        final Class<?> arenaClass = reflectionUtils.classForNameOrNull(ARENA_CLASS_NAME);
+            final long position, final long size) throws IOException {
+        final Class<?> arenaClass = ReflectionUtils.classForNameOrNull(ARENA_CLASS_NAME);
         if (arenaClass == null) {
             return null;
         }
         try {
             // Invoke fileChannel.map(MapMode.READ_ONLY, position, size, arena).asByteBuffer()
-            final var memorySegment = reflectionUtils.invokeMethod(/* throwException = */ true, fileChannel, "map",
+            final var memorySegment = ReflectionUtils.invokeMethod(/* throwException = */ true, fileChannel, "map",
                     new Class<?>[] { MapMode.class, long.class, long.class, arenaClass },
                     new Object[] { MapMode.READ_ONLY, position, size, arena });
             return memorySegment == null ? null
-                    : (ByteBuffer) reflectionUtils.invokeMethod(/* throwException = */ true, memorySegment,
+                    : (ByteBuffer) ReflectionUtils.invokeMethod(/* throwException = */ true, memorySegment,
                             "asByteBuffer");
         } catch (final Exception e) {
             // Mapping the file can fail with IOException or OutOfMemoryError, which the reflective method
@@ -301,21 +289,18 @@ public final class OffHeapMemory {
     }
 
     /**
-     * Close an arena obtained from {@link #openArena(ReflectionUtils)}, freeing any direct {@link ByteBuffer}s
-     * allocated from it and unmapping any files mapped with it. The buffers must no longer be in use by any thread.
+     * Close an arena obtained from {@link #openArena()}, freeing any direct {@link ByteBuffer}s allocated from it
+     * and unmapping any files mapped with it. The buffers must no longer be in use by any thread.
      *
      * @param arena
      *            the arena to close.
-     * @param reflectionUtils
-     *            the reflection utils
      * @param log
      *            the log node, or null to skip logging
      * @return true if the arena was successfully closed.
      */
-    public static boolean closeArena(final Object arena, final ReflectionUtils reflectionUtils,
-            final @Nullable LogNode log) {
+    public static boolean closeArena(final Object arena, final @Nullable LogNode log) {
         try {
-            reflectionUtils.invokeMethod(/* throwException = */ true, arena, "close");
+            ReflectionUtils.invokeMethod(/* throwException = */ true, arena, "close");
             return true;
         } catch (final Exception e) {
             if (log != null) {
@@ -325,7 +310,7 @@ public final class OffHeapMemory {
         }
     }
 
-    /** True once {@link #warmUpDirectByteBufferClosing(ReflectionUtils)} has run. */
+    /** True once {@link #warmUpDirectByteBufferClosing()} has run. */
     private static final AtomicBoolean warmedUp = new AtomicBoolean(false);
 
     /**
@@ -340,21 +325,19 @@ public final class OffHeapMemory {
      * defined, and closing threw {@link NoClassDefFoundError}. Loading those classes up front, while the
      * classloader is certainly still alive, means closing needs no classes that are not already loaded.
      *
-     * @param reflectionUtils
-     *            the {@link ReflectionUtils} instance to use.
      */
     // #331
-    public static void warmUpDirectByteBufferClosing(final ReflectionUtils reflectionUtils) {
+    public static void warmUpDirectByteBufferClosing() {
         if (!warmedUp.getAndSet(true)) {
-            final var arena = openArena(reflectionUtils);
+            final var arena = openArena();
             if (arena != null) {
                 // On JDK 22+, direct ByteBuffers are freed by closing the arena that allocated them
-                allocateDirectByteBufferUsingArena(arena, 32, reflectionUtils);
-                closeArena(arena, reflectionUtils, /* log = */ null);
+                allocateDirectByteBufferUsingArena(arena, 32);
+                closeArena(arena, /* log = */ null);
             } else {
                 // On JDK 17-21, buffers are freed by Unsafe::invokeCleaner, which closeDirectByteBuffer looks
                 // up reflectively -- sun.misc.Unsafe and that lookup are what needs to be resolved ahead of time
-                closeDirectByteBuffer(ByteBuffer.allocateDirect(32), reflectionUtils, /* log = */ null);
+                closeDirectByteBuffer(ByteBuffer.allocateDirect(32), /* log = */ null);
             }
         }
     }

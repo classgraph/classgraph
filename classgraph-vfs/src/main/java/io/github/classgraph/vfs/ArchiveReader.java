@@ -36,7 +36,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import io.github.classgraph.base.internal.concurrency.SingletonMap.NewInstanceException;
 import io.github.classgraph.base.internal.concurrency.SingletonMap.NullSingletonException;
-import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
@@ -89,7 +88,7 @@ public class ArchiveReader implements Closeable {
 
     /** Constructor. */
     public ArchiveReader() {
-        this.nestedJarHandler = new NestedJarHandler(vfsScanSpec, new InterruptionChecker(), new ReflectionUtils());
+        this.nestedJarHandler = new NestedJarHandler(vfsScanSpec, new InterruptionChecker());
     }
 
     // -------------------------------------------------------------------------------------------------------------

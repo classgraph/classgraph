@@ -21,7 +21,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
-import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.vfs.internal.ScanResources;
 import io.github.classgraph.vfs.internal.slice.ArraySlice;
 import io.github.classgraph.vfs.internal.slice.FileSlice;
@@ -83,7 +82,7 @@ public class ClassfileReaderTest {
     private static ScanResources scanResources(final boolean memoryMapFiles) {
         final var vfsScanSpec = new VfsScanSpec();
         vfsScanSpec.memoryMapFiles = memoryMapFiles;
-        return new ScanResources(vfsScanSpec, new ReflectionUtils(), new InterruptionChecker());
+        return new ScanResources(vfsScanSpec, new InterruptionChecker());
     }
 
     /** Close the slices that the test opened. */

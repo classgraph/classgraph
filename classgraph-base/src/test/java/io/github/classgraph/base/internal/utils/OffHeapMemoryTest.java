@@ -14,8 +14,6 @@ import java.nio.file.StandardOpenOption;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import io.github.classgraph.base.internal.reflection.ReflectionUtils;
-
 /**
  * Tests for {@link OffHeapMemory}.
  *
@@ -33,16 +31,15 @@ public class OffHeapMemoryTest {
     @Test
     public void arenaAllocateAndFree() {
         assumeTrue(VersionFinder.JAVA_MAJOR_VERSION >= 22);
-        final var reflectionUtils = new ReflectionUtils();
-        final var arena = OffHeapMemory.openArena(reflectionUtils);
+        final var arena = OffHeapMemory.openArena();
         assertThat(arena).isNotNull();
-        final var buf = OffHeapMemory.allocateDirectByteBufferUsingArena(arena, 32, reflectionUtils);
+        final var buf = OffHeapMemory.allocateDirectByteBufferUsingArena(arena, 32);
         assertThat(buf).isNotNull();
         assertThat(buf.isDirect()).isTrue();
         assertThat(buf.capacity()).isEqualTo(32);
         buf.put(0, (byte) 42);
         assertThat(buf.get(0)).isEqualTo((byte) 42);
-        assertThat(OffHeapMemory.closeArena(arena, reflectionUtils, /* log = */ null)).isTrue();
+        assertThat(OffHeapMemory.closeArena(arena, /* log = */ null)).isTrue();
         // The buffer is freed once the arena is closed, so accessing it now throws IllegalStateException
         assertThatThrownBy(() -> buf.get(0)).isInstanceOf(IllegalStateException.class);
     }
@@ -58,18 +55,17 @@ public class OffHeapMemoryTest {
     @Test
     public void arenaMapAndUnmapFile(@TempDir final Path tempDir) throws IOException {
         assumeTrue(VersionFinder.JAVA_MAJOR_VERSION >= 22);
-        final var reflectionUtils = new ReflectionUtils();
-        final var arena = OffHeapMemory.openArena(reflectionUtils);
+        final var arena = OffHeapMemory.openArena();
         assertThat(arena).isNotNull();
         final var file = tempDir.resolve("mapped.bin");
         Files.write(file, new byte[] { 1, 2, 3, 4 });
         try (var fileChannel = FileChannel.open(file, StandardOpenOption.READ)) {
-            final var buf = OffHeapMemory.mapFileUsingArena(arena, fileChannel, 0L, 4L, reflectionUtils);
+            final var buf = OffHeapMemory.mapFileUsingArena(arena, fileChannel, 0L, 4L);
             assertThat(buf).isNotNull();
             assertThat(buf.isDirect()).isTrue();
             assertThat(buf.capacity()).isEqualTo(4);
             assertThat(buf.get(2)).isEqualTo((byte) 3);
-            assertThat(OffHeapMemory.closeArena(arena, reflectionUtils, /* log = */ null)).isTrue();
+            assertThat(OffHeapMemory.closeArena(arena, /* log = */ null)).isTrue();
             // The file is unmapped once the arena is closed, so accessing the buffer now throws
             // IllegalStateException
             assertThatThrownBy(() -> buf.get(0)).isInstanceOf(IllegalStateException.class);
@@ -84,12 +80,9 @@ public class OffHeapMemoryTest {
     @Test
     public void directByteBufferIsFreedIndividuallyWhenThereIsNoArenaApi() {
         assumeTrue(VersionFinder.JAVA_MAJOR_VERSION < 22);
-        final var reflectionUtils = new ReflectionUtils();
-        assertThat(OffHeapMemory.openArena(reflectionUtils)).isNull();
-        assertThat(OffHeapMemory.closeDirectByteBuffer(ByteBuffer.allocateDirect(32), reflectionUtils,
-                /* log = */ null)).isTrue();
+        assertThat(OffHeapMemory.openArena()).isNull();
+        assertThat(OffHeapMemory.closeDirectByteBuffer(ByteBuffer.allocateDirect(32), /* log = */ null)).isTrue();
         // A non-direct buffer has no off-heap memory to free
-        assertThat(OffHeapMemory.closeDirectByteBuffer(ByteBuffer.allocate(32), reflectionUtils, /* log = */ null))
-                .isFalse();
+        assertThat(OffHeapMemory.closeDirectByteBuffer(ByteBuffer.allocate(32), /* log = */ null)).isFalse();
     }
 }

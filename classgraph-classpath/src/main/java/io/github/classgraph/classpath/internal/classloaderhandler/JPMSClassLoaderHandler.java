@@ -58,13 +58,11 @@ class JPMSClassLoaderHandler implements ClassLoaderHandler {
      * The bootstrap classloader is the parent of the platform classloader, but {@link ClassLoader#getParent()}
      * returns null for the platform classloader, so walking the parent chain never reaches it.
      *
-     * @param reflectionUtils
-     *            the reflection utils instance.
      * @return the bootstrap classloader, or null if it could not be obtained.
      */
-    private static @Nullable ClassLoader getBootClassLoader(final ReflectionUtils reflectionUtils) {
-        return (ClassLoader) reflectionUtils.invokeStaticMethod(false,
-                reflectionUtils.classForNameOrNull("jdk.internal.loader.ClassLoaders"), "bootLoader");
+    private static @Nullable ClassLoader getBootClassLoader() {
+        return (ClassLoader) ReflectionUtils.invokeStaticMethod(false,
+                ReflectionUtils.classForNameOrNull("jdk.internal.loader.ClassLoaders"), "bootLoader");
     }
 
     @Override
@@ -76,9 +74,9 @@ class JPMSClassLoaderHandler implements ClassLoaderHandler {
         // listed in any system property, and the bootstrap classloader is not reachable through the parent chain,
         // so they are reachable from nowhere else -- splice the bootstrap classloader into the delegation order
         // when it has entries to contribute, so that they are scanned along with everything else.
-        final var bootClassLoader = getBootClassLoader(classLoaderOrder.reflectionUtils);
+        final var bootClassLoader = getBootClassLoader();
         if (bootClassLoader != null && bootClassLoader != classLoader
-                && URLClassPathReader.getUcp(bootClassLoader, classLoaderOrder.reflectionUtils) != null) {
+                && URLClassPathReader.getUcp(bootClassLoader) != null) {
             classLoaderOrder.delegateTo(bootClassLoader, /* isParent = */ true, log);
         }
         classLoaderOrder.add(classLoader, log);
@@ -104,7 +102,7 @@ class JPMSClassLoaderHandler implements ClassLoaderHandler {
         // The jdk.internal.loader package is exported to only three modules, and is never opened, so the ucp field
         // cannot be read by standard reflection unless the JVM was launched with --add-opens. Narcissus can read
         // it without that, so these classpath entries are found only when Narcissus is on the classpath.
-        final var ucp = URLClassPathReader.getUcp(classLoader, classpathOrder.reflectionUtils);
+        final var ucp = URLClassPathReader.getUcp(classLoader);
         if (ucp != null) {
             URLClassPathReader.addAllClasspathEntries(ucp, classLoader, classpathOrder, classpathSpec, log);
         }

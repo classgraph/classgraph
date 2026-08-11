@@ -40,8 +40,8 @@ public final class ReflectionUtils {
      */
     private static final ReflectionDriver REFLECTION_DRIVER = findReflectionDriver();
 
-    /** Constructor. */
-    public ReflectionUtils() {
+    /** Cannot be instantiated. */
+    private ReflectionUtils() {
         // Empty
     }
 
@@ -87,7 +87,7 @@ public final class ReflectionUtils {
      * @throws IllegalArgumentException
      *             If the field value could not be read.
      */
-    public @Nullable Object getFieldVal(final boolean throwException, final @Nullable Object obj,
+    public static @Nullable Object getFieldVal(final boolean throwException, final @Nullable Object obj,
             final @Nullable Field field) throws IllegalArgumentException {
         if (obj == null || field == null) {
             if (throwException) {
@@ -124,7 +124,7 @@ public final class ReflectionUtils {
      * @throws IllegalArgumentException
      *             If the field value could not be read.
      */
-    public @Nullable Object getFieldVal(final boolean throwException, final @Nullable Object obj,
+    public static @Nullable Object getFieldVal(final boolean throwException, final @Nullable Object obj,
             final @Nullable String fieldName) throws IllegalArgumentException {
         if (obj == null || fieldName == null) {
             if (throwException) {
@@ -161,7 +161,7 @@ public final class ReflectionUtils {
      * @throws IllegalArgumentException
      *             If the field value could not be read.
      */
-    public @Nullable Object getStaticFieldVal(final boolean throwException, final @Nullable Class<?> cls,
+    public static @Nullable Object getStaticFieldVal(final boolean throwException, final @Nullable Class<?> cls,
             final @Nullable String fieldName) throws IllegalArgumentException {
         if (cls == null || fieldName == null) {
             if (throwException) {
@@ -197,7 +197,7 @@ public final class ReflectionUtils {
      * @throws IllegalArgumentException
      *             If the method could not be invoked.
      */
-    public @Nullable Object invokeMethod(final boolean throwException, final @Nullable Object obj,
+    public static @Nullable Object invokeMethod(final boolean throwException, final @Nullable Object obj,
             final @Nullable String methodName) throws IllegalArgumentException {
         if (obj == null || methodName == null) {
             if (throwException) {
@@ -237,7 +237,7 @@ public final class ReflectionUtils {
      * @throws IllegalArgumentException
      *             If the method could not be invoked.
      */
-    public @Nullable Object invokeMethod(final boolean throwException, final @Nullable Object obj,
+    public static @Nullable Object invokeMethod(final boolean throwException, final @Nullable Object obj,
             final @Nullable String methodName, final @Nullable Class<?> argType, final @Nullable Object param)
             throws IllegalArgumentException {
         if (obj == null || methodName == null || argType == null) {
@@ -279,7 +279,7 @@ public final class ReflectionUtils {
      * @throws IllegalArgumentException
      *             If the method could not be invoked.
      */
-    public @Nullable Object invokeMethod(final boolean throwException, final @Nullable Object obj,
+    public static @Nullable Object invokeMethod(final boolean throwException, final @Nullable Object obj,
             final @Nullable String methodName, final Class<?> @Nullable [] argTypes,
             final @Nullable Object @Nullable [] params) throws IllegalArgumentException {
         if (obj == null || methodName == null || argTypes == null || params == null
@@ -317,7 +317,7 @@ public final class ReflectionUtils {
      * @throws IllegalArgumentException
      *             If the method could not be invoked.
      */
-    public @Nullable Object invokeStaticMethod(final boolean throwException, final @Nullable Class<?> cls,
+    public static @Nullable Object invokeStaticMethod(final boolean throwException, final @Nullable Class<?> cls,
             final @Nullable String methodName) throws IllegalArgumentException {
         if (cls == null || methodName == null) {
             if (throwException) {
@@ -356,7 +356,7 @@ public final class ReflectionUtils {
      * @throws IllegalArgumentException
      *             If the method could not be invoked.
      */
-    public @Nullable Object invokeStaticMethod(final boolean throwException, final @Nullable Class<?> cls,
+    public static @Nullable Object invokeStaticMethod(final boolean throwException, final @Nullable Class<?> cls,
             final @Nullable String methodName, final @Nullable Class<?> argType, final @Nullable Object param)
             throws IllegalArgumentException {
         if (cls == null || methodName == null || argType == null) {
@@ -384,7 +384,7 @@ public final class ReflectionUtils {
      *            The class name to load.
      * @return The class of the requested name, or null if an exception was thrown while trying to load the class.
      */
-    public @Nullable Class<?> classForNameOrNull(final String className) {
+    public static @Nullable Class<?> classForNameOrNull(final String className) {
         try {
             return REFLECTION_DRIVER.findClass(className);
         } catch (final Throwable e) {

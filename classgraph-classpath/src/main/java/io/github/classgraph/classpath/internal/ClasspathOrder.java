@@ -45,7 +45,6 @@ import java.util.Set;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
-import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.base.internal.utils.FastPathResolver;
 import io.github.classgraph.base.internal.utils.FileUtils;
 import io.github.classgraph.base.internal.utils.JarUtils;
@@ -58,9 +57,6 @@ import org.jspecify.annotations.Nullable;
 public class ClasspathOrder {
     /** The scan spec. */
     private final ClasspathSpec classpathSpec;
-
-    /** The reflection utils instance. */
-    public final ReflectionUtils reflectionUtils;
 
     /** Unique classpath entries. */
     private final Set<String> classpathEntryUniqueResolvedPaths = new HashSet<>();
@@ -181,12 +177,9 @@ public class ClasspathOrder {
      *
      * @param classpathSpec
      *            the scan spec
-     * @param reflectionUtils
-     *            the reflection utils instance
      */
-    ClasspathOrder(final ClasspathSpec classpathSpec, final ReflectionUtils reflectionUtils) {
+    ClasspathOrder(final ClasspathSpec classpathSpec) {
         this.classpathSpec = classpathSpec;
-        this.reflectionUtils = reflectionUtils;
     }
 
     /**
@@ -485,6 +478,7 @@ public class ClasspathOrder {
     /**
      * Add every file in a directory to the classpath, for a wildcarded classpath entry of the form {@code
      *
+
     <dir>
      * /*} (allowable for local classpaths as of JDK 6).
      *

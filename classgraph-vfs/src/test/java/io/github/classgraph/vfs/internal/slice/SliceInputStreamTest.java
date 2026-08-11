@@ -12,7 +12,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
-import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.vfs.internal.ScanResources;
 import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
 
@@ -31,8 +30,7 @@ public class SliceInputStreamTest {
      * @return the slice
      */
     private static Slice slice() {
-        final var scanResources = new ScanResources(new VfsScanSpec(), new ReflectionUtils(),
-                new InterruptionChecker());
+        final var scanResources = new ScanResources(new VfsScanSpec(), new InterruptionChecker());
         return new ArraySlice(CONTENT, /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L,
                 scanResources);
     }

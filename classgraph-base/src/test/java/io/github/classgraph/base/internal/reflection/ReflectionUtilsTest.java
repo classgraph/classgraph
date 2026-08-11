@@ -10,7 +10,6 @@ import org.junit.jupiter.api.Test;
 /** Tests for {@link ReflectionUtils}. */
 public class ReflectionUtilsTest {
     /** The reflection utilities under test. */
-    private final ReflectionUtils reflectionUtils = new ReflectionUtils();
 
     /** A superclass, so that the tests can check that inherited members are found. */
     private static class Base {
@@ -98,8 +97,8 @@ public class ReflectionUtilsTest {
     @Test
     public void instanceFieldValuesAreReadByName() {
         final var obj = new Sub();
-        assertThat(reflectionUtils.getFieldVal(true, obj, "instanceField")).isEqualTo("instance field");
-        assertThat(reflectionUtils.getFieldVal(true, obj, "baseField")).isEqualTo("base field");
+        assertThat(ReflectionUtils.getFieldVal(true, obj, "instanceField")).isEqualTo("instance field");
+        assertThat(ReflectionUtils.getFieldVal(true, obj, "baseField")).isEqualTo("base field");
     }
 
     /** A field that has already been looked up is read directly. */
@@ -107,18 +106,18 @@ public class ReflectionUtilsTest {
     public void instanceFieldValuesAreReadFromAFieldObject() throws NoSuchFieldException {
         final var obj = new Sub();
         final var field = Sub.class.getDeclaredField("instanceField");
-        assertThat(reflectionUtils.getFieldVal(true, obj, field)).isEqualTo("instance field");
+        assertThat(ReflectionUtils.getFieldVal(true, obj, field)).isEqualTo("instance field");
         // Reading a field of one class from an instance of another fails
-        assertThatThrownBy(() -> reflectionUtils.getFieldVal(true, "not a Sub", field))
+        assertThatThrownBy(() -> ReflectionUtils.getFieldVal(true, "not a Sub", field))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageStartingWith("Can't read field java.lang.String.instanceField");
-        assertThat(reflectionUtils.getFieldVal(false, "not a Sub", field)).isNull();
+        assertThat(ReflectionUtils.getFieldVal(false, "not a Sub", field)).isNull();
     }
 
     /** A private static field is read by name. */
     @Test
     public void staticFieldValuesAreReadByName() {
-        assertThat(reflectionUtils.getStaticFieldVal(true, Sub.class, "STATIC_FIELD")).isEqualTo("static field");
+        assertThat(ReflectionUtils.getStaticFieldVal(true, Sub.class, "STATIC_FIELD")).isEqualTo("static field");
     }
 
     /**
@@ -128,13 +127,13 @@ public class ReflectionUtilsTest {
     @Test
     public void aFieldThatDoesNotExistYieldsNullOrThrows() {
         final var obj = new Sub();
-        assertThat(reflectionUtils.getFieldVal(false, obj, "noSuchField")).isNull();
-        assertThatThrownBy(() -> reflectionUtils.getFieldVal(true, obj, "noSuchField"))
+        assertThat(ReflectionUtils.getFieldVal(false, obj, "noSuchField")).isNull();
+        assertThatThrownBy(() -> ReflectionUtils.getFieldVal(true, obj, "noSuchField"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Can't read field " + Sub.class.getName() + ".noSuchField");
 
-        assertThat(reflectionUtils.getStaticFieldVal(false, Sub.class, "noSuchField")).isNull();
-        assertThatThrownBy(() -> reflectionUtils.getStaticFieldVal(true, Sub.class, "noSuchField"))
+        assertThat(ReflectionUtils.getStaticFieldVal(false, Sub.class, "noSuchField")).isNull();
+        assertThatThrownBy(() -> ReflectionUtils.getStaticFieldVal(true, Sub.class, "noSuchField"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Can't read field " + Sub.class.getName() + ".noSuchField");
     }
@@ -143,18 +142,18 @@ public class ReflectionUtilsTest {
     @Test
     public void instanceMethodsAreInvokedByName() {
         final var obj = new Sub();
-        assertThat(reflectionUtils.invokeMethod(true, obj, "noArgs")).isEqualTo("no args");
-        assertThat(reflectionUtils.invokeMethod(true, obj, "baseMethod")).isEqualTo("base method");
-        assertThat(reflectionUtils.invokeMethod(true, obj, "oneArg", String.class, "x")).isEqualTo("one arg: x");
-        assertThat(reflectionUtils.invokeMethod(true, obj, "twoArgs", new Class<?>[] { String.class, Integer.TYPE },
+        assertThat(ReflectionUtils.invokeMethod(true, obj, "noArgs")).isEqualTo("no args");
+        assertThat(ReflectionUtils.invokeMethod(true, obj, "baseMethod")).isEqualTo("base method");
+        assertThat(ReflectionUtils.invokeMethod(true, obj, "oneArg", String.class, "x")).isEqualTo("one arg: x");
+        assertThat(ReflectionUtils.invokeMethod(true, obj, "twoArgs", new Class<?>[] { String.class, Integer.TYPE },
                 new Object[] { "x", 5 })).isEqualTo("two args: x 5");
     }
 
     /** Private static methods are invoked by name. */
     @Test
     public void staticMethodsAreInvokedByName() {
-        assertThat(reflectionUtils.invokeStaticMethod(true, Sub.class, "staticNoArgs")).isEqualTo("static no args");
-        assertThat(reflectionUtils.invokeStaticMethod(true, Sub.class, "staticOneArg", String.class, "x"))
+        assertThat(ReflectionUtils.invokeStaticMethod(true, Sub.class, "staticNoArgs")).isEqualTo("static no args");
+        assertThat(ReflectionUtils.invokeStaticMethod(true, Sub.class, "staticOneArg", String.class, "x"))
                 .isEqualTo("static one arg: x");
     }
 
@@ -165,27 +164,27 @@ public class ReflectionUtilsTest {
     @Test
     public void aMethodThatCannotBeInvokedYieldsNullOrThrows() {
         final var obj = new Sub();
-        assertThat(reflectionUtils.invokeMethod(false, obj, "noSuchMethod")).isNull();
-        assertThatThrownBy(() -> reflectionUtils.invokeMethod(true, obj, "noSuchMethod"))
+        assertThat(ReflectionUtils.invokeMethod(false, obj, "noSuchMethod")).isNull();
+        assertThatThrownBy(() -> ReflectionUtils.invokeMethod(true, obj, "noSuchMethod"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Method \"noSuchMethod\" could not be invoked");
         // The method exists, but not with the given parameter types
-        assertThat(reflectionUtils.invokeMethod(false, obj, "oneArg", Integer.TYPE, 5)).isNull();
-        assertThat(reflectionUtils.invokeMethod(false, obj, "oneArg", new Class<?>[] {}, new Object[] {})).isNull();
+        assertThat(ReflectionUtils.invokeMethod(false, obj, "oneArg", Integer.TYPE, 5)).isNull();
+        assertThat(ReflectionUtils.invokeMethod(false, obj, "oneArg", new Class<?>[] {}, new Object[] {})).isNull();
 
-        assertThat(reflectionUtils.invokeStaticMethod(false, Sub.class, "noSuchMethod")).isNull();
-        assertThatThrownBy(() -> reflectionUtils.invokeStaticMethod(true, Sub.class, "noSuchMethod"))
+        assertThat(ReflectionUtils.invokeStaticMethod(false, Sub.class, "noSuchMethod")).isNull();
+        assertThatThrownBy(() -> ReflectionUtils.invokeStaticMethod(true, Sub.class, "noSuchMethod"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Method \"noSuchMethod\" could not be invoked");
-        assertThat(reflectionUtils.invokeStaticMethod(false, Sub.class, "staticOneArg", Integer.TYPE, 5)).isNull();
+        assertThat(ReflectionUtils.invokeStaticMethod(false, Sub.class, "staticOneArg", Integer.TYPE, 5)).isNull();
     }
 
     /** An exception thrown by the invoked method is reported as the cause of the exception that is thrown. */
     @Test
     public void anExceptionThrownByTheInvokedMethodIsReported() {
         final var obj = new Sub();
-        assertThat(reflectionUtils.invokeMethod(false, obj, "throwsAnException")).isNull();
-        assertThatThrownBy(() -> reflectionUtils.invokeMethod(true, obj, "throwsAnException"))
+        assertThat(ReflectionUtils.invokeMethod(false, obj, "throwsAnException")).isNull();
+        assertThatThrownBy(() -> ReflectionUtils.invokeMethod(true, obj, "throwsAnException"))
                 .isInstanceOf(IllegalArgumentException.class).getRootCause()
                 .isInstanceOf(UnsupportedOperationException.class).hasMessage("thrown by the method");
     }
@@ -199,51 +198,51 @@ public class ReflectionUtilsTest {
         final var obj = new Sub();
         final var field = Sub.class.getDeclaredField("instanceField");
 
-        assertThat(reflectionUtils.getFieldVal(false, null, field)).isNull();
-        assertThat(reflectionUtils.getFieldVal(false, obj, (Field) null)).isNull();
-        assertThat(reflectionUtils.getFieldVal(false, null, "instanceField")).isNull();
-        assertThat(reflectionUtils.getFieldVal(false, obj, (String) null)).isNull();
-        assertThat(reflectionUtils.getStaticFieldVal(false, null, "STATIC_FIELD")).isNull();
-        assertThat(reflectionUtils.getStaticFieldVal(false, Sub.class, null)).isNull();
-        assertThat(reflectionUtils.invokeMethod(false, null, "noArgs")).isNull();
-        assertThat(reflectionUtils.invokeMethod(false, obj, null)).isNull();
-        assertThat(reflectionUtils.invokeMethod(false, obj, "oneArg", null, "x")).isNull();
-        assertThat(reflectionUtils.invokeMethod(false, obj, "oneArg", (Class<?>[]) null, new Object[] { "x" }))
+        assertThat(ReflectionUtils.getFieldVal(false, null, field)).isNull();
+        assertThat(ReflectionUtils.getFieldVal(false, obj, (Field) null)).isNull();
+        assertThat(ReflectionUtils.getFieldVal(false, null, "instanceField")).isNull();
+        assertThat(ReflectionUtils.getFieldVal(false, obj, (String) null)).isNull();
+        assertThat(ReflectionUtils.getStaticFieldVal(false, null, "STATIC_FIELD")).isNull();
+        assertThat(ReflectionUtils.getStaticFieldVal(false, Sub.class, null)).isNull();
+        assertThat(ReflectionUtils.invokeMethod(false, null, "noArgs")).isNull();
+        assertThat(ReflectionUtils.invokeMethod(false, obj, null)).isNull();
+        assertThat(ReflectionUtils.invokeMethod(false, obj, "oneArg", null, "x")).isNull();
+        assertThat(ReflectionUtils.invokeMethod(false, obj, "oneArg", (Class<?>[]) null, new Object[] { "x" }))
                 .isNull();
-        assertThat(reflectionUtils.invokeMethod(false, obj, "oneArg", new Class<?>[] { String.class }, null))
+        assertThat(ReflectionUtils.invokeMethod(false, obj, "oneArg", new Class<?>[] { String.class }, null))
                 .isNull();
         // The number of parameters has to match the number of parameter types
-        assertThat(reflectionUtils.invokeMethod(false, obj, "oneArg", new Class<?>[] { String.class },
+        assertThat(ReflectionUtils.invokeMethod(false, obj, "oneArg", new Class<?>[] { String.class },
                 new Object[] {})).isNull();
-        assertThat(reflectionUtils.invokeStaticMethod(false, null, "staticNoArgs")).isNull();
-        assertThat(reflectionUtils.invokeStaticMethod(false, Sub.class, null)).isNull();
-        assertThat(reflectionUtils.invokeStaticMethod(false, Sub.class, "staticOneArg", null, "x")).isNull();
+        assertThat(ReflectionUtils.invokeStaticMethod(false, null, "staticNoArgs")).isNull();
+        assertThat(ReflectionUtils.invokeStaticMethod(false, Sub.class, null)).isNull();
+        assertThat(ReflectionUtils.invokeStaticMethod(false, Sub.class, "staticOneArg", null, "x")).isNull();
 
         // Every one of them reports the null argument rather than reading or invoking anything, when asked to throw
-        assertThatThrownBy(() -> reflectionUtils.getFieldVal(true, null, field))
+        assertThatThrownBy(() -> ReflectionUtils.getFieldVal(true, null, field))
                 .isInstanceOf(IllegalArgumentException.class).hasMessage("Unexpected null argument");
-        assertThatThrownBy(() -> reflectionUtils.getFieldVal(true, null, "instanceField"))
+        assertThatThrownBy(() -> ReflectionUtils.getFieldVal(true, null, "instanceField"))
                 .isInstanceOf(IllegalArgumentException.class).hasMessage("Unexpected null argument");
-        assertThatThrownBy(() -> reflectionUtils.getStaticFieldVal(true, null, "STATIC_FIELD"))
+        assertThatThrownBy(() -> ReflectionUtils.getStaticFieldVal(true, null, "STATIC_FIELD"))
                 .isInstanceOf(IllegalArgumentException.class).hasMessage("Unexpected null argument");
-        assertThatThrownBy(() -> reflectionUtils.invokeMethod(true, null, "noArgs"))
+        assertThatThrownBy(() -> ReflectionUtils.invokeMethod(true, null, "noArgs"))
                 .isInstanceOf(IllegalArgumentException.class).hasMessage("Unexpected null argument");
-        assertThatThrownBy(() -> reflectionUtils.invokeMethod(true, null, "oneArg", String.class, "x"))
+        assertThatThrownBy(() -> ReflectionUtils.invokeMethod(true, null, "oneArg", String.class, "x"))
                 .isInstanceOf(IllegalArgumentException.class).hasMessage("Unexpected null argument");
-        assertThatThrownBy(() -> reflectionUtils.invokeMethod(true, null, "oneArg", new Class<?>[] { String.class },
+        assertThatThrownBy(() -> ReflectionUtils.invokeMethod(true, null, "oneArg", new Class<?>[] { String.class },
                 new Object[] { "x" })).isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Unexpected null argument");
-        assertThatThrownBy(() -> reflectionUtils.invokeStaticMethod(true, null, "staticNoArgs"))
+        assertThatThrownBy(() -> ReflectionUtils.invokeStaticMethod(true, null, "staticNoArgs"))
                 .isInstanceOf(IllegalArgumentException.class).hasMessage("Unexpected null argument");
-        assertThatThrownBy(() -> reflectionUtils.invokeStaticMethod(true, null, "staticOneArg", String.class, "x"))
+        assertThatThrownBy(() -> ReflectionUtils.invokeStaticMethod(true, null, "staticOneArg", String.class, "x"))
                 .isInstanceOf(IllegalArgumentException.class).hasMessage("Unexpected null argument");
     }
 
     /** A class is looked up by name, and yields null rather than throwing if it is not found. */
     @Test
     public void classesAreLookedUpByName() {
-        assertThat(reflectionUtils.classForNameOrNull("java.lang.String")).isEqualTo(String.class);
-        assertThat(reflectionUtils.classForNameOrNull("java.lang.NoSuchClassAsThis")).isNull();
+        assertThat(ReflectionUtils.classForNameOrNull("java.lang.String")).isEqualTo(String.class);
+        assertThat(ReflectionUtils.classForNameOrNull("java.lang.NoSuchClassAsThis")).isNull();
     }
 
 }

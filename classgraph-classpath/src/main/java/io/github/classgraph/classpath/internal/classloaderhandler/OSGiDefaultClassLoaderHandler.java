@@ -30,6 +30,7 @@ package io.github.classgraph.classpath.internal.classloaderhandler;
 
 import java.io.File;
 
+import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.classpath.internal.ClassLoaderOrder;
 import io.github.classgraph.classpath.internal.ClasspathOrder;
@@ -62,15 +63,12 @@ class OSGiDefaultClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
             final ClasspathSpec classpathSpec, final @Nullable LogNode log) {
-        final var classpathManager = classpathOrder.reflectionUtils.invokeMethod(false, classLoader,
-                "getClasspathManager");
-        final var entries = (Object[]) classpathOrder.reflectionUtils.getFieldVal(false, classpathManager,
-                "entries");
+        final var classpathManager = ReflectionUtils.invokeMethod(false, classLoader, "getClasspathManager");
+        final var entries = (Object[]) ReflectionUtils.getFieldVal(false, classpathManager, "entries");
         if (entries != null) {
             for (final Object entry : entries) {
-                final var bundleFile = classpathOrder.reflectionUtils.invokeMethod(false, entry, "getBundleFile");
-                final var baseFile = (File) classpathOrder.reflectionUtils.invokeMethod(false, bundleFile,
-                        "getBaseFile");
+                final var bundleFile = ReflectionUtils.invokeMethod(false, entry, "getBundleFile");
+                final var baseFile = (File) ReflectionUtils.invokeMethod(false, bundleFile, "getBaseFile");
                 if (baseFile != null) {
                     classpathOrder.addClasspathEntry(baseFile.getPath(), classLoader, classpathSpec, log);
                 }

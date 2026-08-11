@@ -37,7 +37,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.classpath.internal.classloaderhandler.ClassLoaderHandlerRegistry;
 import io.github.classgraph.classpath.internal.classloaderhandler.ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry;
@@ -47,9 +46,6 @@ import org.jspecify.annotations.Nullable;
 public class ClassLoaderOrder {
     /** The {@link ClassLoader} order. */
     private final Map<ClassLoader, List<ClassLoaderHandlerRegistryEntry>> classLoaderOrder = new LinkedHashMap<>();
-
-    /** The reflection utils instance. */
-    public final ReflectionUtils reflectionUtils;
 
     /**
      * The set of all {@link ClassLoader} instances that have been added to the order so far, so that classloaders
@@ -77,11 +73,8 @@ public class ClassLoaderOrder {
     /**
      * Constructor.
      *
-     * @param reflectionUtils
-     *            the reflection utils instance.
      */
-    public ClassLoaderOrder(final ReflectionUtils reflectionUtils) {
-        this.reflectionUtils = reflectionUtils;
+    public ClassLoaderOrder() {
     }
 
     /**

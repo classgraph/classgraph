@@ -37,6 +37,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
+import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.base.internal.utils.FileUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.classpath.internal.ClassLoaderOrder;
@@ -88,15 +89,14 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
             return;
         }
         // PathResourceLoader has root field, which is a Path object
-        final var root = classpathOrderOut.reflectionUtils.getFieldVal(false, resourceLoader, "root");
+        final var root = ReflectionUtils.getFieldVal(false, resourceLoader, "root");
 
         classpathOrderOut.addClasspathEntry(loadJarPathFromClassicVFS(root, classpathOrderOut), classLoader,
                 classpathSpec, log);
         classpathOrderOut.addClasspathEntry(loadJarPathFromNewVFS(root, classpathOrderOut), classLoader,
                 classpathSpec, log);
-        classpathOrderOut.addClasspathEntry(
-                classpathOrderOut.reflectionUtils.getFieldVal(false, resourceLoader, "fileOfJar"), classLoader,
-                classpathSpec, log);
+        classpathOrderOut.addClasspathEntry(ReflectionUtils.getFieldVal(false, resourceLoader, "fileOfJar"),
+                classLoader, classpathSpec, log);
     }
 
     /**
@@ -122,19 +122,17 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
             return null;
         }
         // try to find the mount of the root. Type is org.jboss.vfs.VFS.Mount
-        final var mount = classpathOrderOut.reflectionUtils.invokeStaticMethod(false, jbossVFS, "getMount",
-                root.getClass(), root);
+        final var mount = ReflectionUtils.invokeStaticMethod(false, jbossVFS, "getMount", root.getClass(), root);
         if (mount == null) {
             return null;
         }
         // try to access the fileSystem of the mount. Type is org.jboss.vfs.spi.FileSystem
-        final var fileSystem = classpathOrderOut.reflectionUtils.invokeMethod(false, mount, "getFileSystem");
+        final var fileSystem = ReflectionUtils.invokeMethod(false, mount, "getFileSystem");
         if (fileSystem == null) {
             return null;
         }
         // now access the mount source, which is the file that is used to create the mount.
-        final var mountSource = (File) classpathOrderOut.reflectionUtils.invokeMethod(false, fileSystem,
-                "getMountSource");
+        final var mountSource = (File) ReflectionUtils.invokeMethod(false, fileSystem, "getMountSource");
         if (mountSource == null) {
             return null;
         }
@@ -211,10 +209,9 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
             return null;
         }
         // type VirtualFile
-        final var physicalFile = (File) classpathOrderOut.reflectionUtils.invokeMethod(false, root,
-                "getPhysicalFile");
+        final var physicalFile = (File) ReflectionUtils.invokeMethod(false, root, "getPhysicalFile");
         if (physicalFile != null) {
-            final var name = (String) classpathOrderOut.reflectionUtils.invokeMethod(false, root, "getName");
+            final var name = (String) ReflectionUtils.invokeMethod(false, root, "getName");
             if (name != null) {
                 // getParentFile() removes "contents" directory
                 final File file = new File(physicalFile.getParentFile(), name);
@@ -228,7 +225,7 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
                 return physicalFile;
             }
         } else {
-            final var path = (String) classpathOrderOut.reflectionUtils.invokeMethod(false, root, "getPathName");
+            final var path = (String) ReflectionUtils.invokeMethod(false, root, "getPathName");
             if (path != null) {
                 return path;
             }
@@ -259,14 +256,12 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
             // Avoid extracting paths from the same module more than once
             return;
         }
-        var moduleLoader = (ClassLoader) classpathOrderOut.reflectionUtils.invokeMethod(false, module,
-                "getClassLoader");
+        var moduleLoader = (ClassLoader) ReflectionUtils.invokeMethod(false, module, "getClassLoader");
         if (moduleLoader == null) {
             moduleLoader = classLoader;
         }
         // type VFSResourceLoader[]
-        final var vfsResourceLoaders = classpathOrderOut.reflectionUtils.invokeMethod(false, moduleLoader,
-                "getResourceLoaders");
+        final var vfsResourceLoaders = ReflectionUtils.invokeMethod(false, moduleLoader, "getResourceLoaders");
         if (vfsResourceLoaders != null) {
             for (int i = 0, n = Array.getLength(vfsResourceLoaders); i < n; i++) {
                 // type JarFileResourceLoader for jars, VFSResourceLoader for exploded jars, PathResourceLoader for
@@ -288,35 +283,31 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
             final ClasspathSpec classpathSpec, final @Nullable LogNode log) {
-        final var module = classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getModule");
-        final var callerModuleLoader = classpathOrder.reflectionUtils.invokeMethod(false, module,
-                "getCallerModuleLoader");
+        final var module = ReflectionUtils.invokeMethod(false, classLoader, "getModule");
+        final var callerModuleLoader = ReflectionUtils.invokeMethod(false, module, "getCallerModuleLoader");
         final Set<@Nullable Object> visitedModules = new HashSet<>();
         @SuppressWarnings("unchecked")
-        final var moduleMap = (Map<Object, Object>) classpathOrder.reflectionUtils.getFieldVal(false,
-                callerModuleLoader, "moduleMap");
+        final var moduleMap = (Map<Object, Object>) ReflectionUtils.getFieldVal(false, callerModuleLoader,
+                "moduleMap");
         final var moduleMapEntries = moduleMap != null ? moduleMap.entrySet() : Set.<Entry<Object, Object>> of();
         for (final Entry<Object, Object> ent : moduleMapEntries) {
             // type FutureModule
             final var val = ent.getValue();
             // type Module
-            final var realModule = classpathOrder.reflectionUtils.invokeMethod(false, val, "getModule");
+            final var realModule = ReflectionUtils.invokeMethod(false, val, "getModule");
             handleRealModule(realModule, visitedModules, classLoader, classpathOrder, classpathSpec, log);
         }
         // type Map<String, List<LocalLoader>>
         @SuppressWarnings("unchecked")
-        final var pathsMap = (Map<String, List<?>>) classpathOrder.reflectionUtils.invokeMethod(false, module,
-                "getPaths");
+        final var pathsMap = (Map<String, List<?>>) ReflectionUtils.invokeMethod(false, module, "getPaths");
         // (invokeMethod returns null if the method is not present, so don't assume it was found)
         final var pathsMapEntries = pathsMap != null ? pathsMap.entrySet() : Set.<Entry<String, List<?>>> of();
         for (final Entry<String, List<?>> ent : pathsMapEntries) {
             for (final Object /* ModuleClassLoader$1 */ localLoader : ent.getValue()) {
                 // type ModuleClassLoader (outer class)
-                final var moduleClassLoader = classpathOrder.reflectionUtils.getFieldVal(false, localLoader,
-                        "this$0");
+                final var moduleClassLoader = ReflectionUtils.getFieldVal(false, localLoader, "this$0");
                 // type Module
-                final var realModule = classpathOrder.reflectionUtils.getFieldVal(false, moduleClassLoader,
-                        "module");
+                final var realModule = ReflectionUtils.getFieldVal(false, moduleClassLoader, "module");
                 handleRealModule(realModule, visitedModules, classLoader, classpathOrder, classpathSpec, log);
             }
         }

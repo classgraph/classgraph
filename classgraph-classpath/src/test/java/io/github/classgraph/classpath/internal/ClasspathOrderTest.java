@@ -16,7 +16,6 @@ import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 
-import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.base.internal.utils.FastPathResolver;
 import io.github.classgraph.base.internal.utils.FileUtils;
 import io.github.classgraph.classpath.internal.ClasspathOrder.Entry;
@@ -28,7 +27,7 @@ public class ClasspathOrderTest {
     private final ClasspathSpec classpathSpec = new ClasspathSpec();
 
     /** The classpath order under test. */
-    private final ClasspathOrder classpathOrder = new ClasspathOrder(classpathSpec, new ReflectionUtils());
+    private final ClasspathOrder classpathOrder = new ClasspathOrder(classpathSpec);
 
     /**
      * Resolve a path the same way {@link ClasspathOrder} does, so that the expected values do not have to be
@@ -72,7 +71,7 @@ public class ClasspathOrderTest {
     public void equinoxSystemBundlesAreOnlyAddedOncePerScan() {
         assertThat(classpathOrder.tryAddEquinoxSystemBundles()).isTrue();
         assertThat(classpathOrder.tryAddEquinoxSystemBundles()).isFalse();
-        assertThat(new ClasspathOrder(classpathSpec, new ReflectionUtils()).tryAddEquinoxSystemBundles()).isTrue();
+        assertThat(new ClasspathOrder(classpathSpec).tryAddEquinoxSystemBundles()).isTrue();
     }
 
     /**

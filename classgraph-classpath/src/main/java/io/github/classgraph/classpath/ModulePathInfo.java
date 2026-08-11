@@ -219,19 +219,18 @@ public class ModulePathInfo {
         // illegal access warning on some JREs, e.g. Adopt JDK 11 (#605)
         if (!readCommandLineArguments) {
             readCommandLineArguments = true;
-            final var reflectionUtils = new ReflectionUtils();
             // Read the raw commandline arguments to get the module path override parameters. If the java.management
             // module is not present in the deployed runtime (for JDK 9+), or the runtime does not contain the
             // java.lang.management package (e.g. the Android build system, which also does not support JPMS
             // currently), then skip trying to read the commandline arguments (#404).
-            final Class<?> managementFactory = reflectionUtils
+            final Class<?> managementFactory = ReflectionUtils
                     .classForNameOrNull("java.lang.management.ManagementFactory");
             final var runtimeMXBean = managementFactory == null ? null
-                    : reflectionUtils.invokeStaticMethod(/* throwException = */ false, managementFactory,
+                    : ReflectionUtils.invokeStaticMethod(/* throwException = */ false, managementFactory,
                             "getRuntimeMXBean");
             @SuppressWarnings("unchecked")
             final var commandlineArguments = runtimeMXBean == null ? null
-                    : (List<String>) reflectionUtils.invokeMethod(/* throwException = */ false, runtimeMXBean,
+                    : (List<String>) ReflectionUtils.invokeMethod(/* throwException = */ false, runtimeMXBean,
                             "getInputArguments");
             if (commandlineArguments != null) {
                 for (final String arg : commandlineArguments) {

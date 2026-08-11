@@ -83,13 +83,11 @@ final class URLClassPathReader {
      *
      * @param classLoader
      *            the classloader.
-     * @param reflectionUtils
-     *            the reflection utils instance.
      * @return the {@code URLClassPath}, or null if the classloader does not have one, or if the field could not be
      *         read.
      */
-    static @Nullable Object getUcp(final ClassLoader classLoader, final ReflectionUtils reflectionUtils) {
-        final var ucp = reflectionUtils.getFieldVal(false, classLoader, "ucp");
+    static @Nullable Object getUcp(final ClassLoader classLoader) {
+        final var ucp = ReflectionUtils.getFieldVal(false, classLoader, "ucp");
         // Check the type, since this is also called speculatively for classloaders that are not known to have a
         // URLClassPath, and the fields of some other kind of object should not be read, nor its monitor held
         return ucp != null && URL_CLASS_PATH_CLASS_NAME.equals(ucp.getClass().getName()) ? ucp : null;
@@ -99,7 +97,7 @@ final class URLClassPathReader {
      * Add all the classpath entries of a {@code URLClassPath} to the classpath order.
      *
      * @param ucp
-     *            the {@code URLClassPath}, as returned by {@link #getUcp(ClassLoader, ReflectionUtils)}.
+     *            the {@code URLClassPath}, as returned by {@link #getUcp(ClassLoader)}.
      * @param classLoader
      *            the classloader the {@code URLClassPath} was obtained from.
      * @param classpathOrder
@@ -111,8 +109,8 @@ final class URLClassPathReader {
      */
     static void addAllClasspathEntries(final Object ucp, final ClassLoader classLoader,
             final ClasspathOrder classpathOrder, final ClasspathSpec classpathSpec, final @Nullable LogNode log) {
-        classpathOrder.addClasspathEntryObject(classpathOrder.reflectionUtils.invokeMethod(false, ucp, "getURLs"),
-                classLoader, classpathSpec, log);
+        classpathOrder.addClasspathEntryObject(ReflectionUtils.invokeMethod(false, ucp, "getURLs"), classLoader,
+                classpathSpec, log);
         addUnlistedClasspathEntries(ucp, classLoader, classpathOrder, classpathSpec, log);
     }
 
@@ -121,7 +119,7 @@ final class URLClassPathReader {
      * those held only in the {@code unopenedUrls} and {@code lmap} fields.
      *
      * @param ucp
-     *            the {@code URLClassPath}, as returned by {@link #getUcp(ClassLoader, ReflectionUtils)}.
+     *            the {@code URLClassPath}, as returned by {@link #getUcp(ClassLoader)}.
      * @param classLoader
      *            the classloader the {@code URLClassPath} was obtained from.
      * @param classpathOrder
@@ -133,10 +131,9 @@ final class URLClassPathReader {
      */
     static void addUnlistedClasspathEntries(final Object ucp, final ClassLoader classLoader,
             final ClasspathOrder classpathOrder, final ClasspathSpec classpathSpec, final @Nullable LogNode log) {
-        final var reflectionUtils = classpathOrder.reflectionUtils;
 
         // The JDK adds to and removes from this deque while holding the deque's own monitor, so hold it too
-        final var unopenedUrls = reflectionUtils.getFieldVal(false, ucp, "unopenedUrls");
+        final var unopenedUrls = ReflectionUtils.getFieldVal(false, ucp, "unopenedUrls");
         if (unopenedUrls instanceof final Collection<?> unopenedUrlsCollection) {
             final List<Object> unopenedUrlsCopy;
             synchronized (unopenedUrls) {
@@ -149,7 +146,7 @@ final class URLClassPathReader {
         // monitors are never held at the same time here, so there is no lock ordering to get wrong.)
         final List<Object> openedUrls = new ArrayList<>();
         synchronized (ucp) {
-            if (reflectionUtils.getFieldVal(false, ucp, "lmap") instanceof final Map<?, ?> lmap) {
+            if (ReflectionUtils.getFieldVal(false, ucp, "lmap") instanceof final Map<?, ?> lmap) {
                 openedUrls.addAll(lmap.keySet());
             }
         }

@@ -54,7 +54,6 @@ import java.util.regex.Pattern;
 
 import io.github.classgraph.classpath.ModulePathInfo;
 
-import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.base.internal.utils.AcceptReject;
 import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.base.internal.utils.FileUtils;
@@ -114,12 +113,6 @@ public final class ScanResult implements Closeable {
 
     /** If true, this ScanResult has already been closed. */
     private final AtomicBoolean closed = new AtomicBoolean(false);
-
-    /**
-     * The {@link ReflectionUtils} instance, or null if this {@link ScanResult} has been closed.
-     */
-    @Nullable
-    ReflectionUtils reflectionUtils;
 
     /** The message for the {@link IllegalStateException} thrown after closing. */
     private static final String CLOSED_MESSAGE = "Cannot use a ScanResult after it has been closed";
@@ -224,7 +217,6 @@ public final class ScanResult implements Closeable {
         this.packageNameToPackageInfo = packageNameToPackageInfo;
         this.moduleNameToModuleInfo = moduleNameToModuleInfo;
         this.nestedJarHandler = nestedJarHandler;
-        this.reflectionUtils = nestedJarHandler.scanResources.reflectionUtils;
         this.topLevelLog = topLevelLog;
 
         indexResourcesAndClassInfo(topLevelLog);
@@ -1906,7 +1898,6 @@ public final class ScanResult implements Closeable {
                 nestedJarHandler.close(topLevelLog);
                 nestedJarHandler = null;
             }
-            reflectionUtils = null;
             // Flush log on exit, in case additional log entries were generated after scan() completed
             if (topLevelLog != null) {
                 topLevelLog.flush();

@@ -45,7 +45,6 @@ import java.util.zip.Inflater;
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import io.github.classgraph.base.internal.concurrency.SingletonMap;
 import io.github.classgraph.base.internal.recycler.Recycler;
-import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.base.internal.utils.FileUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.base.internal.utils.ModuleReaderUtils;
@@ -57,8 +56,8 @@ import org.jspecify.annotations.Nullable;
  * The resources that a single reading session opens and owns, and that have to be released again when the session
  * is closed: the {@link Slice} instances that hold open file handles or memory mappings, the temporary files that
  * extracted nested jars were spilled to, the pool of {@link Inflater} instances used to inflate deflated zip
- * entries, and the pool of {@link ModuleReader} instances used to read modules. Also carries the two objects that
- * every part of the reader needs, the {@link VfsScanSpec} and the {@link ReflectionUtils} instance.
+ * entries, and the pool of {@link ModuleReader} instances used to read modules. Also carries the
+ * {@link VfsScanSpec} that every part of the reader needs.
  *
  * <p>
  * Once {@link #close(LogNode)} has been called, the methods that register a new resource throw
@@ -68,9 +67,6 @@ import org.jspecify.annotations.Nullable;
 public class ScanResources {
     /** The settings that govern how archives are read. */
     public final VfsScanSpec vfsScanSpec;
-
-    /** The reflection utils instance. */
-    public final ReflectionUtils reflectionUtils;
 
     /** The interruption checker. */
     private final InterruptionChecker interruptionChecker;
@@ -115,15 +111,11 @@ public class ScanResources {
      *
      * @param vfsScanSpec
      *            the settings that govern how archives are read
-     * @param reflectionUtils
-     *            the {@link ReflectionUtils} instance
      * @param interruptionChecker
      *            the interruption checker
      */
-    public ScanResources(final VfsScanSpec vfsScanSpec, final ReflectionUtils reflectionUtils,
-            final InterruptionChecker interruptionChecker) {
+    public ScanResources(final VfsScanSpec vfsScanSpec, final InterruptionChecker interruptionChecker) {
         this.vfsScanSpec = vfsScanSpec;
-        this.reflectionUtils = reflectionUtils;
         this.interruptionChecker = interruptionChecker;
     }
 

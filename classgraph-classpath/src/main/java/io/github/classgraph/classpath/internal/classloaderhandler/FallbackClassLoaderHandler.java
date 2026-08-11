@@ -33,6 +33,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
+import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.classpath.internal.ClassLoaderOrder;
 import io.github.classgraph.classpath.internal.ClasspathOrder;
@@ -119,13 +120,13 @@ class FallbackClassLoaderHandler implements ClassLoaderHandler {
         var valid = false;
         for (final ClasspathSource classpathSource : CLASSPATH_SOURCES) {
             final var classpathEntryObj = classpathSource.isMethod()
-                    ? classpathOrder.reflectionUtils.invokeMethod(false, classLoader, classpathSource.name())
-                    : classpathOrder.reflectionUtils.getFieldVal(false, classLoader, classpathSource.name());
+                    ? ReflectionUtils.invokeMethod(false, classLoader, classpathSource.name())
+                    : ReflectionUtils.getFieldVal(false, classLoader, classpathSource.name());
             valid |= classpathOrder.addClasspathEntryObject(classpathEntryObj, classLoader, classpathSpec, log);
         }
         // An unknown classloader may hold a jdk.internal.loader.URLClassPath, which none of the names above find,
         // since it is not itself a classpath entry -- its own fields have to be read to get at the entries
-        final var ucp = URLClassPathReader.getUcp(classLoader, classpathOrder.reflectionUtils);
+        final var ucp = URLClassPathReader.getUcp(classLoader);
         if (ucp != null) {
             URLClassPathReader.addAllClasspathEntries(ucp, classLoader, classpathOrder, classpathSpec, log);
             valid = true;

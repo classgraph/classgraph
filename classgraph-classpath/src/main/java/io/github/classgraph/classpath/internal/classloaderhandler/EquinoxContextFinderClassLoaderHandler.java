@@ -28,6 +28,7 @@
  */
 package io.github.classgraph.classpath.internal.classloaderhandler;
 
+import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.classpath.internal.ClassLoaderOrder;
 import io.github.classgraph.classpath.internal.ClasspathOrder;
@@ -50,8 +51,9 @@ class EquinoxContextFinderClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
             final @Nullable LogNode log) {
-        classLoaderOrder.delegateTo((ClassLoader) classLoaderOrder.reflectionUtils.getFieldVal(false, classLoader,
-                "parentContextClassLoader"), /* isParent = */ true, log);
+        classLoaderOrder.delegateTo(
+                (ClassLoader) ReflectionUtils.getFieldVal(false, classLoader, "parentContextClassLoader"),
+                /* isParent = */ true, log);
         classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
         classLoaderOrder.add(classLoader, log);
     }

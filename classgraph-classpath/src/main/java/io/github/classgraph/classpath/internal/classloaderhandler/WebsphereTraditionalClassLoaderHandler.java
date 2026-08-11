@@ -28,6 +28,7 @@
  */
 package io.github.classgraph.classpath.internal.classloaderhandler;
 
+import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.classpath.internal.ClassLoaderOrder;
 import io.github.classgraph.classpath.internal.ClasspathOrder;
@@ -61,8 +62,7 @@ class WebsphereTraditionalClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
             final ClasspathSpec classpathSpec, final @Nullable LogNode log) {
-        final var classpath = (String) classpathOrder.reflectionUtils.invokeMethod(false, classLoader,
-                "getClassPath");
+        final var classpath = (String) ReflectionUtils.invokeMethod(false, classLoader, "getClassPath");
         classpathOrder.addClasspathPathStr(classpath, classLoader, classpathSpec, log);
     }
 

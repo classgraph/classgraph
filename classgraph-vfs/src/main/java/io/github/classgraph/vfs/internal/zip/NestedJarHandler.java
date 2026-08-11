@@ -42,7 +42,6 @@ import io.github.classgraph.base.internal.concurrency.SingletonMap;
 import io.github.classgraph.base.internal.concurrency.SingletonMap.NewInstanceException;
 import io.github.classgraph.base.internal.concurrency.SingletonMap.NullSingletonException;
 import io.github.classgraph.base.internal.recycler.Recycler;
-import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.base.internal.utils.FastPathResolver;
 import io.github.classgraph.base.internal.utils.FileUtils;
 import io.github.classgraph.base.internal.utils.JarUtils;
@@ -72,13 +71,10 @@ public class NestedJarHandler {
      *            The settings that govern how archives are read.
      * @param interruptionChecker
      *            the interruption checker
-     * @param reflectionUtils
-     *            the {@link ReflectionUtils} instance
      */
-    public NestedJarHandler(final VfsScanSpec vfsScanSpec, final InterruptionChecker interruptionChecker,
-            final ReflectionUtils reflectionUtils) {
+    public NestedJarHandler(final VfsScanSpec vfsScanSpec, final InterruptionChecker interruptionChecker) {
         this.vfsScanSpec = vfsScanSpec;
-        this.scanResources = new ScanResources(vfsScanSpec, reflectionUtils, interruptionChecker);
+        this.scanResources = new ScanResources(vfsScanSpec, interruptionChecker);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -255,8 +251,8 @@ public class NestedJarHandler {
         } else {
             // Jarfile should be a local file -- wrap in a PhysicalZipFile instance
             try {
-                // Get canonical file
-                final var canonicalFile = new File(nestedJarPath).getCanonicalFile();
+                // Get canonical file, so that the same jarfile reached through two different paths is opened once
+                final var canonicalFile = FileUtils.canonicalize(new File(nestedJarPath));
                 // Get or create a PhysicalZipFile instance for the canonical file
                 physicalZipFile = canonicalFileToPhysicalZipFileMap().get(canonicalFile, log);
             } catch (final NullSingletonException | NewInstanceException e) {

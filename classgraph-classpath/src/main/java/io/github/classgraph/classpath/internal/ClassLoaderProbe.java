@@ -32,7 +32,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map.Entry;
 
-import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.base.internal.utils.FastPathResolver;
 import io.github.classgraph.base.internal.utils.FileUtils;
 import io.github.classgraph.base.internal.utils.JarUtils;
@@ -219,14 +218,11 @@ public class ClassLoaderProbe {
      *            The {@link ClasspathSpec}.
      * @param classLoaderAndModuleLayerSpec
      *            The classloaders and module layers the caller asked to be scanned.
-     * @param reflectionUtils
-     *            The reflection utils instance.
      * @param log
      *            The log.
      */
     public ClassLoaderProbe(final ClasspathSpec classpathSpec,
-            final ClassLoaderAndModuleLayerSpec classLoaderAndModuleLayerSpec,
-            final ReflectionUtils reflectionUtils, final @Nullable LogNode log) {
+            final ClassLoaderAndModuleLayerSpec classLoaderAndModuleLayerSpec, final @Nullable LogNode log) {
         final var classLoaderProbeLog = log == null ? null : log.log("Finding classpath and modules");
 
         final var scanTargets = findScanTargets(classpathSpec, classLoaderAndModuleLayerSpec, classLoaderProbeLog);
@@ -244,12 +240,12 @@ public class ClassLoaderProbe {
                         scanTargets.scanNonSystemModules(), scanSystemModules, classLoaderProbeLog)
                 : null;
 
-        classpathOrder = new ClasspathOrder(classpathSpec, reflectionUtils);
+        classpathOrder = new ClasspathOrder(classpathSpec);
 
         // Only look for environment classloaders if classpath and classloaders are not overridden
         final var classLoaderFinder = classpathSpec.overrideClasspath == null
                 && classLoaderAndModuleLayerSpec.overrideClassLoaders == null
-                        ? new ClassLoaderFinder(classLoaderAndModuleLayerSpec, reflectionUtils, classLoaderProbeLog)
+                        ? new ClassLoaderFinder(classLoaderAndModuleLayerSpec, classLoaderProbeLog)
                         : null;
         final var contextClassLoaders = classLoaderFinder == null ? new ClassLoader[0]
                 : classLoaderFinder.getContextClassLoaders();
@@ -266,7 +262,7 @@ public class ClassLoaderProbe {
             // Need to record the classloader delegation order, in particular to respect parent-last delegation
             // order, since this is not the default (issue #267).
             classLoaderOrderRespectingParentDelegation = addClassLoaderClasspathEntries(classpathSpec,
-                    classLoaderAndModuleLayerSpec, reflectionUtils, contextClassLoaders, classLoaderProbeLog);
+                    classLoaderAndModuleLayerSpec, contextClassLoaders, classLoaderProbeLog);
         }
 
         // Only scan java.class.path if parent classloaders are not ignored, classloaders are not overridden, and
@@ -323,8 +319,6 @@ public class ClassLoaderProbe {
      *            the {@link ClasspathSpec}
      * @param classLoaderAndModuleLayerSpec
      *            the classloaders and module layers the caller asked to be scanned
-     * @param reflectionUtils
-     *            the reflection utils instance
      * @param contextClassLoaders
      *            the environment classloaders, which are used unless the classloaders were overridden
      * @param log
@@ -333,8 +327,7 @@ public class ClassLoaderProbe {
      */
     private ClassLoader[] addClassLoaderClasspathEntries(final ClasspathSpec classpathSpec,
             final ClassLoaderAndModuleLayerSpec classLoaderAndModuleLayerSpec,
-            final ReflectionUtils reflectionUtils, final ClassLoader[] contextClassLoaders,
-            final @Nullable LogNode log) {
+            final ClassLoader[] contextClassLoaders, final @Nullable LogNode log) {
         // List ClassLoaderHandlers
         if (log != null) {
             final var classLoaderHandlerLog = log.log("ClassLoaderHandlers:");
@@ -347,7 +340,7 @@ public class ClassLoaderProbe {
         // Find all unique classloaders, in delegation order
         final var classloaderOrderLog = log == null ? null
                 : log.log("Finding unique classloaders in delegation order");
-        final ClassLoaderOrder classLoaderOrder = new ClassLoaderOrder(reflectionUtils);
+        final ClassLoaderOrder classLoaderOrder = new ClassLoaderOrder();
         final var overrideClassLoaders = classLoaderAndModuleLayerSpec.overrideClassLoaders;
         final var origClassLoaderOrder = overrideClassLoaders != null
                 ? overrideClassLoaders.toArray(ClassLoader[]::new)

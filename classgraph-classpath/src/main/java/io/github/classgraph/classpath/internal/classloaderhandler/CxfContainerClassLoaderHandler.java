@@ -28,6 +28,7 @@
  */
 package io.github.classgraph.classpath.internal.classloaderhandler;
 
+import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.classpath.internal.ClassLoaderOrder;
 import io.github.classgraph.classpath.internal.ClasspathOrder;
@@ -59,8 +60,7 @@ class CxfContainerClassLoaderHandler implements ClassLoaderHandler {
             // Ignore
         }
         // tccl = TomcatClassLoader
-        classLoaderOrder.delegateTo(
-                (ClassLoader) classLoaderOrder.reflectionUtils.invokeMethod(false, classLoader, "tccl"),
+        classLoaderOrder.delegateTo((ClassLoader) ReflectionUtils.invokeMethod(false, classLoader, "tccl"),
                 /* isParent = */ false, log);
         // This classloader doesn't actually load any classes, but add it to the order to improve logging
         classLoaderOrder.add(classLoader, log);

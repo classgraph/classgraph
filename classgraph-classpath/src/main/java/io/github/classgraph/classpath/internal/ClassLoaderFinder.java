@@ -30,7 +30,6 @@ package io.github.classgraph.classpath.internal;
 
 import java.util.LinkedHashSet;
 
-import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.classpath.internal.spec.ClassLoaderAndModuleLayerSpec;
 import org.jspecify.annotations.Nullable;
@@ -58,17 +57,15 @@ public class ClassLoaderFinder {
      *
      * @param classLoaderAndModuleLayerSpec
      *            The classloaders and module layers the caller asked to be scanned.
-     * @param reflectionUtils
-     *            The reflection utils instance.
      * @param log
      *            The log.
      */
     ClassLoaderFinder(final ClassLoaderAndModuleLayerSpec classLoaderAndModuleLayerSpec,
-            final ReflectionUtils reflectionUtils, final @Nullable LogNode log) {
+            final @Nullable LogNode log) {
         final LinkedHashSet<ClassLoader> classLoadersUnique;
         final @Nullable LogNode classLoadersFoundLog;
         if (classLoaderAndModuleLayerSpec.overrideClassLoaders == null) {
-            classLoadersUnique = findDefaultClassLoaders(classLoaderAndModuleLayerSpec, reflectionUtils, log);
+            classLoadersUnique = findDefaultClassLoaders(classLoaderAndModuleLayerSpec, log);
             classLoadersFoundLog = log == null ? null : log.log("Found ClassLoaders:");
         } else {
             // ClassLoaders were overridden
@@ -96,15 +93,12 @@ public class ClassLoaderFinder {
      *
      * @param classLoaderAndModuleLayerSpec
      *            The classloaders and module layers the caller asked to be scanned.
-     * @param reflectionUtils
-     *            The reflection utils instance.
      * @param log
      *            The log.
      * @return The classloaders, in the order they should be scanned in.
      */
     private static LinkedHashSet<ClassLoader> findDefaultClassLoaders(
-            final ClassLoaderAndModuleLayerSpec classLoaderAndModuleLayerSpec,
-            final ReflectionUtils reflectionUtils, final @Nullable LogNode log) {
+            final ClassLoaderAndModuleLayerSpec classLoaderAndModuleLayerSpec, final @Nullable LogNode log) {
         final LinkedHashSet<ClassLoader> classLoadersUnique = new LinkedHashSet<>();
 
         // Get thread context classloader (this is the first classloader to try, since a context classloader can

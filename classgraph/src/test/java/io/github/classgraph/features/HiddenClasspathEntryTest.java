@@ -176,12 +176,11 @@ class HiddenClasspathEntryTest {
      */
     @SuppressWarnings("unchecked")
     private static boolean addUnlistedURL(final URLClassLoader classLoader, final URL url) {
-        final var reflectionUtils = new ReflectionUtils();
-        final var ucp = reflectionUtils.getFieldVal(false, classLoader, "ucp");
+        final var ucp = ReflectionUtils.getFieldVal(false, classLoader, "ucp");
         if (ucp == null) {
             return false;
         }
-        final var unopenedUrls = reflectionUtils.getFieldVal(false, ucp, "unopenedUrls");
+        final var unopenedUrls = ReflectionUtils.getFieldVal(false, ucp, "unopenedUrls");
         if (!(unopenedUrls instanceof Collection)) {
             return false;
         }

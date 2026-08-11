@@ -73,12 +73,10 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
      *
      * @param content
      *            the content object
-     * @param reflectionUtils
-     *            the reflection utils instance
      * @return the content location, or null if it could not be determined
      */
-    private static @Nullable File getContentLocation(final Object content, final ReflectionUtils reflectionUtils) {
-        return (File) reflectionUtils.invokeMethod(false, content, "getFile");
+    private static @Nullable File getContentLocation(final Object content) {
+        return (File) ReflectionUtils.invokeMethod(false, content, "getFile");
     }
 
     /**
@@ -104,24 +102,21 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
         bundles.add(bundleWiring);
 
         // Get the revision for this wiring
-        final var revision = classpathOrderOut.reflectionUtils.invokeMethod(false, bundleWiring, "getRevision");
+        final var revision = ReflectionUtils.invokeMethod(false, bundleWiring, "getRevision");
         // Get the contents
-        final var content = classpathOrderOut.reflectionUtils.invokeMethod(false, revision, "getContent");
-        final var location = content != null ? getContentLocation(content, classpathOrderOut.reflectionUtils)
-                : null;
+        final var content = ReflectionUtils.invokeMethod(false, revision, "getContent");
+        final var location = content != null ? getContentLocation(content) : null;
         if (location != null) {
             // Add the bundle object
             classpathOrderOut.addClasspathEntry(location, classLoader, classpathSpec, log);
 
             // And any embedded content
-            final List<?> embeddedContent = (List<?>) classpathOrderOut.reflectionUtils.invokeMethod(false,
-                    revision, "getContentPath");
+            final List<?> embeddedContent = (List<?>) ReflectionUtils.invokeMethod(false, revision,
+                    "getContentPath");
             if (embeddedContent != null) {
                 for (final Object embedded : embeddedContent) {
                     if (embedded != content) {
-                        final var embeddedLocation = embedded != null
-                                ? getContentLocation(embedded, classpathOrderOut.reflectionUtils)
-                                : null;
+                        final var embeddedLocation = embedded != null ? getContentLocation(embedded) : null;
                         if (embeddedLocation != null) {
                             classpathOrderOut.addClasspathEntry(embeddedLocation, classLoader, classpathSpec, log);
                         }
@@ -136,18 +131,18 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
             final ClasspathSpec classpathSpec, final @Nullable LogNode log) {
         // Get the wiring for the ClassLoader's bundle
         final Set<@Nullable Object> bundles = new HashSet<>();
-        final var bundleWiring = classpathOrder.reflectionUtils.getFieldVal(false, classLoader, "m_wiring");
+        final var bundleWiring = ReflectionUtils.getFieldVal(false, classLoader, "m_wiring");
         addBundle(bundleWiring, classLoader, classpathOrder, bundles, classpathSpec, log);
 
         // Deal with any other bundles we might be wired to. Every wire has to be followed: a wire says nothing
         // about what it provides until its bundle revision has been resolved to a content location, and by then
         // addBundle has done all the work that skipping the wire would have saved. Bundles the user does not want
         // are dropped by ClasspathOrder#addClasspathEntry, which applies the scan spec's classpath element filters.
-        final List<?> requiredWires = (List<?>) classpathOrder.reflectionUtils.invokeMethod(false, bundleWiring,
+        final List<?> requiredWires = (List<?>) ReflectionUtils.invokeMethod(false, bundleWiring,
                 "getRequiredWires", String.class, null);
         if (requiredWires != null) {
             for (final Object wire : requiredWires) {
-                final var provider = classpathOrder.reflectionUtils.invokeMethod(false, wire, "getProviderWiring");
+                final var provider = ReflectionUtils.invokeMethod(false, wire, "getProviderWiring");
                 if (!bundles.contains(provider)) {
                     addBundle(provider, classLoader, classpathOrder, bundles, classpathSpec, log);
                 }

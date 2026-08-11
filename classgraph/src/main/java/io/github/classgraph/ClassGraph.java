@@ -51,7 +51,6 @@ import io.github.classgraph.classpath.ModulePathInfo;
 
 import io.github.classgraph.base.internal.concurrency.AutoCloseableExecutorService;
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
-import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.base.internal.utils.AcceptReject;
 import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.base.internal.utils.JarUtils;
@@ -117,11 +116,6 @@ public class ClassGraph {
     private static final String MAVEN_ARTIFACT_ID = "classgraph";
 
     /**
-     * The {@link ReflectionUtils} instance to use for reflective calls during scanning.
-     */
-    private final ReflectionUtils reflectionUtils;
-
-    /**
      * If non-null, log while scanning.
      */
     private @Nullable LogNode topLevelLog;
@@ -130,7 +124,6 @@ public class ClassGraph {
 
     /** Construct a ClassGraph instance. */
     public ClassGraph() {
-        reflectionUtils = new ReflectionUtils();
     }
 
     /**
@@ -1265,7 +1258,7 @@ public class ClassGraph {
             try {
                 // Call scanner, but ignore the returned ScanResult
                 new Scanner(/* performScan = */ true, scanSpec, classLoaderAndModuleLayerSpec, executorService,
-                        numParallelTasks, scanResultProcessor, failureHandler, reflectionUtils, topLevelLog).call();
+                        numParallelTasks, scanResultProcessor, failureHandler, topLevelLog).call();
             } catch (final Throwable t) {
                 // Call failure handler. Anything thrown before the Scanner starts running the scan (e.g. by a
                 // user-supplied classpath element filter, which the Scanner constructor calls) has to be caught
@@ -1296,7 +1289,7 @@ public class ClassGraph {
         try {
             return executorService.submit(new Scanner(performScan, scanSpec, classLoaderAndModuleLayerSpec,
                     executorService, numParallelTasks, /* scanResultProcessor = */ null,
-                    /* failureHandler = */ null, reflectionUtils, topLevelLog));
+                    /* failureHandler = */ null, topLevelLog));
         } catch (final InterruptedException e) {
             // Interrupted during the Scanner constructor's execution (specifically, by getModuleOrder(), which is
             // unlikely to ever actually be interrupted -- but this exception needs to be caught). (the cast is

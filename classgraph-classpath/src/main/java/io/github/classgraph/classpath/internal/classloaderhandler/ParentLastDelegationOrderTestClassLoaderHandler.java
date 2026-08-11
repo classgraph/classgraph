@@ -28,6 +28,7 @@
  */
 package io.github.classgraph.classpath.internal.classloaderhandler;
 
+import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.classpath.internal.ClassLoaderOrder;
 import io.github.classgraph.classpath.internal.ClasspathOrder;
@@ -57,8 +58,8 @@ class ParentLastDelegationOrderTestClassLoaderHandler implements ClassLoaderHand
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
             final ClasspathSpec classpathSpec, final @Nullable LogNode log) {
-        final var classpath = (String) classpathOrder.reflectionUtils.invokeMethod(/* throwException = */ true,
-                classLoader, "getClasspath");
+        final var classpath = (String) ReflectionUtils.invokeMethod(/* throwException = */ true, classLoader,
+                "getClasspath");
         classpathOrder.addClasspathEntry(classpath, classLoader, classpathSpec, log);
     }
 

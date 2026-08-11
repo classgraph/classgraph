@@ -28,6 +28,7 @@
  */
 package io.github.classgraph.classpath.internal.classloaderhandler;
 
+import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.base.internal.utils.VersionFinder;
 import io.github.classgraph.classpath.internal.ClassLoaderOrder;
@@ -62,8 +63,7 @@ class UnoOneJarClassLoaderHandler implements ClassLoaderHandler {
 
         // For Uno-Jar:
 
-        final var unoJarOneJarPath = (String) classpathOrder.reflectionUtils.invokeMethod(false, classLoader,
-                "getOneJarPath");
+        final var unoJarOneJarPath = (String) ReflectionUtils.invokeMethod(false, classLoader, "getOneJarPath");
         classpathOrder.addClasspathEntry(unoJarOneJarPath, classLoader, classpathSpec, log);
 
         // If this property is defined, Uno-Jar jar path was specified on commandline. Otherwise, jar path should be

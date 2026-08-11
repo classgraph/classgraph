@@ -54,12 +54,10 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
      *
      * @param classLoader
      *            the {@link ClassLoader}.
-     * @param reflectionUtils
-     *            the reflection utils instance.
      * @return true if this classloader delegates to its parent.
      */
-    private static boolean isParentFirst(final ClassLoader classLoader, final ReflectionUtils reflectionUtils) {
-        final var delegateObject = reflectionUtils.getFieldVal(false, classLoader, "delegate");
+    private static boolean isParentFirst(final ClassLoader classLoader) {
+        final var delegateObject = ReflectionUtils.getFieldVal(false, classLoader, "delegate");
         if (delegateObject != null) {
             return (boolean) delegateObject;
         }
@@ -70,7 +68,7 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
     @Override
     public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
             final @Nullable LogNode log) {
-        final var isParentFirst = isParentFirst(classLoader, classLoaderOrder.reflectionUtils);
+        final var isParentFirst = isParentFirst(classLoader);
         if (isParentFirst) {
             // Use parent-first delegation order
             classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
@@ -97,21 +95,20 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
             final ClasspathSpec classpathSpec, final @Nullable LogNode log) {
         // type StandardRoot (implements WebResourceRoot)
-        var resources = classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getResources");
+        var resources = ReflectionUtils.invokeMethod(false, classLoader, "getResources");
         if (resources == null) {
             // WebappClassLoaderBase#getResources() was deprecated in Tomcat 8.5 and 9.0, and removed in Tomcat
             // 10.1, so fall back to reading the "resources" field that it returned, which is still present. Without
             // this, none of the WebResourceSets below were found on Tomcat 10.1 or above. (#925)
-            resources = classpathOrder.reflectionUtils.getFieldVal(false, classLoader, "resources");
+            resources = ReflectionUtils.getFieldVal(false, classLoader, "resources");
         }
         // type List<URL>
-        final var baseURLs = classpathOrder.reflectionUtils.invokeMethod(false, resources, "getBaseUrls");
+        final var baseURLs = ReflectionUtils.invokeMethod(false, resources, "getBaseUrls");
         classpathOrder.addClasspathEntryObject(baseURLs, classLoader, classpathSpec, log);
         // type List<List<WebResourceSet>> members: preResources, mainResources, classResources, jarResources,
         // postResources
         @SuppressWarnings("unchecked")
-        final var allResources = (List<List<?>>) classpathOrder.reflectionUtils.getFieldVal(false, resources,
-                "allResources");
+        final var allResources = (List<List<?>>) ReflectionUtils.getFieldVal(false, resources, "allResources");
         if (allResources != null) {
             // type List<WebResourceSet>
             for (final List<?> webResourceSetList : allResources) {
@@ -126,7 +123,7 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
             }
         }
         // This may or may not duplicate the above
-        final var urls = classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getURLs");
+        final var urls = ReflectionUtils.invokeMethod(false, classLoader, "getURLs");
         classpathOrder.addClasspathEntryObject(urls, classLoader, classpathSpec, log);
     }
 
@@ -148,24 +145,23 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
     private static void addWebResourceSet(final Object webResourceSet, final ClassLoader classLoader,
             final ClasspathOrder classpathOrder, final ClasspathSpec classpathSpec, final @Nullable LogNode log) {
         // For DirResourceSet
-        final var file = (File) classpathOrder.reflectionUtils.invokeMethod(false, webResourceSet, "getFileBase");
+        final var file = (File) ReflectionUtils.invokeMethod(false, webResourceSet, "getFileBase");
         var base = file == null ? null : file.getPath();
         if (base == null) {
             // For FileResourceSet
-            base = (String) classpathOrder.reflectionUtils.invokeMethod(false, webResourceSet, "getBase");
+            base = (String) ReflectionUtils.invokeMethod(false, webResourceSet, "getBase");
         }
         if (base == null) {
             // For JarResourceSet and JarWarResourceSet, the absolute path to the WAR file on the file system in
             // which the JAR is located
-            base = (String) classpathOrder.reflectionUtils.invokeMethod(false, webResourceSet, "getBaseUrlString");
+            base = (String) ReflectionUtils.invokeMethod(false, webResourceSet, "getBaseUrlString");
         }
         if (base == null) {
             // This WebResourceSet serves nothing from the filesystem (e.g. EmptyResourceSet)
             return;
         }
         // For JarWarResourceSet: the path within the WAR file where the JAR file is located
-        final var archivePath = (String) classpathOrder.reflectionUtils.getFieldVal(false, webResourceSet,
-                "archivePath");
+        final var archivePath = (String) ReflectionUtils.getFieldVal(false, webResourceSet, "archivePath");
         if (archivePath != null && !archivePath.isEmpty()) {
             // If archivePath is non-null, this is a jar within a war
             base += "!" + (archivePath.startsWith("/") ? archivePath : "/" + archivePath);
@@ -177,8 +173,7 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
                 || "org.apache.catalina.webresources.JarWarResourceSet".equals(className);
         // The path within this WebResourceSet where resources will be served from, e.g. for a resource JAR, this
         // would be "META-INF/resources"
-        final var internalPath = (String) classpathOrder.reflectionUtils.invokeMethod(false, webResourceSet,
-                "getInternalPath");
+        final var internalPath = (String) ReflectionUtils.invokeMethod(false, webResourceSet, "getInternalPath");
         if (internalPath != null && !internalPath.isEmpty() && !"/".equals(internalPath)) {
             classpathOrder.addClasspathEntryObject(
                     base + (isJar ? "!" : "") + (internalPath.startsWith("/") ? internalPath : "/" + internalPath),

@@ -28,6 +28,7 @@
  */
 package io.github.classgraph.classpath.internal.classloaderhandler;
 
+import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.classpath.internal.ClassLoaderOrder;
 import io.github.classgraph.classpath.internal.ClasspathOrder;
@@ -65,11 +66,11 @@ class WeblogicClassLoaderHandler implements ClassLoaderHandler {
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
             final ClasspathSpec classpathSpec, final @Nullable LogNode log) {
         classpathOrder.addClasspathPathStr( //
-                (String) classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getFinderClassPath"),
-                classLoader, classpathSpec, log);
+                (String) ReflectionUtils.invokeMethod(false, classLoader, "getFinderClassPath"), classLoader,
+                classpathSpec, log);
         classpathOrder.addClasspathPathStr( //
-                (String) classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getClassPath"),
-                classLoader, classpathSpec, log);
+                (String) ReflectionUtils.invokeMethod(false, classLoader, "getClassPath"), classLoader,
+                classpathSpec, log);
     }
 
     /**
