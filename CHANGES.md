@@ -22,11 +22,42 @@ that a project depends only on the part of ClassGraph it uses:
 
 | Artifact | Module | Contents |
 | --- | --- | --- |
+| `io.github.classgraph:classgraph-classpath` | `io.github.classgraph.classpath` | Finding the classpath and the module path |
 | `io.github.classgraph:classgraph` | `io.github.classgraph` | Scanning and the class graph API |
 | `io.github.classgraph:classgraph-viz` | `io.github.classgraph.viz` | GraphViz .dot file generation |
 
-`classgraph-viz` depends on `classgraph`, so a project that wants both needs only the
-`classgraph-viz` dependency.
+Each artifact depends on the one above it, so a project needs only the dependency for the
+widest part of ClassGraph it uses: `classgraph-viz` brings in `classgraph`, which brings in
+`classgraph-classpath`.
+
+### `classgraph-classpath` can be used on its own
+
+Working out where a JVM loads its classes from is a self-contained job that does not need a
+scan, so it is now a library of its own, with a public API of its own. It reports the
+classpath elements in the order the classloaders would search them, the modules split into
+system and non-system, and the module path switches the JVM was launched with:
+
+```java
+for (ClassPathEntry entry : new ClassPathFinder().find().getEntries()) {
+    System.out.println(entry.location());
+}
+```
+
+`ClassPathFinder` has the same classloader, module layer and classpath override methods as
+`ClassGraph` (`overrideClasspath`, `overrideClassLoaders`, `addClassLoader`,
+`ignoreParentClassLoaders`, `overrideModuleLayers`, `addModuleLayer`, `ignoreModules`,
+`verbose`), and finds classpath elements from the same custom container classloaders.
+
+It reports where classes and resources *would be* loaded from: nothing is opened, and
+nothing is checked for existence, so an entry may name a jar or directory that is not
+there, and a nested jar is reported in the `outer.jar!/inner.jar` form rather than being
+extracted. `ClassGraph#getClasspathFiles()` and friends still do the extra work of opening
+each element, dropping the ones that are not there, and stripping package roots, so they
+are what to use when the classpath elements need to be real.
+
+`ModulePathInfo` has moved from `io.github.classgraph` to `io.github.classgraph.classpath`
+as part of this, and is reachable both from `ScanResult#getModulePathInfo()` as before, and
+from `ClassPath#getModulePathInfo()`.
 
 ## API changes
 

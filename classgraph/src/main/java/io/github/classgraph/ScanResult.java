@@ -52,6 +52,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 
+import io.github.classgraph.classpath.ModulePathInfo;
+
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.AcceptReject;
@@ -598,7 +600,6 @@ public final class ScanResult implements Closeable {
      */
     public ModulePathInfo getModulePathInfo() {
         checkNotClosed();
-        scanSpec.modulePathInfo.getRuntimeInfo(Objects.requireNonNull(reflectionUtils));
         return scanSpec.modulePathInfo;
     }
 

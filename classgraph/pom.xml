@@ -20,8 +20,8 @@
 		<jpmsModuleName>io.github.classgraph</jpmsModuleName>
 		<osgiBundleName>ClassGraph</osgiBundleName>
 		<osgiExportPackage>io.github.classgraph;version="${project.version}"</osgiExportPackage>
-		<osgiImportPackage>javax.xml.xpath,javax.xml.namespace,javax.xml.parsers,org.w3c.dom,sun.misc;resolution:="optional",sun.nio.ch;resolution:="optional",io.github.toolfactory.narcissus;resolution:="optional",org.jspecify.annotations;resolution:="optional"</osgiImportPackage>
-		<osgiDependencies>java.xml,jdk.unsupported,java.management,java.logging</osgiDependencies>
+		<osgiImportPackage>io.github.classgraph.classpath,nonapi.io.github.classgraph.classloaderhandler,nonapi.io.github.classgraph.classpath,nonapi.io.github.classgraph.reflection,nonapi.io.github.classgraph.scanspec,nonapi.io.github.classgraph.utils,org.jspecify.annotations;resolution:="optional"</osgiImportPackage>
+		<osgiDependencies>io.github.classgraph.classpath</osgiDependencies>
 
 		<!-- This module produces a jar, so it needs its resources and the modular copy of its Javadoc -->
 		<maven.antrun.skip>false</maven.antrun.skip>
@@ -30,14 +30,20 @@
 
 	<!-- Versions are pinned in the parent's dependencyManagement section -->
 	<dependencies>
-		<!-- Optional runtime dependency: if Narcissus is on the classpath, it is used as the reflection driver -->
 		<dependency>
-			<groupId>io.github.toolfactory</groupId>
-			<artifactId>narcissus</artifactId>
-			<optional>true</optional>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>classgraph-classpath</artifactId>
+			<version>${project.version}</version>
 		</dependency>
 
 		<!-- Test dependencies: -->
+		<!-- Narcissus is an optional dependency of classgraph-classpath, so it is not inherited here. The tests
+		     that check what can be reached only with Narcissus installed need it on the test classpath. -->
+		<dependency>
+			<groupId>io.github.toolfactory</groupId>
+			<artifactId>narcissus</artifactId>
+			<scope>test</scope>
+		</dependency>
 		<dependency>
 			<groupId>org.openjdk.jmh</groupId>
 			<artifactId>jmh-core</artifactId>

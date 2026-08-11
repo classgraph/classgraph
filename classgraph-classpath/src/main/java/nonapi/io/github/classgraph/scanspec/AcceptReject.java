@@ -88,10 +88,10 @@ public abstract class AcceptReject {
      *
      * <p>
      * As the final segment of an accept or reject criterion, {@code "**"} means "and everything below", which is
-     * already the default for {@link io.github.classgraph.ClassGraph#acceptPackages(String...)} and friends, so it
-     * is stripped by the caller before the glob reaches this method. In any other position, {@code "**"} must form
-     * a complete segment, and matches zero or more whole segments, e.g. {@code "com.**.impl"} matches
-     * {@code com.impl}, {@code com.a.impl} and {@code com.a.b.impl}.
+     * already the default for {@code ClassGraph#acceptPackages(String...)} and friends, so it is stripped by the
+     * caller before the glob reaches this method. In any other position, {@code "**"} must form a complete segment,
+     * and matches zero or more whole segments, e.g. {@code "com.**.impl"} matches {@code com.impl},
+     * {@code com.a.impl} and {@code com.a.b.impl}.
      *
      * @param glob
      *            the glob

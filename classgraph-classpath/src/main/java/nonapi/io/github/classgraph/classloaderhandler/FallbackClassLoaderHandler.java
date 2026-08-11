@@ -157,8 +157,7 @@ class FallbackClassLoaderHandler implements ClassLoaderHandler {
      * <p>
      * {@link ClassLoader#getResources(String)} delegates to the parent classloader, so any resource that is also
      * visible to the parent is skipped -- the parent's classpath elements are found by handling the parent
-     * classloader itself, and adding them here would ignore
-     * {@link io.github.classgraph.ClassGraph#ignoreParentClassLoaders()}.
+     * classloader itself, and adding them here would ignore {@code ClassGraph#ignoreParentClassLoaders()}.
      *
      * @param classLoader
      *            the {@link ClassLoader} to probe.

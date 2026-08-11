@@ -26,7 +26,7 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.classgraph;
+package io.github.classgraph.classpath;
 
 import java.io.File;
 import java.util.Arrays;
@@ -93,10 +93,8 @@ public class ModulePathInfo {
             '\0' // --add-reads (only one param per switch)
     );
 
-    /**
-     * Set to true once {@link #getRuntimeInfo(ReflectionUtils)} has been called.
-     */
-    private boolean gotRuntimeInfo;
+    /** Set to true once the commandline arguments have been read. */
+    private boolean readCommandLineArguments;
 
     /** Constructor. */
     public ModulePathInfo() {
@@ -110,12 +108,12 @@ public class ModulePathInfo {
      *
      * <p>
      * Note that some modules (such as system modules) will not be in this set, as they are added to the module
-     * system automatically by the runtime. Call {@link ClassGraph#getModuleReferences()} or
-     * {@link ScanResult#getModuleReferences()} to get all modules visible at runtime.
+     * system automatically by the runtime.
      *
      * @return The module path, as an unmodifiable set.
      */
     public Set<String> getModulePath() {
+        readCommandLineArguments();
         return Collections.unmodifiableSet(modulePath);
     }
 
@@ -128,6 +126,7 @@ public class ModulePathInfo {
      * @return The added modules, as an unmodifiable set.
      */
     public Set<String> getAddModules() {
+        readCommandLineArguments();
         return Collections.unmodifiableSet(addModules);
     }
 
@@ -139,6 +138,7 @@ public class ModulePathInfo {
      * @return The module patch directives, as an unmodifiable set.
      */
     public Set<String> getPatchModules() {
+        readCommandLineArguments();
         return Collections.unmodifiableSet(patchModules);
     }
 
@@ -146,28 +146,27 @@ public class ModulePathInfo {
      * Returns the module {@code exports} directives added on the commandline using the {@code --add-exports}
      * switch, as an ordered set of strings in the format
      * {@code <source-module>/<package>=<target-module>(,<target-module>)*}, in the order they were listed on the
-     * commandline. Additionally, if this {@link ModulePathInfo} object was obtained from
-     * {@link ScanResult#getModulePathInfo()} rather than {@link ClassGraph#getModulePathInfo()}, any additional
-     * {@code Add-Exports} entries found in manifest files during classpath scanning will be appended to this set,
-     * in the format {@code <source-module>/<package>=ALL-UNNAMED}.
+     * commandline. Additionally, any {@code Add-Exports} entries found in jarfile manifests during classpath
+     * scanning are appended to this set, in the format {@code <source-module>/<package>=ALL-UNNAMED}.
      *
      * @return The {@code exports} directives, as an unmodifiable set.
      */
     public Set<String> getAddExports() {
+        readCommandLineArguments();
         return Collections.unmodifiableSet(addExports);
     }
 
     /**
      * Returns the module {@code opens} directives added on the commandline using the {@code --add-opens} switch, as
      * an ordered set of strings in the format {@code <source-module>/<package>=<target-module>(,<target-module>)*},
-     * in the order they were listed on the commandline. Additionally, if this {@link ModulePathInfo} object was
-     * obtained from {@link ScanResult#getModulePathInfo()} rather than {@link ClassGraph#getModulePathInfo()}, any
-     * additional {@code Add-Opens} entries found in manifest files during classpath scanning will be appended to
-     * this set, in the format {@code <source-module>/<package>=ALL-UNNAMED}.
+     * in the order they were listed on the commandline. Additionally, any {@code Add-Opens} entries found in
+     * jarfile manifests during classpath scanning are appended to this set, in the format
+     * {@code <source-module>/<package>=ALL-UNNAMED}.
      *
      * @return The {@code opens} directives, as an unmodifiable set.
      */
     public Set<String> getAddOpens() {
+        readCommandLineArguments();
         return Collections.unmodifiableSet(addOpens);
     }
 
@@ -179,6 +178,7 @@ public class ModulePathInfo {
      * @return The {@code reads} directives, as an unmodifiable set.
      */
     public Set<String> getAddReads() {
+        readCommandLineArguments();
         return Collections.unmodifiableSet(addReads);
     }
 
@@ -190,7 +190,7 @@ public class ModulePathInfo {
      * @param addExportsEntry
      *            the entry, in the format {@code <source-module>/<package>=ALL-UNNAMED}.
      */
-    void addExportsEntry(final String addExportsEntry) {
+    public void addExportsEntry(final String addExportsEntry) {
         addExports.add(addExportsEntry);
     }
 
@@ -200,27 +200,25 @@ public class ModulePathInfo {
      * @param addOpensEntry
      *            the entry, in the format {@code <source-module>/<package>=ALL-UNNAMED}.
      */
-    void addOpensEntry(final String addOpensEntry) {
+    public void addOpensEntry(final String addOpensEntry) {
         addOpens.add(addOpensEntry);
     }
 
     /**
-     * Fill in module info from VM commandline parameters.
+     * Fill in the module path fields from the VM commandline arguments, the first time any of them is read.
      *
      * <p>
      * Synchronized rather than guarded by an atomic flag, so that a second thread calling this concurrently blocks
      * until the first thread has finished populating the field sets. An atomic test-and-set would let the second
      * thread return immediately and read the (plain, non-thread-safe) {@link LinkedHashSet} fields while the first
      * thread was still adding to them.
-     *
-     * @param reflectionUtils
-     *            the {@link ReflectionUtils} instance to read the commandline arguments with.
      */
-    synchronized void getRuntimeInfo(final ReflectionUtils reflectionUtils) {
-        // Only call this reflective method if ModulePathInfo is specifically requested, to avoid illegal access
-        // warning on some JREs, e.g. Adopt JDK 11 (#605)
-        if (!gotRuntimeInfo) {
-            gotRuntimeInfo = true;
+    private synchronized void readCommandLineArguments() {
+        // The commandline arguments are only read if the module path info is actually asked for, to avoid an
+        // illegal access warning on some JREs, e.g. Adopt JDK 11 (#605)
+        if (!readCommandLineArguments) {
+            readCommandLineArguments = true;
+            final var reflectionUtils = new ReflectionUtils();
             // Read the raw commandline arguments to get the module path override parameters. If the java.management
             // module is not present in the deployed runtime (for JDK 9+), or the runtime does not contain the
             // java.lang.management package (e.g. the Android build system, which also does not support JPMS
@@ -264,6 +262,7 @@ public class ModulePathInfo {
      */
     @Override
     public String toString() {
+        readCommandLineArguments();
         final StringBuilder buf = new StringBuilder(1024);
         if (!modulePath.isEmpty()) {
             buf.append("--module-path=");

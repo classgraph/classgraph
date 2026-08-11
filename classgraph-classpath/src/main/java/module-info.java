@@ -30,8 +30,10 @@
 import org.jspecify.annotations.NullMarked;
 
 /**
- * <a href="https://github.com/classgraph/classgraph">ClassGraph</a>: the
- * uber-fast, ultra-lightweight classpath and module scanner for JVM languages.
+ * The classpath and module path finder of
+ * <a href="https://github.com/classgraph/classgraph">ClassGraph</a>: works out
+ * where a running JVM loads its classes and resources from, including from the
+ * custom classloaders of application servers, build tools and frameworks.
  *
  * <p>
  * This module is {@link org.jspecify.annotations.NullMarked}: unless a type is
@@ -40,14 +42,30 @@ import org.jspecify.annotations.NullMarked;
  * @author Luke Hutchison
  */
 @NullMarked
-module io.github.classgraph {
-    exports io.github.classgraph;
+module io.github.classgraph.classpath {
+    exports io.github.classgraph.classpath;
+
+    // The nonapi packages are the internals of ClassGraph. They are only exported to the modules that are built on
+    // top of this one, and they are not covered by the project's API compatibility guarantees.
+    exports nonapi.io.github.classgraph.classloaderhandler to io.github.classgraph;
+    exports nonapi.io.github.classgraph.classpath to io.github.classgraph;
+    exports nonapi.io.github.classgraph.reflection to io.github.classgraph;
+    exports nonapi.io.github.classgraph.scanspec to io.github.classgraph;
+    exports nonapi.io.github.classgraph.utils to io.github.classgraph;
 
     // N.B. make sure the "Import-Package" entries in the manifest (in pom.xml) match these "requires" statements.
 
-    // Finding the classpath and the module path is the job of a separate module. It is required transitively, so
-    // that a single dependency on this module is all a project needs.
-    requires transitive io.github.classgraph.classpath;
+    // VersionFinder requires java.xml
+    requires java.xml;
+    // FileUtils requires jdk.unsupported (for usage of Unsafe)
+    requires jdk.unsupported;
+    // ModulePathInfo requires java.management
+    requires java.management;
+    // LogNode requires java.logging
+    requires java.logging;
+
+    // ReflectionUtils may use Narcissus, if it is available
+    requires static io.github.toolfactory.narcissus;
 
     // JSpecify nullability annotations are only needed at compile time. This deliberately is not "requires
     // transitive", even though the annotations appear in exported signatures: that would force every modular

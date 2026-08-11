@@ -42,7 +42,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.function.Predicate;
 
-import io.github.classgraph.ModulePathInfo;
+import io.github.classgraph.classpath.ModulePathInfo;
 import nonapi.io.github.classgraph.scanspec.AcceptReject.AcceptRejectLeafname;
 import nonapi.io.github.classgraph.scanspec.AcceptReject.AcceptRejectPrefix;
 import nonapi.io.github.classgraph.scanspec.AcceptReject.AcceptRejectWholeString;

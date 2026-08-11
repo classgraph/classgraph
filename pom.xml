@@ -14,6 +14,7 @@
 	<url child.project.url.inherit.append.path="false">https://github.com/classgraph/classgraph</url>
 
 	<modules>
+		<module>classgraph-classpath</module>
 		<module>classgraph</module>
 		<module>classgraph-viz</module>
 	</modules>
@@ -68,6 +69,14 @@
 		<!-- The name of the module's JPMS module, used as the directory prefix of the extra copy of -->
 		<!-- the Javadoc that add-modular-javadoc adds to the Javadoc jar. Set by each module. -->
 		<jpmsModuleName />
+
+		<!-- The javac lint categories that are switched off. "exports" fires for every JSpecify -->
+		<!-- @Nullable in an exported signature, and can only be silenced by "requires transitive -->
+		<!-- org.jspecify". That would force every modular downstream project to put JSpecify on its -->
+		<!-- own module path, which is what broke Log4j 2.24.0 for its users; JSpecify is therefore a -->
+		<!-- plain "requires static", and the annotations are simply invisible to a downstream module -->
+		<!-- that does not depend on JSpecify itself. A module may switch off further categories. -->
+		<javacLintSuppressions>-Xlint:-exports</javacLintSuppressions>
 
 		<!-- The OSGi manifest entries that differ between modules. Set by each module; they must -->
 		<!-- agree with the module's src/main/java/module-info.java. -->
@@ -420,13 +429,7 @@
 						<useIncrementalCompilation>false</useIncrementalCompilation>
 						<compilerArgs>
 							<arg>-Xlint:all</arg>             <!-- Max lint -->
-							<!-- Except "exports", which fires for every JSpecify @Nullable in an exported -->
-							<!-- signature, and can only be silenced by "requires transitive org.jspecify". -->
-							<!-- That would force every modular downstream project to put JSpecify on its own -->
-							<!-- module path, which is what broke Log4j 2.24.0 for its users; JSpecify is -->
-							<!-- therefore a plain "requires static", and the annotations are simply invisible -->
-							<!-- to a downstream module that does not depend on JSpecify itself. -->
-							<arg>-Xlint:-exports</arg>
+							<arg>${javacLintSuppressions}</arg>
 							<arg>-Werror</arg>
 						</compilerArgs>
 					</configuration>
@@ -640,8 +643,7 @@
 									<fork>true</fork>
 									<compilerArgs>
 										<arg>-Xlint:all</arg>             <!-- Max lint -->
-										<!-- Except "exports": see the note in pluginManagement, above. -->
-										<arg>-Xlint:-exports</arg>
+										<arg>${javacLintSuppressions}</arg>
 										<arg>-Werror</arg>
 										<!-- Static null analysis, to check the @NullMarked claim made by -->
 										<!-- module-info.java. NullAway runs as an Error Prone plugin, over the -->

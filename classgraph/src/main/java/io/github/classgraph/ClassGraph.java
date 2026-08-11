@@ -47,6 +47,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
+import io.github.classgraph.classpath.ModulePathInfo;
+
 import nonapi.io.github.classgraph.concurrency.AutoCloseableExecutorService;
 import nonapi.io.github.classgraph.concurrency.InterruptionChecker;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
@@ -108,6 +110,12 @@ public class ClassGraph {
                             Runtime.getRuntime().availableProcessors() * 1.25) //
     );
 
+    /** The Maven {@code groupId} of the artifact this class is packaged in. */
+    private static final String MAVEN_GROUP_ID = "io.github.classgraph";
+
+    /** The Maven {@code artifactId} of the artifact this class is packaged in. */
+    private static final String MAVEN_ARTIFACT_ID = "classgraph";
+
     /**
      * The {@link ReflectionUtils} instance to use for reflective calls during scanning.
      */
@@ -131,7 +139,7 @@ public class ClassGraph {
      * @return the ClassGraph version, or "unknown" if it could not be determined.
      */
     public static String getVersion() {
-        return VersionFinder.getVersion();
+        return VersionFinder.getVersion(ClassGraph.class, MAVEN_GROUP_ID, MAVEN_ARTIFACT_ID);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1503,7 +1511,7 @@ public class ClassGraph {
      * anonymous, automatic and system modules.
      *
      * <p>
-     * Also, {@link ModulePathInfo#addExports} and {@link ModulePathInfo#addOpens} will not contain
+     * Also, {@link ModulePathInfo#getAddExports()} and {@link ModulePathInfo#getAddOpens()} will not contain
      * {@code Add-Exports} or {@code Add-Opens} entries from jarfile manifest files encountered during scanning,
      * unless you obtain the {@link ModulePathInfo} by calling {@link ScanResult#getModulePathInfo()} rather than by
      * calling {@link ClassGraph#getModulePathInfo()} before {@link ClassGraph#scan()}.
@@ -1511,7 +1519,6 @@ public class ClassGraph {
      * @return The {@link ModulePathInfo}.
      */
     public ModulePathInfo getModulePathInfo() {
-        scanSpec.modulePathInfo.getRuntimeInfo(reflectionUtils);
         return scanSpec.modulePathInfo;
     }
 }

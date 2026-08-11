@@ -147,9 +147,9 @@ public class ProxyingInputStreamTest {
 
     /**
      * The wrapped stream is closed once even when {@code close()} is re-entered, which is what happens in
-     * {@link io.github.classgraph.ClasspathElementModule}: the stream's {@code close()} closes the
-     * {@link io.github.classgraph.Resource} that owns it, and closing that {@code Resource} closes the stream
-     * again.
+     * {@code io.github.classgraph.ClasspathElementModule} in the ClassGraph library that depends on this one: the
+     * stream's {@code close()} closes the {@code Resource} that owns it, and closing that {@code Resource} closes
+     * the stream again.
      */
     @Test
     public void theWrappedStreamIsOnlyClosedOnceWhenCloseIsReentered() throws IOException {

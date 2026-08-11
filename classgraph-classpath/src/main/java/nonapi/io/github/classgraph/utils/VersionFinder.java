@@ -44,14 +44,8 @@ import javax.xml.xpath.XPathFactoryConfigurationException;
 
 import org.jspecify.annotations.Nullable;
 
-/** Finds the version number of ClassGraph, and the version of the JDK. */
+/** Finds the version number of a Maven artifact, and the version of the JDK. */
 public final class VersionFinder {
-
-    /** The Maven package for ClassGraph. */
-    private static final String MAVEN_PACKAGE = "io.github.classgraph";
-
-    /** The Maven artifact for ClassGraph. */
-    private static final String MAVEN_ARTIFACT = "classgraph";
 
     /** XPath for the version element of a {@code pom.xml}. */
     private static final String POM_VERSION_XPATH = "/*[local-name()='project']/*[local-name()='version']";
@@ -183,18 +177,26 @@ public final class VersionFinder {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the version number of ClassGraph.
+     * Get the version number of the Maven artifact that a given class is packaged in.
      *
-     * @return the version number of ClassGraph.
+     * @param classInArtifact
+     *            a class that is packaged in the artifact, used to find the artifact's {@code pom.xml},
+     *            {@code pom.properties} or manifest.
+     * @param mavenGroupId
+     *            the {@code groupId} of the artifact.
+     * @param mavenArtifactId
+     *            the {@code artifactId} of the artifact.
+     * @return the version number of the artifact, or {@code "unknown"} if it could not be determined.
      */
-    public static synchronized String getVersion() {
+    public static String getVersion(final Class<?> classInArtifact, final String mavenGroupId,
+            final String mavenArtifactId) {
         // Each source is tried in turn, from the most specific to the most general
-        var version = versionFromPomXml();
+        var version = versionFromPomXml(classInArtifact);
         if (version == null) {
-            version = versionFromMavenProperties();
+            version = versionFromMavenProperties(classInArtifact, mavenGroupId, mavenArtifactId);
         }
         if (version == null) {
-            version = versionFromPackage();
+            version = versionFromPackage(classInArtifact);
         }
         return version == null ? "unknown" : version;
     }
@@ -216,13 +218,14 @@ public final class VersionFinder {
     }
 
     /**
-     * Get the version number from the {@code pom.xml} of the project that ClassGraph was built from. This is only
+     * Get the version number from the {@code pom.xml} of the project that the artifact was built from. This is only
      * available when running from a build directory rather than a jar, e.g. in Eclipse.
      *
+     * @param cls
+     *            a class packaged in the artifact.
      * @return the version number, or null if it could not be read.
      */
-    private static @Nullable String versionFromPomXml() {
-        final Class<?> cls = VersionFinder.class;
+    private static @Nullable String versionFromPomXml(final Class<?> cls) {
         try {
             final var className = cls.getName();
             final var classpathResource = cls.getResource("/" + JarUtils.classNameToClassfilePath(className));
@@ -282,11 +285,18 @@ public final class VersionFinder {
     /**
      * Get the version number from the Maven {@code pom.properties} in the jar's {@code META-INF} directory.
      *
+     * @param cls
+     *            a class packaged in the artifact.
+     * @param mavenGroupId
+     *            the {@code groupId} of the artifact.
+     * @param mavenArtifactId
+     *            the {@code artifactId} of the artifact.
      * @return the version number, or null if it could not be read.
      */
-    private static @Nullable String versionFromMavenProperties() {
-        try (var inputStream = VersionFinder.class.getResourceAsStream(
-                "/META-INF/maven/" + MAVEN_PACKAGE + "/" + MAVEN_ARTIFACT + "/pom.properties")) {
+    private static @Nullable String versionFromMavenProperties(final Class<?> cls, final String mavenGroupId,
+            final String mavenArtifactId) {
+        try (var inputStream = cls.getResourceAsStream(
+                "/META-INF/maven/" + mavenGroupId + "/" + mavenArtifactId + "/pom.properties")) {
             if (inputStream != null) {
                 final var properties = new Properties();
                 properties.load(inputStream);
@@ -299,13 +309,15 @@ public final class VersionFinder {
     }
 
     /**
-     * Get the version number from this class' {@link Package}, which the JDK reads from the jar's
-     * {@code MANIFEST.MF}.
+     * Get the version number from the {@link Package} of a class in the artifact, which the JDK reads from the
+     * jar's {@code MANIFEST.MF}.
      *
+     * @param cls
+     *            a class packaged in the artifact.
      * @return the version number, or null if it could not be read.
      */
-    private static @Nullable String versionFromPackage() {
-        final var pkg = VersionFinder.class.getPackage();
+    private static @Nullable String versionFromPackage(final Class<?> cls) {
+        final var pkg = cls.getPackage();
         if (pkg == null) {
             return null;
         }

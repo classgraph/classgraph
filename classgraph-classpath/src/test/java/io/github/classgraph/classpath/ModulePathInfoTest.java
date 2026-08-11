@@ -1,4 +1,4 @@
-package io.github.classgraph;
+package io.github.classgraph.classpath;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -6,8 +6,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
-
-import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 
 /**
  * Tests for {@link ModulePathInfo}. Only the {@code Add-Exports} and {@code Add-Opens} entries can be filled in
@@ -68,16 +66,15 @@ public class ModulePathInfoTest {
     }
 
     /**
-     * The module switches this JVM was launched with are read from the runtime, without the reflective call to
-     * {@code java.lang.management} failing on a runtime that has it. Which switches are found depends on how the
-     * test JVM was launched, so the contents are not asserted on here; reading them a second time is a no-op, and
-     * leaves what was already read in place.
+     * The module switches this JVM was launched with are read from the runtime the first time a getter is called,
+     * without the reflective call to {@code java.lang.management} failing on a runtime that has it. Which switches
+     * are found depends on how the test JVM was launched, so the contents are not asserted on here; a second read
+     * is a no-op, and leaves what was already read in place.
      */
     @Test
     public void theCommandlineSwitchesAreReadFromTheRuntime() {
-        final var modulePathInfo = new ClassGraph().getModulePathInfo();
+        final var modulePathInfo = new ModulePathInfo();
         final var addOpensAfterFirstRead = Set.copyOf(modulePathInfo.getAddOpens());
-        modulePathInfo.getRuntimeInfo(new ReflectionUtils());
         assertThat(modulePathInfo.getAddOpens()).isEqualTo(addOpensAfterFirstRead);
     }
 }
