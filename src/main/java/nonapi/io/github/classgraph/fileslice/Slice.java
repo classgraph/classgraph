@@ -305,8 +305,9 @@ public abstract class Slice implements Closeable {
     @Override
     public int hashCode() {
         if (hashCode == 0) {
-            hashCode = (parentSlice == null ? 1 : parentSlice.hashCode()) ^ ((int) sliceStartPos * 7)
-                    ^ ((int) sliceLength * 15);
+            final Slice parent = parentSlice;
+            hashCode = parent == null ? System.identityHashCode(this)
+                    : parent.hashCode() ^ ((int) sliceStartPos * 7) ^ ((int) sliceLength * 15);
             if (hashCode == 0) {
                 hashCode = 1;
             }
@@ -314,11 +315,16 @@ public abstract class Slice implements Closeable {
         return hashCode;
     }
 
+    /**
+     * A child slice is equal to another child slice of the same parent slice that spans the same range of it. A
+     * toplevel slice is only equal to itself, since it owns the resource it reads through -- two toplevel slices of
+     * the same file are two separate handles on that file, and closing one of them does not close the other.
+     */
     @Override
     public boolean equals(final Object o) {
         if (o == this) {
             return true;
-        } else if (!(o instanceof Slice)) {
+        } else if (!(o instanceof Slice) || this.parentSlice == null) {
             return false;
         } else {
             final Slice other = (Slice) o;
