@@ -541,10 +541,29 @@
 					</executions>
 				</plugin>
 
-				<!-- Create Javadoc jar -->
+				<!-- Create Javadoc jar. The settings that every Javadoc run shares are configured on the -->
+				<!-- plugin rather than on the execution, so that "javadoc:javadoc" and "javadoc:aggregate" -->
+				<!-- (below) are held to the same standard as the jar that is published. -->
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-javadoc-plugin</artifactId>
+					<configuration>
+						<source>17</source>
+						<doclint>all</doclint>
+						<excludePackageNames>nonapi.*</excludePackageNames>
+						<show>public</show>
+						<!-- Without this, doclint reports missing or malformed Javadoc as a warning, and -->
+						<!-- the release still succeeds. -->
+						<failOnWarnings>true</failOnWarnings>
+						<!-- Switched off because the URL it generates is wrong. With it on, a signature that -->
+						<!-- names a type from another ClassGraph module is linked to that module's -->
+						<!-- ${project.url} + "/apidocs", i.e. to a path under the GitHub project page, where no -->
+						<!-- Javadoc is published; every such link 404s. Per-module Javadoc therefore renders -->
+						<!-- the names of types from the other modules as plain text. The aggregated Javadoc -->
+						<!-- (below) covers all five modules in one run, so there the links are correct by -->
+						<!-- construction, and that is what the documentation site should serve. -->
+						<detectOfflineLinks>false</detectOfflineLinks>
+					</configuration>
 					<executions>
 						<execution>
 							<id>attach-javadocs</id>
@@ -553,13 +572,6 @@
 								<goal>jar</goal>
 							</goals>
 							<configuration>
-								<source>17</source>
-								<doclint>all</doclint>
-								<excludePackageNames>nonapi.*</excludePackageNames>
-								<show>public</show>
-								<!-- Without this, doclint reports missing or malformed Javadoc as a warning, and -->
-								<!-- the release still succeeds. -->
-								<failOnWarnings>true</failOnWarnings>
 								<!-- Pin the Javadoc output dir to ${project.build.directory}/apidocs. Do not rely -->
 								<!-- on the plugin default: it changed in maven-javadoc-plugin 3.12.0 from -->
 								<!-- ${project.build.directory} to ${project.build.directory}/reports, which -->
