@@ -15,6 +15,7 @@
 
 	<modules>
 		<module>classgraph</module>
+		<module>classgraph-viz</module>
 	</modules>
 
 	<licenses>
@@ -83,93 +84,113 @@
 		<maven.resources.skip>true</maven.resources.skip>
 	</properties>
 
+	<!-- Every version used by any module is pinned here, so that there is one place to bump it, and so that -->
+	<!-- two modules can never end up on different versions of the same library. -->
 	<!-- Find dependency updates with: ./mvnw versions:display-dependency-updates -->
-	<dependencies>
-		<!-- Optional runtime dependency: -->
-		<dependency>
-			<groupId>io.github.toolfactory</groupId>
-			<artifactId>narcissus</artifactId>
-			<version>1.0.11</version>
-			<optional>true</optional>
-		</dependency>
+	<dependencyManagement>
+		<dependencies>
+			<!-- Optional runtime dependency: -->
+			<dependency>
+				<groupId>io.github.toolfactory</groupId>
+				<artifactId>narcissus</artifactId>
+				<version>1.0.11</version>
+				<optional>true</optional>
+			</dependency>
 
-		<!-- Test dependencies: -->
+			<!-- Test dependencies: -->
+			<dependency>
+				<groupId>org.junit.jupiter</groupId>
+				<artifactId>junit-jupiter</artifactId>
+				<version>5.14.4</version>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.openjdk.jmh</groupId>
+				<artifactId>jmh-core</artifactId>
+				<version>1.37</version>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.openjdk.jmh</groupId>
+				<artifactId>jmh-generator-annprocess</artifactId>
+				<version>1.37</version>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.assertj</groupId>
+				<artifactId>assertj-core</artifactId>
+				<version>3.27.7</version>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>javax.enterprise</groupId>
+				<artifactId>cdi-api</artifactId>
+				<version>2.0.SP1</version>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.ops4j.pax.url</groupId>
+				<artifactId>pax-url-aether</artifactId>
+				<version>2.6.17</version>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.slf4j</groupId>
+				<artifactId>slf4j-api</artifactId>
+				<version>2.0.18</version>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.slf4j</groupId>
+				<artifactId>slf4j-jdk14</artifactId>
+				<version>2.0.18</version>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.hibernate.javax.persistence</groupId>
+				<artifactId>hibernate-jpa-2.1-api</artifactId>
+				<version>1.0.2.Final</version>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>com.google.jimfs</groupId>
+				<artifactId>jimfs</artifactId>
+				<version>1.3.1</version>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>jakarta.validation</groupId>
+				<artifactId>jakarta.validation-api</artifactId>
+				<version>3.1.1</version>
+				<scope>test</scope>
+			</dependency>
+
+			<!-- "provided" dependencies (soft compile-time dependencies that do not create a runtime dependency): -->
+			<dependency>
+				<!-- JSpecify nullability annotations. "provided" scope, so that ClassGraph does not add a -->
+				<!-- runtime dependency: the annotations are RUNTIME-retained, but the JVM silently ignores -->
+				<!-- annotations whose type is not on the classpath. -->
+				<groupId>org.jspecify</groupId>
+				<artifactId>jspecify</artifactId>
+				<version>1.0.1</version>
+				<scope>provided</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
+	<!-- What every module needs. Anything used by only one module is declared by that module instead. -->
+	<dependencies>
 		<dependency>
 			<groupId>org.junit.jupiter</groupId>
 			<artifactId>junit-jupiter</artifactId>
-			<version>5.14.4</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.openjdk.jmh</groupId>
-			<artifactId>jmh-core</artifactId>
-			<version>1.37</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.openjdk.jmh</groupId>
-			<artifactId>jmh-generator-annprocess</artifactId>
-			<version>1.37</version>
-			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.assertj</groupId>
 			<artifactId>assertj-core</artifactId>
-			<version>3.27.7</version>
-			<scope>test</scope>
 		</dependency>
 		<dependency>
-			<groupId>javax.enterprise</groupId>
-			<artifactId>cdi-api</artifactId>
-			<version>2.0.SP1</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.ops4j.pax.url</groupId>
-			<artifactId>pax-url-aether</artifactId>
-			<version>2.6.17</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-api</artifactId>
-			<version>2.0.18</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-jdk14</artifactId>
-			<version>2.0.18</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.hibernate.javax.persistence</groupId>
-			<artifactId>hibernate-jpa-2.1-api</artifactId>
-			<version>1.0.2.Final</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>com.google.jimfs</groupId>
-			<artifactId>jimfs</artifactId>
-			<version>1.3.1</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>jakarta.validation</groupId>
-			<artifactId>jakarta.validation-api</artifactId>
-			<version>3.1.1</version>
-			<scope>test</scope>
-		</dependency>
-
-		<!-- "provided" dependencies (soft compile-time dependencies that do not create a runtime dependency): -->
-		<dependency>
-			<!-- JSpecify nullability annotations. "provided" scope, so that ClassGraph does not add a -->
-			<!-- runtime dependency: the annotations are RUNTIME-retained, but the JVM silently ignores -->
-			<!-- annotations whose type is not on the classpath. -->
 			<groupId>org.jspecify</groupId>
 			<artifactId>jspecify</artifactId>
-			<version>1.0.1</version>
-			<scope>provided</scope>
 		</dependency>
 	</dependencies>
 
@@ -399,6 +420,13 @@
 						<useIncrementalCompilation>false</useIncrementalCompilation>
 						<compilerArgs>
 							<arg>-Xlint:all</arg>             <!-- Max lint -->
+							<!-- Except "exports", which fires for every JSpecify @Nullable in an exported -->
+							<!-- signature, and can only be silenced by "requires transitive org.jspecify". -->
+							<!-- That would force every modular downstream project to put JSpecify on its own -->
+							<!-- module path, which is what broke Log4j 2.24.0 for its users; JSpecify is -->
+							<!-- therefore a plain "requires static", and the annotations are simply invisible -->
+							<!-- to a downstream module that does not depend on JSpecify itself. -->
+							<arg>-Xlint:-exports</arg>
 							<arg>-Werror</arg>
 						</compilerArgs>
 					</configuration>
@@ -612,6 +640,8 @@
 									<fork>true</fork>
 									<compilerArgs>
 										<arg>-Xlint:all</arg>             <!-- Max lint -->
+										<!-- Except "exports": see the note in pluginManagement, above. -->
+										<arg>-Xlint:-exports</arg>
 										<arg>-Werror</arg>
 										<!-- Static null analysis, to check the @NullMarked claim made by -->
 										<!-- module-info.java. NullAway runs as an Error Prone plugin, over the -->

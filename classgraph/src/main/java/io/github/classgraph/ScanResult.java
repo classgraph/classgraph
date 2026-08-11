@@ -375,6 +375,114 @@ public final class ScanResult implements Closeable {
     }
 
     // -------------------------------------------------------------------------------------------------------------
+    // Scan settings
+
+    /**
+     * Whether {@link ClassGraph#enableClassInfo()} was called before scanning.
+     *
+     * @return true if class info was enabled, so that the {@link ClassInfo} queries return a result rather than
+     *         throwing {@link IllegalStateException}.
+     * @throws IllegalStateException
+     *             if this {@link ScanResult} has been closed.
+     */
+    public boolean isClassInfoEnabled() {
+        checkNotClosed();
+        return scanSpec.enableClassInfo;
+    }
+
+    /**
+     * Whether {@link ClassGraph#enableFieldInfo()} was called before scanning.
+     *
+     * @return true if field info was enabled, so that the {@link FieldInfo} queries return a result rather than
+     *         throwing {@link IllegalStateException}.
+     * @throws IllegalStateException
+     *             if this {@link ScanResult} has been closed.
+     */
+    public boolean isFieldInfoEnabled() {
+        checkNotClosed();
+        return scanSpec.enableFieldInfo;
+    }
+
+    /**
+     * Whether {@link ClassGraph#enableMethodInfo()} was called before scanning.
+     *
+     * @return true if method info was enabled, so that the {@link MethodInfo} queries return a result rather than
+     *         throwing {@link IllegalStateException}.
+     * @throws IllegalStateException
+     *             if this {@link ScanResult} has been closed.
+     */
+    public boolean isMethodInfoEnabled() {
+        checkNotClosed();
+        return scanSpec.enableMethodInfo;
+    }
+
+    /**
+     * Whether {@link ClassGraph#enableAnnotationInfo()} was called before scanning.
+     *
+     * @return true if annotation info was enabled, so that the {@link AnnotationInfo} queries return a result
+     *         rather than throwing {@link IllegalStateException}.
+     * @throws IllegalStateException
+     *             if this {@link ScanResult} has been closed.
+     */
+    public boolean isAnnotationInfoEnabled() {
+        checkNotClosed();
+        return scanSpec.enableAnnotationInfo;
+    }
+
+    /**
+     * Whether {@link ClassGraph#enableInterClassDependencies()} was called before scanning.
+     *
+     * @return true if inter-class dependencies were enabled, so that {@link ClassInfo#getClassDependencies()},
+     *         {@link #getClassDependencyMap()} and {@link #getReverseClassDependencyMap()} return a result rather
+     *         than throwing {@link IllegalStateException}.
+     * @throws IllegalStateException
+     *             if this {@link ScanResult} has been closed.
+     */
+    public boolean isInterClassDependenciesEnabled() {
+        checkNotClosed();
+        return scanSpec.enableInterClassDependencies;
+    }
+
+    /**
+     * Whether {@link ClassGraph#enableExternalClasses()} was called before scanning.
+     *
+     * @return true if external classes were enabled, so that classes outside the accepted packages can appear in
+     *         the returned {@link ClassInfoList} instances.
+     * @throws IllegalStateException
+     *             if this {@link ScanResult} has been closed.
+     */
+    public boolean isExternalClassesEnabled() {
+        checkNotClosed();
+        return scanSpec.enableExternalClasses;
+    }
+
+    /**
+     * Whether {@link ClassGraph#ignoreFieldVisibility()} was called before scanning.
+     *
+     * @return true if field visibility was ignored, so that the {@link FieldInfo} queries return non-public fields
+     *         as well as public ones.
+     * @throws IllegalStateException
+     *             if this {@link ScanResult} has been closed.
+     */
+    public boolean isFieldVisibilityIgnored() {
+        checkNotClosed();
+        return scanSpec.ignoreFieldVisibility;
+    }
+
+    /**
+     * Whether {@link ClassGraph#ignoreMethodVisibility()} was called before scanning.
+     *
+     * @return true if method visibility was ignored, so that the {@link MethodInfo} queries return non-public
+     *         methods as well as public ones.
+     * @throws IllegalStateException
+     *             if this {@link ScanResult} has been closed.
+     */
+    public boolean isMethodVisibilityIgnored() {
+        checkNotClosed();
+        return scanSpec.ignoreMethodVisibility;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
     // Classpath / module path
 
     /**

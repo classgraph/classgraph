@@ -30,8 +30,9 @@
 import org.jspecify.annotations.NullMarked;
 
 /**
- * <a href="https://github.com/classgraph/classgraph">ClassGraph</a>: the
- * uber-fast, ultra-lightweight classpath and module scanner for JVM languages.
+ * Renders the class graph found by
+ * <a href="https://github.com/classgraph/classgraph">ClassGraph</a> as a
+ * <a href="https://graphviz.org/">GraphViz</a> {@code .dot} file.
  *
  * <p>
  * This module is {@link org.jspecify.annotations.NullMarked}: unless a type is
@@ -40,26 +41,15 @@ import org.jspecify.annotations.NullMarked;
  * @author Luke Hutchison
  */
 @NullMarked
-module io.github.classgraph {
-    exports io.github.classgraph;
+module io.github.classgraph.viz {
+    exports io.github.classgraph.viz;
 
     // N.B. make sure the "Import-Package" entries in the manifest (in pom.xml) match these "requires" statements.
 
-    // VersionFinder requires java.xml
-    requires java.xml;
-    // FileUtils requires jdk.unsupported (for usage of Unsafe)
-    requires jdk.unsupported;
-    // ModulePathInfo requires java.management
-    requires java.management;
-    // LogNode requires java.logging
-    requires java.logging;
+    // ClassGraph types appear in this module's exported signatures, so the requirement has to be transitive
+    requires transitive io.github.classgraph;
 
-    // ReflectionUtils may use Narcissus, if it is available
-    requires static io.github.toolfactory.narcissus;
-
-    // JSpecify nullability annotations are only needed at compile time. This deliberately is not "requires
-    // transitive", even though the annotations appear in exported signatures: that would force every modular
-    // downstream project to put JSpecify on its own module path, which is what broke Log4j 2.24.0 for its users.
-    // A downstream module that depends on JSpecify itself still sees the annotations.
+    // JSpecify nullability annotations are only needed at compile time. See the note in the core module descriptor
+    // for why this deliberately is not "requires transitive".
     requires static org.jspecify;
 }

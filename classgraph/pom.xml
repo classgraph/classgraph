@@ -27,4 +27,61 @@
 		<maven.antrun.skip>false</maven.antrun.skip>
 		<maven.resources.skip>false</maven.resources.skip>
 	</properties>
+
+	<!-- Versions are pinned in the parent's dependencyManagement section -->
+	<dependencies>
+		<!-- Optional runtime dependency: if Narcissus is on the classpath, it is used as the reflection driver -->
+		<dependency>
+			<groupId>io.github.toolfactory</groupId>
+			<artifactId>narcissus</artifactId>
+			<optional>true</optional>
+		</dependency>
+
+		<!-- Test dependencies: -->
+		<dependency>
+			<groupId>org.openjdk.jmh</groupId>
+			<artifactId>jmh-core</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.openjdk.jmh</groupId>
+			<artifactId>jmh-generator-annprocess</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>javax.enterprise</groupId>
+			<artifactId>cdi-api</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.ops4j.pax.url</groupId>
+			<artifactId>pax-url-aether</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-api</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-jdk14</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.hibernate.javax.persistence</groupId>
+			<artifactId>hibernate-jpa-2.1-api</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.google.jimfs</groupId>
+			<artifactId>jimfs</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>jakarta.validation</groupId>
+			<artifactId>jakarta.validation-api</artifactId>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
 </project>

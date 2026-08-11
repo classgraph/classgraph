@@ -26,20 +26,48 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.classgraph;
+package io.github.classgraph.viz;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Supplier;
 
-import nonapi.io.github.classgraph.scanspec.ScanSpec;
-import nonapi.io.github.classgraph.utils.CollectionUtils;
+import io.github.classgraph.AnnotationInfo;
+import io.github.classgraph.AnnotationInfoList;
+import io.github.classgraph.ClassGraph;
+import io.github.classgraph.ClassInfo;
+import io.github.classgraph.ClassInfoList;
+import io.github.classgraph.FieldInfo;
+import io.github.classgraph.MethodInfo;
+import io.github.classgraph.MethodParameterInfo;
+import io.github.classgraph.ScanResult;
 
-/** Builds a class graph visualization in Graphviz .dot file format. */
-final class GraphvizDotfileGenerator {
+/**
+ * Renders the class graph found by ClassGraph as a <a href="https://graphviz.org/">GraphViz</a> {@code .dot} file,
+ * which GraphViz can then lay out and turn into an image:
+ *
+ * <pre>
+ * dot -Tsvg classgraph.dot &gt; classgraph.svg
+ * </pre>
+ *
+ * <p>
+ * There are two kinds of graph. {@link #generate(ScanResult, ClassInfoList, GraphVizDotFileOptions)} draws the
+ * classes themselves, showing their fields, methods and annotations inside each class' box, and connecting each
+ * class to its superclass and superinterfaces.
+ * {@link #generateFromInterClassDependencies(ScanResult, ClassInfoList, GraphVizDotFileOptions)} draws only the
+ * names of the classes, connected by "depends upon" edges.
+ */
+public final class GraphVizDotFile {
     /** The color for standard classes. */
     private static final String STANDARD_CLASS_COLOR = "fff2b6";
 
@@ -58,7 +86,7 @@ final class GraphvizDotfileGenerator {
     /**
      * Constructor.
      */
-    private GraphvizDotfileGenerator() {
+    private GraphVizDotFile() {
         // Cannot be constructed
     }
 
@@ -187,6 +215,22 @@ final class GraphvizDotfileGenerator {
         }
     }
 
+    /**
+     * Get the annotations directly present on an annotated element, in sorted order, or the empty list if
+     * {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
+     *
+     * @param scanResult
+     *            the scan result the annotated element came from
+     * @param allAnnotationInfo
+     *            a supplier of the annotations and meta-annotations on the annotated element (called only if
+     *            annotation info is available)
+     * @return the directly present annotations
+     */
+    private static List<AnnotationInfo> directAnnotations(final ScanResult scanResult,
+            final Supplier<AnnotationInfoList> allAnnotationInfo) {
+        return scanResult.isAnnotationInfoEnabled() ? allAnnotationInfo.get().directOnly() : List.of();
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -254,17 +298,17 @@ final class GraphvizDotfileGenerator {
      *            the annotations on the class
      * @return the annotations to list
      */
-    private static AnnotationInfoList annotationsToShow(final AnnotationInfoList annotationInfo) {
+    private static List<AnnotationInfo> annotationsToShow(final List<AnnotationInfo> annotationInfo) {
         // Meta-annotations are not listed, so the annotations are filtered before the section header is written --
         // otherwise an annotation class, whose only annotations are meta-annotations, would get a section header
         // with nothing under it
-        final var annotationInfoSorted = new AnnotationInfoList(annotationInfo.size());
+        final List<AnnotationInfo> annotationInfoSorted = new ArrayList<>(annotationInfo.size());
         for (final AnnotationInfo ai : annotationInfo) {
             if (!ai.getName().startsWith("java.lang.annotation.")) {
                 annotationInfoSorted.add(ai);
             }
         }
-        CollectionUtils.sortIfNotEmpty(annotationInfoSorted);
+        annotationInfoSorted.sort(null);
         return annotationInfoSorted;
     }
 
@@ -278,7 +322,7 @@ final class GraphvizDotfileGenerator {
      * @param buf
      *            the buffer to append to
      */
-    private static void appendClassAnnotations(final AnnotationInfoList annotationInfo, final String darkerColor,
+    private static void appendClassAnnotations(final List<AnnotationInfo> annotationInfo, final String darkerColor,
             final StringBuilder buf) {
         final var annotationInfoSorted = annotationsToShow(annotationInfo);
         if (annotationInfoSorted.isEmpty()) {
@@ -301,9 +345,9 @@ final class GraphvizDotfileGenerator {
      *            the fields of the class
      * @return the fields to list
      */
-    private static FieldInfoList fieldsToShow(final FieldInfoList fieldInfo) {
-        final var fieldInfoSorted = new FieldInfoList(fieldInfo);
-        CollectionUtils.sortIfNotEmpty(fieldInfoSorted);
+    private static List<FieldInfo> fieldsToShow(final List<FieldInfo> fieldInfo) {
+        final List<FieldInfo> fieldInfoSorted = new ArrayList<>(fieldInfo);
+        fieldInfoSorted.sort(null);
         for (var i = fieldInfoSorted.size() - 1; i >= 0; --i) {
             // Remove serialVersionUID field
             if ("serialVersionUID".equals(fieldInfoSorted.get(i).getName())) {
@@ -316,25 +360,26 @@ final class GraphvizDotfileGenerator {
     /**
      * Append the FIELDS section of a class node, if the class has any fields to list.
      *
+     * @param scanResult
+     *            the scan result the class came from
      * @param fieldInfo
      *            the fields of the class
      * @param options
      *            the graph options
-     * @param scanSpec
-     *            the scan spec
      * @param darkerColor
      *            the background color of the section header
      * @param buf
      *            the buffer to append to
      */
-    private static void appendFields(final FieldInfoList fieldInfo, final GraphVizDotFileOptions options,
-            final ScanSpec scanSpec, final String darkerColor, final StringBuilder buf) {
+    private static void appendFields(final ScanResult scanResult, final List<FieldInfo> fieldInfo,
+            final GraphVizDotFileOptions options, final String darkerColor, final StringBuilder buf) {
         final var fieldInfoSorted = fieldsToShow(fieldInfo);
         if (fieldInfoSorted.isEmpty()) {
             return;
         }
+        final var ignoreFieldVisibility = scanResult.isFieldVisibilityIgnored();
         buf.append("<tr><td colspan='3' bgcolor='").append(darkerColor).append("'><font point-size='12'><b>")
-                .append(scanSpec.ignoreFieldVisibility ? "" : "PUBLIC ").append("FIELDS</b></font></td></tr>");
+                .append(ignoreFieldVisibility ? "" : "PUBLIC ").append("FIELDS</b></font></td></tr>");
         buf.append("<tr><td cellpadding='0'>");
         buf.append("<table border='0' cellborder='0'>");
         for (final FieldInfo fi : fieldInfoSorted) {
@@ -342,16 +387,15 @@ final class GraphvizDotfileGenerator {
             buf.append("<td align='right' valign='top'>");
 
             // Field annotations
-            final var fieldAnnotationInfo = fi.annotationInfo;
-            if (options.showAnnotations && fieldAnnotationInfo != null) {
-                for (final AnnotationInfo ai : fieldAnnotationInfo) {
+            if (options.showAnnotations) {
+                for (final AnnotationInfo ai : directAnnotations(scanResult, fi::getAllAnnotationInfo)) {
                     appendSpaceIfNeeded(buf);
                     htmlEncode(ai.toString(), buf);
                 }
             }
 
             // Field modifiers
-            if (scanSpec.ignoreFieldVisibility) {
+            if (ignoreFieldVisibility) {
                 appendSpaceIfNeeded(buf);
                 buf.append(fi.getModifiersString());
             }
@@ -378,9 +422,9 @@ final class GraphvizDotfileGenerator {
      *            the methods of the class
      * @return the methods to list
      */
-    private static MethodInfoList methodsToShow(final MethodInfoList methodInfo) {
-        final var methodInfoSorted = new MethodInfoList(methodInfo);
-        CollectionUtils.sortIfNotEmpty(methodInfoSorted);
+    private static List<MethodInfo> methodsToShow(final List<MethodInfo> methodInfo) {
+        final List<MethodInfo> methodInfoSorted = new ArrayList<>(methodInfo);
+        methodInfoSorted.sort(null);
         for (var i = methodInfoSorted.size() - 1; i >= 0; --i) {
             // Don't list static initializer blocks or methods of Object
             final var mi = methodInfoSorted.get(i);
@@ -404,7 +448,8 @@ final class GraphvizDotfileGenerator {
      * @param buf
      *            the buffer to append to
      */
-    private static void appendMethodAnnotations(final AnnotationInfoList annotationInfo, final StringBuilder buf) {
+    private static void appendMethodAnnotations(final List<AnnotationInfo> annotationInfo,
+            final StringBuilder buf) {
         var wrapPos = 0;
         for (final AnnotationInfo ai : annotationInfo) {
             final var ais = ai.toString();
@@ -426,6 +471,8 @@ final class GraphvizDotfileGenerator {
      * Append the parameters of a method, wrapping onto a new row of the enclosing table once a row of parameters
      * gets too long.
      *
+     * @param scanResult
+     *            the scan result the method came from
      * @param paramInfo
      *            the parameters of the method
      * @param options
@@ -433,8 +480,9 @@ final class GraphvizDotfileGenerator {
      * @param buf
      *            the buffer to append to
      */
-    private static void appendMethodParameters(final List<MethodParameterInfo> paramInfo,
-            final GraphVizDotFileOptions options, final StringBuilder buf) {
+    private static void appendMethodParameters(final ScanResult scanResult,
+            final List<MethodParameterInfo> paramInfo, final GraphVizDotFileOptions options,
+            final StringBuilder buf) {
         for (int i = 0, wrapPos = 0; i < paramInfo.size(); i++) {
             if (i > 0) {
                 buf.append(", ");
@@ -447,9 +495,8 @@ final class GraphvizDotfileGenerator {
 
             // Parameter annotations
             final var param = paramInfo.get(i);
-            final var paramAnnotationInfo = param.annotationInfo;
-            if (options.showAnnotations && paramAnnotationInfo != null) {
-                for (final AnnotationInfo ai : paramAnnotationInfo) {
+            if (options.showAnnotations) {
+                for (final AnnotationInfo ai : directAnnotations(scanResult, param::getAllAnnotationInfo)) {
                     final var ais = ai.toString();
                     if (!ais.isEmpty()) {
                         appendSpaceIfNeeded(buf);
@@ -484,43 +531,43 @@ final class GraphvizDotfileGenerator {
     /**
      * Append the METHODS section of a class node, if the class has any methods to list.
      *
+     * @param scanResult
+     *            the scan result the class came from
      * @param ci
      *            the class info
      * @param methodInfo
      *            the methods of the class
      * @param options
      *            the graph options
-     * @param scanSpec
-     *            the scan spec
      * @param darkerColor
      *            the background color of the section header
      * @param buf
      *            the buffer to append to
      */
-    private static void appendMethods(final ClassInfo ci, final MethodInfoList methodInfo,
-            final GraphVizDotFileOptions options, final ScanSpec scanSpec, final String darkerColor,
+    private static void appendMethods(final ScanResult scanResult, final ClassInfo ci,
+            final List<MethodInfo> methodInfo, final GraphVizDotFileOptions options, final String darkerColor,
             final StringBuilder buf) {
         final var methodInfoSorted = methodsToShow(methodInfo);
         if (methodInfoSorted.isEmpty()) {
             return;
         }
+        final var ignoreMethodVisibility = scanResult.isMethodVisibilityIgnored();
         buf.append("<tr><td cellpadding='0'>");
         buf.append("<table border='0' cellborder='0'>");
         buf.append("<tr><td colspan='3' bgcolor='").append(darkerColor).append("'><font point-size='12'><b>")
-                .append(scanSpec.ignoreMethodVisibility ? "" : "PUBLIC ").append("METHODS</b></font></td></tr>");
+                .append(ignoreMethodVisibility ? "" : "PUBLIC ").append("METHODS</b></font></td></tr>");
         for (final MethodInfo mi : methodInfoSorted) {
             final var isConstructor = "<init>".equals(mi.getName());
             buf.append("<tr>");
 
             // Method annotations
             buf.append("<td align='right' valign='top'>");
-            final var methodAnnotationInfo = mi.annotationInfo;
-            if (options.showAnnotations && methodAnnotationInfo != null) {
-                appendMethodAnnotations(methodAnnotationInfo, buf);
+            if (options.showAnnotations) {
+                appendMethodAnnotations(directAnnotations(scanResult, mi::getAllAnnotationInfo), buf);
             }
 
             // Method modifiers
-            if (scanSpec.ignoreMethodVisibility) {
+            if (ignoreMethodVisibility) {
                 appendSpaceIfNeeded(buf);
                 buf.append(mi.getModifiersString());
             }
@@ -547,7 +594,7 @@ final class GraphvizDotfileGenerator {
             // Method parameters
             buf.append("<td align='left' valign='top'>");
             buf.append('(');
-            appendMethodParameters(mi.getParameterInfo(), options, buf);
+            appendMethodParameters(scanResult, mi.getParameterInfo(), options, buf);
             buf.append(')');
             buf.append("</td></tr>");
         }
@@ -558,6 +605,8 @@ final class GraphvizDotfileGenerator {
     /**
      * Produce HTML label for class node.
      *
+     * @param scanResult
+     *            the scan result the class came from
      * @param ci
      *            the class info
      * @param shape
@@ -566,30 +615,25 @@ final class GraphvizDotfileGenerator {
      *            the box background color
      * @param options
      *            the graph options
-     * @param scanSpec
-     *            the scan spec
      * @param buf
      *            the buffer to append to
      */
-    private static void labelClassNodeHTML(final ClassInfo ci, final String shape, final String boxBgColor,
-            final GraphVizDotFileOptions options, final ScanSpec scanSpec, final StringBuilder buf) {
+    private static void labelClassNodeHTML(final ScanResult scanResult, final ClassInfo ci, final String shape,
+            final String boxBgColor, final GraphVizDotFileOptions options, final StringBuilder buf) {
         appendClassNodeLabelHeader(ci, shape, boxBgColor, /* packageNameSuffix = */ ".", buf);
 
         final var darkerColor = darkerColor(boxBgColor);
 
-        final var annotationInfo = ci.annotationInfo;
-        if (options.showAnnotations && annotationInfo != null) {
-            appendClassAnnotations(annotationInfo, darkerColor, buf);
+        if (options.showAnnotations && scanResult.isAnnotationInfoEnabled()) {
+            appendClassAnnotations(ci.getAllAnnotationInfo().directOnly(), darkerColor, buf);
         }
 
-        final var fieldInfo = ci.fieldInfo;
-        if (options.showFields && fieldInfo != null) {
-            appendFields(fieldInfo, options, scanSpec, darkerColor, buf);
+        if (options.showFields && scanResult.isFieldInfoEnabled()) {
+            appendFields(scanResult, ci.getDeclaredFieldInfo(), options, darkerColor, buf);
         }
 
-        final var methodInfo = ci.methodInfo;
-        if (options.showMethods && methodInfo != null) {
-            appendMethods(ci, methodInfo, options, scanSpec, darkerColor, buf);
+        if (options.showMethods && scanResult.isMethodInfoEnabled()) {
+            appendMethods(scanResult, ci, ci.getDeclaredMethodAndConstructorInfo(), options, darkerColor, buf);
         }
 
         buf.append("</table>");
@@ -641,6 +685,8 @@ final class GraphvizDotfileGenerator {
     /**
      * Append a class node for each class in a list.
      *
+     * @param scanResult
+     *            the scan result the classes came from
      * @param classNodes
      *            the classes to append nodes for
      * @param shape
@@ -649,17 +695,15 @@ final class GraphvizDotfileGenerator {
      *            the box background color
      * @param options
      *            the graph options
-     * @param scanSpec
-     *            the scan spec
      * @param buf
      *            the buffer to append to
      */
-    private static void appendClassNodes(final ClassInfoList classNodes, final String shape,
-            final String boxBgColor, final GraphVizDotFileOptions options, final ScanSpec scanSpec,
+    private static void appendClassNodes(final ScanResult scanResult, final ClassInfoList classNodes,
+            final String shape, final String boxBgColor, final GraphVizDotFileOptions options,
             final StringBuilder buf) {
         for (final ClassInfo node : classNodes) {
             buf.append('"').append(node.getName()).append('"');
-            labelClassNodeHTML(node, shape, boxBgColor, options, scanSpec, buf);
+            labelClassNodeHTML(scanResult, node, shape, boxBgColor, options, buf);
             buf.append(";\n");
         }
     }
@@ -668,6 +712,8 @@ final class GraphvizDotfileGenerator {
      * Append the edges from a standard class to its superclass, to the interfaces it implements, and to the types
      * of its fields and methods.
      *
+     * @param scanResult
+     *            the scan result the class came from
      * @param classNode
      *            the class to append edges for
      * @param allVisibleNodes
@@ -677,10 +723,10 @@ final class GraphvizDotfileGenerator {
      * @param buf
      *            the buffer to append to
      */
-    private static void appendStandardClassEdges(final ClassInfo classNode, final Set<String> allVisibleNodes,
-            final GraphVizDotFileOptions options, final StringBuilder buf) {
+    private static void appendStandardClassEdges(final ScanResult scanResult, final ClassInfo classNode,
+            final Set<String> allVisibleNodes, final GraphVizDotFileOptions options, final StringBuilder buf) {
         for (final ClassInfo directSuperclassNode : classNode.getAllSuperclasses().directOnly()) {
-            if (directSuperclassNode != null && allVisibleNodes.contains(directSuperclassNode.getName())
+            if (allVisibleNodes.contains(directSuperclassNode.getName())
                     && !"java.lang.Object".equals(directSuperclassNode.getName())) {
                 // class --> superclass
                 appendEdge(classNode.getName(), directSuperclassNode.getName(), "[arrowsize=2.5]", buf);
@@ -695,10 +741,9 @@ final class GraphvizDotfileGenerator {
             }
         }
 
-        final var fieldInfo = classNode.fieldInfo;
-        if (options.showFieldTypeDependencyEdges && fieldInfo != null) {
-            for (final FieldInfo fi : fieldInfo) {
-                for (final ClassInfo referencedFieldType : fi.findReferencedClassInfo(/* log = */ null)) {
+        if (options.showFieldTypeDependencyEdges && scanResult.isFieldInfoEnabled()) {
+            for (final FieldInfo fi : classNode.getDeclaredFieldInfo()) {
+                for (final ClassInfo referencedFieldType : fi.getClassDependencies()) {
                     if (allVisibleNodes.contains(referencedFieldType.getName())) {
                         // class --[ ] field type (open box)
                         appendEdge(referencedFieldType.getName(), classNode.getName(),
@@ -708,10 +753,9 @@ final class GraphvizDotfileGenerator {
             }
         }
 
-        final var methodInfo = classNode.methodInfo;
-        if (options.showMethodTypeDependencyEdges && methodInfo != null) {
-            for (final MethodInfo mi : methodInfo) {
-                for (final ClassInfo referencedMethodType : mi.findReferencedClassInfo(/* log = */ null)) {
+        if (options.showMethodTypeDependencyEdges && scanResult.isMethodInfoEnabled()) {
+            for (final MethodInfo mi : classNode.getDeclaredMethodAndConstructorInfo()) {
+                for (final ClassInfo referencedMethodType : mi.getClassDependencies()) {
                     if (allVisibleNodes.contains(referencedMethodType.getName())) {
                         // class --[#] method type (filled box)
                         appendEdge(referencedMethodType.getName(), classNode.getName(),
@@ -723,75 +767,170 @@ final class GraphvizDotfileGenerator {
     }
 
     /**
+     * Index the classes that are directly annotated by each annotation, so that the annotation edges can be drawn
+     * without having to ask each annotation which classes it annotates (which would also return the classes reached
+     * through a meta-annotation, or through {@link java.lang.annotation.Inherited @Inherited} -- those classes are
+     * still reachable from the annotation along a path of edges in the graph).
+     *
+     * @param scanResult
+     *            the scan result the classes came from
+     * @param allVisibleClasses
+     *            the classes that have a node in the graph
+     * @param classAnnotations
+     *            populated with annotation name to the classes it directly annotates
+     * @param methodAnnotations
+     *            populated with annotation name to the classes with a method it directly annotates
+     * @param fieldAnnotations
+     *            populated with annotation name to the classes with a field it directly annotates
+     */
+    private static void indexAnnotations(final ScanResult scanResult, final List<ClassInfo> allVisibleClasses,
+            final Map<String, List<ClassInfo>> classAnnotations,
+            final Map<String, List<ClassInfo>> methodAnnotations,
+            final Map<String, List<ClassInfo>> fieldAnnotations) {
+        if (!scanResult.isAnnotationInfoEnabled()) {
+            return;
+        }
+        for (final ClassInfo ci : allVisibleClasses) {
+            for (final AnnotationInfo ai : ci.getAllAnnotationInfo().directOnly()) {
+                classAnnotations.computeIfAbsent(ai.getName(), name -> new ArrayList<>()).add(ci);
+            }
+            if (scanResult.isMethodInfoEnabled()) {
+                final Set<String> methodAnnotationNames = new HashSet<>();
+                for (final MethodInfo mi : ci.getDeclaredMethodAndConstructorInfo()) {
+                    for (final AnnotationInfo ai : mi.getAllAnnotationInfo().directOnly()) {
+                        methodAnnotationNames.add(ai.getName());
+                    }
+                }
+                for (final String name : methodAnnotationNames) {
+                    methodAnnotations.computeIfAbsent(name, key -> new ArrayList<>()).add(ci);
+                }
+            }
+            if (scanResult.isFieldInfoEnabled()) {
+                final Set<String> fieldAnnotationNames = new HashSet<>();
+                for (final FieldInfo fi : ci.getDeclaredFieldInfo()) {
+                    for (final AnnotationInfo ai : fi.getAllAnnotationInfo().directOnly()) {
+                        fieldAnnotationNames.add(ai.getName());
+                    }
+                }
+                for (final String name : fieldAnnotationNames) {
+                    fieldAnnotations.computeIfAbsent(name, key -> new ArrayList<>()).add(ci);
+                }
+            }
+        }
+        for (final List<ClassInfo> classes : classAnnotations.values()) {
+            classes.sort(null);
+        }
+        for (final List<ClassInfo> classes : methodAnnotations.values()) {
+            classes.sort(null);
+        }
+        for (final List<ClassInfo> classes : fieldAnnotations.values()) {
+            classes.sort(null);
+        }
+    }
+
+    /**
      * Append the edges from an annotation to the classes it annotates, either directly or through one of their
      * fields or methods.
      *
      * @param annotationNode
      *            the annotation to append edges for
-     * @param allVisibleNodes
-     *            the names of the classes that have a node in the graph
+     * @param classAnnotations
+     *            annotation name to the classes it directly annotates
+     * @param methodAnnotations
+     *            annotation name to the classes with a method it directly annotates
+     * @param fieldAnnotations
+     *            annotation name to the classes with a field it directly annotates
      * @param buf
      *            the buffer to append to
      */
-    private static void appendAnnotationEdges(final ClassInfo annotationNode, final Set<String> allVisibleNodes,
-            final StringBuilder buf) {
-        for (final ClassInfo annotatedClassNode : annotationNode.getClassesWithAnnotationDirectOnly()) {
-            if (allVisibleNodes.contains(annotatedClassNode.getName())) {
-                // annotated class --o annotation
-                appendEdge(annotatedClassNode.getName(), annotationNode.getName(), "[arrowhead=dot, arrowsize=2.5]",
-                        buf);
-            }
+    private static void appendAnnotationEdges(final ClassInfo annotationNode,
+            final Map<String, List<ClassInfo>> classAnnotations,
+            final Map<String, List<ClassInfo>> methodAnnotations,
+            final Map<String, List<ClassInfo>> fieldAnnotations, final StringBuilder buf) {
+        final var annotationName = annotationNode.getName();
+        for (final ClassInfo annotatedClassNode : classAnnotations.getOrDefault(annotationName, List.of())) {
+            // annotated class --o annotation
+            appendEdge(annotatedClassNode.getName(), annotationName, "[arrowhead=dot, arrowsize=2.5]", buf);
         }
-        for (final ClassInfo classWithMethodAnnotationNode : annotationNode
-                .getClassesWithMethodAnnotationDirectOnly()) {
-            if (allVisibleNodes.contains(classWithMethodAnnotationNode.getName())) {
-                // class with method annotation --o method annotation
-                appendEdge(classWithMethodAnnotationNode.getName(), annotationNode.getName(),
-                        "[arrowhead=odot, arrowsize=2.5]", buf);
-            }
+        for (final ClassInfo classWithMethodAnnotationNode : methodAnnotations.getOrDefault(annotationName,
+                List.of())) {
+            // class with method annotation --o method annotation
+            appendEdge(classWithMethodAnnotationNode.getName(), annotationName, "[arrowhead=odot, arrowsize=2.5]",
+                    buf);
         }
-        for (final ClassInfo classWithFieldAnnotationNode : annotationNode
-                .getClassesWithFieldAnnotationDirectOnly()) {
-            if (allVisibleNodes.contains(classWithFieldAnnotationNode.getName())) {
-                // class with field annotation --o field annotation
-                appendEdge(classWithFieldAnnotationNode.getName(), annotationNode.getName(),
-                        "[arrowhead=odot, arrowsize=2.5]", buf);
-            }
+        for (final ClassInfo classWithFieldAnnotationNode : fieldAnnotations.getOrDefault(annotationName,
+                List.of())) {
+            // class with field annotation --o field annotation
+            appendEdge(classWithFieldAnnotationNode.getName(), annotationName, "[arrowhead=odot, arrowsize=2.5]",
+                    buf);
         }
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
-     * Generates a .dot file which can be fed into GraphViz for layout and visualization of the class graph.
+     * Generate a .dot file which can be fed into GraphViz for layout and visualization of the class graph.
      *
-     * @param classInfoList
-     *            the class info list
+     * <p>
+     * To show non-public classes, call {@link ClassGraph#ignoreClassVisibility()} before scanning.
+     *
+     * <p>
+     * To show fields, call {@link ClassGraph#enableFieldInfo()} before scanning. To show non-public fields, also
+     * call {@link ClassGraph#ignoreFieldVisibility()} before scanning.
+     *
+     * <p>
+     * To show methods, call {@link ClassGraph#enableMethodInfo()} before scanning. To show non-public methods, also
+     * call {@link ClassGraph#ignoreMethodVisibility()} before scanning.
+     *
+     * <p>
+     * To show annotations, call {@link ClassGraph#enableAnnotationInfo()} before scanning. To show non-public
+     * annotations, also call {@link ClassGraph#ignoreFieldVisibility()} before scanning (there is no separate
+     * visibility modifier for annotations).
+     *
+     * @param scanResult
+     *            the {@link ScanResult} the classes came from.
+     * @param classes
+     *            the classes to plot in the graph, e.g. {@link ScanResult#getAllClasses()}.
      * @param options
-     *            the graph options
-     * @param scanSpec
-     *            the scan spec
+     *            the graph options.
      * @return the GraphViz file contents.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableClassInfo()} was not called before scanning (since there would be
+     *             nothing to graph).
      */
-    static String generateGraphVizDotFile(final ClassInfoList classInfoList, final GraphVizDotFileOptions options,
-            final ScanSpec scanSpec) {
+    public static String generate(final ScanResult scanResult, final ClassInfoList classes,
+            final GraphVizDotFileOptions options) {
+        Objects.requireNonNull(scanResult, "scanResult must not be null");
+        Objects.requireNonNull(classes, "classes must not be null");
+        Objects.requireNonNull(options, "options must not be null");
+        if (!scanResult.isClassInfoEnabled()) {
+            throw new IllegalStateException("Please call ClassGraph#enableClassInfo() before #scan()");
+        }
+
         final var buf = new StringBuilder(1024 * 1024);
         appendDotFileHeader(options, buf);
 
-        final var standardClassNodes = classInfoList.getStandardClasses();
-        final var interfaceNodes = classInfoList.getInterfaces();
-        final var annotationNodes = classInfoList.getAnnotations();
+        final var standardClassNodes = classes.getStandardClasses();
+        final var interfaceNodes = classes.getInterfaces();
+        final var annotationNodes = classes.getAnnotations();
 
-        appendClassNodes(standardClassNodes, "box", STANDARD_CLASS_COLOR, options, scanSpec, buf);
-        appendClassNodes(interfaceNodes, "diamond", INTERFACE_COLOR, options, scanSpec, buf);
-        appendClassNodes(annotationNodes, "oval", ANNOTATION_COLOR, options, scanSpec, buf);
+        appendClassNodes(scanResult, standardClassNodes, "box", STANDARD_CLASS_COLOR, options, buf);
+        appendClassNodes(scanResult, interfaceNodes, "diamond", INTERFACE_COLOR, options, buf);
+        appendClassNodes(scanResult, annotationNodes, "oval", ANNOTATION_COLOR, options, buf);
 
+        final List<ClassInfo> allVisibleClasses = new ArrayList<>(
+                standardClassNodes.size() + interfaceNodes.size() + annotationNodes.size());
+        allVisibleClasses.addAll(standardClassNodes);
+        allVisibleClasses.addAll(interfaceNodes);
+        allVisibleClasses.addAll(annotationNodes);
         final Set<String> allVisibleNodes = new HashSet<>();
-        allVisibleNodes.addAll(standardClassNodes.getNames());
-        allVisibleNodes.addAll(interfaceNodes.getNames());
-        allVisibleNodes.addAll(annotationNodes.getNames());
+        for (final ClassInfo ci : allVisibleClasses) {
+            allVisibleNodes.add(ci.getName());
+        }
 
         buf.append('\n');
         for (final ClassInfo classNode : standardClassNodes) {
-            appendStandardClassEdges(classNode, allVisibleNodes, options, buf);
+            appendStandardClassEdges(scanResult, classNode, allVisibleNodes, options, buf);
         }
         for (final ClassInfo interfaceNode : interfaceNodes) {
             for (final ClassInfo superinterfaceNode : interfaceNode.getDirectSuperinterfaces()) {
@@ -802,9 +941,13 @@ final class GraphvizDotfileGenerator {
                 }
             }
         }
-        if (options.showAnnotationDependencyEdges) {
+        if (options.showAnnotationDependencyEdges && !annotationNodes.isEmpty()) {
+            final Map<String, List<ClassInfo>> classAnnotations = new HashMap<>();
+            final Map<String, List<ClassInfo>> methodAnnotations = new HashMap<>();
+            final Map<String, List<ClassInfo>> fieldAnnotations = new HashMap<>();
+            indexAnnotations(scanResult, allVisibleClasses, classAnnotations, methodAnnotations, fieldAnnotations);
             for (final ClassInfo annotationNode : annotationNodes) {
-                appendAnnotationEdges(annotationNode, allVisibleNodes, buf);
+                appendAnnotationEdges(annotationNode, classAnnotations, methodAnnotations, fieldAnnotations, buf);
             }
         }
         buf.append('}');
@@ -812,31 +955,126 @@ final class GraphvizDotfileGenerator {
     }
 
     /**
+     * Generate a .dot file which can be fed into GraphViz for layout and visualization of the class graph, using
+     * the default options.
+     *
+     * <p>
+     * Methods, fields and annotations are shown if enabled, via {@link ClassGraph#enableMethodInfo()},
+     * {@link ClassGraph#enableFieldInfo()} and {@link ClassGraph#enableAnnotationInfo()}.
+     *
+     * <p>
+     * Only public classes, methods, and fields are shown, unless {@link ClassGraph#ignoreClassVisibility()},
+     * {@link ClassGraph#ignoreMethodVisibility()}, and/or {@link ClassGraph#ignoreFieldVisibility()} has/have been
+     * called.
+     *
+     * @param scanResult
+     *            the {@link ScanResult} the classes came from.
+     * @param classes
+     *            the classes to plot in the graph, e.g. {@link ScanResult#getAllClasses()}.
+     * @return the GraphViz file contents.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableClassInfo()} was not called before scanning (since there would be
+     *             nothing to graph).
+     */
+    public static String generate(final ScanResult scanResult, final ClassInfoList classes) {
+        return generate(scanResult, classes, new GraphVizDotFileOptions());
+    }
+
+    /**
+     * Generate a .dot file which can be fed into GraphViz for layout and visualization of the class graph, and save
+     * it to a file, in UTF-8.
+     *
+     * @param scanResult
+     *            the {@link ScanResult} the classes came from.
+     * @param classes
+     *            the classes to plot in the graph, e.g. {@link ScanResult#getAllClasses()}.
+     * @param file
+     *            the file to save the GraphViz .dot file to.
+     * @param options
+     *            the graph options.
+     * @return the file that was written (for method chaining).
+     * @throws IOException
+     *             if the file could not be saved.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableClassInfo()} was not called before scanning (since there would be
+     *             nothing to graph).
+     */
+    public static Path write(final ScanResult scanResult, final ClassInfoList classes, final Path file,
+            final GraphVizDotFileOptions options) throws IOException {
+        Objects.requireNonNull(file, "file must not be null");
+        return Files.writeString(file, generate(scanResult, classes, options));
+    }
+
+    /**
+     * Generate a .dot file which can be fed into GraphViz for layout and visualization of the class graph, using
+     * the default options, and save it to a file, in UTF-8.
+     *
+     * <p>
+     * Methods, fields and annotations are shown if enabled, via {@link ClassGraph#enableMethodInfo()},
+     * {@link ClassGraph#enableFieldInfo()} and {@link ClassGraph#enableAnnotationInfo()}.
+     *
+     * <p>
+     * Only public classes, methods, and fields are shown, unless {@link ClassGraph#ignoreClassVisibility()},
+     * {@link ClassGraph#ignoreMethodVisibility()}, and/or {@link ClassGraph#ignoreFieldVisibility()} has/have been
+     * called.
+     *
+     * @param scanResult
+     *            the {@link ScanResult} the classes came from.
+     * @param classes
+     *            the classes to plot in the graph, e.g. {@link ScanResult#getAllClasses()}.
+     * @param file
+     *            the file to save the GraphViz .dot file to.
+     * @return the file that was written (for method chaining).
+     * @throws IOException
+     *             if the file could not be saved.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableClassInfo()} was not called before scanning (since there would be
+     *             nothing to graph).
+     */
+    public static Path write(final ScanResult scanResult, final ClassInfoList classes, final Path file)
+            throws IOException {
+        return write(scanResult, classes, file, new GraphVizDotFileOptions());
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
      * Generate a .dot file which can be fed into GraphViz for layout and visualization of the class graph. The
      * returned graph shows inter-class dependencies only. You must have called
      * {@link ClassGraph#enableInterClassDependencies()} before scanning to use this method.
      *
-     * @param classInfoList
-     *            The list of nodes whose dependencies should be plotted in the graph.
+     * @param scanResult
+     *            the {@link ScanResult} the classes came from.
+     * @param classes
+     *            the classes whose dependencies should be plotted in the graph.
      * @param options
-     *            the graph options
-     * @param scanSpec
-     *            the scan spec
+     *            the graph options. Only the layout size and the external-class setting have any effect on this
+     *            graph.
      * @return the GraphViz file contents.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableInterClassDependencies()} was not called before scanning (since there
+     *             would be nothing to graph).
      */
-    static String generateGraphVizDotFileFromInterClassDependencies(final ClassInfoList classInfoList,
-            final GraphVizDotFileOptions options, final ScanSpec scanSpec) {
+    public static String generateFromInterClassDependencies(final ScanResult scanResult,
+            final ClassInfoList classes, final GraphVizDotFileOptions options) {
+        Objects.requireNonNull(scanResult, "scanResult must not be null");
+        Objects.requireNonNull(classes, "classes must not be null");
+        Objects.requireNonNull(options, "options must not be null");
+        if (!scanResult.isInterClassDependenciesEnabled()) {
+            throw new IllegalStateException("Please call ClassGraph#enableInterClassDependencies() before #scan()");
+        }
+
         // The graph shows external classes if the options ask for them, or, if the options say nothing either way,
         // if they were enabled in the scan
         final var includeExternalClasses = options.includeExternalClasses != null ? options.includeExternalClasses
-                : scanSpec.enableExternalClasses;
+                : scanResult.isExternalClassesEnabled();
 
         final var buf = new StringBuilder(1024 * 1024);
         appendDotFileHeader(options, buf);
 
-        final Set<ClassInfo> allVisibleNodes = new HashSet<>(classInfoList);
+        final Set<ClassInfo> allVisibleNodes = new HashSet<>(classes);
         if (includeExternalClasses) {
-            for (final ClassInfo ci : classInfoList) {
+            for (final ClassInfo ci : classes) {
                 allVisibleNodes.addAll(ci.getClassDependencies());
             }
         }
@@ -852,7 +1090,7 @@ final class GraphvizDotfileGenerator {
         }
 
         buf.append('\n');
-        for (final ClassInfo ci : classInfoList) {
+        for (final ClassInfo ci : classes) {
             for (final ClassInfo dep : ci.getClassDependencies()) {
                 if (includeExternalClasses || allVisibleNodes.contains(dep)) {
                     // class --> dep
@@ -863,5 +1101,74 @@ final class GraphvizDotfileGenerator {
 
         buf.append('}');
         return buf.toString();
+    }
+
+    /**
+     * Generate a .dot file which can be fed into GraphViz for layout and visualization of the class graph, using
+     * the default options. The returned graph shows inter-class dependencies only. You must have called
+     * {@link ClassGraph#enableInterClassDependencies()} before scanning to use this method.
+     *
+     * @param scanResult
+     *            the {@link ScanResult} the classes came from.
+     * @param classes
+     *            the classes whose dependencies should be plotted in the graph.
+     * @return the GraphViz file contents.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableInterClassDependencies()} was not called before scanning (since there
+     *             would be nothing to graph).
+     */
+    public static String generateFromInterClassDependencies(final ScanResult scanResult,
+            final ClassInfoList classes) {
+        return generateFromInterClassDependencies(scanResult, classes, new GraphVizDotFileOptions());
+    }
+
+    /**
+     * Generate a .dot file which can be fed into GraphViz for layout and visualization of the class graph, and save
+     * it to a file, in UTF-8. The saved graph shows inter-class dependencies only. You must have called
+     * {@link ClassGraph#enableInterClassDependencies()} before scanning to use this method.
+     *
+     * @param scanResult
+     *            the {@link ScanResult} the classes came from.
+     * @param classes
+     *            the classes whose dependencies should be plotted in the graph.
+     * @param file
+     *            the file to save the GraphViz .dot file to.
+     * @param options
+     *            the graph options. Only the layout size and the external-class setting have any effect on this
+     *            graph.
+     * @return the file that was written (for method chaining).
+     * @throws IOException
+     *             if the file could not be saved.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableInterClassDependencies()} was not called before scanning (since there
+     *             would be nothing to graph).
+     */
+    public static Path writeFromInterClassDependencies(final ScanResult scanResult, final ClassInfoList classes,
+            final Path file, final GraphVizDotFileOptions options) throws IOException {
+        Objects.requireNonNull(file, "file must not be null");
+        return Files.writeString(file, generateFromInterClassDependencies(scanResult, classes, options));
+    }
+
+    /**
+     * Generate a .dot file which can be fed into GraphViz for layout and visualization of the class graph, using
+     * the default options, and save it to a file, in UTF-8. The saved graph shows inter-class dependencies only.
+     * You must have called {@link ClassGraph#enableInterClassDependencies()} before scanning to use this method.
+     *
+     * @param scanResult
+     *            the {@link ScanResult} the classes came from.
+     * @param classes
+     *            the classes whose dependencies should be plotted in the graph.
+     * @param file
+     *            the file to save the GraphViz .dot file to.
+     * @return the file that was written (for method chaining).
+     * @throws IOException
+     *             if the file could not be saved.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableInterClassDependencies()} was not called before scanning (since there
+     *             would be nothing to graph).
+     */
+    public static Path writeFromInterClassDependencies(final ScanResult scanResult, final ClassInfoList classes,
+            final Path file) throws IOException {
+        return writeFromInterClassDependencies(scanResult, classes, file, new GraphVizDotFileOptions());
     }
 }

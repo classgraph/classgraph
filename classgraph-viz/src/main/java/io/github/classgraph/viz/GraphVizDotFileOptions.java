@@ -26,22 +26,27 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.classgraph;
+package io.github.classgraph.viz;
 
 import org.jspecify.annotations.Nullable;
 
+import io.github.classgraph.ClassGraph;
+import io.github.classgraph.ClassInfoList;
+import io.github.classgraph.ScanResult;
+
 /**
- * Options for the GraphViz .dot file generators on {@link ClassInfoList}. A freshly constructed instance holds the
- * defaults; each method switches one option away from its default and returns {@code this}, so options can be
+ * Options for the GraphViz .dot file generators in {@link GraphVizDotFile}. A freshly constructed instance holds
+ * the defaults; each method switches one option away from its default and returns {@code this}, so options can be
  * chained:
  *
  * <pre>
- * classInfoList.generateGraphVizDotFile(new GraphVizDotFileOptions().layoutSize(12, 8).hideFields().hideMethods());
+ * GraphVizDotFile.generate(scanResult, scanResult.getAllClasses(),
+ *         new GraphVizDotFileOptions().layoutSize(12, 8).hideFields().hideMethods());
  * </pre>
  *
  * <p>
- * {@link ClassInfoList#generateGraphVizDotFileFromInterClassDependencies(GraphVizDotFileOptions)} draws a different
- * graph, and reads only {@link #layoutSize(float, float)}, {@link #includeExternalClasses()} and
+ * {@link GraphVizDotFile#generateFromInterClassDependencies(ScanResult, ClassInfoList, GraphVizDotFileOptions)}
+ * draws a different graph, and reads only {@link #layoutSize(float, float)}, {@link #includeExternalClasses()} and
  * {@link #excludeExternalClasses()} — the options that show or hide the contents of a class node have no effect on
  * it.
  */

@@ -1,8 +1,9 @@
 import java.io.IOException;
-import java.io.PrintWriter;
+import java.nio.file.Path;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.GraphVizDotFileOptions;
+import io.github.classgraph.viz.GraphVizDotFile;
+import io.github.classgraph.viz.GraphVizDotFileOptions;
 
 /**
  * ClassGraphGraphVizGenerator.
@@ -26,14 +27,10 @@ public class ClassGraphGraphVizGenerator {
                 .enableAnnotationInfo() //
                 // .enableInterClassDependencies() // .verbose() //
                 .scan()) {
-            final var fileName = "/tmp/graph.dot";
-            try (var writer = new PrintWriter(fileName)) {
-                writer.print(scanResult.getAllClasses()
-                        // .generateGraphVizDotFileFromClassDependencies()
-                        .generateGraphVizDotFile(
-                                new GraphVizDotFileOptions().layoutSize(12, 8).hideFields().hideMethods()));
-            }
-            System.out.println("Wrote " + fileName);
+            final var file = Path.of("/tmp/graph.dot");
+            GraphVizDotFile.write(scanResult, scanResult.getAllClasses(), file,
+                    new GraphVizDotFileOptions().layoutSize(12, 8).hideFields().hideMethods());
+            System.out.println("Wrote " + file);
         }
     }
 }

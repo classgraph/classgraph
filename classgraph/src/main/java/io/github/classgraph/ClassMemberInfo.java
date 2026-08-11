@@ -300,4 +300,27 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
         }
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Get the classes referenced by this class member: the classes named in its type descriptor and type signature,
+     * the classes of the annotations on it, and, for a method, the classes of the annotations on its parameters and
+     * the exception types in its {@code throws} clause.
+     *
+     * <p>
+     * Unlike {@link ClassInfo#getClassDependencies()}, this does not require
+     * {@link ClassGraph#enableInterClassDependencies()} to have been called before scanning -- the dependencies are
+     * read from the type signature and annotations of this member, which are always available once
+     * {@link ClassGraph#enableFieldInfo()} or {@link ClassGraph#enableMethodInfo()} has been called.
+     *
+     * <p>
+     * Only classes that were themselves encountered during the scan are returned. Call
+     * {@link ClassGraph#enableExternalClasses()} before scanning to also get classes outside the accepted packages.
+     *
+     * @return A {@link ClassInfoList} of the classes referenced by this class member, or the empty list if none.
+     */
+    public ClassInfoList getClassDependencies() {
+        return new ClassInfoList(findReferencedClassInfo(/* log = */ null), /* sortByName = */ true);
+    }
+
 }

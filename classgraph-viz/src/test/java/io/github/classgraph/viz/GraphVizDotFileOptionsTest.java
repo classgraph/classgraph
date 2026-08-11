@@ -1,4 +1,4 @@
-package io.github.classgraph;
+package io.github.classgraph.viz;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -8,6 +8,8 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 import org.junit.jupiter.api.Test;
+
+import io.github.classgraph.ClassGraph;
 
 /** Tests that each option of {@link GraphVizDotFileOptions} changes the generated .dot file as documented. */
 public class GraphVizDotFileOptionsTest {
@@ -79,7 +81,7 @@ public class GraphVizDotFileOptionsTest {
     private static String classGraph(final GraphVizDotFileOptions options) {
         try (var scanResult = new ClassGraph().acceptClasses(GraphClassAnnotation.class.getName(),
                 GraphType.class.getName(), GraphNode.class.getName()).enableAllInfo().scan()) {
-            return scanResult.getAllClasses().generateGraphVizDotFile(options);
+            return GraphVizDotFile.generate(scanResult, scanResult.getAllClasses(), options);
         }
     }
 
@@ -96,8 +98,8 @@ public class GraphVizDotFileOptionsTest {
                 .acceptClasses(GraphClassAnnotation.class.getName(), GraphType.class.getName(),
                         GraphNode.class.getName())
                 .enableAllInfo().enableInterClassDependencies().enableExternalClasses().scan()) {
-            return scanResult.getAllClasses().filter(ci -> ci.getName().startsWith(FIXTURE))
-                    .generateGraphVizDotFileFromInterClassDependencies(options);
+            return GraphVizDotFile.generateFromInterClassDependencies(scanResult,
+                    scanResult.getAllClasses().filter(ci -> ci.getName().startsWith(FIXTURE)), options);
         }
     }
 

@@ -38,7 +38,6 @@ import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.FieldInfo;
-import io.github.classgraph.GraphVizDotFileOptions;
 import io.github.classgraph.Resource;
 import io.github.classgraph.test.accepted.Accepted;
 import io.github.classgraph.test.accepted.AcceptedInterface;
@@ -412,18 +411,6 @@ public class ClassGraphTest {
                 }
             }
             assertThat(numInitializers).isEqualTo(4);
-        }
-    }
-
-    /**
-     * Generate graph viz file.
-     */
-    @Test
-    public void generateGraphVizFile() {
-        try (var scanResult = new ClassGraph().acceptPackages(ROOT_PACKAGE).enableAllInfo().scan()) {
-            final var dotFile = scanResult.getAllClasses()
-                    .generateGraphVizDotFile(new GraphVizDotFileOptions().layoutSize(20, 20));
-            assertThat(dotFile).contains("\"" + ClsSub.class.getName() + "\" -> \"" + Cls.class.getName() + "\"");
         }
     }
 

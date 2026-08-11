@@ -1,0 +1,38 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>io.github.classgraph</groupId>
+		<artifactId>classgraph-parent</artifactId>
+		<version>4.8.190-SNAPSHOT</version>
+	</parent>
+
+	<artifactId>classgraph-viz</artifactId>
+	<name>ClassGraph visualization</name>
+
+	<description>Renders the class graph found by ClassGraph as a GraphViz .dot file.</description>
+
+	<properties>
+		<!-- The shared files (the code formatter profile and the license) are one directory up -->
+		<rootDir>${project.basedir}/..</rootDir>
+
+		<!-- Must agree with src/main/java/module-info.java -->
+		<jpmsModuleName>io.github.classgraph.viz</jpmsModuleName>
+		<osgiBundleName>ClassGraph visualization</osgiBundleName>
+		<osgiExportPackage>io.github.classgraph.viz;version="${project.version}"</osgiExportPackage>
+		<osgiImportPackage>io.github.classgraph,org.jspecify.annotations;resolution:="optional"</osgiImportPackage>
+		<osgiDependencies>io.github.classgraph</osgiDependencies>
+
+		<!-- This module produces a jar, so it needs its resources and the modular copy of its Javadoc -->
+		<maven.antrun.skip>false</maven.antrun.skip>
+		<maven.resources.skip>false</maven.resources.skip>
+	</properties>
+
+	<dependencies>
+		<dependency>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>classgraph</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+	</dependencies>
+</project>

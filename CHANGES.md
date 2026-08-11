@@ -15,6 +15,19 @@ ClassGraph 5.x does not maintain binary or source compatibility with ClassGraph 
   (`java.lang.module`, `ModuleLayer`) is present in every supported JDK. This is the
   reason for most of the API changes listed below.
 
+## Artifacts
+
+ClassGraph 4.x shipped as a single jar. ClassGraph 5.x is split into several artifacts, so
+that a project depends only on the part of ClassGraph it uses:
+
+| Artifact | Module | Contents |
+| --- | --- | --- |
+| `io.github.classgraph:classgraph` | `io.github.classgraph` | Scanning and the class graph API |
+| `io.github.classgraph:classgraph-viz` | `io.github.classgraph.viz` | GraphViz .dot file generation |
+
+`classgraph-viz` depends on `classgraph`, so a project that wants both needs only the
+`classgraph-viz` dependency.
+
 ## API changes
 
 ### All deprecated methods have been removed
@@ -40,7 +53,7 @@ replacement has the same behavior, so porting is a rename.
 | `ClassGraph#blacklistClasspathElementsContainingResourcePath` | `ClassGraph#rejectClasspathElementsContainingResourcePath` |
 | `ScanResult#getResourcesWithPathIgnoringWhitelist` | `ScanResult#getResourcesWithPathIgnoringAccept` |
 | `FieldInfo#getModifierStr` | `FieldInfo#getModifiersString` |
-| `ClassInfoList#generateGraphVizDotFileFromClassDependencies` | `ClassInfoList#generateGraphVizDotFileFromInterClassDependencies` |
+| `ClassInfoList#generateGraphVizDotFileFromClassDependencies` | `GraphVizDotFile#generateFromInterClassDependencies` (see below) |
 | `ResourceList#forEachByteArray(ByteArrayConsumer, boolean)` | `ResourceList#forEachByteArray` or `#forEachByteArrayIgnoringIOException` |
 | `ResourceList#forEachInputStream(InputStreamConsumer, boolean)` | `ResourceList#forEachInputStream` or `#forEachInputStreamIgnoringIOException` |
 | `ResourceList#forEachByteBuffer(ByteBufferConsumer, boolean)` | `ResourceList#forEachByteBuffer` or `#forEachByteBufferIgnoringIOException` |
@@ -74,33 +87,40 @@ sees the `IOException` itself. Code that catches `IllegalArgumentException` arou
 `forEach*` call needs to catch `IOException` instead. Everywhere else the compiler will
 point at the call, because `IOException` is checked.
 
-### The GraphViz .dot file generators now take an options object
+### The GraphViz .dot file generators have moved to `classgraph-viz`
 
-`ClassInfoList` had eight `generateGraphVizDotFile*` overloads, and the widest of them took
-two floats followed by six booleans:
+GraphViz .dot file generation is no longer part of the core artifact, and is no longer
+reached through `ClassInfoList`. It now lives in `io.github.classgraph:classgraph-viz`, as
+static methods on `io.github.classgraph.viz.GraphVizDotFile`. Each method takes the
+`ScanResult` that the classes came from, then the classes to graph:
 
 ```java
-classInfoList.generateGraphVizDotFile(12, 8, false, true, false, true, true);
+GraphVizDotFile.generate(scanResult, scanResult.getAllClasses());
 ```
 
-The options are now carried by `GraphVizDotFileOptions`, whose no-argument constructor
-holds the defaults, and whose methods each switch one option away from its default:
+`ClassInfoList` had eight `generateGraphVizDotFile*` overloads, and the widest of them took
+two floats followed by six booleans. The options are now carried by
+`GraphVizDotFileOptions`, whose no-argument constructor holds the defaults, and whose
+methods each switch one option away from its default:
 
 ```java
-classInfoList.generateGraphVizDotFile(
+GraphVizDotFile.generate(scanResult, scanResult.getAllClasses(),
         new GraphVizDotFileOptions().layoutSize(12, 8).hideFields().hideMethods());
 ```
 
-| ClassGraph 4.x | ClassGraph 5.x |
+| ClassGraph 4.x (on `ClassInfoList`) | ClassGraph 5.x (on `GraphVizDotFile`) |
 | --- | --- |
-| `generateGraphVizDotFile()` | `generateGraphVizDotFile()` |
-| `generateGraphVizDotFile(float, float)` | `generateGraphVizDotFile(options)` |
-| `generateGraphVizDotFile(float, float, boolean × 5)` | `generateGraphVizDotFile(options)` |
-| `generateGraphVizDotFile(float, float, boolean × 6)` | `generateGraphVizDotFile(options)` |
-| `generateGraphVizDotFile(File)` | `writeGraphVizDotFile(File)` |
-| `generateGraphVizDotFileFromInterClassDependencies()` | `generateGraphVizDotFileFromInterClassDependencies()` |
-| `generateGraphVizDotFileFromInterClassDependencies(float, float)` | `generateGraphVizDotFileFromInterClassDependencies(options)` |
-| `generateGraphVizDotFileFromInterClassDependencies(float, float, boolean)` | `generateGraphVizDotFileFromInterClassDependencies(options)` |
+| `generateGraphVizDotFile()` | `generate(scanResult, classes)` |
+| `generateGraphVizDotFile(float, float)` | `generate(scanResult, classes, options)` |
+| `generateGraphVizDotFile(float, float, boolean × 5)` | `generate(scanResult, classes, options)` |
+| `generateGraphVizDotFile(float, float, boolean × 6)` | `generate(scanResult, classes, options)` |
+| `generateGraphVizDotFile(File)` | `write(scanResult, classes, path)` |
+| `generateGraphVizDotFileFromInterClassDependencies()` | `generateFromInterClassDependencies(scanResult, classes)` |
+| `generateGraphVizDotFileFromInterClassDependencies(float, float)` | `generateFromInterClassDependencies(scanResult, classes, options)` |
+| `generateGraphVizDotFileFromInterClassDependencies(float, float, boolean)` | `generateFromInterClassDependencies(scanResult, classes, options)` |
+
+There is also `writeFromInterClassDependencies(scanResult, classes, path)`, which 4.x did
+not have — the dependency graph could only be generated as a string.
 
 The options and their defaults are `layoutSize(10.5f, 8.0f)`, `hideFields()`,
 `hideFieldTypeDependencyEdges()`, `hideMethods()`, `hideMethodTypeDependencyEdges()`,
@@ -108,9 +128,8 @@ The options and their defaults are `layoutSize(10.5f, 8.0f)`, `hideFields()`,
 the corresponding `ClassGraph#enable*Info()` call having been made before scanning),
 `useFullyQualifiedNames()` (simple names by default), and `includeExternalClasses()` /
 `excludeExternalClasses()` (by default the inter-class dependency graph follows the scan's
-own `ClassGraph#enableExternalClasses()` setting). Every option is read by
-`generateGraphVizDotFile`; the inter-class dependency graph reads only the layout size and
-the external-class setting.
+own `ClassGraph#enableExternalClasses()` setting). Every option is read by `generate`; the
+inter-class dependency graph reads only the layout size and the external-class setting.
 
 The three pairs of options are now symmetrical: `hideFields()`, `hideMethods()` and
 `hideAnnotations()` each hide something inside the class boxes, and
@@ -122,10 +141,33 @@ fields, its methods and their parameters, are now hidden by `hideAnnotations()`,
 that passed `showAnnotations = false` to hide the edges needs
 `hideAnnotationDependencyEdges()` instead.
 
-Writing the graph to a file is now `writeGraphVizDotFile` rather than a `File`-typed
-overload of `generateGraphVizDotFile`, so the name says which one returns the .dot file
-contents and which one saves them, and the inter-class dependency graph has a matching
-`writeGraphVizDotFileFromInterClassDependencies`.
+Writing the graph to a file is now `write` rather than a `File`-typed overload of
+`generate`, so the name says which one returns the .dot file contents and which one saves
+them. `write` takes a `java.nio.file.Path` rather than a `java.io.File`, returns that
+`Path` rather than the list it was called on, and writes UTF-8 — 4.x wrote the platform
+default charset, which mangled non-ASCII class and member names on any platform whose
+default was not UTF-8.
+
+Three smaller behavior changes came with the move:
+
+* Passing an empty list of classes now produces an empty graph. In 4.x it threw
+  `IllegalStateException("List is empty")`, because the generator read the scan's settings
+  out of the first element of the list; it now takes the `ScanResult` directly. Scanning
+  without `ClassGraph#enableClassInfo()`, or calling
+  `generateFromInterClassDependencies` without `ClassGraph#enableInterClassDependencies()`,
+  still throws `IllegalStateException`.
+* Annotation edges no longer include the shortcut edges that 4.x drew from a class to the
+  meta-annotations of its annotations, and from a subclass to the `@Inherited` annotations
+  of its superclasses. Those annotations are still in the graph, and are still reachable
+  from the class along a path of edges, so the shortcut edges only added clutter.
+* Annotations within a class box are now listed in sorted order, rather than in the order
+  they appeared in the classfile.
+
+Two methods were added to the core API to support this, and are useful in their own right:
+`ScanResult#isClassInfoEnabled()` and its siblings for field, method and annotation info,
+inter-class dependencies, external classes, and ignored field and method visibility; and
+`ClassMemberInfo#getClassDependencies()` (inherited by `FieldInfo` and `MethodInfo`), which
+returns the classes referred to by a single field or method.
 
 ### The JSON serializer and deserializer have been removed
 
@@ -827,7 +869,6 @@ no argument involved. 5.x follows the JDK's convention:
   * a classpath element, resource or module whose URI or URL cannot be determined —
     `ClassInfo#getClasspathElementURI()`/`#getClasspathElementURL()`/`#getClasspathElementFile()`,
     `Resource#getURI()`/`#getURL()`/`#getClasspathElementURL()`;
-  * `ClassInfoList#generateGraphVizDotFile*` and `#writeGraphVizDotFile*` on an empty list;
   * `TypeVariableSignature#resolve()` when the class defining the type variable was not
     found during the scan.
 * **`UnsupportedOperationException`** when the operation is one the receiver does not
@@ -933,10 +974,6 @@ they can be chained:
 * `ResourceList#forEachByteArray`, `#forEachByteArrayIgnoringIOException`,
   `#forEachInputStream`, `#forEachInputStreamIgnoringIOException`, `#forEachByteBuffer` and
   `#forEachByteBufferIgnoringIOException` return the `ResourceList`.
-* `ClassInfoList#writeGraphVizDotFile(File)`, `#writeGraphVizDotFile(File,
-  GraphVizDotFileOptions)`, `#writeGraphVizDotFileFromInterClassDependencies(File)` and
-  `#writeGraphVizDotFileFromInterClassDependencies(File, GraphVizDotFileOptions)` return the
-  `ClassInfoList`.
 
 Nothing else changes about these methods; code that ignores the return value is unaffected.
 
