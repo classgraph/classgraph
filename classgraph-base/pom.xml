@@ -1,0 +1,48 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>io.github.classgraph</groupId>
+		<artifactId>classgraph-parent</artifactId>
+		<version>4.8.190-SNAPSHOT</version>
+	</parent>
+
+	<artifactId>classgraph-base</artifactId>
+	<name>ClassGraph base</name>
+
+	<description>The helper classes shared by the ClassGraph libraries: path and URL handling, logging, reflection, and accept/reject matching. This library has no public API of its own, and is not useful on its own.</description>
+
+	<properties>
+		<!-- The shared files (the code formatter profile and the license) are one directory up -->
+		<rootDir>${project.basedir}/..</rootDir>
+
+		<!-- The internal packages are exported to the modules that sit on top of this one, and those cannot be on
+		     the module path while this module is compiled. javac cannot check the target of such an export, and
+		     warns that the module was not found, which -Werror would turn into a build failure. -->
+		<javacLintSuppressions>-Xlint:-exports,-module</javacLintSuppressions>
+
+		<!-- Must agree with src/main/java/module-info.java -->
+		<jpmsModuleName>io.github.classgraph.base</jpmsModuleName>
+		<osgiBundleName>ClassGraph base</osgiBundleName>
+		<!-- The nonapi packages are exported because OSGi has no equivalent of a qualified export, and the
+		     modules above this one need them. They are marked x-internal so that tooling does not offer them
+		     for import, and they are not covered by the project's API compatibility guarantees. -->
+		<osgiExportPackage>nonapi.io.github.classgraph.utils;x-internal:=true,nonapi.io.github.classgraph.reflection;x-internal:=true</osgiExportPackage>
+		<osgiImportPackage>javax.xml.xpath,javax.xml.namespace,javax.xml.parsers,org.w3c.dom,sun.misc;resolution:="optional",sun.nio.ch;resolution:="optional",io.github.toolfactory.narcissus;resolution:="optional",org.jspecify.annotations;resolution:="optional"</osgiImportPackage>
+		<osgiDependencies>java.xml,jdk.unsupported,java.logging</osgiDependencies>
+
+		<!-- This module produces a jar, so it needs its resources and the modular copy of its Javadoc -->
+		<maven.antrun.skip>false</maven.antrun.skip>
+		<maven.resources.skip>false</maven.resources.skip>
+	</properties>
+
+	<!-- Versions are pinned in the parent's dependencyManagement section -->
+	<dependencies>
+		<!-- Optional runtime dependency: if Narcissus is on the classpath, it is used as the reflection driver -->
+		<dependency>
+			<groupId>io.github.toolfactory</groupId>
+			<artifactId>narcissus</artifactId>
+			<optional>true</optional>
+		</dependency>
+	</dependencies>
+</project>

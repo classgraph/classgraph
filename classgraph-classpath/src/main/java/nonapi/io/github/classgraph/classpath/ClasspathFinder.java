@@ -408,7 +408,7 @@ public class ClasspathFinder {
     private void addJavaClassPathEntries(final ClassPathSpec classPathSpec,
             final @Nullable ClassLoader defaultClassLoader, final @Nullable LogNode log) {
         final var pathElements = JarUtils.smartPathSplit(VersionFinder.getProperty("java.class.path"),
-                classPathSpec);
+                classPathSpec.allowedURLSchemes);
         if (pathElements.length > 0) {
             final var sysPropLog = log == null ? null : log.log("Getting classpath entries from java.class.path");
             for (final String pathElement : pathElements) {

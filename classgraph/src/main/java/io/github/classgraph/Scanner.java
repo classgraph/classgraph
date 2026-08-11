@@ -953,14 +953,14 @@ class Scanner implements Callable<ScanResult> {
                     if (classpathEltZip.logicalZipFile.addExportsManifestEntryValue != null) {
                         for (final String addExports : JarUtils.smartPathSplit(
                                 classpathEltZip.logicalZipFile.addExportsManifestEntryValue, ' ',
-                                scanSpec.classPathSpec)) {
+                                scanSpec.classPathSpec.allowedURLSchemes)) {
                             scanSpec.classPathSpec.modulePathInfo.addExportsEntry(addExports + "=ALL-UNNAMED");
                         }
                     }
                     if (classpathEltZip.logicalZipFile.addOpensManifestEntryValue != null) {
                         for (final String addOpens : JarUtils.smartPathSplit(
                                 classpathEltZip.logicalZipFile.addOpensManifestEntryValue, ' ',
-                                scanSpec.classPathSpec)) {
+                                scanSpec.classPathSpec.allowedURLSchemes)) {
                             scanSpec.classPathSpec.modulePathInfo.addOpensEntry(addOpens + "=ALL-UNNAMED");
                         }
                     }

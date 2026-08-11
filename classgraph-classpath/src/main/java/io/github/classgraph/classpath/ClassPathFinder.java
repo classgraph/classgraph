@@ -105,7 +105,7 @@ public class ClassPathFinder {
         if (classpath.isEmpty()) {
             throw new IllegalArgumentException("Can't override classpath with an empty path");
         }
-        for (final String classpathElement : JarUtils.smartPathSplit(classpath, classPathSpec)) {
+        for (final String classpathElement : JarUtils.smartPathSplit(classpath, classPathSpec.allowedURLSchemes)) {
             classPathSpec.addClasspathOverride(classpathElement);
         }
         return this;

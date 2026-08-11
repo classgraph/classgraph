@@ -681,7 +681,7 @@ public class ClasspathOrder {
         if (pathStr == null || pathStr.isEmpty()) {
             return false;
         } else {
-            final var parts = JarUtils.smartPathSplit(pathStr, classPathSpec);
+            final var parts = JarUtils.smartPathSplit(pathStr, classPathSpec.allowedURLSchemes);
             if (parts.length == 0) {
                 return false;
             } else {

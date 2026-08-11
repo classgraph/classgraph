@@ -8,11 +8,10 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-
-import nonapi.io.github.classgraph.classpathspec.ClassPathSpec;
 
 /** Tests for {@link JarUtils}. */
 public class JarUtilsTest {
@@ -78,11 +77,9 @@ public class JarUtilsTest {
     /** A scheme that is only a URL scheme because the user registered it is not split at either. */
     @Test
     public void registeredURLSchemesAreNotSplitAtTheirScheme() {
-        final var classPathSpec = new ClassPathSpec();
-        assertThat(JarUtils.smartPathSplit("s3://bucket/jar1.jar:/tmp/jar2.jar", ':', classPathSpec))
+        assertThat(JarUtils.smartPathSplit("s3://bucket/jar1.jar:/tmp/jar2.jar", ':', Set.of()))
                 .containsExactly("s3", "//bucket/jar1.jar", "/tmp/jar2.jar");
-        classPathSpec.enableURLScheme("s3");
-        assertThat(JarUtils.smartPathSplit("s3://bucket/jar1.jar:/tmp/jar2.jar", ':', classPathSpec))
+        assertThat(JarUtils.smartPathSplit("s3://bucket/jar1.jar:/tmp/jar2.jar", ':', Set.of("s3")))
                 .containsExactly("s3://bucket/jar1.jar", "/tmp/jar2.jar");
     }
 

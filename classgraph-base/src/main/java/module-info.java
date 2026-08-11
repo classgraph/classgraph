@@ -30,10 +30,13 @@
 import org.jspecify.annotations.NullMarked;
 
 /**
- * The classpath and module path finder of
- * <a href="https://github.com/classgraph/classgraph">ClassGraph</a>: works out
- * where a running JVM loads its classes and resources from, including from the
- * custom classloaders of application servers, build tools and frameworks.
+ * The classes shared by the libraries of
+ * <a href="https://github.com/classgraph/classgraph">ClassGraph</a>: path and
+ * URL handling, logging, reflection, and accept/reject matching.
+ *
+ * <p>
+ * This module has no public API of its own, and is not useful on its own. It
+ * exports its packages only to the other ClassGraph modules.
  *
  * <p>
  * This module is {@link org.jspecify.annotations.NullMarked}: unless a type is
@@ -42,22 +45,25 @@ import org.jspecify.annotations.NullMarked;
  * @author Luke Hutchison
  */
 @NullMarked
-module io.github.classgraph.classpath {
-    exports io.github.classgraph.classpath;
-
+module io.github.classgraph.base {
     // The nonapi packages are the internals of ClassGraph. They are only exported to the modules that are built on
     // top of this one, and they are not covered by the project's API compatibility guarantees.
-    exports nonapi.io.github.classgraph.classloaderhandler to io.github.classgraph;
-    exports nonapi.io.github.classgraph.classpath to io.github.classgraph;
-    exports nonapi.io.github.classgraph.classpathspec to io.github.classgraph;
+    exports nonapi.io.github.classgraph.reflection to io.github.classgraph, io.github.classgraph.classpath,
+            io.github.classgraph.vfs;
+    exports nonapi.io.github.classgraph.utils to io.github.classgraph, io.github.classgraph.classpath,
+            io.github.classgraph.vfs;
 
     // N.B. make sure the "Import-Package" entries in the manifest (in pom.xml) match these "requires" statements.
 
-    // The shared helper classes. This is "requires transitive" because they appear in signatures that the modules
-    // above this one use, e.g. the LogNode passed to the classpath finder
-    requires transitive io.github.classgraph.base;
-    // ModulePathInfo requires java.management
-    requires java.management;
+    // VersionFinder requires java.xml
+    requires java.xml;
+    // FileUtils requires jdk.unsupported (for usage of Unsafe)
+    requires jdk.unsupported;
+    // LogNode requires java.logging
+    requires java.logging;
+
+    // ReflectionUtils may use Narcissus, if it is available
+    requires static io.github.toolfactory.narcissus;
 
     // JSpecify nullability annotations are only needed at compile time. This deliberately is not "requires
     // transitive", even though the annotations appear in exported signatures: that would force every modular

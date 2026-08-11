@@ -165,7 +165,7 @@ public final class LogNode {
     public LogNode() {
         this("", "", /* elapsedTimeNanos = */ -1L, /* exception = */ null);
         this.log("ClassGraph version "
-                + VersionFinder.getVersion(LogNode.class, "io.github.classgraph", "classgraph-classpath"));
+                + VersionFinder.getVersion(LogNode.class, "io.github.classgraph", "classgraph-base"));
         logJavaInfo();
     }
 
