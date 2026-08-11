@@ -371,6 +371,24 @@ loads. If it is absent, ClassGraph uses standard reflection, silently, as before
 present but its native library will not load, ClassGraph prints a message to `System.err`
 and falls back to standard reflection.
 
+One thing to be ready for: Narcissus works by loading a native library, and on JDK 24+ that
+draws a warning unless the JVM was launched with `--enable-native-access`
+([JEP 472](https://openjdk.org/jeps/472)). With Narcissus on the classpath of an
+application launched without it, the JVM prints:
+
+```
+WARNING: A restricted method in java.lang.System has been called
+WARNING: java.lang.System::load has been called by io.github.toolfactory.narcissus.LibraryLoader in an unnamed module (file:/path/to/narcissus-1.0.11.jar)
+WARNING: Use --enable-native-access=ALL-UNNAMED to avoid a warning for callers in this module
+WARNING: Restricted methods will be blocked in a future release unless native access is enabled
+```
+
+Adding `--enable-native-access=ALL-UNNAMED` to the launch command silences it (or name the
+module Narcissus is in, if you put it on the module path). This is not cosmetic for long:
+the JEP states that restricted methods will be refused outright in a later release, so at
+that point the switch becomes required rather than optional. ClassGraph's own build passes
+it to Surefire for exactly this reason.
+
 So the API for selecting a driver is gone, with nothing to replace it:
 
 | Removed in 5.x | Use instead |
