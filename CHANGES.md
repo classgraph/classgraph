@@ -382,6 +382,28 @@ So the API for selecting a driver is gone, with nothing to replace it:
 The driver is now chosen once per JVM rather than once per `ClassGraph` instance, so it no
 longer matters when in the lifetime of your program ClassGraph is first used.
 
+Adding Narcissus can therefore change what a scan finds, which is the reason to add it. The
+JDK's own application classloader keeps its classpath in a private `ucp` field, and standard
+reflection cannot read it on JDK 16+, so ClassGraph falls back to the `java.class.path`
+system property. Two things that property does not cover:
+
+* **Classpath entries added after startup**, by a Java agent calling
+  `Instrumentation#appendToSystemClassLoaderSearch(JarFile)`. `java.class.path` is fixed
+  when the JVM starts, so without Narcissus these entries are invisible, and the classes in
+  them are missing from the scan.
+* **The parents of a classloader you pass to `ClassGraph#overrideClassLoaders`**. Overriding
+  the classloaders means the `java.class.path` fallback does not apply, so if a parent is
+  one of the JDK's own classloaders, its entries can only be reached through `ucp`.
+
+If ClassGraph cannot see classes that you know are on the classpath, and either of these
+applies to you, adding Narcissus is likely to be the fix. The same goes for a
+strongly-encapsulated third-party classloader that keeps its classpath in a private field.
+
+This does not affect whether **system** classes are scanned, which is still controlled only
+by `ClassGraph#enableSystemJarsAndModules()`. System classes come from modules, read through
+the JPMS API, which is a separate mechanism from the `ucp` field; and in any case the
+platform and boot classloaders have no `ucp` to read on a modern JDK.
+
 ### `acceptLibOrExtJars` and `rejectLibOrExtJars` have been removed
 
 These two methods accepted or rejected jars found in the JRE/JDK `lib/` and `ext/`
