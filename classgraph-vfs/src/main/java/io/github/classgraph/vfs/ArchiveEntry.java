@@ -106,10 +106,9 @@ public class ArchiveEntry {
     }
 
     /**
-     * Returns the number of bytes this entry's content occupies once decompressed, or -1 if the archive does not
-     * record it.
+     * Returns the number of bytes this entry's content occupies once decompressed.
      *
-     * @return the uncompressed size in bytes, or -1 if unknown.
+     * @return the uncompressed size in bytes.
      */
     public long getUncompressedSize() {
         return zipEntry.uncompressedSize;

@@ -40,6 +40,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.regex.Pattern;
 import java.util.zip.Inflater;
 
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
@@ -177,15 +178,25 @@ public class ScanResources {
     }
 
     /**
-     * Replace any character that is not valid in a filename on every supported platform with an underscore.
+     * Characters that may not appear in a filename. Windows rejects every ASCII control character, and also
+     * {@code " * / < > ? \ |}, whereas Linux and macOS reject only {@code /}. Windows accepts {@code :}, but treats
+     * it as the start of an NTFS alternate data stream rather than as part of the filename. The remaining
+     * characters are legal everywhere, but are replaced anyway so that a temporary filename can be pasted into a
+     * shell command or a log message without quoting.
+     */
+    private static final Pattern UNSAFE_FILENAME_CHARS = Pattern.compile("[\\x00-\\x1f\"*/:<>?\\\\|&= ]");
+
+    /**
+     * Replace any character that is not valid in a filename on every supported platform with an underscore. Zip
+     * entry names may contain almost any byte, whereas filenames may not, so the temporary file that a nested jar
+     * is extracted to cannot simply be named after the zip entry it came from.
      *
      * @param filename
      *            the filename
      * @return the sanitized filename
      */
     private static String sanitizeFilename(final String filename) {
-        return filename.replace('/', '_').replace('\\', '_').replace(':', '_').replace('?', '_').replace('&', '_')
-                .replace('=', '_').replace(' ', '_');
+        return UNSAFE_FILENAME_CHARS.matcher(filename).replaceAll("_");
     }
 
     /**

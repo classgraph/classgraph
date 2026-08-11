@@ -88,7 +88,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     final int version;
 
     /**
-     * The unversioned entry name (i.e. entryName with "META_INF/versions/{versionInt}/" stripped)
+     * The unversioned entry name (i.e. entryName with "META-INF/versions/{versionInt}/" stripped)
      */
     public final String entryNameUnversioned;
 
@@ -119,8 +119,9 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
      * @param fileAttributes
      *            The POSIX file attribute bits from the zip entry.
      * @param enableMultiReleaseVersions
-     *            If true, strip any "META-INF/versions/{versionInt}/" prefix from the entry name, and record the
-     *            version number; if false, leave multi-release entry names unchanged.
+     *            If true, leave multi-release entry names unchanged, so that every version of an entry is reported
+     *            separately; if false, strip any "META-INF/versions/{versionInt}/" prefix from the entry name, so
+     *            that the versioned entries can mask the entries they override.
      */
     FastZipEntry(final LogicalZipFile parentLogicalZipFile, final long locHeaderPos, final String entryName,
             final boolean isDeflated, final long compressedSize, final long uncompressedSize,

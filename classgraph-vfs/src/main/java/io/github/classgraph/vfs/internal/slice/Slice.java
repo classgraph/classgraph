@@ -239,7 +239,9 @@ public abstract class Slice implements Closeable {
         try {
             tempFile = scanResources.makeTempFile(tempFileBaseName, /* onlyUseLeafname = */ true);
         } catch (final IOException e) {
-            throw new IOException("Could not create temporary file: " + e.getMessage());
+            // Chain the cause, so that the reason the temporary file could not be created is reachable from the
+            // stack trace
+            throw new IOException("Could not create temporary file: " + e, e);
         }
         if (log != null) {
             log.log("Could not fit InputStream content into max RAM buffer size, saving to temporary file: "
