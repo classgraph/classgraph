@@ -1269,6 +1269,17 @@ On Linux and macOS they are not loaded at all.
 Bugs found during the port. Each of these is a pre-existing bug in ClassGraph 4.x, and
 is fixed on the 4.x branch as well.
 
+* The same jar or directory was listed twice as a classpath element if it was reachable
+  both as a module and as a classpath entry -- if it is on both the module path and the
+  classpath, or is spliced into a module with `--patch-module` while also being on the
+  classpath (which is what Maven Surefire and IDEs do), or is reached through a symlink in
+  one of the two. `ScanResult#getClasspathURIs()`, `getClasspathURLs()`,
+  `getClasspathFiles()` and `getClasspath()` are all documented to return the *unique*
+  classpath elements, and the duplicate element was also opened and scanned a second time.
+  The module now takes precedence, since that is where the JVM loads the classes from, and
+  the duplicate classpath element is dropped. Duplicate *resources* were already removed in
+  this case, so this does not change which classes or resources a scan returns.
+
 * `ModuleInfo#getLocation()` is documented to return null for a module whose location is
   unknown, and `ModuleReference#location()` can return an empty `Optional`, but the method
   threw rather than returning null in exactly that case: with no location of its own it

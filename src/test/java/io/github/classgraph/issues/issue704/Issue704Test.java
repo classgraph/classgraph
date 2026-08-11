@@ -70,6 +70,21 @@ public class Issue704Test {
     }
 
     /**
+     * Get the classpath element URIs of a scan that contain the given substring. (The test jars are added to the
+     * default classloaders rather than replacing them, so the rest of the classpath is present too, and has to be
+     * filtered out.)
+     *
+     * @param scanResult
+     *            the scan result.
+     * @param substring
+     *            the substring to look for in the URI.
+     * @return the matching classpath element URIs.
+     */
+    private static List<URI> classpathURIsMatching(final ScanResult scanResult, final String substring) {
+        return scanResult.getClasspathURIs().stream().filter(uri -> uri.toString().contains(substring)).toList();
+    }
+
+    /**
      * Define a {@link ModuleLayer} containing the automatic module in the given jar.
      *
      * @param jarFile
@@ -114,6 +129,9 @@ public class Issue704Test {
             final var uris = scanResult.getAllResources().getURIs();
             assertThat(uris).hasSize(1);
             assertThat(uris.get(0).toString()).endsWith("issue704a.jar!/" + RESOURCE_PATH);
+            // The jar is the same file whether it is reached as a module or as a classpath element, so it is a
+            // single classpath element, not two
+            assertThat(classpathURIsMatching(scanResult, "issue704a.jar")).hasSize(1);
         }
     }
 
@@ -151,6 +169,7 @@ public class Issue704Test {
                         .acceptPaths("stuff") //
                         .scan()) {
             assertThat(scanResult.getAllResources().getURIs()).hasSize(1);
+            assertThat(classpathURIsMatching(scanResult, "issue704d.jar")).hasSize(1);
         }
     }
 
@@ -182,6 +201,8 @@ public class Issue704Test {
             assertThat(uriStrs).hasSize(2);
             assertThat(uriStrs.get(0)).endsWith("issue704b.jar!/" + RESOURCE_PATH);
             assertThat(uriStrs.get(1)).endsWith("issue704c.jar!/" + RESOURCE_PATH);
+            // These are two different files, so they are two different classpath elements
+            assertThat(classpathURIsMatching(scanResult, "issue704")).hasSize(2);
             // Sanity check that these really are two different files
             assertThat(List.of(moduleJarFile.length(), classpathJarFile.length())).doesNotHaveDuplicates();
         }

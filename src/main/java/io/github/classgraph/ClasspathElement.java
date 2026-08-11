@@ -480,6 +480,28 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
         }
     }
 
+    /**
+     * Get a key that identifies the file or directory that this classpath element refers to, for comparing two
+     * classpath elements to see if they are the same file or directory.
+     *
+     * @param canonicalDirPathCache
+     *            a cache of canonical directory paths.
+     * @return a key that is equal for two classpath elements that refer to the same file or directory (see
+     *         {@link #getFileIdentityKey(URI, Map)}), or null if this classpath element has no location URI, so
+     *         cannot be compared to any other classpath element.
+     */
+    @Nullable
+    String getFileIdentityKey(final Map<String, String> canonicalDirPathCache) {
+        URI uri;
+        try {
+            uri = getURI();
+        } catch (final IllegalStateException e) {
+            // A module can have a null location
+            return null;
+        }
+        return getFileIdentityKey(uri, canonicalDirPathCache);
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
