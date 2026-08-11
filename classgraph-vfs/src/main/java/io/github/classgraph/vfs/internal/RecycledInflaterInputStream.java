@@ -28,6 +28,7 @@
  */
 package io.github.classgraph.vfs.internal;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -56,6 +57,12 @@ class RecycledInflaterInputStream extends InputStream {
 
     /** True once this stream has been closed. */
     private final AtomicBoolean closed = new AtomicBoolean();
+
+    /**
+     * True once the end of rawInputStream has been reached, and the dummy byte required by the "nowrap" option has
+     * been handed to the inflater.
+     */
+    private boolean suppliedDummyByte;
 
     /**
      * The staging buffer that deflated bytes are read into from rawInputStream, and then handed to the inflater as
@@ -125,6 +132,14 @@ class RecycledInflaterInputStream extends InputStream {
                         // Read a chunk of data from the raw InputStream
                         final var numRawBytesRead = rawInputStream.read(buf, 0, buf.length);
                         if (numRawBytesRead == -1) {
+                            if (suppliedDummyByte) {
+                                // The inflater wants more input, but the dummy byte has already been supplied
+                                // and the raw stream is exhausted, so the deflated data was truncated. Without
+                                // this check, a fresh dummy byte would be supplied on every iteration and this
+                                // loop would spin forever.
+                                throw new EOFException("Unexpected end of deflated zip entry data");
+                            }
+                            suppliedDummyByte = true;
                             // An extra dummy byte is needed at the end of the input stream when using the
                             // "nowrap" Inflater option. See: ZipFile.ZipFileInflaterInputStream.fill()
                             buf[0] = (byte) 0;
@@ -185,14 +200,18 @@ class RecycledInflaterInputStream extends InputStream {
         return inflater.finished() ? 0 : 1;
     }
 
+    /**
+     * Mark is not supported by this stream, so this is a no-op, as required by the {@link InputStream} contract
+     * when {@link #markSupported()} returns false.
+     */
     @Override
     public synchronized void mark(final int readlimit) {
-        throw new IllegalArgumentException("Not supported");
+        // No-op
     }
 
     @Override
     public synchronized void reset() throws IOException {
-        throw new IllegalArgumentException("Not supported");
+        throw new IOException("mark/reset not supported");
     }
 
     @Override
