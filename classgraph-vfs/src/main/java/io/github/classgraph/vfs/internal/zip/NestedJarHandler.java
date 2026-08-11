@@ -256,9 +256,11 @@ public class NestedJarHandler {
                 // Get or create a PhysicalZipFile instance for the canonical file
                 physicalZipFile = canonicalFileToPhysicalZipFileMap().get(canonicalFile, log);
             } catch (final NullSingletonException | NewInstanceException e) {
-                // If getting PhysicalZipFile failed, re-wrap in IOException
-                throw new IOException("Could not get PhysicalZipFile for path " + nestedJarPath + " : "
-                        + (e.getCause() == null ? e : e.getCause()));
+                // If getting PhysicalZipFile failed, re-wrap in IOException, chaining the cause as well as naming
+                // it in the message, so that the reason is reachable from the stack trace
+                final var cause = e.getCause() == null ? e : e.getCause();
+                throw new IOException("Could not get PhysicalZipFile for path " + nestedJarPath + " : " + cause,
+                        cause);
             } catch (final SecurityException e) {
                 // getCanonicalFile() failed (it may have also failed with IOException)
                 throw new IOException("Path component " + nestedJarPath + " could not be canonicalized: " + e);

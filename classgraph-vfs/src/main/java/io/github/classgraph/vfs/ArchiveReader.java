@@ -212,7 +212,10 @@ public class ArchiveReader implements Closeable {
             final var openedByAnotherThread = archives.putIfAbsent(path, archive);
             return openedByAnotherThread == null ? archive : openedByAnotherThread;
         } catch (final NullSingletonException | NewInstanceException e) {
-            throw new IOException("Could not open " + path + " : " + (e.getCause() == null ? e : e.getCause()));
+            // Chain the cause, as well as naming it in the message -- otherwise the reason the jarfile could not be
+            // opened is not reachable from the stack trace
+            final var cause = e.getCause() == null ? e : e.getCause();
+            throw new IOException("Could not open " + path + " : " + cause, cause);
         } catch (final InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IOException("Interrupted while opening " + path);
