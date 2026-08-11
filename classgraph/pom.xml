@@ -20,7 +20,7 @@
 		<jpmsModuleName>io.github.classgraph</jpmsModuleName>
 		<osgiBundleName>ClassGraph</osgiBundleName>
 		<osgiExportPackage>io.github.classgraph;version="${project.version}"</osgiExportPackage>
-		<osgiImportPackage>io.github.classgraph.classpath,io.github.classgraph.vfs,nonapi.io.github.classgraph.classloaderhandler,nonapi.io.github.classgraph.classpath,nonapi.io.github.classgraph.classpathspec,nonapi.io.github.classgraph.concurrency,nonapi.io.github.classgraph.fastzipfilereader,nonapi.io.github.classgraph.fileslice,nonapi.io.github.classgraph.fileslice.reader,nonapi.io.github.classgraph.recycler,nonapi.io.github.classgraph.reflection,nonapi.io.github.classgraph.utils,nonapi.io.github.classgraph.vfsspec,org.jspecify.annotations;resolution:="optional"</osgiImportPackage>
+		<osgiImportPackage>io.github.classgraph.classpath,io.github.classgraph.vfs,io.github.classgraph.vfs.internal,io.github.classgraph.classpath.internal.classloaderhandler,io.github.classgraph.classpath.internal,io.github.classgraph.classpath.internal.spec,io.github.classgraph.base.internal.concurrency,io.github.classgraph.vfs.internal.zip,io.github.classgraph.vfs.internal.slice,io.github.classgraph.vfs.internal.slice.reader,io.github.classgraph.base.internal.recycler,io.github.classgraph.base.internal.reflection,io.github.classgraph.base.internal.utils,io.github.classgraph.vfs.internal.spec,org.jspecify.annotations;resolution:="optional"</osgiImportPackage>
 		<osgiDependencies>io.github.classgraph.classpath,io.github.classgraph.vfs</osgiDependencies>
 
 		<!-- This module produces a jar, so it needs its resources and the modular copy of its Javadoc -->

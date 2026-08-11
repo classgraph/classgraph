@@ -45,14 +45,13 @@ import org.jspecify.annotations.NullMarked;
 module io.github.classgraph.vfs {
     exports io.github.classgraph.vfs;
 
-    // The nonapi packages are the internals of ClassGraph. They are only exported to the modules that are built on
+    // The internal packages are the internals of ClassGraph. They are only exported to the modules that are built on
     // top of this one, and they are not covered by the project's API compatibility guarantees.
-    exports nonapi.io.github.classgraph.concurrency to io.github.classgraph, io.github.classgraph.classpath;
-    exports nonapi.io.github.classgraph.fastzipfilereader to io.github.classgraph, io.github.classgraph.classpath;
-    exports nonapi.io.github.classgraph.fileslice to io.github.classgraph, io.github.classgraph.classpath;
-    exports nonapi.io.github.classgraph.fileslice.reader to io.github.classgraph, io.github.classgraph.classpath;
-    exports nonapi.io.github.classgraph.recycler to io.github.classgraph, io.github.classgraph.classpath;
-    exports nonapi.io.github.classgraph.vfsspec to io.github.classgraph, io.github.classgraph.classpath;
+    exports io.github.classgraph.vfs.internal to io.github.classgraph, io.github.classgraph.classpath;
+    exports io.github.classgraph.vfs.internal.zip to io.github.classgraph, io.github.classgraph.classpath;
+    exports io.github.classgraph.vfs.internal.slice to io.github.classgraph, io.github.classgraph.classpath;
+    exports io.github.classgraph.vfs.internal.slice.reader to io.github.classgraph, io.github.classgraph.classpath;
+    exports io.github.classgraph.vfs.internal.spec to io.github.classgraph, io.github.classgraph.classpath;
 
     // N.B. make sure the "Import-Package" entries in the manifest (in pom.xml) match these "requires" statements.
 

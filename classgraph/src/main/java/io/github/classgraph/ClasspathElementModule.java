@@ -42,18 +42,18 @@ import java.util.Objects;
 import java.util.Set;
 
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
-import nonapi.io.github.classgraph.concurrency.SingletonMap;
-import nonapi.io.github.classgraph.concurrency.SingletonMap.NewInstanceException;
-import nonapi.io.github.classgraph.concurrency.SingletonMap.NullSingletonException;
-import nonapi.io.github.classgraph.concurrency.WorkQueue;
-import nonapi.io.github.classgraph.fileslice.reader.ClassfileReader;
-import nonapi.io.github.classgraph.recycler.Recycler;
-import nonapi.io.github.classgraph.scanspec.ScanSpec;
-import nonapi.io.github.classgraph.scanspec.ScanSpec.ScanSpecPathMatch;
-import nonapi.io.github.classgraph.utils.CollectionUtils;
-import nonapi.io.github.classgraph.utils.LogNode;
-import nonapi.io.github.classgraph.utils.ModuleReaderUtils;
-import nonapi.io.github.classgraph.utils.ProxyingInputStream;
+import io.github.classgraph.base.internal.concurrency.SingletonMap.NewInstanceException;
+import io.github.classgraph.base.internal.concurrency.SingletonMap.NullSingletonException;
+import io.github.classgraph.base.internal.concurrency.SingletonMap;
+import io.github.classgraph.base.internal.concurrency.WorkQueue;
+import io.github.classgraph.base.internal.recycler.Recycler;
+import io.github.classgraph.base.internal.utils.CollectionUtils;
+import io.github.classgraph.base.internal.utils.LogNode;
+import io.github.classgraph.base.internal.utils.ModuleReaderUtils;
+import io.github.classgraph.base.internal.utils.ProxyingInputStream;
+import io.github.classgraph.internal.scanspec.ScanSpec.ScanSpecPathMatch;
+import io.github.classgraph.internal.scanspec.ScanSpec;
+import io.github.classgraph.vfs.internal.slice.reader.ClassfileReader;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -123,7 +123,7 @@ class ClasspathElementModule extends ClasspathElement {
     @Override
     void open(final @Nullable WorkQueue<ClasspathEntryWorkUnit> workQueueIgnored, final @Nullable LogNode log)
             throws InterruptedException {
-        if (!scanSpec.classPathSpec.scanModules) {
+        if (!scanSpec.classpathSpec.scanModules) {
             if (log != null) {
                 log(classpathElementIdx, "Skipping module, since module scanning is disabled: " + getModuleName(),
                         log);

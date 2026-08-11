@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.Test;
 
-import nonapi.io.github.classgraph.types.ParseException;
+import io.github.classgraph.internal.types.ParseException;
 
 /**
  * A malformed or truncated type signature must be reported as a {@link ParseException}, since that is what the

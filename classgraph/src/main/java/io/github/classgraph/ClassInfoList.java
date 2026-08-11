@@ -39,8 +39,8 @@ import java.util.Set;
 import java.util.function.Predicate;
 
 import io.github.classgraph.ClassInfo.ReachableAndDirectlyRelatedClasses;
-import nonapi.io.github.classgraph.utils.Assert;
-import nonapi.io.github.classgraph.utils.CollectionUtils;
+import io.github.classgraph.base.internal.utils.Assert;
+import io.github.classgraph.base.internal.utils.CollectionUtils;
 import org.jspecify.annotations.Nullable;
 
 /**

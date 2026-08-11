@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.ClassGraph;
-import nonapi.io.github.classgraph.utils.FastPathResolver;
+import io.github.classgraph.base.internal.utils.FastPathResolver;
 
 /**
  * Nothing in a webapp deployed to Tomcat as a non-exploded WAR file (i.e. with {@code unpackWARs="false"}) was

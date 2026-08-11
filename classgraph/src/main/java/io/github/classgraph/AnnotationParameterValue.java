@@ -34,8 +34,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-import nonapi.io.github.classgraph.utils.LogNode;
-import nonapi.io.github.classgraph.utils.StringUtils;
+import io.github.classgraph.base.internal.utils.LogNode;
+import io.github.classgraph.base.internal.utils.StringUtils;
 import org.jspecify.annotations.Nullable;
 
 /**

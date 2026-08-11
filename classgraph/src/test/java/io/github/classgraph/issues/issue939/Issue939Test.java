@@ -16,9 +16,9 @@ import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.VfsScanSpecAccess;
-import nonapi.io.github.classgraph.reflection.ReflectionUtils;
-import nonapi.io.github.classgraph.utils.FileUtils;
-import nonapi.io.github.classgraph.utils.VersionFinder;
+import io.github.classgraph.base.internal.reflection.ReflectionUtils;
+import io.github.classgraph.base.internal.utils.FileUtils;
+import io.github.classgraph.base.internal.utils.VersionFinder;
 
 /**
  * {@code Unsafe::invokeCleaner}, which was used to unmap {@code MappedByteBuffer}s, is terminally deprecated (JDK

@@ -47,22 +47,22 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
-import nonapi.io.github.classgraph.concurrency.SingletonMap.NewInstanceException;
-import nonapi.io.github.classgraph.concurrency.SingletonMap.NullSingletonException;
-import nonapi.io.github.classgraph.concurrency.WorkQueue;
-import nonapi.io.github.classgraph.fastzipfilereader.FastZipEntry;
-import nonapi.io.github.classgraph.fastzipfilereader.LogicalZipFile;
-import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
-import nonapi.io.github.classgraph.fileslice.reader.ClassfileReader;
-import nonapi.io.github.classgraph.scanspec.ScanSpec;
-import nonapi.io.github.classgraph.scanspec.ScanSpec.ScanSpecPathMatch;
-import nonapi.io.github.classgraph.classpath.ClasspathExpander;
-import nonapi.io.github.classgraph.classpath.ClasspathExpander.ChildEntry;
-import nonapi.io.github.classgraph.utils.FastPathResolver;
-import nonapi.io.github.classgraph.utils.FileUtils;
-import nonapi.io.github.classgraph.utils.JarUtils;
-import nonapi.io.github.classgraph.utils.LogNode;
-import nonapi.io.github.classgraph.utils.URLPathEncoder;
+import io.github.classgraph.base.internal.concurrency.SingletonMap.NewInstanceException;
+import io.github.classgraph.base.internal.concurrency.SingletonMap.NullSingletonException;
+import io.github.classgraph.base.internal.concurrency.WorkQueue;
+import io.github.classgraph.base.internal.utils.FastPathResolver;
+import io.github.classgraph.base.internal.utils.FileUtils;
+import io.github.classgraph.base.internal.utils.JarUtils;
+import io.github.classgraph.base.internal.utils.LogNode;
+import io.github.classgraph.base.internal.utils.URLPathEncoder;
+import io.github.classgraph.classpath.internal.ClasspathExpander.ChildEntry;
+import io.github.classgraph.classpath.internal.ClasspathExpander;
+import io.github.classgraph.internal.scanspec.ScanSpec.ScanSpecPathMatch;
+import io.github.classgraph.internal.scanspec.ScanSpec;
+import io.github.classgraph.vfs.internal.slice.reader.ClassfileReader;
+import io.github.classgraph.vfs.internal.zip.FastZipEntry;
+import io.github.classgraph.vfs.internal.zip.LogicalZipFile;
+import io.github.classgraph.vfs.internal.zip.NestedJarHandler;
 import org.jspecify.annotations.Nullable;
 
 /** A zip/jarfile classpath element. */
@@ -146,7 +146,7 @@ class ClasspathElementZip extends ClasspathElement {
 
     /**
      * Schedules the child classpath elements found within this classpath element -- nested lib jars, and the
-     * entries of the manifest's {@code Class-Path} and {@code Bundle-ClassPath} attributes -- for scanning.
+     * entries of the manifest's {@code Class-Path} and {@code Bundle-Classpath} attributes -- for scanning.
      */
     private final class ChildClasspathElementScheduler {
         /** The work queue to add child classpath elements to. */
@@ -264,8 +264,8 @@ class ClasspathElementZip extends ClasspathElement {
             return null;
         }
 
-        if (!scanSpec.classPathSpec.enableSystemJarsAndModules && logicalZipFile.isJREJar) {
-            // Found a rejected JRE jar that was not caught by filtering for rt.jar in ClasspathFinder (the isJREJar
+        if (!scanSpec.classpathSpec.enableSystemJarsAndModules && logicalZipFile.isJREJar) {
+            // Found a rejected JRE jar that was not caught by filtering for rt.jar in ClassLoaderProbe (the isJREJar
             // value was set by detecting JRE headers in the jar's manifest file)
             if (log != null) {
                 log.log("Ignoring JRE jar: " + rawPath);

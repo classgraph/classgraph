@@ -45,11 +45,11 @@ import org.jspecify.annotations.NullMarked;
 module io.github.classgraph.classpath {
     exports io.github.classgraph.classpath;
 
-    // The nonapi packages are the internals of ClassGraph. They are only exported to the modules that are built on
+    // The internal packages are the internals of ClassGraph. They are only exported to the modules that are built on
     // top of this one, and they are not covered by the project's API compatibility guarantees.
-    exports nonapi.io.github.classgraph.classloaderhandler to io.github.classgraph;
-    exports nonapi.io.github.classgraph.classpath to io.github.classgraph;
-    exports nonapi.io.github.classgraph.classpathspec to io.github.classgraph;
+    exports io.github.classgraph.classpath.internal.classloaderhandler to io.github.classgraph;
+    exports io.github.classgraph.classpath.internal to io.github.classgraph;
+    exports io.github.classgraph.classpath.internal.spec to io.github.classgraph;
 
     // N.B. make sure the "Import-Package" entries in the manifest (in pom.xml) match these "requires" statements.
 

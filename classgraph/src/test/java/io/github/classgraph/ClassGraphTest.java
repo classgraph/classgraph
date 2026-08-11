@@ -29,7 +29,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import nonapi.io.github.classgraph.utils.LogNode;
+import io.github.classgraph.base.internal.utils.LogNode;
 
 /**
  * {@link ClassGraph} is the entry point of the API: it builds up the scan specification, and then either runs a

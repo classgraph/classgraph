@@ -49,16 +49,16 @@ import java.util.function.Predicate;
 
 import io.github.classgraph.classpath.ModulePathInfo;
 
-import nonapi.io.github.classgraph.concurrency.AutoCloseableExecutorService;
-import nonapi.io.github.classgraph.concurrency.InterruptionChecker;
-import nonapi.io.github.classgraph.reflection.ReflectionUtils;
-import nonapi.io.github.classgraph.utils.AcceptReject;
-import nonapi.io.github.classgraph.classpathspec.ClassLoaderAndModuleLayerSpec;
-import nonapi.io.github.classgraph.scanspec.ScanSpec;
-import nonapi.io.github.classgraph.utils.Assert;
-import nonapi.io.github.classgraph.utils.JarUtils;
-import nonapi.io.github.classgraph.utils.LogNode;
-import nonapi.io.github.classgraph.utils.VersionFinder;
+import io.github.classgraph.base.internal.concurrency.AutoCloseableExecutorService;
+import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
+import io.github.classgraph.base.internal.reflection.ReflectionUtils;
+import io.github.classgraph.base.internal.utils.AcceptReject;
+import io.github.classgraph.base.internal.utils.Assert;
+import io.github.classgraph.base.internal.utils.JarUtils;
+import io.github.classgraph.base.internal.utils.LogNode;
+import io.github.classgraph.base.internal.utils.VersionFinder;
+import io.github.classgraph.classpath.internal.spec.ClassLoaderAndModuleLayerSpec;
+import io.github.classgraph.internal.scanspec.ScanSpec;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -397,7 +397,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph disableModuleScanning() {
-        scanSpec.classPathSpec.scanModules = false;
+        scanSpec.classpathSpec.scanModules = false;
         return this;
     }
 
@@ -460,8 +460,8 @@ public class ClassGraph {
             throw new IllegalArgumentException("Can't override classpath with an empty path");
         }
         for (final String classpathElement : JarUtils.smartPathSplit(overrideClasspath,
-                scanSpec.classPathSpec.allowedURLSchemes)) {
-            scanSpec.classPathSpec.addClasspathOverride(classpathElement);
+                scanSpec.classpathSpec.allowedURLSchemes)) {
+            scanSpec.classpathSpec.addClasspathOverride(classpathElement);
         }
         return this;
     }
@@ -491,7 +491,7 @@ public class ClassGraph {
             // A Path is an Iterable of its own name elements, so passing a single Path binds to this overload
             // rather than to the Object... overload. The name elements of a path are never classpath entries in
             // their own right, so a Path is added as a single classpath entry.
-            scanSpec.classPathSpec.addClasspathOverride(overrideClasspathElements);
+            scanSpec.classpathSpec.addClasspathOverride(overrideClasspathElements);
             return this;
         }
         if (!overrideClasspathElements.iterator().hasNext()) {
@@ -499,7 +499,7 @@ public class ClassGraph {
         }
         for (final Object classpathElement : overrideClasspathElements) {
             Assert.notNull(classpathElement, "overrideClasspathElements element");
-            scanSpec.classPathSpec.addClasspathOverride(classpathElement);
+            scanSpec.classpathSpec.addClasspathOverride(classpathElement);
         }
         return this;
     }
@@ -526,7 +526,7 @@ public class ClassGraph {
             throw new IllegalArgumentException("Can't override classpath with an empty path");
         }
         for (final Object classpathElement : overrideClasspathElements) {
-            scanSpec.classPathSpec.addClasspathOverride(classpathElement);
+            scanSpec.classpathSpec.addClasspathOverride(classpathElement);
         }
         return this;
     }
@@ -548,7 +548,7 @@ public class ClassGraph {
      */
     public ClassGraph filterClasspathElements(final Predicate<String> classpathElementFilter) {
         Assert.notNull(classpathElementFilter, "classpathElementFilter");
-        scanSpec.classPathSpec.filterClasspathElements(classpathElementFilter);
+        scanSpec.classpathSpec.filterClasspathElements(classpathElementFilter);
         return this;
     }
 
@@ -563,7 +563,7 @@ public class ClassGraph {
      */
     public ClassGraph filterClasspathElementsByURL(final Predicate<URL> classpathElementURLFilter) {
         Assert.notNull(classpathElementURLFilter, "classpathElementURLFilter");
-        scanSpec.classPathSpec.filterClasspathElementsByURL(classpathElementURLFilter);
+        scanSpec.classpathSpec.filterClasspathElementsByURL(classpathElementURLFilter);
         return this;
     }
 
@@ -631,7 +631,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph ignoreParentClassLoaders() {
-        scanSpec.classPathSpec.ignoreParentClassLoaders = true;
+        scanSpec.classpathSpec.ignoreParentClassLoaders = true;
         return this;
     }
 
@@ -676,7 +676,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph ignoreParentModuleLayers() {
-        scanSpec.classPathSpec.ignoreParentModuleLayers = true;
+        scanSpec.classpathSpec.ignoreParentModuleLayers = true;
         return this;
     }
 
@@ -1034,7 +1034,7 @@ public class ClassGraph {
     public ClassGraph acceptModules(final String... moduleNames) {
         Assert.notNullElements(moduleNames, "moduleNames");
         for (final String moduleName : moduleNames) {
-            scanSpec.classPathSpec.moduleAcceptReject
+            scanSpec.classpathSpec.moduleAcceptReject
                     .addToAccept(AcceptReject.normalizePackageOrClassName(moduleName));
         }
         return this;
@@ -1054,7 +1054,7 @@ public class ClassGraph {
     public ClassGraph rejectModules(final String... moduleNames) {
         Assert.notNullElements(moduleNames, "moduleNames");
         for (final String moduleName : moduleNames) {
-            scanSpec.classPathSpec.moduleAcceptReject
+            scanSpec.classpathSpec.moduleAcceptReject
                     .addToReject(AcceptReject.normalizePackageOrClassName(moduleName));
         }
         return this;
@@ -1114,9 +1114,9 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph enableRemoteJarScanning() {
-        scanSpec.classPathSpec.enableURLScheme("http");
+        scanSpec.classpathSpec.enableURLScheme("http");
         scanSpec.vfsScanSpec.enableURLScheme("http");
-        scanSpec.classPathSpec.enableURLScheme("https");
+        scanSpec.classpathSpec.enableURLScheme("https");
         scanSpec.vfsScanSpec.enableURLScheme("https");
         return this;
     }
@@ -1132,7 +1132,7 @@ public class ClassGraph {
      */
     public ClassGraph enableURLScheme(final String scheme) {
         Assert.notNull(scheme, "scheme");
-        scanSpec.classPathSpec.enableURLScheme(scheme);
+        scanSpec.classpathSpec.enableURLScheme(scheme);
         scanSpec.vfsScanSpec.enableURLScheme(scheme);
         return this;
     }
@@ -1152,7 +1152,7 @@ public class ClassGraph {
      */
     public ClassGraph enableSystemJarsAndModules() {
         enableClassInfo();
-        scanSpec.classPathSpec.enableSystemJarsAndModules = true;
+        scanSpec.classpathSpec.enableSystemJarsAndModules = true;
         return this;
     }
 
@@ -1212,7 +1212,7 @@ public class ClassGraph {
         // runtime-invisible annotations should be disabled, not enabled
         scanSpec.disableRuntimeInvisibleAnnotations = true;
         scanSpec.enableExternalClasses = false;
-        scanSpec.classPathSpec.enableSystemJarsAndModules = false;
+        scanSpec.classpathSpec.enableSystemJarsAndModules = false;
         return this;
     }
 
@@ -1525,6 +1525,6 @@ public class ClassGraph {
      * @return The {@link ModulePathInfo}.
      */
     public ModulePathInfo getModulePathInfo() {
-        return scanSpec.classPathSpec.modulePathInfo;
+        return scanSpec.classpathSpec.modulePathInfo;
     }
 }

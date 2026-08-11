@@ -33,7 +33,7 @@ import java.lang.annotation.Inherited;
 import java.lang.annotation.Repeatable;
 import java.lang.reflect.AnnotatedElement;
 
-import nonapi.io.github.classgraph.utils.Assert;
+import io.github.classgraph.base.internal.utils.Assert;
 import org.jspecify.annotations.Nullable;
 
 /**

@@ -14,7 +14,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import nonapi.io.github.classgraph.utils.FastPathResolver;
+import io.github.classgraph.base.internal.utils.FastPathResolver;
 
 /**
  * Scans real directories and jarfiles whose paths contain the characters that have to be escaped in a URL, and

@@ -7,8 +7,8 @@ import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
-import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
-import nonapi.io.github.classgraph.scanspec.ScanSpec;
+import io.github.classgraph.classpath.internal.classloaderhandler.ClassLoaderHandlerRegistry;
+import io.github.classgraph.internal.scanspec.ScanSpec;
 
 /**
  * The same directory or jar can be referenced by more than one work unit, e.g. through a parent-last classloader

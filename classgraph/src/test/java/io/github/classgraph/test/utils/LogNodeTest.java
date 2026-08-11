@@ -12,7 +12,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import nonapi.io.github.classgraph.utils.LogNode;
+import io.github.classgraph.base.internal.utils.LogNode;
 
 /**
  * LogNodeTest.

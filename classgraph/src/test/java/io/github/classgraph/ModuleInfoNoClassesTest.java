@@ -7,8 +7,8 @@ import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
-import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
-import nonapi.io.github.classgraph.scanspec.ScanSpec;
+import io.github.classgraph.classpath.internal.classloaderhandler.ClassLoaderHandlerRegistry;
+import io.github.classgraph.internal.scanspec.ScanSpec;
 
 /**
  * A {@link ModuleInfo} is created as soon as any classfile is read from a module, including a

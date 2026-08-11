@@ -34,8 +34,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import nonapi.io.github.classgraph.fastzipfilereader.LogicalZipFile;
-import nonapi.io.github.classgraph.utils.Assert;
+import io.github.classgraph.base.internal.utils.Assert;
+import io.github.classgraph.vfs.internal.zip.LogicalZipFile;
 import org.jspecify.annotations.Nullable;
 
 /**

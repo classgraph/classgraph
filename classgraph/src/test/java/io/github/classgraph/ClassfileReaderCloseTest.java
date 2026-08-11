@@ -10,7 +10,7 @@ import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
-import nonapi.io.github.classgraph.fileslice.reader.ClassfileReader;
+import io.github.classgraph.vfs.internal.slice.reader.ClassfileReader;
 
 /**
  * Tests that {@link ClassfileReader#close()} closes the resource it was opened on, even when closing the input

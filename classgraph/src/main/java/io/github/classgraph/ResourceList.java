@@ -48,8 +48,8 @@ import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.function.Predicate;
 
-import nonapi.io.github.classgraph.utils.Assert;
-import nonapi.io.github.classgraph.utils.CollectionUtils;
+import io.github.classgraph.base.internal.utils.Assert;
+import io.github.classgraph.base.internal.utils.CollectionUtils;
 
 /**
  * An {@link AutoCloseable} list of {@link AutoCloseable} {@link Resource} objects. Closing the list closes every

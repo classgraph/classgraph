@@ -34,7 +34,7 @@ import java.io.Serial;
 import java.util.Collection;
 import java.util.function.Predicate;
 
-import nonapi.io.github.classgraph.utils.Assert;
+import io.github.classgraph.base.internal.utils.Assert;
 
 /** A list of {@link ModuleInfo} objects, which can be indexed by module name. */
 public class ModuleInfoList extends MappableInfoList<ModuleInfo> {

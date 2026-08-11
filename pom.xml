@@ -445,7 +445,7 @@
 							<configuration>
 								<encoding>UTF-8</encoding>
 								<!-- Compile and run the tests on the classpath rather than the module path: -->
-								<!-- they are white-box tests, so they read the internal nonapi packages, which -->
+								<!-- they are white-box tests, so they read the internal packages, which -->
 								<!-- the module descriptor does not export, and they use classes (e.g. java.awt) -->
 								<!-- that only the test code needs. -->
 								<useModulePath>false</useModulePath>
@@ -550,7 +550,7 @@
 					<configuration>
 						<source>17</source>
 						<doclint>all</doclint>
-						<excludePackageNames>nonapi.*</excludePackageNames>
+						<excludePackageNames>*.internal:*.internal.*</excludePackageNames>
 						<show>public</show>
 						<!-- Without this, doclint reports missing or malformed Javadoc as a warning, and -->
 						<!-- the release still succeeds. -->
@@ -666,7 +666,7 @@
 										<arg>-Xmaxerrs</arg>
 										<arg>10000</arg>
 										<arg>--should-stop=ifError=FLOW</arg>
-										<arg>-Xplugin:ErrorProne -XepDisableAllChecks -Xep:NullAway:ERROR -XepOpt:NullAway:AnnotatedPackages=io.github.classgraph,nonapi.io.github.classgraph -XepOpt:NullAway:JSpecifyMode=true</arg>
+										<arg>-Xplugin:ErrorProne -XepDisableAllChecks -Xep:NullAway:ERROR -XepOpt:NullAway:AnnotatedPackages=io.github.classgraph -XepOpt:NullAway:JSpecifyMode=true</arg>
 										<arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
 										<arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED</arg>
 										<arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED</arg>

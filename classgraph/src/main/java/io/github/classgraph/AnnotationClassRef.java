@@ -28,7 +28,7 @@
  */
 package io.github.classgraph;
 
-import nonapi.io.github.classgraph.types.ParseException;
+import io.github.classgraph.internal.types.ParseException;
 import org.jspecify.annotations.Nullable;
 
 /**

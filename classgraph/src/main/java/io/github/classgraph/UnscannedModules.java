@@ -36,13 +36,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import io.github.classgraph.Scanner.ClassfileScanWorkUnit;
-import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
-import nonapi.io.github.classgraph.concurrency.SingletonMap;
-import nonapi.io.github.classgraph.recycler.Recycler;
-import nonapi.io.github.classgraph.scanspec.ScanSpec;
-import nonapi.io.github.classgraph.utils.LogNode;
+import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
+import io.github.classgraph.base.internal.concurrency.SingletonMap;
+import io.github.classgraph.base.internal.recycler.Recycler;
+import io.github.classgraph.base.internal.utils.LogNode;
+import io.github.classgraph.classpath.internal.classloaderhandler.ClassLoaderHandlerRegistry;
+import io.github.classgraph.internal.scanspec.ScanSpec;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -129,7 +129,7 @@ class UnscannedModules {
      */
     synchronized @Nullable ClassfileScanWorkUnit findClassfile(final String className, final String classfilePath,
             final @Nullable LogNode log) throws InterruptedException {
-        if (!scanSpec.classPathSpec.scanModules || unscannedModules.isEmpty()) {
+        if (!scanSpec.classpathSpec.scanModules || unscannedModules.isEmpty()) {
             return null;
         }
         // A class can only be in the module that contains its package (a package is not allowed to be split across

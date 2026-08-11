@@ -23,7 +23,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.ClassGraph;
-import nonapi.io.github.classgraph.reflection.ReflectionUtils;
+import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 
 /**
  * A classpath entry that is listed in no system property, and is reachable only through the internal

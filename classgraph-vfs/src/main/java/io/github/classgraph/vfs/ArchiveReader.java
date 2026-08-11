@@ -33,14 +33,14 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import nonapi.io.github.classgraph.concurrency.InterruptionChecker;
-import nonapi.io.github.classgraph.concurrency.SingletonMap.NewInstanceException;
-import nonapi.io.github.classgraph.concurrency.SingletonMap.NullSingletonException;
-import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
-import nonapi.io.github.classgraph.reflection.ReflectionUtils;
-import nonapi.io.github.classgraph.utils.Assert;
-import nonapi.io.github.classgraph.utils.LogNode;
-import nonapi.io.github.classgraph.vfsspec.VfsScanSpec;
+import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
+import io.github.classgraph.base.internal.concurrency.SingletonMap.NewInstanceException;
+import io.github.classgraph.base.internal.concurrency.SingletonMap.NullSingletonException;
+import io.github.classgraph.base.internal.reflection.ReflectionUtils;
+import io.github.classgraph.base.internal.utils.Assert;
+import io.github.classgraph.base.internal.utils.LogNode;
+import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
+import io.github.classgraph.vfs.internal.zip.NestedJarHandler;
 import org.jspecify.annotations.Nullable;
 
 /**

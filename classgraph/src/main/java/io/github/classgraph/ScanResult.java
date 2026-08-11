@@ -54,14 +54,14 @@ import java.util.regex.Pattern;
 
 import io.github.classgraph.classpath.ModulePathInfo;
 
-import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
-import nonapi.io.github.classgraph.reflection.ReflectionUtils;
-import nonapi.io.github.classgraph.utils.AcceptReject;
-import nonapi.io.github.classgraph.scanspec.ScanSpec;
-import nonapi.io.github.classgraph.utils.Assert;
-import nonapi.io.github.classgraph.utils.FileUtils;
-import nonapi.io.github.classgraph.utils.JarUtils;
-import nonapi.io.github.classgraph.utils.LogNode;
+import io.github.classgraph.base.internal.reflection.ReflectionUtils;
+import io.github.classgraph.base.internal.utils.AcceptReject;
+import io.github.classgraph.base.internal.utils.Assert;
+import io.github.classgraph.base.internal.utils.FileUtils;
+import io.github.classgraph.base.internal.utils.JarUtils;
+import io.github.classgraph.base.internal.utils.LogNode;
+import io.github.classgraph.internal.scanspec.ScanSpec;
+import io.github.classgraph.vfs.internal.zip.NestedJarHandler;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -600,7 +600,7 @@ public final class ScanResult implements Closeable {
      */
     public ModulePathInfo getModulePathInfo() {
         checkNotClosed();
-        return scanSpec.classPathSpec.modulePathInfo;
+        return scanSpec.classpathSpec.modulePathInfo;
     }
 
     // -------------------------------------------------------------------------------------------------------------

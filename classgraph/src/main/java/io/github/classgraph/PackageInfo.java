@@ -38,9 +38,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-import nonapi.io.github.classgraph.scanspec.ScanSpec;
-import nonapi.io.github.classgraph.utils.Assert;
-import nonapi.io.github.classgraph.utils.CollectionUtils;
+import io.github.classgraph.base.internal.utils.Assert;
+import io.github.classgraph.base.internal.utils.CollectionUtils;
+import io.github.classgraph.internal.scanspec.ScanSpec;
 import org.jspecify.annotations.Nullable;
 
 /** Holds metadata about a package encountered during a scan. */

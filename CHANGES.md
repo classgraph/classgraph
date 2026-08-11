@@ -39,14 +39,14 @@ classpath elements in the order the classloaders would search them, the modules 
 system and non-system, and the module path switches the JVM was launched with:
 
 ```java
-try (ClassPath classPath = new ClassPathFinder().find()) {
-    for (ClassPathEntry entry : classPath.getEntries()) {
+try (Classpath classpath = new ClasspathFinder().find()) {
+    for (ClasspathEntry entry : classpath.getEntries()) {
         System.out.println(entry.location());
     }
 }
 ```
 
-`ClassPathFinder` has the same classloader, module layer and classpath override methods as
+`ClasspathFinder` has the same classloader, module layer and classpath override methods as
 `ClassGraph` (`overrideClasspath`, `overrideClassLoaders`, `addClassLoader`,
 `ignoreParentClassLoaders`, `overrideModuleLayers`, `addModuleLayer`, `ignoreModules`,
 `verbose`), and finds classpath elements from the same custom container classloaders.
@@ -60,7 +60,7 @@ declared it, which is the order a classloader would search them in. An element t
 reached more than once is listed only at the first position it is reached at, since that is
 the position that decides which copy of a duplicated class wins.
 
-Reading those manifests means opening the jarfiles on the classpath, so `ClassPath` is now
+Reading those manifests means opening the jarfiles on the classpath, so `Classpath` is now
 `AutoCloseable`, and closing it closes them again. The entries can still be read after it
 has been closed.
 
@@ -72,7 +72,7 @@ what to use when the classpath elements need to be real files.
 
 `ModulePathInfo` has moved from `io.github.classgraph` to `io.github.classgraph.classpath`
 as part of this, and is reachable both from `ScanResult#getModulePathInfo()` as before, and
-from `ClassPath#getModulePathInfo()`.
+from `Classpath#getModulePathInfo()`.
 
 ### `classgraph-vfs` can be used on its own
 
@@ -596,6 +596,43 @@ anything, and the code that searched for those jars has been deleted along with 
 Relatedly, `ClassGraph#enableSystemJarsAndModules()` now only affects system modules and
 system packages; it no longer adds any jars to the classpath.
 
+### The internal packages have moved out of the `nonapi` namespace
+
+ClassGraph's internal classes used to live under a top-level `nonapi` package, which sat
+outside the project's own `io.github.classgraph` namespace. That was how the library
+signalled "this is not API" before it was modular. It now says so with the module system
+instead: each module exports its internal packages only to the ClassGraph modules above
+it, the OSGi manifest marks them `x-internal:=true`, and they are left out of the Javadoc.
+
+Each module's internals now sit under that module's own package, in a package named
+`internal`:
+
+| Was | Is now |
+| --- | --- |
+| `nonapi.io.github.classgraph.utils` | `io.github.classgraph.base.internal.utils` |
+| `nonapi.io.github.classgraph.reflection` | `io.github.classgraph.base.internal.reflection` |
+| `nonapi.io.github.classgraph.concurrency` | `io.github.classgraph.base.internal.concurrency` |
+| `nonapi.io.github.classgraph.recycler` | `io.github.classgraph.base.internal.recycler` |
+| `nonapi.io.github.classgraph.fastzipfilereader` | `io.github.classgraph.vfs.internal.zip` |
+| `nonapi.io.github.classgraph.fileslice` | `io.github.classgraph.vfs.internal.slice` |
+| `nonapi.io.github.classgraph.fileslice.reader` | `io.github.classgraph.vfs.internal.slice.reader` |
+| `nonapi.io.github.classgraph.vfsspec` | `io.github.classgraph.vfs.internal.spec` |
+| `nonapi.io.github.classgraph.classpath` | `io.github.classgraph.classpath.internal` |
+| `nonapi.io.github.classgraph.classloaderhandler` | `io.github.classgraph.classpath.internal.classloaderhandler` |
+| `nonapi.io.github.classgraph.classpathspec` | `io.github.classgraph.classpath.internal.spec` |
+| `nonapi.io.github.classgraph.scanspec` | `io.github.classgraph.internal.scanspec` |
+| `nonapi.io.github.classgraph.types` | `io.github.classgraph.internal.types` |
+
+Nothing in the public API refers to these packages, so this only affects code that reached
+into ClassGraph's internals, and OSGi or JPMS configuration that names them.
+
+### `Classpath` is spelled with a lowercase `p`, everywhere
+
+The classpath finder's public types are `Classpath`, `ClasspathEntry` and
+`ClasspathFinder`, matching `ClassGraph#getClasspath()`, `#overrideClasspath()` and the
+other long-standing method names, rather than mixing `ClassPath` and `Classpath` one
+capital letter apart.
+
 ### Reduced visibility
 
 Several members of the exported `io.github.classgraph` package were `public` or
@@ -604,7 +641,7 @@ ClassGraph could usefully call or override them. They are now package-private, a
 compiler's `-Xlint:exports` check is enabled to keep it that way.
 
 * `ScanResult#reflectionUtils` was `protected`, exposing the internal
-  `nonapi.io.github.classgraph.reflection.ReflectionUtils` type to subclasses.
+  `io.github.classgraph.base.internal.reflection.ReflectionUtils` type to subclasses.
 * `Resource(ClasspathElement, long)` was a `public` constructor taking the internal
   `ClasspathElement` type. `Resource` instances only ever come from a scan.
 * The `protected` `findReferencedClassInfo(Map, Set, LogNode)` methods of `ClassInfo`,

@@ -32,11 +32,11 @@
  * locations that a container's custom classloaders load from.
  *
  * <p>
- * Start at {@link io.github.classgraph.classpath.ClassPathFinder}, which returns a
- * {@link io.github.classgraph.classpath.ClassPath}:
+ * Start at {@link io.github.classgraph.classpath.ClasspathFinder}, which returns a
+ * {@link io.github.classgraph.classpath.Classpath}:
  *
  * <pre>
- * for (ClassPathEntry entry : new ClassPathFinder().find().getEntries()) {
+ * for (ClasspathEntry entry : new ClasspathFinder().find().getEntries()) {
  *     System.out.println(entry.location());
  * }
  * </pre>

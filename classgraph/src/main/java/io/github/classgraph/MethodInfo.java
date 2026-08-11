@@ -42,11 +42,11 @@ import java.util.Set;
 
 import io.github.classgraph.ClassInfo.RelType;
 import io.github.classgraph.Classfile.MethodTypeAnnotationDecorator;
-import nonapi.io.github.classgraph.types.ParseException;
-import nonapi.io.github.classgraph.types.TypeUtils;
-import nonapi.io.github.classgraph.types.TypeUtils.ModifierType;
-import nonapi.io.github.classgraph.utils.Assert;
-import nonapi.io.github.classgraph.utils.LogNode;
+import io.github.classgraph.base.internal.utils.Assert;
+import io.github.classgraph.base.internal.utils.LogNode;
+import io.github.classgraph.internal.types.ParseException;
+import io.github.classgraph.internal.types.TypeUtils.ModifierType;
+import io.github.classgraph.internal.types.TypeUtils;
 import org.jspecify.annotations.Nullable;
 
 /**

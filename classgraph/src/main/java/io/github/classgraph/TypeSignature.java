@@ -36,10 +36,10 @@ import java.util.Objects;
 import java.util.Set;
 
 import io.github.classgraph.Classfile.TypePathNode;
-import nonapi.io.github.classgraph.types.ParseException;
-import nonapi.io.github.classgraph.types.Parser;
-import nonapi.io.github.classgraph.utils.Assert;
-import nonapi.io.github.classgraph.utils.LogNode;
+import io.github.classgraph.base.internal.utils.Assert;
+import io.github.classgraph.base.internal.utils.LogNode;
+import io.github.classgraph.internal.types.ParseException;
+import io.github.classgraph.internal.types.Parser;
 import org.jspecify.annotations.Nullable;
 
 /**

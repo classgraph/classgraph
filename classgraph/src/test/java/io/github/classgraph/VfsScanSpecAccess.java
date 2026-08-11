@@ -1,6 +1,6 @@
 package io.github.classgraph;
 
-import nonapi.io.github.classgraph.vfsspec.VfsScanSpec;
+import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
 
 /**
  * Gives tests in other packages access to the {@link VfsScanSpec} of a {@link ClassGraph}, so that they can set the

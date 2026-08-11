@@ -11,8 +11,8 @@ import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
-import nonapi.io.github.classgraph.types.ParseException;
-import nonapi.io.github.classgraph.types.Parser;
+import io.github.classgraph.internal.types.ParseException;
+import io.github.classgraph.internal.types.Parser;
 
 /** Tests for {@link BaseTypeSignature}, the type signature of the primitive types and void. */
 public class BaseTypeSignatureTest {

@@ -34,7 +34,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-import nonapi.io.github.classgraph.utils.Assert;
+import io.github.classgraph.base.internal.utils.Assert;
 import org.jspecify.annotations.Nullable;
 
 /**

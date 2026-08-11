@@ -35,9 +35,9 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-import nonapi.io.github.classgraph.reflection.ReflectionUtils;
-import nonapi.io.github.classgraph.utils.JarUtils;
-import nonapi.io.github.classgraph.utils.StringUtils;
+import io.github.classgraph.base.internal.reflection.ReflectionUtils;
+import io.github.classgraph.base.internal.utils.JarUtils;
+import io.github.classgraph.base.internal.utils.StringUtils;
 
 /**
  * Information on the module path. Note that this will only include module system parameters actually listed in
@@ -246,7 +246,7 @@ public class ModulePathInfo {
                             } else {
                                 // Split arg param into parts
                                 argField.addAll(Arrays.asList(
-                                        JarUtils.smartPathSplit(argParam, sepChar, /* classPathSpec = */ null)));
+                                        JarUtils.smartPathSplit(argParam, sepChar, /* classpathSpec = */ null)));
                             }
                         }
                     }

@@ -49,16 +49,16 @@ import java.util.Objects;
 import java.util.Set;
 
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
-import nonapi.io.github.classgraph.classpath.ClasspathExpander;
-import nonapi.io.github.classgraph.concurrency.WorkQueue;
-import nonapi.io.github.classgraph.fileslice.PathSlice;
-import nonapi.io.github.classgraph.fileslice.ScanResources;
-import nonapi.io.github.classgraph.fileslice.reader.ClassfileReader;
-import nonapi.io.github.classgraph.scanspec.ScanSpec;
-import nonapi.io.github.classgraph.scanspec.ScanSpec.ScanSpecPathMatch;
-import nonapi.io.github.classgraph.utils.FastPathResolver;
-import nonapi.io.github.classgraph.utils.FileUtils;
-import nonapi.io.github.classgraph.utils.LogNode;
+import io.github.classgraph.base.internal.concurrency.WorkQueue;
+import io.github.classgraph.base.internal.utils.FastPathResolver;
+import io.github.classgraph.base.internal.utils.FileUtils;
+import io.github.classgraph.base.internal.utils.LogNode;
+import io.github.classgraph.classpath.internal.ClasspathExpander;
+import io.github.classgraph.internal.scanspec.ScanSpec.ScanSpecPathMatch;
+import io.github.classgraph.internal.scanspec.ScanSpec;
+import io.github.classgraph.vfs.internal.ScanResources;
+import io.github.classgraph.vfs.internal.slice.PathSlice;
+import io.github.classgraph.vfs.internal.slice.reader.ClassfileReader;
 import org.jspecify.annotations.Nullable;
 
 /** A directory classpath element, using the {@link Path} API. */

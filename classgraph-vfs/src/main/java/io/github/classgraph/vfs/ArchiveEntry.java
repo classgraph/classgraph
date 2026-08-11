@@ -31,7 +31,7 @@ package io.github.classgraph.vfs;
 import java.io.IOException;
 import java.io.InputStream;
 
-import nonapi.io.github.classgraph.fastzipfilereader.FastZipEntry;
+import io.github.classgraph.vfs.internal.zip.FastZipEntry;
 
 /** One entry of a jarfile that was opened by an {@link ArchiveReader}. */
 public class ArchiveEntry {

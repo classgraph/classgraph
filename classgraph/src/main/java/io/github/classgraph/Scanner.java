@@ -62,22 +62,22 @@ import java.util.function.Consumer;
 
 import io.github.classgraph.Classfile.ClassfileFormatException;
 import io.github.classgraph.Classfile.SkipClassException;
-import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
-import nonapi.io.github.classgraph.classpath.ClasspathFinder;
-import nonapi.io.github.classgraph.concurrency.AutoCloseableExecutorService;
-import nonapi.io.github.classgraph.concurrency.InterruptionChecker;
-import nonapi.io.github.classgraph.concurrency.SingletonMap;
-import nonapi.io.github.classgraph.concurrency.WorkQueue;
-import nonapi.io.github.classgraph.concurrency.WorkQueue.WorkUnitProcessor;
-import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
-import nonapi.io.github.classgraph.reflection.ReflectionUtils;
-import nonapi.io.github.classgraph.classpathspec.ClassLoaderAndModuleLayerSpec;
-import nonapi.io.github.classgraph.scanspec.ScanSpec;
-import nonapi.io.github.classgraph.utils.CollectionUtils;
-import nonapi.io.github.classgraph.utils.FastPathResolver;
-import nonapi.io.github.classgraph.utils.FileUtils;
-import nonapi.io.github.classgraph.utils.JarUtils;
-import nonapi.io.github.classgraph.utils.LogNode;
+import io.github.classgraph.base.internal.concurrency.AutoCloseableExecutorService;
+import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
+import io.github.classgraph.base.internal.concurrency.SingletonMap;
+import io.github.classgraph.base.internal.concurrency.WorkQueue.WorkUnitProcessor;
+import io.github.classgraph.base.internal.concurrency.WorkQueue;
+import io.github.classgraph.base.internal.reflection.ReflectionUtils;
+import io.github.classgraph.base.internal.utils.CollectionUtils;
+import io.github.classgraph.base.internal.utils.FastPathResolver;
+import io.github.classgraph.base.internal.utils.FileUtils;
+import io.github.classgraph.base.internal.utils.JarUtils;
+import io.github.classgraph.base.internal.utils.LogNode;
+import io.github.classgraph.classpath.internal.ClassLoaderProbe;
+import io.github.classgraph.classpath.internal.classloaderhandler.ClassLoaderHandlerRegistry;
+import io.github.classgraph.classpath.internal.spec.ClassLoaderAndModuleLayerSpec;
+import io.github.classgraph.internal.scanspec.ScanSpec;
+import io.github.classgraph.vfs.internal.zip.NestedJarHandler;
 import org.jspecify.annotations.Nullable;
 
 /** The classpath scanner. */
@@ -111,8 +111,8 @@ class Scanner implements Callable<ScanResult> {
     private final @Nullable LogNode topLevelLog;
 
     /**
-     * The toplevel classpath entries found by the {@link ClasspathFinder}, in classpath order, ready to be opened.
-     * These are extracted from the {@link ClasspathFinder} in the constructor so that the {@link ClasspathFinder}
+     * The toplevel classpath entries found by the {@link ClassLoaderProbe}, in classpath order, ready to be opened.
+     * These are extracted from the {@link ClassLoaderProbe} in the constructor so that the {@link ClassLoaderProbe}
      * and everything it holds (in particular its strong references to classloaders) can be discarded as soon as the
      * classpath has been found.
      */
@@ -190,12 +190,12 @@ class Scanner implements Callable<ScanResult> {
         this.failureHandler = failureHandler;
         this.topLevelLog = topLevelLog;
 
-        final var classpathFinderLog = topLevelLog == null ? null : topLevelLog.log("Finding classpath");
-        // The ClasspathFinder is deliberately not stored in a field: it holds the classloaders that were used to
+        final var classLoaderProbeLog = topLevelLog == null ? null : topLevelLog.log("Finding classpath");
+        // The ClassLoaderProbe is deliberately not stored in a field: it holds the classloaders that were used to
         // find the classpath, and those must not be kept alive for the duration of the scan. It is the last thing
         // in a scan to hold a classloader at all -- from here on, only the string form of each classloader is kept
-        final var classpathFinder = new ClasspathFinder(scanSpec.classPathSpec, classLoaderAndModuleLayerSpec,
-                reflectionUtils, classpathFinderLog);
+        final var classLoaderProbe = new ClassLoaderProbe(scanSpec.classpathSpec, classLoaderAndModuleLayerSpec,
+                reflectionUtils, classLoaderProbeLog);
 
         try {
             this.moduleOrder = new ArrayList<>();
@@ -203,10 +203,10 @@ class Scanner implements Callable<ScanResult> {
 
             // Check if modules should be scanned
             String defaultClassLoaderStr = null;
-            final var moduleFinder = classpathFinder.getModuleFinder();
+            final var moduleFinder = classLoaderProbe.getModuleFinder();
             if (moduleFinder != null) {
                 // Add modules to start of classpath order, before traditional classpath
-                final var classLoaderOrderRespectingParentDelegation = classpathFinder
+                final var classLoaderOrderRespectingParentDelegation = classLoaderProbe
                         .getClassLoaderOrderRespectingParentDelegation();
                 defaultClassLoaderStr = Objects.toString(classLoaderOrderRespectingParentDelegation != null
                         && classLoaderOrderRespectingParentDelegation.length != 0
@@ -214,17 +214,17 @@ class Scanner implements Callable<ScanResult> {
                                 : null,
                         null);
                 addModules(moduleFinder.getSystemModuleReferences(), /* isSystemModules = */ true,
-                        defaultClassLoaderStr, unscannedModuleReferences, classpathFinderLog);
+                        defaultClassLoaderStr, unscannedModuleReferences, classLoaderProbeLog);
                 addModules(moduleFinder.getNonSystemModuleReferences(), /* isSystemModules = */ false,
-                        defaultClassLoaderStr, unscannedModuleReferences, classpathFinderLog);
+                        defaultClassLoaderStr, unscannedModuleReferences, classLoaderProbeLog);
             }
             this.unscannedModules = new UnscannedModules(unscannedModuleReferences, defaultClassLoaderStr,
                     nestedJarHandler.scanResources.moduleReaderRecyclerMap(), scanSpec);
 
-            // Turn the toplevel classpath entries into work units, so that the ClasspathFinder (and the classloader
+            // Turn the toplevel classpath entries into work units, so that the ClassLoaderProbe (and the classloader
             // references it holds) can be discarded now that the classpath has been found
             this.rawClasspathEntryWorkUnits = new ArrayList<>();
-            for (final var rawClasspathEntry : classpathFinder.getClasspathOrder().getOrder()) {
+            for (final var rawClasspathEntry : classLoaderProbe.getClasspathOrder().getOrder()) {
                 rawClasspathEntryWorkUnits.add(new ClasspathEntryWorkUnit(rawClasspathEntry.classpathEntryObj,
                         rawClasspathEntry.getClassLoaderString(), /* parentClasspathElement = */ null,
                         // classpathElementIdxWithinParent is the original classpath index, for toplevel classpath
@@ -250,14 +250,14 @@ class Scanner implements Callable<ScanResult> {
      *            the string form of the classloader to record for each module, or null if there is none
      * @param unscannedModuleReferences
      *            the list to add non-accepted, non-rejected modules to
-     * @param classpathFinderLog
+     * @param classLoaderProbeLog
      *            the log node, or null to skip logging
      * @throws InterruptedException
      *             if the thread was interrupted while opening a module
      */
     private void addModules(final @Nullable List<ModuleReference> moduleReferences, final boolean isSystemModules,
             final @Nullable String defaultClassLoaderStr, final List<ModuleReference> unscannedModuleReferences,
-            final @Nullable LogNode classpathFinderLog) throws InterruptedException {
+            final @Nullable LogNode classLoaderProbeLog) throws InterruptedException {
         if (moduleReferences == null) {
             return;
         }
@@ -266,9 +266,9 @@ class Scanner implements Callable<ScanResult> {
             // If scanning of system modules is enabled, system modules follow the same accept/reject rule as any
             // other module, so rejecting one system module leaves the rest scannable (#658). Otherwise only
             // specifically accepted system modules are scanned.
-            final var isAccepted = isSystemModules && !scanSpec.classPathSpec.enableSystemJarsAndModules
-                    ? scanSpec.classPathSpec.moduleAcceptReject.isSpecificallyAcceptedAndNotRejected(moduleName)
-                    : scanSpec.classPathSpec.moduleAcceptReject.isAcceptedAndNotRejected(moduleName);
+            final var isAccepted = isSystemModules && !scanSpec.classpathSpec.enableSystemJarsAndModules
+                    ? scanSpec.classpathSpec.moduleAcceptReject.isSpecificallyAcceptedAndNotRejected(moduleName)
+                    : scanSpec.classpathSpec.moduleAcceptReject.isAcceptedAndNotRejected(moduleName);
             if (isAccepted) {
                 // Create a new ClasspathElementModule
                 final var classpathElementModule = new ClasspathElementModule(moduleReference,
@@ -278,16 +278,16 @@ class Scanner implements Callable<ScanResult> {
                         /* isLookupOnly = */ false, scanSpec);
                 moduleOrder.add(classpathElementModule);
                 // Open the ClasspathElementModule
-                classpathElementModule.open(/* ignored */ null, classpathFinderLog);
+                classpathElementModule.open(/* ignored */ null, classLoaderProbeLog);
             } else {
                 // A module that is not being scanned can still have the classfiles of individual classes read from
                 // it, in order to complete the class graph above an accepted class -- but not if the module was
                 // rejected (#902)
-                if (!scanSpec.classPathSpec.moduleAcceptReject.isRejected(moduleName)) {
+                if (!scanSpec.classpathSpec.moduleAcceptReject.isRejected(moduleName)) {
                     unscannedModuleReferences.add(moduleReference);
                 }
-                if (classpathFinderLog != null) {
-                    classpathFinderLog.log("Skipping non-accepted or rejected "
+                if (classLoaderProbeLog != null) {
+                    classLoaderProbeLog.log("Skipping non-accepted or rejected "
                             + (isSystemModules ? "system module: " : "module: ") + moduleName);
                 }
             }
@@ -923,11 +923,11 @@ class Scanner implements Callable<ScanResult> {
      *
      * @param finalTraditionalClasspathEltOrder
      *            the final traditional classpath elt order
-     * @param classpathFinderLog
+     * @param classLoaderProbeLog
      *            the classpath finder log
      */
     private void preprocessClasspathElementsByType(final List<ClasspathElement> finalTraditionalClasspathEltOrder,
-            final @Nullable LogNode classpathFinderLog) {
+            final @Nullable LogNode classLoaderProbeLog) {
         final List<SimpleEntry<String, ClasspathElement>> classpathEltDirs = new ArrayList<>();
         final List<SimpleEntry<String, ClasspathElement>> classpathEltZips = new ArrayList<>();
         for (final ClasspathElement classpathElt : finalTraditionalClasspathEltOrder) {
@@ -953,15 +953,15 @@ class Scanner implements Callable<ScanResult> {
                     if (classpathEltZip.logicalZipFile.addExportsManifestEntryValue != null) {
                         for (final String addExports : JarUtils.smartPathSplit(
                                 classpathEltZip.logicalZipFile.addExportsManifestEntryValue, ' ',
-                                scanSpec.classPathSpec.allowedURLSchemes)) {
-                            scanSpec.classPathSpec.modulePathInfo.addExportsEntry(addExports + "=ALL-UNNAMED");
+                                scanSpec.classpathSpec.allowedURLSchemes)) {
+                            scanSpec.classpathSpec.modulePathInfo.addExportsEntry(addExports + "=ALL-UNNAMED");
                         }
                     }
                     if (classpathEltZip.logicalZipFile.addOpensManifestEntryValue != null) {
                         for (final String addOpens : JarUtils.smartPathSplit(
                                 classpathEltZip.logicalZipFile.addOpensManifestEntryValue, ' ',
-                                scanSpec.classPathSpec.allowedURLSchemes)) {
-                            scanSpec.classPathSpec.modulePathInfo.addOpensEntry(addOpens + "=ALL-UNNAMED");
+                                scanSpec.classpathSpec.allowedURLSchemes)) {
+                            scanSpec.classpathSpec.modulePathInfo.addOpensEntry(addOpens + "=ALL-UNNAMED");
                         }
                     }
                     // Retrieve Automatic-Module-Name manifest entry, if present
@@ -974,8 +974,8 @@ class Scanner implements Callable<ScanResult> {
             // (Ignore ClasspathElementModule, no preprocessing to perform)
         }
         // Find nested classpath elements (writes to ClasspathElement#nestedClasspathRootPrefixes)
-        findNestedClasspathElements(classpathEltDirs, classpathFinderLog);
-        findNestedClasspathElements(classpathEltZips, classpathFinderLog);
+        findNestedClasspathElements(classpathEltDirs, classLoaderProbeLog);
+        findNestedClasspathElements(classpathEltZips, classLoaderProbeLog);
     }
 
     // -------------------------------------------------------------------------------------------------------------

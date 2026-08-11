@@ -12,8 +12,8 @@ import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 
-import nonapi.io.github.classgraph.utils.LogNode;
-import nonapi.io.github.classgraph.utils.ModuleReaderUtils;
+import io.github.classgraph.base.internal.utils.LogNode;
+import io.github.classgraph.base.internal.utils.ModuleReaderUtils;
 
 /**
  * Scanning under Minecraft Forge aborted with {@code IllegalArgumentException: Could not call moduleReader.list()}.

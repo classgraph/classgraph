@@ -9,8 +9,8 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import nonapi.io.github.classgraph.types.ParseException;
-import nonapi.io.github.classgraph.types.Parser;
+import io.github.classgraph.internal.types.ParseException;
+import io.github.classgraph.internal.types.Parser;
 
 /**
  * Tests for {@link TypeVariableSignature}, the reference to a type variable such as the {@code T} in {@code T[]}.

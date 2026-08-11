@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import nonapi.io.github.classgraph.reflection.ReflectionUtils;
+import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 
 /**
  * Encapsulation circumvention test. Narcissus is an optional dependency of this project, so it is on the test

@@ -33,7 +33,7 @@ import java.util.Objects;
 import java.util.Set;
 
 import io.github.classgraph.Classfile.TypePathNode;
-import nonapi.io.github.classgraph.types.Parser;
+import io.github.classgraph.internal.types.Parser;
 import org.jspecify.annotations.Nullable;
 
 /**
