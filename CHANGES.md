@@ -1779,6 +1779,15 @@ is fixed on the 4.x branch as well.
   read is now repeated until the requested number of bytes has been read or the stream is
   exhausted.
 
+* A few numbers in the verbose log were formatted in the JVM's default locale, although
+  the log is meant to read the same way whatever that locale is -- which is why its
+  timestamps and elapsed times already used a fixed locale. The one that showed up in the
+  output was the total scan time, printed with the locale's decimal separator and digits:
+  under `ar-EG` it read `Total time: ٠٫١١٣ sec`. The others were the strings the log sorts
+  its entries by, which are never printed but are compared as text, so formatting them in
+  a locale-specific digit set risked an ordering that depended on where the code was run.
+  All of them now use the same fixed locale as the timestamps.
+
 Two further bugs found during the port were only reachable through the JSON
 serialization API, which 5.x removes (`AnnotationParameterValue#toString()` threw
 `NullPointerException` for a null parameter value, and `ScanResult#fromJSON(String)` did
