@@ -83,6 +83,37 @@ public class JarUtilsTest {
                 .containsExactly("s3://bucket/jar1.jar", "/tmp/jar2.jar");
     }
 
+    /**
+     * A path element is trimmed, so whitespace between a separator and the URL scheme that follows it does not stop
+     * the scheme from being recognized -- otherwise the path would be split at the scheme's own colon, turning one
+     * URL into two path elements that name nothing.
+     */
+    @Test
+    public void whitespaceBeforeAURLSchemeDoesNotHideIt() {
+        assertThat(JarUtils.smartPathSplit("/a/jar1.jar: http://domain/jar2.jar", ':', null))
+                .containsExactly("/a/jar1.jar", "http://domain/jar2.jar");
+        assertThat(JarUtils.smartPathSplit(" http://domain/jar1.jar:/a/jar2.jar", ':', null))
+                .containsExactly("http://domain/jar1.jar", "/a/jar2.jar");
+        assertThat(JarUtils.smartPathSplit("/a/jar1.jar:  jar:file:/a/jar2.jar!/", ':', null))
+                .containsExactly("/a/jar1.jar", "jar:file:/a/jar2.jar!/");
+        assertThat(JarUtils.smartPathSplit("/a/jar1.jar: s3://bucket/jar2.jar", ':', Set.of("s3")))
+                .containsExactly("/a/jar1.jar", "s3://bucket/jar2.jar");
+
+        // Whitespace in the middle of a path element still does not make what follows it a scheme
+        assertThat(JarUtils.smartPathSplit("/a dir/http:x", ':', null)).containsExactly("/a dir/http", "x");
+    }
+
+    /**
+     * A separator that is a regular expression metacharacter splits the path on the character itself, rather than
+     * on whatever the character means as a regular expression.
+     */
+    @Test
+    public void aSeparatorThatIsARegexMetacharacterIsMatchedLiterally() {
+        assertThat(JarUtils.smartPathSplit("/a/jar1.jar|/a/jar2.jar", '|', null)).containsExactly("/a/jar1.jar",
+                "/a/jar2.jar");
+        assertThat(JarUtils.smartPathSplit("a.b.c", '.', null)).containsExactly("a", "b", "c");
+    }
+
     /** Where the path separator is not ':', the path is split on it with no URL scheme handling. */
     @Test
     public void nonColonSeparatorsSplitTheWholePath() {

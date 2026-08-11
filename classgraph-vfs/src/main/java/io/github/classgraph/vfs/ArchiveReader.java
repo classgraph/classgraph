@@ -141,11 +141,12 @@ public class ArchiveReader implements Closeable {
      * directory is at the end of the file.
      *
      * @param scheme
-     *            the URL scheme to allow, e.g. {@code "https"}.
+     *            the URL scheme to allow, e.g. {@code "https"}. The scheme name only, without the trailing
+     *            {@code ':'}.
      * @return this (for method chaining).
      * @throws IllegalArgumentException
      *             if {@code scheme} is shorter than two characters (a one-character scheme cannot be told apart
-     *             from a Windows drive letter).
+     *             from a Windows drive letter), or is not a valid URL scheme.
      */
     public ArchiveReader enableURLScheme(final String scheme) {
         vfsScanSpec.enableURLScheme(scheme);

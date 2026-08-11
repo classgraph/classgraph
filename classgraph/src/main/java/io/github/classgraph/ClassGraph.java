@@ -1125,8 +1125,12 @@ public class ClassGraph {
      * order to not conflict with Windows drive letters).
      *
      * @param scheme
-     *            the URL scheme string, e.g. "resource" for a custom "resource:" URL scheme.
+     *            the URL scheme string, e.g. "resource" for a custom "resource:" URL scheme. The scheme name only,
+     *            without the trailing {@code ':'}.
      * @return this (for method chaining).
+     * @throws IllegalArgumentException
+     *             if the scheme is shorter than two characters (a one-character scheme cannot be told apart from a
+     *             Windows drive letter), or is not a valid URL scheme.
      */
     public ClassGraph enableURLScheme(final String scheme) {
         Assert.notNull(scheme, "scheme");

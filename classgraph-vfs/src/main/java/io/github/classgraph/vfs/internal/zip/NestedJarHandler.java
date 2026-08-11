@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
 import java.util.AbstractMap.SimpleEntry;
+import java.util.Locale;
 import java.util.Map.Entry;
 import java.util.Objects;
 
@@ -237,7 +238,10 @@ public class NestedJarHandler {
         final var isURL = JarUtils.URL_SCHEME_PATTERN.matcher(nestedJarPath).matches();
         PhysicalZipFile physicalZipFile;
         if (isURL) {
-            final var scheme = nestedJarPath.substring(0, nestedJarPath.indexOf(':'));
+            // URL schemes are case-insensitive, and are registered in lowercase, so the scheme has to be
+            // lowercased before it is looked up -- otherwise "S3://bucket/x.jar" is rejected as not enabled
+            // even though the "s3" scheme was enabled
+            final var scheme = nestedJarPath.substring(0, nestedJarPath.indexOf(':')).toLowerCase(Locale.ROOT);
             if (vfsScanSpec.allowedURLSchemes == null || !vfsScanSpec.allowedURLSchemes.contains(scheme)) {
                 // No URL schemes other than "file:" (with optional "jar:" prefix) allowed (these schemes were
                 // already stripped by FastPathResolver.resolve(nestedJarPathRaw))

@@ -35,10 +35,10 @@ import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.HashSet;
-import java.util.Locale;
 import java.util.Set;
 
 import io.github.classgraph.base.internal.utils.Assert;
+import io.github.classgraph.base.internal.utils.JarUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.base.internal.utils.VersionFinder;
 import io.github.classgraph.base.internal.utils.VersionFinder.OperatingSystem;
@@ -111,18 +111,16 @@ public class VfsScanSpec {
      * @param scheme
      *            the scheme, e.g. "http".
      * @throws IllegalArgumentException
-     *             if the scheme is shorter than two characters, since a one-character scheme cannot be told apart
-     *             from a Windows drive letter.
+     *             if the scheme is shorter than two characters (a one-character scheme cannot be told apart from a
+     *             Windows drive letter), or is not a valid URL scheme.
      */
     public void enableURLScheme(final String scheme) {
         Assert.notNull(scheme, "scheme");
-        if (scheme.length() < 2) {
-            throw new IllegalArgumentException("URL schemes must contain at least two characters");
-        }
+        final var normalizedScheme = JarUtils.normalizeURLScheme(scheme);
         if (allowedURLSchemes == null) {
             allowedURLSchemes = new HashSet<>();
         }
-        allowedURLSchemes.add(scheme.toLowerCase(Locale.ROOT));
+        allowedURLSchemes.add(normalizedScheme);
     }
 
     /**

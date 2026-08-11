@@ -1172,6 +1172,14 @@ On Linux and macOS they are not loaded at all.
   reference, which is consistent and avoids the repeated copying, but it does mean that
   writing to the returned array changes what later calls return. Copy the array first if
   you need to modify it.
+* **`enableURLScheme()` now rejects anything that is not a URL scheme.** 4.x only checked
+  that the scheme was at least two characters long, and stored whatever it was given, so a
+  scheme written with its trailing colon — `enableURLScheme("s3:")`, an easy mistake to
+  make — was accepted and then never matched anything, silently scanning nothing. The
+  argument is now required to be a scheme name as defined by RFC 3986 (a letter, followed
+  by letters, digits, `+`, `-` or `.`), and `IllegalArgumentException` is thrown if it is
+  not. A one-character scheme is still rejected, since it cannot be told apart from a
+  Windows drive letter.
 * **Reading from a `Resource`'s `InputStream` after closing it no longer throws
   `NullPointerException`.** The stream wrapper used to null out its reference to the
   wrapped stream on close, so a subsequent read hit a null. It now keeps the reference
@@ -1634,6 +1642,24 @@ is fixed on the 4.x branch as well.
   RFC 3986 allows digits after the first character. Such a URL silently lost one of the
   slashes after its scheme (`s3://bucket/key` became `s3:/bucket/key`), and the part after
   the scheme was treated as a relative path.
+
+* Whitespace after a classpath separator hid the URL scheme of the element that followed
+  it. A classpath entry is trimmed before it is used, so `/a/x.jar: http://domain/y.jar` is
+  meant to name the same two entries as `/a/x.jar:http://domain/y.jar`, but the scheme was
+  only recognized when it started immediately after the separator. The space made
+  `http:` look like an ordinary colon, so the second entry was split in two, giving the two
+  nonexistent classpath elements `http` and `//domain/y.jar`. Whitespace between a
+  separator and a URL scheme is now skipped. This affects `java.class.path`, the
+  `Class-Path:` manifest entry, and the `--module-path` and `--patch-module` commandline
+  arguments, all of which are split the same way.
+
+* `enableURLScheme()` matched the scheme of a classpath element case-sensitively against
+  the schemes that had been enabled, even though URL schemes are case-insensitive and are
+  stored lowercased. An element written `S3://bucket/x.jar` was therefore rejected with
+  "Scanning of URL scheme "S3" has not been enabled", although `enableURLScheme("s3")` had
+  been called. Through `ClassGraph` this was masked, because a classpath element goes
+  through `java.net.URL`, which lowercases the scheme; it is directly reachable through
+  `ArchiveReader#open(String)` in `classgraph-vfs`, which takes the path as given.
 
 * `overrideClasspath()` given a single `Path` split it into its name elements, and treated
   each one as a separate classpath entry. A `Path` is an `Iterable` of its own name

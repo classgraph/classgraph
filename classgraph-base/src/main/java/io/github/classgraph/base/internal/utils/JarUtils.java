@@ -32,6 +32,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -46,6 +47,9 @@ public final class JarUtils {
      * drive designations don't get treated as URL schemes.
      */
     public static final Pattern URL_SCHEME_PATTERN = Pattern.compile("[a-zA-Z][a-zA-Z0-9+\\-.]+[:].*");
+
+    /** A URL scheme on its own, without the trailing {@code ':'}. */
+    private static final Pattern URL_SCHEME_NAME_PATTERN = Pattern.compile("[a-zA-Z][a-zA-Z0-9+\\-.]+");
 
     /** The Constant DASH_VERSION. */
     private static final Pattern DASH_VERSION = Pattern.compile("-(\\d+(\\.|$))");
@@ -105,6 +109,29 @@ public final class JarUtils {
     }
 
     /**
+     * Check that a string is a URL scheme name, and lowercase it, since URL schemes are case-insensitive but are
+     * matched in lowercase.
+     *
+     * @param scheme
+     *            the scheme, e.g. "http", without the trailing ':'.
+     * @return the scheme, lowercased.
+     * @throws IllegalArgumentException
+     *             if the scheme is shorter than two characters, or is not a valid URL scheme.
+     */
+    public static String normalizeURLScheme(final String scheme) {
+        // The scheme is validated, rather than simply lowercased, because a scheme registered in a form that can
+        // never match, e.g. with a trailing ':', would otherwise silently fail to enable anything
+        if (scheme.length() < 2) {
+            // A one-character scheme cannot be told apart from a Windows drive letter
+            throw new IllegalArgumentException("URL schemes must contain at least two characters");
+        }
+        if (!URL_SCHEME_NAME_PATTERN.matcher(scheme).matches()) {
+            throw new IllegalArgumentException("Not a valid URL scheme: \"" + scheme + "\"");
+        }
+        return scheme.toLowerCase(Locale.ROOT);
+    }
+
+    /**
      * Split a path on File.pathSeparator (':' on Linux, ';' on Windows), but also allow for the use of URLs with
      * protocol specifiers, e.g. "http://domain/jar1.jar:http://domain/jar2.jar".
      *
@@ -151,14 +178,22 @@ public final class JarUtils {
      * @return The non-empty path element substrings, trimmed.
      */
     private static String[] splitOnSeparator(final String pathStr, final char separatorChar) {
-        final List<String> partsFiltered = new ArrayList<>();
-        for (final String part : pathStr.split(String.valueOf(separatorChar))) {
-            final var partFiltered = part.trim();
-            if (!partFiltered.isEmpty()) {
-                partsFiltered.add(partFiltered);
+        // N.B. the separator is searched for literally, rather than with String#split(), whose argument is a
+        // regular expression -- a separator that is a regex metacharacter would otherwise split on the wrong thing
+        final List<String> parts = new ArrayList<>();
+        for (var startIdx = 0; startIdx <= pathStr.length();) {
+            var endIdx = pathStr.indexOf(separatorChar, startIdx);
+            if (endIdx < 0) {
+                endIdx = pathStr.length();
             }
+            final var part = pathStr.substring(startIdx, endIdx).trim();
+            // Remove empty path components
+            if (!part.isEmpty()) {
+                parts.add(part);
+            }
+            startIdx = endIdx + 1;
         }
-        return partsFiltered.toArray(String[]::new);
+        return parts.toArray(String[]::new);
     }
 
     /**
@@ -230,7 +265,7 @@ public final class JarUtils {
             if (pathStr.regionMatches(true, startIdx, UNIX_NON_PATH_SEPARATORS[j], 0,
                     UNIX_NON_PATH_SEPARATORS[j].length())
                     // Don't treat the "jar:" in the middle of "x.jar:y.jar" as a URL scheme
-                    && (startIdx == 0 || pathStr.charAt(startIdx - 1) == ':')) {
+                    && startsAPathElement(pathStr, startIdx)) {
                 return true;
             }
         }
@@ -244,12 +279,39 @@ public final class JarUtils {
                     && !"war".equals(scheme)) {
                 final var startIdx = colonIdx - scheme.length();
                 if (pathStr.regionMatches(true, startIdx, scheme, 0, scheme.length())
-                        && (startIdx == 0 || pathStr.charAt(startIdx - 1) == ':')) {
+                        && startsAPathElement(pathStr, startIdx)) {
                     return true;
                 }
             }
         }
         return false;
+    }
+
+    /**
+     * Test whether an index is at the start of a path element, i.e. whether everything between it and the previous
+     * separator (or the start of the path) is whitespace. Whitespace is skipped because the path elements are
+     * trimmed, so {@code "x.jar: http://domain/y.jar"} has to be read the same way as
+     * {@code "x.jar:http://domain/y.jar"} -- otherwise the space would hide the URL scheme, and the path would be
+     * split at the scheme's colon.
+     *
+     * @param pathStr
+     *            The path being split.
+     * @param startIdx
+     *            The index to test.
+     * @return true if a path element starts at the given index.
+     */
+    private static boolean startsAPathElement(final String pathStr, final int startIdx) {
+        for (var i = startIdx - 1; i >= 0; i--) {
+            final var c = pathStr.charAt(i);
+            if (c == ':') {
+                return true;
+            }
+            // Anything above ' ' is not trimmed off the path element, so it is part of the element
+            if (c > ' ') {
+                return false;
+            }
+        }
+        return true;
     }
 
     // -------------------------------------------------------------------------------------------------------------

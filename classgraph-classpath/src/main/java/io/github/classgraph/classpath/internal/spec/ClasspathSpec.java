@@ -34,13 +34,13 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 import java.util.function.Predicate;
 
 import io.github.classgraph.base.internal.utils.AcceptReject;
 import io.github.classgraph.base.internal.utils.AcceptReject.AcceptRejectWholeString;
 import io.github.classgraph.base.internal.utils.Assert;
+import io.github.classgraph.base.internal.utils.JarUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.classpath.ModulePathInfo;
 import org.jspecify.annotations.Nullable;
@@ -182,17 +182,18 @@ public class ClasspathSpec {
      * Allow a specified URL scheme in classpath elements.
      *
      * @param scheme
-     *            the scheme, e.g. "http".
+     *            the scheme, e.g. "http". The scheme name only, without the trailing {@code ':'}.
+     * @throws IllegalArgumentException
+     *             if the scheme is shorter than two characters (a one-character scheme cannot be told apart from a
+     *             Windows drive letter), or is not a valid URL scheme.
      */
     public void enableURLScheme(final String scheme) {
         Assert.notNull(scheme, "scheme");
-        if (scheme.length() < 2) {
-            throw new IllegalArgumentException("URL schemes must contain at least two characters");
-        }
+        final var normalizedScheme = JarUtils.normalizeURLScheme(scheme);
         if (allowedURLSchemes == null) {
             allowedURLSchemes = new HashSet<>();
         }
-        allowedURLSchemes.add(scheme.toLowerCase(Locale.ROOT));
+        allowedURLSchemes.add(normalizedScheme);
     }
 
     // -----------------------------------------------------------------------------------------------------------

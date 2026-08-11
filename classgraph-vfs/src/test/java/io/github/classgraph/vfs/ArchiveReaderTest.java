@@ -233,12 +233,16 @@ public class ArchiveReaderTest {
         }
     }
 
-    /** A one-character URL scheme is rejected, since it cannot be told apart from a Windows drive letter. */
+    /** A string that is not a URL scheme is rejected, rather than being stored where it can never match. */
     @Test
-    public void aOneCharacterURLSchemeIsRejected() throws IOException {
+    public void aStringThatIsNotAURLSchemeIsRejected() throws IOException {
         try (var archiveReader = new ArchiveReader()) {
             assertThat(archiveReader.enableURLScheme("https")).isSameAs(archiveReader);
+            // A one-character scheme cannot be told apart from a Windows drive letter
             assertThatThrownBy(() -> archiveReader.enableURLScheme("c"))
+                    .isInstanceOf(IllegalArgumentException.class);
+            // The commonest mistake: including the scheme's trailing ':'
+            assertThatThrownBy(() -> archiveReader.enableURLScheme("https:"))
                     .isInstanceOf(IllegalArgumentException.class);
         }
     }
