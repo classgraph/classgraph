@@ -1788,6 +1788,15 @@ is fixed on the 4.x branch as well.
   a locale-specific digit set risked an ordering that depended on where the code was run.
   All of them now use the same fixed locale as the timestamps.
 
+* A backslash in a `.dot` file was escaped as `&lsol;`, which is not an entity GraphViz
+  knows -- and neither is `&bsol;`, the other name for it. GraphViz stops with
+  `Error: undefined entity`, exits with an error status, and falls back to treating the
+  whole label of the offending class as plain text, so that class is drawn as a box full
+  of raw HTML markup instead of as a table. A backslash reaches the graph through the
+  string values of annotation parameters and through field and method type signatures. It
+  is now escaped as `&#x5C;`, the numeric character reference, which GraphViz does
+  understand.
+
 Two further bugs found during the port were only reachable through the JSON
 serialization API, which 5.x removes (`AnnotationParameterValue#toString()` threw
 `NullPointerException` for a null parameter value, and `ScanResult#fromJSON(String)` did

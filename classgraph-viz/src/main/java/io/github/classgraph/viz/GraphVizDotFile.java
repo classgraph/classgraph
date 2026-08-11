@@ -157,7 +157,9 @@ public final class GraphVizDotFile {
             case '>' -> buf.append("&gt;");
             case '"' -> buf.append("&quot;");
             case '\'' -> buf.append("&#x27;"); // See http://goo.gl/FzoP6m
-            case '\\' -> buf.append("&lsol;");
+            // GraphViz resolves only the named entities it knows, and there is no name for a backslash --
+            // "&lsol;" and "&bsol;" both make it report "undefined entity" and give up on the whole label
+            case '\\' -> buf.append("&#x5C;");
             case '/' -> buf.append("&#x2F;"); // '/' can be a dangerous char if attr values are not quoted
             // Encode a few common characters that like to get screwed up in some charset/browser variants
             case '—' -> buf.append("&mdash;");

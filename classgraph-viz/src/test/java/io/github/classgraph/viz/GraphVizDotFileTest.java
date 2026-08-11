@@ -3,6 +3,8 @@ package io.github.classgraph.viz;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -25,7 +27,19 @@ public class GraphVizDotFileTest {
     public interface Marker {
     }
 
+    /** An annotation whose parameter value contains a character that has to be escaped in the graph. */
+    @Retention(RetentionPolicy.RUNTIME)
+    public @interface Location {
+        /**
+         * The location.
+         *
+         * @return the location.
+         */
+        String value();
+    }
+
     /** The class that is graphed. */
+    @Location("C:\\Windows")
     public static class Derived extends Base implements Marker {
     }
 
@@ -74,6 +88,19 @@ public class GraphVizDotFileTest {
         final var dotFile = GraphVizDotFile.generateFromInterClassDependencies(scanResult,
                 scanResult.getAllClasses());
         assertThat(dotFile).contains("\"" + FIXTURE + "Derived\" -> \"" + FIXTURE + "Base\" [arrowsize=2.5]");
+    }
+
+    /**
+     * A backslash is escaped as a numeric character reference. GraphViz resolves only the named entities it knows,
+     * and there is no name for a backslash -- an unknown entity makes GraphViz report "undefined entity" and exit
+     * with an error, and the label of the node that contained it is then not rendered as a table at all.
+     */
+    @Test
+    public void backslashesAreEscapedAsANumericCharacterReference() {
+        // AnnotationInfo#toString() escapes the backslash of the parameter value as a Java escape sequence first,
+        // so the graph shows the two backslashes of "C:\\Windows" as they would be written in source code
+        assertThat(GraphVizDotFile.generate(scanResult, scanResult.getAllClasses()))
+                .contains("C:&#x5C;&#x5C;Windows").doesNotContain("&lsol;", "&bsol;");
     }
 
     /**
