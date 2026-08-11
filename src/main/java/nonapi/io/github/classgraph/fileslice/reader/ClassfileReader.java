@@ -210,9 +210,16 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
 
         // Read a new chunk into the buffer, starting at position arrUsed
         if (inflaterInputStream != null) {
-            // Read from inflater input stream
-            final int numRead = inflaterInputStream.read(arr, arrUsed, maxBytesToRead);
-            if (numRead > 0) {
+            // Read from the input stream. InputStream#read is not required to transfer the whole of the requested
+            // range in a single call, and the channel-backed streams that a module or a directory is read through
+            // really can transfer less, so keep reading until the target has been reached or the stream is
+            // exhausted. (Each call may still transfer more than the target, filling the rest of the buffer.)
+            while (arrUsed < targetArrUsed) {
+                final int numRead = inflaterInputStream.read(arr, arrUsed, arr.length - arrUsed);
+                if (numRead <= 0) {
+                    // -1 => end of stream; 0 => the buffer has no space left
+                    break;
+                }
                 arrUsed += numRead;
             }
         } else /* randomAccessReader == null, so this is a (non-deflated) FileSlice */ {
