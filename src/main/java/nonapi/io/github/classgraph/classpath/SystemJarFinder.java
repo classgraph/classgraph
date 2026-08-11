@@ -102,7 +102,7 @@ public final class SystemJarFinder {
                             jreLibOrExtJars.add(jarPathResolved);
                         }
                         try {
-                            final File canonicalFile = file.getCanonicalFile();
+                            final File canonicalFile = FileUtils.canonicalize(file);
                             final String canonicalFilePath = canonicalFile.getPath();
                             if (!canonicalFilePath.equals(filePath)) {
                                 // The jar is a symlink (or is otherwise reachable by more than one path), so
