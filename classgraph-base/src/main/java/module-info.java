@@ -60,7 +60,7 @@ module io.github.classgraph.base {
 
     // VersionFinder requires java.xml
     requires java.xml;
-    // FileUtils requires jdk.unsupported (for usage of Unsafe)
+    // OffHeapMemory requires jdk.unsupported (for usage of Unsafe on JDK 17-21)
     requires jdk.unsupported;
     // LogNode requires java.logging
     requires java.logging;
