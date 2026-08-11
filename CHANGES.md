@@ -1771,6 +1771,14 @@ is fixed on the 4.x branch as well.
   first return at its word and threw `IOException: Premature EOF`. A read is now repeated
   until the requested number of bytes has been read or the end of the file is reached.
 
+* A short read from an `InputStream` was treated the same way when a classfile was read
+  from a module or from a directory, throwing `IOException: Buffer underflow` even though
+  the whole of the classfile was available. `InputStream#read(byte[], int, int)` is not
+  required to transfer the whole of the requested range in a single call, and both of the
+  streams a classfile is read through are channel-backed and really can transfer less. A
+  read is now repeated until the requested number of bytes has been read or the stream is
+  exhausted.
+
 Two further bugs found during the port were only reachable through the JSON
 serialization API, which 5.x removes (`AnnotationParameterValue#toString()` threw
 `NullPointerException` for a null parameter value, and `ScanResult#fromJSON(String)` did
