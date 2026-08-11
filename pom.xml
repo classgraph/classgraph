@@ -224,23 +224,6 @@
 				<artifactId>maven-install-plugin</artifactId>
 				<version>3.1.4</version>
 			</plugin>
-
-			<!-- Deploy to Maven Central via the Central Portal (central.sonatype.com). -->
-			<!-- Requires a <server> with id "central" in settings.xml, containing a Portal user token. -->
-			<plugin>
-				<groupId>org.sonatype.central</groupId>
-				<artifactId>central-publishing-maven-plugin</artifactId>
-				<version>0.11.0</version>
-				<extensions>true</extensions>
-				<configuration>
-					<publishingServerId>central</publishingServerId>
-					<autoPublish>true</autoPublish>
-					<!-- waitUntil is deliberately left at its default, VALIDATED: release:perform returns -->
-					<!-- once the deployment passes validation, and autoPublish (above) then completes the -->
-					<!-- publication server-side. -->
-					<deploymentName>${project.groupId}:${project.artifactId}:${project.version}</deploymentName>
-				</configuration>
-			</plugin>
 		</plugins>
 
 		<pluginManagement>
@@ -562,9 +545,10 @@
 				<!-- before retrying; a left-over bumped version makes the retry fail for another reason. -->
 				<!-- -->
 				<!-- release:perform returns once the Central Portal has validated the uploaded bundle -->
-				<!-- (waitUntil defaults to VALIDATED; see the central-publishing-maven-plugin config, -->
-				<!-- above). Once the log line "Uploaded bundle successfully ... deploymentId: ..." has -->
-				<!-- appeared, publishing completes server-side, typically within 10 to 30 minutes; check -->
+				<!-- (waitUntil defaults to VALIDATED; see the central-publishing-maven-plugin config in -->
+				<!-- the "release" profile). Once the log line "Uploaded bundle successfully ... -->
+				<!-- deploymentId: ..." has appeared, publishing completes server-side, typically -->
+				<!-- within 10 to 30 minutes; check -->
 				<!-- https://repo1.maven.org/maven2/io/github/classgraph/classgraph/<version>/ to confirm -->
 				<!-- the release is live. -->
 				<plugin>
@@ -608,12 +592,31 @@
 			</properties>
 		</profile>
 
-		<!-- Sign jars for release. Activated automatically by maven-release-plugin (via -->
+		<!-- Sign and publish jars for release. Activated automatically by maven-release-plugin (via -->
 		<!-- <releaseProfiles>/<arguments> above); pass -Prelease explicitly for a manual deploy. -->
+		<!-- The publishing plugin is scoped to this profile rather than declared in <build>, because -->
+		<!-- <extensions>true</extensions> forces Maven to resolve it at POM-read time on every build, -->
+		<!-- so a transient Maven Central outage would break "mvn test" for everyone, including CI. -->
 		<profile>
 			<id>release</id>
 			<build>
 				<plugins>
+					<!-- Deploy to Maven Central via the Central Portal (central.sonatype.com). -->
+					<!-- Requires a <server> with id "central" in settings.xml, containing a Portal user token. -->
+					<plugin>
+						<groupId>org.sonatype.central</groupId>
+						<artifactId>central-publishing-maven-plugin</artifactId>
+						<version>0.11.0</version>
+						<extensions>true</extensions>
+						<configuration>
+							<publishingServerId>central</publishingServerId>
+							<autoPublish>true</autoPublish>
+							<!-- waitUntil is deliberately left at its default, VALIDATED: release:perform returns -->
+							<!-- once the deployment passes validation, and autoPublish (above) then completes the -->
+							<!-- publication server-side. -->
+							<deploymentName>${project.groupId}:${project.artifactId}:${project.version}</deploymentName>
+						</configuration>
+					</plugin>
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-gpg-plugin</artifactId>
