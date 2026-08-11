@@ -1750,6 +1750,27 @@ is fixed on the 4.x branch as well.
   assumed to be the separator. Both now find the separator the same way as the rest of the
   library: by testing whether the path before a `'!'` names a file on disk.
 
+* Reading a deflated zip entry whose data has been truncated never reached the end of the
+  entry. The "nowrap" inflater option needs one dummy byte at the end of the input, and
+  that dummy byte was supplied afresh every time the inflater asked for more input after
+  the entry's data had run out, rather than only once. Each dummy byte decodes as more
+  deflate symbols, so the entry produced an endless supply of garbage bytes:
+  `Resource#load()` ran until it died with `OutOfMemoryError: Required array size too
+  large`, and reading the stream returned by `Resource#open()` never terminated at all.
+  Such an entry now throws `EOFException` at the point where its data ends.
+
+* The stream returned by `Resource#open()` for a deflated zip entry threw
+  `IllegalArgumentException` from both `mark(int)` and `reset()`. `InputStream` requires
+  `mark` to be a no-op when `markSupported()` is false, and requires `reset()` to throw
+  `IOException`, which is what a caller written against `InputStream` will be catching.
+  They now behave that way.
+
+* A short read from a `FileChannel` was treated as a truncated file. `FileChannel#read` is
+  not required to transfer the whole of the requested range in a single call, and a read
+  from a network filesystem can be short, but every read of a fixed-size field took the
+  first return at its word and threw `IOException: Premature EOF`. A read is now repeated
+  until the requested number of bytes has been read or the end of the file is reached.
+
 Two further bugs found during the port were only reachable through the JSON
 serialization API, which 5.x removes (`AnnotationParameterValue#toString()` threw
 `NullPointerException` for a null parameter value, and `ScanResult#fromJSON(String)` did
