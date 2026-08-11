@@ -160,7 +160,7 @@ public final class PathSlice extends Slice {
         if (memoryMapWholeFile && scanResources.vfsScanSpec.memoryMapFiles) {
             // Memory-map the whole file, if it can be mapped -- otherwise fall through and read through the
             // FileChannel API instead
-            final var mapping = FileMapping.map(fileChannelOpened, fileLength, scanResources, path, log);
+            final var mapping = FileMapping.map(fileChannelOpened, fileLength, path, log);
             fileMapping = mapping;
             backingByteBuffer = mapping == null ? null : mapping.byteBuffer;
         }
@@ -299,7 +299,7 @@ public final class PathSlice extends Slice {
             if (mapping != null) {
                 // Only the toplevel file slice has a FileMapping, so the file is only unmapped once (also
                 // duplicates of mapped ByteBuffers cannot be closed by the cleaner API)
-                mapping.unmap(scanResources);
+                mapping.unmap();
                 fileMapping = null;
             }
             backingByteBuffer = null;

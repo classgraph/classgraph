@@ -37,7 +37,6 @@ import io.github.classgraph.base.internal.utils.FileUtils;
 import io.github.classgraph.base.internal.utils.OffHeapMemory;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.base.internal.utils.VersionFinder;
-import io.github.classgraph.vfs.internal.ScanResources;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -80,8 +79,6 @@ final class FileMapping {
      *            the {@link FileChannel} of the file to map
      * @param fileLength
      *            the length of the file
-     * @param scanResources
-     *            the resources owned by the scan
      * @param file
      *            the file being mapped, for logging
      * @param log
@@ -89,8 +86,8 @@ final class FileMapping {
      * @return the mapping, or null if the file could not be mapped, in which case the caller has to read the file
      *         through the {@link FileChannel} API instead.
      */
-    static @Nullable FileMapping map(final FileChannel fileChannel, final long fileLength,
-            final ScanResources scanResources, final Object file, final @Nullable LogNode log) {
+    static @Nullable FileMapping map(final FileChannel fileChannel, final long fileLength, final Object file,
+            final @Nullable LogNode log) {
         // (A file larger than MAX_BUFFER_SIZE cannot be mapped to a single ByteBuffer)
         if (fileLength > FileUtils.MAX_BUFFER_SIZE) {
             return null;
@@ -101,14 +98,14 @@ final class FileMapping {
         try {
             // Try mapping the file (some operating systems throw OutOfMemoryError if the file can't be mapped,
             // some throw IOException)
-            byteBuffer = mapFile(arena, fileChannel, fileLength, scanResources);
+            byteBuffer = mapFile(arena, fileChannel, fileLength);
         } catch (IOException | OutOfMemoryError e) {
             // Try running garbage collection, then try mapping the file again. (Garbage collection is what can free
             // address space here: a mapping whose ByteBuffer is unreachable is unmapped by its Cleaner once the
             // reference is cleared, which is a phantom-reference mechanism, not finalization.)
             System.gc();
             try {
-                byteBuffer = mapFile(arena, fileChannel, fileLength, scanResources);
+                byteBuffer = mapFile(arena, fileChannel, fileLength);
             } catch (IOException | OutOfMemoryError e2) {
                 if (log != null) {
                     log.log("File " + file + " cannot be memory mapped: " + e2 + " (reading the file instead)");
@@ -135,8 +132,6 @@ final class FileMapping {
      *            the {@link FileChannel} of the file to map
      * @param fileLength
      *            the length of the file
-     * @param scanResources
-     *            the resources owned by the scan
      * @return the mapped byte buffer, or null if the file cannot be mapped by this JDK version or by the
      *         {@link FileChannel} implementation of the filesystem the file is stored in.
      * @throws IOException
@@ -144,7 +139,7 @@ final class FileMapping {
      *             collection).
      */
     private static @Nullable ByteBuffer mapFile(final @Nullable Object arena, final FileChannel fileChannel,
-            final long fileLength, final ScanResources scanResources) throws IOException {
+            final long fileLength) throws IOException {
         if (arena != null) {
             return OffHeapMemory.mapFileUsingArena(arena, fileChannel, 0L, fileLength);
         }
@@ -165,11 +160,8 @@ final class FileMapping {
     /**
      * Unmap the file. Must be called only once, and only by the toplevel {@link Slice} that owns the mapping, and
      * only once {@link #byteBuffer} and all its duplicates are no longer in use by any thread.
-     *
-     * @param scanResources
-     *            the resources owned by the scan
      */
-    void unmap(final ScanResources scanResources) {
+    void unmap() {
         final var arenaCurr = arena;
         if (arenaCurr != null) {
             // JDK 22+: unmap the ByteBuffer by closing the arena that was used to map it (#939)

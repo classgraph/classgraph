@@ -45,7 +45,11 @@ import io.github.classgraph.vfs.internal.slice.reader.RandomAccessFileChannelRea
 import io.github.classgraph.vfs.internal.slice.reader.RandomAccessReader;
 import org.jspecify.annotations.Nullable;
 
-/** A {@link File} slice. */
+/**
+ * A {@link File} slice. Unlike {@link PathSlice}, which is also opened for single classfiles, this always
+ * memory-maps the whole file on a platform where files are memory-mapped, so it should only be opened for a file
+ * that is read many times at random offsets, such as a zipfile.
+ */
 public final class FileSlice extends Slice {
     /** The {@link File}. */
     public final File file;
@@ -136,14 +140,15 @@ public final class FileSlice extends Slice {
         this.file = file;
         this.raf = new RandomAccessFile(file, "r");
         this.fileChannel = raf.getChannel();
-        this.fileLength = file.length();
+        // (sliceLength was set to file.length() by the call to super, so don't measure the file a second time --
+        // the two values have to agree, since the memory mapping covers fileLength but is read through sliceLength)
+        this.fileLength = sliceLength;
         this.isTopLevelFileSlice = true;
 
         if (scanResources.vfsScanSpec.memoryMapFiles) {
             // Memory-map the whole file, if it can be mapped -- otherwise fall through and use the
             // RandomAccessFile API instead
-            final var mapping = FileMapping.map(Objects.requireNonNull(fileChannel), fileLength, scanResources,
-                    file, log);
+            final var mapping = FileMapping.map(Objects.requireNonNull(fileChannel), fileLength, file, log);
             fileMapping = mapping;
             backingByteBuffer = mapping == null ? null : mapping.byteBuffer;
         }
@@ -278,7 +283,7 @@ public final class FileSlice extends Slice {
             if (mapping != null) {
                 // Only the toplevel file slice has a FileMapping, so the file is only unmapped once (also
                 // duplicates of mapped ByteBuffers cannot be closed by the cleaner API)
-                mapping.unmap(scanResources);
+                mapping.unmap();
                 fileMapping = null;
             }
             backingByteBuffer = null;
