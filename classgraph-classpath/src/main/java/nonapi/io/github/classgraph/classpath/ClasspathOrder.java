@@ -47,7 +47,7 @@ import java.util.regex.Pattern;
 
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
-import nonapi.io.github.classgraph.scanspec.ScanSpec;
+import nonapi.io.github.classgraph.classpathspec.ClassPathSpec;
 import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.JarUtils;
@@ -57,7 +57,7 @@ import org.jspecify.annotations.Nullable;
 /** A class to find the unique ordered classpath elements. */
 public class ClasspathOrder {
     /** The scan spec. */
-    private final ScanSpec scanSpec;
+    private final ClassPathSpec classPathSpec;
 
     /** The reflection utils instance. */
     public final ReflectionUtils reflectionUtils;
@@ -179,13 +179,13 @@ public class ClasspathOrder {
     /**
      * Constructor.
      *
-     * @param scanSpec
+     * @param classPathSpec
      *            the scan spec
      * @param reflectionUtils
      *            the reflection utils instance
      */
-    ClasspathOrder(final ScanSpec scanSpec, final ReflectionUtils reflectionUtils) {
-        this.scanSpec = scanSpec;
+    ClasspathOrder(final ClassPathSpec classPathSpec, final ReflectionUtils reflectionUtils) {
+        this.classPathSpec = classPathSpec;
         this.reflectionUtils = reflectionUtils;
     }
 
@@ -253,21 +253,21 @@ public class ClasspathOrder {
      * @return true, if not filtered out
      */
     private boolean filter(final @Nullable URL classpathElementURL, final @Nullable String classpathElementPath) {
-        if (scanSpec.classpathElementURLFilters != null) {
+        if (classPathSpec.classpathElementURLFilters != null) {
             // FastPathResolver strips the scheme from "file:" and "jar:file:" classpath elements, so for those the
             // URL has to be reconstituted from the resolved path before the URL filters can be applied to it
             final var url = classpathElementURL != null ? classpathElementURL
                     : classpathElementPath == null ? null : toURL(classpathElementPath);
             if (url != null) {
-                for (final Predicate<URL> urlFilter : scanSpec.classpathElementURLFilters) {
+                for (final Predicate<URL> urlFilter : classPathSpec.classpathElementURLFilters) {
                     if (!urlFilter.test(url)) {
                         return false;
                     }
                 }
             }
         }
-        if (classpathElementPath != null && scanSpec.classpathElementPathFilters != null) {
-            for (final Predicate<String> pathFilter : scanSpec.classpathElementPathFilters) {
+        if (classpathElementPath != null && classPathSpec.classpathElementPathFilters != null) {
+            for (final Predicate<String> pathFilter : classPathSpec.classpathElementPathFilters) {
                 if (!pathFilter.test(classpathElementPath)) {
                     return false;
                 }
@@ -398,15 +398,15 @@ public class ClasspathOrder {
      *            the resolved path of the classpath element.
      * @param classLoader
      *            the classloader
-     * @param scanSpec
+     * @param classPathSpec
      *            the scan spec
      * @param log
      *            the LogNode instance to use if logging in verbose mode.
      * @return true, if added and unique
      */
     private boolean addClasspathEntryAndLog(final Object pathElement, final String pathElementStr,
-            final String pathElementStrResolved, final @Nullable ClassLoader classLoader, final ScanSpec scanSpec,
-            final @Nullable LogNode log) {
+            final String pathElementStrResolved, final @Nullable ClassLoader classLoader,
+            final ClassPathSpec classPathSpec, final @Nullable LogNode log) {
         final var added = addClasspathEntry(pathElement, pathElementStrResolved, classLoader);
         if (log != null) {
             log.log((added ? "Found classpath element: " : "Ignoring duplicate classpath element: ")
@@ -492,14 +492,14 @@ public class ClasspathOrder {
      *            the path of the directory, i.e. the classpath entry with the {@code "/*"} suffix removed.
      * @param classLoader
      *            the ClassLoader that this classpath element was obtained from.
-     * @param scanSpec
+     * @param classPathSpec
      *            the scan spec
      * @param log
      *            the LogNode instance to use if logging in verbose mode.
      * @return true if the contents of the directory could be listed.
      */
     private boolean addWildcardedDirEntries(final String baseDirPath, final @Nullable ClassLoader classLoader,
-            final ScanSpec scanSpec, final @Nullable LogNode log) {
+            final ClassPathSpec classPathSpec, final @Nullable LogNode log) {
         // A wildcarded classpath entry is only ever reached as a path string, never as a URL, so there is no URL to
         // apply the user's URL filters to
         final var baseDirPathResolved = FastPathResolver.resolve(FileUtils.currDirPath(), baseDirPath);
@@ -542,7 +542,7 @@ public class ClasspathOrder {
                 final var fileInDirPath = fileInDir.getPath();
                 final var fileInDirPathResolved = FastPathResolver.resolve(FileUtils.currDirPath(), fileInDirPath);
                 addClasspathEntryAndLog(fileInDirPathResolved, fileInDirPath, fileInDirPathResolved, classLoader,
-                        scanSpec, dirLog);
+                        classPathSpec, dirLog);
             }
         }
         return true;
@@ -557,7 +557,7 @@ public class ClasspathOrder {
      *            {@link Object#toString()} method can be called to obtain the classpath element.
      * @param classLoader
      *            the ClassLoader that this classpath element was obtained from.
-     * @param scanSpec
+     * @param classPathSpec
      *            the scan spec
      * @param log
      *            the LogNode instance to use if logging in verbose mode.
@@ -565,7 +565,7 @@ public class ClasspathOrder {
      *         by user-specified criteria, otherwise return false.
      */
     public boolean addClasspathEntry(final @Nullable Object pathElement, final @Nullable ClassLoader classLoader,
-            final ScanSpec scanSpec, final @Nullable LogNode log) {
+            final ClassPathSpec classPathSpec, final @Nullable LogNode log) {
         if (pathElement == null) {
             return false;
         }
@@ -604,11 +604,11 @@ public class ClasspathOrder {
             final var classpathElementObj = pathElement instanceof File ? pathElementStr
                     : pathElementURL != null ? pathElementURL : pathElement;
             return addClasspathEntryAndLog(classpathElementObj, pathElementStr, pathElementStr, classLoader,
-                    scanSpec, log);
+                    classPathSpec, log);
         }
 
         if (hasWildcardSuffix) {
-            return addWildcardedDirEntries(pathElementStr, classLoader, scanSpec, log);
+            return addWildcardedDirEntries(pathElementStr, classLoader, classPathSpec, log);
         }
 
         // Non-wildcarded (standard) classpath element
@@ -628,13 +628,13 @@ public class ClasspathOrder {
             // https://wiki.eclipse.org/Eclipse/UNC_Paths#Programming_with_UNC_paths
             try {
                 return addClasspathEntryAndLog(new File(pathElementResolved), pathElementStr, pathElementResolved,
-                        classLoader, scanSpec, log);
+                        classLoader, classPathSpec, log);
             } catch (final Exception e) {
                 // Fall through, and add the path as a string rather than as a File
             }
         }
         return addClasspathEntryAndLog(pathElementResolved, pathElementStr, pathElementResolved, classLoader,
-                scanSpec, log);
+                classPathSpec, log);
     }
 
     /**
@@ -644,19 +644,20 @@ public class ClasspathOrder {
      *            a list of delimited path {@link String}, {@link URL}, {@link URI} or {@link File} objects.
      * @param classLoader
      *            the ClassLoader that this classpath was obtained from.
-     * @param scanSpec
+     * @param classPathSpec
      *            the scan spec
      * @param log
      *            the LogNode instance to use if logging in verbose mode.
      * @return true (and add the classpath element) if pathElement is not null or empty, otherwise return false.
      */
     public boolean addClasspathEntries(final @Nullable List<Object> overrideClasspath,
-            final @Nullable ClassLoader classLoader, final ScanSpec scanSpec, final @Nullable LogNode log) {
+            final @Nullable ClassLoader classLoader, final ClassPathSpec classPathSpec,
+            final @Nullable LogNode log) {
         if (overrideClasspath == null || overrideClasspath.isEmpty()) {
             return false;
         } else {
             for (final Object pathElement : overrideClasspath) {
-                addClasspathEntry(pathElement, classLoader, scanSpec, log);
+                addClasspathEntry(pathElement, classLoader, classPathSpec, log);
             }
             return true;
         }
@@ -669,23 +670,23 @@ public class ClasspathOrder {
      *            the delimited string of URLs or paths of the classpath.
      * @param classLoader
      *            the ClassLoader that this classpath was obtained from.
-     * @param scanSpec
+     * @param classPathSpec
      *            the scan spec
      * @param log
      *            the LogNode instance to use if logging in verbose mode.
      * @return true (and add the classpath element) if pathElement is not null or empty, otherwise return false.
      */
     public boolean addClasspathPathStr(final @Nullable String pathStr, final @Nullable ClassLoader classLoader,
-            final ScanSpec scanSpec, final @Nullable LogNode log) {
+            final ClassPathSpec classPathSpec, final @Nullable LogNode log) {
         if (pathStr == null || pathStr.isEmpty()) {
             return false;
         } else {
-            final var parts = JarUtils.smartPathSplit(pathStr, scanSpec);
+            final var parts = JarUtils.smartPathSplit(pathStr, classPathSpec);
             if (parts.length == 0) {
                 return false;
             } else {
                 for (final String pathElement : parts) {
-                    addClasspathEntry(pathElement, classLoader, scanSpec, log);
+                    addClasspathEntry(pathElement, classLoader, classPathSpec, log);
                 }
                 return true;
             }
@@ -703,34 +704,35 @@ public class ClasspathOrder {
      *            the object containing a classpath string or strings.
      * @param classLoader
      *            the ClassLoader that this classpath was obtained from.
-     * @param scanSpec
+     * @param classPathSpec
      *            the scan spec
      * @param log
      *            the LogNode instance to use if logging in verbose mode.
      * @return true (and add the classpath element) if pathElement is not null or empty, otherwise return false.
      */
     public boolean addClasspathEntryObject(final @Nullable Object pathObject,
-            final @Nullable ClassLoader classLoader, final ScanSpec scanSpec, final @Nullable LogNode log) {
+            final @Nullable ClassLoader classLoader, final ClassPathSpec classPathSpec,
+            final @Nullable LogNode log) {
         var valid = false;
         if (pathObject != null) {
             if (pathObject instanceof URL || pathObject instanceof URI || pathObject instanceof Path
                     || pathObject instanceof File) {
-                valid |= addClasspathEntry(pathObject, classLoader, scanSpec, log);
+                valid |= addClasspathEntry(pathObject, classLoader, classPathSpec, log);
             } else if (pathObject instanceof final Iterable<?> iterable) {
                 for (final Object elt : iterable) {
-                    valid |= addClasspathEntryObject(elt, classLoader, scanSpec, log);
+                    valid |= addClasspathEntryObject(elt, classLoader, classPathSpec, log);
                 }
             } else {
                 final Class<?> valClass = pathObject.getClass();
                 if (valClass.isArray()) {
                     for (int j = 0, n = Array.getLength(pathObject); j < n; j++) {
                         final var elt = Array.get(pathObject, j);
-                        valid |= addClasspathEntryObject(elt, classLoader, scanSpec, log);
+                        valid |= addClasspathEntryObject(elt, classLoader, classPathSpec, log);
                     }
                 } else {
                     // Try simply calling toString() as a final fallback, to handle String objects, or to try to
                     // handle anything else
-                    valid |= addClasspathPathStr(pathObject.toString(), classLoader, scanSpec, log);
+                    valid |= addClasspathPathStr(pathObject.toString(), classLoader, classPathSpec, log);
                 }
             }
         }

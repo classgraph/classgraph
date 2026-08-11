@@ -32,7 +32,7 @@ import java.util.List;
 
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
-import nonapi.io.github.classgraph.scanspec.ScanSpec;
+import nonapi.io.github.classgraph.classpathspec.ClassPathSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
@@ -219,21 +219,21 @@ public final class ClassLoaderHandlerRegistry {
         }
 
         /**
-         * Call {@code findClasspathOrder(ClassLoader, ClasspathOrder, ScanSpec, LogNode)} on the associated
+         * Call {@code findClasspathOrder(ClassLoader, ClasspathOrder, ClassPathSpec, LogNode)} on the associated
          * {@link ClassLoaderHandler}.
          *
          * @param classLoader
          *            the {@link ClassLoader}.
          * @param classpathOrder
          *            a {@link ClasspathOrder} object.
-         * @param scanSpec
-         *            the {@link ScanSpec}.
+         * @param classPathSpec
+         *            the {@link ClassPathSpec}.
          * @param log
          *            the log node, or null to skip logging
          */
         public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-                final ScanSpec scanSpec, final @Nullable LogNode log) {
-            classLoaderHandler.findClasspathOrder(classLoader, classpathOrder, scanSpec, log);
+                final ClassPathSpec classPathSpec, final @Nullable LogNode log) {
+            classLoaderHandler.findClasspathOrder(classLoader, classpathOrder, classPathSpec, log);
         }
     }
 }

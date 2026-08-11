@@ -27,7 +27,7 @@
 		<!-- The nonapi packages are exported because OSGi has no equivalent of a qualified export, and the
 		     modules above this one need them. They are marked x-internal so that tooling does not offer them
 		     for import, and they are not covered by the project's API compatibility guarantees. -->
-		<osgiExportPackage>io.github.classgraph.classpath;version="${project.version}",nonapi.io.github.classgraph.utils;x-internal:=true,nonapi.io.github.classgraph.reflection;x-internal:=true,nonapi.io.github.classgraph.scanspec;x-internal:=true,nonapi.io.github.classgraph.classpath;x-internal:=true,nonapi.io.github.classgraph.classloaderhandler;x-internal:=true</osgiExportPackage>
+		<osgiExportPackage>io.github.classgraph.classpath;version="${project.version}",nonapi.io.github.classgraph.utils;x-internal:=true,nonapi.io.github.classgraph.reflection;x-internal:=true,nonapi.io.github.classgraph.classpathspec;x-internal:=true,nonapi.io.github.classgraph.classpath;x-internal:=true,nonapi.io.github.classgraph.classloaderhandler;x-internal:=true</osgiExportPackage>
 		<osgiImportPackage>javax.xml.xpath,javax.xml.namespace,javax.xml.parsers,org.w3c.dom,sun.misc;resolution:="optional",sun.nio.ch;resolution:="optional",io.github.toolfactory.narcissus;resolution:="optional",org.jspecify.annotations;resolution:="optional"</osgiImportPackage>
 		<osgiDependencies>java.xml,jdk.unsupported,java.management,java.logging</osgiDependencies>
 

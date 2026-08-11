@@ -26,7 +26,7 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package nonapi.io.github.classgraph.scanspec;
+package nonapi.io.github.classgraph.utils;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -35,10 +35,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-import nonapi.io.github.classgraph.utils.CollectionUtils;
-import nonapi.io.github.classgraph.utils.FastPathResolver;
-import nonapi.io.github.classgraph.utils.FileUtils;
-import nonapi.io.github.classgraph.utils.JarUtils;
 import org.jspecify.annotations.Nullable;
 
 /** A class storing accept or reject criteria. */
@@ -795,7 +791,7 @@ public abstract class AcceptReject {
 
     /** Need to sort prefixes to ensure correct accept/reject evaluation. */
     // #167
-    void sortPrefixes() {
+    public void sortPrefixes() {
         if (acceptPrefixesSet != null) {
             acceptPrefixes = new ArrayList<>(acceptPrefixesSet);
         }

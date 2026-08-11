@@ -36,7 +36,7 @@ import java.util.Set;
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
-import nonapi.io.github.classgraph.scanspec.ScanSpec;
+import nonapi.io.github.classgraph.classpathspec.ClassPathSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
@@ -92,14 +92,14 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
      *            the classpath order out
      * @param bundles
      *            the bundles
-     * @param scanSpec
+     * @param classPathSpec
      *            the scan spec
      * @param log
      *            the log node, or null to skip logging
      */
     private static void addBundle(final @Nullable Object bundleWiring, final ClassLoader classLoader,
-            final ClasspathOrder classpathOrderOut, final Set<@Nullable Object> bundles, final ScanSpec scanSpec,
-            final @Nullable LogNode log) {
+            final ClasspathOrder classpathOrderOut, final Set<@Nullable Object> bundles,
+            final ClassPathSpec classPathSpec, final @Nullable LogNode log) {
         // Track the bundles we've processed to prevent loops
         bundles.add(bundleWiring);
 
@@ -111,7 +111,7 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
                 : null;
         if (location != null) {
             // Add the bundle object
-            classpathOrderOut.addClasspathEntry(location, classLoader, scanSpec, log);
+            classpathOrderOut.addClasspathEntry(location, classLoader, classPathSpec, log);
 
             // And any embedded content
             final List<?> embeddedContent = (List<?>) classpathOrderOut.reflectionUtils.invokeMethod(false,
@@ -123,7 +123,7 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
                                 ? getContentLocation(embedded, classpathOrderOut.reflectionUtils)
                                 : null;
                         if (embeddedLocation != null) {
-                            classpathOrderOut.addClasspathEntry(embeddedLocation, classLoader, scanSpec, log);
+                            classpathOrderOut.addClasspathEntry(embeddedLocation, classLoader, classPathSpec, log);
                         }
                     }
                 }
@@ -133,11 +133,11 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
 
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-            final ScanSpec scanSpec, final @Nullable LogNode log) {
+            final ClassPathSpec classPathSpec, final @Nullable LogNode log) {
         // Get the wiring for the ClassLoader's bundle
         final Set<@Nullable Object> bundles = new HashSet<>();
         final var bundleWiring = classpathOrder.reflectionUtils.getFieldVal(false, classLoader, "m_wiring");
-        addBundle(bundleWiring, classLoader, classpathOrder, bundles, scanSpec, log);
+        addBundle(bundleWiring, classLoader, classpathOrder, bundles, classPathSpec, log);
 
         // Deal with any other bundles we might be wired to. Every wire has to be followed: a wire says nothing
         // about what it provides until its bundle revision has been resolved to a content location, and by then
@@ -149,7 +149,7 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
             for (final Object wire : requiredWires) {
                 final var provider = classpathOrder.reflectionUtils.invokeMethod(false, wire, "getProviderWiring");
                 if (!bundles.contains(provider)) {
-                    addBundle(provider, classLoader, classpathOrder, bundles, scanSpec, log);
+                    addBundle(provider, classLoader, classpathOrder, bundles, classPathSpec, log);
                 }
             }
         }

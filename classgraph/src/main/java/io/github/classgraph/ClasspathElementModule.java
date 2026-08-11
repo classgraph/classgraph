@@ -54,7 +54,6 @@ import nonapi.io.github.classgraph.utils.CollectionUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.ModuleReaderUtils;
 import nonapi.io.github.classgraph.utils.ProxyingInputStream;
-import nonapi.io.github.classgraph.vfsspec.VfsScanSpec;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -110,14 +109,12 @@ class ClasspathElementModule extends ClasspathElement {
      *            classes can be read from it
      * @param scanSpec
      *            the scan spec
-     * @param vfsScanSpec
-     *            the settings that govern how archives are read
      */
     ClasspathElementModule(final ModuleReference moduleReference,
             final SingletonMap<ModuleReference, Recycler<ModuleReader, IOException>, IOException> //
             moduleReaderRecyclerMap, final ClasspathEntryWorkUnit workUnit, final boolean isLookupOnly,
-            final ScanSpec scanSpec, final VfsScanSpec vfsScanSpec) {
-        super(workUnit, scanSpec, vfsScanSpec);
+            final ScanSpec scanSpec) {
+        super(workUnit, scanSpec);
         this.moduleReaderRecyclerMap = moduleReaderRecyclerMap;
         this.moduleReference = moduleReference;
         this.isLookupOnly = isLookupOnly;
@@ -126,7 +123,7 @@ class ClasspathElementModule extends ClasspathElement {
     @Override
     void open(final @Nullable WorkQueue<ClasspathEntryWorkUnit> workQueueIgnored, final @Nullable LogNode log)
             throws InterruptedException {
-        if (!scanSpec.scanModules) {
+        if (!scanSpec.classPathSpec.scanModules) {
             if (log != null) {
                 log(classpathElementIdx, "Skipping module, since module scanning is disabled: " + getModuleName(),
                         log);

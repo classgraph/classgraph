@@ -35,7 +35,7 @@ import java.util.Set;
 
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
-import nonapi.io.github.classgraph.scanspec.ScanSpec;
+import nonapi.io.github.classgraph.classpathspec.ClassPathSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
@@ -115,26 +115,26 @@ class FallbackClassLoaderHandler implements ClassLoaderHandler {
 
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-            final ScanSpec scanSpec, final @Nullable LogNode log) {
+            final ClassPathSpec classPathSpec, final @Nullable LogNode log) {
         var valid = false;
         for (final ClasspathSource classpathSource : CLASSPATH_SOURCES) {
             final var classpathEntryObj = classpathSource.isMethod()
                     ? classpathOrder.reflectionUtils.invokeMethod(false, classLoader, classpathSource.name())
                     : classpathOrder.reflectionUtils.getFieldVal(false, classLoader, classpathSource.name());
-            valid |= classpathOrder.addClasspathEntryObject(classpathEntryObj, classLoader, scanSpec, log);
+            valid |= classpathOrder.addClasspathEntryObject(classpathEntryObj, classLoader, classPathSpec, log);
         }
         // An unknown classloader may hold a jdk.internal.loader.URLClassPath, which none of the names above find,
         // since it is not itself a classpath entry -- its own fields have to be read to get at the entries
         final var ucp = URLClassPathReader.getUcp(classLoader, classpathOrder.reflectionUtils);
         if (ucp != null) {
-            URLClassPathReader.addAllClasspathEntries(ucp, classLoader, classpathOrder, scanSpec, log);
+            URLClassPathReader.addAllClasspathEntries(ucp, classLoader, classpathOrder, classPathSpec, log);
             valid = true;
         }
         if (!valid) {
             // None of the known field or method names worked, so fall back to asking the classloader for resources
             // that are present in the root of most classpath elements, and strip the resource path from the
             // returned URLs to get the classpath element itself (#892)
-            valid = findClasspathOrderByProbingForResources(classLoader, classpathOrder, scanSpec, log);
+            valid = findClasspathOrderByProbingForResources(classLoader, classpathOrder, classPathSpec, log);
         }
         if (log != null) {
             log.log("FallbackClassLoaderHandler " + (valid ? "found" : "did not find")
@@ -163,14 +163,14 @@ class FallbackClassLoaderHandler implements ClassLoaderHandler {
      *            the {@link ClassLoader} to probe.
      * @param classpathOrder
      *            a {@link ClasspathOrder} object to update.
-     * @param scanSpec
-     *            the {@link ScanSpec}.
+     * @param classPathSpec
+     *            the {@link ClassPathSpec}.
      * @param log
      *            the log node, or null to skip logging
      * @return true if any classpath entries were found.
      */
     private static boolean findClasspathOrderByProbingForResources(final ClassLoader classLoader,
-            final ClasspathOrder classpathOrder, final ScanSpec scanSpec, final @Nullable LogNode log) {
+            final ClasspathOrder classpathOrder, final ClassPathSpec classPathSpec, final @Nullable LogNode log) {
         final var probeLog = log == null ? null
                 : log.log("Probing for classpath elements using " + classLoader.getClass().getName()
                         + "#getResources(String)");
@@ -184,7 +184,7 @@ class FallbackClassLoaderHandler implements ClassLoaderHandler {
                 }
                 final var classpathEntry = stripResourcePath(resourceURL, resourcePath);
                 if (classpathEntry != null) {
-                    valid |= classpathOrder.addClasspathEntry(classpathEntry, classLoader, scanSpec, probeLog);
+                    valid |= classpathOrder.addClasspathEntry(classpathEntry, classLoader, classPathSpec, probeLog);
                 }
             }
         }

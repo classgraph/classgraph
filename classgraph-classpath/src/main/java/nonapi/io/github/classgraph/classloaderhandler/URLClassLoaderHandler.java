@@ -33,7 +33,7 @@ import java.net.URLClassLoader;
 
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
-import nonapi.io.github.classgraph.scanspec.ScanSpec;
+import nonapi.io.github.classgraph.classpathspec.ClassPathSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
@@ -59,14 +59,14 @@ class URLClassLoaderHandler implements ClassLoaderHandler {
 
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-            final ScanSpec scanSpec, final @Nullable LogNode log) {
+            final ClassPathSpec classPathSpec, final @Nullable LogNode log) {
         // Call the public getURLs() method rather than reading the URLClassPath's `path` field that backs it, since
         // a subclass may override getURLs() to return something else
         final var urls = ((URLClassLoader) classLoader).getURLs();
         if (urls != null) {
             for (final URL url : urls) {
                 if (url != null) {
-                    classpathOrder.addClasspathEntry(url, classLoader, scanSpec, log);
+                    classpathOrder.addClasspathEntry(url, classLoader, classPathSpec, log);
                 }
             }
         }
@@ -74,7 +74,7 @@ class URLClassLoaderHandler implements ClassLoaderHandler {
         // Class-Path manifest attribute of an opened jar are never added to it, so read those separately
         final var ucp = URLClassPathReader.getUcp(classLoader, classpathOrder.reflectionUtils);
         if (ucp != null) {
-            URLClassPathReader.addUnlistedClasspathEntries(ucp, classLoader, classpathOrder, scanSpec, log);
+            URLClassPathReader.addUnlistedClasspathEntries(ucp, classLoader, classpathOrder, classPathSpec, log);
         }
     }
 

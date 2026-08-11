@@ -35,8 +35,8 @@ import java.util.Map.Entry;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
-import nonapi.io.github.classgraph.scanspec.ClassLoaderAndModuleLayerSpec;
-import nonapi.io.github.classgraph.scanspec.ScanSpec;
+import nonapi.io.github.classgraph.classpathspec.ClassLoaderAndModuleLayerSpec;
+import nonapi.io.github.classgraph.classpathspec.ClassPathSpec;
 import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.JarUtils;
@@ -121,8 +121,8 @@ public class ClasspathFinder {
      *
      * @param classLoader
      *            the classloader
-     * @param scanSpec
-     *            the {@link ScanSpec}
+     * @param classPathSpec
+     *            the {@link ClassPathSpec}
      * @param methodName
      *            the name of the API method the classloader was passed to, for logging
      * @param log
@@ -130,7 +130,7 @@ public class ClasspathFinder {
      */
     // #639, #795
     private static void mapSystemClassLoaderToScanningMechanism(final ClassLoader classLoader,
-            final ScanSpec scanSpec, final String methodName, final @Nullable LogNode log) {
+            final ClassPathSpec classPathSpec, final String methodName, final @Nullable LogNode log) {
         // Neither of these classloaders can be instantiated, so if one was passed in, it must have been obtained
         // from Thread.currentThread().getContextClassLoader() [.getParent()], ClassLoader.getSystemClassLoader(),
         // or similar
@@ -148,7 +148,7 @@ public class ClasspathFinder {
                         + "enableSystemJarsAndModules() was called automatically, since the system jars "
                         + "and modules are what it loads from");
             }
-            scanSpec.enableSystemJarsAndModules = true;
+            classPathSpec.enableSystemJarsAndModules = true;
         }
     }
 
@@ -169,17 +169,17 @@ public class ClasspathFinder {
     /**
      * Work out what has to be scanned to reach everything that the classloaders named by the scan options can load.
      *
-     * @param scanSpec
-     *            the {@link ScanSpec}
+     * @param classPathSpec
+     *            the {@link ClassPathSpec}
      * @param classLoaderAndModuleLayerSpec
      *            the classloaders and module layers the caller asked to be scanned
      * @param log
      *            the log node, or null to skip logging
      * @return what has to be scanned
      */
-    private static ScanTargets findScanTargets(final ScanSpec scanSpec,
+    private static ScanTargets findScanTargets(final ClassPathSpec classPathSpec,
             final ClassLoaderAndModuleLayerSpec classLoaderAndModuleLayerSpec, final @Nullable LogNode log) {
-        if (scanSpec.overrideClasspath != null) {
+        if (classPathSpec.overrideClasspath != null) {
             // Don't scan non-system modules if classpath is overridden
             return new ScanTargets(/* scanNonSystemModules = */ false, /* forceScanJavaClassPath = */ false);
         }
@@ -188,7 +188,7 @@ public class ClasspathFinder {
             // modules are scanned only if the application classloader is one of the override classloaders
             var isApplicationClassLoaderNamed = false;
             for (final ClassLoader classLoader : classLoaderAndModuleLayerSpec.overrideClassLoaders) {
-                mapSystemClassLoaderToScanningMechanism(classLoader, scanSpec, "overrideClassLoaders()", log);
+                mapSystemClassLoaderToScanningMechanism(classLoader, classPathSpec, "overrideClassLoaders()", log);
                 if (isApplicationClassLoader(classLoader)) {
                     isApplicationClassLoaderNamed = true;
                 }
@@ -203,20 +203,20 @@ public class ClasspathFinder {
             // The environment classloaders are scanned as well as the added classloaders, so an added classloader
             // can only widen what is scanned, never narrow it
             for (final ClassLoader classLoader : classLoaderAndModuleLayerSpec.addedClassLoaders) {
-                mapSystemClassLoaderToScanningMechanism(classLoader, scanSpec, "addClassLoader()", log);
+                mapSystemClassLoaderToScanningMechanism(classLoader, classPathSpec, "addClassLoader()", log);
                 if (isApplicationClassLoader(classLoader)) {
                     forceScanJavaClassPath = true;
                 }
             }
         }
-        return new ScanTargets(scanSpec.scanModules, forceScanJavaClassPath);
+        return new ScanTargets(classPathSpec.scanModules, forceScanJavaClassPath);
     }
 
     /**
      * A class to find the unique ordered classpath elements.
      *
-     * @param scanSpec
-     *            The {@link ScanSpec}.
+     * @param classPathSpec
+     *            The {@link ClassPathSpec}.
      * @param classLoaderAndModuleLayerSpec
      *            The classloaders and module layers the caller asked to be scanned.
      * @param reflectionUtils
@@ -224,30 +224,30 @@ public class ClasspathFinder {
      * @param log
      *            The log.
      */
-    public ClasspathFinder(final ScanSpec scanSpec,
+    public ClasspathFinder(final ClassPathSpec classPathSpec,
             final ClassLoaderAndModuleLayerSpec classLoaderAndModuleLayerSpec,
             final ReflectionUtils reflectionUtils, final @Nullable LogNode log) {
         final var classpathFinderLog = log == null ? null : log.log("Finding classpath and modules");
 
-        final var scanTargets = findScanTargets(scanSpec, classLoaderAndModuleLayerSpec, classpathFinderLog);
+        final var scanTargets = findScanTargets(classPathSpec, classLoaderAndModuleLayerSpec, classpathFinderLog);
 
         // Also look for system modules if any module was specifically accepted by name -- a module that was asked
         // for by name is scanned whether or not it is a system module, and only the specifically-accepted system
         // modules are scanned, so the cost of scanning the (large) system modules is not incurred for the others
         // #658
-        final var scanSystemModules = scanSpec.enableSystemJarsAndModules
-                || !scanSpec.moduleAcceptReject.acceptIsEmpty();
+        final var scanSystemModules = classPathSpec.enableSystemJarsAndModules
+                || !classPathSpec.moduleAcceptReject.acceptIsEmpty();
 
         // Only instantiate a module finder if requested
         moduleFinder = scanTargets.scanNonSystemModules() || scanSystemModules
-                ? new ModuleFinder(CallStackReader.getClassContext(), scanSpec, classLoaderAndModuleLayerSpec,
+                ? new ModuleFinder(CallStackReader.getClassContext(), classPathSpec, classLoaderAndModuleLayerSpec,
                         scanTargets.scanNonSystemModules(), scanSystemModules, classpathFinderLog)
                 : null;
 
-        classpathOrder = new ClasspathOrder(scanSpec, reflectionUtils);
+        classpathOrder = new ClasspathOrder(classPathSpec, reflectionUtils);
 
         // Only look for environment classloaders if classpath and classloaders are not overridden
-        final var classLoaderFinder = scanSpec.overrideClasspath == null
+        final var classLoaderFinder = classPathSpec.overrideClasspath == null
                 && classLoaderAndModuleLayerSpec.overrideClassLoaders == null
                         ? new ClassLoaderFinder(classLoaderAndModuleLayerSpec, reflectionUtils, classpathFinderLog)
                         : null;
@@ -255,9 +255,9 @@ public class ClasspathFinder {
                 : classLoaderFinder.getContextClassLoaders();
         final var defaultClassLoader = contextClassLoaders.length > 0 ? contextClassLoaders[0] : null;
 
-        final var overrideClasspath = scanSpec.overrideClasspath;
+        final var overrideClasspath = classPathSpec.overrideClasspath;
         if (overrideClasspath != null) {
-            addOverriddenClasspathEntries(overrideClasspath, scanSpec, classLoaderAndModuleLayerSpec,
+            addOverriddenClasspathEntries(overrideClasspath, classPathSpec, classLoaderAndModuleLayerSpec,
                     defaultClassLoader, classpathFinderLog);
             classLoaderOrderRespectingParentDelegation = contextClassLoaders;
         }
@@ -265,7 +265,7 @@ public class ClasspathFinder {
         if (overrideClasspath == null) {
             // Need to record the classloader delegation order, in particular to respect parent-last delegation
             // order, since this is not the default (issue #267).
-            classLoaderOrderRespectingParentDelegation = addClassLoaderClasspathEntries(scanSpec,
+            classLoaderOrderRespectingParentDelegation = addClassLoaderClasspathEntries(classPathSpec,
                     classLoaderAndModuleLayerSpec, reflectionUtils, contextClassLoaders, classpathFinderLog);
         }
 
@@ -274,10 +274,10 @@ public class ClasspathFinder {
         // encountered -- in this case, have to forcibly scan java.class.path, since the ModuleLayer API doesn't
         // allow for the opening of unnamed modules.
         if (scanTargets.forceScanJavaClassPath()
-                || (!scanSpec.ignoreParentClassLoaders && classLoaderAndModuleLayerSpec.overrideClassLoaders == null
-                        && overrideClasspath == null)
+                || (!classPathSpec.ignoreParentClassLoaders
+                        && classLoaderAndModuleLayerSpec.overrideClassLoaders == null && overrideClasspath == null)
                 || (moduleFinder != null && moduleFinder.forceScanJavaClassPath())) {
-            addJavaClassPathEntries(scanSpec, defaultClassLoader, classpathFinderLog);
+            addJavaClassPathEntries(classPathSpec, defaultClassLoader, classpathFinderLog);
         }
     }
 
@@ -288,8 +288,8 @@ public class ClasspathFinder {
      *
      * @param overrideClasspath
      *            the classpath entries the classpath was overridden with
-     * @param scanSpec
-     *            the {@link ScanSpec}
+     * @param classPathSpec
+     *            the {@link ClassPathSpec}
      * @param classLoaderAndModuleLayerSpec
      *            the classloaders and module layers the caller asked to be scanned
      * @param defaultClassLoader
@@ -297,8 +297,8 @@ public class ClasspathFinder {
      * @param log
      *            the log node, or null to skip logging
      */
-    private void addOverriddenClasspathEntries(final List<Object> overrideClasspath, final ScanSpec scanSpec,
-            final ClassLoaderAndModuleLayerSpec classLoaderAndModuleLayerSpec,
+    private void addOverriddenClasspathEntries(final List<Object> overrideClasspath,
+            final ClassPathSpec classPathSpec, final ClassLoaderAndModuleLayerSpec classLoaderAndModuleLayerSpec,
             final @Nullable ClassLoader defaultClassLoader, final @Nullable LogNode log) {
         if (classLoaderAndModuleLayerSpec.overrideClassLoaders != null && log != null) {
             log.log("It is not possible to override both the classpath and the ClassLoaders -- "
@@ -307,7 +307,7 @@ public class ClasspathFinder {
         final var overrideLog = log == null ? null : log.log("Overriding classpath with: " + overrideClasspath);
         // The classloader is only recorded for each classpath entry, it is not used to find the entries, so just
         // use defaultClassLoader as a placeholder here
-        classpathOrder.addClasspathEntries(overrideClasspath, defaultClassLoader, scanSpec, overrideLog);
+        classpathOrder.addClasspathEntries(overrideClasspath, defaultClassLoader, classPathSpec, overrideLog);
         if (overrideLog != null) {
             overrideLog.log("WARNING: when the classpath is overridden, there is no guarantee that the classes "
                     + "found by classpath scanning will be the same as the classes loaded by the "
@@ -319,8 +319,8 @@ public class ClasspathFinder {
      * Find the unique classloaders in delegation order, then add the classpath entries that each of them loads
      * from, using the {@code ClassLoaderHandler} registered for the classloader.
      *
-     * @param scanSpec
-     *            the {@link ScanSpec}
+     * @param classPathSpec
+     *            the {@link ClassPathSpec}
      * @param classLoaderAndModuleLayerSpec
      *            the classloaders and module layers the caller asked to be scanned
      * @param reflectionUtils
@@ -331,7 +331,7 @@ public class ClasspathFinder {
      *            the log node, or null to skip logging
      * @return the classloaders whose classpath entries were added, in delegation order
      */
-    private ClassLoader[] addClassLoaderClasspathEntries(final ScanSpec scanSpec,
+    private ClassLoader[] addClassLoaderClasspathEntries(final ClassPathSpec classPathSpec,
             final ClassLoaderAndModuleLayerSpec classLoaderAndModuleLayerSpec,
             final ReflectionUtils reflectionUtils, final ClassLoader[] contextClassLoaders,
             final @Nullable LogNode log) {
@@ -367,7 +367,7 @@ public class ClasspathFinder {
                 .getClassLoaderOrder()) {
             final var classLoader = ent.getKey();
             for (final ClassLoaderHandlerRegistryEntry classLoaderHandlerRegistryEntry : ent.getValue()) {
-                if (scanSpec.ignoreParentClassLoaders && allParentClassLoaders.contains(classLoader)) {
+                if (classPathSpec.ignoreParentClassLoaders && allParentClassLoaders.contains(classLoader)) {
                     if (classloaderURLLog != null) {
                         classloaderURLLog.log("Ignoring parent classloader " + classLoader
                                 + ", normally handled by " + classLoaderHandlerRegistryEntry.getHandlerName());
@@ -383,8 +383,8 @@ public class ClasspathFinder {
                     // stripped when it is scanned (#929)
                     classpathOrder.setPackageRootPrefixes(classLoaderHandlerRegistryEntry.getPackageRootPrefixes());
                     try {
-                        classLoaderHandlerRegistryEntry.findClasspathOrder(classLoader, classpathOrder, scanSpec,
-                                classloaderHandlerLog);
+                        classLoaderHandlerRegistryEntry.findClasspathOrder(classLoader, classpathOrder,
+                                classPathSpec, classloaderHandlerLog);
                     } finally {
                         classpathOrder.setPackageRootPrefixes(null);
                     }
@@ -398,22 +398,24 @@ public class ClasspathFinder {
     /**
      * Add the classpath entries listed in the {@code java.class.path} system property.
      *
-     * @param scanSpec
-     *            the {@link ScanSpec}
+     * @param classPathSpec
+     *            the {@link ClassPathSpec}
      * @param defaultClassLoader
      *            the classloader to record for each classpath entry, or null if there is none
      * @param log
      *            the log node, or null to skip logging
      */
-    private void addJavaClassPathEntries(final ScanSpec scanSpec, final @Nullable ClassLoader defaultClassLoader,
-            final @Nullable LogNode log) {
-        final var pathElements = JarUtils.smartPathSplit(VersionFinder.getProperty("java.class.path"), scanSpec);
+    private void addJavaClassPathEntries(final ClassPathSpec classPathSpec,
+            final @Nullable ClassLoader defaultClassLoader, final @Nullable LogNode log) {
+        final var pathElements = JarUtils.smartPathSplit(VersionFinder.getProperty("java.class.path"),
+                classPathSpec);
         if (pathElements.length > 0) {
             final var sysPropLog = log == null ? null : log.log("Getting classpath entries from java.class.path");
             for (final String pathElement : pathElements) {
                 // pathElement is not also listed in an ignored parent classloader
                 final var pathElementResolved = FastPathResolver.resolve(FileUtils.currDirPath(), pathElement);
-                classpathOrder.addClasspathEntry(pathElementResolved, defaultClassLoader, scanSpec, sysPropLog);
+                classpathOrder.addClasspathEntry(pathElementResolved, defaultClassLoader, classPathSpec,
+                        sysPropLog);
             }
         }
     }

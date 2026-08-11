@@ -164,16 +164,13 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      *            the work unit
      * @param scanSpec
      *            the scan spec
-     * @param vfsScanSpec
-     *            the settings that govern how archives are read
      */
-    ClasspathElement(final ClasspathEntryWorkUnit workUnit, final ScanSpec scanSpec,
-            final VfsScanSpec vfsScanSpec) {
+    ClasspathElement(final ClasspathEntryWorkUnit workUnit, final ScanSpec scanSpec) {
         this.packageRootPrefix = workUnit.packageRootPrefix;
         this.packageRootPrefixes = workUnit.packageRootPrefixes;
         this.classLoaderStr = workUnit.classLoaderStr;
         this.scanSpec = scanSpec;
-        this.vfsScanSpec = vfsScanSpec;
+        this.vfsScanSpec = scanSpec.vfsScanSpec;
     }
 
     // -------------------------------------------------------------------------------------------------------------

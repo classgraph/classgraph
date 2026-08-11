@@ -31,7 +31,7 @@ package nonapi.io.github.classgraph.classloaderhandler;
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
-import nonapi.io.github.classgraph.scanspec.ScanSpec;
+import nonapi.io.github.classgraph.classpathspec.ClassPathSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
@@ -86,7 +86,7 @@ class JPMSClassLoaderHandler implements ClassLoaderHandler {
 
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-            final ScanSpec scanSpec, final @Nullable LogNode log) {
+            final ClassPathSpec classPathSpec, final @Nullable LogNode log) {
         // These classloaders load most of what they load from modules, which are scanned through the JPMS API, not
         // as classpath elements. They can also load classes from a `jdk.internal.loader.URLClassPath ucp` field,
         // and some of what is in that field is reachable in no other way:
@@ -106,7 +106,7 @@ class JPMSClassLoaderHandler implements ClassLoaderHandler {
         // it without that, so these classpath entries are found only when Narcissus is on the classpath.
         final var ucp = URLClassPathReader.getUcp(classLoader, classpathOrder.reflectionUtils);
         if (ucp != null) {
-            URLClassPathReader.addAllClasspathEntries(ucp, classLoader, classpathOrder, scanSpec, log);
+            URLClassPathReader.addAllClasspathEntries(ucp, classLoader, classpathOrder, classPathSpec, log);
         }
     }
 

@@ -59,7 +59,6 @@ import nonapi.io.github.classgraph.scanspec.ScanSpec.ScanSpecPathMatch;
 import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
-import nonapi.io.github.classgraph.vfsspec.VfsScanSpec;
 import org.jspecify.annotations.Nullable;
 
 /** A directory classpath element, using the {@link Path} API. */
@@ -89,12 +88,10 @@ class ClasspathElementDir extends ClasspathElement {
      *            the resources owned by the scan
      * @param scanSpec
      *            the scan spec
-     * @param vfsScanSpec
-     *            the settings that govern how archives are read
      */
     ClasspathElementDir(final ClasspathEntryWorkUnit workUnit, final ScanResources scanResources,
-            final ScanSpec scanSpec, final VfsScanSpec vfsScanSpec) {
-        super(workUnit, scanSpec, vfsScanSpec);
+            final ScanSpec scanSpec) {
+        super(workUnit, scanSpec);
         this.classpathEltPath = (Path) Objects.requireNonNull(workUnit.classpathEntryObj);
         this.scanResources = scanResources;
     }

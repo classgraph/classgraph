@@ -21,6 +21,6 @@ public final class VfsScanSpecAccess {
      * @return its {@link VfsScanSpec}.
      */
     public static VfsScanSpec vfsScanSpecOf(final ClassGraph classGraph) {
-        return classGraph.vfsScanSpec;
+        return classGraph.scanSpec.vfsScanSpec;
     }
 }

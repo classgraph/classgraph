@@ -36,7 +36,7 @@ import java.util.Map;
 
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
-import nonapi.io.github.classgraph.scanspec.ScanSpec;
+import nonapi.io.github.classgraph.classpathspec.ClassPathSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
@@ -81,15 +81,15 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
 
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-            final ScanSpec scanSpec, final @Nullable LogNode log) {
+            final ClassPathSpec classPathSpec, final @Nullable LogNode log) {
 
         final var classLoaderName = classLoader.getClass().getName();
         if (RUNTIME_CLASSLOADER.equals(classLoaderName)) {
-            findClasspathOrderForRuntimeClassloader(classLoader, classpathOrder, scanSpec, log);
+            findClasspathOrderForRuntimeClassloader(classLoader, classpathOrder, classPathSpec, log);
         } else if (QUARKUS_CLASSLOADER.equals(classLoaderName)) {
-            findClasspathOrderForQuarkusClassloader(classLoader, classpathOrder, scanSpec, log);
+            findClasspathOrderForQuarkusClassloader(classLoader, classpathOrder, classPathSpec, log);
         } else if (RUNNER_CLASSLOADER.equals(classLoaderName)) {
-            findClasspathOrderForRunnerClassloader(classLoader, classpathOrder, scanSpec, log);
+            findClasspathOrderForRunnerClassloader(classLoader, classpathOrder, classPathSpec, log);
         }
     }
 
@@ -100,13 +100,13 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
      *            the classloader
      * @param classpathOrder
      *            the classpath order to add to
-     * @param scanSpec
+     * @param classPathSpec
      *            the scan spec
      * @param log
      *            the log node, or null to skip logging
      */
     private static void findClasspathOrderForQuarkusClassloader(final ClassLoader classLoader,
-            final ClasspathOrder classpathOrder, final ScanSpec scanSpec, final @Nullable LogNode log) {
+            final ClasspathOrder classpathOrder, final ClassPathSpec classPathSpec, final @Nullable LogNode log) {
 
         final var elements = findQuarkusClassLoaderElements(classLoader, classpathOrder);
 
@@ -116,11 +116,11 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
             if (fieldName != null) {
                 classpathOrder.addClasspathEntry(
                         classpathOrder.reflectionUtils.getFieldVal(false, element, fieldName), classLoader,
-                        scanSpec, log);
+                        classPathSpec, log);
             } else {
                 final var rootPath = classpathOrder.reflectionUtils.invokeMethod(false, element, "getRoot");
                 if (rootPath instanceof Path) {
-                    classpathOrder.addClasspathEntry(rootPath, classLoader, scanSpec, log);
+                    classpathOrder.addClasspathEntry(rootPath, classLoader, classPathSpec, log);
                 }
             }
         }
@@ -163,21 +163,21 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
      *            the classloader
      * @param classpathOrder
      *            the classpath order to add to
-     * @param scanSpec
+     * @param classPathSpec
      *            the scan spec
      * @param log
      *            the log node, or null to skip logging
      */
     @SuppressWarnings("unchecked")
     private static void findClasspathOrderForRuntimeClassloader(final ClassLoader classLoader,
-            final ClasspathOrder classpathOrder, final ScanSpec scanSpec, final @Nullable LogNode log) {
+            final ClasspathOrder classpathOrder, final ClassPathSpec classPathSpec, final @Nullable LogNode log) {
         final var applicationClassDirectories = (Collection<Path>) classpathOrder.reflectionUtils.getFieldVal(false,
                 classLoader, "applicationClassDirectories");
         if (applicationClassDirectories != null) {
             for (final Path path : applicationClassDirectories) {
                 try {
                     final var uri = path.toUri();
-                    classpathOrder.addClasspathEntryObject(uri, classLoader, scanSpec, log);
+                    classpathOrder.addClasspathEntryObject(uri, classLoader, classPathSpec, log);
                 } catch (IOError | SecurityException e) {
                     if (log != null) {
                         log.log("Could not convert path to URI: " + path);
@@ -194,14 +194,14 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
      *            the classloader
      * @param classpathOrder
      *            the classpath order to add to
-     * @param scanSpec
+     * @param classPathSpec
      *            the scan spec
      * @param log
      *            the log node, or null to skip logging
      */
     @SuppressWarnings("unchecked")
     private static void findClasspathOrderForRunnerClassloader(final ClassLoader classLoader,
-            final ClasspathOrder classpathOrder, final ScanSpec scanSpec, final @Nullable LogNode log) {
+            final ClasspathOrder classpathOrder, final ClassPathSpec classPathSpec, final @Nullable LogNode log) {
         // (getFieldVal returns null if the field is not present -- Quarkus renames these fields between releases,
         // so don't assume the field was found)
         final var resourceDirectoryMap = (Map<String, Object[]>) classpathOrder.reflectionUtils.getFieldVal(false,
@@ -215,7 +215,7 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
                 if ("io.quarkus.bootstrap.runner.JarResource".equals(elementClassName)) {
                     classpathOrder.addClasspathEntry(
                             classpathOrder.reflectionUtils.getFieldVal(false, element, "jarPath"), classLoader,
-                            scanSpec, log);
+                            classPathSpec, log);
                 }
             }
         }

@@ -33,7 +33,7 @@ import java.io.IOException;
 import java.util.Objects;
 
 import nonapi.io.github.classgraph.fileslice.Slice;
-import nonapi.io.github.classgraph.scanspec.AcceptReject.AcceptRejectLeafname;
+import nonapi.io.github.classgraph.utils.AcceptReject.AcceptRejectLeafname;
 import org.jspecify.annotations.Nullable;
 
 /** A zipfile slice (a sub-range of bytes within a {@link PhysicalZipFile}). */

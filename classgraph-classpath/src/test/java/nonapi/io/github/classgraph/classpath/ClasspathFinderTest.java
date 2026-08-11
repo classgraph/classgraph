@@ -16,15 +16,15 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
-import nonapi.io.github.classgraph.scanspec.ClassLoaderAndModuleLayerSpec;
-import nonapi.io.github.classgraph.scanspec.ScanSpec;
+import nonapi.io.github.classgraph.classpathspec.ClassLoaderAndModuleLayerSpec;
+import nonapi.io.github.classgraph.classpathspec.ClassPathSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
 
 public class ClasspathFinderTest {
 
     /**
-     * Test that {@link ScanSpec#enableSystemJarsAndModules}, {@link ScanSpec#ignoreParentClassLoaders}, and
-     * {@link ScanSpec#overrideClasspath} work in combination:
+     * Test that {@link ClassPathSpec#enableSystemJarsAndModules}, {@link ClassPathSpec#ignoreParentClassLoaders},
+     * and {@link ClassPathSpec#overrideClasspath} work in combination:
      * <p>
      * Only the system modules and the override classpath should be found.
      */
@@ -32,14 +32,14 @@ public class ClasspathFinderTest {
     public void testOverrideClasspathAndEnableSystemModules(@TempDir final Path tmpDir) throws Exception {
         // Arrange
         final var classesDir = tmpDir.toAbsolutePath().normalize().toRealPath();
-        final var scanSpec = new ScanSpec();
-        scanSpec.enableSystemJarsAndModules = true;
-        scanSpec.ignoreParentClassLoaders = true;
-        scanSpec.overrideClasspath = List.of(classesDir);
+        final var classPathSpec = new ClassPathSpec();
+        classPathSpec.enableSystemJarsAndModules = true;
+        classPathSpec.ignoreParentClassLoaders = true;
+        classPathSpec.overrideClasspath = List.of(classesDir);
         final var classLoaderAndModuleLayerSpec = new ClassLoaderAndModuleLayerSpec();
 
         // Act
-        final var classpathFinder = new ClasspathFinder(scanSpec, classLoaderAndModuleLayerSpec,
+        final var classpathFinder = new ClasspathFinder(classPathSpec, classLoaderAndModuleLayerSpec,
                 new ReflectionUtils(), new LogNode());
         final var moduleFinder = classpathFinder.getModuleFinder();
 
@@ -57,8 +57,8 @@ public class ClasspathFinderTest {
     }
 
     /**
-     * Test that {@link ScanSpec#enableSystemJarsAndModules}, {@link ScanSpec#ignoreParentClassLoaders}, and
-     * {@link ClassLoaderAndModuleLayerSpec#overrideClassLoaders} work in combination:
+     * Test that {@link ClassPathSpec#enableSystemJarsAndModules}, {@link ClassPathSpec#ignoreParentClassLoaders},
+     * and {@link ClassLoaderAndModuleLayerSpec#overrideClassLoaders} work in combination:
      * <p>
      * Only the system modules and the override classloaders should be found.
      */
@@ -66,15 +66,15 @@ public class ClasspathFinderTest {
     public void testOverrideClassLoaderAndEnableSystemModules(@TempDir final Path tmpDir) throws Exception {
         // Arrange
         final var classesDir = tmpDir.toAbsolutePath().normalize().toRealPath();
-        final var scanSpec = new ScanSpec();
-        scanSpec.enableSystemJarsAndModules = true;
-        scanSpec.ignoreParentClassLoaders = true;
+        final var classPathSpec = new ClassPathSpec();
+        classPathSpec.enableSystemJarsAndModules = true;
+        classPathSpec.ignoreParentClassLoaders = true;
         final var classLoaderAndModuleLayerSpec = new ClassLoaderAndModuleLayerSpec();
         classLoaderAndModuleLayerSpec
                 .overrideClassLoaders(new URLClassLoader(new URL[] { classesDir.toUri().toURL() }));
 
         // Act
-        final var classpathFinder = new ClasspathFinder(scanSpec, classLoaderAndModuleLayerSpec,
+        final var classpathFinder = new ClasspathFinder(classPathSpec, classLoaderAndModuleLayerSpec,
                 new ReflectionUtils(), new LogNode());
         final var moduleFinder = classpathFinder.getModuleFinder();
 
@@ -126,11 +126,11 @@ public class ClasspathFinderTest {
      */
     @Test
     public void applicationClassLoaderOverrideScansClasspathAndNonSystemModules() throws Exception {
-        final var scanSpec = new ScanSpec();
+        final var classPathSpec = new ClassPathSpec();
         final var classLoaderAndModuleLayerSpec = new ClassLoaderAndModuleLayerSpec();
         classLoaderAndModuleLayerSpec.overrideClassLoaders(ClassLoader.getSystemClassLoader());
 
-        final var classpathFinder = new ClasspathFinder(scanSpec, classLoaderAndModuleLayerSpec,
+        final var classpathFinder = new ClasspathFinder(classPathSpec, classLoaderAndModuleLayerSpec,
                 new ReflectionUtils(), new LogNode());
 
         assertTrue(resolvedPaths(classpathFinder).contains(testClasspathElement()),
@@ -147,11 +147,11 @@ public class ClasspathFinderTest {
      */
     @Test
     public void platformClassLoaderOverrideDoesNotScanClasspath() throws Exception {
-        final var scanSpec = new ScanSpec();
+        final var classPathSpec = new ClassPathSpec();
         final var classLoaderAndModuleLayerSpec = new ClassLoaderAndModuleLayerSpec();
         classLoaderAndModuleLayerSpec.overrideClassLoaders(ClassLoader.getPlatformClassLoader());
 
-        final var classpathFinder = new ClasspathFinder(scanSpec, classLoaderAndModuleLayerSpec,
+        final var classpathFinder = new ClasspathFinder(classPathSpec, classLoaderAndModuleLayerSpec,
                 new ReflectionUtils(), new LogNode());
 
         final var moduleFinder = classpathFinder.getModuleFinder();
@@ -168,11 +168,11 @@ public class ClasspathFinderTest {
      */
     @Test
     public void addedPlatformClassLoaderEnablesSystemJarsAndModules() {
-        final var scanSpec = new ScanSpec();
+        final var classPathSpec = new ClassPathSpec();
         final var classLoaderAndModuleLayerSpec = new ClassLoaderAndModuleLayerSpec();
         classLoaderAndModuleLayerSpec.addClassLoader(ClassLoader.getPlatformClassLoader());
 
-        final var classpathFinder = new ClasspathFinder(scanSpec, classLoaderAndModuleLayerSpec,
+        final var classpathFinder = new ClasspathFinder(classPathSpec, classLoaderAndModuleLayerSpec,
                 new ReflectionUtils(), new LogNode());
 
         final var moduleFinder = classpathFinder.getModuleFinder();

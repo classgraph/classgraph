@@ -28,7 +28,7 @@
 		     modules above this one need them. They are marked x-internal so that tooling does not offer them
 		     for import, and they are not covered by the project's API compatibility guarantees. -->
 		<osgiExportPackage>io.github.classgraph.vfs;version="${project.version}",nonapi.io.github.classgraph.concurrency;x-internal:=true,nonapi.io.github.classgraph.recycler;x-internal:=true,nonapi.io.github.classgraph.fileslice;x-internal:=true,nonapi.io.github.classgraph.fileslice.reader;x-internal:=true,nonapi.io.github.classgraph.fastzipfilereader;x-internal:=true,nonapi.io.github.classgraph.vfsspec;x-internal:=true</osgiExportPackage>
-		<osgiImportPackage>nonapi.io.github.classgraph.reflection,nonapi.io.github.classgraph.scanspec,nonapi.io.github.classgraph.utils,org.jspecify.annotations;resolution:="optional"</osgiImportPackage>
+		<osgiImportPackage>nonapi.io.github.classgraph.reflection,nonapi.io.github.classgraph.utils,org.jspecify.annotations;resolution:="optional"</osgiImportPackage>
 		<osgiDependencies>io.github.classgraph.classpath</osgiDependencies>
 
 		<!-- This module produces a jar, so it needs its resources and the modular copy of its Javadoc -->

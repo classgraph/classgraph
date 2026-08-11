@@ -30,7 +30,7 @@ package nonapi.io.github.classgraph.classloaderhandler;
 
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
-import nonapi.io.github.classgraph.scanspec.ScanSpec;
+import nonapi.io.github.classgraph.classpathspec.ClassPathSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
@@ -78,15 +78,15 @@ class SpringBootRestartClassLoaderHandler implements ClassLoaderHandler {
      *            the {@link ClassLoader} to find the classpath entries order for.
      * @param classpathOrder
      *            a {@link ClasspathOrder} object to update.
-     * @param scanSpec
-     *            the {@link ScanSpec}.
+     * @param classPathSpec
+     *            the {@link ClassPathSpec}.
      * @param log
      *            the log node, or null to skip logging
      */
     // #267, #268
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-            final ScanSpec scanSpec, final @Nullable LogNode log) {
+            final ClassPathSpec classPathSpec, final @Nullable LogNode log) {
         // The Restart classloader doesn't itself store any URLs
     }
 

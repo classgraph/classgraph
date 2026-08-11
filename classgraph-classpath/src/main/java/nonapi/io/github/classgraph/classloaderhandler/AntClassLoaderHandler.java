@@ -30,7 +30,7 @@ package nonapi.io.github.classgraph.classloaderhandler;
 
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
-import nonapi.io.github.classgraph.scanspec.ScanSpec;
+import nonapi.io.github.classgraph.classpathspec.ClassPathSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
@@ -54,10 +54,10 @@ class AntClassLoaderHandler implements ClassLoaderHandler {
 
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-            final ScanSpec scanSpec, final @Nullable LogNode log) {
+            final ClassPathSpec classPathSpec, final @Nullable LogNode log) {
         classpathOrder.addClasspathPathStr(
                 (String) classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getClasspath"),
-                classLoader, scanSpec, log);
+                classLoader, classPathSpec, log);
     }
 
     /**

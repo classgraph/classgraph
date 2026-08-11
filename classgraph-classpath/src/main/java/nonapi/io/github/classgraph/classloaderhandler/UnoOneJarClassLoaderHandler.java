@@ -30,7 +30,7 @@ package nonapi.io.github.classgraph.classloaderhandler;
 
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
-import nonapi.io.github.classgraph.scanspec.ScanSpec;
+import nonapi.io.github.classgraph.classpathspec.ClassPathSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.VersionFinder;
 import org.jspecify.annotations.Nullable;
@@ -58,19 +58,19 @@ class UnoOneJarClassLoaderHandler implements ClassLoaderHandler {
 
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-            final ScanSpec scanSpec, final @Nullable LogNode log) {
+            final ClassPathSpec classPathSpec, final @Nullable LogNode log) {
 
         // For Uno-Jar:
 
         final var unoJarOneJarPath = (String) classpathOrder.reflectionUtils.invokeMethod(false, classLoader,
                 "getOneJarPath");
-        classpathOrder.addClasspathEntry(unoJarOneJarPath, classLoader, scanSpec, log);
+        classpathOrder.addClasspathEntry(unoJarOneJarPath, classLoader, classPathSpec, log);
 
         // If this property is defined, Uno-Jar jar path was specified on commandline. Otherwise, jar path should be
         // contained in java.class.path (which will be separately picked up by ClassGraph, as long as
         // classloaders/classpath are not overloaded and parent classloaders are not ignored).
         final var unoJarJarPath = VersionFinder.getProperty("uno-jar.jar.path");
-        classpathOrder.addClasspathEntry(unoJarJarPath, classLoader, scanSpec, log);
+        classpathOrder.addClasspathEntry(unoJarJarPath, classLoader, classPathSpec, log);
 
         // For One-Jar:
 
@@ -78,13 +78,13 @@ class UnoOneJarClassLoaderHandler implements ClassLoaderHandler {
         // contained in java.class.path (which will be separately picked up by ClassGraph, as long as
         // classloaders/classpath are not overloaded and parent classloaders are not ignored).
         final var oneJarJarPath = VersionFinder.getProperty("one-jar.jar.path");
-        classpathOrder.addClasspathEntry(oneJarJarPath, classLoader, scanSpec, log);
+        classpathOrder.addClasspathEntry(oneJarJarPath, classLoader, classPathSpec, log);
 
         // If this property is defined, additional classpath entries were specified in OneJar format on the
         // commandline, with '|' as a separator
         final var oneJarClassPath = VersionFinder.getProperty("one-jar.class.path");
         if (oneJarClassPath != null) {
-            classpathOrder.addClasspathEntryObject(oneJarClassPath.split("\\|"), classLoader, scanSpec, log);
+            classpathOrder.addClasspathEntryObject(oneJarClassPath.split("\\|"), classLoader, classPathSpec, log);
         }
 
         // For both UnoJar and OneJar, "libs/" and "main/" will be automatically picked up as library roots for

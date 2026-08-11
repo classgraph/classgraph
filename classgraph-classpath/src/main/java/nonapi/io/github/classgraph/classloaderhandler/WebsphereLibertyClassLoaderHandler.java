@@ -39,7 +39,7 @@ import java.util.List;
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
-import nonapi.io.github.classgraph.scanspec.ScanSpec;
+import nonapi.io.github.classgraph.classpathspec.ClassPathSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
@@ -193,7 +193,7 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
 
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-            final ScanSpec scanSpec, final @Nullable LogNode log) {
+            final ClassPathSpec classPathSpec, final @Nullable LogNode log) {
         Object smartClassPath;
         final var appLoader = classpathOrder.reflectionUtils.getFieldVal(false, classLoader, "appLoader");
         if (appLoader != null) {
@@ -207,7 +207,7 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
             final var paths = callGetUrls(smartClassPath, "getClassPath", classpathOrder.reflectionUtils);
             if (!paths.isEmpty()) {
                 for (final Object path : paths) {
-                    classpathOrder.addClasspathEntry(path, classLoader, scanSpec, log);
+                    classpathOrder.addClasspathEntry(path, classLoader, classPathSpec, log);
                 }
             } else {
                 // "getClassPath" didn't work... reverting to looping over "classPath" elements.
@@ -218,7 +218,7 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
                     for (final Object classPathElement : classPathElements) {
                         final var subPaths = getPaths(classPathElement, classpathOrder.reflectionUtils);
                         for (final Object path : subPaths) {
-                            classpathOrder.addClasspathEntry(path, classLoader, scanSpec, log);
+                            classpathOrder.addClasspathEntry(path, classLoader, classPathSpec, log);
                         }
                     }
                 }

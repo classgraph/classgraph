@@ -49,8 +49,8 @@ module io.github.classgraph.classpath {
     // top of this one, and they are not covered by the project's API compatibility guarantees.
     exports nonapi.io.github.classgraph.classloaderhandler to io.github.classgraph;
     exports nonapi.io.github.classgraph.classpath to io.github.classgraph;
+    exports nonapi.io.github.classgraph.classpathspec to io.github.classgraph;
     exports nonapi.io.github.classgraph.reflection to io.github.classgraph, io.github.classgraph.vfs;
-    exports nonapi.io.github.classgraph.scanspec to io.github.classgraph, io.github.classgraph.vfs;
     exports nonapi.io.github.classgraph.utils to io.github.classgraph, io.github.classgraph.vfs;
 
     // N.B. make sure the "Import-Package" entries in the manifest (in pom.xml) match these "requires" statements.

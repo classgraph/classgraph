@@ -35,7 +35,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-import nonapi.io.github.classgraph.scanspec.ScanSpec;
+import nonapi.io.github.classgraph.classpathspec.ClassPathSpec;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -111,12 +111,13 @@ public final class JarUtils {
      *
      * @param pathStr
      *            The path to split, or null.
-     * @param scanSpec
+     * @param classPathSpec
      *            the scan spec, or null
      * @return The path element substrings.
      */
-    public static String[] smartPathSplit(final @Nullable String pathStr, final @Nullable ScanSpec scanSpec) {
-        return smartPathSplit(pathStr, File.pathSeparatorChar, scanSpec);
+    public static String[] smartPathSplit(final @Nullable String pathStr,
+            final @Nullable ClassPathSpec classPathSpec) {
+        return smartPathSplit(pathStr, File.pathSeparatorChar, classPathSpec);
     }
 
     /**
@@ -127,16 +128,17 @@ public final class JarUtils {
      *            The path to split, or null.
      * @param separatorChar
      *            The separator char to use.
-     * @param scanSpec
+     * @param classPathSpec
      *            the scan spec, or null
      * @return The path element substrings.
      */
     public static String[] smartPathSplit(final @Nullable String pathStr, final char separatorChar,
-            final @Nullable ScanSpec scanSpec) {
+            final @Nullable ClassPathSpec classPathSpec) {
         if (pathStr == null || pathStr.isEmpty()) {
             return new String[0];
         }
-        return separatorChar == ':' ? splitOnColon(pathStr, scanSpec) : splitOnSeparator(pathStr, separatorChar);
+        return separatorChar == ':' ? splitOnColon(pathStr, classPathSpec)
+                : splitOnSeparator(pathStr, separatorChar);
     }
 
     /**
@@ -166,16 +168,16 @@ public final class JarUtils {
      *
      * @param pathStr
      *            The path to split.
-     * @param scanSpec
+     * @param classPathSpec
      *            the scan spec, or null
      * @return The non-empty path element substrings, trimmed and unescaped.
      */
-    private static String[] splitOnColon(final String pathStr, final @Nullable ScanSpec scanSpec) {
+    private static String[] splitOnColon(final String pathStr, final @Nullable ClassPathSpec classPathSpec) {
         // Find the ':' characters that really are path separators. The position before the start of the string and
         // the position after its end are both split points, so that the first and last parts are included.
         final Set<Integer> splitPoints = new HashSet<>();
         for (var i = -1;;) {
-            if (!isSchemeOrEscapedColon(pathStr, i, scanSpec)) {
+            if (!isSchemeOrEscapedColon(pathStr, i, classPathSpec)) {
                 splitPoints.add(i);
             }
             // Search for next ':' character
@@ -212,12 +214,12 @@ public final class JarUtils {
      * @param colonIdx
      *            The index of the ':' character, or -1 for the position before the start of the path (which is
      *            never a scheme colon, since a scheme needs at least one character before its colon).
-     * @param scanSpec
+     * @param classPathSpec
      *            the scan spec, or null
      * @return true if the ':' is part of a path element, so the path must not be split there.
      */
     private static boolean isSchemeOrEscapedColon(final String pathStr, final int colonIdx,
-            final @Nullable ScanSpec scanSpec) {
+            final @Nullable ClassPathSpec classPathSpec) {
         // A ':' escaped as "\:" is part of a path element, not a separator (this is the escaping applied by
         // appendPathElt, and undone by the DOUBLE_BACKSHLASH_WITH_COLON unescape in splitOnColon)
         if (colonIdx > 0 && pathStr.charAt(colonIdx - 1) == '\\') {
@@ -233,11 +235,12 @@ public final class JarUtils {
                 return true;
             }
         }
-        if (scanSpec == null || scanSpec.allowedURLSchemes == null || scanSpec.allowedURLSchemes.isEmpty()) {
+        if (classPathSpec == null || classPathSpec.allowedURLSchemes == null
+                || classPathSpec.allowedURLSchemes.isEmpty()) {
             return false;
         }
         // If custom URL schemes have been registered, allow those to be used as delimiters too
-        for (final String scheme : scanSpec.allowedURLSchemes) {
+        for (final String scheme : classPathSpec.allowedURLSchemes) {
             // Skip schemes already handled by the faster matching code above
             if (!"http".equals(scheme) && !"https".equals(scheme) && !"jar".equals(scheme) && !"file".equals(scheme)
                     && !"war".equals(scheme)) {

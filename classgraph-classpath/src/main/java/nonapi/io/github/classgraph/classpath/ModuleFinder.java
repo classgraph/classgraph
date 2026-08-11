@@ -40,8 +40,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-import nonapi.io.github.classgraph.scanspec.ClassLoaderAndModuleLayerSpec;
-import nonapi.io.github.classgraph.scanspec.ScanSpec;
+import nonapi.io.github.classgraph.classpathspec.ClassLoaderAndModuleLayerSpec;
+import nonapi.io.github.classgraph.classpathspec.ClassPathSpec;
 import nonapi.io.github.classgraph.utils.CollectionUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 import org.jspecify.annotations.Nullable;
@@ -146,14 +146,14 @@ public class ModuleFinder {
      *
      * @param layers
      *            the layers
-     * @param scanSpec
+     * @param classPathSpec
      *            the scan spec
      * @param classLoaderAndModuleLayerSpec
      *            the classloaders and module layers the caller asked to be scanned
      * @return the list
      */
     private static List<ModuleReference> findModuleReferences(final LinkedHashSet<ModuleLayer> layers,
-            final ScanSpec scanSpec, final ClassLoaderAndModuleLayerSpec classLoaderAndModuleLayerSpec) {
+            final ClassPathSpec classPathSpec, final ClassLoaderAndModuleLayerSpec classLoaderAndModuleLayerSpec) {
         if (layers.isEmpty()) {
             return List.of();
         }
@@ -174,9 +174,9 @@ public class ModuleFinder {
             }
         }
 
-        // Remove parent layers from layer order if scanSpec.ignoreParentModuleLayers is true
+        // Remove parent layers from layer order if classPathSpec.ignoreParentModuleLayers is true
         final List<ModuleLayer> layerOrderFinal;
-        if (scanSpec.ignoreParentModuleLayers) {
+        if (classPathSpec.ignoreParentModuleLayers) {
             layerOrderFinal = new ArrayList<>();
             for (final ModuleLayer layer : layerOrder) {
                 if (!parentLayers.contains(layer)) {
@@ -219,7 +219,7 @@ public class ModuleFinder {
      *
      * @param callStack
      *            the call stack
-     * @param scanSpec
+     * @param classPathSpec
      *            the scan spec
      * @param classLoaderAndModuleLayerSpec
      *            the classloaders and module layers the caller asked to be scanned
@@ -228,7 +228,7 @@ public class ModuleFinder {
      * @return the list
      */
     private List<ModuleReference> findModuleReferencesFromCallstack(final Class<?>[] callStack,
-            final ScanSpec scanSpec, final ClassLoaderAndModuleLayerSpec classLoaderAndModuleLayerSpec,
+            final ClassPathSpec classPathSpec, final ClassLoaderAndModuleLayerSpec classLoaderAndModuleLayerSpec,
             final boolean scanNonSystemModules) {
         final LinkedHashSet<ModuleLayer> layers = new LinkedHashSet<>();
         if (callStack != null) {
@@ -245,7 +245,7 @@ public class ModuleFinder {
         }
         // Add system modules from boot layer, if they weren't already found in stacktrace
         layers.add(ModuleLayer.boot());
-        return findModuleReferences(layers, scanSpec, classLoaderAndModuleLayerSpec);
+        return findModuleReferences(layers, classPathSpec, classLoaderAndModuleLayerSpec);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -255,7 +255,7 @@ public class ModuleFinder {
      *
      * @param callStack
      *            the callstack.
-     * @param scanSpec
+     * @param classPathSpec
      *            The scan spec.
      * @param classLoaderAndModuleLayerSpec
      *            The classloaders and module layers the caller asked to be scanned.
@@ -267,7 +267,7 @@ public class ModuleFinder {
      * @param log
      *            The log.
      */
-    public ModuleFinder(final Class<?>[] callStack, final ScanSpec scanSpec,
+    public ModuleFinder(final Class<?>[] callStack, final ClassPathSpec classPathSpec,
             final ClassLoaderAndModuleLayerSpec classLoaderAndModuleLayerSpec, final boolean scanNonSystemModules,
             final boolean scanSystemModules, final @Nullable LogNode log) {
         // Get the module resolution order
@@ -276,7 +276,7 @@ public class ModuleFinder {
         if (overrideModuleLayers == null) {
             // Find module references for classes on the callstack, and from the boot layer
             if (callStack != null && callStack.length > 0) {
-                allModuleReferences = findModuleReferencesFromCallstack(callStack, scanSpec,
+                allModuleReferences = findModuleReferencesFromCallstack(callStack, classPathSpec,
                         classLoaderAndModuleLayerSpec, scanNonSystemModules);
             }
         } else {
@@ -286,7 +286,7 @@ public class ModuleFinder {
                     subLog.log(moduleLayer.toString());
                 }
             }
-            allModuleReferences = findModuleReferences(new LinkedHashSet<>(overrideModuleLayers), scanSpec,
+            allModuleReferences = findModuleReferences(new LinkedHashSet<>(overrideModuleLayers), classPathSpec,
                     classLoaderAndModuleLayerSpec);
         }
         if (allModuleReferences != null) {

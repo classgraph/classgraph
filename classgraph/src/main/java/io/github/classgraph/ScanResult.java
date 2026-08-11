@@ -56,7 +56,7 @@ import io.github.classgraph.classpath.ModulePathInfo;
 
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
-import nonapi.io.github.classgraph.scanspec.AcceptReject;
+import nonapi.io.github.classgraph.utils.AcceptReject;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.Assert;
 import nonapi.io.github.classgraph.utils.FileUtils;
@@ -600,7 +600,7 @@ public final class ScanResult implements Closeable {
      */
     public ModulePathInfo getModulePathInfo() {
         checkNotClosed();
-        return scanSpec.modulePathInfo;
+        return scanSpec.classPathSpec.modulePathInfo;
     }
 
     // -------------------------------------------------------------------------------------------------------------

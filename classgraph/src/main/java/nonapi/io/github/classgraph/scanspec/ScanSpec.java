@@ -29,27 +29,34 @@
 package nonapi.io.github.classgraph.scanspec;
 
 import java.lang.reflect.Field;
-import java.net.URI;
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Set;
-import java.util.function.Predicate;
 
-import io.github.classgraph.classpath.ModulePathInfo;
-import nonapi.io.github.classgraph.scanspec.AcceptReject.AcceptRejectLeafname;
-import nonapi.io.github.classgraph.scanspec.AcceptReject.AcceptRejectPrefix;
-import nonapi.io.github.classgraph.scanspec.AcceptReject.AcceptRejectWholeString;
-import nonapi.io.github.classgraph.utils.Assert;
+import nonapi.io.github.classgraph.classpathspec.ClassPathSpec;
+import nonapi.io.github.classgraph.utils.AcceptReject;
+import nonapi.io.github.classgraph.utils.AcceptReject.AcceptRejectLeafname;
+import nonapi.io.github.classgraph.utils.AcceptReject.AcceptRejectPrefix;
+import nonapi.io.github.classgraph.utils.AcceptReject.AcceptRejectWholeString;
 import nonapi.io.github.classgraph.utils.LogNode;
+import nonapi.io.github.classgraph.vfsspec.VfsScanSpec;
 import org.jspecify.annotations.Nullable;
 
 /**
  * The scanning specification.
+ *
+ * <p>
+ * This holds the settings that the scanner itself reads. The settings that are read by the libraries the scanner is
+ * built on are held in the specs of those libraries, which are composed into this one: the classpath and module
+ * path to search is described by {@link #classPathSpec}, and how archives are read is described by
+ * {@link #vfsScanSpec}.
  */
 public class ScanSpec {
+    /** How the classpath and the module path are found. */
+    public final ClassPathSpec classPathSpec = new ClassPathSpec();
+
+    /** How jarfiles are read. */
+    public final VfsScanSpec vfsScanSpec = new VfsScanSpec();
+
+    // -------------------------------------------------------------------------------------------------------------
+
     /** Package accept/reject criteria (with separator '.'). */
     public AcceptRejectWholeString packageAcceptReject = new AcceptRejectWholeString('.');
 
@@ -82,9 +89,6 @@ public class ScanSpec {
     /** Path to accepted/rejected classes (with separator '/'). */
     public AcceptRejectWholeString classPackagePathAcceptReject = new AcceptRejectWholeString('/');
 
-    /** Module accept/reject criteria (with separator '.'). */
-    public AcceptRejectWholeString moduleAcceptReject = new AcceptRejectWholeString('.');
-
     /** Jar accept/reject criteria (leafname only, ending in ".jar"). */
     public AcceptRejectLeafname jarAcceptReject = new AcceptRejectLeafname('/');
 
@@ -99,9 +103,6 @@ public class ScanSpec {
 
     /** If true, scan directories. */
     public boolean scanDirs = true;
-
-    /** If true, scan modules. */
-    public boolean scanModules = true;
 
     /** If true, scan classfile bytecodes, producing {@code ClassInfo} objects. */
     public boolean enableClassInfo;
@@ -140,9 +141,6 @@ public class ScanSpec {
      */
     public boolean enableExternalClasses;
 
-    /** If true, system packages and modules (java.*, jre.*, etc.) should be scanned. */
-    public boolean enableSystemJarsAndModules;
-
     /**
      * If true, ignore class visibility. If false, classes must be public to be scanned.
      */
@@ -171,29 +169,7 @@ public class ScanSpec {
     // #261
     public boolean extendScanningUpwardsToExternalClasses = true;
 
-    /**
-     * URL schemes that are allowed in classpath elements (not counting the optional "jar:" prefix and/or "file:",
-     * which are automatically allowed).
-     */
-    public @Nullable Set<String> allowedURLSchemes;
-
     // -------------------------------------------------------------------------------------------------------------
-
-    // N.B. the classloaders and module layers to scan are deliberately not held here, but in
-    // ClassLoaderAndModuleLayerSpec, since a ScanResult holds its ScanSpec, and a scan must not keep a classloader
-    // alive after it has finished with it
-
-    /**
-     * If non-null, specifies a list of classpath elements (String, {@link URL} or {@link URI} to use to override
-     * the default classpath.
-     */
-    public @Nullable List<Object> overrideClasspath;
-
-    /** If non-null, a list of filters to apply to classpath element path strings. */
-    public @Nullable List<Predicate<String>> classpathElementPathFilters;
-
-    /** If non-null, a list of filters to apply to classpath element {@link URL}s. */
-    public @Nullable List<Predicate<URL>> classpathElementURLFilters;
 
     /**
      * If true, nested jarfiles (jarfiles within jarfiles) that are extracted during scanning are removed from their
@@ -201,17 +177,6 @@ public class ScanSpec {
      * are removed when the {@code ScanResult} is closed, or failing that, on JVM exit.
      */
     public boolean removeTemporaryFilesAfterScan;
-
-    /** If true, do not fetch paths from parent classloaders. */
-    public boolean ignoreParentClassLoaders;
-
-    /**
-     * If true, do not scan module layers that are the parent of other module layers.
-     */
-    public boolean ignoreParentModuleLayers;
-
-    /** Commandline module path parameters. */
-    public ModulePathInfo modulePathInfo = new ModulePathInfo();
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -316,81 +281,12 @@ public class ScanSpec {
                 }
             }
         }
+        // The composed specs have to be sorted explicitly, since getDeclaredFields() does not return the fields of
+        // other classes
+        classPathSpec.sortPrefixes();
     }
 
     // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Override the automatically-detected classpath with a custom path. You can specify multiple elements in
-     * separate calls, and if this method is called even once, the default classpath will be overridden, such that
-     * nothing but the provided classpath will be scanned, i.e. causes ClassLoaders to be ignored, as well as the
-     * java.class.path system property.
-     *
-     * @param overrideClasspathElement
-     *            The classpath element to add as an override to the default classpath.
-     */
-    public void addClasspathOverride(final Object overrideClasspathElement) {
-        if (this.overrideClasspath == null) {
-            this.overrideClasspath = new ArrayList<>();
-        }
-        if (overrideClasspathElement instanceof ClassLoader) {
-            throw new IllegalArgumentException(
-                    "Need to pass ClassLoader instances to overrideClassLoaders, not overrideClasspath");
-        }
-        this.overrideClasspath
-                .add(overrideClasspathElement instanceof String || overrideClasspathElement instanceof URL
-                        || overrideClasspathElement instanceof URI ? overrideClasspathElement
-                                : overrideClasspathElement.toString());
-    }
-
-    /**
-     * Add a classpath element path filter. The provided filter should return true if the path string passed to it
-     * is a path that should be scanned.
-     *
-     * @param filter
-     *            The filter to apply to the path string of all discovered classpath elements, to decide which
-     *            should be scanned.
-     */
-    public void filterClasspathElements(final Predicate<String> filter) {
-        Assert.notNull(filter, "filter");
-        if (this.classpathElementPathFilters == null) {
-            this.classpathElementPathFilters = new ArrayList<>(2);
-        }
-        this.classpathElementPathFilters.add(filter);
-    }
-
-    /**
-     * Add a classpath element {@link URL} filter. The provided filter should return true if the {@link URL} passed
-     * to it is a classpath element that should be scanned.
-     *
-     * @param filter
-     *            The filter to apply to the {@link URL} of all discovered classpath elements, to decide which
-     *            should be scanned.
-     */
-    public void filterClasspathElementsByURL(final Predicate<URL> filter) {
-        Assert.notNull(filter, "filter");
-        if (this.classpathElementURLFilters == null) {
-            this.classpathElementURLFilters = new ArrayList<>(2);
-        }
-        this.classpathElementURLFilters.add(filter);
-    }
-
-    /**
-     * Allow a specified URL scheme in classpath elements.
-     *
-     * @param scheme
-     *            the scheme, e.g. "http".
-     */
-    public void enableURLScheme(final String scheme) {
-        Assert.notNull(scheme, "scheme");
-        if (scheme.length() < 2) {
-            throw new IllegalArgumentException("URL schemes must contain at least two characters");
-        }
-        if (allowedURLSchemes == null) {
-            allowedURLSchemes = new HashSet<>();
-        }
-        allowedURLSchemes.add(scheme.toLowerCase(Locale.ROOT));
-    }
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -500,12 +396,18 @@ public class ScanSpec {
         if (log != null) {
             final var scanSpecLog = log.log("ScanSpec:");
             for (final Field field : ScanSpec.class.getDeclaredFields()) {
+                if (field.getType() == ClassPathSpec.class || field.getType() == VfsScanSpec.class) {
+                    // The composed specs log their own fields, below
+                    continue;
+                }
                 try {
                     scanSpecLog.log(field.getName() + ": " + field.get(this));
                 } catch (final ReflectiveOperationException e) {
                     // Ignore
                 }
             }
+            classPathSpec.log(log);
+            vfsScanSpec.log(log);
         }
     }
 }

@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.Test;
 
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
-import nonapi.io.github.classgraph.scanspec.ScanSpec;
+import nonapi.io.github.classgraph.classpathspec.ClassPathSpec;
 
 /**
  * Tests that the "Equinox system bundles have been added" flag is scoped to a single scan, rather than being held
@@ -18,7 +18,7 @@ public class ClasspathOrderEquinoxSystemBundlesTest {
      * @return a new {@link ClasspathOrder}.
      */
     private static ClasspathOrder newClasspathOrder() {
-        return new ClasspathOrder(new ScanSpec(), new ReflectionUtils());
+        return new ClasspathOrder(new ClassPathSpec(), new ReflectionUtils());
     }
 
     /**

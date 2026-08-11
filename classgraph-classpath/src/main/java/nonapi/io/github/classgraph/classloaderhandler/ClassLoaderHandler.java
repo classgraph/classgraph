@@ -30,7 +30,7 @@ package nonapi.io.github.classgraph.classloaderhandler;
 
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
-import nonapi.io.github.classgraph.scanspec.ScanSpec;
+import nonapi.io.github.classgraph.classpathspec.ClassPathSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
@@ -102,12 +102,12 @@ interface ClassLoaderHandler {
      *            the {@link ClassLoader} to find the classpath entries order for.
      * @param classpathOrder
      *            a {@link ClasspathOrder} object to update.
-     * @param scanSpec
-     *            the {@link ScanSpec}.
+     * @param classPathSpec
+     *            the {@link ClassPathSpec}.
      * @param log
      *            the log node, or null to skip logging
      */
-    void findClasspathOrder(ClassLoader classLoader, ClasspathOrder classpathOrder, ScanSpec scanSpec,
+    void findClasspathOrder(ClassLoader classLoader, ClasspathOrder classpathOrder, ClassPathSpec classPathSpec,
             @Nullable LogNode log);
 
     /**

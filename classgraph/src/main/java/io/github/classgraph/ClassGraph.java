@@ -52,14 +52,13 @@ import io.github.classgraph.classpath.ModulePathInfo;
 import nonapi.io.github.classgraph.concurrency.AutoCloseableExecutorService;
 import nonapi.io.github.classgraph.concurrency.InterruptionChecker;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
-import nonapi.io.github.classgraph.scanspec.AcceptReject;
-import nonapi.io.github.classgraph.scanspec.ClassLoaderAndModuleLayerSpec;
+import nonapi.io.github.classgraph.utils.AcceptReject;
+import nonapi.io.github.classgraph.classpathspec.ClassLoaderAndModuleLayerSpec;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.Assert;
 import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.VersionFinder;
-import nonapi.io.github.classgraph.vfsspec.VfsScanSpec;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -89,9 +88,6 @@ import org.jspecify.annotations.Nullable;
 public class ClassGraph {
     /** The scanning specification. */
     ScanSpec scanSpec = new ScanSpec();
-
-    /** The settings that govern how archives are read. */
-    VfsScanSpec vfsScanSpec = new VfsScanSpec();
 
     /**
      * The classloaders and module layers to scan, if the caller named any. Held separately from the
@@ -208,7 +204,7 @@ public class ClassGraph {
      */
     public ClassGraph enableClassInfo() {
         scanSpec.enableClassInfo = true;
-        vfsScanSpec.enableMultiReleaseVersions = false;
+        scanSpec.vfsScanSpec.enableMultiReleaseVersions = false;
         return this;
     }
 
@@ -381,7 +377,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph disableNestedJarScanning() {
-        vfsScanSpec.scanNestedJars = false;
+        scanSpec.vfsScanSpec.scanNestedJars = false;
         return this;
     }
 
@@ -401,7 +397,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph disableModuleScanning() {
-        scanSpec.scanModules = false;
+        scanSpec.classPathSpec.scanModules = false;
         return this;
     }
 
@@ -463,8 +459,8 @@ public class ClassGraph {
         if (overrideClasspath.isEmpty()) {
             throw new IllegalArgumentException("Can't override classpath with an empty path");
         }
-        for (final String classpathElement : JarUtils.smartPathSplit(overrideClasspath, scanSpec)) {
-            scanSpec.addClasspathOverride(classpathElement);
+        for (final String classpathElement : JarUtils.smartPathSplit(overrideClasspath, scanSpec.classPathSpec)) {
+            scanSpec.classPathSpec.addClasspathOverride(classpathElement);
         }
         return this;
     }
@@ -494,7 +490,7 @@ public class ClassGraph {
             // A Path is an Iterable of its own name elements, so passing a single Path binds to this overload
             // rather than to the Object... overload. The name elements of a path are never classpath entries in
             // their own right, so a Path is added as a single classpath entry.
-            scanSpec.addClasspathOverride(overrideClasspathElements);
+            scanSpec.classPathSpec.addClasspathOverride(overrideClasspathElements);
             return this;
         }
         if (!overrideClasspathElements.iterator().hasNext()) {
@@ -502,7 +498,7 @@ public class ClassGraph {
         }
         for (final Object classpathElement : overrideClasspathElements) {
             Assert.notNull(classpathElement, "overrideClasspathElements element");
-            scanSpec.addClasspathOverride(classpathElement);
+            scanSpec.classPathSpec.addClasspathOverride(classpathElement);
         }
         return this;
     }
@@ -529,7 +525,7 @@ public class ClassGraph {
             throw new IllegalArgumentException("Can't override classpath with an empty path");
         }
         for (final Object classpathElement : overrideClasspathElements) {
-            scanSpec.addClasspathOverride(classpathElement);
+            scanSpec.classPathSpec.addClasspathOverride(classpathElement);
         }
         return this;
     }
@@ -551,7 +547,7 @@ public class ClassGraph {
      */
     public ClassGraph filterClasspathElements(final Predicate<String> classpathElementFilter) {
         Assert.notNull(classpathElementFilter, "classpathElementFilter");
-        scanSpec.filterClasspathElements(classpathElementFilter);
+        scanSpec.classPathSpec.filterClasspathElements(classpathElementFilter);
         return this;
     }
 
@@ -566,7 +562,7 @@ public class ClassGraph {
      */
     public ClassGraph filterClasspathElementsByURL(final Predicate<URL> classpathElementURLFilter) {
         Assert.notNull(classpathElementURLFilter, "classpathElementURLFilter");
-        scanSpec.filterClasspathElementsByURL(classpathElementURLFilter);
+        scanSpec.classPathSpec.filterClasspathElementsByURL(classpathElementURLFilter);
         return this;
     }
 
@@ -634,7 +630,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph ignoreParentClassLoaders() {
-        scanSpec.ignoreParentClassLoaders = true;
+        scanSpec.classPathSpec.ignoreParentClassLoaders = true;
         return this;
     }
 
@@ -679,7 +675,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph ignoreParentModuleLayers() {
-        scanSpec.ignoreParentModuleLayers = true;
+        scanSpec.classPathSpec.ignoreParentModuleLayers = true;
         return this;
     }
 
@@ -1037,7 +1033,8 @@ public class ClassGraph {
     public ClassGraph acceptModules(final String... moduleNames) {
         Assert.notNullElements(moduleNames, "moduleNames");
         for (final String moduleName : moduleNames) {
-            scanSpec.moduleAcceptReject.addToAccept(AcceptReject.normalizePackageOrClassName(moduleName));
+            scanSpec.classPathSpec.moduleAcceptReject
+                    .addToAccept(AcceptReject.normalizePackageOrClassName(moduleName));
         }
         return this;
     }
@@ -1056,7 +1053,8 @@ public class ClassGraph {
     public ClassGraph rejectModules(final String... moduleNames) {
         Assert.notNullElements(moduleNames, "moduleNames");
         for (final String moduleName : moduleNames) {
-            scanSpec.moduleAcceptReject.addToReject(AcceptReject.normalizePackageOrClassName(moduleName));
+            scanSpec.classPathSpec.moduleAcceptReject
+                    .addToReject(AcceptReject.normalizePackageOrClassName(moduleName));
         }
         return this;
     }
@@ -1115,10 +1113,10 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph enableRemoteJarScanning() {
-        scanSpec.enableURLScheme("http");
-        vfsScanSpec.enableURLScheme("http");
-        scanSpec.enableURLScheme("https");
-        vfsScanSpec.enableURLScheme("https");
+        scanSpec.classPathSpec.enableURLScheme("http");
+        scanSpec.vfsScanSpec.enableURLScheme("http");
+        scanSpec.classPathSpec.enableURLScheme("https");
+        scanSpec.vfsScanSpec.enableURLScheme("https");
         return this;
     }
 
@@ -1133,8 +1131,8 @@ public class ClassGraph {
      */
     public ClassGraph enableURLScheme(final String scheme) {
         Assert.notNull(scheme, "scheme");
-        scanSpec.enableURLScheme(scheme);
-        vfsScanSpec.enableURLScheme(scheme);
+        scanSpec.classPathSpec.enableURLScheme(scheme);
+        scanSpec.vfsScanSpec.enableURLScheme(scheme);
         return this;
     }
 
@@ -1153,7 +1151,7 @@ public class ClassGraph {
      */
     public ClassGraph enableSystemJarsAndModules() {
         enableClassInfo();
-        scanSpec.enableSystemJarsAndModules = true;
+        scanSpec.classPathSpec.enableSystemJarsAndModules = true;
         return this;
     }
 
@@ -1186,7 +1184,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph setMaxBufferedJarRAMSize(final int maxBufferedJarRAMSize) {
-        vfsScanSpec.maxBufferedJarRAMSize = maxBufferedJarRAMSize;
+        scanSpec.vfsScanSpec.maxBufferedJarRAMSize = maxBufferedJarRAMSize;
         return this;
     }
 
@@ -1198,7 +1196,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph enableMultiReleaseVersions() {
-        vfsScanSpec.enableMultiReleaseVersions = true;
+        scanSpec.vfsScanSpec.enableMultiReleaseVersions = true;
 
         scanSpec.enableClassInfo = false;
         scanSpec.ignoreClassVisibility = false;
@@ -1213,7 +1211,7 @@ public class ClassGraph {
         // runtime-invisible annotations should be disabled, not enabled
         scanSpec.disableRuntimeInvisibleAnnotations = true;
         scanSpec.enableExternalClasses = false;
-        scanSpec.enableSystemJarsAndModules = false;
+        scanSpec.classPathSpec.enableSystemJarsAndModules = false;
         return this;
     }
 
@@ -1263,9 +1261,8 @@ public class ClassGraph {
         executorService.execute(() -> {
             try {
                 // Call scanner, but ignore the returned ScanResult
-                new Scanner(/* performScan = */ true, scanSpec, vfsScanSpec, classLoaderAndModuleLayerSpec,
-                        executorService, numParallelTasks, scanResultProcessor, failureHandler, reflectionUtils,
-                        topLevelLog).call();
+                new Scanner(/* performScan = */ true, scanSpec, classLoaderAndModuleLayerSpec, executorService,
+                        numParallelTasks, scanResultProcessor, failureHandler, reflectionUtils, topLevelLog).call();
             } catch (final Throwable t) {
                 // Call failure handler. Anything thrown before the Scanner starts running the scan (e.g. by a
                 // user-supplied classpath element filter, which the Scanner constructor calls) has to be caught
@@ -1294,9 +1291,9 @@ public class ClassGraph {
     private Future<ScanResult> scanAsync(final boolean performScan, final ExecutorService executorService,
             final int numParallelTasks) {
         try {
-            return executorService.submit(new Scanner(performScan, scanSpec, vfsScanSpec,
-                    classLoaderAndModuleLayerSpec, executorService, numParallelTasks,
-                    /* scanResultProcessor = */ null, /* failureHandler = */ null, reflectionUtils, topLevelLog));
+            return executorService.submit(new Scanner(performScan, scanSpec, classLoaderAndModuleLayerSpec,
+                    executorService, numParallelTasks, /* scanResultProcessor = */ null,
+                    /* failureHandler = */ null, reflectionUtils, topLevelLog));
         } catch (final InterruptedException e) {
             // Interrupted during the Scanner constructor's execution (specifically, by getModuleOrder(), which is
             // unlikely to ever actually be interrupted -- but this exception needs to be caught). (the cast is
@@ -1527,6 +1524,6 @@ public class ClassGraph {
      * @return The {@link ModulePathInfo}.
      */
     public ModulePathInfo getModulePathInfo() {
-        return scanSpec.modulePathInfo;
+        return scanSpec.classPathSpec.modulePathInfo;
     }
 }

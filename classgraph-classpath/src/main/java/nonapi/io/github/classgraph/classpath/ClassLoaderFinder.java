@@ -31,7 +31,7 @@ package nonapi.io.github.classgraph.classpath;
 import java.util.LinkedHashSet;
 
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
-import nonapi.io.github.classgraph.scanspec.ClassLoaderAndModuleLayerSpec;
+import nonapi.io.github.classgraph.classpathspec.ClassLoaderAndModuleLayerSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 

@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
-import nonapi.io.github.classgraph.scanspec.AcceptReject.AcceptRejectPrefix;
+import nonapi.io.github.classgraph.utils.AcceptReject.AcceptRejectPrefix;
 
 /**
  * A reject criterion containing a glob wildcard was not applied to the sub-packages of a matched package.

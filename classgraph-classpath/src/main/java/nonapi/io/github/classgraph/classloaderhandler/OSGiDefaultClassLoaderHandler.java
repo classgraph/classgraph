@@ -32,7 +32,7 @@ import java.io.File;
 
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
-import nonapi.io.github.classgraph.scanspec.ScanSpec;
+import nonapi.io.github.classgraph.classpathspec.ClassPathSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
@@ -61,7 +61,7 @@ class OSGiDefaultClassLoaderHandler implements ClassLoaderHandler {
 
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-            final ScanSpec scanSpec, final @Nullable LogNode log) {
+            final ClassPathSpec classPathSpec, final @Nullable LogNode log) {
         final var classpathManager = classpathOrder.reflectionUtils.invokeMethod(false, classLoader,
                 "getClasspathManager");
         final var entries = (Object[]) classpathOrder.reflectionUtils.getFieldVal(false, classpathManager,
@@ -72,7 +72,7 @@ class OSGiDefaultClassLoaderHandler implements ClassLoaderHandler {
                 final var baseFile = (File) classpathOrder.reflectionUtils.invokeMethod(false, bundleFile,
                         "getBaseFile");
                 if (baseFile != null) {
-                    classpathOrder.addClasspathEntry(baseFile.getPath(), classLoader, scanSpec, log);
+                    classpathOrder.addClasspathEntry(baseFile.getPath(), classLoader, classPathSpec, log);
                 }
             }
         }

@@ -32,8 +32,8 @@ import java.nio.file.Path;
 
 import nonapi.io.github.classgraph.classpath.ClasspathFinder;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
-import nonapi.io.github.classgraph.scanspec.ClassLoaderAndModuleLayerSpec;
-import nonapi.io.github.classgraph.scanspec.ScanSpec;
+import nonapi.io.github.classgraph.classpathspec.ClassLoaderAndModuleLayerSpec;
+import nonapi.io.github.classgraph.classpathspec.ClassPathSpec;
 import nonapi.io.github.classgraph.utils.Assert;
 import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
@@ -57,11 +57,11 @@ import nonapi.io.github.classgraph.utils.LogNode;
  */
 public class ClassPathFinder {
     /** Everything except the classloaders and module layers the caller named. */
-    private final ScanSpec scanSpec = new ScanSpec();
+    private final ClassPathSpec classPathSpec = new ClassPathSpec();
 
     /**
-     * The classloaders and module layers the caller named. These are held separately from the {@link ScanSpec} so
-     * that they can be dropped as soon as the classpath has been found, rather than being kept alive by the
+     * The classloaders and module layers the caller named. These are held separately from the {@link ClassPathSpec}
+     * so that they can be dropped as soon as the classpath has been found, rather than being kept alive by the
      * {@link ClassPath}.
      */
     private final ClassLoaderAndModuleLayerSpec classLoaderAndModuleLayerSpec = new ClassLoaderAndModuleLayerSpec();
@@ -105,8 +105,8 @@ public class ClassPathFinder {
         if (classpath.isEmpty()) {
             throw new IllegalArgumentException("Can't override classpath with an empty path");
         }
-        for (final String classpathElement : JarUtils.smartPathSplit(classpath, scanSpec)) {
-            scanSpec.addClasspathOverride(classpathElement);
+        for (final String classpathElement : JarUtils.smartPathSplit(classpath, classPathSpec)) {
+            classPathSpec.addClasspathOverride(classpathElement);
         }
         return this;
     }
@@ -134,7 +134,7 @@ public class ClassPathFinder {
             throw new IllegalArgumentException("Can't override classpath with an empty path");
         }
         for (final Object classpathElement : classpathElements) {
-            scanSpec.addClasspathOverride(classpathElement);
+            classPathSpec.addClasspathOverride(classpathElement);
         }
         return this;
     }
@@ -165,7 +165,7 @@ public class ClassPathFinder {
             // A Path is an Iterable of its own name elements, so passing a single Path binds to this overload
             // rather than to the Object... overload. The name elements of a path are never classpath entries in
             // their own right, so a Path is added as a single classpath entry.
-            scanSpec.addClasspathOverride(classpathElements);
+            classPathSpec.addClasspathOverride(classpathElements);
             return this;
         }
         if (!classpathElements.iterator().hasNext()) {
@@ -173,7 +173,7 @@ public class ClassPathFinder {
         }
         for (final Object classpathElement : classpathElements) {
             Assert.notNull(classpathElement, "classpathElements element");
-            scanSpec.addClasspathOverride(classpathElement);
+            classPathSpec.addClasspathOverride(classpathElement);
         }
         return this;
     }
@@ -215,7 +215,7 @@ public class ClassPathFinder {
      * @return this (for method chaining).
      */
     public ClassPathFinder ignoreParentClassLoaders() {
-        scanSpec.ignoreParentClassLoaders = true;
+        classPathSpec.ignoreParentClassLoaders = true;
         return this;
     }
 
@@ -256,7 +256,7 @@ public class ClassPathFinder {
      * @return this (for method chaining).
      */
     public ClassPathFinder ignoreModules() {
-        scanSpec.scanModules = false;
+        classPathSpec.scanModules = false;
         return this;
     }
 
@@ -274,9 +274,9 @@ public class ClassPathFinder {
     public ClassPath find() {
         final var log = verbose ? new LogNode() : null;
         try {
-            final var classpathFinder = new ClasspathFinder(scanSpec, classLoaderAndModuleLayerSpec,
+            final var classpathFinder = new ClasspathFinder(classPathSpec, classLoaderAndModuleLayerSpec,
                     new ReflectionUtils(), log);
-            return new ClassPath(classpathFinder, scanSpec.modulePathInfo);
+            return new ClassPath(classpathFinder, classPathSpec.modulePathInfo);
         } finally {
             if (log != null) {
                 log.flush();

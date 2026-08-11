@@ -34,7 +34,7 @@ import java.util.List;
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
-import nonapi.io.github.classgraph.scanspec.ScanSpec;
+import nonapi.io.github.classgraph.classpathspec.ClassPathSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
@@ -95,7 +95,7 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
 
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-            final ScanSpec scanSpec, final @Nullable LogNode log) {
+            final ClassPathSpec classPathSpec, final @Nullable LogNode log) {
         // type StandardRoot (implements WebResourceRoot)
         var resources = classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getResources");
         if (resources == null) {
@@ -106,7 +106,7 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
         }
         // type List<URL>
         final var baseURLs = classpathOrder.reflectionUtils.invokeMethod(false, resources, "getBaseUrls");
-        classpathOrder.addClasspathEntryObject(baseURLs, classLoader, scanSpec, log);
+        classpathOrder.addClasspathEntryObject(baseURLs, classLoader, classPathSpec, log);
         // type List<List<WebResourceSet>> members: preResources, mainResources, classResources, jarResources,
         // postResources
         @SuppressWarnings("unchecked")
@@ -120,14 +120,14 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
                 // EmptyResourceSet}
                 for (final Object webResourceSet : webResourceSetList) {
                     if (webResourceSet != null) {
-                        addWebResourceSet(webResourceSet, classLoader, classpathOrder, scanSpec, log);
+                        addWebResourceSet(webResourceSet, classLoader, classpathOrder, classPathSpec, log);
                     }
                 }
             }
         }
         // This may or may not duplicate the above
         final var urls = classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getURLs");
-        classpathOrder.addClasspathEntryObject(urls, classLoader, scanSpec, log);
+        classpathOrder.addClasspathEntryObject(urls, classLoader, classPathSpec, log);
     }
 
     /**
@@ -140,13 +140,13 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
      *            the classloader the {@code WebResourceSet} was found in.
      * @param classpathOrder
      *            the classpath order to add the classpath entry to.
-     * @param scanSpec
+     * @param classPathSpec
      *            the scan spec.
      * @param log
      *            the log.
      */
     private static void addWebResourceSet(final Object webResourceSet, final ClassLoader classLoader,
-            final ClasspathOrder classpathOrder, final ScanSpec scanSpec, final @Nullable LogNode log) {
+            final ClasspathOrder classpathOrder, final ClassPathSpec classPathSpec, final @Nullable LogNode log) {
         // For DirResourceSet
         final var file = (File) classpathOrder.reflectionUtils.invokeMethod(false, webResourceSet, "getFileBase");
         var base = file == null ? null : file.getPath();
@@ -182,9 +182,9 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
         if (internalPath != null && !internalPath.isEmpty() && !"/".equals(internalPath)) {
             classpathOrder.addClasspathEntryObject(
                     base + (isJar ? "!" : "") + (internalPath.startsWith("/") ? internalPath : "/" + internalPath),
-                    classLoader, scanSpec, log);
+                    classLoader, classPathSpec, log);
         } else {
-            classpathOrder.addClasspathEntryObject(base, classLoader, scanSpec, log);
+            classpathOrder.addClasspathEntryObject(base, classLoader, classPathSpec, log);
         }
     }
 
