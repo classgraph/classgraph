@@ -1738,6 +1738,17 @@ is fixed on the 4.x branch as well.
   local path instead of the share; it now drops the two slashes that introduce the URI
   authority and leaves the rest of the path alone.
 
+* A jarfile below a directory whose name contains a `'!'` was never matched by
+  `acceptJars()` or `rejectJars()`, so with any accept criterion in place it was silently
+  skipped -- even `acceptJars("*.jar")` matched nothing. Those criteria match the leafname
+  of the jar, and the leafname ended at the first `'!'` in the path, which is only a
+  nested jar separator if the path before it names a file. Where the classpath entry was
+  in URL form (as it is for a classpath element found through a classloader), the search
+  for the separator also ran before the `file:` prefix was stripped, and so took the rule
+  used for remote URLs, where the filesystem cannot be consulted and the first `'!'` is
+  assumed to be the separator. Both now find the separator the same way as the rest of the
+  library: by testing whether the path before a `'!'` names a file on disk.
+
 Two further bugs found during the port were only reachable through the JSON
 serialization API, which 5.x removes (`AnnotationParameterValue#toString()` threw
 `NullPointerException` for a null parameter value, and `ScanResult#fromJSON(String)` did

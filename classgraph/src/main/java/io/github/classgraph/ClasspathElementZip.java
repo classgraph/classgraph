@@ -214,6 +214,24 @@ class ClasspathElementZip extends ClasspathElement {
     }
 
     /**
+     * Get the resolved path of the outermost zipfile of this classpath element, i.e. everything in the raw path up
+     * to the first nested jar separator.
+     *
+     * @return the resolved path of the outermost zipfile.
+     */
+    private String outermostZipFilePathResolved() {
+        // The path is resolved before the separator is looked for, not after: a '!' only separates a jarfile from a
+        // path within it if the path before it names a file, and that cannot be tested while the path still carries
+        // a "file:" scheme prefix. A raw path in URL form was falling back to the rule used for remote URLs, where
+        // the filesystem cannot be consulted and the first '!' is taken to be the separator, so a jar below a
+        // directory whose name contains a '!' was truncated to the part before that directory
+        // #903
+        final var resolvedPath = FastPathResolver.resolve(FileUtils.currDirPath(), rawPath);
+        final var plingIdx = JarUtils.indexOfNestedJarSeparator(resolvedPath);
+        return plingIdx < 0 ? resolvedPath : resolvedPath.substring(0, plingIdx);
+    }
+
+    /**
      * Open the {@link LogicalZipFile} for this classpath element, and record its normalized path and package root.
      *
      * @param log
@@ -224,9 +242,7 @@ class ClasspathElementZip extends ClasspathElement {
      *             if the thread was interrupted
      */
     private @Nullable LogicalZipFile openLogicalZipFile(final @Nullable LogNode log) throws InterruptedException {
-        final var plingIdx = JarUtils.indexOfNestedJarSeparator(rawPath);
-        final var outermostZipFilePathResolved = FastPathResolver.resolve(FileUtils.currDirPath(),
-                plingIdx < 0 ? rawPath : rawPath.substring(0, plingIdx));
+        final var outermostZipFilePathResolved = outermostZipFilePathResolved();
         if (!scanSpec.jarAcceptReject.isAcceptedAndNotRejected(outermostZipFilePathResolved)) {
             if (log != null) {
                 log.log("Skipping jarfile that is rejected or not accepted: " + rawPath);
@@ -752,10 +768,7 @@ class ClasspathElementZip extends ClasspathElement {
             return logicalZipFile.getPhysicalFile();
         } else {
             // Not performing a full scan (only getting classpath elements), so logicalZipFile is not set
-            final var plingIdx = JarUtils.indexOfNestedJarSeparator(rawPath);
-            final var outermostZipFilePathResolved = FastPathResolver.resolve(FileUtils.currDirPath(),
-                    plingIdx < 0 ? rawPath : rawPath.substring(0, plingIdx));
-            return new File(outermostZipFilePathResolved);
+            return new File(outermostZipFilePathResolved());
         }
     }
 
