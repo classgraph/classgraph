@@ -40,6 +40,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.function.Supplier;
 
 import io.github.classgraph.AnnotationInfo;
@@ -1074,7 +1075,9 @@ public final class GraphVizDotFile {
         final var buf = new StringBuilder(1024 * 1024);
         appendDotFileHeader(options, buf);
 
-        final Set<ClassInfo> allVisibleNodes = new HashSet<>(classes);
+        // Sorted, so that the nodes are written in the same order as the class graph writes them, in class name
+        // order rather than in hash order
+        final Set<ClassInfo> allVisibleNodes = new TreeSet<>(classes);
         if (includeExternalClasses) {
             for (final ClassInfo ci : classes) {
                 allVisibleNodes.addAll(ci.getClassDependencies());
