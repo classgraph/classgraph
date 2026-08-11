@@ -54,6 +54,9 @@ import io.github.classgraph.ClassGraph;
 /** Finds the version number of ClassGraph, and the version of the JDK. */
 public final class VersionFinder {
 
+    /** XPath for the version element of a {@code pom.xml}. */
+    private static final String POM_VERSION_XPATH = "/*[local-name()='project']/*[local-name()='version']";
+
     /** The Maven package for ClassGraph. */
     private static final String MAVEN_PACKAGE = "io.github.classgraph";
 
@@ -233,7 +236,10 @@ public final class VersionFinder {
                     try (InputStream is = Files.newInputStream(pom)) {
                         final Document doc = getSecureDocumentBuilderFactory().newDocumentBuilder().parse(is);
                         doc.getDocumentElement().normalize();
-                        String version = (String) getSecureXPathFactory().newXPath().compile("/project/version")
+                        // The document is parsed namespace-aware, and a pom.xml is in the Maven POM namespace,
+                        // so the element names have to be matched with local-name() -- an unprefixed
+                        // "/project/version" matches nothing
+                        String version = (String) getSecureXPathFactory().newXPath().compile(POM_VERSION_XPATH)
                                 .evaluate(doc, XPathConstants.STRING);
                         if (version != null) {
                             version = version.trim();
