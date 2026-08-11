@@ -47,9 +47,12 @@ import org.jspecify.annotations.Nullable;
  *            property, or from an overridden classpath). Only the string is kept, so that finding the classpath
  *            does not keep a classloader alive.
  * @param packageRootPrefixes
- *            the directories within this classpath element that a classloader of this type treats as the root of
- *            the package hierarchy, for example {@code "BOOT-INF/classes/"} for a Spring Boot jar. This is never
- *            empty: for a classloader that does not relocate the package root, it is a single empty string.
+ *            the directory prefixes that should be looked for within this classpath element and stripped if
+ *            present, because a classloader of this type can place the root of the package hierarchy below them,
+ *            for example {@code "BOOT-INF/classes/"} for a Spring Boot jar. These are the layouts that the
+ *            classloader could have used, not the ones this classpath element actually uses, so a prefix is listed
+ *            whether or not the element contains a directory with that name. The list is empty for a classloader
+ *            whose classpath elements always have their classes at the root, and never contains the empty string.
  */
 public record ClasspathEntry(String location, @Nullable String classLoaderName, List<String> packageRootPrefixes) {
     @Override
