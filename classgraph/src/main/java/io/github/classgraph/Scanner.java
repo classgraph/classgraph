@@ -78,6 +78,7 @@ import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
+import nonapi.io.github.classgraph.vfsspec.VfsScanSpec;
 import org.jspecify.annotations.Nullable;
 
 /** The classpath scanner. */
@@ -85,6 +86,9 @@ class Scanner implements Callable<ScanResult> {
 
     /** The scan spec. */
     private final ScanSpec scanSpec;
+
+    /** The settings that govern how archives are read. */
+    private final VfsScanSpec vfsScanSpec;
 
     /** If true, performing a scan. If false, only fetching the classpath. */
     private final boolean performScan;
@@ -136,6 +140,8 @@ class Scanner implements Callable<ScanResult> {
      *            If true, performing a scan. If false, only fetching the classpath.
      * @param scanSpec
      *            the scan spec
+     * @param vfsScanSpec
+     *            the settings that govern how archives are read
      * @param classLoaderAndModuleLayerSpec
      *            the classloaders and module layers the caller asked to be scanned
      * @param executorService
@@ -154,18 +160,20 @@ class Scanner implements Callable<ScanResult> {
      * @throws InterruptedException
      *             if interrupted
      */
-    Scanner(final boolean performScan, final ScanSpec scanSpec,
+    Scanner(final boolean performScan, final ScanSpec scanSpec, final VfsScanSpec vfsScanSpec,
             final ClassLoaderAndModuleLayerSpec classLoaderAndModuleLayerSpec,
             final ExecutorService executorService, final int numParallelTasks,
             final @Nullable Consumer<ScanResult> scanResultProcessor,
             final @Nullable Consumer<Throwable> failureHandler, final ReflectionUtils reflectionUtils,
             final @Nullable LogNode topLevelLog) throws InterruptedException {
         this.scanSpec = scanSpec;
+        this.vfsScanSpec = vfsScanSpec;
         this.performScan = performScan;
         scanSpec.sortPrefixes();
         scanSpec.log(topLevelLog);
+        vfsScanSpec.log(topLevelLog);
         classLoaderAndModuleLayerSpec.log(topLevelLog);
-        if (scanSpec.memoryMapFiles) {
+        if (vfsScanSpec.memoryMapFiles) {
             // Memory mapping is the only thing that makes ClassGraph allocate direct ByteBuffers, and those buffers
             // are freed when the ScanResult is closed, which can happen long after the scan -- so load the classes
             // needed to free them now, while the classloader that loaded ClassGraph is certainly still alive (#331)
@@ -184,7 +192,7 @@ class Scanner implements Callable<ScanResult> {
         this.interruptionChecker = executorService instanceof final AutoCloseableExecutorService autoCloseableExecSvc
                 ? autoCloseableExecSvc.interruptionChecker
                 : new InterruptionChecker();
-        this.nestedJarHandler = new NestedJarHandler(scanSpec, interruptionChecker, reflectionUtils);
+        this.nestedJarHandler = new NestedJarHandler(vfsScanSpec, interruptionChecker, reflectionUtils);
         this.numParallelTasks = numParallelTasks;
         this.scanResultProcessor = scanResultProcessor;
         this.failureHandler = failureHandler;
@@ -219,7 +227,7 @@ class Scanner implements Callable<ScanResult> {
                         defaultClassLoaderStr, unscannedModuleReferences, classpathFinderLog);
             }
             this.unscannedModules = new UnscannedModules(unscannedModuleReferences, defaultClassLoaderStr,
-                    nestedJarHandler.scanResources.moduleReaderRecyclerMap(), scanSpec);
+                    nestedJarHandler.scanResources.moduleReaderRecyclerMap(), scanSpec, vfsScanSpec);
 
             // Turn the toplevel classpath entries into work units, so that the ClasspathFinder (and the classloader
             // references it holds) can be discarded now that the classpath has been found
@@ -275,7 +283,7 @@ class Scanner implements Callable<ScanResult> {
                         nestedJarHandler.scanResources.moduleReaderRecyclerMap(),
                         new ClasspathEntryWorkUnit(null, defaultClassLoaderStr, null, moduleOrder.size(), "",
                                 ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES),
-                        /* isLookupOnly = */ false, scanSpec);
+                        /* isLookupOnly = */ false, scanSpec, vfsScanSpec);
                 moduleOrder.add(classpathElementModule);
                 // Open the ClasspathElementModule
                 classpathElementModule.open(/* ignored */ null, classpathFinderLog);
@@ -675,8 +683,9 @@ class Scanner implements Callable<ScanResult> {
                         // newInstance API doesn't support an extra parameter like this
                         () -> {
                             final ClasspathElement classpathElt = isJar
-                                    ? new ClasspathElementZip(workUnit, nestedJarHandler, scanSpec)
-                                    : new ClasspathElementDir(workUnit, nestedJarHandler.scanResources, scanSpec);
+                                    ? new ClasspathElementZip(workUnit, nestedJarHandler, scanSpec, vfsScanSpec)
+                                    : new ClasspathElementDir(workUnit, nestedJarHandler.scanResources, scanSpec,
+                                            vfsScanSpec);
 
                             allClasspathEltsOut.add(classpathElt);
 

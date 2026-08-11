@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
+import nonapi.io.github.classgraph.vfsspec.VfsScanSpec;
 
 /**
  * A {@link ModuleInfo} is created as soon as any classfile is read from a module, including a
@@ -26,7 +27,8 @@ public class ModuleInfoNoClassesTest {
         final var workUnit = new ClasspathEntryWorkUnit(Path.of("."), /* classLoader = */ null,
                 /* parentClasspathElement = */ null, /* classpathElementIdx = */ 0, /* packageRootPrefix = */ "",
                 ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES);
-        final var classpathElement = new ClasspathElementDir(workUnit, /* scanResources = */ null, new ScanSpec());
+        final var classpathElement = new ClasspathElementDir(workUnit, /* scanResources = */ null, new ScanSpec(),
+                new VfsScanSpec());
         final var moduleInfo = new ModuleInfo(/* moduleRef = */ null, classpathElement, "com.xyz.mymodule");
         assertThat(moduleInfo.getClassInfo()).isEmpty();
         assertThat(moduleInfo.getClassInfo("com.xyz.Foo")).isNull();

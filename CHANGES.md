@@ -23,12 +23,13 @@ that a project depends only on the part of ClassGraph it uses:
 | Artifact | Module | Contents |
 | --- | --- | --- |
 | `io.github.classgraph:classgraph-classpath` | `io.github.classgraph.classpath` | Finding the classpath and the module path |
+| `io.github.classgraph:classgraph-vfs` | `io.github.classgraph.vfs` | Reading jarfiles, including nested jarfiles |
 | `io.github.classgraph:classgraph` | `io.github.classgraph` | Scanning and the class graph API |
 | `io.github.classgraph:classgraph-viz` | `io.github.classgraph.viz` | GraphViz .dot file generation |
 
 Each artifact depends on the one above it, so a project needs only the dependency for the
 widest part of ClassGraph it uses: `classgraph-viz` brings in `classgraph`, which brings in
-`classgraph-classpath`.
+`classgraph-vfs`, which brings in `classgraph-classpath`.
 
 ### `classgraph-classpath` can be used on its own
 
@@ -58,6 +59,35 @@ are what to use when the classpath elements need to be real.
 `ModulePathInfo` has moved from `io.github.classgraph` to `io.github.classgraph.classpath`
 as part of this, and is reachable both from `ScanResult#getModulePathInfo()` as before, and
 from `ClassPath#getModulePathInfo()`.
+
+### `classgraph-vfs` can be used on its own
+
+ClassGraph's zipfile reader is faster than `java.util.zip.ZipFile`, and it can read a
+jarfile that is nested inside another jarfile, as produced by Spring Boot and other
+executable-jar formats, without extracting it to a temporary directory first. That reader is
+now a library of its own, so a project can read jarfiles with it without scanning anything:
+
+```java
+try (ArchiveReader reader = new ArchiveReader()) {
+    for (ArchiveEntry entry : reader.open("outer.jar!/lib/inner.jar").getEntries()) {
+        System.out.println(entry.getName() + " (" + entry.getUncompressedSize() + " bytes)");
+    }
+}
+```
+
+`io.github.classgraph.vfs.ArchiveReader` opens an `Archive`, which lists its `ArchiveEntry`
+instances or looks one up by name. An entry's content is read with `ArchiveEntry#open()` or
+`ArchiveEntry#readAllBytes()`. Nested jarfiles are named by separating each jarfile from the
+one that encloses it with `"!/"`, to any depth; a trailing `"!/"` section that names a
+directory rather than a jarfile is used as the package root, e.g.
+`"spring-boot-app.jar!/BOOT-INF/classes"`, so that entry names are reported relative to it.
+
+Directory entries, encrypted entries and entries stored with an unsupported compression
+method are not reported, and for a multi-release jarfile only the newest version of each
+entry that the running JVM can use is reported, unless
+`ArchiveReader#enableMultiReleaseVersions()` is called. The reader owns the file handles,
+memory mappings and temporary files behind everything it opened, so it must be closed, and
+it must stay open for as long as its entries are being read.
 
 ## API changes
 

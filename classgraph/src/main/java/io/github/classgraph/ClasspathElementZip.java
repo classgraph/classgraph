@@ -62,6 +62,7 @@ import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.URLPathEncoder;
+import nonapi.io.github.classgraph.vfsspec.VfsScanSpec;
 import org.jspecify.annotations.Nullable;
 
 /** A zip/jarfile classpath element. */
@@ -118,10 +119,12 @@ class ClasspathElementZip extends ClasspathElement {
      *            the nested jar handler
      * @param scanSpec
      *            the scan spec
+     * @param vfsScanSpec
+     *            the settings that govern how archives are read
      */
     ClasspathElementZip(final ClasspathEntryWorkUnit workUnit, final NestedJarHandler nestedJarHandler,
-            final ScanSpec scanSpec) {
-        super(workUnit, scanSpec);
+            final ScanSpec scanSpec, final VfsScanSpec vfsScanSpec) {
+        super(workUnit, scanSpec, vfsScanSpec);
         final var rawPathObj = Objects.requireNonNull(workUnit.classpathEntryObj);
 
         // Convert the raw path object (Path, URL, or URI) to a string. Any required URL/URI parsing are done in
@@ -291,7 +294,7 @@ class ClasspathElementZip extends ClasspathElement {
     private void addNestedLibJars(final LogicalZipFile logicalZipFile,
             final ChildClasspathElementScheduler childScheduler, final @Nullable LogNode log)
             throws InterruptedException {
-        if (!scanSpec.scanNestedJars) {
+        if (!vfsScanSpec.scanNestedJars) {
             return;
         }
         for (final FastZipEntry zipEntry : logicalZipFile.entries) {

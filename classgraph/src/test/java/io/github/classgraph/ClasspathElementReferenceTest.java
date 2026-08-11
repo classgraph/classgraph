@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
+import nonapi.io.github.classgraph.vfsspec.VfsScanSpec;
 
 /**
  * The same directory or jar can be referenced by more than one work unit, e.g. through a parent-last classloader
@@ -35,7 +36,7 @@ class ClasspathElementReferenceTest {
         final var workUnit = new ClasspathEntryWorkUnit(dir, classLoaderStr, /* parentClasspathElement = */ null,
                 idx, /* packageRootPrefix = */ "", ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES);
         final ClasspathElement classpathElement = new ClasspathElementDir(workUnit, /* scanResources = */ null,
-                new ScanSpec());
+                new ScanSpec(), new VfsScanSpec());
         classpathElement.addReference(isToplevelRef, idx, classLoaderStr);
         return classpathElement;
     }

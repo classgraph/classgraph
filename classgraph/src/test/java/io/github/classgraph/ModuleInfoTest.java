@@ -16,6 +16,7 @@ import org.junit.jupiter.api.io.TempDir;
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
+import nonapi.io.github.classgraph.vfsspec.VfsScanSpec;
 
 /**
  * A {@link ModuleInfo} is created for every module that a scan reads at least one classfile from, whether the
@@ -239,6 +240,6 @@ public class ModuleInfoTest {
         final var workUnit = new ClasspathEntryWorkUnit(moduleDir, /* classLoader = */ null,
                 /* parentClasspathElement = */ null, /* classpathElementIdx = */ 0, /* packageRootPrefix = */ "",
                 ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES);
-        return new ClasspathElementDir(workUnit, /* scanResources = */ null, new ScanSpec());
+        return new ClasspathElementDir(workUnit, /* scanResources = */ null, new ScanSpec(), new VfsScanSpec());
     }
 }

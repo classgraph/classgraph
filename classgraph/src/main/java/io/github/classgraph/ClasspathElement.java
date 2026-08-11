@@ -53,6 +53,7 @@ import nonapi.io.github.classgraph.scanspec.ScanSpec.ScanSpecPathMatch;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
+import nonapi.io.github.classgraph.vfsspec.VfsScanSpec;
 import org.jspecify.annotations.Nullable;
 
 /** A classpath element (a directory or jarfile on the classpath). */
@@ -145,6 +146,9 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
     /** The scan spec. */
     final ScanSpec scanSpec;
 
+    /** The settings that govern how archives are read. */
+    final VfsScanSpec vfsScanSpec;
+
     /**
      * The ScanResult that the classpath element came from, or null until {@link #setScanResult(ScanResult)} is
      * called after the scan is complete.
@@ -160,12 +164,16 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      *            the work unit
      * @param scanSpec
      *            the scan spec
+     * @param vfsScanSpec
+     *            the settings that govern how archives are read
      */
-    ClasspathElement(final ClasspathEntryWorkUnit workUnit, final ScanSpec scanSpec) {
+    ClasspathElement(final ClasspathEntryWorkUnit workUnit, final ScanSpec scanSpec,
+            final VfsScanSpec vfsScanSpec) {
         this.packageRootPrefix = workUnit.packageRootPrefix;
         this.packageRootPrefixes = workUnit.packageRootPrefixes;
         this.classLoaderStr = workUnit.classLoaderStr;
         this.scanSpec = scanSpec;
+        this.vfsScanSpec = vfsScanSpec;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -299,7 +307,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      * @return true if the path is within a versioned section that should be ignored.
      */
     protected boolean isIgnoredVersionedPath(final String relativePath) {
-        return !scanSpec.enableMultiReleaseVersions
+        return !vfsScanSpec.enableMultiReleaseVersions
                 && relativePath.startsWith(LogicalZipFile.MULTI_RELEASE_PATH_PREFIX);
     }
 

@@ -59,6 +59,7 @@ import nonapi.io.github.classgraph.utils.Assert;
 import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.VersionFinder;
+import nonapi.io.github.classgraph.vfsspec.VfsScanSpec;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -88,6 +89,9 @@ import org.jspecify.annotations.Nullable;
 public class ClassGraph {
     /** The scanning specification. */
     ScanSpec scanSpec = new ScanSpec();
+
+    /** The settings that govern how archives are read. */
+    VfsScanSpec vfsScanSpec = new VfsScanSpec();
 
     /**
      * The classloaders and module layers to scan, if the caller named any. Held separately from the
@@ -204,7 +208,7 @@ public class ClassGraph {
      */
     public ClassGraph enableClassInfo() {
         scanSpec.enableClassInfo = true;
-        scanSpec.enableMultiReleaseVersions = false;
+        vfsScanSpec.enableMultiReleaseVersions = false;
         return this;
     }
 
@@ -377,7 +381,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph disableNestedJarScanning() {
-        scanSpec.scanNestedJars = false;
+        vfsScanSpec.scanNestedJars = false;
         return this;
     }
 
@@ -1112,7 +1116,9 @@ public class ClassGraph {
      */
     public ClassGraph enableRemoteJarScanning() {
         scanSpec.enableURLScheme("http");
+        vfsScanSpec.enableURLScheme("http");
         scanSpec.enableURLScheme("https");
+        vfsScanSpec.enableURLScheme("https");
         return this;
     }
 
@@ -1128,6 +1134,7 @@ public class ClassGraph {
     public ClassGraph enableURLScheme(final String scheme) {
         Assert.notNull(scheme, "scheme");
         scanSpec.enableURLScheme(scheme);
+        vfsScanSpec.enableURLScheme(scheme);
         return this;
     }
 
@@ -1179,7 +1186,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph setMaxBufferedJarRAMSize(final int maxBufferedJarRAMSize) {
-        scanSpec.maxBufferedJarRAMSize = maxBufferedJarRAMSize;
+        vfsScanSpec.maxBufferedJarRAMSize = maxBufferedJarRAMSize;
         return this;
     }
 
@@ -1191,7 +1198,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph enableMultiReleaseVersions() {
-        scanSpec.enableMultiReleaseVersions = true;
+        vfsScanSpec.enableMultiReleaseVersions = true;
 
         scanSpec.enableClassInfo = false;
         scanSpec.ignoreClassVisibility = false;
@@ -1256,8 +1263,9 @@ public class ClassGraph {
         executorService.execute(() -> {
             try {
                 // Call scanner, but ignore the returned ScanResult
-                new Scanner(/* performScan = */ true, scanSpec, classLoaderAndModuleLayerSpec, executorService,
-                        numParallelTasks, scanResultProcessor, failureHandler, reflectionUtils, topLevelLog).call();
+                new Scanner(/* performScan = */ true, scanSpec, vfsScanSpec, classLoaderAndModuleLayerSpec,
+                        executorService, numParallelTasks, scanResultProcessor, failureHandler, reflectionUtils,
+                        topLevelLog).call();
             } catch (final Throwable t) {
                 // Call failure handler. Anything thrown before the Scanner starts running the scan (e.g. by a
                 // user-supplied classpath element filter, which the Scanner constructor calls) has to be caught
@@ -1286,9 +1294,9 @@ public class ClassGraph {
     private Future<ScanResult> scanAsync(final boolean performScan, final ExecutorService executorService,
             final int numParallelTasks) {
         try {
-            return executorService.submit(new Scanner(performScan, scanSpec, classLoaderAndModuleLayerSpec,
-                    executorService, numParallelTasks, /* scanResultProcessor = */ null,
-                    /* failureHandler = */ null, reflectionUtils, topLevelLog));
+            return executorService.submit(new Scanner(performScan, scanSpec, vfsScanSpec,
+                    classLoaderAndModuleLayerSpec, executorService, numParallelTasks,
+                    /* scanResultProcessor = */ null, /* failureHandler = */ null, reflectionUtils, topLevelLog));
         } catch (final InterruptedException e) {
             // Interrupted during the Scanner constructor's execution (specifically, by getModuleOrder(), which is
             // unlikely to ever actually be interrupted -- but this exception needs to be caught). (the cast is

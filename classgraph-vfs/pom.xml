@@ -1,0 +1,46 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>io.github.classgraph</groupId>
+		<artifactId>classgraph-parent</artifactId>
+		<version>4.8.190-SNAPSHOT</version>
+	</parent>
+
+	<artifactId>classgraph-vfs</artifactId>
+	<name>ClassGraph archive reader</name>
+
+	<description>Reads jarfiles, including jarfiles nested inside other jarfiles to any depth, without extracting them to disk.</description>
+
+	<properties>
+		<!-- The shared files (the code formatter profile and the license) are one directory up -->
+		<rootDir>${project.basedir}/..</rootDir>
+
+		<!-- The internal packages are exported to io.github.classgraph, which sits on top of this module and so
+		     cannot be on the module path while this module is compiled. javac cannot check the target of such an
+		     export, and warns that the module was not found, which -Werror would turn into a build failure. -->
+		<javacLintSuppressions>-Xlint:-exports,-module</javacLintSuppressions>
+
+		<!-- Must agree with src/main/java/module-info.java -->
+		<jpmsModuleName>io.github.classgraph.vfs</jpmsModuleName>
+		<osgiBundleName>ClassGraph archive reader</osgiBundleName>
+		<!-- The nonapi packages are exported because OSGi has no equivalent of a qualified export, and the
+		     modules above this one need them. They are marked x-internal so that tooling does not offer them
+		     for import, and they are not covered by the project's API compatibility guarantees. -->
+		<osgiExportPackage>io.github.classgraph.vfs;version="${project.version}",nonapi.io.github.classgraph.concurrency;x-internal:=true,nonapi.io.github.classgraph.recycler;x-internal:=true,nonapi.io.github.classgraph.fileslice;x-internal:=true,nonapi.io.github.classgraph.fileslice.reader;x-internal:=true,nonapi.io.github.classgraph.fastzipfilereader;x-internal:=true,nonapi.io.github.classgraph.vfsspec;x-internal:=true</osgiExportPackage>
+		<osgiImportPackage>nonapi.io.github.classgraph.reflection,nonapi.io.github.classgraph.scanspec,nonapi.io.github.classgraph.utils,org.jspecify.annotations;resolution:="optional"</osgiImportPackage>
+		<osgiDependencies>io.github.classgraph.classpath</osgiDependencies>
+
+		<!-- This module produces a jar, so it needs its resources and the modular copy of its Javadoc -->
+		<maven.antrun.skip>false</maven.antrun.skip>
+		<maven.resources.skip>false</maven.resources.skip>
+	</properties>
+
+	<dependencies>
+		<dependency>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>classgraph-classpath</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+	</dependencies>
+</project>

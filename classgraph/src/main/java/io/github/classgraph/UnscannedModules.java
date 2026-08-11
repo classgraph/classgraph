@@ -43,6 +43,7 @@ import nonapi.io.github.classgraph.concurrency.SingletonMap;
 import nonapi.io.github.classgraph.recycler.Recycler;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
+import nonapi.io.github.classgraph.vfsspec.VfsScanSpec;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -80,6 +81,9 @@ class UnscannedModules {
     /** The scan spec. */
     private final ScanSpec scanSpec;
 
+    /** The settings that govern how archives are read. */
+    private final VfsScanSpec vfsScanSpec;
+
     /**
      * A map from the name of a package to the module that contains the package, or null until the map is built on
      * the first lookup.
@@ -103,14 +107,17 @@ class UnscannedModules {
      *            the map from a module to its module reader recycler
      * @param scanSpec
      *            the scan spec
+     * @param vfsScanSpec
+     *            the settings that govern how archives are read
      */
     UnscannedModules(final List<ModuleReference> unscannedModules, final @Nullable String classLoaderStr,
             final SingletonMap<ModuleReference, Recycler<ModuleReader, IOException>, IOException> //
-            moduleReaderRecyclerMap, final ScanSpec scanSpec) {
+            moduleReaderRecyclerMap, final ScanSpec scanSpec, final VfsScanSpec vfsScanSpec) {
         this.unscannedModules = unscannedModules;
         this.classLoaderStr = classLoaderStr;
         this.moduleReaderRecyclerMap = moduleReaderRecyclerMap;
         this.scanSpec = scanSpec;
+        this.vfsScanSpec = vfsScanSpec;
     }
 
     /**
@@ -196,7 +203,7 @@ class UnscannedModules {
             classpathElement = new ClasspathElementModule(moduleReference, moduleReaderRecyclerMap,
                     new ClasspathEntryWorkUnit(null, classLoaderStr, null, 0, "",
                             ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES),
-                    /* isLookupOnly = */ true, scanSpec);
+                    /* isLookupOnly = */ true, scanSpec, vfsScanSpec);
             classpathElement.open(/* workQueue = */ null, log);
             moduleToClasspathElement.put(moduleReference, classpathElement);
         }

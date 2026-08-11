@@ -45,9 +45,10 @@ module io.github.classgraph {
 
     // N.B. make sure the "Import-Package" entries in the manifest (in pom.xml) match these "requires" statements.
 
-    // Finding the classpath and the module path is the job of a separate module. It is required transitively, so
-    // that a single dependency on this module is all a project needs.
-    requires transitive io.github.classgraph.classpath;
+    // Finding the classpath and the module path, and reading jarfiles, are the jobs of separate modules. They are
+    // required transitively, so that a single dependency on this module is all a project needs. (The archive
+    // reader in turn requires the classpath finder transitively.)
+    requires transitive io.github.classgraph.vfs;
 
     // JSpecify nullability annotations are only needed at compile time. This deliberately is not "requires
     // transitive", even though the annotations appear in exported signatures: that would force every modular

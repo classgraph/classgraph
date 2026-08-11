@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ScanSpecAccess;
+import io.github.classgraph.VfsScanSpecAccess;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.VersionFinder;
@@ -38,7 +38,7 @@ public class Issue939Test {
                 .overrideClasspath(Issue939Test.class.getClassLoader().getResource("issue209.jar"));
         // Files are memory-mapped on Windows only, so the platform's choice is overridden here to exercise the
         // mapping path whatever platform this test runs on
-        ScanSpecAccess.scanSpecOf(classGraph).memoryMapFiles = true;
+        VfsScanSpecAccess.vfsScanSpecOf(classGraph).memoryMapFiles = true;
         try (var scanResult = classGraph.scan()) {
             assertThat(scanResult.getAllClasses().getNames())
                     .contains("org.springframework.boot.loader.util.SystemPropertyUtils");
