@@ -22,14 +22,20 @@ that a project depends only on the part of ClassGraph it uses:
 
 | Artifact | Module | Contents |
 | --- | --- | --- |
-| `io.github.classgraph:classgraph-classpath` | `io.github.classgraph.classpath` | Finding the classpath and the module path |
+| `io.github.classgraph:classgraph-base` | `io.github.classgraph.base` | Shared internals; no API of its own |
 | `io.github.classgraph:classgraph-vfs` | `io.github.classgraph.vfs` | Reading jarfiles, including nested jarfiles |
+| `io.github.classgraph:classgraph-classpath` | `io.github.classgraph.classpath` | Finding the classpath and the module path |
 | `io.github.classgraph:classgraph` | `io.github.classgraph` | Scanning and the class graph API |
 | `io.github.classgraph:classgraph-viz` | `io.github.classgraph.viz` | GraphViz .dot file generation |
 
 Each artifact depends on the one above it, so a project needs only the dependency for the
 widest part of ClassGraph it uses: `classgraph-viz` brings in `classgraph`, which brings in
-`classgraph-vfs`, which brings in `classgraph-classpath`.
+`classgraph-classpath`, which brings in `classgraph-vfs`, which brings in `classgraph-base`.
+
+`classgraph-base` holds the utilities the other four share — path and URL handling, logging,
+reflection, and accept/reject matching. It has no public API of its own, and exports its
+packages only to the other ClassGraph modules, so it is never named directly by a project
+that uses ClassGraph. It is listed here only because it appears in dependency trees.
 
 ### `classgraph-classpath` can be used on its own
 

@@ -78,7 +78,7 @@ ClassGraph provides a number of important capabilities to the JVM ecosystem:
 * ClassGraph handles more [classpath specification mechanisms](https://github.com/classgraph/classgraph/wiki/Classpath-specification-mechanisms) found in the wild than any other classpath scanner, making code that depends upon ClassGraph maximally portable.
 * ClassGraph can scan the classpath and module path either at runtime or [at build time](https://github.com/classgraph/classgraph/wiki/Build-Time-Scanning) (e.g. to implement annotation processing for Android).
 * ClassGraph can [find classes that are duplicated or defined more than once in the classpath or module path](https://github.com/classgraph/classgraph/wiki/Code-examples#find-all-duplicate-class-definitions-in-the-classpath-or-module-path), which can help find the cause of strange class resolution behaviors.
-* ClassGraph can [create GraphViz visualizations of the class graph structure](https://github.com/classgraph/classgraph/wiki/ClassInfo-API#generating-a-graphviz-dot-file-for-class-graph-visualization), which can help with code understanding: (click to enlarge; [see graph legend here](https://github.com/classgraph/classgraph/blob/v5/classgraph-viz/src/test/java/com/xyz/classgraph-fig-legend.png))
+* ClassGraph can [create GraphViz visualizations of the class graph structure](https://github.com/classgraph/classgraph/wiki/GraphViz-API), which can help with code understanding: (click to enlarge; [see graph legend here](https://github.com/classgraph/classgraph/blob/v5/classgraph-viz/src/test/java/com/xyz/classgraph-fig-legend.png))
 
 <p align="center">
   <a href="https://raw.githubusercontent.com/classgraph/classgraph/v5/classgraph-viz/src/test/java/com/xyz/classgraph-fig.png"><img src="https://raw.githubusercontent.com/classgraph/classgraph/v5/classgraph-viz/src/test/java/com/xyz/classgraph-fig.png" width="898" height="685" alt="Class graph visualization"/></a>
@@ -97,6 +97,23 @@ Replace `X.Y.Z` below with the latest [release number](https://github.com/classg
     <version>X.Y.Z</version>
 </dependency>
 ```
+
+That is the dependency for the scanning API, and it is the one to use unless you know you
+want something narrower. ClassGraph is published as five artifacts, each depending on the one
+above it, so that a project depends only on the part of ClassGraph it uses:
+
+| Artifact | Module | Contents |
+| --- | --- | --- |
+| `classgraph-base` | `io.github.classgraph.base` | Shared internals; no API of its own |
+| `classgraph-vfs` | `io.github.classgraph.vfs` | [Reading jarfiles, including nested jarfiles](https://github.com/classgraph/classgraph/wiki/Archive-API) |
+| `classgraph-classpath` | `io.github.classgraph.classpath` | [Finding the classpath and the module path](https://github.com/classgraph/classgraph/wiki/Classpath-API) |
+| `classgraph` | `io.github.classgraph` | Scanning, and the class graph API |
+| `classgraph-viz` | `io.github.classgraph.viz` | [GraphViz .dot file generation](https://github.com/classgraph/classgraph/wiki/GraphViz-API) |
+
+All five share the `io.github.classgraph` group id and a single version number. Depend on
+`classgraph-viz` as well if you generate .dot files; depend on `classgraph-classpath` or
+`classgraph-vfs` alone if you want only the classpath finder or only the jarfile reader,
+without the scanner.
 
 See instructions for [use as a module](https://github.com/classgraph/classgraph/wiki#use-as-a-module).
 
