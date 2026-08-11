@@ -150,133 +150,153 @@ class ClasspathElementModule extends ClasspathElement {
      * @return the resource
      */
     private Resource newResource(final String resourcePath) {
-        return new Resource(this, /* length unknown */ -1L) {
-            /** The module reader, or null if no module reader is currently acquired. */
-            private @Nullable ModuleReader moduleReader;
+        return new ModuleResource(resourcePath);
+    }
 
-            @Override
-            public String getPath() {
-                return resourcePath;
+    /**
+     * A {@link Resource} for an entry in a module. Reading it acquires a {@link ModuleReader} from the classpath
+     * element's recycler, and closing it returns that reader to the recycler.
+     */
+    private class ModuleResource extends Resource {
+        /** The path of the resource within the module. */
+        private final String resourcePath;
+
+        /** The module reader, or null if no module reader is currently acquired. */
+        private @Nullable ModuleReader moduleReader;
+
+        /**
+         * Constructor.
+         *
+         * @param resourcePath
+         *            the path of the resource within the module.
+         */
+        ModuleResource(final String resourcePath) {
+            super(ClasspathElementModule.this, /* length unknown */ -1L);
+            this.resourcePath = resourcePath;
+        }
+
+        @Override
+        public String getPath() {
+            return resourcePath;
+        }
+
+        @Override
+        public long getLastModifiedMillis() {
+            return 0L; // Unknown
+        }
+
+        @Override
+        public @Nullable Set<PosixFilePermission> getPosixFilePermissions() {
+            return null; // N/A
+        }
+
+        @Override
+        public ByteBuffer read() throws IOException {
+            checkCanOpen();
+            try {
+                final var reader = moduleReaderRecycler().acquire();
+                moduleReader = reader;
+                // ModuleReader#read(String name) internally calls:
+                // InputStream is = open(name); return ByteBuffer.wrap(is.readAllBytes());
+                final var buf = ModuleReaderUtils.read(reader, resourcePath);
+                byteBuffer = buf;
+                length = buf.remaining();
+                return buf;
+
+            } catch (final SecurityException | OutOfMemoryError e) {
+                close();
+                throw new IOException("Could not open " + this, e);
             }
+        }
 
-            @Override
-            public long getLastModifiedMillis() {
-                return 0L; // Unknown
-            }
+        @Override
+        ClassfileReader openClassfile() throws IOException {
+            return new ClassfileReader(open(), this);
+        }
 
-            @Override
-            public @Nullable Set<PosixFilePermission> getPosixFilePermissions() {
-                return null; // N/A
-            }
-
-            @Override
-            public ByteBuffer read() throws IOException {
-                checkCanOpen();
+        @Override
+        public URI getURI() {
+            try {
+                final var localModuleReader = moduleReaderRecycler().acquire();
                 try {
-                    final var reader = moduleReaderRecycler().acquire();
-                    moduleReader = reader;
-                    // ModuleReader#read(String name) internally calls:
-                    // InputStream is = open(name); return ByteBuffer.wrap(is.readAllBytes());
-                    final var buf = ModuleReaderUtils.read(reader, resourcePath);
-                    byteBuffer = buf;
-                    length = buf.remaining();
-                    return buf;
-
-                } catch (final SecurityException | OutOfMemoryError e) {
-                    close();
-                    throw new IOException("Could not open " + this, e);
+                    return ModuleReaderUtils.find(localModuleReader, resourcePath);
+                } finally {
+                    moduleReaderRecycler().recycle(localModuleReader);
                 }
+            } catch (final IOException e) {
+                throw new RuntimeException(e);
             }
+        }
 
-            @Override
-            ClassfileReader openClassfile() throws IOException {
-                return new ClassfileReader(open(), this);
-            }
-
-            @Override
-            public URI getURI() {
-                try {
-                    final var localModuleReader = moduleReaderRecycler().acquire();
-                    try {
-                        return ModuleReaderUtils.find(localModuleReader, resourcePath);
-                    } finally {
-                        moduleReaderRecycler().recycle(localModuleReader);
-                    }
-                } catch (final IOException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-
-            @Override
-            public InputStream open() throws IOException {
-                checkCanOpen();
-                try {
-                    final Resource thisResource = this;
-                    final var reader = moduleReaderRecycler().acquire();
-                    moduleReader = reader;
-                    inputStream = new ProxyingInputStream(ModuleReaderUtils.open(reader, resourcePath)) {
-                        @Override
-                        public void close() throws IOException {
-                            // Close the wrapped InputStream obtained from moduleReader
-                            super.close();
-                            try {
-                                // Close the Resource, releasing any underlying ByteBuffer and recycling the
-                                // moduleReader
-                                thisResource.close();
-                            } catch (final Exception e) {
-                                // Ignore
-                            }
+        @Override
+        public InputStream open() throws IOException {
+            checkCanOpen();
+            try {
+                final Resource thisResource = this;
+                final var reader = moduleReaderRecycler().acquire();
+                moduleReader = reader;
+                inputStream = new ProxyingInputStream(ModuleReaderUtils.open(reader, resourcePath)) {
+                    @Override
+                    public void close() throws IOException {
+                        // Close the wrapped InputStream obtained from moduleReader
+                        super.close();
+                        try {
+                            // Close the Resource, releasing any underlying ByteBuffer and recycling the
+                            // moduleReader
+                            thisResource.close();
+                        } catch (final Exception e) {
+                            // Ignore
                         }
-                    };
-                    // Length cannot be obtained from ModuleReader
-                    length = -1L;
-                    return inputStream;
-
-                } catch (final SecurityException e) {
-                    close();
-                    throw new IOException("Could not open " + this, e);
-                }
-            }
-
-            @Override
-            public byte[] load() throws IOException {
-                try (Resource res = this) { // Close this after use
-                    final var buf = read(); // Fill byteBuffer
-                    final byte[] byteArray;
-                    if (buf.hasArray() && buf.position() == 0 && buf.limit() == buf.capacity()) {
-                        byteArray = buf.array();
-                    } else {
-                        byteArray = new byte[buf.remaining()];
-                        buf.get(byteArray);
                     }
-                    res.length = byteArray.length;
-                    return byteArray;
-                }
-            }
+                };
+                // Length cannot be obtained from ModuleReader
+                length = -1L;
+                return inputStream;
 
-            @Override
-            public void close() {
-                if (markClosed()) {
-                    final var reader = moduleReader;
-                    if (reader != null) {
-                        final var buf = byteBuffer;
-                        if (buf != null) {
-                            // Release any open ByteBuffer
-                            reader.release(buf);
-                            byteBuffer = null;
-                        }
-                        // Recycle the (open) ModuleReader instance.
-                        moduleReaderRecycler().recycle(reader);
-                        // Don't call ModuleReader#close(), leave the ModuleReader open in the recycler. Just set
-                        // the ref to null here. The ModuleReader will be closed by ClasspathElementModule#close().
-                        moduleReader = null;
+            } catch (final SecurityException e) {
+                close();
+                throw new IOException("Could not open " + this, e);
+            }
+        }
+
+        @Override
+        public byte[] load() throws IOException {
+            try (Resource res = this) { // Close this after use
+                final var buf = read(); // Fill byteBuffer
+                final byte[] byteArray;
+                if (buf.hasArray() && buf.position() == 0 && buf.limit() == buf.capacity()) {
+                    byteArray = buf.array();
+                } else {
+                    byteArray = new byte[buf.remaining()];
+                    buf.get(byteArray);
+                }
+                res.length = byteArray.length;
+                return byteArray;
+            }
+        }
+
+        @Override
+        public void close() {
+            if (markClosed()) {
+                final var reader = moduleReader;
+                if (reader != null) {
+                    final var buf = byteBuffer;
+                    if (buf != null) {
+                        // Release any open ByteBuffer
+                        reader.release(buf);
+                        byteBuffer = null;
                     }
-
-                    // Close inputStream
-                    super.close();
+                    // Recycle the (open) ModuleReader instance.
+                    moduleReaderRecycler().recycle(reader);
+                    // Don't call ModuleReader#close(), leave the ModuleReader open in the recycler. Just set
+                    // the ref to null here. The ModuleReader will be closed by ClasspathElementModule#close().
+                    moduleReader = null;
                 }
+
+                // Close inputStream
+                super.close();
             }
-        };
+        }
     }
 
     /**

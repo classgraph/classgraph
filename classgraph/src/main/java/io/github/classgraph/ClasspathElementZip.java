@@ -292,102 +292,127 @@ class ClasspathElementZip extends ClasspathElement {
      * @return the resource
      */
     private Resource newResource(final FastZipEntry zipEntry, final String pathRelativeToPackageRoot) {
-        return new Resource(this, zipEntry.uncompressedSize) {
-            /**
-             * Path with package root prefix and/or any Spring Boot prefix ("BOOT-INF/classes/" or
-             * "WEB-INF/classes/") removed.
-             */
-            @Override
-            public String getPath() {
-                return pathRelativeToPackageRoot;
-            }
+        return new ZipResource(zipEntry, pathRelativeToPackageRoot);
+    }
 
-            @Override
-            public String getPathRelativeToClasspathElement() {
-                if (zipEntry.entryName.startsWith(packageRootPrefix)) {
-                    return zipEntry.entryName.substring(packageRootPrefix.length());
-                } else {
-                    return zipEntry.entryName;
+    /**
+     * A {@link Resource} for an entry in a zipfile classpath element.
+     */
+    private class ZipResource extends Resource {
+        /** The zip entry of the resource. */
+        private final FastZipEntry zipEntry;
+
+        /** The path of the resource, relative to the package root. */
+        private final String pathRelativeToPackageRoot;
+
+        /**
+         * Constructor.
+         *
+         * @param zipEntry
+         *            the zip entry of the resource.
+         * @param pathRelativeToPackageRoot
+         *            the path of the resource, relative to the package root.
+         */
+        ZipResource(final FastZipEntry zipEntry, final String pathRelativeToPackageRoot) {
+            super(ClasspathElementZip.this, zipEntry.uncompressedSize);
+            this.zipEntry = zipEntry;
+            this.pathRelativeToPackageRoot = pathRelativeToPackageRoot;
+        }
+
+        /**
+         * Path with package root prefix and/or any Spring Boot prefix ("BOOT-INF/classes/" or "WEB-INF/classes/")
+         * removed.
+         */
+        @Override
+        public String getPath() {
+            return pathRelativeToPackageRoot;
+        }
+
+        @Override
+        public String getPathRelativeToClasspathElement() {
+            if (zipEntry.entryName.startsWith(packageRootPrefix)) {
+                return zipEntry.entryName.substring(packageRootPrefix.length());
+            } else {
+                return zipEntry.entryName;
+            }
+        }
+
+        @Override
+        public long getLastModifiedMillis() {
+            return zipEntry.getLastModifiedTimeMillis();
+        }
+
+        @Override
+        public @Nullable Set<PosixFilePermission> getPosixFilePermissions() {
+            final var fileAttributes = zipEntry.fileAttributes;
+            if (fileAttributes == 0) {
+                // Zip entries written by tools that do not record Unix mode bits have zero file attributes
+                return null;
+            }
+            final Set<PosixFilePermission> perms = new HashSet<>();
+            for (var i = 0; i < POSIX_FILE_PERMISSION_BITS.length; i++) {
+                if ((fileAttributes & (0400 >> i)) != 0) {
+                    perms.add(POSIX_FILE_PERMISSION_BITS[i]);
                 }
             }
+            return perms;
+        }
 
-            @Override
-            public long getLastModifiedMillis() {
-                return zipEntry.getLastModifiedTimeMillis();
+        @Override
+        ClassfileReader openClassfile() throws IOException {
+            return new ClassfileReader(open(), this);
+        }
+
+        @Override
+        public InputStream open() throws IOException {
+            checkCanOpen();
+            try {
+                inputStream = zipEntry.getSlice().open(this);
+                length = zipEntry.uncompressedSize;
+                return inputStream;
+
+            } catch (final IOException e) {
+                close();
+                throw e;
             }
+        }
 
-            @Override
-            public @Nullable Set<PosixFilePermission> getPosixFilePermissions() {
-                final var fileAttributes = zipEntry.fileAttributes;
-                if (fileAttributes == 0) {
-                    // Zip entries written by tools that do not record Unix mode bits have zero file attributes
-                    return null;
+        @Override
+        public ByteBuffer read() throws IOException {
+            checkCanOpen();
+            try {
+                byteBuffer = zipEntry.getSlice().read();
+                length = byteBuffer.remaining();
+                return byteBuffer;
+            } catch (final IOException e) {
+                close();
+                throw e;
+            }
+        }
+
+        @Override
+        public byte[] load() throws IOException {
+            checkCanOpen();
+            try (Resource res = this) { // Close this after use
+                final var byteArray = zipEntry.getSlice().load();
+                res.length = byteArray.length;
+                return byteArray;
+            }
+        }
+
+        @Override
+        public void close() {
+            if (markClosed()) {
+                if (byteBuffer != null) {
+                    // ByteBuffer should be a duplicate or slice, or should wrap an array, so it doesn't need to
+                    // be unmapped
+                    byteBuffer = null;
                 }
-                final Set<PosixFilePermission> perms = new HashSet<>();
-                for (var i = 0; i < POSIX_FILE_PERMISSION_BITS.length; i++) {
-                    if ((fileAttributes & (0400 >> i)) != 0) {
-                        perms.add(POSIX_FILE_PERMISSION_BITS[i]);
-                    }
-                }
-                return perms;
+
+                // Close inputStream
+                super.close();
             }
-
-            @Override
-            ClassfileReader openClassfile() throws IOException {
-                return new ClassfileReader(open(), this);
-            }
-
-            @Override
-            public InputStream open() throws IOException {
-                checkCanOpen();
-                try {
-                    inputStream = zipEntry.getSlice().open(this);
-                    length = zipEntry.uncompressedSize;
-                    return inputStream;
-
-                } catch (final IOException e) {
-                    close();
-                    throw e;
-                }
-            }
-
-            @Override
-            public ByteBuffer read() throws IOException {
-                checkCanOpen();
-                try {
-                    byteBuffer = zipEntry.getSlice().read();
-                    length = byteBuffer.remaining();
-                    return byteBuffer;
-                } catch (final IOException e) {
-                    close();
-                    throw e;
-                }
-            }
-
-            @Override
-            public byte[] load() throws IOException {
-                checkCanOpen();
-                try (Resource res = this) { // Close this after use
-                    final var byteArray = zipEntry.getSlice().load();
-                    res.length = byteArray.length;
-                    return byteArray;
-                }
-            }
-
-            @Override
-            public void close() {
-                if (markClosed()) {
-                    if (byteBuffer != null) {
-                        // ByteBuffer should be a duplicate or slice, or should wrap an array, so it doesn't need to
-                        // be unmapped
-                        byteBuffer = null;
-                    }
-
-                    // Close inputStream
-                    super.close();
-                }
-            }
-        };
+        }
     }
 
     /**

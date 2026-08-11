@@ -253,121 +253,152 @@ class ClasspathElementDir extends ClasspathElement {
      */
     private Resource newResource(final Path resourcePath, final String resourcePathRelativeStr,
             final @Nullable BasicFileAttributes attributes) {
-        var startIdx = 0;
-        while (startIdx < resourcePathRelativeStr.length() && resourcePathRelativeStr.charAt(startIdx) == '/') {
-            startIdx++;
+        return new DirResource(resourcePath, resourcePathRelativeStr, attributes);
+    }
+
+    /**
+     * A {@link Resource} for a file in a directory classpath element.
+     */
+    private class DirResource extends Resource {
+        /** The {@link Path} of the file. */
+        private final Path resourcePath;
+
+        /** The path of the file relative to the classpath element root, with any leading slashes removed. */
+        private final String path;
+
+        /** The file attributes of the file, or null if not yet known. */
+        private final @Nullable BasicFileAttributes attributes;
+
+        /** The {@link PathSlice} opened on the file. */
+        private @Nullable PathSlice pathSlice;
+
+        /**
+         * Constructor.
+         *
+         * @param resourcePath
+         *            the {@link Path} for the resource.
+         * @param resourcePathRelativeStr
+         *            the path of the resource relative to the classpath element root.
+         * @param attributes
+         *            the file attributes of the resource, or null if not yet known.
+         */
+        DirResource(final Path resourcePath, final String resourcePathRelativeStr,
+                final @Nullable BasicFileAttributes attributes) {
+            super(ClasspathElementDir.this, attributes == null ? NOT_YET_LOADED_LENGTH : attributes.size());
+            this.resourcePath = resourcePath;
+            this.attributes = attributes;
+            var startIdx = 0;
+            while (startIdx < resourcePathRelativeStr.length() && resourcePathRelativeStr.charAt(startIdx) == '/') {
+                startIdx++;
+            }
+            this.path = startIdx == 0 ? resourcePathRelativeStr : resourcePathRelativeStr.substring(startIdx);
         }
-        final var path = startIdx == 0 ? resourcePathRelativeStr : resourcePathRelativeStr.substring(startIdx);
-        return new Resource(this, attributes == null ? NOT_YET_LOADED_LENGTH : attributes.size()) {
-            /** The {@link PathSlice} opened on the file. */
-            private @Nullable PathSlice pathSlice;
 
-            @Override
-            public long getLength() {
-                if (length == NOT_YET_LOADED_LENGTH) {
-                    try {
-                        length = Files.size(resourcePath);
-                    } catch (IOException | SecurityException e) {
-                        length = -1;
-                    }
-                }
-                return length;
-            }
-
-            @Override
-            public String getPath() {
-                return path;
-            }
-
-            @Override
-            public String getPathRelativeToClasspathElement() {
-                return packageRootPrefix.isEmpty() ? getPath() : packageRootPrefix + getPath();
-            }
-
-            @Override
-            public long getLastModifiedMillis() {
+        @Override
+        public long getLength() {
+            if (length == NOT_YET_LOADED_LENGTH) {
                 try {
-                    return attributes == null ? resourcePath.toFile().lastModified()
-                            : attributes.lastModifiedTime().toMillis();
-                } catch (final UnsupportedOperationException e) {
-                    return 0L;
+                    length = Files.size(resourcePath);
+                } catch (IOException | SecurityException e) {
+                    length = -1;
                 }
             }
+            return length;
+        }
 
-            @Override
-            public @Nullable Set<PosixFilePermission> getPosixFilePermissions() {
-                Set<PosixFilePermission> posixFilePermissions = null;
-                try {
-                    if (attributes instanceof final PosixFileAttributes posixFileAttributes) {
-                        posixFilePermissions = posixFileAttributes.permissions();
-                    } else {
-                        posixFilePermissions = Files.readAttributes(resourcePath, PosixFileAttributes.class)
-                                .permissions();
-                    }
-                } catch (UnsupportedOperationException | IOException | SecurityException e) {
-                    // POSIX attributes not supported
+        @Override
+        public String getPath() {
+            return path;
+        }
+
+        @Override
+        public String getPathRelativeToClasspathElement() {
+            return packageRootPrefix.isEmpty() ? getPath() : packageRootPrefix + getPath();
+        }
+
+        @Override
+        public long getLastModifiedMillis() {
+            try {
+                return attributes == null ? resourcePath.toFile().lastModified()
+                        : attributes.lastModifiedTime().toMillis();
+            } catch (final UnsupportedOperationException e) {
+                return 0L;
+            }
+        }
+
+        @Override
+        public @Nullable Set<PosixFilePermission> getPosixFilePermissions() {
+            Set<PosixFilePermission> posixFilePermissions = null;
+            try {
+                if (attributes instanceof final PosixFileAttributes posixFileAttributes) {
+                    posixFilePermissions = posixFileAttributes.permissions();
+                } else {
+                    posixFilePermissions = Files.readAttributes(resourcePath, PosixFileAttributes.class)
+                            .permissions();
                 }
-                return posixFilePermissions;
+            } catch (UnsupportedOperationException | IOException | SecurityException e) {
+                // POSIX attributes not supported
             }
+            return posixFilePermissions;
+        }
 
-            @Override
-            public ByteBuffer read() throws IOException {
-                byteBuffer = openAndCreateSlice().read();
-                return byteBuffer;
+        @Override
+        public ByteBuffer read() throws IOException {
+            byteBuffer = openAndCreateSlice().read();
+            return byteBuffer;
+        }
+
+        @Override
+        ClassfileReader openClassfile() throws IOException {
+            // Classfile won't be compressed, so wrap it in a new PathSlice and then open it
+            return new ClassfileReader(openAndCreateSlice(), this);
+        }
+
+        @Override
+        public InputStream open() throws IOException {
+            final var slice = openAndCreateSlice();
+            inputStream = slice.open(this);
+            return inputStream;
+        }
+
+        @Override
+        public byte[] load() throws IOException {
+            try {
+                return openAndCreateSlice().load();
+            } finally {
+                close();
             }
+        }
 
-            @Override
-            ClassfileReader openClassfile() throws IOException {
-                // Classfile won't be compressed, so wrap it in a new PathSlice and then open it
-                return new ClassfileReader(openAndCreateSlice(), this);
-            }
-
-            @Override
-            public InputStream open() throws IOException {
-                final var slice = openAndCreateSlice();
-                inputStream = slice.open(this);
-                return inputStream;
-            }
-
-            @Override
-            public byte[] load() throws IOException {
-                try {
-                    return openAndCreateSlice().load();
-                } finally {
-                    close();
+        @Override
+        public void close() {
+            if (markClosed()) {
+                if (byteBuffer != null) {
+                    // Any ByteBuffer ref should be a duplicate, so it doesn't need to be cleaned
+                    byteBuffer = null;
                 }
-            }
-
-            @Override
-            public void close() {
-                if (markClosed()) {
-                    if (byteBuffer != null) {
-                        // Any ByteBuffer ref should be a duplicate, so it doesn't need to be cleaned
-                        byteBuffer = null;
-                    }
-                    final var slice = pathSlice;
-                    if (slice != null) {
-                        // (PathSlice#close() marks the slice as closed)
-                        slice.close();
-                        pathSlice = null;
-                    }
-
-                    // Close inputStream
-                    super.close();
+                final var slice = pathSlice;
+                if (slice != null) {
+                    // (PathSlice#close() marks the slice as closed)
+                    slice.close();
+                    pathSlice = null;
                 }
-            }
 
-            private PathSlice openAndCreateSlice() throws IOException {
-                checkCanOpen();
-                // (A resource in a directory classpath element is read once and then closed, so it is not worth
-                // memory-mapping it, even on a platform where files are memory-mapped)
-                final var slice = new PathSlice(resourcePath, scanResources, /* checkAccess = */ false,
-                        /* memoryMapWholeFile = */ false, /* log = */ null);
-                pathSlice = slice;
-                length = slice.sliceLength;
-                return slice;
+                // Close inputStream
+                super.close();
             }
-        };
+        }
+
+        private PathSlice openAndCreateSlice() throws IOException {
+            checkCanOpen();
+            // (A resource in a directory classpath element is read once and then closed, so it is not worth
+            // memory-mapping it, even on a platform where files are memory-mapped)
+            final var slice = new PathSlice(resourcePath, scanResources, /* checkAccess = */ false,
+                    /* memoryMapWholeFile = */ false, /* log = */ null);
+            pathSlice = slice;
+            length = slice.sliceLength;
+            return slice;
+        }
     }
 
     /**
