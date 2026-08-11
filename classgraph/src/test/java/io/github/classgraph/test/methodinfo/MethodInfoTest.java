@@ -30,6 +30,7 @@ package io.github.classgraph.test.methodinfo;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.io.Serial;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -51,6 +52,7 @@ public class MethodInfoTest {
      */
     public static class X extends Exception {
         /***/
+        @Serial
         private static final long serialVersionUID = 1L;
 
         /**

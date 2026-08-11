@@ -40,7 +40,7 @@ import org.jspecify.annotations.Nullable;
 
 /** A list of {@link AnnotationParameterValue} objects, which can be indexed by annotation parameter name. */
 public class AnnotationParameterValueList extends MappableInfoList<AnnotationParameterValue> {
-    /** serialVersionUID */
+    /** serialVersionUID. */
     @Serial
     private static final long serialVersionUID = 1L;
 

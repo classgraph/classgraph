@@ -174,23 +174,15 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
     @Override
     void setScanResult(final @Nullable ScanResult scanResult) {
         super.setScanResult(scanResult);
-        if (typeParameters != null) {
-            for (final TypeParameter typeParameter : typeParameters) {
-                typeParameter.setScanResult(scanResult);
-            }
+        for (final TypeParameter typeParameter : typeParameters) {
+            typeParameter.setScanResult(scanResult);
         }
-        if (this.parameterTypeSignatures != null) {
-            for (final TypeSignature typeParameter : parameterTypeSignatures) {
-                typeParameter.setScanResult(scanResult);
-            }
+        for (final TypeSignature parameterTypeSignature : parameterTypeSignatures) {
+            parameterTypeSignature.setScanResult(scanResult);
         }
-        if (this.resultType != null) {
-            this.resultType.setScanResult(scanResult);
-        }
-        if (throwsSignatures != null) {
-            for (final ClassRefOrTypeVariableSignature throwsSignature : throwsSignatures) {
-                throwsSignature.setScanResult(scanResult);
-            }
+        resultType.setScanResult(scanResult);
+        for (final ClassRefOrTypeVariableSignature throwsSignature : throwsSignatures) {
+            throwsSignature.setScanResult(scanResult);
         }
     }
 
@@ -202,20 +194,14 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
      */
     protected void findReferencedClassNames(final Set<String> refdClassNames) {
         for (final TypeParameter typeParameter : typeParameters) {
-            if (typeParameter != null) {
-                typeParameter.findReferencedClassNames(refdClassNames);
-            }
+            typeParameter.findReferencedClassNames(refdClassNames);
         }
         for (final TypeSignature typeSignature : parameterTypeSignatures) {
-            if (typeSignature != null) {
-                typeSignature.findReferencedClassNames(refdClassNames);
-            }
+            typeSignature.findReferencedClassNames(refdClassNames);
         }
         resultType.findReferencedClassNames(refdClassNames);
         for (final ClassRefOrTypeVariableSignature typeSignature : throwsSignatures) {
-            if (typeSignature != null) {
-                typeSignature.findReferencedClassNames(refdClassNames);
-            }
+            typeSignature.findReferencedClassNames(refdClassNames);
         }
     }
 

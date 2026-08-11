@@ -54,7 +54,7 @@ import org.jspecify.annotations.Nullable;
  * name.
  */
 public class MethodInfoList extends InfoList<MethodInfo> {
-    /** serialVersionUID */
+    /** serialVersionUID. */
     @Serial
     private static final long serialVersionUID = 1L;
 

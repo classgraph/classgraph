@@ -69,7 +69,7 @@ class ClasspathElementModule extends ClasspathElement {
     /**
      * A singleton map from a {@link ModuleReference} to a {@link ModuleReader} recycler for the module.
      */
-    SingletonMap<ModuleReference, Recycler<ModuleReader, IOException>, IOException> //
+    private final SingletonMap<ModuleReference, Recycler<ModuleReader, IOException>, IOException> //
     moduleReaderRecyclerMap;
 
     /** The module reader recycler, or null until {@link #open} has been called. */

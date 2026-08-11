@@ -875,9 +875,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     private static Set<ClassInfo> filterClassInfo(final Collection<ClassInfo> classes, final ScanSpec scanSpec,
             final boolean strictAccept, final ClassType... classTypes) {
-        if (classes == null) {
-            return Set.of();
-        }
         var includeAllTypes = classTypes.length == 0;
         var includeStandardClasses = false;
         var includeImplementedInterfaces = false;
@@ -2214,7 +2211,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                         .reachableClasses()) {
                     // Check if any of the meta-annotations on this annotation are @Inherited, which causes an
                     // annotation to annotate a class and all of its subclasses.
-                    if (superclassAnnotation != null && superclassAnnotation.isInherited) {
+                    if (superclassAnnotation.isInherited) {
                         // superclassAnnotation has an @Inherited meta-annotation
                         if (inheritedSuperclassAnnotations == null) {
                             inheritedSuperclassAnnotations = new LinkedHashSet<>();

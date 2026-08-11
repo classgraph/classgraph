@@ -547,10 +547,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
         // know how many parameters have been prepended -- see #660.)
         List<TypeSignature> paramTypeDescriptors = null;
         try {
-            final var typeDesc = getTypeDescriptor();
-            if (typeDesc != null) {
-                paramTypeDescriptors = typeDesc.getParameterTypeSignatures();
-            }
+            paramTypeDescriptors = getTypeDescriptor().getParameterTypeSignatures();
         } catch (final Exception e) {
             // Ignore any IllegalArgumentExceptions triggered when type annotations are not able to be aligned with
             // parameters, when there is a `synthetic`, `bridge` or `mandated` parameter added to the first
@@ -840,10 +837,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
             }
         }
         try {
-            final var methodDesc = getTypeDescriptor();
-            if (methodDesc != null) {
-                methodDesc.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
-            }
+            getTypeDescriptor().findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
         } catch (final IllegalArgumentException e) {
             if (log != null) {
                 log.log("Illegal type descriptor for method " + getClassName() + "." + getName() + ": "

@@ -38,7 +38,7 @@ import io.github.classgraph.base.internal.utils.Assert;
 
 /** A list of {@link PackageInfo} objects, which can be indexed by package name. */
 public class PackageInfoList extends MappableInfoList<PackageInfo> {
-    /** serialVersionUID */
+    /** serialVersionUID. */
     @Serial
     private static final long serialVersionUID = 1L;
 

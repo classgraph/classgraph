@@ -1158,6 +1158,14 @@ One consequence for Windows users: the classes needed to release a mapped buffer
 `ScanResult` is closed are now loaded at the start of every scan, since every scan maps.
 On Linux and macOS they are not loaded at all.
 
+### `CloseableByteBuffer#close()` no longer declares `IOException`
+
+Nothing in it can throw one — it releases the buffer and runs the close action, and any
+exception the close action throws is swallowed. Callers can drop the `catch (IOException)`
+around a `CloseableByteBuffer` they use in a try-with-resources; a `catch` that has nothing
+else in the block that could throw `IOException` now has to be removed, since catching a
+checked exception that cannot be thrown does not compile.
+
 ## Behavior changes
 
 * **Malformed classfiles are now reported rather than silently producing null names.**

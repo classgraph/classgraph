@@ -3,6 +3,7 @@ package io.github.classgraph;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -29,6 +30,7 @@ public class ClassTypeSignatureTest {
     /** A generic class with a bounded type parameter, a generic superclass and a generic interface. */
     public static class Sub<T extends Number & Comparable<T>> extends Base<T> implements Iface<T>, Serializable {
         /** Serialization version. */
+        @Serial
         private static final long serialVersionUID = 1L;
     }
 

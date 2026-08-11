@@ -1,5 +1,3 @@
-import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ScanResult;
 import java.io.File;
 import java.net.URI;
 import java.net.URL;
@@ -10,6 +8,8 @@ import java.util.List;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 
+import io.github.classgraph.ClassGraph;
+import io.github.classgraph.ScanResult;
 import io.github.classgraph.base.internal.utils.FastPathResolver;
 
 /**

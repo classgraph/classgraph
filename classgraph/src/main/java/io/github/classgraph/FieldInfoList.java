@@ -43,7 +43,7 @@ import org.jspecify.annotations.Nullable;
 
 /** A list of {@link FieldInfo} objects, which can be indexed by field name. */
 public class FieldInfoList extends MappableInfoList<FieldInfo> {
-    /** serialVersionUID */
+    /** serialVersionUID. */
     @Serial
     private static final long serialVersionUID = 1L;
 

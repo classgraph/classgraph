@@ -47,8 +47,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
-import io.github.classgraph.classpath.ModulePathInfo;
-
 import io.github.classgraph.base.internal.concurrency.AutoCloseableExecutorService;
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import io.github.classgraph.base.internal.utils.AcceptReject;
@@ -56,6 +54,7 @@ import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.base.internal.utils.JarUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.base.internal.utils.VersionFinder;
+import io.github.classgraph.classpath.ModulePathInfo;
 import io.github.classgraph.classpath.internal.spec.ClassLoaderAndModuleLayerSpec;
 import io.github.classgraph.internal.scanspec.ScanSpec;
 import org.jspecify.annotations.Nullable;
@@ -812,10 +811,10 @@ public class ClassGraph {
     public ClassGraph acceptPathsNonRecursive(final String... paths) {
         Assert.notNullElements(paths, "paths");
         for (final String path : paths) {
-            if (AcceptReject.containsWildcard(path)) {
-                throw new IllegalArgumentException("Cannot use a glob wildcard here: " + path);
-            }
             final var pathNormalized = AcceptReject.normalizePath(path);
+            if (AcceptReject.containsWildcard(pathNormalized)) {
+                throw new IllegalArgumentException("Cannot use a glob wildcard here: " + pathNormalized);
+            }
             // Accept path, but not sub-directories / nested paths
             scanSpec.packageAcceptReject.addToAccept(AcceptReject.pathToPackageName(pathNormalized));
             scanSpec.pathAcceptReject.addToAccept(pathNormalized + "/");
@@ -1338,13 +1337,7 @@ public class ClassGraph {
     public ScanResult scan(final ExecutorService executorService, final int numParallelTasks) {
         try {
             // Start the scan, then block waiting for the result
-            final var scanResult = scanAsync(executorService, numParallelTasks).get();
-
-            // The resulting scanResult cannot be null, but check for null to keep SpotBugs happy
-            if (scanResult == null) {
-                throw new NullPointerException();
-            }
-            return scanResult;
+            return scanAsync(executorService, numParallelTasks).get();
 
         } catch (final InterruptedException e) {
             // Throwing InterruptedException cleared the interrupt status, and this method reports the interruption
@@ -1402,14 +1395,7 @@ public class ClassGraph {
      */
     ScanResult getClasspathScanResult(final AutoCloseableExecutorService executorService) {
         try {
-            final var scanResult = scanAsync(/* performScan = */ false, executorService, DEFAULT_NUM_WORKER_THREADS)
-                    .get();
-
-            // The resulting scanResult cannot be null, but check for null to keep SpotBugs happy
-            if (scanResult == null) {
-                throw new NullPointerException();
-            }
-            return scanResult;
+            return scanAsync(/* performScan = */ false, executorService, DEFAULT_NUM_WORKER_THREADS).get();
 
         } catch (final InterruptedException e) {
             // Restore the interrupt status, for the same reason as in scan(ExecutorService, int)

@@ -51,7 +51,6 @@ import org.jspecify.annotations.Nullable;
  * modeled by {@link ClassRefTypeSignature} instead.)
  */
 public final class ClassTypeSignature extends HierarchicalTypeSignature {
-
     /** The class info. */
     private final ClassInfo classInfo;
 
@@ -202,19 +201,15 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
     @Override
     void setScanResult(final @Nullable ScanResult scanResult) {
         super.setScanResult(scanResult);
-        if (typeParameters != null) {
-            for (final TypeParameter typeParameter : typeParameters) {
-                typeParameter.setScanResult(scanResult);
-            }
+        for (final TypeParameter typeParameter : typeParameters) {
+            typeParameter.setScanResult(scanResult);
         }
         final var superclassSig = this.superclassSignature;
         if (superclassSig != null) {
             superclassSig.setScanResult(scanResult);
         }
-        if (superinterfaceSignatures != null) {
-            for (final ClassRefTypeSignature classRefTypeSignature : superinterfaceSignatures) {
-                classRefTypeSignature.setScanResult(scanResult);
-            }
+        for (final ClassRefTypeSignature classRefTypeSignature : superinterfaceSignatures) {
+            classRefTypeSignature.setScanResult(scanResult);
         }
     }
 
@@ -232,10 +227,8 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
         if (superclassSig != null) {
             superclassSig.findReferencedClassNames(refdClassNames);
         }
-        if (superinterfaceSignatures != null) {
-            for (final ClassRefTypeSignature typeSignature : superinterfaceSignatures) {
-                typeSignature.findReferencedClassNames(refdClassNames);
-            }
+        for (final ClassRefTypeSignature typeSignature : superinterfaceSignatures) {
+            typeSignature.findReferencedClassNames(refdClassNames);
         }
         final var throwsSigs = throwsSignatures;
         if (throwsSigs != null) {
@@ -270,7 +263,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
     @Override
     public int hashCode() {
         return typeParameters.hashCode() + (superclassSignature == null ? 1 : superclassSignature.hashCode()) * 7
-                + (superinterfaceSignatures == null ? 1 : superinterfaceSignatures.hashCode()) * 15;
+                + superinterfaceSignatures.hashCode() * 15;
     }
 
     @Override
@@ -350,7 +343,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
                 buf.append(superSig);
             }
         }
-        if (superinterfaceSignatures != null && !superinterfaceSignatures.isEmpty()) {
+        if (!superinterfaceSignatures.isEmpty()) {
             buf.append(isInterface ? " extends " : " implements ");
             for (var i = 0; i < superinterfaceSignatures.size(); i++) {
                 if (i > 0) {

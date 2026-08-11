@@ -44,7 +44,7 @@ import org.jspecify.annotations.Nullable;
  *            the element type
  */
 public class MappableInfoList<T extends HasName> extends InfoList<T> {
-    /** serialVersionUID */
+    /** serialVersionUID. */
     @Serial
     private static final long serialVersionUID = 1L;
 

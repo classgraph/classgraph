@@ -28,6 +28,7 @@
  */
 package io.github.classgraph.internal.types;
 
+import java.io.Serial;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -35,7 +36,8 @@ import org.jspecify.annotations.Nullable;
  */
 public class ParseException extends Exception {
     /** serialVersionUID. */
-    static final long serialVersionUID = 1L;
+    @Serial
+    private static final long serialVersionUID = 1L;
 
     /**
      * A parsing exception.

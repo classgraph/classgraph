@@ -65,7 +65,7 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
      */
     private @Nullable AnnotationInfoList directlyRelatedAnnotations;
 
-    /** serialVersionUID */
+    /** serialVersionUID. */
     @Serial
     private static final long serialVersionUID = 1L;
 

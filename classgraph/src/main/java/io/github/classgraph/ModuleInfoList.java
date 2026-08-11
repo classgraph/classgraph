@@ -38,7 +38,7 @@ import io.github.classgraph.base.internal.utils.Assert;
 
 /** A list of {@link ModuleInfo} objects, which can be indexed by module name. */
 public class ModuleInfoList extends MappableInfoList<ModuleInfo> {
-    /** serialVersionUID */
+    /** serialVersionUID. */
     @Serial
     private static final long serialVersionUID = 1L;
 

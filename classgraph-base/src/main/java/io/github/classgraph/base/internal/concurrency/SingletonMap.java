@@ -28,6 +28,7 @@
  */
 package io.github.classgraph.base.internal.concurrency;
 
+import java.io.Serial;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.List;
@@ -68,7 +69,8 @@ public abstract class SingletonMap<K, V, E extends Exception> {
      */
     public static class NullSingletonException extends Exception {
         /** serialVersionUID. */
-        static final long serialVersionUID = 1L;
+        @Serial
+        private static final long serialVersionUID = 1L;
 
         /**
          * Constructor.
@@ -88,7 +90,8 @@ public abstract class SingletonMap<K, V, E extends Exception> {
      */
     public static class NewInstanceException extends Exception {
         /** serialVersionUID. */
-        static final long serialVersionUID = 1L;
+        @Serial
+        private static final long serialVersionUID = 1L;
 
         /**
          * Constructor.

@@ -29,7 +29,6 @@
 package io.github.classgraph;
 
 import java.io.Closeable;
-import java.io.IOException;
 import java.nio.ByteBuffer;
 
 import org.jspecify.annotations.Nullable;
@@ -74,7 +73,7 @@ public class CloseableByteBuffer implements Closeable {
 
     /** Release the wrapped {@link ByteBuffer}. */
     @Override
-    public void close() throws IOException {
+    public void close() {
         final var onCloseRunnable = onClose;
         if (onCloseRunnable != null) {
             try {

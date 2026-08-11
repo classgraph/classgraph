@@ -2,6 +2,7 @@ package io.github.classgraph;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.io.Serial;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -19,6 +20,7 @@ public class GenericClassSimpleNamesTest {
      */
     public static class Generic<T extends Number> extends ArrayList<String> implements List<String> {
         /** serialVersionUID. */
+        @Serial
         private static final long serialVersionUID = 1L;
     }
 
@@ -27,6 +29,7 @@ public class GenericClassSimpleNamesTest {
      */
     public static class NonGeneric extends ArrayList<String> implements List<String> {
         /** serialVersionUID. */
+        @Serial
         private static final long serialVersionUID = 1L;
     }
 

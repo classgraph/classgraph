@@ -106,8 +106,7 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
         }
         // Try resolving the type variable against the containing method
         final var methodSignature = containingMethodSignature;
-        if (methodSignature != null && methodSignature.typeParameters != null
-                && !methodSignature.typeParameters.isEmpty()) {
+        if (methodSignature != null && !methodSignature.typeParameters.isEmpty()) {
             for (final TypeParameter typeParameter : methodSignature.typeParameters) {
                 if (typeParameter.name.equals(this.name)) {
                     typeParameterCached = typeParameter;
@@ -127,8 +126,7 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
             } catch (final Exception e) {
                 // Ignore
             }
-            if (containingClassSignature != null && containingClassSignature.typeParameters != null
-                    && !containingClassSignature.typeParameters.isEmpty()) {
+            if (containingClassSignature != null && !containingClassSignature.typeParameters.isEmpty()) {
                 for (final TypeParameter typeParameter : containingClassSignature.typeParameters) {
                     if (typeParameter.name.equals(this.name)) {
                         typeParameterCached = typeParameter;
@@ -160,7 +158,7 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
         // A type variable declared by the method itself shadows any type variable of the same name declared by the
         // enclosing class, and is not bound by the context class
         final var methodSignature = containingMethodSignature;
-        if (methodSignature != null && methodSignature.typeParameters != null) {
+        if (methodSignature != null) {
             for (final TypeParameter typeParameter : methodSignature.typeParameters) {
                 if (typeParameter.getName().equals(name)) {
                     return null;

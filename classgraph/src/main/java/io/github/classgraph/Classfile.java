@@ -29,6 +29,7 @@
 package io.github.classgraph;
 
 import java.io.IOException;
+import java.io.Serial;
 import java.lang.reflect.Array;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
@@ -219,7 +220,8 @@ class Classfile {
     /** Thrown when a classfile's contents are not in the correct format. */
     static class ClassfileFormatException extends IOException {
         /** serialVersionUID. */
-        static final long serialVersionUID = 1L;
+        @Serial
+        private static final long serialVersionUID = 1L;
 
         /**
          * Constructor.
@@ -257,7 +259,8 @@ class Classfile {
     /** Thrown when a classfile needs to be skipped. */
     static class SkipClassException extends IOException {
         /** serialVersionUID. */
-        static final long serialVersionUID = 1L;
+        @Serial
+        private static final long serialVersionUID = 1L;
 
         /**
          * Constructor.
@@ -1437,7 +1440,7 @@ class Classfile {
             throws IOException {
         for (int i = 1, skipSlot = 0; i < cpCount; i++) {
             if (skipSlot == 1) {
-                // Skip a slot (keeps Scrutinizer happy -- it doesn't like i++ in case 6)
+                // Skip the second of the two constant pool slots taken up by a long or double constant
                 skipSlot = 0;
                 continue;
             }
@@ -1506,7 +1509,6 @@ class Classfile {
                     + "https://github.com/classgraph/classgraph/issues");
             }
         }
-
     }
 
     /**
@@ -1733,7 +1735,7 @@ class Classfile {
                             + "Please report this at https://github.com/classgraph/classgraph/issues");
                 }
                 fieldConstValue = getFieldConstantPoolValue(entryTag[cpIdx], fieldTypeDescriptorFirstChar, cpIdx);
-            } else if (fieldIsVisible && constantPoolStringEquals(attributeNameCpIdx, "Signature")) {
+            } else if (constantPoolStringEquals(attributeNameCpIdx, "Signature")) {
                 fieldTypeSignatureStr = getConstantPoolString(reader().readUnsignedShort());
             } else if (isAnnotationsAttribute(attributeNameCpIdx)) {
                 fieldAnnotationInfo = readAnnotations(fieldAnnotationInfo);
@@ -1748,7 +1750,7 @@ class Classfile {
             }
         }
 
-        if (scanSpec.enableFieldInfo && fieldIsVisible) {
+        if (scanSpec.enableFieldInfo) {
             if (fieldInfoList == null) {
                 fieldInfoList = new FieldInfoList();
             }

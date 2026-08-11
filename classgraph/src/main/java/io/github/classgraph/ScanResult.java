@@ -52,13 +52,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 
-import io.github.classgraph.classpath.ModulePathInfo;
-
 import io.github.classgraph.base.internal.utils.AcceptReject;
 import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.base.internal.utils.FileUtils;
 import io.github.classgraph.base.internal.utils.JarUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
+import io.github.classgraph.classpath.ModulePathInfo;
 import io.github.classgraph.internal.scanspec.ScanSpec;
 import io.github.classgraph.vfs.internal.zip.NestedJarHandler;
 import org.jspecify.annotations.Nullable;
@@ -525,11 +524,7 @@ public final class ScanResult implements Closeable {
         final List<URI> classpathElementOrderURIs = new ArrayList<>();
         for (final ClasspathElement classpathElement : classpathOrder()) {
             try {
-                for (final URI uri : classpathElement.getAllURIs()) {
-                    if (uri != null) {
-                        classpathElementOrderURIs.add(uri);
-                    }
-                }
+                classpathElementOrderURIs.addAll(classpathElement.getAllURIs());
             } catch (final IllegalStateException e) {
                 // Skip null location URIs
             }

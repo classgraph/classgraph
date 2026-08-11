@@ -1,5 +1,6 @@
 package io.github.classgraph;
 
+import java.io.Serial;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
@@ -14,6 +15,7 @@ public class ThrowsClauseDependencyTest {
     /** An exception that is only referenced by a {@code throws} clause. */
     public static class ThrownException extends Exception {
         /** serialVersionUID. */
+        @Serial
         private static final long serialVersionUID = 1L;
     }
 

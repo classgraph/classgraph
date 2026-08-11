@@ -184,10 +184,8 @@ public final class TypeParameter extends HierarchicalTypeSignature {
         if (bound != null) {
             bound.setScanResult(scanResult);
         }
-        if (interfaceBounds != null) {
-            for (final ReferenceTypeSignature referenceTypeSignature : interfaceBounds) {
-                referenceTypeSignature.setScanResult(scanResult);
-            }
+        for (final ReferenceTypeSignature referenceTypeSignature : interfaceBounds) {
+            referenceTypeSignature.setScanResult(scanResult);
         }
     }
 

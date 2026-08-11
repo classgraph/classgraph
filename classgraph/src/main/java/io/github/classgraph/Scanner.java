@@ -171,8 +171,7 @@ class Scanner implements Callable<ScanResult> {
             OffHeapMemory.warmUpDirectByteBufferClosing();
         }
         if (topLevelLog != null) {
-            if (scanSpec.pathAcceptReject != null
-                    && scanSpec.packagePrefixAcceptReject.isSpecificallyAccepted("")) {
+            if (scanSpec.packagePrefixAcceptReject.isSpecificallyAccepted("")) {
                 topLevelLog.log("Note: There is no need to accept the root package (\"\") -- not accepting "
                         + "anything will have the same effect of causing all packages to be scanned");
             }
