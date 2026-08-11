@@ -31,7 +31,7 @@ package nonapi.io.github.classgraph.classpath;
 import java.util.LinkedHashSet;
 
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
-import nonapi.io.github.classgraph.scanspec.ScanSpec;
+import nonapi.io.github.classgraph.scanspec.ClassLoaderAndModuleLayerSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
@@ -56,22 +56,23 @@ public class ClassLoaderFinder {
     /**
      * A class to find the unique ordered classpath elements.
      *
-     * @param scanSpec
-     *            The scan spec, or null if none available.
+     * @param classLoaderAndModuleLayerSpec
+     *            The classloaders and module layers the caller asked to be scanned.
      * @param reflectionUtils
      *            The reflection utils instance.
      * @param log
      *            The log.
      */
-    ClassLoaderFinder(final ScanSpec scanSpec, final ReflectionUtils reflectionUtils, final @Nullable LogNode log) {
+    ClassLoaderFinder(final ClassLoaderAndModuleLayerSpec classLoaderAndModuleLayerSpec,
+            final ReflectionUtils reflectionUtils, final @Nullable LogNode log) {
         final LinkedHashSet<ClassLoader> classLoadersUnique;
         final @Nullable LogNode classLoadersFoundLog;
-        if (scanSpec.overrideClassLoaders == null) {
-            classLoadersUnique = findDefaultClassLoaders(scanSpec, reflectionUtils, log);
+        if (classLoaderAndModuleLayerSpec.overrideClassLoaders == null) {
+            classLoadersUnique = findDefaultClassLoaders(classLoaderAndModuleLayerSpec, reflectionUtils, log);
             classLoadersFoundLog = log == null ? null : log.log("Found ClassLoaders:");
         } else {
             // ClassLoaders were overridden
-            classLoadersUnique = new LinkedHashSet<>(scanSpec.overrideClassLoaders);
+            classLoadersUnique = new LinkedHashSet<>(classLoaderAndModuleLayerSpec.overrideClassLoaders);
             classLoadersFoundLog = log == null ? null : log.log("Override ClassLoaders:");
         }
 
@@ -93,15 +94,16 @@ public class ClassLoaderFinder {
      * doesn't cover parent delegation modes):
      * http://www.javaworld.com/article/2077344/core-java/find-a-way-out-of-the-classloader-maze.html?page=2
      *
-     * @param scanSpec
-     *            The scan spec.
+     * @param classLoaderAndModuleLayerSpec
+     *            The classloaders and module layers the caller asked to be scanned.
      * @param reflectionUtils
      *            The reflection utils instance.
      * @param log
      *            The log.
      * @return The classloaders, in the order they should be scanned in.
      */
-    private static LinkedHashSet<ClassLoader> findDefaultClassLoaders(final ScanSpec scanSpec,
+    private static LinkedHashSet<ClassLoader> findDefaultClassLoaders(
+            final ClassLoaderAndModuleLayerSpec classLoaderAndModuleLayerSpec,
             final ReflectionUtils reflectionUtils, final @Nullable LogNode log) {
         final LinkedHashSet<ClassLoader> classLoadersUnique = new LinkedHashSet<>();
 
@@ -150,8 +152,8 @@ public class ClassLoaderFinder {
         }
 
         // Add any custom-added classloaders after system/context/module classloaders
-        if (scanSpec.addedClassLoaders != null) {
-            classLoadersUnique.addAll(scanSpec.addedClassLoaders);
+        if (classLoaderAndModuleLayerSpec.addedClassLoaders != null) {
+            classLoadersUnique.addAll(classLoaderAndModuleLayerSpec.addedClassLoaders);
         }
         return classLoadersUnique;
     }

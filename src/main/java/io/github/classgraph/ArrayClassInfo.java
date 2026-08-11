@@ -127,7 +127,6 @@ public class ArrayClassInfo extends ClassInfo {
                     // Copy over relevant fields from array element ClassInfo
                     this.classpathElement = elementInfo.classpathElement;
                     this.classfileResource = elementInfo.classfileResource;
-                    this.classLoader = elementInfo.classLoader;
                     this.isScannedClass = elementInfo.isScannedClass;
                     this.isExternalClass = elementInfo.isExternalClass;
                     this.moduleInfo = elementInfo.moduleInfo;

@@ -145,9 +145,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     @Nullable
     Resource classfileResource;
 
-    /** The classloader this class was obtained from. */
-    @Nullable
-    ClassLoader classLoader;
+    // N.B. the classloader this class was found under is deliberately not held here -- it is read on demand from
+    // classpathElement, which references it weakly, so that a ScanResult (or a ClassInfo object that outlives it)
+    // cannot keep a classloader alive
 
     /** Info on the class module. */
     @Nullable
@@ -823,9 +823,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
 
         // Remember which classpath element (zipfile / classpath root directory / module) the class was found in
         classInfo.classpathElement = classpathElement;
-
-        // Remember which classloader is used to load the class
-        classInfo.classLoader = classpathElement.getClassLoader();
 
         return classInfo;
     }
@@ -3654,11 +3651,16 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * {@link Class} reference for this class, load it yourself with this classloader, e.g.
      * {@code Class.forName(classInfo.getName(), false, classInfo.getClassLoader())}.
      *
+     * <p>
+     * The classloader is referenced weakly, so that a scan cannot keep a classloader alive. If you need to load
+     * classes from a classloader you built yourself, keep your own reference to it for as long as you need it.
+     *
      * @return The classloader that this class was found under. Returns null if the classloader is not known, e.g.
-     *         because this class was not itself accepted, but was referenced by an accepted class.
+     *         because this class was not itself accepted, but was referenced by an accepted class, or because the
+     *         classloader has been garbage collected.
      */
     public @Nullable ClassLoader getClassLoader() {
-        return classLoader;
+        return classpathElement == null ? null : classpathElement.getClassLoader();
     }
 
     // -------------------------------------------------------------------------------------------------------------

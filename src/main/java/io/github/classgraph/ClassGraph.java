@@ -52,6 +52,7 @@ import nonapi.io.github.classgraph.concurrency.AutoCloseableExecutorService;
 import nonapi.io.github.classgraph.concurrency.InterruptionChecker;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.AcceptReject;
+import nonapi.io.github.classgraph.scanspec.ClassLoaderAndModuleLayerSpec;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.Assert;
 import nonapi.io.github.classgraph.utils.JarUtils;
@@ -86,6 +87,13 @@ import org.jspecify.annotations.Nullable;
 public class ClassGraph {
     /** The scanning specification. */
     ScanSpec scanSpec = new ScanSpec();
+
+    /**
+     * The classloaders and module layers to scan, if the caller named any. Held separately from the
+     * {@link ScanSpec}, so that a {@link ScanResult} cannot keep a classloader alive (a {@link ScanResult} holds
+     * its {@link ScanSpec}, but never this).
+     */
+    final ClassLoaderAndModuleLayerSpec classLoaderAndModuleLayerSpec = new ClassLoaderAndModuleLayerSpec();
 
     /**
      * The default number of worker threads to use while scanning. This number gave the best results on a relatively
@@ -631,7 +639,7 @@ public class ClassGraph {
      */
     public ClassGraph addClassLoader(final ClassLoader classLoader) {
         Assert.notNull(classLoader, "classLoader");
-        scanSpec.addClassLoader(classLoader);
+        classLoaderAndModuleLayerSpec.addClassLoader(classLoader);
         return this;
     }
 
@@ -665,7 +673,7 @@ public class ClassGraph {
      */
     public ClassGraph overrideClassLoaders(final ClassLoader... overrideClassLoaders) {
         Assert.notNullElements(overrideClassLoaders, "overrideClassLoaders");
-        scanSpec.overrideClassLoaders(overrideClassLoaders);
+        classLoaderAndModuleLayerSpec.overrideClassLoaders(overrideClassLoaders);
         return this;
     }
 
@@ -695,7 +703,7 @@ public class ClassGraph {
      */
     public ClassGraph addModuleLayer(final ModuleLayer moduleLayer) {
         Assert.notNull(moduleLayer, "moduleLayer");
-        scanSpec.addModuleLayer(moduleLayer);
+        classLoaderAndModuleLayerSpec.addModuleLayer(moduleLayer);
         return this;
     }
 
@@ -711,7 +719,7 @@ public class ClassGraph {
      */
     public ClassGraph overrideModuleLayers(final ModuleLayer... overrideModuleLayers) {
         Assert.notNullElements(overrideModuleLayers, "overrideModuleLayers");
-        scanSpec.overrideModuleLayers(overrideModuleLayers);
+        classLoaderAndModuleLayerSpec.overrideModuleLayers(overrideModuleLayers);
         return this;
     }
 
@@ -1398,8 +1406,8 @@ public class ClassGraph {
         executorService.execute(() -> {
             try {
                 // Call scanner, but ignore the returned ScanResult
-                new Scanner(/* performScan = */ true, scanSpec, executorService, numParallelTasks,
-                        scanResultProcessor, failureHandler, reflectionUtils, topLevelLog).call();
+                new Scanner(/* performScan = */ true, scanSpec, classLoaderAndModuleLayerSpec, executorService,
+                        numParallelTasks, scanResultProcessor, failureHandler, reflectionUtils, topLevelLog).call();
             } catch (final Throwable t) {
                 // Call failure handler. Anything thrown before the Scanner starts running the scan (e.g. by a
                 // user-supplied classpath element filter, which the Scanner constructor calls) has to be caught
@@ -1428,8 +1436,9 @@ public class ClassGraph {
     private Future<ScanResult> scanAsync(final boolean performScan, final ExecutorService executorService,
             final int numParallelTasks) {
         try {
-            return executorService.submit(new Scanner(performScan, scanSpec, executorService, numParallelTasks,
-                    /* scanResultProcessor = */ null, /* failureHandler = */ null, reflectionUtils, topLevelLog));
+            return executorService.submit(new Scanner(performScan, scanSpec, classLoaderAndModuleLayerSpec,
+                    executorService, numParallelTasks, /* scanResultProcessor = */ null,
+                    /* failureHandler = */ null, reflectionUtils, topLevelLog));
         } catch (final InterruptedException e) {
             // Interrupted during the Scanner constructor's execution (specifically, by getModuleOrder(), which is
             // unlikely to ever actually be interrupted -- but this exception needs to be caught). (the cast is

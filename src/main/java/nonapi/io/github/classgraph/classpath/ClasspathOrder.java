@@ -30,6 +30,7 @@ package nonapi.io.github.classgraph.classpath;
 
 import java.io.File;
 import java.io.IOError;
+import java.lang.ref.WeakReference;
 import java.lang.reflect.Array;
 import java.net.MalformedURLException;
 import java.net.URI;
@@ -114,8 +115,11 @@ public class ClasspathOrder {
          */
         public final Object classpathEntryObj;
 
-        /** The classloader the classpath element was obtained from. */
-        public final @Nullable ClassLoader classLoader;
+        /**
+         * The classloader the classpath element was obtained from, or a reference to null if unknown. This is a
+         * weak reference, so that finding the classpath does not keep a classloader alive.
+         */
+        private final WeakReference<ClassLoader> classLoaderRef;
 
         /**
          * The automatic package root prefixes to look for within this classpath element, as declared by the
@@ -136,8 +140,17 @@ public class ClasspathOrder {
         public ClasspathEntry(final Object classpathEntryObj, final @Nullable ClassLoader classLoader,
                 final String[] packageRootPrefixes) {
             this.classpathEntryObj = classpathEntryObj;
-            this.classLoader = classLoader;
+            this.classLoaderRef = new WeakReference<>(classLoader);
             this.packageRootPrefixes = packageRootPrefixes;
+        }
+
+        /**
+         * Get the classloader the classpath element was obtained from.
+         *
+         * @return the classloader, or null if it was unknown or has since been garbage collected.
+         */
+        public @Nullable ClassLoader getClassLoader() {
+            return classLoaderRef.get();
         }
 
         @Override
@@ -158,7 +171,7 @@ public class ClasspathOrder {
 
         @Override
         public String toString() {
-            return classpathEntryObj + " [" + classLoader + "]";
+            return classpathEntryObj + " [" + classLoaderRef.get() + "]";
         }
     }
 

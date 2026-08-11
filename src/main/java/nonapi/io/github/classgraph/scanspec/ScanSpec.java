@@ -36,7 +36,6 @@ import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -197,26 +196,9 @@ public class ScanSpec {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /**
-     * If non-null, specifies manually-added classloaders that should be searched after the context classloader(s).
-     */
-    public @Nullable List<ClassLoader> addedClassLoaders;
-
-    /**
-     * If non-null, this list of ClassLoaders will be searched instead of the visible/context ClassLoader(s). In
-     * particular, this causes ClassGraph to ignore the java.class.path system property.
-     */
-    public @Nullable List<ClassLoader> overrideClassLoaders;
-
-    /**
-     * If non-null, specifies manually-added ModuleLayers that should be searched after the visible ModuleLayers.
-     */
-    public @Nullable List<ModuleLayer> addedModuleLayers;
-
-    /**
-     * If non-null, this list of ModuleLayers will be searched instead of the visible ModuleLayers.
-     */
-    public @Nullable List<ModuleLayer> overrideModuleLayers;
+    // N.B. the classloaders and module layers to scan are deliberately not held here, but in
+    // ClassLoaderAndModuleLayerSpec, since a ScanResult holds its ScanSpec, and a scan must not keep a classloader
+    // alive after it has finished with it
 
     /**
      * If non-null, specifies a list of classpath elements (String, {@link URL} or {@link URI} to use to override
@@ -450,21 +432,6 @@ public class ScanSpec {
     }
 
     /**
-     * Add a ClassLoader to the list of ClassLoaders to scan. (This only works if overrideClasspath() is not
-     * called.)
-     *
-     * @param classLoader
-     *            The classloader to add.
-     */
-    public void addClassLoader(final ClassLoader classLoader) {
-        Assert.notNull(classLoader, "classLoader");
-        if (this.addedClassLoaders == null) {
-            this.addedClassLoaders = new ArrayList<>();
-        }
-        this.addedClassLoaders.add(classLoader);
-    }
-
-    /**
      * Allow a specified URL scheme in classpath elements.
      *
      * @param scheme
@@ -479,60 +446,6 @@ public class ScanSpec {
             allowedURLSchemes = new HashSet<>();
         }
         allowedURLSchemes.add(scheme.toLowerCase(Locale.ROOT));
-    }
-
-    /**
-     * Completely override the list of ClassLoaders to scan. (This only works if overrideClasspath() is not called.)
-     * Causes the java.class.path system property to be ignored.
-     *
-     * @param overrideClassLoaders
-     *            The classloaders to override the default context classloaders with.
-     */
-    public void overrideClassLoaders(final ClassLoader... overrideClassLoaders) {
-        Assert.notNullElements(overrideClassLoaders, "overrideClassLoaders");
-        if (overrideClassLoaders.length == 0) {
-            throw new IllegalArgumentException("At least one override ClassLoader must be provided");
-        }
-        this.addedClassLoaders = null;
-        this.overrideClassLoaders = new ArrayList<>();
-        Collections.addAll(this.overrideClassLoaders, overrideClassLoaders);
-    }
-
-    /**
-     * Add a ModuleLayer to the list of ModuleLayers to scan. Use this method if you define your own ModuleLayer,
-     * but the scanning code is not running within that custom ModuleLayer.
-     *
-     * <p>
-     * This call is ignored if it is called before {@link #overrideModuleLayers(ModuleLayer...)}.
-     *
-     * @param moduleLayer
-     *            The additional ModuleLayer to scan.
-     */
-    public void addModuleLayer(final ModuleLayer moduleLayer) {
-        Assert.notNull(moduleLayer, "moduleLayer");
-        if (this.addedModuleLayers == null) {
-            this.addedModuleLayers = new ArrayList<>();
-        }
-        this.addedModuleLayers.add(moduleLayer);
-    }
-
-    /**
-     * Completely override (and ignore) the visible ModuleLayers, and instead scan the requested ModuleLayers.
-     *
-     * <p>
-     * This call is ignored if overrideClasspath() is called.
-     *
-     * @param overrideModuleLayers
-     *            The ModuleLayers to scan instead of the automatically-detected ModuleLayers.
-     */
-    public void overrideModuleLayers(final ModuleLayer... overrideModuleLayers) {
-        Assert.notNullElements(overrideModuleLayers, "overrideModuleLayers");
-        if (overrideModuleLayers.length == 0) {
-            throw new IllegalArgumentException("At least one override ModuleLayer must be provided");
-        }
-        this.addedModuleLayers = null;
-        this.overrideModuleLayers = new ArrayList<>();
-        Collections.addAll(this.overrideModuleLayers, overrideModuleLayers);
     }
 
     // -------------------------------------------------------------------------------------------------------------

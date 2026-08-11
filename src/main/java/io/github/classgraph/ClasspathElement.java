@@ -30,6 +30,7 @@ package io.github.classgraph;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.ref.WeakReference;
 import java.net.URI;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -118,9 +119,12 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
     protected final AtomicBoolean scanned = new AtomicBoolean(false);
 
     /**
-     * The classloader that this classpath element was obtained from, or null if unknown.
+     * The classloader that this classpath element was obtained from, or a reference to null if unknown. This is a
+     * weak reference, because a {@link ClasspathElement} is reachable from a {@link ScanResult} and from every
+     * {@link ClassInfo} object found within it, and loading classes is the caller's responsibility in this version,
+     * so a scan must not keep a classloader alive.
      */
-    protected @Nullable ClassLoader classLoader;
+    protected WeakReference<ClassLoader> classLoaderRef;
 
     /** The package root within the jarfile or Path. */
     protected String packageRootPrefix;
@@ -161,7 +165,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
     ClasspathElement(final ClasspathEntryWorkUnit workUnit, final ScanSpec scanSpec) {
         this.packageRootPrefix = workUnit.packageRootPrefix;
         this.packageRootPrefixes = workUnit.packageRootPrefixes;
-        this.classLoader = workUnit.classLoader;
+        this.classLoaderRef = new WeakReference<>(workUnit.getClassLoader());
         this.scanSpec = scanSpec;
     }
 
@@ -218,11 +222,11 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
             // A toplevel reference always beats a reference from a parent classpath element
             isToplevel = true;
             classpathElementIdxWithinParent = idx;
-            this.classLoader = classLoader;
+            this.classLoaderRef = new WeakReference<>(classLoader);
         } else if (isToplevelRef == isToplevel && idx < classpathElementIdxWithinParent) {
             // Otherwise the earliest reference of the same kind wins
             classpathElementIdxWithinParent = idx;
-            this.classLoader = classLoader;
+            this.classLoaderRef = new WeakReference<>(classLoader);
         }
     }
 
@@ -241,13 +245,14 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the ClassLoader the classpath element was obtained from.
+     * Get the ClassLoader the classpath element was obtained from. The classloader is referenced weakly, so this
+     * can start returning null once the caller no longer holds a reference to the classloader.
      *
-     * @return the classloader, or null if unknown
+     * @return the classloader, or null if unknown or garbage collected
      */
     @Nullable
     ClassLoader getClassLoader() {
-        return classLoader;
+        return classLoaderRef.get();
     }
 
     // -------------------------------------------------------------------------------------------------------------

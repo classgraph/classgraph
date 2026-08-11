@@ -30,6 +30,8 @@ package io.github.classgraph;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.ref.Reference;
+import java.lang.ref.WeakReference;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -62,7 +64,6 @@ import io.github.classgraph.Classfile.ClassfileFormatException;
 import io.github.classgraph.Classfile.SkipClassException;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
 import nonapi.io.github.classgraph.classpath.ClasspathFinder;
-import nonapi.io.github.classgraph.classpath.ClasspathOrder.ClasspathEntry;
 import nonapi.io.github.classgraph.concurrency.AutoCloseableExecutorService;
 import nonapi.io.github.classgraph.concurrency.InterruptionChecker;
 import nonapi.io.github.classgraph.concurrency.SingletonMap;
@@ -70,6 +71,7 @@ import nonapi.io.github.classgraph.concurrency.WorkQueue;
 import nonapi.io.github.classgraph.concurrency.WorkQueue.WorkUnitProcessor;
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
+import nonapi.io.github.classgraph.scanspec.ClassLoaderAndModuleLayerSpec;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.CollectionUtils;
 import nonapi.io.github.classgraph.utils.FastPathResolver;
@@ -83,6 +85,17 @@ class Scanner implements Callable<ScanResult> {
 
     /** The scan spec. */
     private final ScanSpec scanSpec;
+
+    /**
+     * The classloaders and module layers the caller asked to be scanned. This is the only strong reference to those
+     * classloaders that ClassGraph itself creates: everything downstream of classpath finding refers to
+     * classloaders weakly, so this field is what keeps a classloader that the caller has no other reference to
+     * (e.g. {@code new ClassGraph().overrideClassLoaders(new URLClassLoader(urls)).scan()}) alive until the scan
+     * ends. A {@link ScanResult} does not reference the {@link Scanner}, so the reference does not outlive the
+     * scan. Nothing reads this field after the constructor, so {@link #call()} holds it with a
+     * {@link Reference#reachabilityFence(Object)} for the duration of the scan.
+     */
+    private final ClassLoaderAndModuleLayerSpec classLoaderAndModuleLayerSpec;
 
     /** If true, performing a scan. If false, only fetching the classpath. */
     private final boolean performScan;
@@ -108,8 +121,13 @@ class Scanner implements Callable<ScanResult> {
     /** The toplevel log. */
     private final @Nullable LogNode topLevelLog;
 
-    /** The classpath finder. */
-    private final ClasspathFinder classpathFinder;
+    /**
+     * The toplevel classpath entries found by the {@link ClasspathFinder}, in classpath order, ready to be opened.
+     * These are extracted from the {@link ClasspathFinder} in the constructor so that the {@link ClasspathFinder}
+     * and everything it holds (in particular its strong references to classloaders) can be discarded as soon as the
+     * classpath has been found.
+     */
+    private final List<ClasspathEntryWorkUnit> rawClasspathEntryWorkUnits;
 
     /** The module order. */
     private final List<ClasspathElementModule> moduleOrder;
@@ -129,6 +147,8 @@ class Scanner implements Callable<ScanResult> {
      *            If true, performing a scan. If false, only fetching the classpath.
      * @param scanSpec
      *            the scan spec
+     * @param classLoaderAndModuleLayerSpec
+     *            the classloaders and module layers the caller asked to be scanned
      * @param executorService
      *            the executor service
      * @param numParallelTasks
@@ -145,14 +165,18 @@ class Scanner implements Callable<ScanResult> {
      * @throws InterruptedException
      *             if interrupted
      */
-    Scanner(final boolean performScan, final ScanSpec scanSpec, final ExecutorService executorService,
-            final int numParallelTasks, final @Nullable Consumer<ScanResult> scanResultProcessor,
+    Scanner(final boolean performScan, final ScanSpec scanSpec,
+            final ClassLoaderAndModuleLayerSpec classLoaderAndModuleLayerSpec,
+            final ExecutorService executorService, final int numParallelTasks,
+            final @Nullable Consumer<ScanResult> scanResultProcessor,
             final @Nullable Consumer<Throwable> failureHandler, final ReflectionUtils reflectionUtils,
             final @Nullable LogNode topLevelLog) throws InterruptedException {
         this.scanSpec = scanSpec;
+        this.classLoaderAndModuleLayerSpec = classLoaderAndModuleLayerSpec;
         this.performScan = performScan;
         scanSpec.sortPrefixes();
         scanSpec.log(topLevelLog);
+        classLoaderAndModuleLayerSpec.log(topLevelLog);
         if (scanSpec.memoryMapFiles) {
             // Memory mapping is the only thing that makes ClassGraph allocate direct ByteBuffers, and those buffers
             // are freed when the ScanResult is closed, which can happen long after the scan -- so load the classes
@@ -179,7 +203,10 @@ class Scanner implements Callable<ScanResult> {
         this.topLevelLog = topLevelLog;
 
         final var classpathFinderLog = topLevelLog == null ? null : topLevelLog.log("Finding classpath");
-        this.classpathFinder = new ClasspathFinder(scanSpec, reflectionUtils, classpathFinderLog);
+        // The ClasspathFinder is deliberately not stored in a field: it holds strong references to the classloaders
+        // that were used to find the classpath, and those must not be kept alive for the duration of the scan
+        final var classpathFinder = new ClasspathFinder(scanSpec, classLoaderAndModuleLayerSpec, reflectionUtils,
+                classpathFinderLog);
 
         try {
             this.moduleOrder = new ArrayList<>();
@@ -202,6 +229,18 @@ class Scanner implements Callable<ScanResult> {
             }
             this.unscannedModules = new UnscannedModules(unscannedModuleRefs,
                     nestedJarHandler.scanResources.moduleRefToModuleReaderRecyclerMap(), scanSpec);
+
+            // Turn the toplevel classpath entries into work units, so that the ClasspathFinder (and the classloader
+            // references it holds) can be discarded now that the classpath has been found
+            this.rawClasspathEntryWorkUnits = new ArrayList<>();
+            for (final var rawClasspathEntry : classpathFinder.getClasspathOrder().getOrder()) {
+                rawClasspathEntryWorkUnits.add(new ClasspathEntryWorkUnit(rawClasspathEntry.classpathEntryObj,
+                        rawClasspathEntry.getClassLoader(), /* parentClasspathElement = */ null,
+                        // classpathElementIdxWithinParent is the original classpath index, for toplevel classpath
+                        // elements
+                        /* classpathElementIdxWithinParent = */ rawClasspathEntryWorkUnits.size(),
+                        /* packageRootPrefix = */ "", rawClasspathEntry.packageRootPrefixes));
+            }
         } catch (final InterruptedException e) {
             nestedJarHandler.close(/* log = */ null);
             throw e;
@@ -359,9 +398,10 @@ class Scanner implements Callable<ScanResult> {
         Object classpathEntryObj;
 
         /**
-         * The classloader the classpath entry object was obtained from, or null if unknown.
+         * The classloader the classpath entry object was obtained from, or a reference to null if unknown. This is
+         * a weak reference, so that scanning does not keep a classloader alive.
          */
-        final @Nullable ClassLoader classLoader;
+        private final WeakReference<ClassLoader> classLoaderRef;
 
         /** The parent classpath element, or null if this is a toplevel entry. */
         final @Nullable ClasspathElement parentClasspathElement;
@@ -399,11 +439,21 @@ class Scanner implements Callable<ScanResult> {
                 final int classpathElementIdxWithinParent, final String packageRootPrefix,
                 final String[] packageRootPrefixes) {
             this.classpathEntryObj = classpathEntryObj;
-            this.classLoader = classLoader;
+            this.classLoaderRef = new WeakReference<>(classLoader);
             this.parentClasspathElement = parentClasspathElement;
             this.classpathElementIdxWithinParent = classpathElementIdxWithinParent;
             this.packageRootPrefix = packageRootPrefix;
             this.packageRootPrefixes = packageRootPrefixes;
+        }
+
+        /**
+         * Get the classloader the classpath entry object was obtained from.
+         *
+         * @return the classloader, or null if it was unknown or has since been garbage collected.
+         */
+        @Nullable
+        ClassLoader getClassLoader() {
+            return classLoaderRef.get();
         }
     }
 
@@ -676,7 +726,7 @@ class Scanner implements Callable<ScanResult> {
                     parentClasspathElement.childClasspathElements.add(classpathElement);
                 }
                 classpathElement.addReference(parentClasspathElement == null,
-                        workUnit.classpathElementIdxWithinParent, workUnit.classLoader);
+                        workUnit.classpathElementIdxWithinParent, workUnit.getClassLoader());
 
             } catch (final Exception e) {
                 if (log != null) {
@@ -1159,18 +1209,6 @@ class Scanner implements Callable<ScanResult> {
      *             if a worker threw an uncaught exception
      */
     private ScanResult openClasspathElementsThenScan() throws InterruptedException, ExecutionException {
-        // Get order of elements in traditional classpath
-        final List<ClasspathEntryWorkUnit> rawClasspathEntryWorkUnits = new ArrayList<>();
-        final var rawClasspathOrder = classpathFinder.getClasspathOrder().getOrder();
-        for (final ClasspathEntry rawClasspathEntry : rawClasspathOrder) {
-            rawClasspathEntryWorkUnits.add(new ClasspathEntryWorkUnit(rawClasspathEntry.classpathEntryObj,
-                    rawClasspathEntry.classLoader, /* parentClasspathElement = */ null,
-                    // classpathElementIdxWithinParent is the original classpath index, for toplevel classpath
-                    // elements
-                    /* classpathElementIdxWithinParent = */ rawClasspathEntryWorkUnits.size(),
-                    /* packageRootPrefix = */ "", rawClasspathEntry.packageRootPrefixes));
-        }
-
         // In parallel, create a ClasspathElement singleton for each classpath element, then call open() on each
         // ClasspathElement object, which in the case of jarfiles will cause LogicalZipFile instances to be created
         // for each (possibly nested) jarfile, then will read the manifest file and zip entries.
@@ -1340,6 +1378,12 @@ class Scanner implements Callable<ScanResult> {
                     throw failureHandlerException;
                 }
             }
+        } finally {
+            // classLoaderAndModuleLayerSpec is written by the constructor and never read again, so without this
+            // fence the JIT would be free to treat the Scanner as unreachable partway through the scan, and the
+            // caller's classloaders could be collected while they are still being scanned -- everything downstream
+            // of classpath finding refers to classloaders weakly, so this field is the only thing keeping them alive
+            Reference.reachabilityFence(classLoaderAndModuleLayerSpec);
         }
 
         if (removeTemporaryFilesAfterScan) {

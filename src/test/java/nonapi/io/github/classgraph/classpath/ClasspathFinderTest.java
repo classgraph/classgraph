@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
+import nonapi.io.github.classgraph.scanspec.ClassLoaderAndModuleLayerSpec;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
 
@@ -35,9 +36,11 @@ public class ClasspathFinderTest {
         scanSpec.enableSystemJarsAndModules = true;
         scanSpec.ignoreParentClassLoaders = true;
         scanSpec.overrideClasspath = List.of(classesDir);
+        final var classLoaderAndModuleLayerSpec = new ClassLoaderAndModuleLayerSpec();
 
         // Act
-        final var classpathFinder = new ClasspathFinder(scanSpec, new ReflectionUtils(), new LogNode());
+        final var classpathFinder = new ClasspathFinder(scanSpec, classLoaderAndModuleLayerSpec,
+                new ReflectionUtils(), new LogNode());
         final var moduleFinder = classpathFinder.getModuleFinder();
 
         // Assert
@@ -54,7 +57,7 @@ public class ClasspathFinderTest {
 
     /**
      * Test that {@link ScanSpec#enableSystemJarsAndModules}, {@link ScanSpec#ignoreParentClassLoaders}, and
-     * {@link ScanSpec#overrideClassLoaders} work in combination:
+     * {@link ClassLoaderAndModuleLayerSpec#overrideClassLoaders} work in combination:
      * <p>
      * Only the system modules and the override classloaders should be found.
      */
@@ -65,10 +68,13 @@ public class ClasspathFinderTest {
         final var scanSpec = new ScanSpec();
         scanSpec.enableSystemJarsAndModules = true;
         scanSpec.ignoreParentClassLoaders = true;
-        scanSpec.overrideClassLoaders(new URLClassLoader(new URL[] { classesDir.toUri().toURL() }));
+        final var classLoaderAndModuleLayerSpec = new ClassLoaderAndModuleLayerSpec();
+        classLoaderAndModuleLayerSpec
+                .overrideClassLoaders(new URLClassLoader(new URL[] { classesDir.toUri().toURL() }));
 
         // Act
-        final var classpathFinder = new ClasspathFinder(scanSpec, new ReflectionUtils(), new LogNode());
+        final var classpathFinder = new ClasspathFinder(scanSpec, classLoaderAndModuleLayerSpec,
+                new ReflectionUtils(), new LogNode());
         final var moduleFinder = classpathFinder.getModuleFinder();
 
         // Assert
@@ -119,9 +125,11 @@ public class ClasspathFinderTest {
     @Test
     public void applicationClassLoaderOverrideScansClasspathAndNonSystemModules() throws Exception {
         final var scanSpec = new ScanSpec();
-        scanSpec.overrideClassLoaders(ClassLoader.getSystemClassLoader());
+        final var classLoaderAndModuleLayerSpec = new ClassLoaderAndModuleLayerSpec();
+        classLoaderAndModuleLayerSpec.overrideClassLoaders(ClassLoader.getSystemClassLoader());
 
-        final var classpathFinder = new ClasspathFinder(scanSpec, new ReflectionUtils(), new LogNode());
+        final var classpathFinder = new ClasspathFinder(scanSpec, classLoaderAndModuleLayerSpec,
+                new ReflectionUtils(), new LogNode());
 
         assertTrue(resolvedPaths(classpathFinder).contains(testClasspathElement()),
                 "java.class.path should have been scanned");
@@ -138,9 +146,11 @@ public class ClasspathFinderTest {
     @Test
     public void platformClassLoaderOverrideDoesNotScanClasspath() throws Exception {
         final var scanSpec = new ScanSpec();
-        scanSpec.overrideClassLoaders(ClassLoader.getPlatformClassLoader());
+        final var classLoaderAndModuleLayerSpec = new ClassLoaderAndModuleLayerSpec();
+        classLoaderAndModuleLayerSpec.overrideClassLoaders(ClassLoader.getPlatformClassLoader());
 
-        final var classpathFinder = new ClasspathFinder(scanSpec, new ReflectionUtils(), new LogNode());
+        final var classpathFinder = new ClasspathFinder(scanSpec, classLoaderAndModuleLayerSpec,
+                new ReflectionUtils(), new LogNode());
 
         final var moduleFinder = classpathFinder.getModuleFinder();
         assertNotNull(moduleFinder, "Modules should have been searched for");
@@ -157,9 +167,11 @@ public class ClasspathFinderTest {
     @Test
     public void addedPlatformClassLoaderEnablesSystemJarsAndModules() {
         final var scanSpec = new ScanSpec();
-        scanSpec.addClassLoader(ClassLoader.getPlatformClassLoader());
+        final var classLoaderAndModuleLayerSpec = new ClassLoaderAndModuleLayerSpec();
+        classLoaderAndModuleLayerSpec.addClassLoader(ClassLoader.getPlatformClassLoader());
 
-        final var classpathFinder = new ClasspathFinder(scanSpec, new ReflectionUtils(), new LogNode());
+        final var classpathFinder = new ClasspathFinder(scanSpec, classLoaderAndModuleLayerSpec,
+                new ReflectionUtils(), new LogNode());
 
         final var moduleFinder = classpathFinder.getModuleFinder();
         assertNotNull(moduleFinder, "Modules should have been searched for");
