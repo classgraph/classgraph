@@ -156,6 +156,34 @@ public final class FileUtils {
      */
     public static String sanitizeEntryPath(final String path, final boolean removeInitialSlash,
             final boolean removeFinalSlash) {
+        return sanitizeEntryPath(path, removeInitialSlash, removeFinalSlash,
+                /* collapseParentSegmentsInFirstSection = */ true);
+    }
+
+    /**
+     * Sanitize relative paths against "zip slip" vulnerability, by removing path segments if ".." is found in the
+     * URL, but without allowing navigation above the path hierarchy root. Treats each "!" character as a new path
+     * hierarchy root. Also removes "." and empty path segments ("//").
+     *
+     * @param path
+     *            The path to sanitize.
+     * @param removeInitialSlash
+     *            If true, remove any '/' character(s) from the beginning of the returned path.
+     * @param removeFinalSlash
+     *            If true, remove any '/' character(s) from the end of the returned path.
+     * @param collapseParentSegmentsInFirstSection
+     *            If true, a ".." segment before the first nested jar separator removes the segment before it, as it
+     *            does in every later section. If false, a ".." segment there is left in the path for the filesystem
+     *            to resolve. Pass false only for the first section of a path that names a file on disk, where the
+     *            two differ: after a symlinked directory, ".." names the parent of the directory the symlink points
+     *            at, not the parent of the symlink, so collapsing it here would name a different file than the one
+     *            the path reaches. Every later section is a path within an archive, which has no symlinks and no
+     *            filesystem to ask, so ".." there is always collapsed -- that is what stops a "zip slip" entry name
+     *            from escaping the archive.
+     * @return The sanitized path.
+     */
+    public static String sanitizeEntryPath(final String path, final boolean removeInitialSlash,
+            final boolean removeFinalSlash, final boolean collapseParentSegmentsInFirstSection) {
         if (path.isEmpty()) {
             return "";
         }
@@ -172,18 +200,24 @@ public final class FileUtils {
         {
             int lastSepIdx = -1;
             char prevC = '\0';
+            boolean inFirstSection = true;
             for (int i = 0, ii = pathLen + 1; i < ii; i++) {
                 final char c = i == pathLen ? '\0' : path.charAt(i);
-                if (c == '/' || (c == '!' && nestedJarSepIdx >= 0 && i >= nestedJarSepIdx) || c == '\0') {
+                final boolean isSectionMarker = c == '!' && nestedJarSepIdx >= 0 && i >= nestedJarSepIdx;
+                if (c == '/' || isSectionMarker || c == '\0') {
                     final int segmentLength = i - (lastSepIdx + 1);
                     if (
                     // Found empty segment "//" or "!!"
                     (segmentLength == 0 && prevC == c)
                             // Found segment "."
                             || (segmentLength == 1 && path.charAt(i - 1) == '.')
-                            // Found segment ".."
-                            || (segmentLength == 2 && path.charAt(i - 2) == '.' && path.charAt(i - 1) == '.')) {
+                            // Found segment ".." that has to be collapsed
+                            || (segmentLength == 2 && path.charAt(i - 2) == '.' && path.charAt(i - 1) == '.'
+                                    && (collapseParentSegmentsInFirstSection || !inFirstSection))) {
                         foundSegmentToSanitize = true;
+                    }
+                    if (isSectionMarker) {
+                        inFirstSection = false;
                     }
                     lastSepIdx = i;
                 }
@@ -201,6 +235,7 @@ public final class FileUtils {
             List<CharSequence> currSectionSegments = new ArrayList<>();
             allSectionSegments.add(currSectionSegments);
             int lastSepIdx = -1;
+            boolean inFirstSection = true;
             for (int i = 0; i < pathLen + 1; i++) {
                 final char c = i == pathLen ? '\0' : path.charAt(i);
                 final boolean isSectionMarker = c == '!' && nestedJarSepIdx >= 0 && i >= nestedJarSepIdx;
@@ -210,7 +245,8 @@ public final class FileUtils {
                     if (segmentLen == 0 || (segmentLen == 1 && path.charAt(segmentStartIdx) == '.')) {
                         // Ignore empty segment "//" or idempotent segment "/./"
                     } else if (segmentLen == 2 && path.charAt(segmentStartIdx) == '.'
-                            && path.charAt(segmentStartIdx + 1) == '.') {
+                            && path.charAt(segmentStartIdx + 1) == '.'
+                            && (collapseParentSegmentsInFirstSection || !inFirstSection)) {
                         // Remove one segment if ".." encountered, but do not allow ".." above top of hierarchy
                         if (!currSectionSegments.isEmpty()) {
                             currSectionSegments.remove(currSectionSegments.size() - 1);
@@ -219,10 +255,13 @@ public final class FileUtils {
                         // Encountered normal path segment
                         currSectionSegments.add(path.subSequence(segmentStartIdx, segmentStartIdx + segmentLen));
                     }
-                    if (isSectionMarker && !currSectionSegments.isEmpty()) {
-                        // Begin new section
-                        currSectionSegments = new ArrayList<>();
-                        allSectionSegments.add(currSectionSegments);
+                    if (isSectionMarker) {
+                        inFirstSection = false;
+                        if (!currSectionSegments.isEmpty()) {
+                            // Begin new section
+                            currSectionSegments = new ArrayList<>();
+                            allSectionSegments.add(currSectionSegments);
+                        }
                     }
                     lastSepIdx = i;
                 }
@@ -543,6 +582,12 @@ public final class FileUtils {
      * to it. Only the part of the path that exists can be resolved, so the result is the best that can be done:
      * the same path as if the missing part of it were created.
      *
+     * <p>
+     * A {@code ".."} segment is resolved by the filesystem as far as the filesystem can reach, and only lexically
+     * beyond that. The two do not agree: after a symlinked directory, {@code ".."} names the parent of the
+     * directory the symlink points at, not the parent of the symlink. Nothing below the closest existing ancestor
+     * exists, so nothing there can be a symlink, which is what makes it safe to resolve the rest lexically.
+     *
      * @param path
      *            A {@link Path}.
      * @return the canonical form of the path.
@@ -554,17 +599,18 @@ public final class FileUtils {
             return path.toRealPath();
         } catch (final IOException | RuntimeException e) {
             // The path does not exist -- canonicalize the closest ancestor directory that does exist, then append
-            // the rest of the path to it
-            final Path normalizedPath = path.toAbsolutePath().normalize();
-            for (Path ancestor = normalizedPath.getParent(); ancestor != null; ancestor = ancestor.getParent()) {
+            // the rest of the path to it. The path is deliberately not normalized before the ancestors are walked,
+            // so that the filesystem is the one to resolve any ".." segment that it can reach
+            final Path absolutePath = path.toAbsolutePath();
+            for (Path ancestor = absolutePath.getParent(); ancestor != null; ancestor = ancestor.getParent()) {
                 try {
-                    return ancestor.toRealPath().resolve(ancestor.relativize(normalizedPath));
+                    return ancestor.toRealPath().resolve(ancestor.relativize(absolutePath)).normalize();
                 } catch (final IOException | RuntimeException e2) {
                     // This ancestor does not exist either -- try the next one up
                 }
             }
-            // Not even the filesystem root could be canonicalized -- return the normalized path
-            return normalizedPath;
+            // Not even the filesystem root could be canonicalized -- resolve the whole path lexically instead
+            return absolutePath.normalize();
         }
     }
 

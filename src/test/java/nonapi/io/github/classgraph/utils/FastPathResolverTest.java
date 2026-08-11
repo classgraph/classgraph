@@ -10,10 +10,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /** Tests for {@link FastPathResolver}. */
 public class FastPathResolverTest {
@@ -378,5 +381,50 @@ public class FastPathResolverTest {
         // ... which is the same answer the backslash spelling has always given
         assertThat(resolveAsLinux("/base", "C:\\a\\b")).isEqualTo("/base/C:/a/b");
         assertThat(resolveAsLinux("/base", "s3://bucket/key")).isEqualTo("s3://bucket/key");
+    }
+
+    /**
+     * A {@code ".."} segment in a path that names a file on disk must be left in the path, for the filesystem to
+     * resolve. Only the filesystem knows what it means: after a symlinked directory, {@code ".."} names the parent
+     * of the directory the symlink points at, not the parent of the symlink, so collapsing it here would name a
+     * different file than the one the JVM's own classloader reaches through the same path.
+     */
+    @Test
+    public void aParentSegmentInAFilePathIsLeftForTheFilesystem() {
+        assertThat(FastPathResolver.resolveFilePath(null, "/a/link/../b")).isEqualTo("/a/link/../b");
+        assertThat(FastPathResolver.resolveFilePath("/base", "link/../b")).isEqualTo("/base/link/../b");
+        assertThat(FastPathResolver.resolveFilePath(null, "file:/a/link/../b")).isEqualTo("/a/link/../b");
+        // A "." segment and a doubled separator mean the same thing to the filesystem as to the resolver, so they
+        // are still collapsed
+        assertThat(FastPathResolver.resolveFilePath(null, "/a/./link//../b")).isEqualTo("/a/link/../b");
+        // A path that still has a URL scheme in front of it has no filesystem to ask
+        assertThat(FastPathResolver.resolveFilePath(null, "https://host/a/../b")).isEqualTo("https://host/b");
+        assertThat(FastPathResolver.resolveFilePath(null, "jrt:/modules/a/../b")).isEqualTo("jrt:/modules/b");
+        // A path that is not known to name a file on disk keeps the textual resolution it has always had
+        assertThat(FastPathResolver.resolve("/a/link/../b")).isEqualTo("/a/b");
+        assertThat(FastPathResolver.resolve("/base", "link/../b")).isEqualTo("/base/b");
+    }
+
+    /**
+     * Only the outermost section of a path names a file on disk. Everything after a nested jar separator is an
+     * entry name within an archive, which has no symlinks and no filesystem to ask, so a {@code ".."} there is
+     * collapsed -- which is what stops a "zip slip" entry name from escaping the archive.
+     *
+     * @param tempDir
+     *            a temporary directory
+     * @throws IOException
+     *             if the jarfile could not be created
+     */
+    @Test
+    public void aParentSegmentWithinANestedJarIsStillCollapsed(@TempDir final Path tempDir) throws IOException {
+        // The '!' is only a nested jar separator if the path before it names an existing file (#903)
+        final Path jarFile = Files.createFile(tempDir.resolve("b.jar"));
+        final String jarPath = jarFile.toString().replace(File.separatorChar, '/');
+
+        assertThat(FastPathResolver.resolveFilePath(null, "jar:file:" + jarPath + "!/x/../y"))
+                .isEqualTo(jarPath + "!/y");
+        // A ".." cannot climb out of the archive it is in, however many of them there are
+        assertThat(FastPathResolver.resolveFilePath(null, "jar:file:" + jarPath + "!/../../x"))
+                .isEqualTo(jarPath + "!/x");
     }
 }

@@ -408,7 +408,7 @@ class Scanner implements Callable<ScanResult> {
         // Also strip any "jar:file:" or "file:" off the beginning.
         // This normalizes "file:x.jar" and "x.jar" to the same string, for example.
         if (!(classpathEntryObjNormalized instanceof Path)) {
-            classpathEntryObjNormalized = FastPathResolver.resolve(FileUtils.currDirPath(),
+            classpathEntryObjNormalized = FastPathResolver.resolveFilePath(FileUtils.currDirPath(),
                     classpathEntryObjNormalized.toString());
         }
 

@@ -240,6 +240,11 @@ public final class FastPathResolver {
      * Strip away any "jar:" prefix from a filename URI, and convert it to a file path, handling possibly-broken
      * mixes of filesystem and URI conventions; resolve relative paths relative to resolveBasePath.
      *
+     * <p>
+     * Any {@code ".."} segment is resolved textually, without consulting the filesystem, and cannot climb above the
+     * root of the path or above the nearest enclosing nested jar separator. Use
+     * {@link #resolveFilePath(String, String)} instead for a path that names a file on disk.
+     *
      * @param resolveBasePath
      *            The base path.
      * @param relativePathRaw
@@ -247,6 +252,47 @@ public final class FastPathResolver {
      * @return The resolved path.
      */
     public static String resolve(final String resolveBasePath, final String relativePathRaw) {
+        return resolve(resolveBasePath, relativePathRaw, /* namesFileOnDisk = */ false);
+    }
+
+    /**
+     * Resolve a path that names a file on disk, such as a classpath entry, in the same way that the JVM's own
+     * classloader resolves it.
+     *
+     * <p>
+     * This differs from {@link #resolve(String, String)} in that a {@code ".."} segment in the outermost section of
+     * the path is left in the resolved path, for the filesystem to resolve when the path is canonicalized. Only the
+     * filesystem knows what such a segment means: after a symlinked directory, {@code ".."} names the parent of the
+     * directory the symlink points at, not the parent of the symlink, so collapsing it textually would name a
+     * different file than the one the JVM reaches through the same path. Everything after a nested jar separator is
+     * an entry name within an archive, which has no symlinks and no filesystem to ask, so a {@code ".."} there is
+     * still collapsed, and still cannot climb out of the archive it is in.
+     *
+     * @param resolveBasePath
+     *            The base path.
+     * @param relativePathRaw
+     *            The path to resolve relative to the base path.
+     * @return The resolved path.
+     */
+    public static String resolveFilePath(final String resolveBasePath, final String relativePathRaw) {
+        return resolve(resolveBasePath, relativePathRaw, /* namesFileOnDisk = */ true);
+    }
+
+    /**
+     * Strip away any "jar:" prefix from a filename URI, and convert it to a file path, handling possibly-broken
+     * mixes of filesystem and URI conventions; resolve relative paths relative to resolveBasePath.
+     *
+     * @param resolveBasePath
+     *            The base path.
+     * @param relativePathRaw
+     *            The path to resolve relative to the base path.
+     * @param namesFileOnDisk
+     *            True if the path names a file on disk, so that a ".." segment in the outermost section is left for
+     *            the filesystem to resolve rather than being collapsed textually.
+     * @return The resolved path.
+     */
+    private static String resolve(final String resolveBasePath, final String relativePathRaw,
+            final boolean namesFileOnDisk) {
         // See: http://stackoverflow.com/a/17870390/3950982
         // https://weblogs.java.net/blog/kohsuke/archive/2007/04/how_to_convert.html
 
@@ -405,7 +451,10 @@ public final class FastPathResolver {
             pathStr += "/";
         }
 
-        // Sanitize path (resolve ".." sections, collapse "//" double separators, etc.)
+        // Sanitize path (resolve ".." sections, collapse "//" double separators, etc.). A ".." in the outermost
+        // section is only left for the filesystem to resolve if the path is known to name a file on disk, and the
+        // path still has to be a path rather than a URL, since a URL has no filesystem to ask
+        final boolean leaveParentSegments = namesFileOnDisk && prefix.isEmpty();
         String pathResolved;
         if (isAbsolutePath || resolveBasePath == null || resolveBasePath.isEmpty()) {
             // There is no base path to resolve against, or path is an absolute path or http(s):// URL (ignore the
@@ -413,12 +462,14 @@ public final class FastPathResolver {
             // separator is the whole of the directory's name
             pathResolved = "/".equals(pathStr) || isDriveRoot ? pathStr
                     : FileUtils.sanitizeEntryPath(pathStr, /* removeInitialSlash = */ false,
-                            /* removeFinalSlash = */ true);
+                            /* removeFinalSlash = */ true,
+                            /* collapseParentSegmentsInFirstSection = */ !leaveParentSegments);
         } else {
             // Path is a relative path -- resolve it relative to the base path
             pathResolved = FileUtils.sanitizeEntryPath(
                     resolveBasePath + (resolveBasePath.endsWith("/") ? "" : "/") + pathStr,
-                    /* removeInitialSlash = */ false, /* removeFinalSlash = */ true);
+                    /* removeInitialSlash = */ false, /* removeFinalSlash = */ true,
+                    /* collapseParentSegmentsInFirstSection = */ !leaveParentSegments);
         }
 
         // Add any prefix back, e.g. "https://". A prefix that already ends with a separator supplies the root
