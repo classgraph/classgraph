@@ -3,7 +3,9 @@ package io.github.classgraph.vfs.internal.slice;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -16,7 +18,10 @@ import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.vfs.internal.ScanResources;
 import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
 
-/** Tests for the identity of a {@link Slice}, and for the closing of the slices that a scan left open. */
+/**
+ * Tests for the identity of a {@link Slice}, for the reading of an {@link InputStream} into a {@link Slice}, and
+ * for the closing of the slices that a scan left open.
+ */
 public class SliceTest {
     /** The content of the test files. Two of them have the same content, and so the same length. */
     private static final byte[] CONTENT = "0123456789".getBytes(StandardCharsets.UTF_8);
@@ -27,7 +32,41 @@ public class SliceTest {
      * @return the scan resources
      */
     private static ScanResources scanResources() {
-        return new ScanResources(new VfsScanSpec(), new ReflectionUtils(), new InterruptionChecker());
+        return scanResources(new VfsScanSpec().maxBufferedJarRAMSize);
+    }
+
+    /**
+     * Create the resources owned by a scan, buffering at most the given number of bytes of a jar in RAM.
+     *
+     * @param maxBufferedJarRAMSize
+     *            the maximum number of bytes of a jar to buffer in RAM before spilling it to disk
+     * @return the scan resources
+     */
+    private static ScanResources scanResources(final int maxBufferedJarRAMSize) {
+        final var vfsScanSpec = new VfsScanSpec();
+        vfsScanSpec.maxBufferedJarRAMSize = maxBufferedJarRAMSize;
+        return new ScanResources(vfsScanSpec, new ReflectionUtils(), new InterruptionChecker());
+    }
+
+    /**
+     * Read an {@link InputStream} over {@link #CONTENT} into a slice, and check that the slice holds the whole
+     * content, in order.
+     *
+     * @param scanResources
+     *            the resources owned by the scan
+     * @param inputStreamLengthHint
+     *            the length of the stream to claim, which may be wrong
+     * @return the slice
+     * @throws IOException
+     *             if the stream could not be read
+     */
+    private static Slice sliceOfContent(final ScanResources scanResources, final long inputStreamLengthHint)
+            throws IOException {
+        final var slice = Slice.fromInputStream(new ByteArrayInputStream(CONTENT), "content.bin",
+                inputStreamLengthHint, scanResources, /* log = */ null);
+        assertThat(slice.sliceLength).isEqualTo(CONTENT.length);
+        assertThat(slice.load()).containsExactly(CONTENT);
+        return slice;
     }
 
     /**
@@ -85,6 +124,57 @@ public class SliceTest {
             assertThat(first.slice(2, 4, /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L))
                     .isNotEqualTo(
                             second.slice(2, 4, /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L));
+        }
+    }
+
+    /**
+     * An {@link InputStream} that fits in RAM is read into an {@link ArraySlice}, whether its length is known,
+     * unknown, overstated, or given as zero (which some zipfiles do for entries that are not empty).
+     *
+     * @throws IOException
+     *             if a stream could not be read
+     */
+    @Test
+    public void anInputStreamThatFitsInRamIsReadIntoAnArraySlice() throws IOException {
+        final var scanResources = scanResources();
+        assertThat(sliceOfContent(scanResources, /* inputStreamLengthHint = */ -1L)).isInstanceOf(ArraySlice.class);
+        assertThat(sliceOfContent(scanResources, CONTENT.length)).isInstanceOf(ArraySlice.class);
+        assertThat(sliceOfContent(scanResources, CONTENT.length * 2L)).isInstanceOf(ArraySlice.class);
+        assertThat(sliceOfContent(scanResources, /* inputStreamLengthHint = */ 0L)).isInstanceOf(ArraySlice.class);
+
+        // An empty stream produces an empty slice, rather than failing
+        final var empty = Slice.fromInputStream(new ByteArrayInputStream(new byte[0]), "empty.bin",
+                /* inputStreamLengthHint = */ -1L, scanResources, /* log = */ null);
+        assertThat(empty.sliceLength).isZero();
+        assertThat(empty.load()).isEmpty();
+    }
+
+    /**
+     * An {@link InputStream} that is longer than the maximum RAM buffer size is spilled to a temporary file, in
+     * order, including the bytes that were already buffered before the stream turned out to be too long.
+     *
+     * @throws IOException
+     *             if a stream could not be read
+     */
+    @Test
+    public void anInputStreamThatIsTooLongToBufferIsSpilledToATemporaryFile() throws IOException {
+        // A length hint that is longer than the maximum RAM buffer size spills to disk without buffering
+        final var scanResources = scanResources(/* maxBufferedJarRAMSize = */ CONTENT.length / 2);
+        try {
+            assertThat(sliceOfContent(scanResources, CONTENT.length)).isInstanceOf(FileSlice.class);
+            assertThat(scanResources.hasTempFiles()).isTrue();
+        } finally {
+            scanResources.close(/* log = */ null);
+        }
+
+        // A length hint that understates the length of the stream fills the buffer, and only then turns out to be
+        // wrong, so the buffered bytes have to be written to the temporary file ahead of the rest of the stream
+        final var understatedScanResources = scanResources();
+        try {
+            assertThat(sliceOfContent(understatedScanResources, /* inputStreamLengthHint = */ CONTENT.length / 2))
+                    .isInstanceOf(FileSlice.class);
+        } finally {
+            understatedScanResources.close(/* log = */ null);
         }
     }
 
