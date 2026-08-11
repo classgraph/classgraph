@@ -1153,14 +1153,25 @@ class Scanner implements Callable<ScanResult> {
         preprocessClasspathElementsByType(classpathEltOrder,
                 topLevelLog == null ? null : topLevelLog.log("Finding nested classpath elements"));
 
-        // Order modules before classpath elements from traditional classpath
+        // Order modules before classpath elements from traditional classpath. The same jar or directory can be
+        // reached both as a module and as a classpath element, if it is on both the module path and the classpath,
+        // or if it is spliced into a module with --patch-module. The module takes precedence, since that is where
+        // the JVM loads the classes from, so any classpath element that refers to the same file as a module (or as
+        // an earlier classpath element, e.g. through a symlink) is dropped -- otherwise the same file would be
+        // listed twice by ScanResult#getClasspathURIs() etc., and would be scanned twice.
         final LogNode classpathOrderLog = topLevelLog == null ? null
                 : topLevelLog.log("Final classpath element order:");
         final int numElts = moduleOrder.size() + classpathEltOrder.size();
         final List<ClasspathElement> finalClasspathEltOrder = new ArrayList<>(numElts);
         final List<String> finalClasspathEltOrderStrs = new ArrayList<>(numElts);
+        final Set<String> fileIdentityKeys = new HashSet<>();
+        final Map<String, String> canonicalDirPathCache = new HashMap<>();
         int classpathOrderIdx = 0;
         for (final ClasspathElementModule classpathElt : moduleOrder) {
+            final String fileIdentityKey = classpathElt.getFileIdentityKey(canonicalDirPathCache);
+            if (fileIdentityKey != null) {
+                fileIdentityKeys.add(fileIdentityKey);
+            }
             classpathElt.classpathElementIdx = classpathOrderIdx++;
             finalClasspathEltOrder.add(classpathElt);
             finalClasspathEltOrderStrs.add(classpathElt.toString());
@@ -1170,6 +1181,15 @@ class Scanner implements Callable<ScanResult> {
             }
         }
         for (final ClasspathElement classpathElt : classpathEltOrder) {
+            final String fileIdentityKey = classpathElt.getFileIdentityKey(canonicalDirPathCache);
+            if (fileIdentityKey != null && !fileIdentityKeys.add(fileIdentityKey)) {
+                if (classpathOrderLog != null) {
+                    classpathOrderLog.log("Ignoring duplicate classpath element, which is the same file or "
+                            + "directory as an element found earlier in the module path or classpath: "
+                            + classpathElt);
+                }
+                continue;
+            }
             classpathElt.classpathElementIdx = classpathOrderIdx++;
             finalClasspathEltOrder.add(classpathElt);
             finalClasspathEltOrderStrs.add(classpathElt.toString());
