@@ -2,13 +2,20 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<groupId>io.github.classgraph</groupId>
-	<artifactId>classgraph</artifactId>
+	<artifactId>classgraph-parent</artifactId>
 	<version>4.8.190-SNAPSHOT</version>
-	<name>ClassGraph</name>
+	<packaging>pom</packaging>
+	<name>ClassGraph (parent)</name>
 
-	<description>The uber-fast, ultra-lightweight classpath and module scanner for JVM languages.</description>
+	<description>Build configuration shared by all ClassGraph modules.</description>
 
-	<url>https://github.com/classgraph/classgraph</url>
+	<!-- child.project.url.inherit.append.path="false": without it, Maven appends each module's -->
+	<!-- artifactId to the inherited URL, producing URLs that do not exist. -->
+	<url child.project.url.inherit.append.path="false">https://github.com/classgraph/classgraph</url>
+
+	<modules>
+		<module>classgraph</module>
+	</modules>
 
 	<licenses>
 		<license>
@@ -27,7 +34,7 @@
 		</developer>
 	</developers>
 
-	<scm>
+	<scm child.scm.connection.inherit.append.path="false" child.scm.developerConnection.inherit.append.path="false" child.scm.url.inherit.append.path="false">
 		<!-- Use https rather than git@github.com: maven-release-plugin pushes using -->
 		<!-- <developerConnection>, and the origin remote and the gh credential helper -->
 		<!-- both authenticate over https. -->
@@ -51,6 +58,29 @@
 
 		<!-- Suppress the warning logged when Narcissus loads its native library -->
 		<surefireArgLine>--enable-native-access=ALL-UNNAMED</surefireArgLine>
+
+		<!-- The repository root, which holds the files that all modules share (the code formatter -->
+		<!-- profile and the license). Every module is exactly one directory below it, and overrides -->
+		<!-- this with ${project.basedir}/.. accordingly. -->
+		<rootDir>${project.basedir}</rootDir>
+
+		<!-- The name of the module's JPMS module, used as the directory prefix of the extra copy of -->
+		<!-- the Javadoc that add-modular-javadoc adds to the Javadoc jar. Set by each module. -->
+		<jpmsModuleName />
+
+		<!-- The OSGi manifest entries that differ between modules. Set by each module; they must -->
+		<!-- agree with the module's src/main/java/module-info.java. -->
+		<osgiBundleName />
+		<osgiExportPackage />
+		<osgiImportPackage />
+		<osgiDependencies />
+
+		<!-- The aggregator pom produces no artifact, so the two steps below have nothing to do for -->
+		<!-- it: add-modular-javadoc would fail outright, and the license copies would just leave a -->
+		<!-- stray target directory at the repository root. Both are skipped by default, and each -->
+		<!-- module that produces a jar re-enables them. -->
+		<maven.antrun.skip>true</maven.antrun.skip>
+		<maven.resources.skip>true</maven.resources.skip>
 	</properties>
 
 	<!-- Find dependency updates with: ./mvnw versions:display-dependency-updates -->
@@ -269,7 +299,7 @@
 								<outputDirectory>${project.build.outputDirectory}</outputDirectory>
 								<resources>
 									<resource>
-										<directory>${basedir}</directory>
+										<directory>${rootDir}</directory>
 										<filtering>false</filtering>
 										<includes>
 											<include>LICENSE-ClassGraph.txt</include>
@@ -288,7 +318,7 @@
 								<outputDirectory>${project.build.directory}/apidocs</outputDirectory>
 								<resources>
 									<resource>
-										<directory>${basedir}</directory>
+										<directory>${rootDir}</directory>
 										<filtering>false</filtering>
 										<includes>
 											<include>LICENSE-ClassGraph.txt</include>
@@ -317,7 +347,7 @@
 							<configuration>
 								<target>
 									<jar update="true" destfile="${project.build.directory}/${project.build.finalName}-javadoc.jar">
-										<zipfileset prefix="io.github.classgraph" dir="${project.build.directory}/apidocs" includes="**/*" />
+										<zipfileset prefix="${jpmsModuleName}" dir="${project.build.directory}/apidocs" includes="**/*" />
 									</jar>
 								</target>
 							</configuration>
@@ -333,12 +363,12 @@
 					<groupId>net.revelc.code.formatter</groupId>
 					<artifactId>formatter-maven-plugin</artifactId>
 					<configuration>
-						<configFile>${project.basedir}/.eclipse/code-formatter-config.xml</configFile>
+						<configFile>${rootDir}/.eclipse/code-formatter-config.xml</configFile>
 						<encoding>UTF-8</encoding>
 						<lineEnding>LF</lineEnding>
 						<!-- Setting <directories> replaces the default source and test source directories, -->
 						<!-- so both have to be listed again here, along with the extra test source root -->
-						<!-- that build-helper-maven-plugin adds. -->
+						<!-- that build-helper-maven-plugin adds. Directories that do not exist are skipped. -->
 						<directories>
 							<directory>${project.build.sourceDirectory}</directory>
 							<directory>${project.build.testSourceDirectory}</directory>
@@ -442,7 +472,7 @@
 								<Bundle-Category>Utilities</Bundle-Category>
 								<Bundle-License>http://opensource.org/licenses/MIT</Bundle-License>
 								<Bundle-ManifestVersion>2</Bundle-ManifestVersion>
-								<Bundle-Name>ClassGraph</Bundle-Name>
+								<Bundle-Name>${osgiBundleName}</Bundle-Name>
 								<Bundle-SymbolicName>${project.groupId}.${project.artifactId}</Bundle-SymbolicName>
 								<Bundle-Vendor>Luke Hutchison</Bundle-Vendor>
 								<Bundle-Description>${project.description}</Bundle-Description>
@@ -452,12 +482,12 @@
 								<!-- framework running on that version resolve this bundle, and then fail at -->
 								<!-- class load time. -->
 								<Require-Capability>osgi.ee;filter:="(&amp;(osgi.ee=JavaSE)(version=17))"</Require-Capability>
-								<Export-Package>io.github.classgraph;version="${project.version}"</Export-Package>
+								<Export-Package>${osgiExportPackage}</Export-Package>
 								<!-- Make sure "requires" entries in the module descriptor match these imports: -->
 								<!-- src/main/java/module-info.java -->
-								<Import-Package>javax.xml.xpath,javax.xml.namespace,javax.xml.parsers,org.w3c.dom,sun.misc;resolution:="optional",sun.nio.ch;resolution:="optional",io.github.toolfactory.narcissus;resolution:="optional",org.jspecify.annotations;resolution:="optional"</Import-Package>
+								<Import-Package>${osgiImportPackage}</Import-Package>
 								<!-- Add the same module dependencies that are specified in module-info.java -->
-								<Dependencies>java.xml,jdk.unsupported,java.management,java.logging</Dependencies>
+								<Dependencies>${osgiDependencies}</Dependencies>
 							</manifestEntries>
 						</archive>
 					</configuration>
@@ -536,6 +566,8 @@
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-release-plugin</artifactId>
 					<configuration>
+						<!-- Give every module the same version as the parent, so that the whole project -->
+						<!-- releases in lockstep. -->
 						<autoVersionSubmodules>true</autoVersionSubmodules>
 						<!-- Match the tag naming convention used by all existing tags -->
 						<tagNameFormat>classgraph-@{project.version}</tagNameFormat>
@@ -641,7 +673,9 @@
 							<!-- waitUntil is deliberately left at its default, VALIDATED: release:perform returns -->
 							<!-- once the deployment passes validation, and autoPublish (above) then completes the -->
 							<!-- publication server-side. -->
-							<deploymentName>${project.groupId}:${project.artifactId}:${project.version}</deploymentName>
+							<!-- Every module is uploaded in a single bundle, so the deployment is named after the -->
+							<!-- project as a whole rather than after whichever module happens to be last. -->
+							<deploymentName>${project.groupId}:classgraph:${project.version}</deploymentName>
 						</configuration>
 					</plugin>
 					<plugin>

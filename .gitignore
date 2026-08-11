@@ -7,11 +7,11 @@ release.properties
 !CompiledWithJDK8.class
 !module-info.class
 # Checked-in compiler-specific .class test fixtures for type-annotation handling (#897 / #926)
-!src/test/resources/io/github/classgraph/issues/issue897/ecjenum/*.class
-!src/test/resources/io/github/classgraph/issues/issue897/fieldcrash/*.class
-!src/test/resources/io/github/classgraph/issues/issue926/*.class
+!**/src/test/resources/io/github/classgraph/issues/issue897/ecjenum/*.class
+!**/src/test/resources/io/github/classgraph/issues/issue897/fieldcrash/*.class
+!**/src/test/resources/io/github/classgraph/issues/issue926/*.class
 
-/target/
+target/
 bin/
 tmp/
 lib/
