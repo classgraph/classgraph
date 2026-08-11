@@ -1,7 +1,6 @@
 package nonapi.io.github.classgraph.utils;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assumptions.abort;
 
 import java.io.IOException;
@@ -84,7 +83,9 @@ public class FileUtilsCanonicalizeTest {
 
     /**
      * A path that does not exist cannot be resolved by {@link Path#toRealPath(java.nio.file.LinkOption...)}, but is
-     * still normalized, and any symlink in the part of the path that does exist is still resolved.
+     * still normalized, and the symlink in the part of the path that does exist is still resolved. (On Windows,
+     * {@link java.io.File#getCanonicalPath()} does not resolve the symlinked parent directory here, which is why it
+     * is not used as the fallback.)
      *
      * @param tempDir
      *            a temporary directory
@@ -104,8 +105,27 @@ public class FileUtilsCanonicalizeTest {
     }
 
     /**
-     * A path inside a zipfile is canonicalized through its own filesystem. It cannot be converted to a
-     * {@link java.io.File}, so if it does not exist, there is no fallback, and canonicalization fails.
+     * When several segments at the end of a path do not exist, the closest ancestor directory that does exist is
+     * the one that is canonicalized, and all the missing segments are appended to it.
+     *
+     * @param tempDir
+     *            a temporary directory
+     * @throws IOException
+     *             if the directory could not be created
+     */
+    @Test
+    public void everyMissingSegmentIsAppendedToTheClosestExistingAncestor(@TempDir final Path tempDir)
+            throws IOException {
+        final Path realDir = Files.createDirectory(tempDir.resolve("real"));
+        final Path linkedDir = createSymbolicLinkOrSkip(tempDir.resolve("link"), realDir);
+
+        assertThat(FileUtils.canonicalize(linkedDir.resolve("a/b/c")))
+                .isEqualTo(realDir.toRealPath().resolve("a").resolve("b").resolve("c"));
+    }
+
+    /**
+     * A path inside a zipfile is canonicalized through its own filesystem, whether or not it exists. It cannot be
+     * converted to a {@link java.io.File}, so there is no fallback to {@link java.io.File#getCanonicalFile()}.
      *
      * @param tempDir
      *            a temporary directory
@@ -120,11 +140,10 @@ public class FileUtilsCanonicalizeTest {
         try (FileSystem zipFileSystem = FileSystems.newFileSystem(zipURI, createOption)) {
             Files.createDirectory(zipFileSystem.getPath("/dir"));
             final Path fileInZip = Files.write(zipFileSystem.getPath("/dir/file.bin"), CONTENT);
-            final Path missingInZip = zipFileSystem.getPath("/dir/does-not-exist");
 
             assertThat(FileUtils.canonicalize(zipFileSystem.getPath("/dir/../dir/file.bin"))).isEqualTo(fileInZip);
-            assertThatThrownBy(() -> FileUtils.canonicalize(missingInZip)).isInstanceOf(IOException.class)
-                    .hasMessage("Could not canonicalize path: " + missingInZip);
+            assertThat(FileUtils.canonicalize(zipFileSystem.getPath("/dir/sub/../does-not-exist")))
+                    .isEqualTo(zipFileSystem.getPath("/dir/does-not-exist"));
         }
     }
 }

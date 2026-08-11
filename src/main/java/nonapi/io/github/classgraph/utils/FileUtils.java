@@ -509,13 +509,8 @@ public final class FileUtils {
 
     /**
      * Canonicalize a {@link File}, resolving symlinks (and, on Windows, junctions and 8.3 short names), so that a
-     * file reached through two different paths is given the same canonical path everywhere in ClassGraph.
-     *
-     * <p>
-     * {@link Path#toRealPath(java.nio.file.LinkOption...)} is used rather than {@link File#getCanonicalFile()},
-     * since on Windows the latter resolves neither directory symlinks and junctions nor 8.3 short names (e.g.
-     * {@code C:\Users\RUNNER~1} for {@code C:\Users\runneradmin}). {@link File#getCanonicalFile()} is used as a
-     * fallback, since {@link Path#toRealPath(java.nio.file.LinkOption...)} requires the file to exist.
+     * file reached through two different paths is given the same canonical path everywhere in ClassGraph. See
+     * {@link #canonicalize(Path)}.
      *
      * @param file
      *            A {@link File}.
@@ -525,17 +520,28 @@ public final class FileUtils {
      */
     public static File canonicalize(final File file) throws IOException {
         try {
-            return file.toPath().toRealPath().toFile();
-        } catch (final IOException | RuntimeException e) {
-            // The file does not exist, or the path is not valid for the default filesystem
+            return canonicalize(file.toPath()).toFile();
+        } catch (final RuntimeException e) {
+            // The path is not valid for the default filesystem (e.g. on Windows it contains a character that is
+            // not allowed in a filename)
             return file.getCanonicalFile();
         }
     }
 
     /**
      * Canonicalize a {@link Path}, resolving symlinks (and, on Windows, junctions and 8.3 short names), so that a
-     * file reached through two different paths is given the same canonical path everywhere in ClassGraph. See
-     * {@link #canonicalize(File)}.
+     * file reached through two different paths is given the same canonical path everywhere in ClassGraph.
+     *
+     * <p>
+     * {@link Path#toRealPath(java.nio.file.LinkOption...)} is used rather than {@link File#getCanonicalFile()},
+     * since on Windows the latter resolves neither directory symlinks and junctions nor 8.3 short names (e.g.
+     * {@code C:\Users\RUNNER~1} for {@code C:\Users\runneradmin}).
+     *
+     * <p>
+     * {@link Path#toRealPath(java.nio.file.LinkOption...)} requires the file to exist, so for a path that does not
+     * exist, the closest ancestor directory that does exist is canonicalized, and the rest of the path is appended
+     * to it. Only the part of the path that exists can be resolved, so the result is the best that can be done:
+     * the same path as if the missing part of it were created.
      *
      * @param path
      *            A {@link Path}.
@@ -547,13 +553,18 @@ public final class FileUtils {
         try {
             return path.toRealPath();
         } catch (final IOException | RuntimeException e) {
-            // The path does not exist -- fall back to File#getCanonicalFile(), which does not require the file to
-            // exist, but which is only available for paths on the default filesystem
-            try {
-                return path.toFile().getCanonicalFile().toPath();
-            } catch (final UnsupportedOperationException e2) {
-                throw new IOException("Could not canonicalize path: " + path, e);
+            // The path does not exist -- canonicalize the closest ancestor directory that does exist, then append
+            // the rest of the path to it
+            final Path normalizedPath = path.toAbsolutePath().normalize();
+            for (Path ancestor = normalizedPath.getParent(); ancestor != null; ancestor = ancestor.getParent()) {
+                try {
+                    return ancestor.toRealPath().resolve(ancestor.relativize(normalizedPath));
+                } catch (final IOException | RuntimeException e2) {
+                    // This ancestor does not exist either -- try the next one up
+                }
             }
+            // Not even the filesystem root could be canonicalized -- return the normalized path
+            return normalizedPath;
         }
     }
 
