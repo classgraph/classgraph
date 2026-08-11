@@ -54,6 +54,13 @@ public final class VersionFinder {
     /** The Maven artifact for ClassGraph. */
     private static final String MAVEN_ARTIFACT = "classgraph";
 
+    /** XPath for the version element of a {@code pom.xml}. */
+    private static final String POM_VERSION_XPATH = "/*[local-name()='project']/*[local-name()='version']";
+
+    /** XPath for the version of the parent of a {@code pom.xml}. */
+    private static final String POM_PARENT_VERSION_XPATH = "/*[local-name()='project']/*[local-name()='parent']"
+            + "/*[local-name()='version']";
+
     /** The operating system type. */
     public static final OperatingSystem OS;
 
@@ -243,7 +250,9 @@ public final class VersionFinder {
     }
 
     /**
-     * Read the {@code /project/version} element of a {@code pom.xml} file.
+     * Read the {@code /project/version} element of a {@code pom.xml} file, falling back to
+     * {@code /project/parent/version} if there is no version element -- a module of a multi-module build usually
+     * omits its own version, and inherits the parent's.
      *
      * @param pom
      *            the path of the {@code pom.xml} file.
@@ -257,8 +266,14 @@ public final class VersionFinder {
         try (var inputStream = Files.newInputStream(pom)) {
             final var doc = getSecureDocumentBuilderFactory().newDocumentBuilder().parse(inputStream);
             doc.getDocumentElement().normalize();
-            return trimVersion((String) getSecureXPathFactory().newXPath().compile("/project/version").evaluate(doc,
-                    XPathConstants.STRING));
+            final var xPath = getSecureXPathFactory().newXPath();
+            // The document is parsed namespace-aware, and a pom.xml is in the Maven POM namespace, so the element
+            // names have to be matched with local-name() -- an unprefixed "/project/version" matches nothing
+            final var version = trimVersion(
+                    (String) xPath.compile(POM_VERSION_XPATH).evaluate(doc, XPathConstants.STRING));
+            return version != null ? version
+                    : trimVersion(
+                            (String) xPath.compile(POM_PARENT_VERSION_XPATH).evaluate(doc, XPathConstants.STRING));
         } catch (final IOException e) {
             // There is no pom.xml in this directory
             return null;
