@@ -45,6 +45,9 @@ public class ClassfileReaderTest {
         /** A jar on disk, read in chunks through a random access reader. */
         FILE,
 
+        /** A jar on disk, read through a memory mapping, which is what is done by default on Windows. */
+        FILE_MEMORY_MAPPED,
+
         /** A deflated zip entry, inflated into the buffer as it is read. */
         DEFLATED,
 
@@ -61,13 +64,33 @@ public class ClassfileReaderTest {
     private Path tempDir;
 
     /** The resources owned by the scan, closed when the test ends. */
-    private final ScanResources scanResources = new ScanResources(new VfsScanSpec(), new ReflectionUtils(),
-            new InterruptionChecker());
+    private final ScanResources scanResources = scanResources(/* memoryMapFiles = */ false);
+
+    /** The resources owned by a scan that memory-maps the files it reads, closed when the test ends. */
+    private final ScanResources memoryMappedScanResources = scanResources(/* memoryMapFiles = */ true);
+
+    /** The number of files written so far, so that each file slice can be given a file of its own. */
+    private int numFilesWritten;
+
+    /**
+     * Create the resources for a scan that either does or does not memory-map the files it reads, so that both ways
+     * of reading a file are exercised whatever platform the test is running on.
+     *
+     * @param memoryMapFiles
+     *            whether the scan should memory-map the files it reads
+     * @return the resources
+     */
+    private static ScanResources scanResources(final boolean memoryMapFiles) {
+        final var vfsScanSpec = new VfsScanSpec();
+        vfsScanSpec.memoryMapFiles = memoryMapFiles;
+        return new ScanResources(vfsScanSpec, new ReflectionUtils(), new InterruptionChecker());
+    }
 
     /** Close the slices that the test opened. */
     @AfterEach
     public void closeScanResources() {
         scanResources.close(/* log = */ null);
+        memoryMappedScanResources.close(/* log = */ null);
     }
 
     /**
@@ -118,10 +141,14 @@ public class ClassfileReaderTest {
             return new ClassfileReader(wholeArray.slice(4, content.length, /* isDeflatedZipEntry = */ false,
                     /* inflatedLengthHint = */ 0L), /* resourceToClose = */ null);
         }
-        case FILE: {
-            final var file = Files.write(tempDir.resolve("content.bin"), content).toFile();
-            return new ClassfileReader(new FileSlice(file, scanResources, /* log = */ null),
-                    /* resourceToClose = */ null);
+        case FILE:
+        case FILE_MEMORY_MAPPED: {
+            // Each slice is given a file of its own, because on Windows a file that an earlier slice still has
+            // memory-mapped cannot be written to again
+            final var file = Files.write(tempDir.resolve("content" + numFilesWritten++ + ".bin"), content).toFile();
+            return new ClassfileReader(new FileSlice(file,
+                    source == Source.FILE_MEMORY_MAPPED ? memoryMappedScanResources : scanResources,
+                    /* log = */ null), /* resourceToClose = */ null);
         }
         case DEFLATED:
             return new ClassfileReader(
