@@ -277,24 +277,6 @@ public class ClasspathOrder {
     }
 
     /**
-     * Add a system classpath entry.
-     *
-     * @param pathEntry
-     *            the system classpath entry -- the path string should already have been run through
-     *            FastPathResolver.resolve(FileUtils.currDirPath(), path)
-     * @param classLoader
-     *            the classloader, or null if unknown
-     * @return true, if added and unique
-     */
-    boolean addSystemClasspathEntry(final String pathEntry, final @Nullable ClassLoader classLoader) {
-        if (classpathEntryUniqueResolvedPaths.add(pathEntry)) {
-            order.add(new ClasspathEntry(pathEntry, classLoader, currPackageRootPrefixes));
-            return true;
-        }
-        return false;
-    }
-
-    /**
      * Add a classpath entry.
      *
      * @param pathElement
@@ -304,12 +286,10 @@ public class ClasspathOrder {
      *            the path element in string format
      * @param classLoader
      *            the classloader
-     * @param scanSpec
-     *            the scan spec
      * @return true, if added and unique
      */
     private boolean addClasspathEntry(final Object pathElement, final String pathElementStr,
-            final @Nullable ClassLoader classLoader, final ScanSpec scanSpec) {
+            final @Nullable ClassLoader classLoader) {
         // Check if classpath element path ends with an automatic package root. If so, strip it off to eliminate
         // duplication, since automatic package roots are detected automatically (#435)
         var pathElementStrWithoutSuffix = pathElementStr;
@@ -355,12 +335,6 @@ public class ClasspathOrder {
         } else {
             final var pathElementStrResolved = FastPathResolver.resolve(FileUtils.currDirPath(),
                     pathElementStrWithoutSuffix);
-            if (scanSpec.overrideClasspath == null
-                    && SystemJarFinder.getJreLibOrExtJars().contains(pathElementStrResolved)) {
-                // JRE lib and ext jars are handled separately, so reject them as duplicates if they are returned by
-                // a system classloader
-                return false;
-            }
             if (classpathEntryUniqueResolvedPaths.add(pathElementStrResolved)) {
                 order.add(new ClasspathEntry(pathElementStrResolved, classLoader, currPackageRootPrefixes));
                 return true;
@@ -433,7 +407,7 @@ public class ClasspathOrder {
     private boolean addClasspathEntryAndLog(final Object pathElement, final String pathElementStr,
             final String pathElementStrResolved, final @Nullable ClassLoader classLoader, final ScanSpec scanSpec,
             final @Nullable LogNode log) {
-        final var added = addClasspathEntry(pathElement, pathElementStrResolved, classLoader, scanSpec);
+        final var added = addClasspathEntry(pathElement, pathElementStrResolved, classLoader);
         if (log != null) {
             log.log((added ? "Found classpath element: " : "Ignoring duplicate classpath element: ")
                     + describe(pathElementStr, pathElementStrResolved));

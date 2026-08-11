@@ -123,15 +123,6 @@ public class ClasspathOrderTest {
         assertThat(classpathOrder.addClasspathEntry(jarPath.toFile(), null, scanSpec, null)).isFalse();
     }
 
-    /** A system classpath entry is added as it is, and is also deduplicated. */
-    @Test
-    public void systemClasspathEntriesAreDeduplicated(@TempDir final Path tempDir) throws IOException {
-        final var jar = createFile(tempDir.resolve("x.jar"));
-        assertThat(classpathOrder.addSystemClasspathEntry(jar, null)).isTrue();
-        assertThat(classpathOrder.addSystemClasspathEntry(jar, null)).isFalse();
-        assertThat(entryObjects()).containsExactly(jar);
-    }
-
     /**
      * An automatic package root at the end of a classpath entry is stripped off, since package roots are found
      * automatically during scanning, and leaving it on would scan the same classes twice.

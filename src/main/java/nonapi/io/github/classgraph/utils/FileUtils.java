@@ -573,9 +573,9 @@ public final class FileUtils {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the clean() method, attachment() method, and theUnsafe field, called inside doPrivileged.
+     * Look up {@code Unsafe#invokeCleaner(ByteBuffer)} and the {@code theUnsafe} singleton.
      */
-    private static void lookupCleanMethodPrivileged() {
+    private static void lookupCleanMethod() {
         if (VersionFinder.JAVA_MAJOR_VERSION < 22) {
             // Unsafe::invokeCleaner is terminally deprecated, and JDK 24+ reports: "A terminally deprecated method
             // in sun.misc.Unsafe has been called" if it is used. On JDK 22+, direct ByteBuffers are allocated and
@@ -607,7 +607,7 @@ public final class FileUtils {
     }
 
     /**
-     * Close a direct byte buffer (run in doPrivileged).
+     * Close a direct byte buffer.
      *
      * @param byteBuffer
      *            the byte buffer
@@ -615,8 +615,7 @@ public final class FileUtils {
      *            the log node, or null to skip logging
      * @return true if successful
      */
-    private static boolean closeDirectByteBufferPrivileged(final ByteBuffer byteBuffer,
-            final @Nullable LogNode log) {
+    private static boolean closeDirectByteBufferImpl(final ByteBuffer byteBuffer, final @Nullable LogNode log) {
         if (!byteBuffer.isDirect()) {
             // Nothing to do
             return true;
@@ -676,59 +675,15 @@ public final class FileUtils {
             if (!initialized) {
                 synchronized (FileUtils.class) {
                     if (!initialized) {
-                        try {
-                            reflectionUtils.doPrivileged(() -> {
-                                lookupCleanMethodPrivileged();
-                                return null;
-                            });
-                        } catch (final Throwable e) {
-                            throw new RuntimeException("Cannot get buffer cleaner method", e);
-                        }
+                        lookupCleanMethod();
                         initialized = true;
                     }
                 }
             }
-            try {
-                return reflectionUtils.doPrivileged(() -> closeDirectByteBufferPrivileged(byteBuffer, log));
-            } catch (final Throwable t) {
-                return false;
-            }
+            return closeDirectByteBufferImpl(byteBuffer, log);
         } else {
             // Nothing to unmap
             return false;
-        }
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /** {@code System.runFinalization()} -- deprecated in JDK 18, so accessed by reflection. */
-    private static volatile @Nullable Method runFinalizationMethod;
-
-    // TODO: once ClassGraph's minimum supported JDK version is one in which System#runFinalization has been
-    // removed (it was deprecated for removal in JDK 18 by JEP 421), this method and its only call site, in
-    // FileSlice's constructor, can be deleted rather than called reflectively.
-
-    /**
-     * Call {@code System.runFinalization()}, if it is available in this JDK.
-     *
-     * @param reflectionUtils
-     *            The reflection utils (the method has to be looked up and invoked reflectively).
-     */
-    public static void runFinalization(final ReflectionUtils reflectionUtils) {
-        // Read the volatile field once, so that the method invoked cannot differ from the method tested. Two
-        // threads racing here resolve the same method, so whichever write lands last is equivalent.
-        var runFinalizationMethodCached = runFinalizationMethod;
-        if (runFinalizationMethodCached == null) {
-            runFinalizationMethodCached = reflectionUtils.staticMethodForNameOrNull("System", "runFinalization");
-            runFinalizationMethod = runFinalizationMethodCached;
-        }
-        if (runFinalizationMethodCached != null) {
-            try {
-                // Call System.runFinalization() (deprecated in JDK 18)
-                runFinalizationMethodCached.invoke(null);
-            } catch (final Throwable t) {
-                // Ignore
-            }
         }
     }
 

@@ -28,94 +28,32 @@
  */
 package nonapi.io.github.classgraph.classpath;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import nonapi.io.github.classgraph.reflection.ReflectionUtils;
-import org.jspecify.annotations.Nullable;
-
 /** A class to read the classes in the current call stack. */
-class CallStackReader {
-    /** The reflection utils instance. */
-    private final ReflectionUtils reflectionUtils;
-
+final class CallStackReader {
     /**
      * Constructor.
-     *
-     * @param reflectionUtils
-     *            the reflection utils instance.
      */
-    public CallStackReader(final ReflectionUtils reflectionUtils) {
-        this.reflectionUtils = reflectionUtils;
+    private CallStackReader() {
+        // Cannot be constructed
     }
 
     /**
-     * Get the call stack via the {@link StackWalker} API.
+     * Get the classes in the current call stack.
      *
-     * @return the call stack, or null if it could not be obtained.
+     * @return The classes in the call stack, innermost frame first.
      */
-    private static Class<?> @Nullable [] getCallStackViaStackWalker() {
+    static Class<?>[] getClassContext() {
         try {
-            return StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE)
+            final var callStack = StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE)
                     .walk(stackFrames -> stackFrames.map(StackWalker.StackFrame::getDeclaringClass)
                             .toArray(Class<?>[]::new));
+            if (callStack.length > 0) {
+                return callStack;
+            }
         } catch (Exception | LinkageError e) {
-            return null;
-        }
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Get the class context.
-     *
-     * @return The classes in the call stack.
-     */
-    Class<?>[] getClassContext() {
-        Class<?>[] callStack = null;
-
-        // Get the stack via StackWalker. Invoke with doPrivileged -- see:
-        // http://mail.openjdk.java.net/pipermail/jigsaw-dev/2018-October/013974.html
-        try {
-            callStack = reflectionUtils.doPrivileged(CallStackReader::getCallStackViaStackWalker);
-        } catch (final Throwable e) {
             // Fall through
         }
-
-        // As a fallback, use getStackTrace() to try to get the call stack
-        if (callStack == null || callStack.length == 0) {
-            StackTraceElement[] stackTrace = null;
-            try {
-                stackTrace = Thread.currentThread().getStackTrace();
-            } catch (final SecurityException e) {
-                // Fall through
-            }
-            if (stackTrace == null || stackTrace.length == 0) {
-                try {
-                    // Try getting stacktrace by throwing an exception
-                    throw new Exception();
-                } catch (final Exception e) {
-                    stackTrace = e.getStackTrace();
-                }
-            }
-            final List<Class<?>> stackClassesList = new ArrayList<>();
-            for (final StackTraceElement elt : stackTrace) {
-                try {
-                    stackClassesList.add(Class.forName(elt.getClassName()));
-                } catch (final ClassNotFoundException | LinkageError ignored) {
-                    // Ignored
-                }
-            }
-            if (!stackClassesList.isEmpty()) {
-                callStack = stackClassesList.toArray(Class<?>[]::new);
-            }
-        }
-
-        // Last-ditch effort -- include just this class in the call stack
-        if (callStack == null || callStack.length == 0) {
-            callStack = new Class<?>[] { CallStackReader.class };
-        }
-
-        return callStack;
+        // The call stack could not be read -- fall back to naming just this class
+        return new Class<?>[] { CallStackReader.class };
     }
 }

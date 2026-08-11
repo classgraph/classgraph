@@ -3,9 +3,7 @@ package nonapi.io.github.classgraph.reflection;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.io.IOException;
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 
 import org.junit.jupiter.api.Test;
 
@@ -94,22 +92,6 @@ public class ReflectionUtilsTest {
         private void throwsAnException() {
             throw new UnsupportedOperationException("thrown by the method");
         }
-    }
-
-    /**
-     * Find the innermost cause of a throwable, since a reflective call may wrap what it threw in any number of
-     * layers of {@link java.lang.reflect.InvocationTargetException}.
-     *
-     * @param throwable
-     *            the throwable to unwrap.
-     * @return the innermost cause, or the throwable itself if it has no cause.
-     */
-    private static Throwable rootCauseOf(final Throwable throwable) {
-        var cause = throwable;
-        while (cause.getCause() != null) {
-            cause = cause.getCause();
-        }
-        return cause;
     }
 
     /** A private field is read by name, whether it is declared by the object's class or by a superclass. */
@@ -257,35 +239,11 @@ public class ReflectionUtilsTest {
                 .isInstanceOf(IllegalArgumentException.class).hasMessage("Unexpected null argument");
     }
 
-    /** A class and a static method are looked up by name, and yield null rather than throwing if not found. */
+    /** A class is looked up by name, and yields null rather than throwing if it is not found. */
     @Test
-    public void classesAndStaticMethodsAreLookedUpByName() {
+    public void classesAreLookedUpByName() {
         assertThat(reflectionUtils.classForNameOrNull("java.lang.String")).isEqualTo(String.class);
         assertThat(reflectionUtils.classForNameOrNull("java.lang.NoSuchClassAsThis")).isNull();
-
-        assertThat(reflectionUtils.staticMethodForNameOrNull("java.lang.System", "lineSeparator")).isNotNull()
-                .extracting(Method::getName).isEqualTo("lineSeparator");
-        assertThat(reflectionUtils.staticMethodForNameOrNull("java.lang.System", "noSuchMethod")).isNull();
-        assertThat(reflectionUtils.staticMethodForNameOrNull("java.lang.NoSuchClassAsThis", "lineSeparator"))
-                .isNull();
     }
 
-    /** A callable is run, and its return value passed back, whether or not a privileged context is available. */
-    @Test
-    public void aCallableIsRunInAPrivilegedContext() throws Throwable {
-        assertThat(reflectionUtils.doPrivileged(() -> "the result")).isEqualTo("the result");
-    }
-
-    /**
-     * An exception thrown by the callable reaches the caller. It is wrapped in an
-     * {@link java.lang.reflect.InvocationTargetException} when a privileged context is available, and thrown as it
-     * is when there is none, so the callers of this method all catch {@link Throwable}.
-     */
-    @Test
-    public void anExceptionThrownByTheCallableReachesTheCaller() {
-        assertThatThrownBy(() -> reflectionUtils.doPrivileged(() -> {
-            throw new IOException("thrown by the callable");
-        })).satisfies(thrown -> assertThat(rootCauseOf(thrown)).isInstanceOf(IOException.class)
-                .hasMessage("thrown by the callable"));
-    }
 }

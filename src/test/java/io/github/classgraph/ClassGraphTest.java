@@ -357,27 +357,6 @@ public class ClassGraphTest {
         }
     }
 
-    /** JRE/JDK {@code "lib/"} and {@code "ext/"} jars are accepted and rejected by leafname. */
-    @Test
-    public void libOrExtJarsAreAcceptedAndRejectedByLeafname() {
-        assertThatIllegalArgumentException().isThrownBy(() -> new ClassGraph().acceptLibOrExtJars("lib/mylib.jar"))
-                .withMessageContaining("Can only accept jars by leafname");
-        assertThatIllegalArgumentException().isThrownBy(() -> new ClassGraph().rejectLibOrExtJars("ext/badlib.jar"))
-                .withMessageContaining("Can only reject jars by leafname");
-
-        // A JDK of the minimum supported version has no "lib/" or "ext/" jars, so nothing can be found to accept
-        // or reject, whether by name, by glob, or by accepting or rejecting all of them
-        final var messages = captureLog(() -> {
-            final var classGraph = new ClassGraph().verbose();
-            classGraph.acceptLibOrExtJars("mylib.jar").rejectLibOrExtJars("badlib-*.jar").acceptLibOrExtJars()
-                    .rejectLibOrExtJars();
-            classGraph.overrideClasspath(markerDir.toString()).scan().close();
-        });
-        assertThat(messages).hasSize(1);
-        assertThat(messages.get(0)).contains("Could not find lib or ext jar: mylib.jar")
-                .contains("Could not find lib or ext jar matching wildcard: badlib-*.jar");
-    }
-
     /** The classpath can be listed without running a scan. */
     @Test
     public void theClasspathCanBeListedWithoutScanning() throws IOException {

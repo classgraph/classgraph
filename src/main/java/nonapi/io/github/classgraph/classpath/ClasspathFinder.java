@@ -239,9 +239,10 @@ public class ClasspathFinder {
                 || !scanSpec.moduleAcceptReject.acceptIsEmpty();
 
         // Only instantiate a module finder if requested
-        moduleFinder = scanTargets.scanNonSystemModules() || scanSystemModules ? new ModuleFinder(
-                new CallStackReader(reflectionUtils).getClassContext(), scanSpec, classLoaderAndModuleLayerSpec,
-                scanTargets.scanNonSystemModules(), scanSystemModules, classpathFinderLog) : null;
+        moduleFinder = scanTargets.scanNonSystemModules() || scanSystemModules
+                ? new ModuleFinder(CallStackReader.getClassContext(), scanSpec, classLoaderAndModuleLayerSpec,
+                        scanTargets.scanNonSystemModules(), scanSystemModules, classpathFinderLog)
+                : null;
 
         classpathOrder = new ClasspathOrder(scanSpec, reflectionUtils);
 
@@ -259,11 +260,6 @@ public class ClasspathFinder {
             addOverriddenClasspathEntries(overrideClasspath, scanSpec, classLoaderAndModuleLayerSpec,
                     defaultClassLoader, classpathFinderLog);
             classLoaderOrderRespectingParentDelegation = contextClassLoaders;
-        }
-
-        // If system jars and modules are enabled, add the JRE lib and ext jars to the beginning of the classpath
-        if (scanSpec.enableSystemJarsAndModules) {
-            addSystemJarClasspathEntries(scanSpec, defaultClassLoader, classpathFinderLog);
         }
 
         if (overrideClasspath == null) {
@@ -316,34 +312,6 @@ public class ClasspathFinder {
             overrideLog.log("WARNING: when the classpath is overridden, there is no guarantee that the classes "
                     + "found by classpath scanning will be the same as the classes loaded by the "
                     + "context classloader");
-        }
-    }
-
-    /**
-     * Add the JRE lib and ext jars to the beginning of the classpath.
-     *
-     * @param scanSpec
-     *            the {@link ScanSpec}
-     * @param defaultClassLoader
-     *            the classloader to record for each classpath entry, or null if there is none
-     * @param log
-     *            the log node, or null to skip logging
-     */
-    private void addSystemJarClasspathEntries(final ScanSpec scanSpec,
-            final @Nullable ClassLoader defaultClassLoader, final @Nullable LogNode log) {
-        final var systemJarsLog = log == null ? null : log.log("System jars:");
-        for (final String libOrExtJarPath : SystemJarFinder.getJreLibOrExtJars()) {
-            // If no lib or ext jar accept/reject criteria were added, all lib and ext jars are accepted; if only
-            // reject criteria were added, all but the rejected jars are accepted; if accept criteria were added,
-            // only the specifically-accepted jars are accepted (#813)
-            if (scanSpec.libOrExtJarAcceptReject.isAcceptedAndNotRejected(libOrExtJarPath)) {
-                classpathOrder.addSystemClasspathEntry(libOrExtJarPath, defaultClassLoader);
-                if (systemJarsLog != null) {
-                    systemJarsLog.log("Found lib or ext jar: " + libOrExtJarPath);
-                }
-            } else if (systemJarsLog != null) {
-                systemJarsLog.log("Scanning disabled for lib or ext jar: " + libOrExtJarPath);
-            }
         }
     }
 

@@ -32,8 +32,6 @@ import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.lang.reflect.Proxy;
-import java.util.concurrent.Callable;
 
 import org.jspecify.annotations.Nullable;
 
@@ -42,62 +40,9 @@ import org.jspecify.annotations.Nullable;
  * necessary).
  */
 class StandardReflectionDriver extends ReflectionDriver {
-    /** {@code java.security.PrivilegedAction}, or null if it is not available. */
-    private static @Nullable Class<?> privilegedActionClass;
-
-    /**
-     * {@code AccessController#doPrivileged(PrivilegedAction)}, or null if it is not available.
-     */
-    private static @Nullable Method accessControllerDoPrivileged;
-
     /** Constructor. */
     StandardReflectionDriver() {
     }
-
-    // TODO: once ClassGraph's minimum supported JDK version is 24 or later, this whole code path can be deleted
-    // rather than called reflectively. The SecurityManager is permanently disabled from JDK 24 onwards (JEP 486),
-    // so AccessController#doPrivileged no longer does anything, and doPrivileged(Callable) below can be replaced
-    // by a direct call to the callable.
-
-    static {
-        // AccessController is deprecated for removal in JDK 17, so it is called reflectively, to avoid a
-        // deprecation warning (the build compiles with -Xlint:all -Werror)
-        try {
-            final Class<?> accessControllerClass = Class.forName("java.security.AccessController");
-            privilegedActionClass = Class.forName("java.security.PrivilegedAction");
-            accessControllerDoPrivileged = accessControllerClass.getMethod("doPrivileged", privilegedActionClass);
-        } catch (final Throwable t) {
-            // Ignore
-        }
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Call a method in the AccessController.doPrivileged(PrivilegedAction) context, using reflection, if possible
-     * (AccessController is deprecated in JDK 17).
-     *
-     * @param <T>
-     *            the return type of the callable
-     * @param callable
-     *            the code to call in a privileged context
-     * @return the value returned by the callable
-     * @throws Throwable
-     *             if the callable threw
-     */
-    @SuppressWarnings("unchecked")
-    private <T> T doPrivileged(final Callable<T> callable) throws Throwable {
-        if (accessControllerDoPrivileged != null && privilegedActionClass != null) {
-            final var privilegedAction = Proxy.newProxyInstance(privilegedActionClass.getClassLoader(),
-                    new Class<?>[] { privilegedActionClass }, (proxy, method, args) -> callable.call());
-            return (T) accessControllerDoPrivileged.invoke(null, privilegedAction);
-        } else {
-            // Fall back to invoking in a non-privileged context
-            return callable.call();
-        }
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Try to make a field, method or constructor accessible, without throwing an exception if this is not
@@ -127,12 +72,7 @@ class StandardReflectionDriver extends ReflectionDriver {
         if (isAccessible(instance, obj)) {
             return true;
         }
-        try {
-            return doPrivileged(() -> tryMakeAccessible(obj));
-        } catch (final Throwable t) {
-            // Fall through
-            return tryMakeAccessible(obj);
-        }
+        return tryMakeAccessible(obj);
     }
 
     @Override

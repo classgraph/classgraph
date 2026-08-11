@@ -30,14 +30,12 @@ replacement has the same behavior, so porting is a rename.
 | `ClassGraph#whitelistPathsNonRecursive` | `ClassGraph#acceptPathsNonRecursive` |
 | `ClassGraph#whitelistClasses` | `ClassGraph#acceptClasses` |
 | `ClassGraph#whitelistJars` | `ClassGraph#acceptJars` |
-| `ClassGraph#whitelistLibOrExtJars` | `ClassGraph#acceptLibOrExtJars` |
 | `ClassGraph#whitelistModules` | `ClassGraph#acceptModules` |
 | `ClassGraph#whitelistClasspathElementsContainingResourcePath` | `ClassGraph#acceptClasspathElementsContainingResourcePath` |
 | `ClassGraph#blacklistPackages` | `ClassGraph#rejectPackages` |
 | `ClassGraph#blacklistPaths` | `ClassGraph#rejectPaths` |
 | `ClassGraph#blacklistClasses` | `ClassGraph#rejectClasses` |
 | `ClassGraph#blacklistJars` | `ClassGraph#rejectJars` |
-| `ClassGraph#blacklistLibOrExtJars` | `ClassGraph#rejectLibOrExtJars` |
 | `ClassGraph#blacklistModules` | `ClassGraph#rejectModules` |
 | `ClassGraph#blacklistClasspathElementsContainingResourcePath` | `ClassGraph#rejectClasspathElementsContainingResourcePath` |
 | `ScanResult#getResourcesWithPathIgnoringWhitelist` | `ScanResult#getResourcesWithPathIgnoringAccept` |
@@ -358,6 +356,24 @@ The differences to be aware of when porting:
   values, and throw `IOException` rather than wrapping it in an unchecked exception.
 * `ModuleReader#close()` throws `IOException`, whereas `ModuleReaderProxy#close()`
   swallowed it.
+
+### `acceptLibOrExtJars` and `rejectLibOrExtJars` have been removed
+
+These two methods accepted or rejected jars found in the JRE/JDK `lib/` and `ext/`
+directories, and in the directories named by the `java.ext.dirs` system property. The
+extension mechanism that put jars in those directories was removed from the JDK in JDK 9
+(JEP 220): on every JDK that ClassGraph 5.x supports, `lib/ext/` does not exist, the only
+jar under `lib/` is `jrt-fs.jar` (which ClassGraph has always skipped), and the JVM
+refuses to start at all if `java.ext.dirs` is set. So the methods could never match
+anything, and the code that searched for those jars has been deleted along with them.
+
+| Removed in 5.x | Use instead |
+| --- | --- |
+| `ClassGraph#acceptLibOrExtJars(String...)` | Nothing — no such jars exist on JDK 9+ |
+| `ClassGraph#rejectLibOrExtJars(String...)` | Nothing — no such jars exist on JDK 9+ |
+
+Relatedly, `ClassGraph#enableSystemJarsAndModules()` now only affects system modules and
+system packages; it no longer adds any jars to the classpath.
 
 ### Reduced visibility
 
@@ -1192,6 +1208,18 @@ On Linux and macOS they are not loaded at all.
   a `jrt:` URI in the first place — but the documentation and the dead special case that
   went with it are gone, and `ScanResult#getClasspathURLs()` no longer claims to skip
   system modules.
+
+* **ClassGraph no longer runs its reflective calls inside
+  `AccessController#doPrivileged`.** 4.x looked `AccessController` up reflectively and
+  wrapped its reflective reads of classloader fields in a privileged block, so that an
+  application running under a Security Manager could grant the permissions to ClassGraph's
+  own jar rather than to the whole application. The Security Manager was deprecated for
+  removal in JDK 17 (JEP 411) and permanently disabled in JDK 24 (JEP 486):
+  `System.setSecurityManager` throws `UnsupportedOperationException`, and
+  `-Djava.security.manager=allow` is a fatal error at VM startup. The privileged blocks
+  are gone. This only affects you if you run on JDK 17–23, explicitly opt in with
+  `-Djava.security.manager=allow`, and grant ClassGraph's jar more permissions than the
+  calling code — in that case, grant the calling code the same permissions instead.
 
 ## Bug fixes
 

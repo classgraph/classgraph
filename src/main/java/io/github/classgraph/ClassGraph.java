@@ -48,7 +48,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
-import nonapi.io.github.classgraph.classpath.SystemJarFinder;
 import nonapi.io.github.classgraph.concurrency.AutoCloseableExecutorService;
 import nonapi.io.github.classgraph.concurrency.InterruptionChecker;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
@@ -68,9 +67,9 @@ import org.jspecify.annotations.Nullable;
  * <p>
  * By default, ClassGraph scans the classpath and module path of the current runtime environment: the classpath
  * elements it can obtain from the visible {@link ClassLoader} instances and from {@code java.class.path}, together
- * with the non-system modules in the visible {@link ModuleLayer} instances. The JDK's own system jars and modules
- * are not scanned unless {@link #enableSystemJarsAndModules()} is called, or the platform classloader is named
- * explicitly via {@link #overrideClassLoaders(ClassLoader...)} or {@link #addClassLoader(ClassLoader)}.
+ * with the non-system modules in the visible {@link ModuleLayer} instances. The JDK's own system modules and
+ * packages are not scanned unless {@link #enableSystemJarsAndModules()} is called, or the platform classloader is
+ * named explicitly via {@link #overrideClassLoaders(ClassLoader...)} or {@link #addClassLoader(ClassLoader)}.
  *
  * <p>
  * To scan something other than the current environment, replace what is scanned with
@@ -661,8 +660,8 @@ public class ClassGraph {
      * <ul>
      * <li>for the application ClassLoader, the {@code java.class.path} classpath and the non-system modules are
      * scanned;</li>
-     * <li>for the platform ClassLoader, the system jars and modules are scanned, as if
-     * {@link #enableSystemJarsAndModules()} had been called.</li>
+     * <li>for the platform ClassLoader, the system modules are scanned, as if {@link #enableSystemJarsAndModules()}
+     * had been called.</li>
      * </ul>
      *
      * <p>
@@ -1069,101 +1068,6 @@ public class ClassGraph {
     }
 
     /**
-     * Add lib or ext jars to accept or reject.
-     *
-     * @param accept
-     *            if true, add to accept, otherwise add to reject.
-     * @param jarLeafNames
-     *            the jar leaf names to accept
-     */
-    private void acceptOrRejectLibOrExtJars(final boolean accept, final String... jarLeafNames) {
-        Assert.notNullElements(jarLeafNames, "jarLeafNames");
-        if (jarLeafNames.length == 0) {
-            // If no jar leafnames are given, accept or reject all lib or ext jars
-            for (final String libOrExtJar : SystemJarFinder.getJreLibOrExtJars()) {
-                acceptOrRejectLibOrExtJars(accept, JarUtils.leafName(libOrExtJar));
-            }
-        } else {
-            for (final String jarLeafName : jarLeafNames) {
-                final var leafName = JarUtils.leafName(jarLeafName);
-                if (!leafName.equals(jarLeafName)) {
-                    throw new IllegalArgumentException(
-                            "Can only " + (accept ? "accept" : "reject") + " jars by leafname: " + jarLeafName);
-                }
-                if (AcceptReject.containsWildcard(jarLeafName)) {
-                    // Compare wildcarded pattern against all jars in lib and ext dirs
-                    final var pattern = AcceptReject.globToPattern(jarLeafName, '/', /* prefixMatch = */ false);
-                    var found = false;
-                    for (final String libOrExtJarPath : SystemJarFinder.getJreLibOrExtJars()) {
-                        final var libOrExtJarLeafName = JarUtils.leafName(libOrExtJarPath);
-                        if (pattern.matcher(libOrExtJarLeafName).matches()) {
-                            // Check for a wildcard in the filename to prevent infinite recursion (shouldn't happen)
-                            if (!AcceptReject.containsWildcard(libOrExtJarLeafName)) {
-                                acceptOrRejectLibOrExtJars(accept, libOrExtJarLeafName);
-                            }
-                            found = true;
-                        }
-                    }
-                    if (!found && topLevelLog != null) {
-                        topLevelLog.log("Could not find lib or ext jar matching wildcard: " + jarLeafName);
-                    }
-                } else {
-                    // No wildcards, just accept or reject the named jar, if present
-                    var found = false;
-                    for (final String libOrExtJarPath : SystemJarFinder.getJreLibOrExtJars()) {
-                        final var libOrExtJarLeafName = JarUtils.leafName(libOrExtJarPath);
-                        if (jarLeafName.equals(libOrExtJarLeafName)) {
-                            if (accept) {
-                                scanSpec.libOrExtJarAcceptReject.addToAccept(jarLeafName);
-                            } else {
-                                scanSpec.libOrExtJarAcceptReject.addToReject(jarLeafName);
-                            }
-                            if (topLevelLog != null) {
-                                topLevelLog.log((accept ? "Accepting" : "Rejecting") + " lib or ext jar: "
-                                        + libOrExtJarPath);
-                            }
-                            found = true;
-                            break;
-                        }
-                    }
-                    if (!found && topLevelLog != null) {
-                        topLevelLog.log("Could not find lib or ext jar: " + jarLeafName);
-                    }
-                }
-            }
-        }
-    }
-
-    /**
-     * Accept one or more jars in a JRE/JDK "lib/" or "ext/" directory (these directories are not scanned unless
-     * {@link #enableSystemJarsAndModules()} is called, by association with the JRE/JDK).
-     *
-     * @param jarLeafNames
-     *            The leafnames of the lib/ext jar(s) that should be scanned (e.g. {@code "mylib.jar"}). May contain
-     *            a wildcard glob ({@code '*'}). Note that if you call this method with no parameters, all JRE/JDK
-     *            "lib/" or "ext/" jars will be accepted.
-     * @return this (for method chaining).
-     */
-    public ClassGraph acceptLibOrExtJars(final String... jarLeafNames) {
-        acceptOrRejectLibOrExtJars(/* accept = */ true, jarLeafNames);
-        return this;
-    }
-
-    /**
-     * Reject one or more jars in a JRE/JDK "lib/" or "ext/" directory, preventing them from being scanned.
-     *
-     * @param jarLeafNames
-     *            The leafnames of the lib/ext jar(s) that should not be scanned (e.g.
-     *            {@code "jre/lib/badlib.jar"}). May contain a wildcard glob ({@code '*'}). If you call this method
-     *            with no parameters, all JRE/JDK {@code "lib/"} or {@code "ext/"} jars will be rejected.
-     * @return this (for method chaining).
-     */
-    public ClassGraph rejectLibOrExtJars(final String... jarLeafNames) {
-        acceptOrRejectLibOrExtJars(/* accept = */ false, jarLeafNames);
-        return this;
-    }
-
-    /**
      * Accept one or more modules for scanning. If any module is accepted, only the accepted modules are scanned
      * (any jars and directories on the classpath are still scanned, unless they are excluded by other criteria).
      *
@@ -1286,9 +1190,8 @@ public class ClassGraph {
      * {@code "jdk.*"}, {@code "oracle.*"}, {@code "sun.*"}) -- these are not scanned by default for speed.
      *
      * <p>
-     * This is only needed in order to scan <i>all</i> system modules and the JRE/JDK {@code "lib/"} and
-     * {@code "ext/"} jars: an individual system module can be scanned by accepting it by name with
-     * {@link #acceptModules(String...)}.
+     * This is only needed in order to scan <i>all</i> system modules: an individual system module can be scanned by
+     * accepting it by name with {@link #acceptModules(String...)}.
      *
      * <p>
      * N.B. Automatically calls {@link #enableClassInfo()}.

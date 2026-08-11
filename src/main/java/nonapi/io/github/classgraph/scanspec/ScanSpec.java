@@ -100,9 +100,6 @@ public class ScanSpec {
     public AcceptRejectWholeString classpathElementResourcePathAcceptReject = //
             new AcceptRejectWholeString('/');
 
-    /** lib/ext jar accept/reject criteria (leafname only, ending in ".jar"). */
-    public AcceptRejectLeafname libOrExtJarAcceptReject = new AcceptRejectLeafname('/');
-
     // -------------------------------------------------------------------------------------------------------------
 
     /** If true, scan jarfiles. */
@@ -154,10 +151,7 @@ public class ScanSpec {
      */
     public boolean enableExternalClasses;
 
-    /**
-     * If true, system jarfiles (JRE lib/ext jars) and system packages and modules (java.*, jre.*, etc.) should be
-     * scanned.
-     */
+    /** If true, system packages and modules (java.*, jre.*, etc.) should be scanned. */
     public boolean enableSystemJarsAndModules;
 
     /**

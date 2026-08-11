@@ -29,9 +29,6 @@
 package nonapi.io.github.classgraph.reflection;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.lang.reflect.Proxy;
-import java.util.concurrent.Callable;
 
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassGraph.CircumventEncapsulationMethod;
@@ -41,13 +38,6 @@ import org.jspecify.annotations.Nullable;
 public final class ReflectionUtils {
     /** The reflection driver to use. */
     private final ReflectionDriver reflectionDriver;
-    /** {@code java.security.PrivilegedAction}, or null if it is not available. */
-    private @Nullable Class<?> privilegedActionClass;
-
-    /**
-     * {@code AccessController#doPrivileged(PrivilegedAction)}, or null if it is not available.
-     */
-    private @Nullable Method accessControllerDoPrivileged;
 
     /**
      * Constructor. Chooses the reflection driver according to the current value of
@@ -65,14 +55,6 @@ public final class ReflectionUtils {
             }
         }
         reflectionDriver = driver != null ? driver : new StandardReflectionDriver();
-        try {
-            final Class<?> accessControllerClass = reflectionDriver.findClass("java.security.AccessController");
-            privilegedActionClass = reflectionDriver.findClass("java.security.PrivilegedAction");
-            accessControllerDoPrivileged = reflectionDriver.findMethod(accessControllerClass, null, "doPrivileged",
-                    privilegedActionClass);
-        } catch (final Throwable t) {
-            // Ignore
-        }
     }
 
     /**
@@ -396,49 +378,4 @@ public final class ReflectionUtils {
             return null;
         }
     }
-
-    /**
-     * Get a static method by name, but return null if any exception is thrown.
-     *
-     * @param className
-     *            The name of the class declaring the method.
-     * @param staticMethodName
-     *            The name of the static method.
-     * @return The requested static method, or null if an exception was thrown while trying to find the class or the
-     *         method.
-     */
-    public @Nullable Method staticMethodForNameOrNull(final String className, final String staticMethodName) {
-        try {
-            return reflectionDriver.findStaticMethod(reflectionDriver.findClass(className), staticMethodName);
-        } catch (final Throwable e) {
-            return null;
-        }
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Call a method in the AccessController.doPrivileged(PrivilegedAction) context, using reflection, if possible
-     * (AccessController is deprecated in JDK 17).
-     *
-     * @param <T>
-     *            the return type of the callable
-     * @param callable
-     *            the callable to invoke
-     * @return the value returned by the callable
-     * @throws Throwable
-     *             if the callable throws.
-     */
-    @SuppressWarnings("unchecked")
-    public <T> T doPrivileged(final Callable<T> callable) throws Throwable {
-        if (accessControllerDoPrivileged != null && privilegedActionClass != null) {
-            final var privilegedAction = Proxy.newProxyInstance(privilegedActionClass.getClassLoader(),
-                    new Class<?>[] { privilegedActionClass }, (proxy, method, args) -> callable.call());
-            return (T) accessControllerDoPrivileged.invoke(null, privilegedAction);
-        } else {
-            // Fall back to invoking in a non-privileged context
-            return callable.call();
-        }
-    }
-
 }
