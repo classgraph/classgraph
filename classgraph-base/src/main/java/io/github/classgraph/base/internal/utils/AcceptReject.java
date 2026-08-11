@@ -695,28 +695,6 @@ public abstract class AcceptReject {
     }
 
     /**
-     * Convert a package name to a path.
-     *
-     * @param packageName
-     *            The package name.
-     * @return The path.
-     */
-    public static String packageNameToPath(final String packageName) {
-        return packageName.replace('.', '/');
-    }
-
-    /**
-     * Convert a class name to a classfile path.
-     *
-     * @param className
-     *            The class name.
-     * @return The classfile path (including a ".class" suffix).
-     */
-    public static String classNameToClassfilePath(final String className) {
-        return JarUtils.classNameToClassfilePath(className);
-    }
-
-    /**
      * Check if a string matches one of the patterns in the provided list.
      *
      * @param str

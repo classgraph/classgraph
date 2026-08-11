@@ -34,6 +34,7 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.FileChannel.MapMode;
 
 import io.github.classgraph.base.internal.utils.FileUtils;
+import io.github.classgraph.base.internal.utils.OffHeapMemory;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.base.internal.utils.VersionFinder;
 import io.github.classgraph.vfs.internal.ScanResources;
@@ -95,7 +96,7 @@ final class FileMapping {
             return null;
         }
         // (openArena returns null on JDK older than 22)
-        final var arena = FileUtils.openArena(scanResources.reflectionUtils);
+        final var arena = OffHeapMemory.openArena(scanResources.reflectionUtils);
         ByteBuffer byteBuffer = null;
         try {
             // Try mapping the file (some operating systems throw OutOfMemoryError if the file can't be mapped,
@@ -118,7 +119,7 @@ final class FileMapping {
         if (byteBuffer == null) {
             if (arena != null) {
                 // The arena ended up not being used to map the file -- close it again
-                FileUtils.closeArena(arena, scanResources.reflectionUtils, log);
+                OffHeapMemory.closeArena(arena, scanResources.reflectionUtils, log);
             }
             return null;
         }
@@ -145,7 +146,8 @@ final class FileMapping {
     private static @Nullable ByteBuffer mapFile(final @Nullable Object arena, final FileChannel fileChannel,
             final long fileLength, final ScanResources scanResources) throws IOException {
         if (arena != null) {
-            return FileUtils.mapFileUsingArena(arena, fileChannel, 0L, fileLength, scanResources.reflectionUtils);
+            return OffHeapMemory.mapFileUsingArena(arena, fileChannel, 0L, fileLength,
+                    scanResources.reflectionUtils);
         }
         if (VersionFinder.JAVA_MAJOR_VERSION >= 22) {
             // An arena could not be opened, even though the arena API should be available -- don't fall back to
@@ -172,10 +174,10 @@ final class FileMapping {
         final var arenaCurr = arena;
         if (arenaCurr != null) {
             // JDK 22+: unmap the ByteBuffer by closing the arena that was used to map it (#939)
-            FileUtils.closeArena(arenaCurr, scanResources.reflectionUtils, /* log = */ null);
+            OffHeapMemory.closeArena(arenaCurr, scanResources.reflectionUtils, /* log = */ null);
             arena = null;
         } else {
-            FileUtils.closeDirectByteBuffer(byteBuffer, scanResources.reflectionUtils, /* log = */ null);
+            OffHeapMemory.closeDirectByteBuffer(byteBuffer, scanResources.reflectionUtils, /* log = */ null);
         }
     }
 }

@@ -710,7 +710,7 @@ public class ClassGraph {
                     .stripTrailingDoubleGlob(AcceptReject.normalizePackageOrClassName(packageName), '.');
             // Accept package
             scanSpec.packageAcceptReject.addToAccept(packageNameNormalized);
-            final var path = AcceptReject.packageNameToPath(packageNameNormalized);
+            final var path = JarUtils.packageNameToPath(packageNameNormalized);
             scanSpec.pathAcceptReject.addToAccept(path + "/");
             if (packageNameNormalized.isEmpty()) {
                 scanSpec.pathAcceptReject.addToAccept("");
@@ -793,7 +793,7 @@ public class ClassGraph {
             }
             // Accept package, but not sub-packages
             scanSpec.packageAcceptReject.addToAccept(packageNameNormalized);
-            scanSpec.pathAcceptReject.addToAccept(AcceptReject.packageNameToPath(packageNameNormalized) + "/");
+            scanSpec.pathAcceptReject.addToAccept(JarUtils.packageNameToPath(packageNameNormalized) + "/");
             if (packageNameNormalized.isEmpty()) {
                 scanSpec.pathAcceptReject.addToAccept("");
             }
@@ -867,7 +867,7 @@ public class ClassGraph {
             }
             // Rejecting always prevents further recursion, no need to reject sub-packages
             scanSpec.packageAcceptReject.addToReject(packageNameNormalized);
-            final var path = AcceptReject.packageNameToPath(packageNameNormalized);
+            final var path = JarUtils.packageNameToPath(packageNameNormalized);
             scanSpec.pathAcceptReject.addToReject(path + "/");
             // Reject sub-packages (zipfile entries can occur in any order)
             scanSpec.packagePrefixAcceptReject.addToReject(packageNameNormalized + ".");
@@ -930,14 +930,13 @@ public class ClassGraph {
             final var classNameNormalized = AcceptReject.normalizePackageOrClassName(className);
             // Accept the class itself
             scanSpec.classAcceptReject.addToAccept(classNameNormalized);
-            scanSpec.classfilePathAcceptReject
-                    .addToAccept(AcceptReject.classNameToClassfilePath(classNameNormalized));
+            scanSpec.classfilePathAcceptReject.addToAccept(JarUtils.classNameToClassfilePath(classNameNormalized));
             // A class name is never empty, so getParentPackageName cannot return null
             final var packageName = Objects.requireNonNull(PackageInfo.getParentPackageName(classNameNormalized));
             // Record the package containing the class, so we can recurse to this point even if the package is not
             // itself accepted
             scanSpec.classPackageAcceptReject.addToAccept(packageName);
-            scanSpec.classPackagePathAcceptReject.addToAccept(AcceptReject.packageNameToPath(packageName) + "/");
+            scanSpec.classPackagePathAcceptReject.addToAccept(JarUtils.packageNameToPath(packageName) + "/");
         }
         return this;
     }
@@ -962,8 +961,7 @@ public class ClassGraph {
         for (final String className : classNames) {
             final var classNameNormalized = AcceptReject.normalizePackageOrClassName(className);
             scanSpec.classAcceptReject.addToReject(classNameNormalized);
-            scanSpec.classfilePathAcceptReject
-                    .addToReject(AcceptReject.classNameToClassfilePath(classNameNormalized));
+            scanSpec.classfilePathAcceptReject.addToReject(JarUtils.classNameToClassfilePath(classNameNormalized));
         }
         return this;
     }

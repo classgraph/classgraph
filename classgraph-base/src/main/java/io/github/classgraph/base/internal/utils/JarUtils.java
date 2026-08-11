@@ -421,6 +421,17 @@ public final class JarUtils {
     }
 
     /**
+     * Convert a package name to the corresponding path.
+     *
+     * @param packageName
+     *            the package name
+     * @return the path
+     */
+    public static String packageNameToPath(final String packageName) {
+        return packageName.replace('.', '/');
+    }
+
+    /**
      * Convert a class name to the corresponding classfile path.
      *
      * @param className

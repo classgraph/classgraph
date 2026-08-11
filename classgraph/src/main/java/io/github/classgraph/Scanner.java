@@ -71,6 +71,7 @@ import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
 import io.github.classgraph.base.internal.utils.FastPathResolver;
 import io.github.classgraph.base.internal.utils.FileUtils;
+import io.github.classgraph.base.internal.utils.OffHeapMemory;
 import io.github.classgraph.base.internal.utils.JarUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.classpath.internal.ClassLoaderProbe;
@@ -169,7 +170,7 @@ class Scanner implements Callable<ScanResult> {
             // Memory mapping is the only thing that makes ClassGraph allocate direct ByteBuffers, and those buffers
             // are freed when the ScanResult is closed, which can happen long after the scan -- so load the classes
             // needed to free them now, while the classloader that loaded ClassGraph is certainly still alive (#331)
-            FileUtils.warmUpDirectByteBufferClosing(reflectionUtils);
+            OffHeapMemory.warmUpDirectByteBufferClosing(reflectionUtils);
         }
         if (topLevelLog != null) {
             if (scanSpec.pathAcceptReject != null

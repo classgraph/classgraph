@@ -17,7 +17,7 @@ import org.junit.jupiter.api.io.TempDir;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.VfsScanSpecAccess;
 import io.github.classgraph.base.internal.reflection.ReflectionUtils;
-import io.github.classgraph.base.internal.utils.FileUtils;
+import io.github.classgraph.base.internal.utils.OffHeapMemory;
 import io.github.classgraph.base.internal.utils.VersionFinder;
 
 /**
@@ -52,15 +52,15 @@ public class Issue939Test {
     public void arenaAllocateAndFree() {
         assumeTrue(VersionFinder.JAVA_MAJOR_VERSION >= 22);
         final var reflectionUtils = new ReflectionUtils();
-        final var arena = FileUtils.openArena(reflectionUtils);
+        final var arena = OffHeapMemory.openArena(reflectionUtils);
         assertThat(arena).isNotNull();
-        final var buf = FileUtils.allocateDirectByteBufferUsingArena(arena, 32, reflectionUtils);
+        final var buf = OffHeapMemory.allocateDirectByteBufferUsingArena(arena, 32, reflectionUtils);
         assertThat(buf).isNotNull();
         assertThat(buf.isDirect()).isTrue();
         assertThat(buf.capacity()).isEqualTo(32);
         buf.put(0, (byte) 42);
         assertThat(buf.get(0)).isEqualTo((byte) 42);
-        assertThat(FileUtils.closeArena(arena, reflectionUtils, /* log = */ null)).isTrue();
+        assertThat(OffHeapMemory.closeArena(arena, reflectionUtils, /* log = */ null)).isTrue();
         // The buffer is freed once the arena is closed, so accessing it now throws IllegalStateException
         assertThatThrownBy(() -> buf.get(0)).isInstanceOf(IllegalStateException.class);
     }
@@ -72,17 +72,17 @@ public class Issue939Test {
     public void arenaMapAndUnmapFile(@TempDir final Path tempDir) throws IOException {
         assumeTrue(VersionFinder.JAVA_MAJOR_VERSION >= 22);
         final var reflectionUtils = new ReflectionUtils();
-        final var arena = FileUtils.openArena(reflectionUtils);
+        final var arena = OffHeapMemory.openArena(reflectionUtils);
         assertThat(arena).isNotNull();
         final var file = tempDir.resolve("mapped.bin");
         Files.write(file, new byte[] { 1, 2, 3, 4 });
         try (var fileChannel = FileChannel.open(file, StandardOpenOption.READ)) {
-            final var buf = FileUtils.mapFileUsingArena(arena, fileChannel, 0L, 4L, reflectionUtils);
+            final var buf = OffHeapMemory.mapFileUsingArena(arena, fileChannel, 0L, 4L, reflectionUtils);
             assertThat(buf).isNotNull();
             assertThat(buf.isDirect()).isTrue();
             assertThat(buf.capacity()).isEqualTo(4);
             assertThat(buf.get(2)).isEqualTo((byte) 3);
-            assertThat(FileUtils.closeArena(arena, reflectionUtils, /* log = */ null)).isTrue();
+            assertThat(OffHeapMemory.closeArena(arena, reflectionUtils, /* log = */ null)).isTrue();
             // The file is unmapped once the arena is closed, so accessing the buffer now throws
             // IllegalStateException
             assertThatThrownBy(() -> buf.get(0)).isInstanceOf(IllegalStateException.class);
