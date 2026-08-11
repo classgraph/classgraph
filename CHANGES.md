@@ -1438,8 +1438,9 @@ On Linux and macOS they are not loaded at all.
     | `Double.POSITIVE_INFINITY` | `Infinity` | `1.0/0.0` |
 
     String and character escaping also now covers everything the JDK escapes — the
-    backslash itself, `\t`, `\b`, `\f`, control characters and characters outside the
-    Latin-1 range — rather than just the quote characters, `\n` and `\r`.
+    backslash itself, `\t`, `\b`, `\f`, and every character outside the printable ASCII
+    range, including an accented letter such as `é`, which is written `\u00e9` — rather
+    than just the quote characters, `\n` and `\r`.
 
     Two deliberate differences from `Annotation#toString()` remain. ClassGraph names a
     nested class the way the rest of its API names classes, with the classfile's `$`

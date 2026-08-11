@@ -80,7 +80,9 @@ public final class StringUtils {
 
     /**
      * Escape a string so that it can be shown surrounded by double quotes, using Java escape sequences for quotes,
-     * backslashes, control characters, and any character outside the Latin-1 range.
+     * backslashes, and every character outside the printable ASCII range -- which is what
+     * {@link java.lang.annotation.Annotation#toString()} escapes, so that a string rendered by ClassGraph reads the
+     * same way as one rendered by the JDK.
      *
      * @param unsafeStr
      *            The string to escape.
@@ -115,7 +117,7 @@ public final class StringUtils {
 
     /**
      * Escape a character so that it can be shown surrounded by single quotes, using Java escape sequences for
-     * single quotes, backslashes, control characters, and any character outside the Latin-1 range.
+     * single quotes, backslashes, and every character outside the printable ASCII range.
      *
      * @param unsafeChr
      *            The character to escape.
