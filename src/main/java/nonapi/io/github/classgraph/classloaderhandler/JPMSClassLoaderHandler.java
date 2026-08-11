@@ -61,9 +61,12 @@ class JPMSClassLoaderHandler implements ClassLoaderHandler {
             final ScanSpec scanSpec, final LogNode log) {
         // The JDK9 classloaders have a field, `URLClassPath ucp`, containing URLs for unnamed modules,
         // but it is not visible. Modules therefore have to be scanned using the JPMS API.
-        // However, it is possible for a Java agent to extend UCP by adding directly to the `ucp` field
-        // (#537), and there is no way to read this field. Therefore, we need to use Narcissus to break
-        // Java's encapsulation to read this, for this small corner case.
+        // However, a Java agent can append to the `ucp` field by calling
+        // Instrumentation#appendToSystemClassLoaderSearch(JarFile), which reaches ucp.addFile() through
+        // ClassLoaders$AppClassLoader#appendToClassPathForInstrumentation(). The javadoc of
+        // appendToSystemClassLoaderSearch states that this "does not change the value of
+        // java.class.path", so the agent's jars are listed only in the `ucp` field (#537). Reading it
+        // needs Narcissus to break Java's encapsulation, for this small corner case.
         final Object ucpVal = classpathOrder.reflectionUtils.getFieldVal(false, classLoader, "ucp");
         if (ucpVal != null) {
             final URL[] urls = (URL[]) classpathOrder.reflectionUtils.invokeMethod(false, ucpVal, "getURLs");
