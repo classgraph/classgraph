@@ -44,9 +44,11 @@ public class Issue128Test {
     /** The site. */
     private static final String SITE = "https://raw.githubusercontent.com/classgraph";
 
+    // The commit is pinned, rather than naming a branch, so that renaming a branch or moving this resource
+    // within the repo cannot silently stop this test from fetching anything
     /** The jar URL. */
     private static final String JAR_URL = SITE + //
-            "/classgraph/latest/src/test/resources/nested-jars-level1.zip";
+            "/classgraph/329d5049fa573cf4d992be684e3eaf40409da134/src/test/resources/nested-jars-level1.zip";
 
     /** The nested jar URL. */
     private static final String NESTED_JAR_URL = //

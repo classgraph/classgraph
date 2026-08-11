@@ -3,11 +3,11 @@ name: Java CI
 on:
   pull_request:
     branches:
-      - latest
+      - main
       - v5
   push:
     branches:
-      - latest
+      - main
       - v5
 
 jobs:
