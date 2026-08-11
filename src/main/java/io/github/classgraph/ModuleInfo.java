@@ -30,6 +30,7 @@ package io.github.classgraph;
 
 import static io.github.classgraph.PotentiallyUnmodifiableList.unmodifiable;
 
+import java.lang.module.ModuleReference;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -49,10 +50,10 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName, HasAnnotatio
     private final ClasspathElement classpathElement;
 
     /**
-     * The {@link ModuleRef}, or null if this module was obtained from a classpath element on the traditional
+     * The {@link ModuleReference}, or null if this module was obtained from a classpath element on the traditional
      * classpath.
      */
-    private @Nullable ModuleRef moduleRef;
+    private final @Nullable ModuleReference moduleReference;
 
     /** The location of the module as a URI, or null if the location is unknown. */
     private @Nullable URI locationURI;
@@ -84,16 +85,17 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName, HasAnnotatio
     /**
      * Construct a ModuleInfo object.
      *
-     * @param moduleRef
-     *            the module ref, or null if this module was obtained from a classpath element on the traditional
+     * @param moduleReference
+     *            the module, or null if this module was obtained from a classpath element on the traditional
      *            classpath
      * @param classpathElement
      *            the classpath element
      * @param name
      *            the module name
      */
-    ModuleInfo(final @Nullable ModuleRef moduleRef, final ClasspathElement classpathElement, final String name) {
-        this.moduleRef = moduleRef;
+    ModuleInfo(final @Nullable ModuleReference moduleReference, final ClasspathElement classpathElement,
+            final String name) {
+        this.moduleReference = moduleReference;
         this.classpathElement = classpathElement;
         this.name = name;
     }
@@ -116,8 +118,7 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName, HasAnnotatio
     public @Nullable URI getLocationURI() {
         var location = locationURI;
         if (location == null) {
-            final var moduleReference = moduleRef;
-            location = moduleReference != null ? moduleReference.getLocationURI() : null;
+            location = moduleReference == null ? null : moduleReference.location().orElse(null);
             if (location == null) {
                 try {
                     location = classpathElement.getURI();
@@ -132,14 +133,14 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName, HasAnnotatio
     }
 
     /**
-     * The {@link ModuleRef} for this module, or null if this module was obtained from a classpath element on the
-     * traditional classpath that contained a {@code module-info.class} file.
+     * The {@link ModuleReference} for this module, or null if this module was obtained from a classpath element on
+     * the traditional classpath that contained a {@code module-info.class} file.
      *
-     * @return the {@link ModuleRef}, or null if this module was obtained from a classpath element on the
+     * @return the {@link ModuleReference}, or null if this module was obtained from a classpath element on the
      *         traditional classpath that contained a {@code module-info.class} file.
      */
-    public @Nullable ModuleRef getModuleRef() {
-        return moduleRef;
+    public @Nullable ModuleReference getModuleReference() {
+        return moduleReference;
     }
 
     // -------------------------------------------------------------------------------------------------------------

@@ -32,6 +32,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.module.ModuleReader;
+import java.lang.module.ModuleReference;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -41,7 +42,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.Inflater;
 
-import io.github.classgraph.ModuleRef;
 import io.github.classgraph.ScanResult;
 import nonapi.io.github.classgraph.concurrency.InterruptionChecker;
 import nonapi.io.github.classgraph.concurrency.SingletonMap;
@@ -50,6 +50,7 @@ import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
+import nonapi.io.github.classgraph.utils.ModuleReaderUtils;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -89,18 +90,18 @@ public class ScanResources {
     };
 
     /**
-     * A singleton map from a {@link ModuleRef} to a {@link ModuleReader} recycler for the module. Set to null by
-     * {@link #close(LogNode)}.
+     * A singleton map from a {@link ModuleReference} to a {@link ModuleReader} recycler for the module. Set to null
+     * by {@link #close(LogNode)}.
      */
-    private @Nullable SingletonMap<ModuleRef, Recycler<ModuleReader, IOException>, IOException> //
-    moduleRefToModuleReaderRecyclerMap = new SingletonMap<>() {
+    private @Nullable SingletonMap<ModuleReference, Recycler<ModuleReader, IOException>, IOException> //
+    moduleReaderRecyclerMap = new SingletonMap<>() {
         @Override
-        public Recycler<ModuleReader, IOException> newInstance(final ModuleRef moduleRef,
+        public Recycler<ModuleReader, IOException> newInstance(final ModuleReference moduleReference,
                 final @Nullable LogNode ignored) {
             return new Recycler<>() {
                 @Override
                 public ModuleReader newInstance() throws IOException {
-                    return moduleRef.open();
+                    return ModuleReaderUtils.openModule(moduleReference);
                 }
             };
         }
@@ -129,15 +130,15 @@ public class ScanResources {
     // ---------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the map from {@link ModuleRef} to {@link ModuleReader} recycler.
+     * Get the map from {@link ModuleReference} to {@link ModuleReader} recycler.
      *
      * @return the map
      * @throws NullPointerException
      *             if {@link #close(LogNode)} has been called
      */
-    public SingletonMap<ModuleRef, Recycler<ModuleReader, IOException>, IOException> //
-            moduleRefToModuleReaderRecyclerMap() {
-        return Objects.requireNonNull(moduleRefToModuleReaderRecyclerMap);
+    public SingletonMap<ModuleReference, Recycler<ModuleReader, IOException>, IOException> //
+            moduleReaderRecyclerMap() {
+        return Objects.requireNonNull(moduleReaderRecyclerMap);
     }
 
     // ---------------------------------------------------------------------------------------------------------
@@ -298,12 +299,12 @@ public class ScanResources {
      */
     public void close(final @Nullable LogNode log) {
         var interrupted = false;
-        final var moduleReaderRecyclerMap = moduleRefToModuleReaderRecyclerMap;
-        if (moduleReaderRecyclerMap != null) {
+        final var recyclerMap = moduleReaderRecyclerMap;
+        if (recyclerMap != null) {
             var completedWithoutInterruption = false;
             while (!completedWithoutInterruption) {
                 try {
-                    for (final Recycler<ModuleReader, IOException> recycler : moduleReaderRecyclerMap.values()) {
+                    for (final Recycler<ModuleReader, IOException> recycler : recyclerMap.values()) {
                         recycler.forceClose();
                     }
                     completedWithoutInterruption = true;
@@ -312,8 +313,8 @@ public class ScanResources {
                     interrupted = true;
                 }
             }
-            moduleReaderRecyclerMap.clear();
-            moduleRefToModuleReaderRecyclerMap = null;
+            recyclerMap.clear();
+            moduleReaderRecyclerMap = null;
         }
         final var openSlicesCurr = openSlices;
         if (openSlicesCurr != null) {

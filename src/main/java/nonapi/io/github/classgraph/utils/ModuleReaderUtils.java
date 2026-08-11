@@ -31,6 +31,7 @@ package nonapi.io.github.classgraph.utils;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.module.ModuleReader;
+import java.lang.module.ModuleReference;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -42,14 +43,40 @@ import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Helper methods for calling {@link ModuleReader}, which convert its {@link Optional} and {@link Stream} return
- * values into plain values, and wrap the checked {@link IOException} thrown by each of its methods in an unchecked
- * exception.
+ * Helper methods for opening a {@link ModuleReference} and for calling {@link ModuleReader}, which convert its
+ * {@link Optional} and {@link Stream} return values into plain values, and wrap the checked {@link IOException}
+ * thrown by each of its methods in an unchecked exception.
  */
 public final class ModuleReaderUtils {
     /** Class can not be constructed. */
     private ModuleReaderUtils() {
         // Empty
+    }
+
+    /**
+     * Open a module, returning a {@link ModuleReader} for reading its contents.
+     *
+     * @param moduleReference
+     *            the module to open.
+     * @return a {@link ModuleReader} for the module.
+     * @throws IOException
+     *             if the module could not be opened.
+     */
+    public static ModuleReader openModule(final ModuleReference moduleReference) throws IOException {
+        final ModuleReader moduleReader;
+        try {
+            moduleReader = moduleReference.open();
+        } catch (final SecurityException e) {
+            throw new IOException("Could not open module " + moduleReference.descriptor().name(), e);
+        }
+        if (moduleReader == null) {
+            // ModuleReference#open() is specified to return a ModuleReader, and is not allowed to return null, so a
+            // null return means the ModuleReference implementation does not honour its contract
+            throw new IOException("ModuleReference#open() returned null for module "
+                    + moduleReference.descriptor().name() + ", which its contract does not permit -- this is a bug "
+                    + "in the ModuleReference implementation " + moduleReference.getClass().getName());
+        }
+        return moduleReader;
     }
 
     /**

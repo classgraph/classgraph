@@ -126,17 +126,18 @@ public class ModuleInfoTest {
     }
 
     /**
-     * A module read from the traditional classpath has no {@link ModuleRef}, but does have a location.
+     * A module read from the traditional classpath has no {@link java.lang.module.ModuleReference}, but does have a
+     * location.
      *
      * @throws IOException
      *             if the module directory could not be canonicalized.
      */
     @Test
-    public void aModuleOnTheClasspathHasNoModuleRefButHasALocation() throws IOException {
+    public void aModuleOnTheClasspathHasNoModuleReferenceButHasALocation() throws IOException {
         try (var scanResult = scan(/* enableAnnotationInfo = */ false)) {
             final var moduleInfo = moduleInfo(scanResult);
-            // A ModuleRef is only present for modules read from the module path
-            assertThat(moduleInfo.getModuleRef()).isNull();
+            // A ModuleReference is only present for modules read from the module path
+            assertThat(moduleInfo.getModuleReference()).isNull();
             // The location falls back to the URI of the classpath element the module descriptor was read from.
             // ClassGraph canonicalizes a directory classpath element, so the location is the real path of the
             // module directory, which differs from the path the temp directory was handed out as on macOS
@@ -209,19 +210,20 @@ public class ModuleInfoTest {
     }
 
     /**
-     * Modules of the JDK itself are read from the module path, so they carry a {@link ModuleRef}, and their
-     * location comes from the {@link ModuleRef} rather than from a classpath element.
+     * Modules of the JDK itself are read from the module path, so they carry a
+     * {@link java.lang.module.ModuleReference}, and their location comes from that rather than from a classpath
+     * element.
      */
     @Test
-    public void aModuleOnTheModulePathCarriesAModuleRef() {
+    public void aModuleOnTheModulePathCarriesAModuleReference() {
         try (var scanResult = new ClassGraph().enableSystemJarsAndModules().enableClassInfo()
                 .acceptPackagesNonRecursive("java.util.function").scan()) {
             final var moduleInfo = scanResult.getModuleInfo("java.base");
             assertThat(moduleInfo).as("ModuleInfo for java.base").isNotNull();
-            final var moduleRef = moduleInfo.getModuleRef();
-            assertThat(moduleRef).isNotNull();
-            assertThat(moduleRef.getName()).isEqualTo("java.base");
-            assertThat(moduleInfo.getLocationURI()).isEqualTo(moduleRef.getLocationURI());
+            final var moduleReference = moduleInfo.getModuleReference();
+            assertThat(moduleReference).isNotNull();
+            assertThat(moduleReference.descriptor().name()).isEqualTo("java.base");
+            assertThat(moduleInfo.getLocationURI()).isEqualTo(moduleReference.location().orElse(null));
             assertThat(moduleInfo.getClassInfo().getNames()).contains("java.util.function.Function");
             assertThat(moduleInfo.getPackageInfo().getNames()).containsExactly("java.util.function");
         }

@@ -198,8 +198,8 @@ public class ResourceTest {
             assertThat(resource.getClasspathElementURL().getPath()).isEqualTo(classpathElementUriPath);
             assertThat(resource.getURL().getPath()).isEqualTo(classpathElementUriPath + TEXT_FILE);
 
-            // A ModuleRef is only present for resources read from the module path
-            assertThat(resource.getModuleRef()).isNull();
+            // A ModuleReference is only present for resources read from the module path
+            assertThat(resource.getModuleReference()).isNull();
         }
     }
 
@@ -257,7 +257,7 @@ public class ResourceTest {
                     .endsWith(JAR_NAME + "!/BOOT-INF/classes/hello/HelloController.class");
             assertThat(resource.getURL().toString()).isEqualTo(resource.getURI().toString());
             assertThat(resource.getClasspathElementFile().getName()).isEqualTo(JAR_NAME);
-            assertThat(resource.getModuleRef()).isNull();
+            assertThat(resource.getModuleReference()).isNull();
             // A classfile starts with the 0xCAFEBABE magic number
             assertThat(resource.load()).startsWith((byte) 0xCA, (byte) 0xFE, (byte) 0xBA, (byte) 0xBE);
         }
@@ -273,8 +273,8 @@ public class ResourceTest {
         try (var scanResult = new ClassGraph().enableSystemJarsAndModules()
                 .acceptPathsNonRecursive("java/util/function").scan()) {
             final var resource = resource(scanResult, "java/util/function/Function.class");
-            assertThat(resource.getModuleRef()).isNotNull();
-            assertThat(resource.getModuleRef().getName()).isEqualTo("java.base");
+            assertThat(resource.getModuleReference()).isNotNull();
+            assertThat(resource.getModuleReference().descriptor().name()).isEqualTo("java.base");
             // Not a file on disk, so there is no classpath element File
             assertThat(resource.getClasspathElementFile()).isNull();
 

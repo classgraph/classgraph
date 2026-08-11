@@ -3,7 +3,6 @@ package io.github.classgraph;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.lang.module.ModuleDescriptor;
-import java.lang.module.ModuleFinder;
 import java.lang.module.ModuleReader;
 import java.lang.module.ModuleReference;
 import java.net.URI;
@@ -55,34 +54,19 @@ public class Issue887Test {
     }
 
     /**
-     * Define a module layer containing a single module, {@value #MODULE_NAME}, whose {@link ModuleReader} violates
-     * the {@link ModuleReader#list()} contract.
+     * Define a module named {@value #MODULE_NAME}, whose {@link ModuleReader} violates the
+     * {@link ModuleReader#list()} contract.
      *
-     * @return the {@link ModuleRef} for the module.
+     * @return the {@link ModuleReference} for the module.
      */
-    private static ModuleRef fakeModuleRef() {
+    private static ModuleReference fakeModule() {
         final var descriptor = ModuleDescriptor.newModule(MODULE_NAME).packages(Set.of("fake")).build();
-        final ModuleReference reference = new ModuleReference(descriptor, /* location = */ null) {
+        return new ModuleReference(descriptor, /* location = */ null) {
             @Override
             public ModuleReader open() {
                 return new NullListingModuleReader();
             }
         };
-        final ModuleFinder finder = new ModuleFinder() {
-            @Override
-            public Optional<ModuleReference> find(final String name) {
-                return MODULE_NAME.equals(name) ? Optional.of(reference) : Optional.empty();
-            }
-
-            @Override
-            public Set<ModuleReference> findAll() {
-                return Set.of(reference);
-            }
-        };
-        final var bootLayer = ModuleLayer.boot();
-        final var configuration = bootLayer.configuration().resolve(finder, ModuleFinder.of(), Set.of(MODULE_NAME));
-        final var layer = bootLayer.defineModules(configuration, moduleName -> Issue887Test.class.getClassLoader());
-        return new ModuleRef(reference, layer);
     }
 
     /**
@@ -95,7 +79,7 @@ public class Issue887Test {
      */
     @Test
     public void nullModuleReaderListingIsIgnoredButLogged() throws Exception {
-        try (var moduleReader = fakeModuleRef().open()) {
+        try (var moduleReader = ModuleReaderUtils.openModule(fakeModule())) {
             // Without logging, the module is silently treated as empty
             assertThat(ModuleReaderUtils.list(moduleReader, MODULE_NAME, /* log = */ null)).isEmpty();
 

@@ -32,6 +32,7 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.module.ModuleReference;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -222,14 +223,14 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
     }
 
     /**
-     * Get the {@link ModuleRef} for the module that this {@link Resource} was found within.
+     * Get the {@link ModuleReference} for the module that this {@link Resource} was found within.
      *
-     * @return The {@link ModuleRef} for the module that this {@link Resource} was found within, as a
-     *         {@link ModuleRef}, or null if this {@link Resource} was found in a directory or jar in the classpath.
+     * @return The {@link ModuleReference} for the module that this {@link Resource} was found within, or null if
+     *         this {@link Resource} was found in a directory or jar in the classpath.
      */
-    public @Nullable ModuleRef getModuleRef() {
+    public @Nullable ModuleReference getModuleReference() {
         return classpathElement instanceof final ClasspathElementModule classpathElementModule
-                ? classpathElementModule.moduleRef
+                ? classpathElementModule.moduleReference
                 : null;
     }
 

@@ -34,6 +34,7 @@ import java.io.File;
 import java.lang.annotation.Annotation;
 import java.lang.annotation.Inherited;
 import java.lang.annotation.Repeatable;
+import java.lang.module.ModuleReference;
 import java.lang.reflect.Modifier;
 import java.net.MalformedURLException;
 import java.net.URI;
@@ -74,7 +75,7 @@ import org.jspecify.annotations.Nullable;
  * to them: {@link #getResource()} returns null for them, accessors that depend on the classfile having been read
  * return empty results, and the accessors that report where the class was found
  * ({@link #getClasspathElementFile()}, {@link #getClasspathElementURI()}, {@link #getClasspathElementURL()} and
- * {@link #getModuleRef()}) throw {@link IllegalStateException}.
+ * {@link #getModuleReference()}) throw {@link IllegalStateException}.
  *
  * <p>
  * Separately, {@link #isExternalClass()} reports whether a class lies outside the accepted packages. An external
@@ -3601,12 +3602,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
 
     /**
      * Get the {@link File} for the classpath element package root dir or jar that this class was found within, or
-     * null if this class was found in a module. (See also {@link #getModuleRef}.)
+     * null if this class was found in a module. (See also {@link #getModuleReference}.)
      *
      * @return The {@link File} for the classpath element package root dir or jar that this class was found within,
-     *         or null if this class was found in a module (see {@link #getModuleRef}). May also return null if the
-     *         classpath element was an http/https URL, and the jar was downloaded directly to RAM, rather than to a
-     *         temp file on disk (e.g. if the temp dir is not writeable).
+     *         or null if this class was found in a module (see {@link #getModuleReference}). May also return null
+     *         if the classpath element was an http/https URL, and the jar was downloaded directly to RAM, rather
+     *         than to a temp file on disk (e.g. if the temp dir is not writeable).
      * @throws IllegalStateException
      *             if the classpath element is not known for this class, because this {@link ClassInfo} is a
      *             placeholder for a class that was referenced by a scanned class but was not itself scanned.
@@ -3619,20 +3620,20 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get the module that this class was found within, as a {@link ModuleRef}, or null if this class was found in a
-     * directory or jar in the classpath. (See also {@link #getClasspathElementFile()}.)
+     * Get the module that this class was found within, as a {@link ModuleReference}, or null if this class was
+     * found in a directory or jar in the classpath. (See also {@link #getClasspathElementFile()}.)
      *
-     * @return The module that this class was found within, as a {@link ModuleRef}, or null if this class was found
-     *         in a directory or jar in the classpath. (See also {@link #getClasspathElementFile()}.)
+     * @return The module that this class was found within, as a {@link ModuleReference}, or null if this class was
+     *         found in a directory or jar in the classpath. (See also {@link #getClasspathElementFile()}.)
      * @throws IllegalStateException
      *             if the classpath element is not known for this class, because this {@link ClassInfo} is a
      *             placeholder for a class that was referenced by a scanned class but was not itself scanned.
      */
-    public @Nullable ModuleRef getModuleRef() {
+    public @Nullable ModuleReference getModuleReference() {
         if (classpathElement == null) {
             throw new IllegalStateException("Classpath element is not known for class " + getName());
         }
-        return classpathElement instanceof ClasspathElementModule c ? c.getModuleRef() : null;
+        return classpathElement instanceof ClasspathElementModule c ? c.getModuleReference() : null;
     }
 
     /**

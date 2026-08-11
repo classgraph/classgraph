@@ -268,12 +268,6 @@ try (URLClassLoader classLoader = new URLClassLoader(urls);
 }
 ```
 
-There is one deliberate exception: `ModuleRef` still holds its `ModuleLayer` and that
-layer's classloader strongly, and `ModuleRef` is reachable from `ModuleInfo`. A
-`ModuleLayer` pins the classloaders of the modules it defines regardless of what ClassGraph
-does, so dropping that reference would not release anything; `ModuleRef#getLayer()` and
-`#getClassLoader()` remain part of the public API.
-
 ### Module APIs are now strongly typed
 
 In 4.x, every method that took or returned a module-system object used `Object` as the
@@ -284,21 +278,64 @@ manipulated by reflection. These now use the real types from `java.lang.module`:
 | --- | --- |
 | `ClassGraph#addModuleLayer(Object)` | `ClassGraph#addModuleLayer(ModuleLayer)` |
 | `ClassGraph#overrideModuleLayers(Object...)` | `ClassGraph#overrideModuleLayers(ModuleLayer...)` |
-| `ModuleRef#getReference()` returns `Object` | returns `java.lang.module.ModuleReference` |
-| `ModuleRef#getLayer()` returns `Object` | returns `java.lang.ModuleLayer` |
-| `ModuleRef#getDescriptor()` returns `Object` | returns `java.lang.module.ModuleDescriptor` |
-| `ModuleRef(Object, Object, ReflectionUtils)` | `ModuleRef(ModuleReference, ModuleLayer)` |
 
-Callers that already passed a `ModuleLayer` need no source change for the `ClassGraph`
-methods, but the calls do have to be recompiled. Callers of the `ModuleRef` getters can
-drop their casts. The `ModuleRef` constructor no longer takes a `ReflectionUtils`
-parameter, since no reflection is involved any more.
+Callers that already passed a `ModuleLayer` need no source change, but the calls do have to
+be recompiled.
+
+### `ModuleRef` has been removed — modules are now `java.lang.module.ModuleReference`
+
+`ModuleRef` was a wrapper around `java.lang.module.ModuleReference`, written when ClassGraph
+still had to compile and run on JDK 7 and JDK 8, where that type did not exist. It held the
+reference, its layer, its descriptor, its packages and its location, and reached all of them
+by reflection. On JDK 17 there is nothing left for it to do: the module system's own type
+carries everything ClassGraph exposed. So `ModuleRef` is gone, and every method that
+returned one now returns a `ModuleReference`:
+
+| ClassGraph 4.x | ClassGraph 5.x |
+| --- | --- |
+| `ClassInfo#getModuleRef()` | `ClassInfo#getModuleReference()` |
+| `ModuleInfo#getModuleRef()` | `ModuleInfo#getModuleReference()` |
+| `Resource#getModuleRef()` | `Resource#getModuleReference()` |
+| `ScanResult#getModules()` | `ScanResult#getModuleReferences()` |
+| `ClassGraph#getModules()` | `ClassGraph#getModuleReferences()` |
+
+The `ModuleRef` accessors map onto `ModuleReference` as follows:
+
+| `ModuleRef` (4.x) | `ModuleReference` (5.x) |
+| --- | --- |
+| `getName()` | `descriptor().name()` |
+| `getReference()` | the object itself |
+| `getDescriptor()` | `descriptor()` |
+| `getPackages()` | `descriptor().packages()` |
+| `getRawVersion()` | `descriptor().rawVersion().orElse(null)` |
+| `getLocation()` | `location().orElse(null)` |
+| `getLocationString()` | `location().map(URI::toString).orElse(null)` |
+| `open()` | `open()` |
+
+Four members have no direct equivalent:
+
+* `getLayer()` returned the `ModuleLayer` the module was resolved in. ClassGraph does not
+  need it, and holding it kept that layer's classloaders alive for the lifetime of the
+  `ScanResult` — the one exception to "classloaders are no longer retained after a scan",
+  described above, which no longer exists. If you need the layer, you have it already: you
+  are the one who supplied it to `addModuleLayer()`, or it is `ModuleLayer.boot()`.
+* `getClassLoader()` returned the classloader for the module within that layer. Loading
+  classes is now the caller's job, as described above.
+* `isSystemModule()` tested the module name against the `java.`, `jdk.`, `javafx.` and
+  `oracle.` prefixes. That is a scanning-time classification, not a property of a module,
+  and it is now internal to ClassGraph.
+* `getLocationFile()` returned the module's location as a `File`, or null for a location
+  that is not a file. `location()` gives you the `URI`.
+
+Note also that `ModuleRef#getPackages()` returned the package names sorted, whereas
+`descriptor().packages()` returns them in no particular order — sort them yourself if the
+order matters.
 
 ### `ModuleReaderProxy` has been removed (#860)
 
 `ModuleReaderProxy` existed only to wrap `java.lang.module.ModuleReader`, which did not
-exist on JDK 8. The class has been deleted, and `ModuleRef#open()` now returns a
-`java.lang.module.ModuleReader` directly:
+exist on JDK 8. The class has been deleted; open a module with `ModuleReference#open()`,
+which returns a `java.lang.module.ModuleReader` directly:
 
 ```java
 // ClassGraph 4.x
@@ -308,7 +345,7 @@ try (ModuleReaderProxy moduleReader = moduleRef.open()) {
 }
 
 // ClassGraph 5.x
-try (ModuleReader moduleReader = moduleRef.open()) {
+try (ModuleReader moduleReader = moduleReference.open()) {
     List<String> paths = moduleReader.list().toList();
     ByteBuffer content = moduleReader.read(path).orElseThrow();
 }
@@ -421,7 +458,6 @@ convention used by the JDK itself (`NullPointerException` for a null argument,
 | `ClassGraph#addModuleLayer`, `#overrideModuleLayers` | `IllegalArgumentException` | `NullPointerException` |
 | `ClassGraph#enableURLScheme(null)` | `IllegalArgumentException: URL schemes must contain at least two characters` | `NullPointerException: scheme must not be null` |
 | `ClassGraph#filterClasspathElements(null)` | `IllegalArgumentException` with a null message | `NullPointerException: classpathElementFilter must not be null` |
-| `ModuleRef(ModuleReference, ModuleLayer)` | `IllegalArgumentException` | `NullPointerException` |
 | `ClassInfoList#getAssignableTo(null)` | `IllegalArgumentException` | `NullPointerException` |
 | `ClassInfoList#exclude(null)` | `NullPointerException` with a null message | `NullPointerException: other must not be null` |
 | `ClassInfo#loadClass((Class<?>) null)` | `IllegalArgumentException: Could not load class <name>` | `NullPointerException: superclassOrInterfaceType must not be null` |
@@ -612,7 +648,6 @@ The abbreviation was only ever there to keep the names short:
 | `ArrayClassInfo#getTypeSignatureStr()` | `ArrayClassInfo#getTypeSignatureString()` |
 | `ArrayTypeSignature#getTypeSignatureStr()` | `ArrayTypeSignature#getTypeSignatureString()` |
 | `BaseTypeSignature#getTypeStr()` | `BaseTypeSignature#getTypeName()` (see below) |
-| `ModuleRef#getLocationStr()` | `ModuleRef#getLocationString()` |
 
 `BaseTypeSignature`'s method is the exception: it does not return a signature string, it
 returns the name of a primitive type (`"int"`, `"void"`). It is now `getTypeName()`,
@@ -626,7 +661,6 @@ exactly the same string for the same type.
 | `Resource#getLastModified()` | `Resource#getLastModifiedMillis()` |
 | `ScanResult#classpathContentsLastModifiedTime()` | `ScanResult#getClasspathContentsLastModifiedMillis()` |
 | `ScanResult#classpathContentsModifiedSinceScan()` | `ScanResult#isClasspathContentsModifiedSinceScan()` |
-| `ModuleRef#getLocation()` | `ModuleRef#getLocationURI()` |
 | `ModuleInfo#getLocation()` | `ModuleInfo#getLocationURI()` |
 
 Both time values were already in milliseconds since the epoch; the names now say so, as
@@ -634,9 +668,8 @@ Both time values were already in milliseconds since the epoch; the names now say
 Javadoc already did. The value returned by `Resource#getLastModifiedMillis()` is 0L when
 the last modified time is unknown, as before.
 
-The two `getLocation()` methods return a `URI`, and each sits next to a
-`getLocationString()` and (on `ModuleRef`) a `getLocationFile()` that say in their names
-what they return. `getLocationURI()` completes that set.
+`ModuleInfo#getLocation()` returns a `URI`, which its name did not say; `getLocationURI()`
+does.
 
 ### `AnnotationInfo#getParameterValues(boolean)` is now two methods
 
@@ -1216,7 +1249,7 @@ is fixed on the 4.x branch as well.
   bare `NullPointerException`, with no message, when called on a `ClassInfo` for a class
   that was referenced by a scanned class but was never itself scanned (`java.lang.Object`,
   for example, when only your own packages are accepted). The two sibling accessors,
-  `getClasspathElementFile()` and `getModuleRef()`, already threw `IllegalStateException`
+  `getClasspathElementFile()` and `getModuleReference()`, already threw `IllegalStateException`
   with an explanatory message in that situation. All four now do. This is still the
   behavior on the 4.x branch, where the exception type is part of the released API.
 

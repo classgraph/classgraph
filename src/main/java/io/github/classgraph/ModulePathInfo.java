@@ -110,8 +110,8 @@ public class ModulePathInfo {
      *
      * <p>
      * Note that some modules (such as system modules) will not be in this set, as they are added to the module
-     * system automatically by the runtime. Call {@link ClassGraph#getModules()} or {@link ScanResult#getModules()}
-     * to get all modules visible at runtime.
+     * system automatically by the runtime. Call {@link ClassGraph#getModuleReferences()} or
+     * {@link ScanResult#getModuleReferences()} to get all modules visible at runtime.
      *
      * @return The module path, as an unmodifiable set.
      */

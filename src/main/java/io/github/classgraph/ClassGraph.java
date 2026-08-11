@@ -30,6 +30,7 @@ package io.github.classgraph;
 
 import java.io.File;
 import java.io.InputStream;
+import java.lang.module.ModuleReference;
 import java.lang.reflect.AccessibleObject;
 import java.net.URI;
 import java.net.URL;
@@ -77,8 +78,8 @@ import org.jspecify.annotations.Nullable;
  * {@link #overrideModuleLayers(ModuleLayer...)}, and narrow which mechanisms contribute classpath elements with
  * {@link #ignoreParentClassLoaders()}, {@link #ignoreParentModuleLayers()}, {@link #disableModuleScanning()},
  * {@link #disableJarScanning()} and {@link #disableDirScanning()}. After a scan,
- * {@link ScanResult#getClasspathURIs()} and {@link ScanResult#getModules()} report exactly which classpath elements
- * and modules were scanned.
+ * {@link ScanResult#getClasspathURIs()} and {@link ScanResult#getModuleReferences()} report exactly which classpath
+ * elements and modules were scanned.
  *
  * <p>
  * Documentation: <a href= "https://github.com/classgraph/classgraph/wiki">
@@ -1638,16 +1639,16 @@ public class ClassGraph {
     }
 
     /**
-     * Returns {@link ModuleRef} references for all the visible modules.
+     * Returns the {@link ModuleReference} for each visible module.
      *
-     * @return a list of {@link ModuleRef} references for all the visible modules.
+     * @return a list of the {@link ModuleReference} for each visible module.
      * @throws ClassGraphException
      *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      */
-    public List<ModuleRef> getModules() {
+    public List<ModuleReference> getModuleReferences() {
         try (var executorService = new AutoCloseableExecutorService(DEFAULT_NUM_WORKER_THREADS);
                 var scanResult = getClasspathScanResult(executorService)) {
-            return scanResult.getModules();
+            return scanResult.getModuleReferences();
         }
     }
 
@@ -1657,8 +1658,8 @@ public class ClassGraph {
      *
      * <p>
      * Note that the returned {@link ModulePathInfo} object does not include classpath entries from the traditional
-     * classpath or system modules. Use {@link #getModules()} to get all visible modules, including anonymous,
-     * automatic and system modules.
+     * classpath or system modules. Use {@link #getModuleReferences()} to get all visible modules, including
+     * anonymous, automatic and system modules.
      *
      * <p>
      * Also, {@link ModulePathInfo#addExports} and {@link ModulePathInfo#addOpens} will not contain

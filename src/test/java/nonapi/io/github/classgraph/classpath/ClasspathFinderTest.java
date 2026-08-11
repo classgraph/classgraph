@@ -45,7 +45,8 @@ public class ClasspathFinderTest {
 
         // Assert
         assertNotNull(moduleFinder, "ModuleFinder should be non-null");
-        assertFalse(moduleFinder.getSystemModuleRefs().isEmpty(), "ModuleFinder should have found system modules");
+        assertFalse(moduleFinder.getSystemModuleReferences().isEmpty(),
+                "ModuleFinder should have found system modules");
 
         final Set<Path> paths = new TreeSet<>();
         for (final String path : classpathFinder.getClasspathOrder().getClasspathEntryUniqueResolvedPaths()) {
@@ -79,7 +80,8 @@ public class ClasspathFinderTest {
 
         // Assert
         assertNotNull(moduleFinder, "ModuleFinder should be non-null");
-        assertFalse(moduleFinder.getSystemModuleRefs().isEmpty(), "ModuleFinder should have found system modules");
+        assertFalse(moduleFinder.getSystemModuleReferences().isEmpty(),
+                "ModuleFinder should have found system modules");
 
         final Set<Path> paths = new TreeSet<>();
         for (final String path : classpathFinder.getClasspathOrder().getClasspathEntryUniqueResolvedPaths()) {
@@ -135,7 +137,7 @@ public class ClasspathFinderTest {
                 "java.class.path should have been scanned");
         final var moduleFinder = classpathFinder.getModuleFinder();
         assertNotNull(moduleFinder, "Modules should have been searched for");
-        assertNotNull(moduleFinder.getNonSystemModuleRefs(), "Non-system modules should have been scanned");
+        assertNotNull(moduleFinder.getNonSystemModuleReferences(), "Non-system modules should have been scanned");
     }
 
     /**
@@ -154,7 +156,7 @@ public class ClasspathFinderTest {
 
         final var moduleFinder = classpathFinder.getModuleFinder();
         assertNotNull(moduleFinder, "Modules should have been searched for");
-        assertFalse(moduleFinder.getSystemModuleRefs().isEmpty(), "System modules should have been scanned");
+        assertFalse(moduleFinder.getSystemModuleReferences().isEmpty(), "System modules should have been scanned");
         final var paths = resolvedPaths(classpathFinder);
         assertFalse(paths.contains(testClasspathElement()),
                 "java.class.path should not have been scanned: " + paths);
@@ -175,6 +177,6 @@ public class ClasspathFinderTest {
 
         final var moduleFinder = classpathFinder.getModuleFinder();
         assertNotNull(moduleFinder, "Modules should have been searched for");
-        assertFalse(moduleFinder.getSystemModuleRefs().isEmpty(), "System modules should have been scanned");
+        assertFalse(moduleFinder.getSystemModuleReferences().isEmpty(), "System modules should have been scanned");
     }
 }

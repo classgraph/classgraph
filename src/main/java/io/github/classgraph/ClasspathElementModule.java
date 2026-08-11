@@ -32,6 +32,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.module.ModuleReader;
+import java.lang.module.ModuleReference;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.file.attribute.PosixFilePermission;
@@ -62,14 +63,14 @@ import org.jspecify.annotations.Nullable;
  */
 class ClasspathElementModule extends ClasspathElement {
 
-    /** The module ref. */
-    final ModuleRef moduleRef;
+    /** The module. */
+    final ModuleReference moduleReference;
 
     /**
-     * A singleton map from a {@link ModuleRef} to a {@link ModuleReader} recycler for the module.
+     * A singleton map from a {@link ModuleReference} to a {@link ModuleReader} recycler for the module.
      */
-    SingletonMap<ModuleRef, Recycler<ModuleReader, IOException>, IOException> //
-    moduleRefToModuleReaderRecyclerMap;
+    SingletonMap<ModuleReference, Recycler<ModuleReader, IOException>, IOException> //
+    moduleReaderRecyclerMap;
 
     /** The module reader recycler, or null until {@link #open} has been called. */
     private @Nullable Recycler<ModuleReader, IOException> moduleReaderRecycler;
@@ -97,25 +98,25 @@ class ClasspathElementModule extends ClasspathElement {
     /**
      * A zip/jarfile classpath element.
      *
-     * @param moduleRef
-     *            the module ref
+     * @param moduleReference
+     *            the module
      * @param workUnit
      *            the work unit
-     * @param moduleRefToModuleReaderRecyclerMap
-     *            the module ref to module reader recycler map
+     * @param moduleReaderRecyclerMap
+     *            the map from a module to its module reader recycler
      * @param isLookupOnly
      *            true if the module is not being scanned, and was only opened so that the classfiles of individual
      *            classes can be read from it
      * @param scanSpec
      *            the scan spec
      */
-    ClasspathElementModule(final ModuleRef moduleRef,
-            final SingletonMap<ModuleRef, Recycler<ModuleReader, IOException>, IOException> //
-            moduleRefToModuleReaderRecyclerMap, final ClasspathEntryWorkUnit workUnit, final boolean isLookupOnly,
+    ClasspathElementModule(final ModuleReference moduleReference,
+            final SingletonMap<ModuleReference, Recycler<ModuleReader, IOException>, IOException> //
+            moduleReaderRecyclerMap, final ClasspathEntryWorkUnit workUnit, final boolean isLookupOnly,
             final ScanSpec scanSpec) {
         super(workUnit, scanSpec);
-        this.moduleRefToModuleReaderRecyclerMap = moduleRefToModuleReaderRecyclerMap;
-        this.moduleRef = moduleRef;
+        this.moduleReaderRecyclerMap = moduleReaderRecyclerMap;
+        this.moduleReference = moduleReference;
         this.isLookupOnly = isLookupOnly;
     }
 
@@ -131,7 +132,7 @@ class ClasspathElementModule extends ClasspathElement {
             return;
         }
         try {
-            moduleReaderRecycler = moduleRefToModuleReaderRecyclerMap.get(moduleRef, log);
+            moduleReaderRecycler = moduleReaderRecyclerMap.get(moduleReference, log);
         } catch (final IOException | NullSingletonException | NewInstanceException e) {
             if (log != null) {
                 log(classpathElementIdx, "Skipping invalid module " + getModuleName() + " : "
@@ -326,8 +327,8 @@ class ClasspathElementModule extends ClasspathElement {
             throw new IllegalStateException("Already scanned classpath element " + this);
         }
 
-        final var subLog = log == null ? null
-                : log(classpathElementIdx, "Scanning module " + moduleRef.getName(), log);
+        final var moduleName = moduleReference.descriptor().name();
+        final var subLog = log == null ? null : log(classpathElementIdx, "Scanning module " + moduleName, log);
 
         // Determine whether this is a modular jar
         final var isModularJar = getModuleName() != null;
@@ -337,16 +338,16 @@ class ClasspathElementModule extends ClasspathElement {
             // Look for accepted files in the module.
             final List<String> resourceRelativePaths;
             try {
-                resourceRelativePaths = ModuleReaderUtils.list(moduleReaderRecycleOnClose.get(),
-                        moduleRef.getName(), subLog);
+                resourceRelativePaths = ModuleReaderUtils.list(moduleReaderRecycleOnClose.get(), moduleName,
+                        subLog);
             } catch (final SecurityException | IllegalArgumentException e) {
                 // A module whose contents cannot be listed is skipped, rather than aborting the whole scan. (A
                 // ModuleReader that returns null from list(), in violation of its contract, is handled by
                 // ModuleReaderUtils#list(ModuleReader, String, LogNode) instead, which treats the module as empty
                 // -- see #887)
                 if (subLog != null) {
-                    subLog.log("Could not get resource list for module " + moduleRef.getName()
-                            + " -- skipping this module", e);
+                    subLog.log("Could not get resource list for module " + moduleName + " -- skipping this module",
+                            e);
                 }
                 return;
             }
@@ -412,14 +413,14 @@ class ClasspathElementModule extends ClasspathElement {
             }
 
             // Save last modified time for the module file
-            final var moduleFile = moduleRef.getLocationFile();
-            if (moduleFile != null && moduleFile.exists()) {
+            final var moduleFile = getFile();
+            if (moduleFile != null) {
                 fileToLastModified.put(moduleFile, moduleFile.lastModified());
             }
 
         } catch (final IOException e) {
             if (subLog != null) {
-                subLog.log("Exception opening module " + moduleRef.getName(), e);
+                subLog.log("Exception opening module " + moduleName, e);
             }
             skipClasspathElement = true;
         }
@@ -428,12 +429,12 @@ class ClasspathElementModule extends ClasspathElement {
     }
 
     /**
-     * Get the ModuleRef for this classpath element.
+     * Get the module for this classpath element.
      *
-     * @return the module ref
+     * @return the module
      */
-    ModuleRef getModuleRef() {
-        return moduleRef;
+    ModuleReference getModuleReference() {
+        return moduleReference;
     }
 
     /**
@@ -443,8 +444,8 @@ class ClasspathElementModule extends ClasspathElement {
      */
     @Override
     public @Nullable String getModuleName() {
-        var moduleName = moduleRef.getName();
-        if (moduleName == null || moduleName.isEmpty()) {
+        var moduleName = moduleReference.descriptor().name();
+        if (moduleName.isEmpty()) {
             moduleName = moduleNameFromModuleDescriptor;
         }
         return moduleName == null || moduleName.isEmpty() ? null : moduleName;
@@ -462,7 +463,7 @@ class ClasspathElementModule extends ClasspathElement {
 
     @Override
     URI getURI() {
-        final var uri = moduleRef.getLocationURI();
+        final var uri = moduleReference.location().orElse(null);
         if (uri == null) {
             // Some modules have no known module location (ModuleReference#location() can return null)
             throw new IllegalStateException("Module " + getModuleName() + " has a null location");
@@ -479,7 +480,7 @@ class ClasspathElementModule extends ClasspathElement {
     @Nullable
     File getFile() {
         try {
-            final var uri = moduleRef.getLocationURI();
+            final var uri = moduleReference.location().orElse(null);
             // N.B. uri.getScheme() is null for a relative URI, so compare in this order
             if (uri != null && !"jrt".equals(uri.getScheme())) {
                 final File file = new File(uri);
@@ -500,7 +501,7 @@ class ClasspathElementModule extends ClasspathElement {
      */
     @Override
     public String toString() {
-        return moduleRef.toString();
+        return moduleReference.toString();
     }
 
     /**

@@ -30,6 +30,7 @@ package io.github.classgraph;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.module.ModuleReference;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -198,27 +199,27 @@ class Scanner implements Callable<ScanResult> {
 
         try {
             this.moduleOrder = new ArrayList<>();
-            final List<ModuleRef> unscannedModuleRefs = new ArrayList<>();
+            final List<ModuleReference> unscannedModuleReferences = new ArrayList<>();
 
             // Check if modules should be scanned
+            String defaultClassLoaderStr = null;
             final var moduleFinder = classpathFinder.getModuleFinder();
             if (moduleFinder != null) {
                 // Add modules to start of classpath order, before traditional classpath
                 final var classLoaderOrderRespectingParentDelegation = classpathFinder
                         .getClassLoaderOrderRespectingParentDelegation();
-                final var defaultClassLoaderStr = Objects
-                        .toString(classLoaderOrderRespectingParentDelegation != null
-                                && classLoaderOrderRespectingParentDelegation.length != 0
-                                        ? classLoaderOrderRespectingParentDelegation[0]
-                                        : null,
-                                null);
-                addModules(moduleFinder.getSystemModuleRefs(), /* isSystemModules = */ true, defaultClassLoaderStr,
-                        unscannedModuleRefs, classpathFinderLog);
-                addModules(moduleFinder.getNonSystemModuleRefs(), /* isSystemModules = */ false,
-                        defaultClassLoaderStr, unscannedModuleRefs, classpathFinderLog);
+                defaultClassLoaderStr = Objects.toString(classLoaderOrderRespectingParentDelegation != null
+                        && classLoaderOrderRespectingParentDelegation.length != 0
+                                ? classLoaderOrderRespectingParentDelegation[0]
+                                : null,
+                        null);
+                addModules(moduleFinder.getSystemModuleReferences(), /* isSystemModules = */ true,
+                        defaultClassLoaderStr, unscannedModuleReferences, classpathFinderLog);
+                addModules(moduleFinder.getNonSystemModuleReferences(), /* isSystemModules = */ false,
+                        defaultClassLoaderStr, unscannedModuleReferences, classpathFinderLog);
             }
-            this.unscannedModules = new UnscannedModules(unscannedModuleRefs,
-                    nestedJarHandler.scanResources.moduleRefToModuleReaderRecyclerMap(), scanSpec);
+            this.unscannedModules = new UnscannedModules(unscannedModuleReferences, defaultClassLoaderStr,
+                    nestedJarHandler.scanResources.moduleReaderRecyclerMap(), scanSpec);
 
             // Turn the toplevel classpath entries into work units, so that the ClasspathFinder (and the classloader
             // references it holds) can be discarded now that the classpath has been found
@@ -239,29 +240,29 @@ class Scanner implements Callable<ScanResult> {
 
     /**
      * Add each accepted module to {@link #moduleOrder} as an open {@link ClasspathElementModule}, and add each
-     * module that is neither accepted nor rejected to {@code unscannedModuleRefs}.
+     * module that is neither accepted nor rejected to {@code unscannedModuleReferences}.
      *
-     * @param moduleRefs
+     * @param moduleReferences
      *            the modules, or null if none were found
      * @param isSystemModules
      *            true if these are the system modules
      * @param defaultClassLoaderStr
      *            the string form of the classloader to record for each module, or null if there is none
-     * @param unscannedModuleRefs
+     * @param unscannedModuleReferences
      *            the list to add non-accepted, non-rejected modules to
      * @param classpathFinderLog
      *            the log node, or null to skip logging
      * @throws InterruptedException
      *             if the thread was interrupted while opening a module
      */
-    private void addModules(final @Nullable List<ModuleRef> moduleRefs, final boolean isSystemModules,
-            final @Nullable String defaultClassLoaderStr, final List<ModuleRef> unscannedModuleRefs,
+    private void addModules(final @Nullable List<ModuleReference> moduleReferences, final boolean isSystemModules,
+            final @Nullable String defaultClassLoaderStr, final List<ModuleReference> unscannedModuleReferences,
             final @Nullable LogNode classpathFinderLog) throws InterruptedException {
-        if (moduleRefs == null) {
+        if (moduleReferences == null) {
             return;
         }
-        for (final ModuleRef moduleRef : moduleRefs) {
-            final var moduleName = moduleRef.getName();
+        for (final ModuleReference moduleReference : moduleReferences) {
+            final var moduleName = moduleReference.descriptor().name();
             // If scanning of system modules is enabled, system modules follow the same accept/reject rule as any
             // other module, so rejecting one system module leaves the rest scannable (#658). Otherwise only
             // specifically accepted system modules are scanned.
@@ -270,8 +271,8 @@ class Scanner implements Callable<ScanResult> {
                     : scanSpec.moduleAcceptReject.isAcceptedAndNotRejected(moduleName);
             if (isAccepted) {
                 // Create a new ClasspathElementModule
-                final var classpathElementModule = new ClasspathElementModule(moduleRef,
-                        nestedJarHandler.scanResources.moduleRefToModuleReaderRecyclerMap(),
+                final var classpathElementModule = new ClasspathElementModule(moduleReference,
+                        nestedJarHandler.scanResources.moduleReaderRecyclerMap(),
                         new ClasspathEntryWorkUnit(null, defaultClassLoaderStr, null, moduleOrder.size(), "",
                                 ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES),
                         /* isLookupOnly = */ false, scanSpec);
@@ -283,7 +284,7 @@ class Scanner implements Callable<ScanResult> {
                 // it, in order to complete the class graph above an accepted class -- but not if the module was
                 // rejected (#902)
                 if (!scanSpec.moduleAcceptReject.isRejected(moduleName)) {
-                    unscannedModuleRefs.add(moduleRef);
+                    unscannedModuleReferences.add(moduleReference);
                 }
                 if (classpathFinderLog != null) {
                     classpathFinderLog.log("Skipping non-accepted or rejected "
@@ -1217,8 +1218,7 @@ class Scanner implements Callable<ScanResult> {
             classpathElt.classpathElementIdx = classpathOrderIdx++;
             finalClasspathEltOrder.add(classpathElt);
             if (classpathOrderLog != null) {
-                final var moduleRef = classpathElt.getModuleRef();
-                classpathOrderLog.log(moduleRef.toString());
+                classpathOrderLog.log(classpathElt.getModuleReference().toString());
             }
         }
         for (final ClasspathElement classpathElt : classpathEltOrder) {

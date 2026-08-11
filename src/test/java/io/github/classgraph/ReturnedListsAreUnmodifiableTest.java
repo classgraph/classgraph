@@ -25,7 +25,6 @@ public class ReturnedListsAreUnmodifiableTest {
     private static List<Object> scanResultObjects(final ScanResult scanResult) {
         final List<Object> objects = new ArrayList<>();
         objects.add(scanResult);
-        objects.addAll(scanResult.getModules());
         final ClassInfo classInfo = scanResult.getClassInfo(ClassWithMembers.class.getName());
         assertThat(classInfo).isNotNull();
         objects.add(classInfo);

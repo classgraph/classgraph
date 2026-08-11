@@ -33,6 +33,7 @@ import static io.github.classgraph.PotentiallyUnmodifiableList.unmodifiable;
 import java.io.Closeable;
 import java.io.File;
 import java.lang.annotation.Annotation;
+import java.lang.module.ModuleReference;
 import java.lang.ref.WeakReference;
 import java.net.MalformedURLException;
 import java.net.URI;
@@ -456,21 +457,21 @@ public final class ScanResult implements Closeable {
     }
 
     /**
-     * Get {@link ModuleRef} references for all visible modules.
+     * Get the {@link ModuleReference} for each visible module.
      *
-     * @return {@link ModuleRef} references for all visible modules.
+     * @return the {@link ModuleReference} for each visible module.
      * @throws IllegalStateException
      *             if this {@link ScanResult} has been closed.
      */
-    public List<ModuleRef> getModules() {
+    public List<ModuleReference> getModuleReferences() {
         checkNotClosed();
-        final List<ModuleRef> moduleRefs = new ArrayList<>();
+        final List<ModuleReference> moduleReferences = new ArrayList<>();
         for (final ClasspathElement classpathElement : classpathOrder()) {
             if (classpathElement instanceof final ClasspathElementModule classpathElementModule) {
-                moduleRefs.add(classpathElementModule.getModuleRef());
+                moduleReferences.add(classpathElementModule.getModuleReference());
             }
         }
-        return Collections.unmodifiableList(moduleRefs);
+        return Collections.unmodifiableList(moduleReferences);
     }
 
     /**
@@ -480,8 +481,8 @@ public final class ScanResult implements Closeable {
      *
      * <p>
      * Note that the returned {@link ModulePathInfo} object does not include classpath entries from the traditional
-     * classpath or system modules. Use {@link #getModules()} to get all visible modules, including anonymous,
-     * automatic and system modules.
+     * classpath or system modules. Use {@link #getModuleReferences()} to get all visible modules, including
+     * anonymous, automatic and system modules.
      *
      * @return The {@link ModulePathInfo}.
      * @throws IllegalStateException

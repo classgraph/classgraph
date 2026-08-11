@@ -227,7 +227,9 @@ public class ClassGraphTest {
                 .disableModuleScanning().scan()) {
             assertThat(scanResult.getAllClasses()).isEmpty();
             // The module is still listed as visible, it is simply not scanned
-            assertThat(scanResult.getModules()).extracting(ModuleRef::getName).containsExactly("java.base");
+            assertThat(scanResult.getModuleReferences())
+                    .extracting(moduleReference -> moduleReference.descriptor().name())
+                    .containsExactly("java.base");
         }
     }
 
@@ -393,14 +395,14 @@ public class ClassGraphTest {
         assertThat(classGraph.getClasspathURLs()).containsExactly(realClassesDir.toUri().toURL(),
                 realJarFile.toUri().toURL());
         // Modules are not scanned when the classpath is overridden
-        assertThat(classGraph.getModules()).isEmpty();
+        assertThat(classGraph.getModuleReferences()).isEmpty();
     }
 
     /** The visible modules can be listed without running a scan. */
     @Test
     public void theVisibleModulesCanBeListed() {
-        assertThat(new ClassGraph().enableSystemJarsAndModules().getModules()).extracting(ModuleRef::getName)
-                .contains("java.base");
+        assertThat(new ClassGraph().enableSystemJarsAndModules().getModuleReferences())
+                .extracting(moduleReference -> moduleReference.descriptor().name()).contains("java.base");
     }
 
     /** The module layers to scan can be overridden. */

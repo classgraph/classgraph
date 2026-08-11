@@ -32,7 +32,7 @@ public class ExternalClassInfoAccessorsTest {
             assertThat(classInfo.getResource()).isNull();
 
             assertThatExceptionOfType(IllegalStateException.class).isThrownBy(classInfo::getClasspathElementFile);
-            assertThatExceptionOfType(IllegalStateException.class).isThrownBy(classInfo::getModuleRef);
+            assertThatExceptionOfType(IllegalStateException.class).isThrownBy(classInfo::getModuleReference);
             assertThatExceptionOfType(IllegalStateException.class).isThrownBy(classInfo::getClasspathElementURI);
             assertThatExceptionOfType(IllegalStateException.class).isThrownBy(classInfo::getClasspathElementURL);
         }

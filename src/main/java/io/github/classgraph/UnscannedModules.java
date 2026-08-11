@@ -30,11 +30,11 @@ package io.github.classgraph;
 
 import java.io.IOException;
 import java.lang.module.ModuleReader;
+import java.lang.module.ModuleReference;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import io.github.classgraph.Scanner.ClassfileScanWorkUnit;
@@ -64,13 +64,18 @@ import org.jspecify.annotations.Nullable;
  */
 class UnscannedModules {
     /** The modules that are not being scanned, and that were not rejected. */
-    private final List<ModuleRef> unscannedModuleRefs;
+    private final List<ModuleReference> unscannedModules;
 
     /**
-     * A singleton map from a {@link ModuleRef} to a {@link ModuleReader} recycler for the module.
+     * A singleton map from a {@link ModuleReference} to a {@link ModuleReader} recycler for the module.
      */
-    private final SingletonMap<ModuleRef, Recycler<ModuleReader, IOException>, IOException> //
-    moduleRefToModuleReaderRecyclerMap;
+    private final SingletonMap<ModuleReference, Recycler<ModuleReader, IOException>, IOException> //
+    moduleReaderRecyclerMap;
+
+    /**
+     * The string form of the classloader to record for each module, or null if there is none.
+     */
+    private final @Nullable String classLoaderStr;
 
     /** The scan spec. */
     private final ScanSpec scanSpec;
@@ -79,29 +84,32 @@ class UnscannedModules {
      * A map from the name of a package to the module that contains the package, or null until the map is built on
      * the first lookup.
      */
-    private @Nullable Map<String, ModuleRef> packageNameToModuleRef;
+    private @Nullable Map<String, ModuleReference> packageNameToModule;
 
     /**
      * A map from a module to the classpath element that was created for it, for the modules that have been looked
      * in so far.
      */
-    private final Map<ModuleRef, ClasspathElementModule> moduleRefToClasspathElement = new HashMap<>();
+    private final Map<ModuleReference, ClasspathElementModule> moduleToClasspathElement = new HashMap<>();
 
     /**
      * Constructor.
      *
-     * @param unscannedModuleRefs
+     * @param unscannedModules
      *            the modules that are not being scanned, and that were not rejected
-     * @param moduleRefToModuleReaderRecyclerMap
-     *            the module ref to module reader recycler map
+     * @param classLoaderStr
+     *            the string form of the classloader to record for each module, or null if there is none
+     * @param moduleReaderRecyclerMap
+     *            the map from a module to its module reader recycler
      * @param scanSpec
      *            the scan spec
      */
-    UnscannedModules(final List<ModuleRef> unscannedModuleRefs,
-            final SingletonMap<ModuleRef, Recycler<ModuleReader, IOException>, IOException> //
-            moduleRefToModuleReaderRecyclerMap, final ScanSpec scanSpec) {
-        this.unscannedModuleRefs = unscannedModuleRefs;
-        this.moduleRefToModuleReaderRecyclerMap = moduleRefToModuleReaderRecyclerMap;
+    UnscannedModules(final List<ModuleReference> unscannedModules, final @Nullable String classLoaderStr,
+            final SingletonMap<ModuleReference, Recycler<ModuleReader, IOException>, IOException> //
+            moduleReaderRecyclerMap, final ScanSpec scanSpec) {
+        this.unscannedModules = unscannedModules;
+        this.classLoaderStr = classLoaderStr;
+        this.moduleReaderRecyclerMap = moduleReaderRecyclerMap;
         this.scanSpec = scanSpec;
     }
 
@@ -121,17 +129,17 @@ class UnscannedModules {
      */
     synchronized @Nullable ClassfileScanWorkUnit findClassfile(final String className, final String classfilePath,
             final @Nullable LogNode log) throws InterruptedException {
-        if (!scanSpec.scanModules || unscannedModuleRefs.isEmpty()) {
+        if (!scanSpec.scanModules || unscannedModules.isEmpty()) {
             return null;
         }
         // A class can only be in the module that contains its package (a package is not allowed to be split across
         // two modules in the same module layer), so there is at most one module to look in
         final var packageName = PackageInfo.getParentPackageName(className);
-        final var moduleRef = packageName == null ? null : packageNameToModuleRef().get(packageName);
-        if (moduleRef == null) {
+        final var moduleReference = packageName == null ? null : packageNameToModule().get(packageName);
+        if (moduleReference == null) {
             return null;
         }
-        final var classpathElement = classpathElementForModule(moduleRef, log);
+        final var classpathElement = classpathElementForModule(moduleReference, log);
         final var classfileResource = classpathElement.getResource(classfilePath);
         return classfileResource == null ? null
                 : new ClassfileScanWorkUnit(classpathElement, classfileResource, /* isExternalClass = */ true);
@@ -144,7 +152,7 @@ class UnscannedModules {
      * @return the classpath elements
      */
     synchronized Collection<ClasspathElementModule> getClasspathElements() {
-        return List.copyOf(moduleRefToClasspathElement.values());
+        return List.copyOf(moduleToClasspathElement.values());
     }
 
     /**
@@ -153,18 +161,18 @@ class UnscannedModules {
      *
      * @return the map from package name to module
      */
-    private Map<String, ModuleRef> packageNameToModuleRef() {
-        var map = packageNameToModuleRef;
+    private Map<String, ModuleReference> packageNameToModule() {
+        var map = packageNameToModule;
         if (map == null) {
             map = new HashMap<>();
-            for (final ModuleRef moduleRef : unscannedModuleRefs) {
-                for (final String packageName : moduleRef.getPackages()) {
+            for (final ModuleReference moduleReference : unscannedModules) {
+                for (final String packageName : moduleReference.descriptor().packages()) {
                     // If a package is somehow in more than one module, the module that comes first in the module
                     // order wins, as it would if the modules were being scanned
-                    map.putIfAbsent(packageName, moduleRef);
+                    map.putIfAbsent(packageName, moduleReference);
                 }
             }
-            packageNameToModuleRef = map;
+            packageNameToModule = map;
         }
         return map;
     }
@@ -173,7 +181,7 @@ class UnscannedModules {
      * Get the classpath element for a module that is not being scanned, opening the module if this is the first
      * time it has been looked in.
      *
-     * @param moduleRef
+     * @param moduleReference
      *            the module
      * @param log
      *            the log node, or null to skip logging
@@ -181,16 +189,16 @@ class UnscannedModules {
      * @throws InterruptedException
      *             if the thread was interrupted while opening the module
      */
-    private ClasspathElementModule classpathElementForModule(final ModuleRef moduleRef, final @Nullable LogNode log)
-            throws InterruptedException {
-        var classpathElement = moduleRefToClasspathElement.get(moduleRef);
+    private ClasspathElementModule classpathElementForModule(final ModuleReference moduleReference,
+            final @Nullable LogNode log) throws InterruptedException {
+        var classpathElement = moduleToClasspathElement.get(moduleReference);
         if (classpathElement == null) {
-            classpathElement = new ClasspathElementModule(moduleRef, moduleRefToModuleReaderRecyclerMap,
-                    new ClasspathEntryWorkUnit(null, Objects.toString(moduleRef.getClassLoader(), null), null, 0,
-                            "", ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES),
+            classpathElement = new ClasspathElementModule(moduleReference, moduleReaderRecyclerMap,
+                    new ClasspathEntryWorkUnit(null, classLoaderStr, null, 0, "",
+                            ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES),
                     /* isLookupOnly = */ true, scanSpec);
             classpathElement.open(/* workQueue = */ null, log);
-            moduleRefToClasspathElement.put(moduleRef, classpathElement);
+            moduleToClasspathElement.put(moduleReference, classpathElement);
         }
         return classpathElement;
     }

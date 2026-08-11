@@ -578,7 +578,7 @@ class Classfile {
         if (moduleName != null && (isModuleDescriptor || packageInfo != null)) {
             // Get or create a ModuleInfo object for this module
             final var moduleInfo = moduleNameToModuleInfo.computeIfAbsent(moduleName,
-                    k -> new ModuleInfo(classfileResource.getModuleRef(), classpathElement, moduleName));
+                    k -> new ModuleInfo(classfileResource.getModuleReference(), classpathElement, moduleName));
             if (isModuleDescriptor) {
                 // Add any class annotations on the module-info.class file to the ModuleInfo
                 moduleInfo.addAnnotations(classAnnotations);
