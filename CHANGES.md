@@ -1669,6 +1669,22 @@ is fixed on the 4.x branch as well.
   directory, found none of them, and scanned nothing. A `Path` is now added as one
   classpath entry.
 
+* Every classloader was placed in the classpath ahead of the classloaders it delegates to,
+  whatever its real delegation order, so the classpath was reported in the reverse of the
+  order that a parent-first classloader resolves classes in. Each of the classloader
+  handlers already stated its container's delegation order, by placing itself either
+  before or after it delegates to its parent -- the Tomcat handler even reads Tomcat's own
+  `delegate` flag and branches on it -- but none of that had any effect, because a
+  classloader was added to the order before its handler ran, and adding it a second time
+  is a no-op. A classloader is now placed where its handler places it. For a plain
+  `URLClassLoader` with a parent, for instance, the parent's classpath elements now come
+  first, which is where the JVM resolves classes from. This affects the order of
+  `ScanResult#getClasspath()` and friends, and which copy of a class defined in more than
+  one classpath element is reported, in any setup where classloaders are nested. It does
+  not change the order for the JDK's own classloaders in a normal application, since the
+  classloaders that the application classloader delegates to contribute only system jars
+  and modules, which are not scanned unless `enableSystemJarsAndModules()` is called.
+
 Two further bugs found during the port were only reachable through the JSON
 serialization API, which 5.x removes (`AnnotationParameterValue#toString()` threw
 `NullPointerException` for a null parameter value, and `ScanResult#fromJSON(String)` did

@@ -150,6 +150,12 @@ public class ClassLoaderOrder {
     /**
      * Recursively delegate to another {@link ClassLoader}.
      *
+     * <p>
+     * The classloader is not placed in the order here: its handler places it, by calling
+     * {@link #add(ClassLoader, LogNode)} either before or after it delegates to the classloader's parent, according
+     * to whether the classloader resolves classes parent-first or parent-last. That is what puts the classpath
+     * elements in the order that classes are resolved in, which is the order that class masking depends on.
+     *
      * @param classLoader
      *            the class loader, or null (ignored)
      * @param isParent
@@ -170,14 +176,13 @@ public class ClassLoaderOrder {
         }
         // Don't delegate to a classloader twice
         if (delegatedTo.add(classLoader)) {
-            add(classLoader, log);
             // Recurse to get delegation order. When more than one handler can handle this classloader, they are
             // called in ClassLoaderHandlerRegistry order, which lists the container-specific handlers before the
             // general ones, so a handler that knows the container's real delegation order gets to place the parent
             // and child classloaders first; the handlers that run after it can only add classloaders that the
             // earlier handler did not already place.
             for (final ClassLoaderHandlerRegistryEntry entry : getClassLoaderHandlerRegistryEntries(classLoader,
-                    /* Don't log twice -- also logged by add method above */ null)) {
+                    /* Don't log twice -- also logged by the add method */ null)) {
                 entry.findClassLoaderOrder(classLoader, this, log);
             }
         }
