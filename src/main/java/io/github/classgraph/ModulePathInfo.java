@@ -46,12 +46,13 @@ import nonapi.io.github.classgraph.utils.StringUtils;
 public class ModulePathInfo {
     /**
      * The module path provided on the commandline by the {@code --module-path} or {@code -p} switch, as an ordered
-     * set of module names, in the order they were listed on the commandline.
-     * 
+     * set of module path elements (directories and jarfiles, not module names), in the order they were listed on
+     * the commandline.
+     *
      * <p>
-     * Note that some modules (such as system modules) will not be in this set, as they are added to the module
-     * system automatically by the runtime. Call {@link ClassGraph#getModules()} or {@link ScanResult#getModules()}
-     * to get all modules visible at runtime.
+     * Note that the modules the runtime adds by itself (such as the system modules) are not reached through this
+     * module path. Call {@link ClassGraph#getModules()} or {@link ScanResult#getModules()} to get all modules
+     * visible at runtime.
      */
     public final Set<String> modulePath = new LinkedHashSet<>();
 

@@ -3421,7 +3421,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Returns a synthetic type descriptor for the method, created from the class name, superclass name, and
+     * Returns a synthetic type descriptor for the class, created from the class name, superclass name, and
      * implemented interfaces. May include type annotations on the superclass or interface(s).
      *
      * @return The synthetic type descriptor for the class.
