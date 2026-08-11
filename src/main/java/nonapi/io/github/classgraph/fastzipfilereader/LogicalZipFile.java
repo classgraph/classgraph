@@ -267,8 +267,9 @@ public class LogicalZipFile extends ZipFileSlice {
             return false;
         }
         for (int i = 0; i < key.length; i++) {
-            // Manifest keys are case insensitive
-            if (toLowerCase[manifest[i + pos]] != key[i]) {
+            // Manifest keys are case insensitive. The manifest byte has to be masked to an unsigned value, since
+            // a byte >= 0x80 is negative, and would otherwise index outside the lookup table.
+            if (toLowerCase[manifest[i + pos] & 0xff] != key[i]) {
                 return false;
             }
         }
