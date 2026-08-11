@@ -271,7 +271,7 @@ public final class LogNode {
     private LogNode addChild(final String sortKey, final String msg, final long elapsedTimeNanos,
             final Throwable exception) {
         final String newSortKey = sortKeyPrefix + "\t" + (sortKey == null ? "" : sortKey) + "\t"
-                + String.format("%09d", sortKeyUniqueSuffix.getAndIncrement());
+                + String.format(Locale.US, "%09d", sortKeyUniqueSuffix.getAndIncrement());
         final LogNode newChild = new LogNode(newSortKey, msg, elapsedTimeNanos, exception);
         newChild.parent = this;
         // Make the sort key unique, so that log entries are not clobbered if keys are reused; increment unique

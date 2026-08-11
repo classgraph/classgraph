@@ -47,6 +47,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -122,7 +123,7 @@ class ClasspathElementDir extends ClasspathElement {
                             new DirectoryStream.Filter<Path>() {
                                 @Override
                                 public boolean accept(final Path filePath) {
-                                    return filePath.toString().toLowerCase().endsWith(".jar")
+                                    return filePath.toString().toLowerCase(Locale.ROOT).endsWith(".jar")
                                             && Files.isRegularFile(filePath);
                                 }
                             })) {

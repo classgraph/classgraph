@@ -36,6 +36,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -430,7 +431,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
                     }
                     maskedResources.add(res);
                     if (log != null) {
-                        log.log(String.format("%06d-1", classpathIdx),
+                        log.log(String.format(Locale.US, "%06d-1", classpathIdx),
                                 "Ignoring duplicate (masked) resource " + res.getPath()
                                         + ", which is the same file as a resource found earlier in the "
                                         + "classpath: " + uri);
@@ -493,7 +494,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
                 // mask the second and subsequent occurrences of the path
                 foundMasked = true;
                 if (log != null) {
-                    log.log(String.format("%06d-1", classpathIdx), "Ignoring duplicate (masked) class "
+                    log.log(String.format(Locale.US, "%06d-1", classpathIdx), "Ignoring duplicate (masked) class "
                             + JarUtils.classfilePathToClassName(pathRelativeToPackageRoot) + " found at " + res);
                 }
             } else {
@@ -611,7 +612,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      * @return the new {@link LogNode}
      */
     protected LogNode log(final int classpathElementIdx, final String msg, final LogNode log) {
-        return log.log(String.format("%07d", classpathElementIdx), msg);
+        return log.log(String.format(Locale.US, "%07d", classpathElementIdx), msg);
     }
 
     /**
@@ -628,7 +629,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      * @return the new {@link LogNode}
      */
     protected LogNode log(final int classpathElementIdx, final String msg, final Throwable t, final LogNode log) {
-        return log.log(String.format("%07d", classpathElementIdx), msg, t);
+        return log.log(String.format(Locale.US, "%07d", classpathElementIdx), msg, t);
     }
 
     // -------------------------------------------------------------------------------------------------------------
