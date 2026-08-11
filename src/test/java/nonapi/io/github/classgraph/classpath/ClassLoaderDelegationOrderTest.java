@@ -2,11 +2,14 @@ package nonapi.io.github.classgraph.classpath;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -37,8 +40,27 @@ public class ClassLoaderDelegationOrderTest {
         try (URLClassLoader parent = new URLClassLoader(new URL[] { parentDir.toUri().toURL() },
                 /* parent = */ null);
                 URLClassLoader child = new URLClassLoader(new URL[] { childDir.toUri().toURL() }, parent)) {
-            assertThat(new ClassGraph().overrideClassLoaders(child).getClasspathFiles())
-                    .containsExactly(parentDir.toFile(), childDir.toFile());
+            assertThat(canonicalFiles(new ClassGraph().overrideClassLoaders(child).getClasspathFiles()))
+                    .containsExactly(parentDir.toFile().getCanonicalFile(), childDir.toFile().getCanonicalFile());
         }
+    }
+
+    /**
+     * Canonicalize files, since classpath elements are reported in canonical form, and a temporary directory is
+     * not canonical on every platform (on macOS it is reached through a symlink, and on Windows it can be named by
+     * a short path).
+     *
+     * @param files
+     *            the files
+     * @return the canonical form of each file
+     * @throws IOException
+     *             if a file could not be canonicalized
+     */
+    private static List<File> canonicalFiles(final List<File> files) throws IOException {
+        final List<File> canonicalFiles = new ArrayList<>();
+        for (final File file : files) {
+            canonicalFiles.add(file.getCanonicalFile());
+        }
+        return canonicalFiles;
     }
 }
