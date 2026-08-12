@@ -1524,6 +1524,23 @@ is fixed on the 4.x branch as well.
   August was read as December of the previous year. This affects
   `Resource#getLastModifiedMillis()`.
 
+* The two zip extra fields that carry a Unix last modified time -- the extended timestamp
+  extra field (tag 0x5455), which most zip tools write, and the deprecated Info-ZIP Unix
+  extra field (tag 0x5855) -- were read as 8-byte times, but both formats store 4-byte
+  signed Unix times, in seconds. The size checks that guarded the reads could therefore
+  never be satisfied by a conforming central directory entry, so neither field was ever
+  read, and the last modified time always fell back to the entry's MS-DOS timestamp. An
+  MS-DOS timestamp records local time with no timezone and has a resolution of two
+  seconds, so `Resource#getLastModifiedMillis()` was wrong by the timezone offset of
+  whoever built the jar, and by up to a second on top of that, for every entry of every
+  jar that carries an extended timestamp.
+
+* A jarfile too large to buffer in RAM is spilled to a temporary file, and the loop that
+  copied it stopped as soon as a read returned zero rather than at the end of the stream.
+  A stream that returns zero from a read of a non-empty buffer is not conforming, but the
+  JDK's own `InputStream#transferTo` tolerates one, and the consequence here was a
+  silently truncated jar rather than an error.
+
 * `ClassInfo#getTypeDescriptor()` synthesizes a type descriptor for a class that has no
   generic type signature, standing in for the classfile's own `super_class` and
   `interfaces[]` entries so that type annotations on the `extends` and `implements`

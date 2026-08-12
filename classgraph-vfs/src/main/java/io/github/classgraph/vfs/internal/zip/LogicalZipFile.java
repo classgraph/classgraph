@@ -741,17 +741,21 @@ public class LogicalZipFile extends ZipFileSlice {
             if (tag == 1 && size >= 20) {
                 readZip64ExtraField(cenReader, tagOff, size, entryFields);
 
-            } else if (tag == 0x5455 && size >= 5) {
-                // Extended Unix timestamp
-                final var bits = cenReader.readUnsignedByte(tagOff + 4 + 0);
-                if ((bits & 1) == 1 && size >= 5 + 8) {
-                    entryFields.lastModifiedMillis = cenReader.readLong(tagOff + 4 + 1) * 1000L;
+            } else if (tag == 0x5455 && size >= 1 + 4) {
+                // Extended timestamp: a flags byte, then the last modified time as a signed 32-bit Unix time in
+                // seconds, which is only present if bit 0 of the flags is set. (In a local file header this can be
+                // followed by the access time and the creation time, but in a central directory entry the last
+                // modified time is the only time present, whatever the other flag bits say.)
+                final var flags = cenReader.readUnsignedByte(tagOff + 4 + 0);
+                if ((flags & 1) != 0) {
+                    entryFields.lastModifiedMillis = cenReader.readInt(tagOff + 4 + 1) * 1000L;
                 }
 
-            } else if (tag == 0x5855 && size >= 20) {
-                // Unix extra field (deprecated)
-                entryFields.lastModifiedMillis = cenReader.readLong(tagOff + 4 + 8) * 1000L;
+            } else if (tag == 0x5855 && size >= 4 + 4) {
+                // Unix extra field (deprecated): the last access time, then the last modified time, both as signed
+                // 32-bit Unix times in seconds.
                 // There are also optional UID and GID fields in this extra field (currently ignored)
+                entryFields.lastModifiedMillis = cenReader.readInt(tagOff + 4 + 4) * 1000L;
 
             } else if (tag == 0x7855) {
                 // Info-ZIP Unix UID and GID fields (currently ignored)

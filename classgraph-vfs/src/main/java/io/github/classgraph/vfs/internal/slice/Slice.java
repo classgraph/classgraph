@@ -259,11 +259,11 @@ public abstract class Slice implements Closeable {
                 outputStream.write(buf, 0, bufBytesUsed);
                 outputStream.write(overflowBuf);
             }
-            // Copy the rest of the InputStream to the file
-            final var copyBuf = new byte[8192];
-            for (int bytesRead; (bytesRead = inputStream.read(copyBuf, 0, copyBuf.length)) > 0;) {
-                outputStream.write(copyBuf, 0, bytesRead);
-            }
+            // Copy the rest of the InputStream to the file. (This is InputStream#transferTo rather than a copy
+            // loop of its own, because a stream that returns zero from a read of a non-empty buffer would end a
+            // copy loop early, silently truncating the file, whereas transferTo keeps reading until the end of
+            // the stream is reached.)
+            inputStream.transferTo(outputStream);
         }
 
         // Return a new FileSlice for the temporary file
