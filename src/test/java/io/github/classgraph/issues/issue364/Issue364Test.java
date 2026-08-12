@@ -88,6 +88,13 @@ public class Issue364Test {
     /**
      * Test Permissions.
      *
+     * <p>
+     * Every entry of this jar carries an extended timestamp extra field, so the last modified times below are the
+     * accurate UTC times from that field, not the entries' MS-DOS timestamps. The MS-DOS timestamps of this jar
+     * are ten hours later, because MS-DOS timestamps record local time and the jar was built at UTC+10, and the
+     * one for {@code bin/owneronlyread} is also a second later, because MS-DOS timestamps have a resolution of
+     * two seconds.
+     *
      * @throws IOException
      *             if the classloader could not be closed.
      */
@@ -101,7 +108,7 @@ public class Issue364Test {
                 ScanResult result = new ClassGraph().overrideClassLoaders(overrideClassLoader)
                         .ignoreParentClassLoaders().scan()) {
             assertThat(result.getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/all")
-                    .get(0).getLastModified()).isEqualTo(1434543812000L);
+                    .get(0).getLastModified()).isEqualTo(1434507812000L);
             assertThat(result.getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/all")
                     .get(0).getPosixFilePermissions()).containsOnly(PosixFilePermission.OWNER_READ,
                             PosixFilePermission.OWNER_WRITE, PosixFilePermission.OWNER_EXECUTE,
@@ -110,7 +117,7 @@ public class Issue364Test {
                             PosixFilePermission.OTHERS_WRITE, PosixFilePermission.OTHERS_EXECUTE);
 
             assertThat(result.getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/execute")
-                    .get(0).getLastModified()).isEqualTo(1434557130000L);
+                    .get(0).getLastModified()).isEqualTo(1434521130000L);
             assertThat(result.getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/execute")
                     .get(0).getPosixFilePermissions()).containsOnly(PosixFilePermission.OWNER_READ,
                             PosixFilePermission.OWNER_WRITE, PosixFilePermission.OWNER_EXECUTE,
@@ -119,7 +126,7 @@ public class Issue364Test {
 
             assertThat(result
                     .getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/groupreadwrite")
-                    .get(0).getLastModified()).isEqualTo(1434557162000L);
+                    .get(0).getLastModified()).isEqualTo(1434521162000L);
             assertThat(result
                     .getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/groupreadwrite")
                     .get(0).getPosixFilePermissions()).containsOnly(PosixFilePermission.OWNER_READ,
@@ -128,14 +135,14 @@ public class Issue364Test {
 
             assertThat(result
                     .getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/owneronlyread")
-                    .get(0).getLastModified()).isEqualTo(1434557152000L);
+                    .get(0).getLastModified()).isEqualTo(1434521151000L);
             assertThat(result
                     .getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/owneronlyread")
                     .get(0).getPosixFilePermissions()).containsOnly(PosixFilePermission.OWNER_READ);
 
             assertThat(result
                     .getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/ownerreadwrite")
-                    .get(0).getLastModified()).isEqualTo(1434543812000L);
+                    .get(0).getLastModified()).isEqualTo(1434507812000L);
             assertThat(result
                     .getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/ownerreadwrite")
                     .get(0).getPosixFilePermissions()).containsOnly(PosixFilePermission.OWNER_READ,
