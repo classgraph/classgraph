@@ -1857,6 +1857,19 @@ is fixed on the 4.x branch as well.
   declares the overloads. The method also threw `NullPointerException` rather than
   `IllegalArgumentException` if that first element had no `ClassInfo`.
 
+* The modules of the JDK's own runtime image were added as classpath elements, one
+  `jrt:/<module>` element per module, whenever the classpath was recovered from a
+  classloader that ClassGraph does not recognize and whose parent is null. When such a
+  classloader reports nothing about its own classpath, it is asked for the resources that
+  sit in the root of a classpath element, and the resource path is stripped from the URLs
+  it returns. Resources that the classloader serves only because it delegates to its parent
+  are skipped, but the bootstrap classloader is reached by delegating to a *null* parent,
+  and its resources were not enumerated at all -- so the bootstrap classloader's copy of
+  `module-info.class`, which it serves once per module of the runtime image, was never
+  recognized as coming from the parent. Those elements are now filtered out, as they always
+  were for a classloader with a non-null parent. On 5.x this is visible through
+  `ClasspathFinder`, which is public API of `classgraph-classpath`.
+
 Two further bugs found during the port were only reachable through the JSON
 serialization API, which 5.x removes (`AnnotationParameterValue#toString()` threw
 `NullPointerException` for a null parameter value, and `ScanResult#fromJSON(String)` did
