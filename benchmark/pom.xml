@@ -22,7 +22,7 @@
         <dependency>
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-common</artifactId>
-            <version>3.3.6</version>
+            <version>3.4.0</version>
         </dependency>
         <!-- A single very large jar, for the "one large jar" workload -->
         <dependency>
