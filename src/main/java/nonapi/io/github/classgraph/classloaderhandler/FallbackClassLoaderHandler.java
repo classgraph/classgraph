@@ -30,7 +30,6 @@ package nonapi.io.github.classgraph.classloaderhandler;
 
 import java.io.IOException;
 import java.net.URL;
-import java.util.Collections;
 import java.util.Enumeration;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -232,19 +231,21 @@ class FallbackClassLoaderHandler implements ClassLoaderHandler {
      * Get the URLs of a resource in a {@link ClassLoader}, as strings.
      *
      * @param classLoader
-     *            the {@link ClassLoader} to query, or null (in which case no URLs are returned -- the bootstrap
-     *            classloader's classpath elements are handled by system jar and module scanning).
+     *            the {@link ClassLoader} to query, or null for the bootstrap classloader.
      * @param resourcePath
      *            the path of the resource.
      * @return the URLs of the resource, or the empty set if the resource could not be found.
      */
     private static Set<String> getResourceURLs(final ClassLoader classLoader, final String resourcePath) {
-        if (classLoader == null) {
-            return Collections.emptySet();
-        }
         final Set<String> resourceURLs = new LinkedHashSet<>();
         try {
-            for (final Enumeration<URL> e = classLoader.getResources(resourcePath); e.hasMoreElements();) {
+            // The bootstrap classloader cannot be asked for its resources directly, but a classloader that has no
+            // resources of its own and no parent delegates to it, and so serves exactly its resources. (This
+            // matters because the bootstrap classloader serves module-info.class for every module of the runtime
+            // image, and those modules are not classpath elements -- they are found by module scanning.)
+            final ClassLoader classLoaderToQuery = classLoader != null ? classLoader : new ClassLoader(null) {
+            };
+            for (final Enumeration<URL> e = classLoaderToQuery.getResources(resourcePath); e.hasMoreElements();) {
                 resourceURLs.add(e.nextElement().toString());
             }
         } catch (final IOException | RuntimeException | LinkageError e) {
@@ -261,8 +262,9 @@ class FallbackClassLoaderHandler implements ClassLoaderHandler {
      *            the URL of the resource.
      * @param resourcePath
      *            the path of the resource within its classpath element.
-     * @return the classpath element, or null if the resource path is not a suffix of the URL (which happens for
-     *         URLs that do not name a resource within a classpath element, e.g. {@code "jrt:/java.base"}).
+     * @return the classpath element, or null if the resource path is not a suffix of the URL (which happens if the
+     *         classloader percent-encodes the resource path, or names the resource some other way), or if nothing
+     *         is left of the URL once the resource path has been stripped.
      */
     private static String stripResourcePath(final String resourceURL, final String resourcePath) {
         if (!resourceURL.endsWith(resourcePath)) {
