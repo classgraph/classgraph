@@ -567,6 +567,35 @@ public class LogicalZipFile extends ZipFileSlice {
     }
 
     /**
+     * Read one of the 64-bit unsigned fields of a Zip64 record.
+     *
+     * <p>
+     * These fields are unsigned, but a Java {@code long} is signed, so a value of 2^63 or greater is read back as a
+     * negative number. No real zipfile holds such a value in any of these fields, whereas a corrupted or hostile
+     * zipfile can, and a negative value slips past every subsequent range check (which can only test for values
+     * that are too large) and then goes on to be truncated to a positive {@code int}. Reject the value at the point
+     * it is read instead.
+     *
+     * @param reader
+     *            a reader for the zipfile
+     * @param offset
+     *            the offset of the field within the zipfile
+     * @param fieldName
+     *            the name of the field, for the exception message
+     * @return the value of the field
+     * @throws IOException
+     *             If an I/O exception occurs, or the field's value does not fit in a signed 64-bit integer.
+     */
+    private long readZip64Long(final RandomAccessReader reader, final long offset, final String fieldName)
+            throws IOException {
+        final var val = reader.readLong(offset);
+        if (val < 0) {
+            throw new IOException(fieldName + " is out of range: " + Long.toUnsignedString(val) + ": " + getPath());
+        }
+        return val;
+    }
+
+    /**
      * Read the End Of Central Directory record, and the Zip64 End Of Central Directory record, if the zipfile has
      * one, to find the central directory.
      *
@@ -595,14 +624,15 @@ public class LogicalZipFile extends ZipFileSlice {
             if (reader.readUnsignedInt(zip64cdLocIdx + 4) > 0 || reader.readUnsignedInt(zip64cdLocIdx + 16) > 1) {
                 throw new IOException("Multi-disk jarfiles not supported: " + getPath());
             }
-            final var eocdPos64 = reader.readLong(zip64cdLocIdx + 8);
+            final var eocdPos64 = readZip64Long(reader, zip64cdLocIdx + 8,
+                    "Zip64 end of central directory record offset");
             if (reader.readUnsignedInt(eocdPos64) != 0x06064b50L) {
                 throw new IOException("Zip64 central directory at location " + eocdPos64
                         + " does not have Zip64 central directory header: " + getPath());
             }
-            final var numEnt64 = reader.readLong(eocdPos64 + 24);
+            final var numEnt64 = readZip64Long(reader, eocdPos64 + 24, "Zip64 number of entries");
             if (reader.readUnsignedInt(eocdPos64 + 16) > 0 || reader.readUnsignedInt(eocdPos64 + 20) > 0
-                    || numEnt64 != reader.readLong(eocdPos64 + 32)) {
+                    || numEnt64 != readZip64Long(reader, eocdPos64 + 32, "Zip64 total number of entries")) {
                 throw new IOException("Multi-disk jarfiles not supported: " + getPath());
             }
             if (numEnt == 0xffff) {
@@ -612,7 +642,7 @@ public class LogicalZipFile extends ZipFileSlice {
                 numEnt = -1L;
             }
 
-            final var cenSize64 = reader.readLong(eocdPos64 + 40);
+            final var cenSize64 = readZip64Long(reader, eocdPos64 + 40, "Zip64 central directory size");
             if (cenSize == 0xffffffffL) {
                 cenSize = cenSize64;
             } else if (cenSize != cenSize64) {
@@ -623,7 +653,7 @@ public class LogicalZipFile extends ZipFileSlice {
             // Recalculate the central directory position
             cenPos = eocdPos64 - cenSize;
 
-            final var cenOff64 = reader.readLong(eocdPos64 + 48);
+            final var cenOff64 = readZip64Long(reader, eocdPos64 + 48, "Zip64 central directory offset");
             if (cenOff == 0xffffffffL) {
                 cenOff = cenOff64;
             } else if (cenOff != cenOff64) {

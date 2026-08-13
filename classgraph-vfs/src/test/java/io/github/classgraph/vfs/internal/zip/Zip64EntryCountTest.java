@@ -1,9 +1,11 @@
 package io.github.classgraph.vfs.internal.zip;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
@@ -92,6 +94,27 @@ public class Zip64EntryCountTest {
      */
     private static File writeZip(final File tempDir, final String jarName, final int numEntInEndOfCentralDirectory)
             throws Exception {
+        return writeZip(tempDir, jarName, numEntInEndOfCentralDirectory, ENTRY_NAMES.length);
+    }
+
+    /**
+     * Write a zipfile holding two stored entries, with a Zip64 End Of Central Directory record and an End Of
+     * Central Directory record that record the given numbers of entries.
+     *
+     * @param tempDir
+     *            the directory to write the zipfile into
+     * @param jarName
+     *            the name of the zipfile to write
+     * @param numEntInEndOfCentralDirectory
+     *            the number of entries to record in the End Of Central Directory record
+     * @param numEntInZip64Record
+     *            the number of entries to record in the Zip64 End Of Central Directory record
+     * @return the zipfile
+     * @throws Exception
+     *             if the zipfile could not be written
+     */
+    private static File writeZip(final File tempDir, final String jarName, final int numEntInEndOfCentralDirectory,
+            final long numEntInZip64Record) throws Exception {
         final var zip = new ByteArrayOutputStream();
 
         // Local file headers, each immediately followed by the contents of its entry
@@ -151,8 +174,8 @@ public class Zip64EntryCountTest {
         write16(zip, 45); // Version needed to extract
         write32(zip, 0); // Disk number
         write32(zip, 0); // Disk on which the central directory starts
-        write64(zip, ENTRY_NAMES.length); // Number of entries on this disk
-        write64(zip, ENTRY_NAMES.length); // Total number of entries
+        write64(zip, numEntInZip64Record); // Number of entries on this disk
+        write64(zip, numEntInZip64Record); // Total number of entries
         write64(zip, centralDirectorySize);
         write64(zip, centralDirectoryOffset);
 
@@ -221,5 +244,18 @@ public class Zip64EntryCountTest {
     public void entryCountsThatDisagree(@TempDir final File tempDir) throws Exception {
         assertThat(entriesReadBack(writeZip(tempDir, "counts-disagree.jar", ENTRY_NAMES.length - 1)))
                 .containsExactly("testpkg/first.txt: first contents", "testpkg/second.txt: second contents");
+    }
+
+    /**
+     * The Zip64 entry count is an unsigned 64-bit field, so a value of 2^63 or greater is read back as a negative
+     * number, which is too small rather than too large to be caught by a range check, and which then truncates to a
+     * large positive {@code int} when it is used to size the list of entries. The count here truncates to
+     * 0x7ffffff0, which would ask for a two-billion-element list.
+     */
+    @Test
+    public void entryCountTooLargeForASignedLong(@TempDir final File tempDir) throws Exception {
+        assertThatThrownBy(
+                () -> entriesReadBack(writeZip(tempDir, "count-negative.jar", 0xffff, 0xffffffff7ffffff0L)))
+                .isInstanceOf(IOException.class).hasStackTraceContaining("Zip64 number of entries is out of range");
     }
 }
