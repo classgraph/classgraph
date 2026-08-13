@@ -184,7 +184,10 @@ class ClasspathElementModule extends ClasspathElement {
                     // so that the ModuleReaderProxy acquired above is recycled rather than being left checked out
                     close();
                     throw e;
-                } catch (final SecurityException | OutOfMemoryError e) {
+                } catch (final SecurityException | IllegalArgumentException | OutOfMemoryError e) {
+                    // ModuleReaderProxy wraps the IOException thrown by ModuleReader#read(String) in an
+                    // IllegalArgumentException, so a resource that could not be read arrives here rather than in the
+                    // catch clause above
                     close();
                     throw new IOException("Could not open " + this, e);
                 }
@@ -239,7 +242,10 @@ class ClasspathElementModule extends ClasspathElement {
                     // out
                     close();
                     throw e;
-                } catch (final SecurityException e) {
+                } catch (final SecurityException | IllegalArgumentException e) {
+                    // ModuleReaderProxy wraps the IOException thrown by ModuleReader#open(String) in an
+                    // IllegalArgumentException, so a resource that could not be opened arrives here rather than in
+                    // the catch clause above
                     close();
                     throw new IOException("Could not open " + this, e);
                 }
