@@ -1,0 +1,226 @@
+/*
+ * This file is part of ClassGraph.
+ *
+ * Author: Luke Hutchison
+ *
+ * Hosted at: https://github.com/classgraph/classgraph
+ *
+ * --
+ *
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2026 Luke Hutchison
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without
+ * limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial
+ * portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+ * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO
+ * EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
+ * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
+ * OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+package io.github.classgraph.vfs;
+
+import java.io.File;
+import java.io.IOException;
+import java.lang.module.ModuleReference;
+import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URL;
+import java.nio.file.Path;
+import java.util.List;
+
+import org.jspecify.annotations.Nullable;
+
+/**
+ * A tree of files that was opened by a {@link Vfs}: a directory, a jarfile (which may be nested within other
+ * jarfiles), or a module.
+ *
+ * <p>
+ * Whichever of those it is, the entries are named the same way -- relative to the root, with {@code '/'} as the
+ * separator -- and are read through the same {@link VfsEntry} methods, so code that walks a root does not have to
+ * know which kind it is. {@link #getKind()} says which kind it is, for the cases that do need to know.
+ *
+ * <p>
+ * A root stops working once the {@link Vfs} that produced it is closed.
+ */
+public abstract class VfsRoot {
+    /** The {@link Vfs} that opened this root. */
+    private final Vfs vfs;
+
+    /**
+     * Constructor.
+     *
+     * @param vfs
+     *            the {@link Vfs} that opened this root.
+     */
+    VfsRoot(final Vfs vfs) {
+        this.vfs = vfs;
+    }
+
+    /** What is backing a {@link VfsRoot}. */
+    public enum Kind {
+        /** A directory in a filesystem. */
+        DIRECTORY,
+
+        /** A zipfile or jarfile, which may itself be nested within other jarfiles. */
+        ARCHIVE,
+
+        /** A module of the module path, or of the running JDK. */
+        MODULE
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Returns the {@link Vfs} that opened this root.
+     *
+     * @return the {@link Vfs}.
+     */
+    public Vfs getVfs() {
+        return vfs;
+    }
+
+    /**
+     * Returns what is backing this root.
+     *
+     * @return the kind of root.
+     */
+    public abstract Kind getKind();
+
+    /**
+     * Returns the path of this root: the directory path, or the path of the jarfile with {@code "!/"} separating
+     * each nested jarfile from the one that encloses it, or the module name. The package root is not part of the
+     * path.
+     *
+     * @return the path of the root.
+     */
+    public abstract String getPath();
+
+    /**
+     * Returns the {@link URI} of this root.
+     *
+     * @return the {@link URI} of the root.
+     * @throws IllegalStateException
+     *             if the {@link URI} could not be formed, which includes the case of a module that does not know
+     *             its own location.
+     */
+    public abstract URI getURI();
+
+    /**
+     * Returns the {@link URL} of this root.
+     *
+     * @return the {@link URL} of the root.
+     * @throws IllegalStateException
+     *             if the {@link URL} could not be formed, which includes the case of a {@link URI} whose scheme has
+     *             no protocol handler installed.
+     */
+    public URL getURL() {
+        final var uri = getURI();
+        try {
+            return uri.toURL();
+        } catch (final IllegalArgumentException | MalformedURLException e) {
+            throw new IllegalStateException("Could not create URL from URI: " + uri + " : " + e, e);
+        }
+    }
+
+    /**
+     * Returns the {@link File} backing this root.
+     *
+     * @return the {@link File} of the directory or jarfile, or null if this root is a module, or is a jarfile that
+     *         was read from a stream or downloaded from a URL into RAM rather than to a temporary file.
+     */
+    public @Nullable File getFile() {
+        return null;
+    }
+
+    /**
+     * Returns the {@link Path} backing this root.
+     *
+     * @return the {@link Path} of the directory or jarfile, or null if this root is a module, or is a jarfile that
+     *         was read from a stream or downloaded from a URL into RAM rather than to a temporary file.
+     */
+    public @Nullable Path getNioPath() {
+        return null;
+    }
+
+    /**
+     * Returns the {@link ModuleReference} backing this root.
+     *
+     * @return the {@link ModuleReference}, or null if this root is not a module.
+     */
+    public @Nullable ModuleReference getModuleReference() {
+        return null;
+    }
+
+    /**
+     * Returns the package root within this root: the directory that {@link VfsEntry#getName()} is relative to,
+     * without a trailing {@code '/'}. This is the empty string unless the path this root was opened from ended in a
+     * {@code "!/"} section that named a directory rather than a nested jarfile, as it does for a Spring Boot
+     * application's {@code "app.jar!/BOOT-INF/classes"}.
+     *
+     * @return the package root, or the empty string if the whole root is the package root.
+     */
+    public String getPackageRoot() {
+        return "";
+    }
+
+    /**
+     * Returns the module name of this root: the name of the module for a module root, and the value of the
+     * {@code Automatic-Module-Name} manifest entry for a jarfile.
+     *
+     * @return the module name, or null if there is none.
+     */
+    public @Nullable String getModuleName() {
+        return null;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Returns the entries under the package root, not including directories.
+     *
+     * <p>
+     * A jarfile's entries come back in the order they appear in its central directory; a directory's and a module's
+     * come back sorted by name. For a jarfile, encrypted entries and entries stored with an unsupported compression
+     * method are left out, and only the newest version of each entry that this JVM can run is reported unless
+     * {@link Vfs#enableMultiReleaseVersions()} was called.
+     *
+     * @return the entries, as an unmodifiable list.
+     * @throws IOException
+     *             if the entries could not be listed, or if the {@link Vfs} has been closed.
+     */
+    public abstract List<VfsEntry> getEntries() throws IOException;
+
+    /**
+     * Returns the entry with the given name, or null if there is no such entry. If the root contains more than one
+     * entry with the same name, the first one is returned, which is the one a classloader would find.
+     *
+     * @param name
+     *            the name of the entry, relative to the package root, e.g. {@code "com/xyz/Widget.class"}.
+     * @return the entry, or null if there is no entry with that name.
+     * @throws IOException
+     *             if the root could not be searched, or if the {@link Vfs} has been closed.
+     */
+    public abstract @Nullable VfsEntry getEntry(String name) throws IOException;
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Returns the path of this root, with the package root appended if there is one.
+     *
+     * @return the root, as a string.
+     */
+    @Override
+    public String toString() {
+        final var packageRoot = getPackageRoot();
+        return packageRoot.isEmpty() ? getPath() : getPath() + "!/" + packageRoot;
+    }
+}

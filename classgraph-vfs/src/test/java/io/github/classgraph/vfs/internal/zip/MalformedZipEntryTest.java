@@ -18,7 +18,7 @@ import java.util.zip.CRC32;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import io.github.classgraph.vfs.ArchiveReader;
+import io.github.classgraph.vfs.Vfs;
 
 /**
  * A zipfile can hold entries that cannot be read: entries that are encrypted, or compressed with a method that is
@@ -435,8 +435,8 @@ public class MalformedZipEntryTest {
      */
     private static List<String> entryNamesReadBack(final File jarFile) throws Exception {
         final List<String> entryNames = new ArrayList<>();
-        try (var archiveReader = new ArchiveReader()) {
-            for (final var entry : archiveReader.open(jarFile.getPath()).getEntries()) {
+        try (var vfs = new Vfs()) {
+            for (final var entry : vfs.open(jarFile.getPath()).getEntries()) {
                 entryNames.add(entry.getName());
             }
         }
@@ -454,9 +454,9 @@ public class MalformedZipEntryTest {
      */
     private static List<String> entryContentsReadBack(final File jarFile) throws Exception {
         final List<String> entries = new ArrayList<>();
-        try (var archiveReader = new ArchiveReader()) {
-            for (final var entry : archiveReader.open(jarFile.getPath()).getEntries()) {
-                entries.add(entry.getName() + ": " + new String(entry.readAllBytes(), StandardCharsets.UTF_8));
+        try (var vfs = new Vfs()) {
+            for (final var entry : vfs.open(jarFile.getPath()).getEntries()) {
+                entries.add(entry.getName() + ": " + new String(entry.load(), StandardCharsets.UTF_8));
             }
         }
         return entries;
@@ -492,8 +492,8 @@ public class MalformedZipEntryTest {
         final var useParentHandlers = LOGGER.getUseParentHandlers();
         LOGGER.setUseParentHandlers(false);
         LOGGER.addHandler(handler);
-        try (var archiveReader = new ArchiveReader().verbose()) {
-            archiveReader.open(jarFile.getPath()).getEntries();
+        try (var vfs = new Vfs().verbose()) {
+            vfs.open(jarFile.getPath()).getEntries();
         } finally {
             LOGGER.removeHandler(handler);
             LOGGER.setUseParentHandlers(useParentHandlers);

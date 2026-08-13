@@ -13,7 +13,7 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.base.internal.utils.LogNode;
-import io.github.classgraph.base.internal.utils.ModuleReaderUtils;
+import io.github.classgraph.vfs.internal.module.ModuleReaderUtils;
 
 /**
  * Scanning under Minecraft Forge aborted with {@code IllegalArgumentException: Could not call moduleReader.list()}.

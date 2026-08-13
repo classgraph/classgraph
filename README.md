@@ -107,14 +107,14 @@ above it, so that a project depends only on the part of ClassGraph it uses:
 | Artifact | Module | Contents |
 | --- | --- | --- |
 | [`classgraph-base`](classgraph-base/README.md) | `io.github.classgraph.base` | Shared internals; no API of its own |
-| [`classgraph-vfs`](classgraph-vfs/README.md) | `io.github.classgraph.vfs` | [Reading jarfiles, including nested jarfiles](https://github.com/classgraph/classgraph/wiki/Archive-API) |
+| [`classgraph-vfs`](classgraph-vfs/README.md) | `io.github.classgraph.vfs` | [A virtual filesystem over directories, jarfiles and modules](https://github.com/classgraph/classgraph/wiki/Vfs-API) |
 | [`classgraph-classpath`](classgraph-classpath/README.md) | `io.github.classgraph.classpath` | [Finding the classpath and the module path](https://github.com/classgraph/classgraph/wiki/Classpath-API) |
 | [`classgraph`](classgraph/README.md) | `io.github.classgraph` | Scanning, and the class graph API |
 | [`classgraph-viz`](classgraph-viz/README.md) | `io.github.classgraph.viz` | [GraphViz .dot file generation](https://github.com/classgraph/classgraph/wiki/GraphViz-API) |
 
 All five share the `io.github.classgraph` group id and a single version number. Depend on
 `classgraph-viz` as well if you generate .dot files; depend on `classgraph-classpath` or
-`classgraph-vfs` alone if you want only the classpath finder or only the jarfile reader,
+`classgraph-vfs` alone if you want only the classpath finder or only the virtual filesystem,
 without the scanner.
 
 See instructions for [use as a module](https://github.com/classgraph/classgraph/wiki#use-as-a-module).

@@ -45,10 +45,10 @@ public class URLSchemeCaseTest {
             zipOut.closeEntry();
         }
 
-        try (var archiveReader = new ArchiveReader().enableURLScheme(SCHEME)) {
+        try (var vfs = new Vfs().enableURLScheme(SCHEME)) {
             final var url = SCHEME.toUpperCase(Locale.ROOT) + ":" + jarFile.getPath();
-            final var entry = Objects.requireNonNull(archiveReader.open(url).getEntry("com/xyz/widget.txt"));
-            assertThat(new String(entry.readAllBytes(), StandardCharsets.UTF_8)).isEqualTo(RESOURCE_CONTENT);
+            final var entry = Objects.requireNonNull(vfs.open(url).getEntry("com/xyz/widget.txt"));
+            assertThat(new String(entry.load(), StandardCharsets.UTF_8)).isEqualTo(RESOURCE_CONTENT);
         }
     }
 }

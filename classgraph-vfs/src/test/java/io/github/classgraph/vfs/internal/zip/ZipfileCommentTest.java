@@ -12,7 +12,7 @@ import java.util.zip.ZipOutputStream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import io.github.classgraph.vfs.ArchiveReader;
+import io.github.classgraph.vfs.Vfs;
 
 /**
  * The End Of Central Directory record is the last record of a zipfile, except that a zipfile comment of up to 65535
@@ -47,9 +47,8 @@ public class ZipfileCommentTest {
             zipOut.write("contents".getBytes(StandardCharsets.UTF_8));
             zipOut.closeEntry();
         }
-        try (var archiveReader = new ArchiveReader()) {
-            return archiveReader.open(jarFile.getPath()).getEntries().stream().map(entry -> entry.getName())
-                    .toList();
+        try (var vfs = new Vfs()) {
+            return vfs.open(jarFile.getPath()).getEntries().stream().map(entry -> entry.getName()).toList();
         }
     }
 

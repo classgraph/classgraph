@@ -77,24 +77,22 @@ jarfile; it is empty for an ordinary jarfile.
 Combining this library with [`classgraph-vfs`](../classgraph-vfs):
 
 ```java
-try (Classpath classpath = new ClasspathFinder().find();
-        ArchiveReader reader = new ArchiveReader()) {
+try (Classpath classpath = new ClasspathFinder().find(); Vfs vfs = new Vfs()) {
     for (ClasspathEntry entry : classpath.getEntries()) {
-        Archive archive;
-        try {
-            archive = reader.open(entry.location());
-        } catch (IOException e) {
-            // Not a jarfile -- a classpath entry can also be a directory
-            continue;
-        }
-        for (ArchiveEntry archiveEntry : archive.getEntries()) {
-            if (archiveEntry.getName().endsWith(".class")) {
-                System.out.println(archive.getPath() + " -> " + archiveEntry.getName());
+        // A classpath entry can be a directory, a jarfile or a jarfile nested in another jarfile.
+        // The virtual filesystem opens all of them, and lists their contents the same way.
+        VfsRoot root = vfs.open(entry.location());
+        for (VfsEntry vfsEntry : root.getEntries()) {
+            if (vfsEntry.getName().endsWith(".class")) {
+                System.out.println(vfsEntry.getPath());
             }
         }
     }
 }
 ```
+
+A classpath entry can also be a URL for something that is not a local file, and `vfs.open` will
+throw `IOException` for one of those unless its scheme is allowed with `vfs.enableURLScheme("https")`.
 
 ### List the modules
 

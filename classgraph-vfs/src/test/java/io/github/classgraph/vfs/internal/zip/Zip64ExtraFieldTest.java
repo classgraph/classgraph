@@ -14,7 +14,7 @@ import java.util.zip.CRC32;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import io.github.classgraph.vfs.ArchiveReader;
+import io.github.classgraph.vfs.Vfs;
 
 /**
  * The uncompressed size, the compressed size and the local file header offset of a zip entry each have only 32 bits
@@ -214,9 +214,9 @@ public class Zip64ExtraFieldTest {
      */
     private static List<String> entriesReadBack(final File jarFile) throws Exception {
         final List<String> entries = new ArrayList<>();
-        try (var archiveReader = new ArchiveReader()) {
-            for (final var entry : archiveReader.open(jarFile.getPath()).getEntries()) {
-                entries.add(entry.getName() + ": " + new String(entry.readAllBytes(), StandardCharsets.UTF_8));
+        try (var vfs = new Vfs()) {
+            for (final var entry : vfs.open(jarFile.getPath()).getEntries()) {
+                entries.add(entry.getName() + ": " + new String(entry.load(), StandardCharsets.UTF_8));
             }
         }
         return entries;

@@ -48,7 +48,7 @@ import io.github.classgraph.base.internal.concurrency.SingletonMap;
 import io.github.classgraph.base.internal.recycler.Recycler;
 import io.github.classgraph.base.internal.utils.FileUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
-import io.github.classgraph.base.internal.utils.ModuleReaderUtils;
+import io.github.classgraph.vfs.internal.module.ModuleReaderUtils;
 import io.github.classgraph.vfs.internal.slice.Slice;
 import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
 import org.jspecify.annotations.Nullable;

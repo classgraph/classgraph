@@ -28,19 +28,29 @@
  */
 
 /**
- * Reads jarfiles, including jarfiles nested inside other jarfiles to any depth, without extracting them to disk.
+ * A virtual filesystem: reads directories, jarfiles and modules through one interface, however they are named.
  *
  * <p>
- * Start at {@link io.github.classgraph.vfs.ArchiveReader}, which opens an {@link io.github.classgraph.vfs.Archive}
- * of {@link io.github.classgraph.vfs.ArchiveEntry} instances:
+ * Start at {@link io.github.classgraph.vfs.Vfs}, which opens a {@link io.github.classgraph.vfs.VfsRoot} of
+ * {@link io.github.classgraph.vfs.VfsEntry} instances:
  *
  * <pre>
- * try (ArchiveReader reader = new ArchiveReader()) {
- *     for (ArchiveEntry entry : reader.open("outer.jar!/lib/inner.jar").getEntries()) {
- *         System.out.println(entry.getName() + " (" + entry.getUncompressedSize() + " bytes)");
+ * try (Vfs vfs = new Vfs()) {
+ *     for (VfsEntry entry : vfs.open("outer.jar!/lib/inner.jar").getEntries()) {
+ *         System.out.println(entry.getName() + " (" + entry.getLength() + " bytes)");
  *     }
  * }
  * </pre>
+ *
+ * <p>
+ * The same code reads a directory, a module, a jarfile downloaded from a URL, or a jarfile held in RAM, because
+ * {@link io.github.classgraph.vfs.Vfs#open(String)} has an overload for every way that Java names a place to read
+ * from -- a path string, a {@link java.io.File}, a {@link java.nio.file.Path} in any filesystem, a
+ * {@link java.net.URI}, a {@link java.net.URL}, a {@link java.lang.module.ModuleReference}, an
+ * {@link java.io.InputStream} or a byte array -- and all of them give back the same
+ * {@link io.github.classgraph.vfs.VfsRoot} interface. Each entry can then be read as an
+ * {@link java.io.InputStream}, a {@link java.nio.channels.ReadableByteChannel}, a {@link java.nio.ByteBuffer}, a
+ * byte array or a string, whichever the caller wants, whatever the entry is stored in.
  *
  * <p>
  * The zipfile reader in this package is a good deal faster than {@link java.util.zip.ZipFile}, and unlike
@@ -49,8 +59,8 @@
  * jarfile, rather than being extracted to a temporary directory first.
  *
  * <p>
- * An {@link io.github.classgraph.vfs.ArchiveReader} owns the file handles, memory mappings and temporary files that
- * back everything it opened, so it must be closed, and it must stay open for as long as its entries are being read.
+ * A {@link io.github.classgraph.vfs.Vfs} owns the file handles, memory mappings and temporary files that back
+ * everything it opened, so it must be closed, and it must stay open for as long as its entries are being read.
  *
  * <p>
  * This package is {@link org.jspecify.annotations.NullMarked}: unless a type is annotated

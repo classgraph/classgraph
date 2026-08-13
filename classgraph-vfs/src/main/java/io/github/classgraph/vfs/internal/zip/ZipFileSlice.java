@@ -30,6 +30,7 @@ package io.github.classgraph.vfs.internal.zip;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Objects;
 
 import io.github.classgraph.base.internal.utils.AcceptReject.AcceptRejectLeafname;
@@ -191,6 +192,21 @@ public class ZipFileSlice {
         } else {
             return physicalZipFile.getFile();
         }
+    }
+
+    /**
+     * Get the physical {@link Path} that this ZipFileSlice is a slice of.
+     *
+     * @return the physical {@link Path} that this ZipFileSlice is a slice of, or null if this file was downloaded
+     *         from a URL directly to RAM.
+     */
+    public @Nullable Path getPhysicalPath() {
+        final var path = physicalZipFile.getPath();
+        if (path != null) {
+            return path;
+        }
+        final var file = physicalZipFile.getFile();
+        return file == null ? null : file.toPath();
     }
 
     @Override

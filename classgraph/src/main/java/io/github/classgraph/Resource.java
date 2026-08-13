@@ -46,6 +46,7 @@ import java.util.zip.ZipEntry;
 
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.base.internal.utils.URLPathEncoder;
+import io.github.classgraph.vfs.CloseableByteBuffer;
 import io.github.classgraph.vfs.internal.slice.reader.ClassfileReader;
 import org.jspecify.annotations.Nullable;
 

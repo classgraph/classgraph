@@ -13,7 +13,7 @@ import java.util.zip.ZipOutputStream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import io.github.classgraph.vfs.ArchiveReader;
+import io.github.classgraph.vfs.Vfs;
 
 /**
  * Tests that a zip entry whose local header declares an extra field longer than {@link Short#MAX_VALUE} bytes can
@@ -61,10 +61,9 @@ public class FastZipEntryLargeExtraFieldTest {
             zipOut.closeEntry();
         }
 
-        try (var archiveReader = new ArchiveReader()) {
-            final var entry = Objects
-                    .requireNonNull(archiveReader.open(jarFile.getPath()).getEntry("testpkg/resource.txt"));
-            assertThat(new String(entry.readAllBytes(), StandardCharsets.UTF_8)).isEqualTo(RESOURCE_CONTENT);
+        try (var vfs = new Vfs()) {
+            final var entry = Objects.requireNonNull(vfs.open(jarFile.getPath()).getEntry("testpkg/resource.txt"));
+            assertThat(new String(entry.load(), StandardCharsets.UTF_8)).isEqualTo(RESOURCE_CONTENT);
         }
     }
 }

@@ -49,7 +49,7 @@ import io.github.classgraph.base.internal.concurrency.WorkQueue;
 import io.github.classgraph.base.internal.recycler.Recycler;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
-import io.github.classgraph.base.internal.utils.ModuleReaderUtils;
+import io.github.classgraph.vfs.internal.module.ModuleReaderUtils;
 import io.github.classgraph.base.internal.utils.ProxyingInputStream;
 import io.github.classgraph.internal.scanspec.ScanSpec.ScanSpecPathMatch;
 import io.github.classgraph.internal.scanspec.ScanSpec;

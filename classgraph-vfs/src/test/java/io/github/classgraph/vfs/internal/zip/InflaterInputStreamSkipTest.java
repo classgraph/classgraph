@@ -14,7 +14,7 @@ import java.util.zip.ZipOutputStream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import io.github.classgraph.vfs.ArchiveReader;
+import io.github.classgraph.vfs.Vfs;
 
 /**
  * Tests {@code skip()} on the {@link InputStream} returned for a deflated zip entry.
@@ -49,9 +49,8 @@ public class InflaterInputStreamSkipTest {
             zipOut.closeEntry();
         }
 
-        try (var archiveReader = new ArchiveReader()) {
-            final var entry = Objects
-                    .requireNonNull(archiveReader.open(jarFile.getPath()).getEntry("testpkg/deflated.txt"));
+        try (var vfs = new Vfs()) {
+            final var entry = Objects.requireNonNull(vfs.open(jarFile.getPath()).getEntry("testpkg/deflated.txt"));
             try (var inputStream = entry.open()) {
                 assertThat(inputStream.skip(NUM_BYTES_TO_SKIP)).isEqualTo(NUM_BYTES_TO_SKIP);
 

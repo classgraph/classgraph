@@ -1,4 +1,4 @@
-package io.github.classgraph.base.internal.utils;
+package io.github.classgraph.vfs.internal.module;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -15,6 +15,7 @@ import java.util.Collections;
 import java.util.Optional;
 import java.util.stream.Stream;
 
+import io.github.classgraph.base.internal.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 

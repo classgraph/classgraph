@@ -28,6 +28,10 @@
  */
 package io.github.classgraph.vfs;
 
+import java.io.File;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -35,18 +39,12 @@ import java.util.List;
 import java.util.Map;
 
 import io.github.classgraph.base.internal.utils.Assert;
+import io.github.classgraph.base.internal.utils.URLPathEncoder;
 import io.github.classgraph.vfs.internal.zip.LogicalZipFile;
 import org.jspecify.annotations.Nullable;
 
-/**
- * A jarfile that was opened by an {@link ArchiveReader}, and the entries it contains.
- *
- * <p>
- * Directory entries, encrypted entries and entries stored with an unsupported compression method are not reported.
- * For a multi-release jarfile, only the newest version of each entry that this JVM can run is reported, unless
- * {@link ArchiveReader#enableMultiReleaseVersions()} was called.
- */
-public class Archive {
+/** A zipfile or jarfile, which may itself be nested within other jarfiles. */
+final class ArchiveRoot extends VfsRoot {
     /** The jarfile that was opened. */
     private final LogicalZipFile logicalZipFile;
 
@@ -54,26 +52,29 @@ public class Archive {
     private final String packageRoot;
 
     /** The entries under the package root, in the order they appear in the jarfile's central directory. */
-    private final List<ArchiveEntry> entries;
+    private final List<VfsEntry> entries;
 
     /** The entries under the package root, keyed by name. */
-    private final Map<String, ArchiveEntry> entriesByName;
+    private final Map<String, VfsEntry> entriesByName;
 
     /**
      * Constructor.
      *
+     * @param vfs
+     *            the {@link Vfs} that opened this root.
      * @param logicalZipFile
      *            the jarfile that was opened.
      * @param packageRoot
      *            the package root within the jarfile, or the empty string if the whole jarfile is the package root.
      */
-    Archive(final LogicalZipFile logicalZipFile, final String packageRoot) {
+    ArchiveRoot(final Vfs vfs, final LogicalZipFile logicalZipFile, final String packageRoot) {
+        super(vfs);
         this.logicalZipFile = logicalZipFile;
         this.packageRoot = packageRoot;
 
         final var packageRootPrefix = packageRoot.isEmpty() ? "" : packageRoot + "/";
-        final List<ArchiveEntry> entriesTmp = new ArrayList<>(logicalZipFile.entries.size());
-        final Map<String, ArchiveEntry> entriesByNameTmp = new LinkedHashMap<>();
+        final List<VfsEntry> entriesTmp = new ArrayList<>(logicalZipFile.entries.size());
+        final Map<String, VfsEntry> entriesByNameTmp = new LinkedHashMap<>();
         for (final var zipEntry : logicalZipFile.entries) {
             if (zipEntry.entryNameUnversioned.startsWith(packageRootPrefix)) {
                 final var entry = new ArchiveEntry(this, zipEntry,
@@ -89,66 +90,59 @@ public class Archive {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /**
-     * Returns the path of this jarfile, with {@code "!/"} separating each nested jarfile from the one that encloses
-     * it. The package root is not part of the path.
-     *
-     * @return the path of the jarfile.
-     */
+    @Override
+    public Kind getKind() {
+        return Kind.ARCHIVE;
+    }
+
+    @Override
     public String getPath() {
         return logicalZipFile.getPath();
     }
 
-    /**
-     * Returns the package root within this jarfile: the directory that {@link ArchiveEntry#getName()} is relative
-     * to, without a trailing {@code '/'}. This is the empty string unless the path the jarfile was opened from
-     * ended in a {@code "!/"} section that named a directory rather than a nested jarfile.
-     *
-     * @return the package root, or the empty string if the whole jarfile is the package root.
-     */
+    @Override
+    public URI getURI() {
+        final var path = getPath();
+        try {
+            return new URI(URLPathEncoder.normalizeURLPath(path));
+        } catch (final URISyntaxException e) {
+            throw new IllegalStateException("Could not form URI for " + path + " : " + e, e);
+        }
+    }
+
+    @Override
+    public @Nullable File getFile() {
+        return logicalZipFile.getPhysicalFile();
+    }
+
+    @Override
+    public @Nullable Path getNioPath() {
+        return logicalZipFile.getPhysicalPath();
+    }
+
+    @Override
     public String getPackageRoot() {
         return packageRoot;
     }
 
     /**
-     * Returns the entries under the package root, in the order they appear in the jarfile's central directory.
+     * Returns the value of the {@code Automatic-Module-Name} manifest entry.
      *
-     * @return the entries, as an unmodifiable list.
+     * @return the automatic module name, or null if the jarfile's manifest does not declare one.
      */
-    public List<ArchiveEntry> getEntries() {
-        return entries;
-    }
-
-    /**
-     * Returns the entry with the given name, or null if there is no such entry. If the jarfile contains more than
-     * one entry with the same name, the first one is returned, which is the one a classloader would find.
-     *
-     * @param name
-     *            the name of the entry, relative to the package root, e.g. {@code "com/xyz/Widget.class"}.
-     * @return the entry, or null if there is no entry with that name.
-     */
-    public @Nullable ArchiveEntry getEntry(final String name) {
-        Assert.notNull(name, "name");
-        return entriesByName.get(name);
-    }
-
-    /**
-     * Returns the value of the {@code Automatic-Module-Name} manifest entry, or null if the jarfile's manifest does
-     * not declare one.
-     *
-     * @return the automatic module name, or null if there is none.
-     */
-    public @Nullable String getAutomaticModuleName() {
+    @Override
+    public @Nullable String getModuleName() {
         return logicalZipFile.automaticModuleNameManifestEntryValue;
     }
 
-    /**
-     * Returns the path of this jarfile, with the package root appended if there is one.
-     *
-     * @return the jarfile, as a string.
-     */
     @Override
-    public String toString() {
-        return packageRoot.isEmpty() ? getPath() : getPath() + "!/" + packageRoot;
+    public List<VfsEntry> getEntries() {
+        return entries;
+    }
+
+    @Override
+    public @Nullable VfsEntry getEntry(final String name) {
+        Assert.notNull(name, "name");
+        return entriesByName.get(name);
     }
 }

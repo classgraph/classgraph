@@ -15,7 +15,7 @@ import java.util.zip.CRC32;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import io.github.classgraph.vfs.ArchiveReader;
+import io.github.classgraph.vfs.Vfs;
 
 /**
  * A zipfile with a Zip64 End Of Central Directory record has the number of entries recorded twice: once in the End
@@ -211,9 +211,9 @@ public class Zip64EntryCountTest {
      */
     private static List<String> entriesReadBack(final File jarFile) throws Exception {
         final List<String> entries = new ArrayList<>();
-        try (var archiveReader = new ArchiveReader()) {
-            for (final var entry : archiveReader.open(jarFile.getPath()).getEntries()) {
-                entries.add(entry.getName() + ": " + new String(entry.readAllBytes(), StandardCharsets.UTF_8));
+        try (var vfs = new Vfs()) {
+            for (final var entry : vfs.open(jarFile.getPath()).getEntries()) {
+                entries.add(entry.getName() + ": " + new String(entry.load(), StandardCharsets.UTF_8));
             }
         }
         return entries;

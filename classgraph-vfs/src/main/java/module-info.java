@@ -30,10 +30,14 @@
 import org.jspecify.annotations.NullMarked;
 
 /**
- * The archive reader of
+ * The virtual filesystem of
  * <a href="https://github.com/classgraph/classgraph">ClassGraph</a>: reads
- * jarfiles, including jarfiles nested inside other jarfiles to any depth,
- * without extracting them to disk.
+ * directories, jarfiles and modules through one interface, however they are
+ * named -- by path string, {@link java.io.File}, {@link java.nio.file.Path},
+ * {@link java.net.URI}, {@link java.net.URL},
+ * {@link java.lang.module.ModuleReference}, {@link java.io.InputStream} or byte
+ * array -- including jarfiles nested inside other jarfiles to any depth, which
+ * are read without being extracted to disk.
  *
  * <p>
  * This module is {@link org.jspecify.annotations.NullMarked}: unless a type is
@@ -49,6 +53,7 @@ module io.github.classgraph.vfs {
     // top of this one, and they are not covered by the project's API compatibility guarantees.
     exports io.github.classgraph.vfs.internal to io.github.classgraph, io.github.classgraph.classpath;
     exports io.github.classgraph.vfs.internal.zip to io.github.classgraph, io.github.classgraph.classpath;
+    exports io.github.classgraph.vfs.internal.module to io.github.classgraph, io.github.classgraph.classpath;
     exports io.github.classgraph.vfs.internal.slice to io.github.classgraph, io.github.classgraph.classpath;
     exports io.github.classgraph.vfs.internal.slice.reader to io.github.classgraph, io.github.classgraph.classpath;
     exports io.github.classgraph.vfs.internal.spec to io.github.classgraph, io.github.classgraph.classpath;
@@ -56,7 +61,7 @@ module io.github.classgraph.vfs {
     // N.B. make sure the "Import-Package" entries in the manifest (in pom.xml) match these "requires" statements.
 
     // The shared helper classes. This is "requires transitive" because they appear in signatures that the modules
-    // above this one use, e.g. the LogNode passed to the archive reader
+    // above this one use, e.g. the LogNode passed to the virtual filesystem
     requires transitive io.github.classgraph.base;
 
     // JSpecify nullability annotations are only needed at compile time. This deliberately is not "requires

@@ -30,14 +30,18 @@ package io.github.classgraph.vfs;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.attribute.PosixFilePermission;
+import java.util.HashSet;
+import java.util.Set;
 
+import io.github.classgraph.base.internal.utils.URLPathEncoder;
 import io.github.classgraph.vfs.internal.zip.FastZipEntry;
+import org.jspecify.annotations.Nullable;
 
-/** One entry of a jarfile that was opened by an {@link ArchiveReader}. */
-public class ArchiveEntry {
-    /** The archive this entry was read from. */
-    private final Archive archive;
-
+/** One entry of a zipfile or jarfile. */
+final class ArchiveEntry extends VfsEntry {
     /** The zip entry. */
     private final FastZipEntry zipEntry;
 
@@ -45,123 +49,102 @@ public class ArchiveEntry {
     private final String name;
 
     /**
+     * The POSIX file permissions, in the order of the Unix mode bits, from {@code 0400} down to {@code 0001}.
+     */
+    private static final PosixFilePermission[] POSIX_FILE_PERMISSION_BITS = { PosixFilePermission.OWNER_READ,
+            PosixFilePermission.OWNER_WRITE, PosixFilePermission.OWNER_EXECUTE, PosixFilePermission.GROUP_READ,
+            PosixFilePermission.GROUP_WRITE, PosixFilePermission.GROUP_EXECUTE, PosixFilePermission.OTHERS_READ,
+            PosixFilePermission.OTHERS_WRITE, PosixFilePermission.OTHERS_EXECUTE };
+
+    /**
      * Constructor.
      *
-     * @param archive
+     * @param root
      *            the archive this entry was read from.
      * @param zipEntry
      *            the zip entry.
      * @param name
      *            the name of this entry, relative to the archive's package root.
      */
-    ArchiveEntry(final Archive archive, final FastZipEntry zipEntry, final String name) {
-        this.archive = archive;
+    ArchiveEntry(final ArchiveRoot root, final FastZipEntry zipEntry, final String name) {
+        super(root);
         this.zipEntry = zipEntry;
         this.name = name;
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /**
-     * Returns the name of this entry, relative to the archive's package root, with {@code '/'} as the separator and
-     * no leading {@code '/'}, e.g. {@code "com/xyz/Widget.class"}.
-     *
-     * <p>
-     * For an entry of a multi-release jarfile that is only present for some JDK versions, this is the name without
-     * the {@code "META-INF/versions/<version>/"} prefix, so that the same entry has the same name whichever version
-     * of it was selected.
-     *
-     * @return the name of the entry.
-     */
+    @Override
     public String getName() {
         return name;
     }
 
-    /**
-     * Returns the archive this entry was read from.
-     *
-     * @return the archive.
-     */
-    public Archive getArchive() {
-        return archive;
-    }
-
-    /**
-     * Returns the full path of this entry: the path of the archive, then {@code "!/"}, then the entry's name within
-     * the archive, including the package root and any multi-release version prefix.
-     *
-     * @return the path of the entry.
-     */
+    @Override
     public String getPath() {
         return zipEntry.getPath();
     }
 
-    /**
-     * Returns the number of bytes this entry occupies in the archive, i.e. its size after compression.
-     *
-     * @return the compressed size in bytes.
-     */
+    @Override
+    public URI getURI() {
+        final var rootURIStr = getRoot().getURI().toString();
+        try {
+            // A jarfile nested within another jarfile already has a "jar:" URI, and must not be given a second one
+            return new URI((rootURIStr.startsWith("jar:") ? "" : "jar:") + rootURIStr + "!/"
+                    + URLPathEncoder.encodePath(zipEntry.entryName));
+        } catch (final URISyntaxException e) {
+            throw new IllegalStateException("Could not form URI for " + getPath() + " : " + e, e);
+        }
+    }
+
+    @Override
+    public long getLength() {
+        return zipEntry.uncompressedSize;
+    }
+
+    @Override
     public long getCompressedSize() {
         return zipEntry.compressedSize;
     }
 
-    /**
-     * Returns the number of bytes this entry's content occupies once decompressed.
-     *
-     * @return the uncompressed size in bytes.
-     */
-    public long getUncompressedSize() {
-        return zipEntry.uncompressedSize;
-    }
-
-    /**
-     * Returns the time this entry was last modified, in milliseconds since the epoch, or 0 if the archive does not
-     * record it.
-     *
-     * @return the last modified time in milliseconds since the epoch, or 0 if unknown.
-     */
+    @Override
     public long getLastModifiedTimeMillis() {
         return zipEntry.getLastModifiedTimeMillis();
     }
 
+    @Override
+    public @Nullable Set<PosixFilePermission> getPosixFilePermissions() {
+        final var fileAttributes = zipEntry.fileAttributes;
+        if (fileAttributes == 0) {
+            // Zip entries written by tools that do not record Unix mode bits have zero file attributes
+            return null;
+        }
+        final Set<PosixFilePermission> permissions = new HashSet<>();
+        for (var i = 0; i < POSIX_FILE_PERMISSION_BITS.length; i++) {
+            if ((fileAttributes & (0400 >> i)) != 0) {
+                permissions.add(POSIX_FILE_PERMISSION_BITS[i]);
+            }
+        }
+        return permissions;
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
-    /**
-     * Open this entry's content as an {@link InputStream}, decompressing it if it is stored deflated. The caller
-     * owns the returned stream and must close it.
-     *
-     * @return the content of the entry, as a stream.
-     * @throws IOException
-     *             if the entry could not be read, or if the {@link ArchiveReader} that opened the archive has been
-     *             closed.
-     */
+    @Override
     public InputStream open() throws IOException {
         return zipEntry.getSlice().open();
     }
 
-    /**
-     * Read this entry's whole content into a byte array, decompressing it if it is stored deflated.
-     *
-     * @return the content of the entry.
-     * @throws IOException
-     *             if the entry could not be read, or if the {@link ArchiveReader} that opened the archive has been
-     *             closed.
-     * @throws OutOfMemoryError
-     *             if the entry is larger than the largest possible array.
-     */
-    public byte[] readAllBytes() throws IOException {
-        try (var inputStream = open()) {
-            return inputStream.readAllBytes();
-        }
+    @Override
+    public CloseableByteBuffer read() throws IOException {
+        // The slice of a zip entry is a sub-slice of the zipfile, and owns no resources of its own, so there is
+        // nothing to release when the buffer is closed -- the zipfile is released when the Vfs is closed
+        return new CloseableByteBuffer(zipEntry.getSlice().read(), () -> {
+            // Nothing to release
+        });
     }
 
-    /**
-     * Returns the full path of this entry.
-     *
-     * @return the entry, as a string.
-     */
     @Override
-    public String toString() {
-        return getPath();
+    public byte[] load() throws IOException {
+        return zipEntry.getSlice().load();
     }
 }

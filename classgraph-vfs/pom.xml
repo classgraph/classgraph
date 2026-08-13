@@ -8,9 +8,9 @@
 	</parent>
 
 	<artifactId>classgraph-vfs</artifactId>
-	<name>ClassGraph archive reader</name>
+	<name>ClassGraph virtual filesystem</name>
 
-	<description>Reads jarfiles, including jarfiles nested inside other jarfiles to any depth, without extracting them to disk.</description>
+	<description>A virtual filesystem: reads directories, jarfiles and modules through one interface, however they are named.</description>
 
 	<properties>
 		<!-- The shared files (the code formatter profile and the license) are one directory up -->
@@ -23,11 +23,11 @@
 
 		<!-- Must agree with src/main/java/module-info.java -->
 		<jpmsModuleName>io.github.classgraph.vfs</jpmsModuleName>
-		<osgiBundleName>ClassGraph archive reader</osgiBundleName>
+		<osgiBundleName>ClassGraph virtual filesystem</osgiBundleName>
 		<!-- The internal packages are exported because OSGi has no equivalent of a qualified export, and the
 		     modules above this one need them. They are marked x-internal so that tooling does not offer them
 		     for import, and they are not covered by the project's API compatibility guarantees. -->
-		<osgiExportPackage>io.github.classgraph.vfs;version="${project.version}",io.github.classgraph.vfs.internal;x-internal:=true,io.github.classgraph.vfs.internal.slice;x-internal:=true,io.github.classgraph.vfs.internal.slice.reader;x-internal:=true,io.github.classgraph.vfs.internal.zip;x-internal:=true,io.github.classgraph.vfs.internal.spec;x-internal:=true</osgiExportPackage>
+		<osgiExportPackage>io.github.classgraph.vfs;version="${project.version}",io.github.classgraph.vfs.internal;x-internal:=true,io.github.classgraph.vfs.internal.slice;x-internal:=true,io.github.classgraph.vfs.internal.slice.reader;x-internal:=true,io.github.classgraph.vfs.internal.zip;x-internal:=true,io.github.classgraph.vfs.internal.module;x-internal:=true,io.github.classgraph.vfs.internal.spec;x-internal:=true</osgiExportPackage>
 		<osgiImportPackage>io.github.classgraph.base.internal.concurrency,io.github.classgraph.base.internal.recycler,io.github.classgraph.base.internal.utils,org.jspecify.annotations;resolution:="optional"</osgiImportPackage>
 		<osgiDependencies>io.github.classgraph.base</osgiDependencies>
 
@@ -36,11 +36,21 @@
 		<maven.resources.skip>false</maven.resources.skip>
 	</properties>
 
+	<!-- Versions are pinned in the parent's dependencyManagement section -->
 	<dependencies>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
 			<artifactId>classgraph-base</artifactId>
 			<version>${project.version}</version>
+		</dependency>
+
+		<!-- Test dependencies: -->
+		<!-- An in-memory filesystem, used to test that a Path in a filesystem other than the default one can be
+		     opened -->
+		<dependency>
+			<groupId>com.google.jimfs</groupId>
+			<artifactId>jimfs</artifactId>
+			<scope>test</scope>
 		</dependency>
 	</dependencies>
 </project>

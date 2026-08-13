@@ -26,7 +26,7 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.classgraph;
+package io.github.classgraph.vfs;
 
 import java.io.Closeable;
 import java.nio.ByteBuffer;
@@ -57,7 +57,7 @@ public class CloseableByteBuffer implements Closeable {
      * @param onClose
      *            The method to run when {@link #close()} is called.
      */
-    CloseableByteBuffer(final ByteBuffer byteBuffer, final Runnable onClose) {
+    public CloseableByteBuffer(final ByteBuffer byteBuffer, final Runnable onClose) {
         this.byteBuffer = byteBuffer;
         this.onClose = onClose;
     }

@@ -15,7 +15,7 @@ import java.util.zip.CRC32;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import io.github.classgraph.vfs.ArchiveReader;
+import io.github.classgraph.vfs.Vfs;
 
 /**
  * Zip entry names are not stored in the "modified UTF-8" encoding of the Java classfile format. Bit 11 of an
@@ -151,8 +151,8 @@ public class ZipEntryNameEncodingTest {
      */
     private static List<String> entryNames(final File jarFile) throws Exception {
         final List<String> names = new ArrayList<>();
-        try (var archiveReader = new ArchiveReader()) {
-            for (final var entry : archiveReader.open(jarFile.getPath()).getEntries()) {
+        try (var vfs = new Vfs()) {
+            for (final var entry : vfs.open(jarFile.getPath()).getEntries()) {
                 names.add(entry.getName());
             }
         }

@@ -30,8 +30,10 @@ package io.github.classgraph.vfs.internal.zip;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
+import java.nio.file.Path;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.Locale;
 import java.util.Map.Entry;
@@ -102,6 +104,30 @@ public class NestedJarHandler {
      */
     private SingletonMap<File, PhysicalZipFile, IOException> canonicalFileToPhysicalZipFileMap() {
         return Objects.requireNonNull(canonicalFileToPhysicalZipFileMap);
+    }
+
+    /**
+     * A singleton map from a zipfile's {@link Path} to the {@link PhysicalZipFile} for that path, used to ensure
+     * that a zipfile in a filesystem that has no {@link File} representation, such as a zipfile within a zipfile
+     * mounted as a filesystem, is opened only once. Set to null by {@link #close(LogNode)}.
+     */
+    private @Nullable SingletonMap<Path, PhysicalZipFile, IOException> //
+    pathToPhysicalZipFileMap = new SingletonMap<>() {
+        @Override
+        public PhysicalZipFile newInstance(final Path path, final @Nullable LogNode log) throws IOException {
+            return new PhysicalZipFile(path, scanResources, log);
+        }
+    };
+
+    /**
+     * Get the map from {@link Path} to {@link PhysicalZipFile}.
+     *
+     * @return the map
+     * @throws NullPointerException
+     *             if {@link #close(LogNode)} has been called
+     */
+    private SingletonMap<Path, PhysicalZipFile, IOException> pathToPhysicalZipFileMap() {
+        return Objects.requireNonNull(pathToPhysicalZipFileMap);
     }
 
     /**
@@ -209,6 +235,67 @@ public class NestedJarHandler {
     public SingletonMap<String, Entry<LogicalZipFile, String>, IOException> //
             nestedPathToLogicalZipFileAndPackageRootMap() {
         return Objects.requireNonNull(nestedPathToLogicalZipFileAndPackageRootMap);
+    }
+
+    /**
+     * Open a jarfile named by a {@link Path}. Use this only for a {@link Path} that is not in the default
+     * filesystem, since a path in the default filesystem can name a jarfile nested within another jarfile, which
+     * {@link #nestedPathToLogicalZipFileAndPackageRootMap()} resolves and this method does not.
+     *
+     * @param path
+     *            the path of the jarfile.
+     * @param log
+     *            the log node, or null to skip logging.
+     * @return the {@link LogicalZipFile} for the jarfile.
+     * @throws IOException
+     *             if the jarfile could not be opened.
+     * @throws InterruptedException
+     *             if the thread was interrupted.
+     */
+    public LogicalZipFile openJarFromPath(final Path path, final @Nullable LogNode log)
+            throws IOException, InterruptedException {
+        try {
+            final var physicalZipFile = pathToPhysicalZipFileMap().get(path, log);
+            return zipFileSliceToLogicalZipFileMap().get(new ZipFileSlice(physicalZipFile), log);
+        } catch (final NullSingletonException | NewInstanceException e) {
+            // Chain the cause, as well as naming it in the message -- otherwise the reason the jarfile could not be
+            // opened is not reachable from the stack trace
+            final var cause = e.getCause() == null ? e : e.getCause();
+            throw new IOException("Could not open " + path + " : " + cause, cause);
+        }
+    }
+
+    /**
+     * Open a jarfile read from an {@link InputStream}. The stream is read to an array in RAM, or spilled to a
+     * temporary file if it is longer than the configured maximum, since a zipfile's central directory is at the end
+     * of the file and so cannot be reached by reading forwards.
+     *
+     * <p>
+     * The result is not cached, since each call reads a different stream.
+     *
+     * @param inputStream
+     *            the stream to read the jarfile from. The caller retains ownership of the stream, and this method
+     *            does not close it.
+     * @param inputStreamLengthHint
+     *            the number of bytes to read from {@code inputStream}, or -1 if unknown.
+     * @param name
+     *            a name for the jarfile, used in log messages and in the paths of its entries.
+     * @param log
+     *            the log node, or null to skip logging.
+     * @return the {@link LogicalZipFile} for the jarfile.
+     * @throws IOException
+     *             if the jarfile could not be read.
+     * @throws InterruptedException
+     *             if the thread was interrupted.
+     */
+    public LogicalZipFile openJarFromInputStream(final InputStream inputStream, final long inputStreamLengthHint,
+            final String name, final @Nullable LogNode log) throws IOException, InterruptedException {
+        final var physicalZipFile = new PhysicalZipFile(inputStream, inputStreamLengthHint, name, scanResources,
+                log);
+        // The zipfile slice cache cannot be used here: two PhysicalZipFile instances compare equal if they have the
+        // same path, so two different streams read under the same name would be treated as the same jarfile
+        return new LogicalZipFile(new ZipFileSlice(physicalZipFile), scanResources, log,
+                vfsScanSpec.enableMultiReleaseVersions);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -508,6 +595,11 @@ public class NestedJarHandler {
             if (physicalZipFileMap != null) {
                 physicalZipFileMap.clear();
                 canonicalFileToPhysicalZipFileMap = null;
+            }
+            final var pathPhysicalZipFileMap = pathToPhysicalZipFileMap;
+            if (pathPhysicalZipFileMap != null) {
+                pathPhysicalZipFileMap.clear();
+                pathToPhysicalZipFileMap = null;
             }
             final var zipFileSliceMap = fastZipEntryToZipFileSliceMap;
             if (zipFileSliceMap != null) {
