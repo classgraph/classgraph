@@ -440,4 +440,26 @@ public class FastPathResolverTest {
         assertThat(FastPathResolver.resolve("http://host/dir", "https://other/x.jar"))
                 .isEqualTo("https://other/x.jar");
     }
+
+    /**
+     * Any separator after an authority beyond the first is an empty path segment, and is collapsed like any other.
+     * The path that follows an authority never starts a UNC path, whose doubled separator is kept on Windows, so
+     * the two must not be confused.
+     */
+    @Test
+    public void anEmptySegmentAfterAnAuthorityIsCollapsed() {
+        assertThat(resolveAsWindows(null, "http://host//dir/x")).isEqualTo("http://host/dir/x");
+        assertThat(resolveAsWindows("http://host//dir", "x.jar")).isEqualTo("http://host/dir/x.jar");
+        // The server name of a UNC path is an authority in the same sense, and the path after it is a path like any
+        // other, so only the doubled separator that starts the UNC path itself survives
+        assertThat(resolveAsWindows(null, "//server//share//dir")).isEqualTo("//server/share/dir");
+        assertThat(resolveAsWindows(null, "///server/share")).isEqualTo("//server/share");
+        assertThat(resolveAsWindows("/x/y/z", "//p//q")).isEqualTo("//p/q");
+
+        assumeTrue(canSimulateLinux, "the resolver cannot be made to believe it is running on Linux on Windows");
+        assertThat(resolveAsLinux(null, "http://host//dir/x")).isEqualTo("http://host/dir/x");
+        assertThat(resolveAsLinux("http://host//dir", "x.jar")).isEqualTo("http://host/dir/x.jar");
+        // Off Windows there is no UNC path, so a leading doubled separator is an empty segment like any other
+        assertThat(resolveAsLinux(null, "//server//share//dir")).isEqualTo("/server/share/dir");
+    }
 }
