@@ -38,6 +38,7 @@ import java.io.OutputStream;
 import java.io.RandomAccessFile;
 import java.lang.reflect.Method;
 import java.net.HttpURLConnection;
+import java.net.JarURLConnection;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -686,6 +687,11 @@ public class NestedJarHandler {
 
         public CloseableUrlConnection(final URL url) throws IOException {
             conn = url.openConnection();
+            // A "jar:" URL connection would otherwise put the jar it names into the JVM-wide jar file cache,
+            // which never closes what it holds, so the jar would stay open for the life of the JVM -- and on
+            // Windows, an open file cannot be deleted or overwritten. With caching turned off, the jar is this
+            // connection's to close.
+            conn.setUseCaches(false);
             httpConn = conn instanceof HttpURLConnection ? (HttpURLConnection) conn : null;
         }
 
@@ -693,6 +699,14 @@ public class NestedJarHandler {
         public void close() {
             if (httpConn != null) {
                 httpConn.disconnect();
+            } else if (conn instanceof JarURLConnection) {
+                // Closing the connection's InputStream closes the jar, but the InputStream is only opened if
+                // the jar is actually read, so close the jar here in case it was not
+                try {
+                    ((JarURLConnection) conn).getJarFile().close();
+                } catch (final IOException e) {
+                    // The jar was never opened, or is already closed
+                }
             }
         }
     }
