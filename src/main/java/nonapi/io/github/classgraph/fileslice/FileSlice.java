@@ -334,8 +334,11 @@ public class FileSlice extends Slice {
             }
             return ByteBuffer.wrap(load());
         } else {
-            // FileSlice is backed with a MappedByteBuffer -- duplicate it and return it (low-cost operation)
-            return backingByteBuffer.duplicate();
+            // FileSlice is backed with the memory mapping of the whole file, which covers the whole file even for
+            // a sub-slice, so narrow the mapping to this slice (a low-cost operation). Slicing, rather than merely
+            // duplicating, is what makes the returned buffer start at position zero and stops it from being
+            // widened again (by ByteBuffer#clear, say) to reach the rest of the file.
+            return backingByteBuffer.slice();
         }
     }
 

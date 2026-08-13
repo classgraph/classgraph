@@ -255,14 +255,10 @@ class ClasspathElementModule extends ClasspathElement {
             public byte[] load() throws IOException {
                 try (Resource res = this) { // Close this after use
                     read(); // Fill byteBuffer
-                    final byte[] byteArray;
-                    if (res.byteBuffer.hasArray() && res.byteBuffer.position() == 0
-                            && res.byteBuffer.limit() == res.byteBuffer.capacity()) {
-                        byteArray = res.byteBuffer.array();
-                    } else {
-                        byteArray = new byte[res.byteBuffer.remaining()];
-                        res.byteBuffer.get(byteArray);
-                    }
+                    // The buffer belongs to the ModuleReader, which reclaims it when this resource is closed at
+                    // the end of this try block, so the content has to be copied out rather than aliased
+                    final byte[] byteArray = new byte[res.byteBuffer.remaining()];
+                    res.byteBuffer.get(byteArray);
                     res.length = byteArray.length;
                     return byteArray;
                 }
