@@ -28,9 +28,9 @@ public class SliceTest {
     /**
      * Create the resources owned by a scan.
      *
-     * @return the owner of the scan resources
+     * @return the scan resources
      */
-    private static ScanResources.Owner scanResources() {
+    private static ScanResources scanResources() {
         return scanResources(new VfsScanSpec().maxBufferedJarRAMSize);
     }
 
@@ -39,12 +39,12 @@ public class SliceTest {
      *
      * @param maxBufferedJarRAMSize
      *            the maximum number of bytes of a jar to buffer in RAM before spilling it to disk
-     * @return the owner of the scan resources
+     * @return the scan resources
      */
-    private static ScanResources.Owner scanResources(final int maxBufferedJarRAMSize) {
+    private static ScanResources scanResources(final int maxBufferedJarRAMSize) {
         final var vfsScanSpec = new VfsScanSpec();
         vfsScanSpec.maxBufferedJarRAMSize = maxBufferedJarRAMSize;
-        return ScanResources.open(vfsScanSpec, new InterruptionChecker());
+        return new ScanResources(vfsScanSpec, new InterruptionChecker());
     }
 
     /**
@@ -95,7 +95,7 @@ public class SliceTest {
     @Test
     public void slicesOfDifferentFilesOfTheSameLengthAreDifferentSlices(@TempDir final Path tempDir)
             throws IOException {
-        final var scanResources = scanResources().resources();
+        final var scanResources = scanResources();
         try (var first = new PathSlice(writeFile(tempDir, "first.bin"), scanResources, /* log = */ null);
                 var second = new PathSlice(writeFile(tempDir, "second.bin"), scanResources, /* log = */ null)) {
             assertThat(first).isNotEqualTo(second);
@@ -117,7 +117,7 @@ public class SliceTest {
      */
     @Test
     public void subSlicesOfDifferentFilesAreDifferentSlices(@TempDir final Path tempDir) throws IOException {
-        final var scanResources = scanResources().resources();
+        final var scanResources = scanResources();
         try (var first = new PathSlice(writeFile(tempDir, "first.bin"), scanResources, /* log = */ null);
                 var second = new PathSlice(writeFile(tempDir, "second.bin"), scanResources, /* log = */ null)) {
             assertThat(first.slice(2, 4, /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L))
@@ -135,7 +135,7 @@ public class SliceTest {
      */
     @Test
     public void anInputStreamThatFitsInRamIsReadIntoAnArraySlice() throws IOException {
-        final var scanResources = scanResources().resources();
+        final var scanResources = scanResources();
         assertThat(sliceOfContent(scanResources, /* inputStreamLengthHint = */ -1L)).isInstanceOf(ArraySlice.class);
         assertThat(sliceOfContent(scanResources, CONTENT.length)).isInstanceOf(ArraySlice.class);
         assertThat(sliceOfContent(scanResources, CONTENT.length * 2L)).isInstanceOf(ArraySlice.class);
@@ -158,24 +158,22 @@ public class SliceTest {
     @Test
     public void anInputStreamThatIsTooLongToBufferIsSpilledToATemporaryFile() throws IOException {
         // A length hint that is longer than the maximum RAM buffer size spills to disk without buffering
-        final var owner = scanResources(/* maxBufferedJarRAMSize = */ CONTENT.length / 2);
-        final var scanResources = owner.resources();
+        final var scanResources = scanResources(/* maxBufferedJarRAMSize = */ CONTENT.length / 2);
         try {
             assertThat(sliceOfContent(scanResources, CONTENT.length)).isInstanceOf(FileSlice.class);
             assertThat(scanResources.hasTempFiles()).isTrue();
         } finally {
-            owner.close(/* log = */ null);
+            scanResources.close(/* log = */ null);
         }
 
         // A length hint that understates the length of the stream fills the buffer, and only then turns out to be
         // wrong, so the buffered bytes have to be written to the temporary file ahead of the rest of the stream
-        final var understatedOwner = scanResources();
+        final var understatedScanResources = scanResources();
         try {
-            assertThat(
-                    sliceOfContent(understatedOwner.resources(), /* inputStreamLengthHint = */ CONTENT.length / 2))
+            assertThat(sliceOfContent(understatedScanResources, /* inputStreamLengthHint = */ CONTENT.length / 2))
                     .isInstanceOf(FileSlice.class);
         } finally {
-            understatedOwner.close(/* log = */ null);
+            understatedScanResources.close(/* log = */ null);
         }
     }
 
@@ -216,14 +214,14 @@ public class SliceTest {
                 return wrapped.read(buf, off, len);
             }
         };
-        final var owner = scanResources();
+        final var scanResources = scanResources();
         try {
             final var slice = Slice.fromInputStream(stream, "zeroreads.bin", /* inputStreamLengthHint = */ -1L,
-                    owner.resources(), /* log = */ null);
+                    scanResources, /* log = */ null);
             assertThat(slice.sliceLength).isEqualTo(CONTENT.length);
             assertThat(slice.load()).containsExactly(CONTENT);
         } finally {
-            owner.close(/* log = */ null);
+            scanResources.close(/* log = */ null);
         }
     }
 
@@ -240,13 +238,12 @@ public class SliceTest {
     @Test
     public void closingTheScanResourcesClosesEverySliceThatWasLeftOpen(@TempDir final Path tempDir)
             throws IOException {
-        final var owner = scanResources();
-        final var scanResources = owner.resources();
+        final var scanResources = scanResources();
         final var first = new FileSlice(writeFile(tempDir, "first.bin").toFile(), scanResources, /* log = */ null);
         final var second = new FileSlice(writeFile(tempDir, "second.bin").toFile(), scanResources,
                 /* log = */ null);
 
-        owner.close(/* log = */ null);
+        scanResources.close(/* log = */ null);
 
         // A closed slice has released the file it was reading, so it can no longer be read
         assertThatThrownBy(first::load).isInstanceOf(NullPointerException.class);

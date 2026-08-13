@@ -61,83 +61,21 @@ import org.jspecify.annotations.Nullable;
  * {@link VfsScanSpec} that every part of the reader needs.
  *
  * <p>
- * Once {@link Owner#close(LogNode)} has been called, the methods that register a new resource throw
+ * Once {@link #close(LogNode)} has been called, the methods that register a new resource throw
  * {@link NullPointerException} rather than silently handing out a resource that nothing will ever close. The
  * methods that release a resource stay callable, since releasing something twice has to be harmless.
- *
- * <p>
- * These resources can only be closed through the {@link Owner} that {@link #open(VfsScanSpec, InterruptionChecker)}
- * returns to whatever created them. Everything else is handed the {@link ScanResources} itself, which can open
- * resources but cannot tear them down, so a session cannot be closed out from under its owner.
  */
 public class ScanResources {
-    /**
-     * The right to close a {@link ScanResources}, returned by
-     * {@link ScanResources#open(VfsScanSpec, InterruptionChecker)} to whatever created the resources, and
-     * obtainable no other way.
-     */
-    public static final class Owner {
-        /** The resources that this owner owns. */
-        private final ScanResources scanResources;
-
-        /**
-         * Constructor.
-         *
-         * @param scanResources
-         *            the resources that this owner owns
-         */
-        private Owner(final ScanResources scanResources) {
-            this.scanResources = scanResources;
-        }
-
-        /**
-         * Get the resources that this owner owns.
-         *
-         * @return the resources
-         */
-        public ScanResources resources() {
-            return scanResources;
-        }
-
-        /**
-         * Mark the resources as closed, so that nothing new can be opened from them while they are being torn down.
-         *
-         * <p>
-         * The owner of the resources ({@code NestedJarHandler}) has its own work to do before
-         * {@link #close(LogNode)} can run -- the zipfile caches have to be dropped first, so that nothing can hand
-         * out a {@link Slice} of a zipfile that is about to be closed. It calls this method first, and only
-         * proceeds if it is the caller that won the race to close.
-         *
-         * @return true if this call was the one that marked the resources as closed, i.e. false if they were
-         *         already closed.
-         */
-        public boolean beginClose() {
-            return !scanResources.closed.getAndSet(true);
-        }
-
-        /**
-         * Close all open {@link Slice} instances, discard the pooled {@link ModuleReader} and {@link Inflater}
-         * instances, and delete any temporary files. Must be preceded by a call to {@link #beginClose()} that
-         * returned true.
-         *
-         * @param log
-         *            the log node, or null to skip logging
-         */
-        public void close(final @Nullable LogNode log) {
-            scanResources.close(log);
-        }
-    }
-
     /** The settings that govern how archives are read. */
     public final VfsScanSpec vfsScanSpec;
 
     /** The interruption checker. */
     private final InterruptionChecker interruptionChecker;
 
-    /** {@link Slice} instances that are currently open. Set to null by {@link Owner#close(LogNode)}. */
+    /** {@link Slice} instances that are currently open. Set to null by {@link #close(LogNode)}. */
     private @Nullable Set<Slice> openSlices = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
-    /** Any temporary files created while scanning. Set to null by {@link Owner#close(LogNode)}. */
+    /** Any temporary files created while scanning. Set to null by {@link #close(LogNode)}. */
     private @Nullable Set<File> tempFiles = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /** A recycler for {@link Inflater} instances. */
@@ -150,7 +88,7 @@ public class ScanResources {
 
     /**
      * A singleton map from a {@link ModuleReference} to a {@link ModuleReader} recycler for the module. Set to null
-     * by {@link Owner#close(LogNode)}.
+     * by {@link #close(LogNode)}.
      */
     private @Nullable SingletonMap<ModuleReference, Recycler<ModuleReader, IOException>, IOException> //
     moduleReaderRecyclerMap = new SingletonMap<>() {
@@ -166,7 +104,7 @@ public class ScanResources {
         }
     };
 
-    /** True once {@link Owner#beginClose()} has been called. */
+    /** True once {@link #beginClose()} has been called. */
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
     /**
@@ -177,24 +115,9 @@ public class ScanResources {
      * @param interruptionChecker
      *            the interruption checker
      */
-    private ScanResources(final VfsScanSpec vfsScanSpec, final InterruptionChecker interruptionChecker) {
+    public ScanResources(final VfsScanSpec vfsScanSpec, final InterruptionChecker interruptionChecker) {
         this.vfsScanSpec = vfsScanSpec;
         this.interruptionChecker = interruptionChecker;
-    }
-
-    /**
-     * Open the resources for a new reading session.
-     *
-     * @param vfsScanSpec
-     *            the settings that govern how archives are read
-     * @param interruptionChecker
-     *            the interruption checker
-     * @return the {@link Owner} of the new resources, which is the only way to close them again. Hand
-     *         {@link Owner#resources()} to anything that needs to open resources, and keep the {@link Owner}
-     *         itself.
-     */
-    public static Owner open(final VfsScanSpec vfsScanSpec, final InterruptionChecker interruptionChecker) {
-        return new Owner(new ScanResources(vfsScanSpec, interruptionChecker));
     }
 
     // ---------------------------------------------------------------------------------------------------------
@@ -204,7 +127,7 @@ public class ScanResources {
      *
      * @return the map
      * @throws NullPointerException
-     *             if {@link Owner#close(LogNode)} has been called
+     *             if {@link #close(LogNode)} has been called
      */
     public SingletonMap<ModuleReference, Recycler<ModuleReader, IOException>, IOException> //
             moduleReaderRecyclerMap() {
@@ -219,7 +142,7 @@ public class ScanResources {
      * @param slice
      *            the {@link Slice} that was just opened.
      * @throws NullPointerException
-     *             if {@link Owner#close(LogNode)} has been called
+     *             if {@link #close(LogNode)} has been called
      */
     public void markSliceAsOpen(final Slice slice) {
         Objects.requireNonNull(openSlices).add(slice);
@@ -227,8 +150,8 @@ public class ScanResources {
 
     /**
      * Mark a {@link Slice} as closed. Unlike {@link #markSliceAsOpen(Slice)}, this does nothing rather than
-     * throwing once {@link Owner#close(LogNode)} has been called: a slice can be closed after these resources have
-     * been torn down (for example when something that was still reading from the slice is closed afterwards), and
+     * throwing once {@link #close(LogNode)} has been called: a slice can be closed after these resources have been
+     * torn down (for example when something that was still reading from the slice is closed afterwards), and
      * closing something twice has to be harmless.
      *
      * @param slice
@@ -287,7 +210,7 @@ public class ScanResources {
      * @throws IOException
      *             If the temporary file could not be created.
      * @throws NullPointerException
-     *             if {@link Owner#close(LogNode)} has been called
+     *             if {@link #close(LogNode)} has been called
      */
     public File makeTempFile(final String filePathBase, final boolean onlyUseLeafname) throws IOException {
         final var tempFile = File.createTempFile("ClassGraph--", FileUtils.TEMP_FILENAME_LEAF_SEPARATOR
@@ -307,7 +230,7 @@ public class ScanResources {
      * @throws SecurityException
      *             If the temporary file is inaccessible.
      * @throws NullPointerException
-     *             if {@link Owner#close(LogNode)} has been called
+     *             if {@link #close(LogNode)} has been called
      */
     private void removeTempFile(final File tempFile) throws IOException, SecurityException {
         if (Objects.requireNonNull(tempFiles).remove(tempFile)) {
@@ -354,14 +277,30 @@ public class ScanResources {
     // ---------------------------------------------------------------------------------------------------------
 
     /**
+     * Mark these resources as closed, so that nothing new can be opened from them while they are being torn down.
+     *
+     * <p>
+     * The owner of these resources ({@code NestedJarHandler}) has its own work to do before {@link #close(LogNode)}
+     * can run -- the zipfile caches have to be dropped first, so that nothing can hand out a {@link Slice} of a
+     * zipfile that is about to be closed. It calls this method first, and only proceeds if it is the caller that
+     * won the race to close.
+     *
+     * @return true if this call was the one that marked the resources as closed, i.e. false if they were already
+     *         closed.
+     */
+    public boolean beginClose() {
+        return !closed.getAndSet(true);
+    }
+
+    /**
      * Close all open {@link Slice} instances, discard the pooled {@link ModuleReader} and {@link Inflater}
-     * instances, and delete any temporary files. Called only by {@link Owner#close(LogNode)}, so that only the
-     * owner of these resources can tear them down.
+     * instances, and delete any temporary files. Must be preceded by a call to {@link #beginClose()} that returned
+     * true.
      *
      * @param log
      *            the log node, or null to skip logging
      */
-    private void close(final @Nullable LogNode log) {
+    public void close(final @Nullable LogNode log) {
         var interrupted = false;
         final var recyclerMap = moduleReaderRecyclerMap;
         if (recyclerMap != null) {

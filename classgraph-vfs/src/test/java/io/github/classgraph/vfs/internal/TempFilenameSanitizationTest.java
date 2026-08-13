@@ -51,16 +51,16 @@ class TempFilenameSanitizationTest {
     /** A nested jar whose entry name is not a valid filename must still get a temporary file. */
     @Test
     void unsafeCharactersInEntryNameAreReplaced() throws Exception {
-        final var owner = ScanResources.open(new VfsScanSpec(), new InterruptionChecker());
+        final var scanResources = new ScanResources(new VfsScanSpec(), new InterruptionChecker());
         try {
-            final var tempFile = owner.resources().makeTempFile("BOOT-INF/lib/na" + UNSAFE_CHARS + "me.jar",
+            final var tempFile = scanResources.makeTempFile("BOOT-INF/lib/na" + UNSAFE_CHARS + "me.jar",
                     /* onlyUseLeafname = */ false);
             assertThat(tempFile).exists();
             for (var i = 0; i < UNSAFE_CHARS.length(); i++) {
                 assertThat(tempFile.getName()).doesNotContain(UNSAFE_CHARS.substring(i, i + 1));
             }
         } finally {
-            owner.close(/* log = */ null);
+            scanResources.close(/* log = */ null);
         }
     }
 }

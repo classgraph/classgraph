@@ -96,20 +96,11 @@ public class ClassfileReaderTest {
     @TempDir
     private Path tempDir;
 
-    /** The owner of the resources owned by the scan, which closes them when the test ends. */
-    private final ScanResources.Owner scanResourcesOwner = scanResources(/* memoryMapFiles = */ false);
-
     /** The resources owned by the scan, closed when the test ends. */
-    private final ScanResources scanResources = scanResourcesOwner.resources();
-
-    /**
-     * The owner of the resources owned by a scan that memory-maps the files it reads, which closes them when the
-     * test ends.
-     */
-    private final ScanResources.Owner memoryMappedScanResourcesOwner = scanResources(/* memoryMapFiles = */ true);
+    private final ScanResources scanResources = scanResources(/* memoryMapFiles = */ false);
 
     /** The resources owned by a scan that memory-maps the files it reads, closed when the test ends. */
-    private final ScanResources memoryMappedScanResources = memoryMappedScanResourcesOwner.resources();
+    private final ScanResources memoryMappedScanResources = scanResources(/* memoryMapFiles = */ true);
 
     /** The number of files written so far, so that each file slice can be given a file of its own. */
     private int numFilesWritten;
@@ -120,19 +111,19 @@ public class ClassfileReaderTest {
      *
      * @param memoryMapFiles
      *            whether the scan should memory-map the files it reads
-     * @return the owner of the resources
+     * @return the resources
      */
-    private static ScanResources.Owner scanResources(final boolean memoryMapFiles) {
+    private static ScanResources scanResources(final boolean memoryMapFiles) {
         final var vfsScanSpec = new VfsScanSpec();
         vfsScanSpec.memoryMapFiles = memoryMapFiles;
-        return ScanResources.open(vfsScanSpec, new InterruptionChecker());
+        return new ScanResources(vfsScanSpec, new InterruptionChecker());
     }
 
     /** Close the slices that the test opened. */
     @AfterEach
     public void closeScanResources() {
-        scanResourcesOwner.close(/* log = */ null);
-        memoryMappedScanResourcesOwner.close(/* log = */ null);
+        scanResources.close(/* log = */ null);
+        memoryMappedScanResources.close(/* log = */ null);
     }
 
     /**
