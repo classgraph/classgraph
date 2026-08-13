@@ -56,6 +56,12 @@ import org.jspecify.annotations.Nullable;
  * A logical zipfile, which represents a zipfile contained within a ZipFileSlice of a PhysicalZipFile.
  */
 public class LogicalZipFile extends ZipFileSlice {
+    /**
+     * The value a 32-bit central directory field holds when its real value did not fit in 32 bits, in which case
+     * the real value is held by the Zip64 extended information extra field instead.
+     */
+    private static final long ZIP64_OVERFLOWED = 0xffffffffL;
+
     /** The zipfile entries. */
     public List<FastZipEntry> entries;
 
@@ -740,7 +746,7 @@ public class LogicalZipFile extends ZipFileSlice {
                 }
                 break;
             }
-            if (tag == 1 && size >= 20) {
+            if (tag == 1) {
                 readZip64ExtraField(cenReader, tagOff, size, entryFields);
 
             } else if (tag == 0x5455 && size >= 1 + 4) {
@@ -770,8 +776,16 @@ public class LogicalZipFile extends ZipFileSlice {
     }
 
     /**
-     * Read a Zip64 extended information extra field, which gives the true sizes and local file header offset of an
-     * entry whose 32-bit values are too large to store in the central directory record.
+     * Read a Zip64 extended information extra field, which gives the true uncompressed size, compressed size and
+     * local file header offset of an entry whose value for those fields was too large to store in the 32 bits the
+     * central directory record has for each of them.
+     *
+     * <p>
+     * Each of the three values is present in this extra field only if the central directory field it belongs to
+     * holds {@link #ZIP64_OVERFLOWED}, and the values that are present appear in this fixed order, so which value
+     * each 8 bytes of this field holds depends on which of the central directory fields overflowed. (The three
+     * values can be followed by the 4-byte number of the disk the entry starts on, which is of no use here, since
+     * multi-disk zipfiles are not supported.)
      *
      * @param cenReader
      *            a reader for the central directory
@@ -782,34 +796,35 @@ public class LogicalZipFile extends ZipFileSlice {
      * @param entryFields
      *            the fields of the entry, which are overridden in place
      * @throws IOException
-     *             If an I/O exception occurs, or a size or offset in this extra field contradicts the one in the
-     *             central directory record.
+     *             If an I/O exception occurs, or a central directory field overflowed but this extra field does not
+     *             hold the value that overflowed it.
      */
     private static void readZip64ExtraField(final RandomAccessReader cenReader, final long tagOff, final int size,
             final EntryFields entryFields) throws IOException {
-        final var uncompressedSize64 = cenReader.readLong(tagOff + 4 + 0);
-        if (entryFields.uncompressedSize == 0xffffffffL) {
-            entryFields.uncompressedSize = uncompressedSize64;
-        } else if (entryFields.uncompressedSize != uncompressedSize64) {
-            throw new IOException("Mismatch in uncompressed size: " + entryFields.uncompressedSize + " vs. "
-                    + uncompressedSize64 + ": " + entryFields.entryNameSanitized);
+        var valueOff = tagOff + 4;
+        final var dataEndOff = valueOff + size;
+        if (entryFields.uncompressedSize == ZIP64_OVERFLOWED) {
+            if (valueOff + 8 > dataEndOff) {
+                throw new IOException(
+                        "Zip64 extra field is missing the uncompressed size: " + entryFields.entryNameSanitized);
+            }
+            entryFields.uncompressedSize = cenReader.readLong(valueOff);
+            valueOff += 8;
         }
-        final var compressedSize64 = cenReader.readLong(tagOff + 4 + 8);
-        if (entryFields.compressedSize == 0xffffffffL) {
-            entryFields.compressedSize = compressedSize64;
-        } else if (entryFields.compressedSize != compressedSize64) {
-            throw new IOException("Mismatch in compressed size: " + entryFields.compressedSize + " vs. "
-                    + compressedSize64 + ": " + entryFields.entryNameSanitized);
+        if (entryFields.compressedSize == ZIP64_OVERFLOWED) {
+            if (valueOff + 8 > dataEndOff) {
+                throw new IOException(
+                        "Zip64 extra field is missing the compressed size: " + entryFields.entryNameSanitized);
+            }
+            entryFields.compressedSize = cenReader.readLong(valueOff);
+            valueOff += 8;
         }
-        // Only compressed size and uncompressed size are required fields
-        if (size >= 28) {
-            final var pos64 = cenReader.readLong(tagOff + 4 + 16);
-            if (entryFields.pos == 0xffffffffL) {
-                entryFields.pos = pos64;
-            } else if (entryFields.pos != pos64) {
-                throw new IOException("Mismatch in entry pos: " + entryFields.pos + " vs. " + pos64 + ": "
+        if (entryFields.pos == ZIP64_OVERFLOWED) {
+            if (valueOff + 8 > dataEndOff) {
+                throw new IOException("Zip64 extra field is missing the local file header offset: "
                         + entryFields.entryNameSanitized);
             }
+            entryFields.pos = cenReader.readLong(valueOff);
         }
     }
 
