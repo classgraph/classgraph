@@ -75,6 +75,8 @@ public final class JarUtils {
             "jar:", "file:", "http://", "https://", //
             // Tomcat serves a non-exploded WAR file through its own "war:" URL protocol (#925)
             "war:", //
+            // Spring Boot addresses entries within an executable jar through its own "nested:" URL protocol
+            "nested:", //
             // Allow for escaping of ':' characters in paths, which probably goes beyond what the spec would allow
             // for, but would make sense, since File.separatorChar will never be '\\' when File.pathSeparatorChar is
             // ':'

@@ -237,6 +237,43 @@ public final class FastPathResolver {
     }
 
     /**
+     * Convert a Spring Boot {@code "nested:"} URL into the equivalent {@code "jar:"} URL.
+     *
+     * <p>
+     * Spring Boot 3.2 and later address an entry inside an executable jar or war with their own {@code "nested:"}
+     * URL protocol, which separates the path of the outer archive from the name of the entry within it using
+     * {@code "/!"} rather than the standard {@code "!/"}, e.g.
+     * {@code "jar:nested:/path/to/app.jar/!BOOT-INF/lib/dep.jar!/"}. The classpath URLs that the Spring Boot
+     * launcher hands to its classloader are all in this form, so without this conversion nothing in a Spring Boot
+     * executable archive is scanned.
+     *
+     * @param path
+     *            The path, which may or may not be a {@code "nested:"} URL.
+     * @return The equivalent {@code "jar:"} URL if this is a {@code "nested:"} URL, otherwise the path, unchanged.
+     */
+    private static String nestedUrlToJarUrl(final String path) {
+        // A "nested:" URL is almost always wrapped in a "jar:" URL, which is left in place
+        final int schemeIdx = path.regionMatches(true, 0, "jar:", 0, 4) ? 4 : 0;
+        if (!path.regionMatches(true, schemeIdx, "nested:", 0, 7)) {
+            return path;
+        }
+        // The location of the nested entry runs up to the first "!/", and anything after that is the path of a
+        // resource within the nested entry
+        final int locStartIdx = schemeIdx + 7;
+        int locEndIdx = path.indexOf("!/", locStartIdx);
+        if (locEndIdx < 0) {
+            locEndIdx = path.length();
+        }
+        final String location = path.substring(locStartIdx, locEndIdx);
+        // Mirrors the split performed by org.springframework.boot.loader.net.protocol.nested.NestedLocation#parse
+        final int sepIdx = location.lastIndexOf("/!");
+        final String jarUrl = sepIdx < 0 ? location
+                : location.substring(0, sepIdx) + "!/" + location.substring(sepIdx + 2);
+        // What is left of a "nested:" URL is the path of the outer archive on disk
+        return path.substring(0, schemeIdx) + "file:" + jarUrl + path.substring(locEndIdx);
+    }
+
+    /**
      * Strip away any "jar:" prefix from a filename URI, and convert it to a file path, handling possibly-broken
      * mixes of filesystem and URI conventions; resolve relative paths relative to resolveBasePath.
      *
@@ -439,9 +476,9 @@ public final class FastPathResolver {
             return resolveBasePath == null ? "" : resolveBasePath;
         }
 
-        // Convert Tomcat's "war:" URLs into the standard "jar:" form before anything else, so that the rest of
-        // this method sees a path it understands (#925)
-        final String relativePath = warUrlToJarUrl(relativePathRaw);
+        // Convert Tomcat's "war:" URLs (#925) and Spring Boot's "nested:" URLs into the standard "jar:" form
+        // before anything else, so that the rest of this method sees a path it understands
+        final String relativePath = nestedUrlToJarUrl(warUrlToJarUrl(relativePathRaw));
 
         final ParsedPrefix parsed = stripSchemePrefixes(relativePath);
         String prefix = parsed.prefix;

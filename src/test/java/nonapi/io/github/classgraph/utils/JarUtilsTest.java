@@ -74,6 +74,19 @@ public class JarUtilsTest {
     }
 
     /**
+     * A path element written as a URL in a container's own URL protocol is one path element, not two: Tomcat serves
+     * a non-exploded WAR through a {@code "war:"} URL, and Spring Boot addresses an entry within an executable jar
+     * through a {@code "nested:"} URL, and both of those schemes sit inside a {@code "jar:"} URL.
+     */
+    @Test
+    public void containerURLSchemesAreNotSplitAtTheirScheme() {
+        assertThat(JarUtils.smartPathSplit("war:file:/a/app.war*/WEB-INF/classes/:/tmp/jar2.jar", ':', null))
+                .containsExactly("war:file:/a/app.war*/WEB-INF/classes/", "/tmp/jar2.jar");
+        assertThat(JarUtils.smartPathSplit("jar:nested:/a/app.jar/!BOOT-INF/classes/!/:/tmp/jar2.jar", ':', null))
+                .containsExactly("jar:nested:/a/app.jar/!BOOT-INF/classes/!/", "/tmp/jar2.jar");
+    }
+
+    /**
      * Path elements are trimmed, so whitespace between a separator and a URL scheme is not part of the path
      * element, and does not stop the scheme from being recognized.
      */
