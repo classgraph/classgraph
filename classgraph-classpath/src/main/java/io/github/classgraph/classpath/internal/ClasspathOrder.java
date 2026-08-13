@@ -112,6 +112,16 @@ public class ClasspathOrder {
         public final Object classpathEntryObj;
 
         /**
+         * The location of the classpath element: the resolved path of a local directory or jarfile, with
+         * {@code '/'} as the separator on every platform, or the URL or URI of anything that is not a local file.
+         * This is the form the classpath element is reported in, and the form it is deduplicated by. It is kept
+         * alongside the classpath entry object because the object's {@link Object#toString()} is not in that form:
+         * the {@link Path} of a local file spells the path with the platform's separator, so on Windows it uses
+         * backslashes, and a {@link URI} keeps its scheme.
+         */
+        public final String location;
+
+        /**
          * The string form of the classloader the classpath element was obtained from, or null if unknown. Only the
          * string is kept, not the classloader itself, so that finding the classpath does not keep a classloader
          * alive.
@@ -129,14 +139,17 @@ public class ClasspathOrder {
          *
          * @param classpathEntryObj
          *            the classpath entry object (a {@link String} or {@link URL} or {@link Path}).
+         * @param location
+         *            the location of the classpath element.
          * @param classLoader
          *            the classloader the classpath element was obtained from.
          * @param packageRootPrefixes
          *            the automatic package root prefixes to look for within this classpath element.
          */
-        public Entry(final Object classpathEntryObj, final @Nullable ClassLoader classLoader,
+        public Entry(final Object classpathEntryObj, final String location, final @Nullable ClassLoader classLoader,
                 final String[] packageRootPrefixes) {
             this.classpathEntryObj = classpathEntryObj;
+            this.location = location;
             this.classLoaderStr = Objects.toString(classLoader, null);
             this.packageRootPrefixes = packageRootPrefixes;
         }
@@ -324,14 +337,16 @@ public class ClasspathOrder {
             // Deduplicate classpath elements
             if (classpathEntryUniqueResolvedPaths.add(pathElementStrWithoutSuffix)) {
                 // Record classpath element in classpath order
-                order.add(new Entry(pathElementWithoutSuffix, classLoader, currPackageRootPrefixes));
+                order.add(new Entry(pathElementWithoutSuffix, pathElementStrWithoutSuffix, classLoader,
+                        currPackageRootPrefixes));
                 return true;
             }
         } else {
             final var pathElementStrResolved = FastPathResolver.resolveFilePath(FileUtils.currDirPath(),
                     pathElementStrWithoutSuffix);
             if (classpathEntryUniqueResolvedPaths.add(pathElementStrResolved)) {
-                order.add(new Entry(pathElementStrResolved, classLoader, currPackageRootPrefixes));
+                order.add(new Entry(pathElementStrResolved, pathElementStrResolved, classLoader,
+                        currPackageRootPrefixes));
                 return true;
             }
         }

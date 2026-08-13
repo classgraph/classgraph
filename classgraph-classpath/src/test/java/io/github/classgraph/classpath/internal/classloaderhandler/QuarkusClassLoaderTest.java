@@ -129,8 +129,9 @@ public class QuarkusClassLoaderTest {
 
     /**
      * The directories that an application built with Quarkus 1.2 or earlier serves its classes from are on the
-     * classpath. This classloader's directories are reported as {@code file:} URLs rather than as paths, because
-     * the classloader can serve classes from a filesystem other than the default one.
+     * classpath. This classloader reports its directories as {@link java.net.URI}s, since it can serve classes from
+     * a filesystem other than the default one, but a directory on the default filesystem is still reported as a
+     * plain path, the same as it is for every other classloader.
      *
      * @param tempDir
      *            a temporary directory to create the application in.
@@ -143,7 +144,7 @@ public class QuarkusClassLoaderTest {
         final var classesDir = Files.createDirectory(tempDir.resolve("classes"));
         final var generatedDir = Files.createDirectory(tempDir.resolve("generated-classes"));
         assertThat(locations(new RuntimeClassLoader().serving(classesDir, generatedDir)))
-                .containsExactly(classesDir.toUri().toString(), generatedDir.toUri().toString());
+                .containsExactly(location(classesDir), location(generatedDir));
     }
 
     /**

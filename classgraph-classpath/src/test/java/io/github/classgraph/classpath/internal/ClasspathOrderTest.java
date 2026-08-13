@@ -64,6 +64,15 @@ public class ClasspathOrderTest {
     }
 
     /**
+     * The locations of the classpath elements added to the classpath order, in order.
+     *
+     * @return the locations.
+     */
+    private List<String> locations() {
+        return classpathOrder.getOrder().stream().map(entry -> entry.location).toList();
+    }
+
+    /**
      * The Equinox system bundles are only added once per scan, so the first caller is told to add them and every
      * later caller is not. The flag is per {@link ClasspathOrder} instance, so the next scan adds them again.
      */
@@ -273,14 +282,38 @@ public class ClasspathOrderTest {
         assertThat(entryObjects()).containsExactly(jarA, jarB, jarC, jarD);
     }
 
+    /**
+     * The location of a classpath element is its resolved path, whatever object the classpath element arrived as. A
+     * {@link Path} spells a path with the platform's separator, so its own string form uses backslashes on Windows,
+     * and is relative if the path it was built from was relative; a {@link URI} keeps its {@code file:} scheme.
+     * None of those is the form a classpath element is reported in, so the resolved path is recorded alongside the
+     * object the classpath element arrived as.
+     */
+    @Test
+    public void classpathElementLocationsAreResolvedPaths(@TempDir final Path tempDir) throws IOException {
+        final var jarA = createFile(tempDir.resolve("a.jar"));
+        final var jarC = createFile(tempDir.resolve("c.jar"));
+        final var absolutePath = Path.of(jarA);
+        final var relativePath = Path.of("b.jar");
+        final var uri = Path.of(jarC).toUri();
+        assertThat(classpathOrder.addClasspathEntry(absolutePath, null, null)).isTrue();
+        assertThat(classpathOrder.addClasspathEntry(relativePath, null, null)).isTrue();
+        assertThat(classpathOrder.addClasspathEntry(uri, null, null)).isTrue();
+
+        assertThat(locations()).containsExactly(jarA, resolve("b.jar"), jarC);
+        // The objects the classpath elements arrived as are kept as they were, since the scanner needs the
+        // filesystem of a Path and the scheme of a URI
+        assertThat(entryObjects()).containsExactly(absolutePath, relativePath, uri);
+    }
+
     /** Classpath entries are equal if they name the same classpath element, whatever classloader found it. */
     @Test
     public void classpathEntriesAreEqualIfTheyNameTheSameElement() {
         final var prefixes = new String[] { "classes/" };
         final var classLoader = getClass().getClassLoader();
-        final var entry = new Entry("/a/b.jar", classLoader, prefixes);
-        final var sameElement = new Entry("/a/b.jar", null, prefixes);
-        final var otherElement = new Entry("/a/c.jar", classLoader, prefixes);
+        final var entry = new Entry("/a/b.jar", "/a/b.jar", classLoader, prefixes);
+        final var sameElement = new Entry("/a/b.jar", "/a/b.jar", null, prefixes);
+        final var otherElement = new Entry("/a/c.jar", "/a/c.jar", classLoader, prefixes);
 
         assertThat(entry).isEqualTo(entry).isEqualTo(sameElement).isNotEqualTo(otherElement)
                 .isNotEqualTo("/a/b.jar");
