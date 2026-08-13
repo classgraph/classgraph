@@ -179,6 +179,11 @@ class ClasspathElementModule extends ClasspathElement {
                     length = byteBuffer.remaining();
                     return byteBuffer;
 
+                } catch (final IOException e) {
+                    // Leave the resource closed if it could not be read, so that reading it can be tried again, and
+                    // so that the ModuleReaderProxy acquired above is recycled rather than being left checked out
+                    close();
+                    throw e;
                 } catch (final SecurityException | OutOfMemoryError e) {
                     close();
                     throw new IOException("Could not open " + this, e);
@@ -228,6 +233,12 @@ class ClasspathElementModule extends ClasspathElement {
                     length = -1L;
                     return inputStream;
 
+                } catch (final IOException e) {
+                    // Leave the resource closed if it could not be opened, so that opening it can be tried again,
+                    // and so that the ModuleReaderProxy acquired above is recycled rather than being left checked
+                    // out
+                    close();
+                    throw e;
                 } catch (final SecurityException e) {
                     close();
                     throw new IOException("Could not open " + this, e);

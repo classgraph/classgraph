@@ -400,8 +400,14 @@ class ClasspathElementDir extends ClasspathElement {
 
             private void openAndCreateSlice() throws IOException {
                 checkCanOpen();
-                pathSlice = new PathSlice(resourcePath, false, 0L, nestedJarHandler, false);
-                length = pathSlice.sliceLength;
+                try {
+                    pathSlice = new PathSlice(resourcePath, false, 0L, nestedJarHandler, false);
+                    length = pathSlice.sliceLength;
+                } catch (final IOException e) {
+                    // Leave the resource closed if it could not be opened, so that opening it can be tried again
+                    close();
+                    throw e;
+                }
             }
         };
     }

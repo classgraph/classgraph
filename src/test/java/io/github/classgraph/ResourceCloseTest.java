@@ -2,10 +2,15 @@ package io.github.classgraph;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /** Tests for closing a {@link Resource}. */
 public class ResourceCloseTest {
@@ -30,5 +35,35 @@ public class ResourceCloseTest {
             resource.open();
         }
         assertThatCode(resource::close).doesNotThrowAnyException();
+    }
+
+    /**
+     * A resource that could not be opened is left closed, rather than being left marked as open, so that opening it
+     * can be tried again, and so that anything acquired for the failed attempt is released.
+     *
+     * @param tempDir
+     *            a temporary directory to write the test file to
+     * @throws IOException
+     *             if the test file cannot be written or deleted
+     */
+    @Test
+    public void aResourceThatCouldNotBeOpenedIsLeftClosed(@TempDir final Path tempDir) throws IOException {
+        final Path file = Files.write(tempDir.resolve("deleted.txt"),
+                "File contents".getBytes(StandardCharsets.UTF_8));
+        try (ScanResult scanResult = new ClassGraph().acceptPathsNonRecursive("").overrideClasspath(tempDir)
+                .scan()) {
+            final ResourceList resources = scanResult.getResourcesWithPath("deleted.txt");
+            assertThat(resources).hasSize(1);
+            final Resource resource = resources.get(0);
+            Files.delete(file);
+            // The file is gone, so every attempt to read the resource fails with an IOException, and each attempt
+            // fails the same way -- a resource left marked as open by the first attempt would make the second one
+            // throw IllegalStateException instead
+            for (int attempt = 0; attempt < 2; attempt++) {
+                assertThatThrownBy(resource::open).as("open").isInstanceOf(IOException.class);
+                assertThatThrownBy(resource::read).as("read").isInstanceOf(IOException.class);
+                assertThatThrownBy(resource::load).as("load").isInstanceOf(IOException.class);
+            }
+        }
     }
 }
