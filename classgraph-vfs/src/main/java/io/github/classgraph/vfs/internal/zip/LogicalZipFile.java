@@ -740,9 +740,12 @@ public class LogicalZipFile extends ZipFileSlice {
             final var tag = cenReader.readUnsignedShort(tagOff);
             final var size = cenReader.readUnsignedShort(tagOff + 2);
             if (extraFieldOff + 4 + size > extraFieldLen) {
-                // Invalid size
+                // An extra field that extends past the end of the extra field area cannot be read, and neither can
+                // any extra field after it, since its size is what says where the next one starts. The entry itself
+                // is still readable, using the values in its central directory record.
                 if (log != null) {
-                    log.log("Skipping zip entry with invalid extra field size: " + entryFields.entryNameSanitized);
+                    log.log("Ignoring the rest of the extra fields of zip entry, which has an extra field that "
+                            + "extends past the end of its extra field area: " + entryFields.entryNameSanitized);
                 }
                 break;
             }
