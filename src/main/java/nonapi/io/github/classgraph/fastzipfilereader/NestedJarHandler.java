@@ -986,17 +986,19 @@ public class NestedJarHandler {
                     // If bytesRead was zero rather than -1, we need to probe the InputStream (by
                     // reading
                     // one more byte) to see if inputStreamHint underestimated the actual length of
-                    // the stream
-                    final byte[] overflowBuf = new byte[1];
-                    final int overflowBufBytesUsed = inptStream.read(overflowBuf, 0, 1);
-                    if (overflowBufBytesUsed == 1) {
+                    // the stream. (The probe is the single-byte InputStream#read, which returns
+                    // either a byte value or -1 for the end of the stream -- a probe through
+                    // InputStream#read(byte[], int, int) could return zero, which is what made the
+                    // probe necessary in the first place, and the stream would be truncated here.)
+                    final int overflowByte = inptStream.read();
+                    if (overflowByte != -1) {
                         // We were able to read one more byte, so we're still not at the end of the
                         // stream,
                         // and we need to spill to disk, because buf is full
-                        return spillToDisk(inptStream, tempFileBaseName, buf, bufBytesUsed, overflowBuf, log);
+                        return spillToDisk(inptStream, tempFileBaseName, buf, bufBytesUsed,
+                                new byte[] { (byte) overflowByte }, log);
                     }
-                    // else (overflowBufBytesUsed == -1), so reached the end of the stream => don't
-                    // spill to disk
+                    // else reached the end of the stream => don't spill to disk
                 }
                 // Successfully reached end of stream
                 if (bufBytesUsed < buf.length) {
