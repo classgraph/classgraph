@@ -919,8 +919,9 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get a string representation of the method. Note that constructors are named {@code "<init>"}, and private
-     * static class initializer blocks are named {@code "<clinit>"}.
+     * Get a string representation of the method, in Java source syntax. A constructor is named after the class it
+     * constructs, as {@link java.lang.reflect.Constructor#toString()} names it, rather than {@code "<init>"} (which
+     * is what {@link #getName()} returns). Static class initializer blocks are named {@code "<clinit>"}.
      *
      * @param useSimpleNames
      *            if true, strip package and outer class names from class names
