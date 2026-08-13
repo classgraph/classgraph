@@ -30,6 +30,7 @@ package io.github.classgraph.vfs.internal.zip;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
+import java.net.JarURLConnection;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -74,6 +75,11 @@ final class JarURLDownloader {
          */
         public CloseableUrlConnection(final URL url) throws IOException {
             conn = url.openConnection();
+            // A "jar:" URL connection would otherwise put the jar it names into the JVM-wide jar file cache, which
+            // never closes what it holds, so the jar would stay open for the life of the JVM -- and on Windows, an
+            // open file cannot be deleted or overwritten. With caching turned off, the jar is this connection's to
+            // close.
+            conn.setUseCaches(false);
             httpConn = conn instanceof final HttpURLConnection httpUrlConn ? httpUrlConn : null;
         }
 
@@ -81,6 +87,14 @@ final class JarURLDownloader {
         public void close() {
             if (httpConn != null) {
                 httpConn.disconnect();
+            } else if (conn instanceof final JarURLConnection jarConn) {
+                // Closing the connection's InputStream closes the jar, but the InputStream is only opened if the
+                // jar is actually read, so close the jar here in case it was not
+                try {
+                    jarConn.getJarFile().close();
+                } catch (final IOException e) {
+                    // The jar was never opened, or is already closed
+                }
             }
         }
     }

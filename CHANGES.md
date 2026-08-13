@@ -1893,6 +1893,14 @@ is fixed on the 4.x branch as well.
   the future are still ignored, and a file that has been deleted since the scan no longer
   contributes a timestamp.
 
+* A jar reached through a `jar:` URL -- a jar nested inside another jar, which cannot be
+  read straight from the filesystem -- was fetched through a `JarURLConnection`, which
+  registers the *outer* jar in the JVM-wide jar file cache. Nothing ever closes what that
+  cache holds, so the outer jar stayed open for the life of the JVM, leaking a file handle
+  per scan; and on Windows, an open file cannot be deleted or overwritten by anybody, so
+  scanning a nested jar locked the jar that contained it. The connection now bypasses the
+  cache, and closes the outer jar as soon as the nested jar has been read.
+
 Two further bugs found during the port were only reachable through the JSON
 serialization API, which 5.x removes (`AnnotationParameterValue#toString()` threw
 `NullPointerException` for a null parameter value, and `ScanResult#fromJSON(String)` did
