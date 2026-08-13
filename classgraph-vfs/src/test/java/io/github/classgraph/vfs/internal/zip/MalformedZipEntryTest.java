@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
@@ -410,6 +411,25 @@ public class MalformedZipEntryTest {
     }
 
     /**
+     * Read back the content of every entry of a zipfile that could be read.
+     *
+     * @param jarFile
+     *            the zipfile to read
+     * @return one {@code "name: content"} string per entry
+     * @throws Exception
+     *             if the zipfile could not be read
+     */
+    private static List<String> entryContentsReadBack(final File jarFile) throws Exception {
+        final List<String> entries = new ArrayList<>();
+        try (var archiveReader = new ArchiveReader()) {
+            for (final var entry : archiveReader.open(jarFile.getPath()).getEntries()) {
+                entries.add(entry.getName() + ": " + new String(entry.readAllBytes(), StandardCharsets.UTF_8));
+            }
+        }
+        return entries;
+    }
+
+    /**
      * Read a zipfile with verbose logging on, recording the log rather than printing it.
      *
      * @param jarFile
@@ -527,6 +547,32 @@ public class MalformedZipEntryTest {
         assertThat(entryNamesReadBack(jarFile)).containsExactly(GOOD_NAME);
         assertThat(verboseLogOfReading(jarFile))
                 .contains("Unexpected EOF when trying to read LOC header: testpkg/past-eof.txt");
+    }
+
+    /**
+     * An entry whose compressed size runs past the end of the zipfile has no complete content to read, so reading
+     * it fails rather than returning whatever bytes happen to follow it.
+     */
+    @Test
+    public void anEntryWhoseContentExtendsPastTheEndOfTheZipfileCannotBeRead(@TempDir final File tempDir)
+            throws Exception {
+        final var jarFile = writeZip(tempDir, "csize-past-eof.jar",
+                entry("testpkg/past-eof.txt").cenCompressedSize(0xfffffff0L));
+        assertThatThrownBy(() -> entryContentsReadBack(jarFile)).isInstanceOf(IOException.class)
+                .hasMessageContaining("Unexpected EOF when trying to read zip entry data: testpkg/past-eof.txt");
+    }
+
+    /**
+     * A compressed size can be made large enough that adding it to the entry's start position overflows a 64-bit
+     * value, which must not let the entry past the check that its content lies within the zipfile.
+     */
+    @Test
+    public void anEntryWhoseCompressedSizeOverflowsTheEndOfTheZipfileCannotBeRead(@TempDir final File tempDir)
+            throws Exception {
+        final var jarFile = writeZip(tempDir, "csize-overflow.jar", entry("testpkg/overflow.txt")
+                .cenCompressedSize(OVERFLOWED).extraField(zip64ExtraField(null, Long.MAX_VALUE, null)));
+        assertThatThrownBy(() -> entryContentsReadBack(jarFile)).isInstanceOf(IOException.class)
+                .hasMessageContaining("Unexpected EOF when trying to read zip entry data: testpkg/overflow.txt");
     }
 
     /**

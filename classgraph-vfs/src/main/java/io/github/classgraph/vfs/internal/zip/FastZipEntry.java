@@ -215,7 +215,11 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
             // more negative, which moves dataStartPos back before the LOC header)
             final var dataStartPos = locHeaderPos + 30 + randomAccessReader.readUnsignedShort(locHeaderPos + 26)
                     + randomAccessReader.readUnsignedShort(locHeaderPos + 28);
-            if (dataStartPos > parentLogicalZipFile.slice.sliceLength) {
+            // The entry's data has to lie entirely within the zipfile. (Test the compressed size against the space
+            // left in the zipfile by subtraction, since adding it to dataStartPos could overflow. Both operands are
+            // non-negative -- a negative compressed size is rejected when the central directory is read.)
+            if (dataStartPos > parentLogicalZipFile.slice.sliceLength
+                    || compressedSize > parentLogicalZipFile.slice.sliceLength - dataStartPos) {
                 throw new IOException("Unexpected EOF when trying to read zip entry data: " + entryName);
             }
 
