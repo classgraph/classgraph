@@ -2459,17 +2459,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         }
     }
 
-    /**
-     * Get the classes that have this class as a direct annotation.
-     *
-     * @return The list of classes that are directly (i.e. are not meta-annotated) annotated with the requested
-     *         annotation, or the empty list if none.
-     */
-    ClassInfoList getClassesWithAnnotationDirectOnly() {
-        return new ClassInfoList(this.filterClassInfo(RelType.CLASSES_WITH_ANNOTATION, /* strictAccept = */ true),
-                /* sortByName = */ true);
-    }
-
     // -------------------------------------------------------------------------------------------------------------
     // Methods
 
@@ -3090,26 +3079,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 RelType.CLASSES_WITH_NONPRIVATE_METHOD_PARAMETER_ANNOTATION);
     }
 
-    /**
-     * Get the classes that have this class as a direct method annotation.
-     *
-     * @return A list of classes that declare methods that are directly annotated (i.e. are not meta-annotated) with
-     *         the requested method annotation, or the empty list if none.
-     */
-    ClassInfoList getClassesWithMethodAnnotationDirectOnly() {
-        return getClassesWithFieldOrMethodAnnotationDirectOnly(RelType.CLASSES_WITH_METHOD_ANNOTATION);
-    }
-
-    /**
-     * Get the classes that have this class as a direct method parameter annotation.
-     *
-     * @return A list of classes that declare methods with parameters that are directly annotated (i.e. are not
-     *         meta-annotated) with the requested method annotation, or the empty list if none.
-     */
-    ClassInfoList getClassesWithMethodParameterAnnotationDirectOnly() {
-        return getClassesWithFieldOrMethodAnnotationDirectOnly(RelType.CLASSES_WITH_METHOD_PARAMETER_ANNOTATION);
-    }
-
     // -------------------------------------------------------------------------------------------------------------
     // Fields
 
@@ -3438,16 +3407,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     public ClassInfoList getClassesWithFieldAnnotation() {
         return getClassesWithFieldOrMethodAnnotationAndSubclasses(RelType.CLASSES_WITH_FIELD_ANNOTATION,
                 RelType.CLASSES_WITH_NONPRIVATE_FIELD_ANNOTATION);
-    }
-
-    /**
-     * Get the classes that have this class as a direct field annotation.
-     *
-     * @return A list of classes that declare fields that are directly annotated (i.e. are not meta-annotated) with
-     *         the requested field annotation, or the empty list if none.
-     */
-    ClassInfoList getClassesWithFieldAnnotationDirectOnly() {
-        return getClassesWithFieldOrMethodAnnotationDirectOnly(RelType.CLASSES_WITH_FIELD_ANNOTATION);
     }
 
     // -------------------------------------------------------------------------------------------------------------
