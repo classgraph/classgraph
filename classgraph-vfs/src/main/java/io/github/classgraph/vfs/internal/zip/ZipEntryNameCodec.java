@@ -72,7 +72,9 @@ final class ZipEntryNameCodec {
             + "αßΓπΣσµτ" //
             + "ΦΘΩδ∞φε∩" //
             + "≡±≥≤⌠⌡÷≈" //
-            + "°∙·√ⁿ²■ ";
+            // (0xff is a non-breaking space, written as an escape so that it cannot be mistaken for, or turned
+            // into, an ordinary space)
+            + "°∙·√ⁿ²■" + "\u00a0";
 
     /** Constructor. */
     private ZipEntryNameCodec() {
