@@ -169,6 +169,32 @@ public class ReturnedListsAreUnmodifiableTest {
         assertThat(isUnmodifiable(new ResourceList())).isFalse();
     }
 
+    /** A list that the user constructs behaves like an ordinary list, with every mutating method working. */
+    @Test
+    public void everyMutatorWorksOnAUserConstructedList() {
+        try (var scanResult = new ClassGraph().acceptPackages(ClassWithMembers.class.getPackage().getName())
+                .enableAllInfo().scan()) {
+            final var classes = List.copyOf(scanResult.getAllClasses());
+            assertThat(classes).hasSizeGreaterThan(1);
+            final var classInfoList = new ClassInfoList(classes);
+
+            assertThat(classInfoList.remove(classes.get(0))).isTrue();
+            assertThat(classInfoList).doesNotContain(classes.get(0)).hasSize(classes.size() - 1);
+            // Removing something that is not in the list leaves the list alone
+            assertThat(classInfoList.remove(classes.get(0))).isFalse();
+            assertThat(classInfoList).hasSize(classes.size() - 1);
+
+            assertThat(classInfoList.add(classes.get(0))).isTrue();
+            classInfoList.sort(null);
+            final var sortedClasses = new ArrayList<>(classes);
+            sortedClasses.sort(null);
+            assertThat(classInfoList).containsExactlyElementsOf(sortedClasses);
+
+            assertThat(classInfoList.removeAll(classes)).isTrue();
+            assertThat(classInfoList).isEmpty();
+        }
+    }
+
     /** The other mutating methods on a returned list should be rejected too, not just {@code add}. */
     @Test
     public void allMutatorsAreRejectedOnReturnedLists() {
@@ -183,6 +209,10 @@ public class ReturnedListsAreUnmodifiableTest {
             assertThat(throwsUnsupported(() -> classInfoList.clear())).isTrue();
             assertThat(throwsUnsupported(() -> classInfoList.set(0, classInfoList.get(0)))).isTrue();
             assertThat(throwsUnsupported(() -> classInfoList.remove(0))).isTrue();
+            // Removing by value is a different method from removing by index, and is rejected whether or not the
+            // value is in the list
+            assertThat(throwsUnsupported(() -> classInfoList.remove((Object) classInfoList.get(0)))).isTrue();
+            assertThat(throwsUnsupported(() -> classInfoList.remove(new Object()))).isTrue();
             assertThat(throwsUnsupported(() -> classInfoList.listIterator().add(classInfoList.get(0)))).isTrue();
             assertThat(throwsUnsupported(() -> classInfoList.listIterator(1).set(classInfoList.get(0)))).isTrue();
             assertThat(throwsUnsupported(() -> classInfoList.iterator().remove())).isTrue();

@@ -34,6 +34,10 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import com.xyz.meta.A;
+import com.xyz.meta.H;
+import com.xyz.meta.J;
+
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
@@ -161,5 +165,19 @@ class MetaAnnotationTest {
         assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.I")
                 .intersect(scanResult.getClassesWithAnnotation("com.xyz.meta.J")).directOnly().getNames())
                 .containsOnly("com.xyz.meta.E");
+    }
+
+    /**
+     * A class reference names a class just as well as a string does, so either may be used to ask a question about
+     * it.
+     */
+    @Test
+    void aClassCanBeNamedByReferenceRatherThanByName() {
+        assertThat(scanResult.getAllAnnotationsOnClass(A.class).getNames())
+                .isEqualTo(scanResult.getAllAnnotationsOnClass("com.xyz.meta.A").getNames());
+        assertThat(scanResult.getDirectAnnotationsOnClass(H.class).getNames())
+                .isEqualTo(scanResult.getDirectAnnotationsOnClass("com.xyz.meta.H").getNames());
+        assertThat(scanResult.getClassesWithAnnotation(J.class).getNames())
+                .isEqualTo(scanResult.getClassesWithAnnotation("com.xyz.meta.J").getNames());
     }
 }

@@ -74,6 +74,49 @@ public class ArchiveReaderTest {
     }
 
     /**
+     * Write a multi-release jarfile holding the same resource path three times: once unversioned, once under a
+     * version the running JVM supports, and once under a version far newer than any JVM that exists.
+     *
+     * @param jarFile
+     *            the jarfile to write.
+     * @param entryName
+     *            the unversioned name of the resource.
+     * @throws IOException
+     *             if the jarfile could not be written.
+     */
+    private static void writeMultiReleaseJar(final File jarFile, final String entryName) throws IOException {
+        try (var fileOut = new FileOutputStream(jarFile); var zipOut = new ZipOutputStream(fileOut)) {
+            zipOut.putNextEntry(new ZipEntry("META-INF/MANIFEST.MF"));
+            zipOut.write("Manifest-Version: 1.0\nMulti-Release: true\n\n".getBytes(StandardCharsets.UTF_8));
+            zipOut.closeEntry();
+
+            for (final var entry : new String[][] { { entryName, "base" },
+                    { "META-INF/versions/9/" + entryName, "version 9" },
+                    { "META-INF/versions/9999/" + entryName, "version 9999" } }) {
+                zipOut.putNextEntry(new ZipEntry(entry[0]));
+                zipOut.write(entry[1].getBytes(StandardCharsets.UTF_8));
+                zipOut.closeEntry();
+            }
+        }
+    }
+
+    /**
+     * The content of an entry of an archive.
+     *
+     * @param archive
+     *            the archive.
+     * @param entryName
+     *            the name of the entry.
+     * @return the content of the entry.
+     * @throws IOException
+     *             if the entry could not be read.
+     */
+    private static String entryContent(final Archive archive, final String entryName) throws IOException {
+        return new String(Objects.requireNonNull(archive.getEntry(entryName)).readAllBytes(),
+                StandardCharsets.UTF_8);
+    }
+
+    /**
      * Read a file into a byte array.
      *
      * @param file
@@ -244,6 +287,57 @@ public class ArchiveReaderTest {
             // The commonest mistake: including the scheme's trailing ':'
             assertThatThrownBy(() -> archiveReader.enableURLScheme("https:"))
                     .isInstanceOf(IllegalArgumentException.class);
+        }
+    }
+
+    /**
+     * By default, a multi-release jarfile looks like an ordinary jarfile: the versioned copies of a resource are
+     * reported under the unversioned path, and only the newest copy the running JVM can use is visible.
+     *
+     * @param tempDir
+     *            a temporary directory to write the jarfile into.
+     * @throws IOException
+     *             if the jarfile could not be written or read.
+     */
+    @Test
+    public void aMultiReleaseJarfileReportsOneVersionOfEachResource(@TempDir final File tempDir)
+            throws IOException {
+        final var jarFile = new File(tempDir, "widget.jar");
+        writeMultiReleaseJar(jarFile, "com/xyz/widget.txt");
+
+        try (var archiveReader = new ArchiveReader()) {
+            final var archive = archiveReader.open(jarFile.getPath());
+            // The version 9 copy masks the unversioned one. The version 9999 copy is newer than any JVM that
+            // exists, so it cannot be used, and is left under its versioned path rather than masking anything
+            assertThat(archive.getEntries()).extracting(ArchiveEntry::getName).containsExactlyInAnyOrder(
+                    "META-INF/MANIFEST.MF", "com/xyz/widget.txt", "META-INF/versions/9999/com/xyz/widget.txt");
+            assertThat(entryContent(archive, "com/xyz/widget.txt")).isEqualTo("version 9");
+        }
+    }
+
+    /**
+     * With multi-release versions enabled, every versioned copy of a resource is reported separately, under the
+     * path it has in the jarfile, so that a caller can see all of them rather than the one the JVM would use.
+     *
+     * @param tempDir
+     *            a temporary directory to write the jarfile into.
+     * @throws IOException
+     *             if the jarfile could not be written or read.
+     */
+    @Test
+    public void everyVersionOfAResourceIsVisibleIfMultiReleaseVersionsAreEnabled(@TempDir final File tempDir)
+            throws IOException {
+        final var jarFile = new File(tempDir, "widget.jar");
+        writeMultiReleaseJar(jarFile, "com/xyz/widget.txt");
+
+        try (var archiveReader = new ArchiveReader()) {
+            assertThat(archiveReader.enableMultiReleaseVersions()).isSameAs(archiveReader);
+            final var archive = archiveReader.open(jarFile.getPath());
+            assertThat(archive.getEntries()).extracting(ArchiveEntry::getName).containsExactlyInAnyOrder(
+                    "META-INF/MANIFEST.MF", "com/xyz/widget.txt", "META-INF/versions/9/com/xyz/widget.txt",
+                    "META-INF/versions/9999/com/xyz/widget.txt");
+            assertThat(entryContent(archive, "com/xyz/widget.txt")).isEqualTo("base");
+            assertThat(entryContent(archive, "META-INF/versions/9/com/xyz/widget.txt")).isEqualTo("version 9");
         }
     }
 

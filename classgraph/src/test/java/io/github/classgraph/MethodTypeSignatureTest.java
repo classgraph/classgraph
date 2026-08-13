@@ -194,10 +194,14 @@ public class MethodTypeSignatureTest {
 
             // The type descriptor is what getTypeSignatureOrTypeDescriptor() falls back to
             assertThat(plain.getTypeSignatureOrTypeDescriptor()).isEqualTo(typeDescriptor);
+            assertThat(plain.getTypeSignatureOrTypeDescriptorString()).isEqualTo(plain.getTypeDescriptorString())
+                    .isEqualTo("()V");
 
             // A method that does have a type signature returns it in preference to the type descriptor
             final var generic = methodInfo(scanResult, "generic");
             assertThat(generic.getTypeSignatureOrTypeDescriptor()).isSameAs(generic.getTypeSignature());
+            assertThat(generic.getTypeSignatureOrTypeDescriptorString()).isEqualTo(generic.getTypeSignatureString())
+                    .isNotEqualTo(generic.getTypeDescriptorString());
         }
     }
 

@@ -131,4 +131,94 @@ class RecycledInflaterInputStreamTest {
             assertThatThrownBy(inflaterInputStream::reset).isInstanceOf(IOException.class);
         }
     }
+
+    /** Bytes can be read one at a time, as the unsigned value of the byte, with -1 at the end of the stream. */
+    @Test
+    void bytesCanBeReadOneAtATime() throws IOException {
+        final var rawBytes = "ÿ and a high byte".getBytes(StandardCharsets.ISO_8859_1);
+        try (var recycler = inflaterRecycler();
+                var inflaterInputStream = new RecycledInflaterInputStream(
+                        new ByteArrayInputStream(deflate(rawBytes)), recycler)) {
+            for (final byte rawByte : rawBytes) {
+                // A byte with the high bit set has to be returned as a positive int, not as a negative byte
+                assertThat(inflaterInputStream.read()).isEqualTo(rawByte & 0xff);
+            }
+            assertThat(inflaterInputStream.read()).isEqualTo(-1);
+            // Once the end of the stream has been reached, it stays reached
+            assertThat(inflaterInputStream.read()).isEqualTo(-1);
+        }
+    }
+
+    /**
+     * {@link java.io.InputStream#available()} has to report that there is more to read until the whole stream has
+     * been inflated, since a caller that stops at the first zero would drop the rest of the entry.
+     */
+    @Test
+    void availableIsNonZeroUntilTheStreamHasBeenRead() throws IOException {
+        final var rawBytes = rawBytes();
+        try (var recycler = inflaterRecycler();
+                var inflaterInputStream = new RecycledInflaterInputStream(
+                        new ByteArrayInputStream(deflate(rawBytes)), recycler)) {
+            assertThat(inflaterInputStream.available()).isPositive();
+            assertThat(inflaterInputStream.readNBytes(rawBytes.length / 2)).hasSize(rawBytes.length / 2);
+            assertThat(inflaterInputStream.available()).isPositive();
+            assertThat(inflaterInputStream.readAllBytes()).hasSize(rawBytes.length - rawBytes.length / 2);
+            assertThat(inflaterInputStream.available()).isZero();
+        }
+    }
+
+    /** Skipping moves the same distance through the stream that reading does, and stops at the end of it. */
+    @Test
+    void skippingAdvancesThroughTheStream() throws IOException {
+        final var rawBytes = rawBytes();
+        try (var recycler = inflaterRecycler();
+                var inflaterInputStream = new RecycledInflaterInputStream(
+                        new ByteArrayInputStream(deflate(rawBytes)), recycler)) {
+            // Skipping nothing is a no-op, and does not count as reaching the end of the stream
+            assertThat(inflaterInputStream.skip(0)).isZero();
+            // More than one staging buffer's worth, so that the skip loop has to go around more than once
+            final var numToSkip = 20_000;
+            assertThat(inflaterInputStream.skip(numToSkip)).isEqualTo(numToSkip);
+            assertThat(inflaterInputStream.read()).as("the byte after the skipped ones")
+                    .isEqualTo(rawBytes[numToSkip] & 0xff);
+
+            // Skipping past the end of the stream skips only what is left, and skipping again then returns zero
+            assertThat(inflaterInputStream.skip(rawBytes.length * 2L)).isEqualTo(rawBytes.length - numToSkip - 1L);
+            assertThat(inflaterInputStream.skip(1)).isZero();
+        }
+    }
+
+    /** A negative length or skip distance is a programming error, not something to silently ignore. */
+    @Test
+    void negativeLengthsAreRejected() throws IOException {
+        try (var recycler = inflaterRecycler();
+                var inflaterInputStream = new RecycledInflaterInputStream(
+                        new ByteArrayInputStream(deflate(rawBytes())), recycler)) {
+            assertThatThrownBy(() -> inflaterInputStream.read(new byte[16], 0, -1))
+                    .isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> inflaterInputStream.skip(-1)).isInstanceOf(IllegalArgumentException.class);
+            // Reading zero bytes reads zero bytes, rather than reporting the end of the stream
+            assertThat(inflaterInputStream.read(new byte[16], 0, 0)).isZero();
+        }
+    }
+
+    /**
+     * Every read method of a closed stream throws, rather than reading from an inflater that has been handed back
+     * to the recycler and may since have been handed out to another stream. Closing twice is not an error.
+     */
+    @Test
+    void aClosedStreamCannotBeReadFrom() throws IOException {
+        try (var recycler = inflaterRecycler()) {
+            final var inflaterInputStream = new RecycledInflaterInputStream(
+                    new ByteArrayInputStream(deflate(rawBytes())), recycler);
+            inflaterInputStream.close();
+            inflaterInputStream.close();
+
+            assertThatThrownBy(inflaterInputStream::read).isInstanceOf(IOException.class)
+                    .hasMessageContaining("already closed");
+            assertThatThrownBy(() -> inflaterInputStream.read(new byte[16], 0, 16)).isInstanceOf(IOException.class);
+            assertThatThrownBy(() -> inflaterInputStream.skip(1)).isInstanceOf(IOException.class);
+            assertThatThrownBy(inflaterInputStream::available).isInstanceOf(IOException.class);
+        }
+    }
 }

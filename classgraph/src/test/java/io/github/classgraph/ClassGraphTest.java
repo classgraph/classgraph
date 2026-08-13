@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLStreamHandler;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -17,8 +18,10 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
+import java.util.jar.Manifest;
 import java.util.logging.Handler;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
@@ -395,6 +398,61 @@ public class ClassGraphTest {
                 realJarFile.toUri().toURL());
         // Modules are not scanned when the classpath is overridden
         assertThat(classGraph.getModuleReferences()).isEmpty();
+    }
+
+    /** A scan result reports the classpath it was scanned from, in the same forms as {@link ClassGraph} does. */
+    @Test
+    public void theClasspathCanBeListedFromAScanResult() throws IOException {
+        final var realClassesDir = classesDir.toRealPath();
+        final var realJarFile = jarFile.toRealPath();
+
+        try (var scanResult = new ClassGraph().overrideClasspath(classesDir.toString(), jarFile.toString())
+                .scan()) {
+            assertThat(scanResult.getClasspathFiles()).containsExactly(realClassesDir.toFile(),
+                    realJarFile.toFile());
+            assertThat(scanResult.getClasspath()).isEqualTo(realClassesDir + File.pathSeparator + realJarFile);
+            assertThat(scanResult.getClasspathURIs()).containsExactly(realClassesDir.toUri(), realJarFile.toUri());
+            assertThat(scanResult.getClasspathURLs()).containsExactly(realClassesDir.toUri().toURL(),
+                    realJarFile.toUri().toURL());
+        }
+    }
+
+    /**
+     * The {@code Add-Exports} and {@code Add-Opens} entries of the manifest of a jar that is scanned are added to
+     * the module path info of the scan result, which is the only way to see them: they are not on the commandline,
+     * so they are not known until the jar has been opened.
+     *
+     * @param tempDir
+     *            a temporary directory to write the jar into.
+     * @throws IOException
+     *             if the jar could not be written.
+     */
+    @Test
+    public void moduleSwitchesFromAScannedJarManifestAreReported(@TempDir final Path tempDir) throws IOException {
+        final var manifestJarFile = tempDir.resolve("add-exports.jar");
+        final var manifest = new Manifest();
+        manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
+        manifest.getMainAttributes().putValue("Add-Exports",
+                "com.xyz.first/com.xyz.pkg1 com.xyz.second/com.xyz.pkg2");
+        manifest.getMainAttributes().putValue("Add-Opens", "com.xyz.third/com.xyz.pkg3");
+        try (var jarOut = new JarOutputStream(Files.newOutputStream(manifestJarFile), manifest)) {
+            jarOut.putNextEntry(new JarEntry("res/injar.txt"));
+            jarOut.write("in jar".getBytes(StandardCharsets.UTF_8));
+            jarOut.closeEntry();
+        }
+
+        final var classGraph = new ClassGraph().overrideClasspath(manifestJarFile.toString());
+        // The manifest has not been read yet, so nothing from it has been added to the module path info
+        assertThat(classGraph.getModulePathInfo().getAddExports())
+                .doesNotContain("com.xyz.first/com.xyz.pkg1=ALL-UNNAMED");
+
+        try (var scanResult = classGraph.scan()) {
+            // Each entry of the manifest attribute becomes one switch, targeting the unnamed module
+            assertThat(scanResult.getModulePathInfo().getAddExports())
+                    .contains("com.xyz.first/com.xyz.pkg1=ALL-UNNAMED", "com.xyz.second/com.xyz.pkg2=ALL-UNNAMED");
+            assertThat(scanResult.getModulePathInfo().getAddOpens())
+                    .contains("com.xyz.third/com.xyz.pkg3=ALL-UNNAMED");
+        }
     }
 
     /** The visible modules can be listed without running a scan. */

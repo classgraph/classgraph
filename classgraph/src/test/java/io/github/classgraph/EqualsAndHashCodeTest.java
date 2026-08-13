@@ -48,6 +48,40 @@ public class EqualsAndHashCodeTest {
     public static class SubSub extends Sub {
     }
 
+    /** An enum whose constants are used as annotation parameter values. */
+    public enum Fruit {
+        /** The first constant. */
+        APPLE,
+        /** The second constant. */
+        BANANA
+    }
+
+    /** An annotation with an enum constant as its parameter value. */
+    @Retention(RetentionPolicy.RUNTIME)
+    public @interface Favourite {
+        /**
+         * The favourite fruit.
+         *
+         * @return the favourite fruit.
+         */
+        Fruit value();
+    }
+
+    /** A class whose fields carry enum-valued annotations. */
+    public static class Favourites {
+        /** A field annotated with one enum constant. */
+        @Favourite(Fruit.BANANA)
+        public int first;
+
+        /** A field annotated with the same enum constant as {@link #first}. */
+        @Favourite(Fruit.BANANA)
+        public int second;
+
+        /** A field annotated with a different constant of the same enum. */
+        @Favourite(Fruit.APPLE)
+        public int third;
+    }
+
     /** A class with fields whose types are compared. */
     public static class Fields {
         /** An array field. */
@@ -64,6 +98,15 @@ public class EqualsAndHashCodeTest {
 
         /** An array field with an annotation on its element type. */
         public @Checked int[] annotated;
+
+        /** An array field whose element type has a type parameter. */
+        public List<String>[] stringLists;
+
+        /** An array field whose element type has a different type parameter. */
+        public List<Integer>[] integerLists;
+
+        /** An array field with the same element type as {@link #stringLists} but one more dimension. */
+        public List<String>[][] stringListsTwoDimensional;
     }
 
     /** A second class with a field of the same name and type as one in {@link Fields}. */
@@ -204,6 +247,65 @@ public class EqualsAndHashCodeTest {
 
         assertThat(first).isNotEqualTo(fieldType("third")).isNotEqualTo(fieldType("notAnArray"))
                 .isNotEqualTo(first.toString());
+    }
+
+    /**
+     * Two array types are equal ignoring type parameters if their element types are, which is what lets an array of
+     * a raw type be matched against an array of the parameterized type.
+     */
+    @Test
+    public void arrayTypesCanBeComparedIgnoringTheirTypeParameters() {
+        final var stringLists = fieldType("stringLists");
+        final var integerLists = fieldType("integerLists");
+        // The two differ only in the type parameter of their element type
+        assertThat(stringLists).isNotEqualTo(integerLists);
+        assertThat(stringLists.equalsIgnoringTypeParams(stringLists)).isTrue();
+        assertThat(stringLists.equalsIgnoringTypeParams(integerLists)).isTrue();
+
+        // A different number of dimensions, a different element type, and a non-array type are all still different
+        assertThat(stringLists.equalsIgnoringTypeParams(fieldType("stringListsTwoDimensional"))).isFalse();
+        assertThat(stringLists.equalsIgnoringTypeParams(fieldType("first"))).isFalse();
+        assertThat(stringLists.equalsIgnoringTypeParams(fieldType("notAnArray"))).isFalse();
+        assertThat(stringLists.equalsIgnoringTypeParams(null)).isFalse();
+    }
+
+    /**
+     * The enum constant of an annotation parameter value.
+     *
+     * @param scanRes
+     *            the scan result to look the class up in.
+     * @param fieldName
+     *            the name of the field of {@link Favourites} to read the annotation from.
+     * @return the enum constant the annotation names.
+     */
+    private static AnnotationEnumValue favourite(final ScanResult scanRes, final String fieldName) {
+        final var fieldInfo = classInfo(scanRes, Favourites.class).getFieldInfo(fieldName);
+        assertThat(fieldInfo).isNotNull();
+        final var annotationInfo = fieldInfo.getAllAnnotationInfo().get(Favourite.class.getName());
+        assertThat(annotationInfo).isNotNull();
+        return (AnnotationEnumValue) annotationInfo.getParameterValues().getValue("value");
+    }
+
+    /**
+     * An enum constant used as an annotation parameter value is identified by its enum class and its constant name,
+     * and is reported without the enum class being loaded.
+     */
+    @Test
+    public void enumConstantsAreEqualIfTheyAreTheSameConstantOfTheSameEnum() {
+        final var banana = favourite(scanResult, "first");
+        assertThat(banana.getClassName()).isEqualTo(Fruit.class.getName());
+        assertThat(banana.getValueName()).isEqualTo(Fruit.BANANA.name());
+        assertThat(banana.getName()).isEqualTo(Fruit.class.getName() + "." + Fruit.BANANA.name());
+        assertThat(banana.toString()).isEqualTo(banana.getName());
+
+        final var bananaAgain = favourite(secondScanResult, "second");
+        assertThat(banana).isEqualTo(banana).isEqualTo(bananaAgain).hasSameHashCodeAs(bananaAgain);
+        assertThat(banana).isEqualByComparingTo(bananaAgain);
+
+        // A different constant of the same enum is a different value, and sorts by constant name
+        final var apple = favourite(scanResult, "third");
+        assertThat(banana).isNotEqualTo(apple).isNotEqualTo(banana.getName());
+        assertThat(apple).isLessThan(banana);
     }
 
     /** An annotation on the element type of an array is part of what makes two array types equal. */
