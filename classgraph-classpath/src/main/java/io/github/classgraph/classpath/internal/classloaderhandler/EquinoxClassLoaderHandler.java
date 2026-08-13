@@ -51,8 +51,11 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
 
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
-        return classIsOrExtendsOrImplements(classLoaderClass,
-                "org.eclipse.osgi.internal.loader.EquinoxClassLoader");
+        // EquinoxClassLoader is the classloader Equinox uses by default, but a framework extension can install a
+        // ClassLoaderHook that supplies its own subclass of the abstract ModuleClassLoader instead
+        return classIsOrExtendsOrImplements(classLoaderClass, "org.eclipse.osgi.internal.loader.ModuleClassLoader")
+                || classIsOrExtendsOrImplements(classLoaderClass,
+                        "org.eclipse.osgi.internal.loader.EquinoxClassLoader");
     }
 
     @Override
@@ -150,8 +153,12 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
             final @Nullable LogNode log) {
-        // type ClasspathManager
-        final var manager = ReflectionUtils.getFieldVal(false, classLoader, "manager");
+        // type ClasspathManager -- ModuleClassLoader declares getClasspathManager() as public abstract, so any
+        // subclass has it, whereas the "manager" field is specific to Equinox's own EquinoxClassLoader
+        var manager = ReflectionUtils.invokeMethod(false, classLoader, "getClasspathManager");
+        if (manager == null) {
+            manager = ReflectionUtils.getFieldVal(false, classLoader, "manager");
+        }
         addClasspathEntries(manager, classLoader, classpathOrder, log);
 
         // type FragmentClasspath[]
@@ -165,8 +172,12 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
         }
         // Only read system bundles once per scan (all bundles should give the same results for this).
         if (classpathOrder.tryAddEquinoxSystemBundles()) {
-            // type BundleLoader
-            final var delegate = ReflectionUtils.getFieldVal(false, classLoader, "delegate");
+            // type BundleLoader -- as with getClasspathManager() above, prefer the public accessor declared by
+            // ModuleClassLoader over the "delegate" field of EquinoxClassLoader
+            var delegate = ReflectionUtils.invokeMethod(false, classLoader, "getBundleLoader");
+            if (delegate == null) {
+                delegate = ReflectionUtils.getFieldVal(false, classLoader, "delegate");
+            }
             // type EquinoxContainer
             final var container = ReflectionUtils.getFieldVal(false, delegate, "container");
             // type Storage
