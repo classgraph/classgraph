@@ -270,10 +270,15 @@ public class ModulePathInfo {
     /**
      * Return the module path info in commandline format.
      *
+     * <p>
+     * Synchronized for the same reason {@link #snapshot(Set)} is: this reads the plain {@link LinkedHashSet} fields
+     * directly, and {@link #addExportsEntry(String)} and {@link #addOpensEntry(String)} can be called from a scan
+     * thread while it is doing so.
+     *
      * @return the module path commandline string.
      */
     @Override
-    public String toString() {
+    public synchronized String toString() {
         readCommandLineArguments();
         final StringBuilder buf = new StringBuilder(1024);
         if (!modulePath.isEmpty()) {
