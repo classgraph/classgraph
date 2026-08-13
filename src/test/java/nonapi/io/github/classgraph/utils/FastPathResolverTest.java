@@ -427,4 +427,27 @@ public class FastPathResolverTest {
         assertThat(FastPathResolver.resolveFilePath(null, "jar:file:" + jarPath + "!/../../x"))
                 .isEqualTo(jarPath + "!/x");
     }
+
+    /**
+     * A base path may itself be a URL, e.g. the directory of a jarfile that was fetched over http, and a relative
+     * path resolved against it must still be a URL that can be fetched. The empty segment between a scheme and the
+     * authority that follows it is part of the scheme's spelling, not a doubled separator, so it must survive.
+     */
+    @Test
+    public void aRelativePathIsResolvedAgainstAUrlBasePath() {
+        assertThat(FastPathResolver.resolve("http://host/dir", "x.jar")).isEqualTo("http://host/dir/x.jar");
+        assertThat(FastPathResolver.resolve("https://host:8080/dir", "x.jar"))
+                .isEqualTo("https://host:8080/dir/x.jar");
+        assertThat(FastPathResolver.resolve("s3://bucket/dir", "x.jar")).isEqualTo("s3://bucket/dir/x.jar");
+        // A scheme with a single slash keeps its single slash
+        assertThat(FastPathResolver.resolve("jrt:/modules/java.base", "x")).isEqualTo("jrt:/modules/java.base/x");
+        // A scheme that is stripped rather than kept still leaves a resolvable path
+        assertThat(FastPathResolver.resolve("file:/a/b", "x.jar")).isEqualTo("/a/b/x.jar");
+        // Relative segments are resolved against the URL's path, and cannot climb above its authority
+        assertThat(FastPathResolver.resolve("http://host/a/b", "../x.jar")).isEqualTo("http://host/a/x.jar");
+        assertThat(FastPathResolver.resolve("http://host/a", "../../x.jar")).isEqualTo("http://host/x.jar");
+        // An absolute path or a URL of its own ignores the base path, as always
+        assertThat(FastPathResolver.resolve("http://host/dir", "https://other/x.jar"))
+                .isEqualTo("https://other/x.jar");
+    }
 }
