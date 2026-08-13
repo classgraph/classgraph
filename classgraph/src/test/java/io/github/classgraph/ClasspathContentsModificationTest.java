@@ -154,7 +154,8 @@ public class ClasspathContentsModificationTest {
         try (var executorService = new AutoCloseableExecutorService(ClassGraph.DEFAULT_NUM_WORKER_THREADS);
                 var scanResult = new ClassGraph().overrideClasspath(tempDir)
                         .getClasspathScanResult(executorService)) {
-            assertThat(scanResult.getClasspathFiles()).containsExactly(tempDir.toFile());
+            // The classpath element is canonicalized by the scan, so compare against the canonical temp dir
+            assertThat(scanResult.getClasspathFiles()).containsExactly(tempDir.toRealPath().toFile());
             assertThat(scanResult.isClasspathContentsModifiedSinceScan()).isTrue();
             assertThat(scanResult.getClasspathContentsLastModifiedMillis()).isZero();
         }

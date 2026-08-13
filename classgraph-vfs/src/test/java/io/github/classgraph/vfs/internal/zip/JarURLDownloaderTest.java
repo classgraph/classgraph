@@ -302,14 +302,12 @@ public class JarURLDownloaderTest {
 
     /**
      * A URL that cannot be turned into a URI, because it contains a character that has to be escaped, is reported
-     * rather than being silently skipped.
-     *
-     * @param tempDir
-     *            a temporary directory to name the jar in
+     * rather than being silently skipped. (The jar is never opened, since the URL cannot be resolved to a path, so
+     * the URL does not have to name a jar that exists.)
      */
     @Test
-    public void aUrlThatIsNotAValidUriIsReported(@TempDir final Path tempDir) {
-        final var jarURL = "file:" + tempDir.resolve("a jar with spaces.jar");
+    public void aUrlThatIsNotAValidUriIsReported() {
+        final var jarURL = "file:/jars/a jar with spaces.jar";
         assertThatThrownBy(() -> JarURLDownloader.downloadJarFromURL(jarURL, scanResources, /* log = */ null))
                 .isInstanceOf(IOException.class).hasMessageStartingWith("Could not convert URL to URI (")
                 .hasMessageEndingWith(jarURL);
