@@ -7,7 +7,9 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
@@ -138,6 +140,29 @@ public class SystemJarFinderTest {
         assertThat(canonicalPathResolved).isNotEqualTo(symlinkPathResolved);
         assertThat(libOrExtJars).containsExactlyInAnyOrder(symlinkPathResolved, canonicalPathResolved);
         assertThat(rtJars).isEmpty();
+    }
+
+    /**
+     * A directory lists its entries in whatever order the filesystem stores them, which differs between filesystems
+     * and platforms, and changes as files are added and removed. The JRE lib jars have to be put into a fixed order,
+     * otherwise the same JRE would produce a different classpath order on different machines.
+     */
+    @Test
+    public void jreLibJarsAreSorted(@TempDir final Path tmpDir) throws IOException {
+        for (final String name : new String[] { "zebra.jar", "alpha.jar", "mango.jar", "01first.jar", "beta.jar",
+                "yankee.jar", "delta.jar" }) {
+            touch(tmpDir, "lib/" + name);
+        }
+        final Set<String> rtJars = new LinkedHashSet<>();
+        final Set<String> libOrExtJars = new LinkedHashSet<>();
+        assertThat(SystemJarFinder.addJREPath(new File(tmpDir.toFile(), "lib"), rtJars, libOrExtJars)).isTrue();
+
+        final List<String> fileNames = new ArrayList<>();
+        for (final String jarPath : libOrExtJars) {
+            fileNames.add(jarPath.substring(jarPath.lastIndexOf('/') + 1));
+        }
+        assertThat(fileNames).containsExactly("01first.jar", "alpha.jar", "beta.jar", "delta.jar", "mango.jar",
+                "yankee.jar", "zebra.jar");
     }
 
     /**

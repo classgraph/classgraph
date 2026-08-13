@@ -99,8 +99,14 @@ public final class LogNode {
     /** The elapsed time formatter. */
     private static final DecimalFormat nanoFormatter = new DecimalFormat("0.000000");
 
-    /** If true, log entries are output in realtime, as well as added to the LogNode tree. */
-    private static boolean logInRealtime;
+    /**
+     * If true, log entries are output in realtime, as well as added to the LogNode tree.
+     *
+     * <p>
+     * Volatile, since {@link #logInRealtime(boolean)} is called from the caller's thread, whereas this field is
+     * read by the {@link LogNode} constructor, which is called from the scan threads.
+     */
+    private static volatile boolean logInRealtime;
 
     /**
      * If logInRealtime is true, log entries are output in realtime, as well as added to the LogNode tree. This can

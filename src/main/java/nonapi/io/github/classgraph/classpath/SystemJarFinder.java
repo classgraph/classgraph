@@ -30,6 +30,8 @@ package nonapi.io.github.classgraph.classpath;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
@@ -83,6 +85,17 @@ public final class SystemJarFinder {
         if (dir != null && !dir.getPath().isEmpty() && FileUtils.canReadAndIsDir(dir)) {
             final File[] dirFiles = dir.listFiles();
             if (dirFiles != null) {
+                // A directory lists its entries in whatever order the filesystem stores them, so sort the entries
+                // into a fixed order, otherwise the JRE lib and ext jars would be added to the classpath in a
+                // different order on different machines. Compare the filenames rather than the Files, since
+                // File#compareTo is case-insensitive on Windows, which would order the same set of jars
+                // differently there.
+                Arrays.sort(dirFiles, new Comparator<File>() {
+                    @Override
+                    public int compare(final File file1, final File file2) {
+                        return file1.getName().compareTo(file2.getName());
+                    }
+                });
                 for (final File file : dirFiles) {
                     final String filePath = file.getPath();
                     if (filePath.endsWith(".jar")) {

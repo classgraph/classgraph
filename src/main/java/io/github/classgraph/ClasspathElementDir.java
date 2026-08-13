@@ -44,6 +44,7 @@ import java.nio.file.attribute.PosixFileAttributes;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -61,6 +62,7 @@ import nonapi.io.github.classgraph.fileslice.PathSlice;
 import nonapi.io.github.classgraph.fileslice.reader.ClassfileReader;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.scanspec.ScanSpec.ScanSpecPathMatch;
+import nonapi.io.github.classgraph.utils.CollectionUtils;
 import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
@@ -119,6 +121,7 @@ class ClasspathElementDir extends ClasspathElement {
                 final Path libDirPath = classpathEltPath.resolve(libDirPrefix);
                 if (FileUtils.canReadAndIsDir(libDirPath)) {
                     // Add all jarfiles within the lib dir as child classpath entries
+                    final List<Path> libJarPaths = new ArrayList<>();
                     try (DirectoryStream<Path> stream = Files.newDirectoryStream(libDirPath,
                             new DirectoryStream.Filter<Path>() {
                                 @Override
@@ -128,16 +131,33 @@ class ClasspathElementDir extends ClasspathElement {
                                 }
                             })) {
                         for (final Path filePath : stream) {
-                            if (log != null) {
-                                log(classpathElementIdx, "Found lib jar: " + filePath, log);
-                            }
-                            workQueue.addWorkUnit(new ClasspathEntryWorkUnit(filePath, getClassLoader(),
-                                    /* parentClasspathElement = */ this,
-                                    /* orderWithinParentClasspathElement = */ childClasspathEntryIdx++,
-                                    /* packageRootPrefix = */ "", packageRootPrefixes));
+                            libJarPaths.add(filePath);
                         }
                     } catch (final IOException e) {
                         // Ignore -- thrown by Files.newDirectoryStream
+                    }
+                    // A directory lists its entries in whatever order the filesystem stores them, so sort the jars
+                    // of each lib dir into a fixed order, otherwise the same directory would produce a different
+                    // classpath order on different machines, and which of two jars containing the same class masks
+                    // the other would vary from run to run. Compare the filenames rather than the Paths, since
+                    // Path#compareTo is case-insensitive on Windows, which would order the same set of jars
+                    // differently there. Each lib dir is sorted on its own, so that the order of
+                    // AUTOMATIC_LIB_DIR_PREFIXES still decides which lib dir's jars come first.
+                    CollectionUtils.sortIfNotEmpty(libJarPaths, new Comparator<Path>() {
+                        @Override
+                        public int compare(final Path libJarPath1, final Path libJarPath2) {
+                            return libJarPath1.getFileName().toString()
+                                    .compareTo(libJarPath2.getFileName().toString());
+                        }
+                    });
+                    for (final Path filePath : libJarPaths) {
+                        if (log != null) {
+                            log(classpathElementIdx, "Found lib jar: " + filePath, log);
+                        }
+                        workQueue.addWorkUnit(new ClasspathEntryWorkUnit(filePath, getClassLoader(),
+                                /* parentClasspathElement = */ this,
+                                /* orderWithinParentClasspathElement = */ childClasspathEntryIdx++,
+                                /* packageRootPrefix = */ "", packageRootPrefixes));
                     }
                 }
             }
