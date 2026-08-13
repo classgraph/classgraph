@@ -376,6 +376,10 @@ public final class FastPathResolver {
      * server rather than a directory, so it belongs with the scheme prefix: a ".." segment resolves within the
      * path, and must not be able to climb up into the authority and point the URL at a different server.
      *
+     * <p>
+     * The server name of a Windows UNC path is an authority in the same sense, and is found by the same rule, since
+     * the "//" that starts a UNC path is stripped into the prefix too.
+     *
      * @param prefix
      *            the scheme prefix that was stripped from the front of the path
      * @param path
@@ -388,6 +392,29 @@ public final class FastPathResolver {
         }
         final int authorityEndIdx = path.indexOf('/');
         return authorityEndIdx < 0 ? path : path.substring(0, authorityEndIdx);
+    }
+
+    /**
+     * The part of a path that follows its authority, dropping any separator between the two beyond the first. Once
+     * the authority has been split off, a leading "//" is an empty path segment, and not the start of a Windows UNC
+     * path -- but {@link FileUtils#sanitizeEntryPath} reads it as one and preserves it (#736), so it has to be
+     * dropped here.
+     *
+     * @param path
+     *            the path that the authority was read from
+     * @param authority
+     *            the authority, or the empty string if the path has none
+     * @return the path after the authority.
+     */
+    private static String pathAfterAuthority(final String path, final String authority) {
+        if (authority.isEmpty()) {
+            return path;
+        }
+        int startIdx = authority.length();
+        while (startIdx + 1 < path.length() && path.charAt(startIdx) == '/' && path.charAt(startIdx + 1) == '/') {
+            startIdx++;
+        }
+        return path.substring(startIdx);
     }
 
     /**
@@ -514,7 +541,7 @@ public final class FastPathResolver {
             // separator is the whole of the directory's name
             final String authority = urlAuthority(prefix, pathStr);
             prefix += authority;
-            final String path = pathStr.substring(authority.length());
+            final String path = pathAfterAuthority(pathStr, authority);
             pathResolved = "/".equals(path) || isDriveRoot ? path
                     : FileUtils.sanitizeEntryPath(path, /* removeInitialSlash = */ false,
                             /* removeFinalSlash = */ true,
@@ -529,7 +556,7 @@ public final class FastPathResolver {
                     : resolveBasePath.substring(parsedBasePath.startIdx);
             final String authority = urlAuthority(parsedBasePath.prefix, basePathRaw);
             prefix = parsedBasePath.prefix + authority;
-            final String basePath = basePathRaw.substring(authority.length());
+            final String basePath = pathAfterAuthority(basePathRaw, authority);
             pathResolved = FileUtils.sanitizeEntryPath(basePath + (basePath.endsWith("/") ? "" : "/") + pathStr,
                     /* removeInitialSlash = */ false, /* removeFinalSlash = */ true,
                     /* collapseParentSegmentsInFirstSection = */ !leaveParentSegments);
