@@ -90,18 +90,46 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
     private boolean isToplevel;
 
     /**
-     * The index of the classpath element within the classpath (for toplevel classpath elements), or within the
-     * parent classpath element (e.g. for classpath elements added via a Class-Path entry in the manifest). Set by
-     * {@link #addReference(boolean, int, String)}.
+     * The index of the winning reference to this classpath element, as decided by
+     * {@link #addReference(boolean, int, String)}: the index within the classpath if {@link #isToplevel} is true,
+     * or else the index within the parent classpath element that referenced it earliest. Only the toplevel case is
+     * used for ordering (see {@link #compareTo(ClasspathElement)}); a child classpath element is ordered by the
+     * index recorded on the edge from its parent, in {@link #childClasspathElements}.
      */
     private int classpathElementIdxWithinParent = Integer.MAX_VALUE;
 
     /**
-     * The child classpath elements, keyed by the order of the child classpath element within the Class-Path entry
-     * of the manifest file the child classpath element was listed in (or the position of the file within the sorted
-     * entries of a lib directory).
+     * A reference from a parent classpath element to one of the classpath elements named by its {@code Class-Path}
+     * manifest entry (or found in its lib directory).
+     *
+     * <p>
+     * The index is recorded on the edge from the parent rather than on the child classpath element itself, because
+     * the same classpath element can be named by the {@code Class-Path} entries of two different jarfiles, at a
+     * different position within each of them -- so there is no single position that a child classpath element
+     * occupies.
+     *
+     * @param idxWithinParent
+     *            the index of this classpath element within the {@code Class-Path} manifest entry of the parent
+     *            classpath element (or within the sorted entries of the parent's lib directory)
+     * @param classpathElement
+     *            the child classpath element
      */
-    Collection<ClasspathElement> childClasspathElements = new ConcurrentLinkedQueue<>();
+    // #810
+    record ChildClasspathElement(int idxWithinParent,
+            ClasspathElement classpathElement) implements Comparable<ChildClasspathElement> {
+        @Override
+        public int compareTo(final ChildClasspathElement other) {
+            // Each entry of a Class-Path manifest entry or lib directory has its own index, so two different child
+            // classpath elements of the same parent can never tie
+            return Integer.compare(this.idxWithinParent, other.idxWithinParent);
+        }
+    }
+
+    /**
+     * The child classpath elements: the classpath elements named by the {@code Class-Path} manifest entry of this
+     * classpath element, or found in its lib directory, each paired with its index within that entry or directory.
+     */
+    Collection<ChildClasspathElement> childClasspathElements = new ConcurrentLinkedQueue<>();
 
     /**
      * Resources found within this classpath element that were accepted and not rejected. (Only written by one
@@ -238,14 +266,12 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
     }
 
     /**
-     * Sort toplevel classpath elements before classpath elements that are only referenced from a parent classpath
-     * element, then sort in increasing order of classpathElementIdxWithinParent.
+     * Sort toplevel classpath elements into their order within the classpath. (Child classpath elements are not
+     * sorted with this method -- they are sorted by the index recorded on the edge from their parent, since the
+     * same classpath element can sit at a different position within each of two parents.)
      */
     @Override
     public int compareTo(final ClasspathElement other) {
-        if (this.isToplevel != other.isToplevel) {
-            return this.isToplevel ? -1 : 1;
-        }
         return Integer.compare(this.classpathElementIdxWithinParent, other.classpathElementIdxWithinParent);
     }
 

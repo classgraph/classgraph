@@ -87,18 +87,21 @@ class ClasspathManifestEntryOrderTest {
      *
      * @param dir
      *            the directory to write the jarfile into.
+     * @param jarName
+     *            the filename of the jarfile to write.
      * @param classpathManifestEntry
      *            the value of the {@code Class-Path} manifest attribute.
      * @return the jarfile.
      * @throws IOException
      *             if the jarfile could not be written.
      */
-    private static File writeJarNaming(final Path dir, final String classpathManifestEntry) throws IOException {
+    private static File writeJarNaming(final Path dir, final String jarName, final String classpathManifestEntry)
+            throws IOException {
         final var manifest = new Manifest();
         final var mainAttributes = manifest.getMainAttributes();
         mainAttributes.put(Attributes.Name.MANIFEST_VERSION, "1.0");
         mainAttributes.put(Attributes.Name.CLASS_PATH, classpathManifestEntry);
-        final var jarFile = dir.resolve("names-another-classpath-element.jar");
+        final var jarFile = dir.resolve(jarName);
         try (var outputStream = Files.newOutputStream(jarFile);
                 var jarOutputStream = new JarOutputStream(outputStream, manifest)) {
             // No entries -- the manifest is the whole jar
@@ -140,10 +143,49 @@ class ClasspathManifestEntryOrderTest {
             throws IOException {
         final var aZip = copyZip(tempDir, A_ZIP);
         copyZip(tempDir, B_ZIP);
-        final var namesBZip = writeJarNaming(tempDir, B_ZIP);
+        final var namesBZip = writeJarNaming(tempDir, "names-another-classpath-element.jar", B_ZIP);
         // The jar that names B comes first, so B is scanned before A, even though A is named directly
         assertThat(fieldNameOfScannedClass(namesBZip, aZip)).isEqualTo("b");
         // A comes first, so it masks the B that the following jar names
         assertThat(fieldNameOfScannedClass(aZip, namesBZip)).isEqualTo("a");
+    }
+
+    /**
+     * The order of the entries in a {@code Class-Path} manifest attribute is a property of the jarfile that
+     * declares them, so a classpath element that is also listed on the toplevel classpath still takes its declared
+     * position within the {@code Class-Path} entry of the jar that names it, rather than being hoisted to the front
+     * of that jar's entries because it is a toplevel classpath element in its own right.
+     */
+    // #810
+    @Test
+    void aChildElementThatIsAlsoOnTheToplevelClasspathKeepsItsPositionWithinItsParent(@TempDir final Path tempDir)
+            throws IOException {
+        copyZip(tempDir, A_ZIP);
+        final var bZip = copyZip(tempDir, B_ZIP);
+        final var namesAThenB = writeJarNaming(tempDir, "names-a-then-b.jar", A_ZIP + " " + B_ZIP);
+        // The jar names A before B, so A masks B, even though B is also listed on the toplevel classpath
+        assertThat(fieldNameOfScannedClass(namesAThenB, bZip)).isEqualTo("a");
+    }
+
+    /**
+     * The order of the entries in a {@code Class-Path} manifest attribute is a property of the jarfile that
+     * declares them, so a classpath element that is named by the {@code Class-Path} entries of two different
+     * jarfiles takes its declared position within each of them, rather than taking the position it was given by
+     * whichever jarfile named it earliest.
+     */
+    // #810
+    @Test
+    void aChildElementNamedByTwoParentsKeepsItsPositionWithinEachParent(@TempDir final Path tempDir)
+            throws IOException {
+        copyZip(tempDir, A_ZIP);
+        copyZip(tempDir, B_ZIP);
+        // A jar with no classes of its own, so that A is not the first entry of the Class-Path that names it
+        final var emptyJar = writeJarNaming(tempDir, "no-classes.jar", "");
+        final var namesEmptyThenAThenB = writeJarNaming(tempDir, "names-empty-then-a-then-b.jar",
+                emptyJar.getName() + " " + A_ZIP + " " + B_ZIP);
+        // A second jar names B alone, so B is the first Class-Path entry of that jar
+        final var namesB = writeJarNaming(tempDir, "names-b.jar", B_ZIP);
+        // The first jar names A before B, so A masks B, whichever position the second jar gives B
+        assertThat(fieldNameOfScannedClass(namesEmptyThenAThenB, namesB)).isEqualTo("a");
     }
 }
