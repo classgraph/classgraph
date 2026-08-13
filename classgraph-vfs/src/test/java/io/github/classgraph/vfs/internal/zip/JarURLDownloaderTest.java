@@ -31,13 +31,17 @@ public class JarURLDownloaderTest {
     /** The path of the single entry in the jars built by this test. */
     private static final String ENTRY_PATH = "testpkg/entry.txt";
 
+    /** The owner of the resources owned by the scan, which closes them when the test ends. */
+    private final ScanResources.Owner scanResourcesOwner = ScanResources.open(new VfsScanSpec(),
+            new InterruptionChecker());
+
     /** The resources owned by the scan, closed when the test ends. */
-    private final ScanResources scanResources = new ScanResources(new VfsScanSpec(), new InterruptionChecker());
+    private final ScanResources scanResources = scanResourcesOwner.resources();
 
     /** Close the slices that the test opened. */
     @AfterEach
     public void closeScanResources() {
-        scanResources.close(/* log = */ null);
+        scanResourcesOwner.close(/* log = */ null);
     }
 
     /**

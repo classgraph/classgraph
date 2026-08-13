@@ -61,6 +61,12 @@ public class NestedJarHandler {
     /** The resources opened by this handler. */
     public final ScanResources scanResources;
 
+    /**
+     * The right to close the resources opened by this handler. Held by nothing else, so that although every slice
+     * and both downstream modules are handed the {@link ScanResources}, only this handler can tear them down.
+     */
+    private final ScanResources.Owner scanResourcesOwner;
+
     /** The settings that govern how archives are read. */
     private final VfsScanSpec vfsScanSpec;
 
@@ -74,7 +80,8 @@ public class NestedJarHandler {
      */
     public NestedJarHandler(final VfsScanSpec vfsScanSpec, final InterruptionChecker interruptionChecker) {
         this.vfsScanSpec = vfsScanSpec;
-        this.scanResources = new ScanResources(vfsScanSpec, interruptionChecker);
+        this.scanResourcesOwner = ScanResources.open(vfsScanSpec, interruptionChecker);
+        this.scanResources = scanResourcesOwner.resources();
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -491,7 +498,7 @@ public class NestedJarHandler {
      *            The log.
      */
     public void close(final @Nullable LogNode log) {
-        if (scanResources.beginClose()) {
+        if (scanResourcesOwner.beginClose()) {
             // Drop the zipfile caches first, so that nothing can hand out a slice of a zipfile that is about to be
             // closed, then close the resources the caches were backed by
             final var logicalZipFileMap = zipFileSliceToLogicalZipFileMap;
@@ -515,7 +522,7 @@ public class NestedJarHandler {
                 fastZipEntryToZipFileSliceMap = null;
             }
             // Close the module readers, the open slices and the inflater recycler, then delete the temporary files
-            scanResources.close(log);
+            scanResourcesOwner.close(log);
         }
     }
 }

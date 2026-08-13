@@ -33,7 +33,7 @@ public class PathSliceTest {
     private static ScanResources scanResources(final boolean memoryMapFiles) {
         final var vfsScanSpec = new VfsScanSpec();
         vfsScanSpec.memoryMapFiles = memoryMapFiles;
-        return new ScanResources(vfsScanSpec, new InterruptionChecker());
+        return ScanResources.open(vfsScanSpec, new InterruptionChecker()).resources();
     }
 
     /**

@@ -30,7 +30,7 @@ public class SliceInputStreamTest {
      * @return the slice
      */
     private static Slice slice() {
-        final var scanResources = new ScanResources(new VfsScanSpec(), new InterruptionChecker());
+        final var scanResources = ScanResources.open(new VfsScanSpec(), new InterruptionChecker()).resources();
         return new ArraySlice(CONTENT, /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L,
                 scanResources);
     }
