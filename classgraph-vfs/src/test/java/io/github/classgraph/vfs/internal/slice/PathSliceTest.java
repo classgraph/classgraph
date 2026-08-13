@@ -90,6 +90,52 @@ public class PathSliceTest {
         }
     }
 
+    /**
+     * The buffer returned for a sub-slice covers only the sub-slice: it starts at position zero, its capacity is
+     * the length of the sub-slice, and there is no route from it to the bytes that surround the sub-slice in the
+     * file. It is also read-only, since it may be a view of a mapping shared by every reader of the file.
+     */
+    @Test
+    public void theBufferOfASubSliceCoversOnlyTheSubSlice(@TempDir final Path tempDir) throws IOException {
+        final var file = writeTestFile(tempDir);
+        for (final var memoryMapFiles : new boolean[] { true, false }) {
+            final var scanResources = scanResources(memoryMapFiles);
+            final var slice = new PathSlice(file, scanResources, /* log = */ null);
+            try {
+                final var buf = slice.slice(10, 5, /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L)
+                        .read();
+                assertThat(buf.position()).isZero();
+                assertThat(buf.capacity()).isEqualTo(5);
+                assertThat(buf.remaining()).isEqualTo(5);
+                assertThat(buf.get(0)).isEqualTo((byte) 'a');
+                assertThat(buf.isReadOnly()).isTrue();
+                // Clearing the buffer must not widen it to the rest of the file
+                buf.clear();
+                assertThat(buf.remaining()).isEqualTo(5);
+            } finally {
+                slice.close();
+            }
+        }
+    }
+
+    /** The buffer returned for a whole-file slice is read-only too. */
+    @Test
+    public void theBufferOfAWholeFileSliceIsReadOnly(@TempDir final Path tempDir) throws IOException {
+        final var file = writeTestFile(tempDir);
+        for (final var memoryMapFiles : new boolean[] { true, false }) {
+            final var scanResources = scanResources(memoryMapFiles);
+            final var slice = new PathSlice(file, scanResources, /* log = */ null);
+            try {
+                final var buf = slice.read();
+                assertThat(buf.isReadOnly()).isTrue();
+                assertThat(buf.position()).isZero();
+                assertThat(buf.capacity()).isEqualTo(CONTENT.length);
+            } finally {
+                slice.close();
+            }
+        }
+    }
+
     /** A whole-file slice is not memory-mapped if memory mapping was not enabled. */
     @Test
     public void aWholeFileSliceIsNotMappedIfMappingIsDisabled(@TempDir final Path tempDir) throws IOException {

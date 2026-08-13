@@ -164,6 +164,57 @@ public class ResourceTest {
         }
     }
 
+    /**
+     * The {@link java.nio.ByteBuffer} returned by {@link Resource#read()} covers the resource and nothing else,
+     * even when the resource is a stored entry of a memory-mapped jarfile, where the mapping covers the whole
+     * jarfile and the entry starts partway into it. The buffer is also read-only, since it may be a view of a
+     * mapping shared by every thread reading that jarfile.
+     *
+     * @param tempDir
+     *            a temporary directory to write the test jarfile to
+     * @throws IOException
+     *             if the test jarfile cannot be written or read
+     */
+    @Test
+    public void theBufferOfAResourceCoversTheResourceAndNothingElse(@TempDir final Path tempDir)
+            throws IOException {
+        final var content = TEXT_FILE_CONTENT.getBytes(StandardCharsets.UTF_8);
+        final var jarPath = tempDir.resolve("mapped-jar-entry.jar");
+        try (var zipOut = new ZipOutputStream(Files.newOutputStream(jarPath))) {
+            // A stored entry is read in place from the mapping of the jarfile; a deflated entry would instead be
+            // inflated into a buffer of its own, which would not exercise the mapping
+            final var storedEntry = new ZipEntry("stored.txt");
+            storedEntry.setMethod(ZipEntry.STORED);
+            storedEntry.setSize(content.length);
+            storedEntry.setCompressedSize(content.length);
+            final var crc = new CRC32();
+            crc.update(content);
+            storedEntry.setCrc(crc.getValue());
+            zipOut.putNextEntry(storedEntry);
+            zipOut.write(content);
+            zipOut.closeEntry();
+        }
+
+        final var classGraph = new ClassGraph().acceptPathsNonRecursive("").overrideClasspath(jarPath);
+        // Files are memory-mapped on Windows only, so the platform's choice is overridden here to exercise the
+        // mapping path whatever platform this test runs on
+        VfsScanSpecAccess.vfsScanSpecOf(classGraph).memoryMapFiles = true;
+        try (var scanResult = classGraph.scan()) {
+            final var resource = resource(scanResult, "stored.txt");
+            final var byteBuffer = resource.read();
+            assertThat(byteBuffer.position()).isZero();
+            assertThat(byteBuffer.capacity()).isEqualTo(content.length);
+            assertThat(byteBuffer.remaining()).isEqualTo(content.length);
+            // Absolute reads are relative to the start of the resource, not to the start of the jarfile
+            assertThat(byteBuffer.get(0)).isEqualTo(content[0]);
+            assertThat(byteBuffer.isReadOnly()).isTrue();
+            // Clearing the buffer must not widen it to the rest of the jarfile
+            byteBuffer.clear();
+            assertThat(byteBuffer.remaining()).isEqualTo(content.length);
+            resource.close();
+        }
+    }
+
     /** The single-byte {@code read()} method returns byte values, not the number of bytes read. */
     @Test
     public void theContentCanBeReadOneByteAtATime() throws IOException {

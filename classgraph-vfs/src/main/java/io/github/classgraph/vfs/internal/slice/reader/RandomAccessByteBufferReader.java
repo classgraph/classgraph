@@ -62,7 +62,9 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
      */
     public RandomAccessByteBufferReader(final ByteBuffer byteBuffer, final long sliceStartPos,
             final long sliceLength) {
-        this.byteBuffer = byteBuffer.duplicate();
+        // Take a read-only duplicate, so that this reader has its own position and limit, and cannot write through
+        // to a buffer that may be a memory mapping shared by every thread reading the same file
+        this.byteBuffer = byteBuffer.asReadOnlyBuffer();
         this.byteBuffer.order(ByteOrder.LITTLE_ENDIAN);
         this.sliceStartPos = (int) sliceStartPos;
         this.sliceLength = (int) sliceLength;

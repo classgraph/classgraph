@@ -351,12 +351,17 @@ public abstract class Slice implements Closeable {
     /**
      * Read the slice into a {@link ByteBuffer}.
      *
+     * <p>
+     * The returned buffer starts at position zero, has a capacity equal to the length of the slice, and is
+     * read-only, so that it cannot reach or overwrite anything outside the slice. Use {@link #load()} instead to
+     * obtain the content of the slice as a byte array that the caller owns and may modify.
+     *
      * @return the byte buffer
      * @throws IOException
      *             Signals that an I/O exception has occurred.
      */
     public ByteBuffer read() throws IOException {
-        return ByteBuffer.wrap(load());
+        return ByteBuffer.wrap(load()).asReadOnlyBuffer();
     }
 
     @Override

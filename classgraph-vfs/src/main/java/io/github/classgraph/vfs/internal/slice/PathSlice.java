@@ -110,12 +110,12 @@ public final class PathSlice extends Slice {
         this.fileLength = parentSlice.fileLength;
         this.isTopLevelFileSlice = false;
 
-        if (parentSlice.backingByteBuffer != null) {
-            // Duplicate and slice the backing byte buffer, if there is one
-            this.backingByteBuffer = parentSlice.backingByteBuffer.duplicate();
-            this.backingByteBuffer.position((int) sliceStartPos);
-            this.backingByteBuffer.limit((int) (sliceStartPos + sliceLength));
-        }
+        // The backing byte buffer always covers the whole file, and is addressed in whole-file coordinates by way
+        // of sliceStartPos, both here and in the toplevel slice. It is duplicated so that this slice has its own
+        // position and limit, but its position and limit are not narrowed to the sub-slice, since every use of it
+        // sets them for itself.
+        this.backingByteBuffer = parentSlice.backingByteBuffer == null ? null
+                : parentSlice.backingByteBuffer.duplicate();
 
         // Only mark toplevel file slices as open (sub slices don't need to be marked as open since they don't need
         // to be closed, they just copy the resource references of the toplevel slice)
@@ -275,16 +275,19 @@ public final class PathSlice extends Slice {
             if (inflatedLengthHint > FileUtils.MAX_BUFFER_SIZE) {
                 throw new IOException("Uncompressed size is larger than 2GB");
             }
-            return ByteBuffer.wrap(load());
+            return ByteBuffer.wrap(load()).asReadOnlyBuffer();
         } else if (mappedByteBuffer == null) {
             // Copy from FileChannel to byte array, then wrap in a ByteBuffer
             if (sliceLength > FileUtils.MAX_BUFFER_SIZE) {
                 throw new IOException("File is larger than 2GB");
             }
-            return ByteBuffer.wrap(load());
+            return ByteBuffer.wrap(load()).asReadOnlyBuffer();
         } else {
-            // PathSlice is backed with a MappedByteBuffer -- duplicate it and return it (low-cost operation)
-            return mappedByteBuffer.duplicate();
+            // PathSlice is backed with the memory mapping of the whole file, which covers the whole file even for a
+            // sub-slice, so narrow the mapping to this slice (a low-cost operation). Slicing, rather than merely
+            // setting the position and limit of a duplicate, is what makes the returned buffer start at position
+            // zero and stops it from being widened again (by ByteBuffer#clear, say) to reach the rest of the file.
+            return mappedByteBuffer.slice((int) sliceStartPos, (int) sliceLength).asReadOnlyBuffer();
         }
     }
 

@@ -199,9 +199,12 @@ class ClasspathElementModule extends ClasspathElement {
                 // ModuleReader#read(String name) internally calls:
                 // InputStream is = open(name); return ByteBuffer.wrap(is.readAllBytes());
                 final var buf = ModuleReaderUtils.read(reader, resourcePath);
+                // Keep the buffer that the ModuleReader returned, since that is the one that has to be handed back
+                // to ModuleReader#release, but hand the caller a read-only view of it, since the buffer belongs to
+                // the ModuleReader and is reclaimed by it when this resource is closed
                 byteBuffer = buf;
                 length = buf.remaining();
-                return buf;
+                return buf.asReadOnlyBuffer();
 
             } catch (final IOException e) {
                 // Leave the resource closed if it could not be read, so that reading it can be tried again, and so
@@ -273,13 +276,10 @@ class ClasspathElementModule extends ClasspathElement {
         public byte[] load() throws IOException {
             try (Resource res = this) { // Close this after use
                 final var buf = read(); // Fill byteBuffer
-                final byte[] byteArray;
-                if (buf.hasArray() && buf.position() == 0 && buf.limit() == buf.capacity()) {
-                    byteArray = buf.array();
-                } else {
-                    byteArray = new byte[buf.remaining()];
-                    buf.get(byteArray);
-                }
+                // The buffer belongs to the ModuleReader, which reclaims it when this resource is closed at the end
+                // of this try block, so the content has to be copied out rather than aliased
+                final var byteArray = new byte[buf.remaining()];
+                buf.get(byteArray);
                 res.length = byteArray.length;
                 return byteArray;
             }
