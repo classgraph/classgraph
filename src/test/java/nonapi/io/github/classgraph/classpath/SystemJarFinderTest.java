@@ -157,9 +157,17 @@ public class SystemJarFinderTest {
         final Set<String> libOrExtJars = new LinkedHashSet<>();
         assertThat(SystemJarFinder.addJREPath(new File(tmpDir.toFile(), "lib"), rtJars, libOrExtJars)).isTrue();
 
+        // Compare the leafnames rather than the whole paths, and drop repeats: if the temporary directory is
+        // reached by a path that is not already canonical -- through a symlink, as on macOS, where "/var" is a
+        // symlink to "/private/var", or through an 8.3 short name, as on Windows -- then each jar is added twice,
+        // once under each path. The two entries for the same jar are adjacent, so removing repeats leaves the
+        // order that is under test here unchanged.
         final List<String> fileNames = new ArrayList<>();
         for (final String jarPath : libOrExtJars) {
-            fileNames.add(jarPath.substring(jarPath.lastIndexOf('/') + 1));
+            final String fileName = jarPath.substring(jarPath.lastIndexOf('/') + 1);
+            if (fileNames.isEmpty() || !fileNames.get(fileNames.size() - 1).equals(fileName)) {
+                fileNames.add(fileName);
+            }
         }
         assertThat(fileNames).containsExactly("01first.jar", "alpha.jar", "beta.jar", "delta.jar", "mango.jar",
                 "yankee.jar", "zebra.jar");
