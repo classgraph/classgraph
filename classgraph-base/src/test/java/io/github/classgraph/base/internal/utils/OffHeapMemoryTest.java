@@ -1,6 +1,7 @@
 package io.github.classgraph.base.internal.utils;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
@@ -70,6 +71,95 @@ public class OffHeapMemoryTest {
             // IllegalStateException
             assertThatThrownBy(() -> buf.get(0)).isInstanceOf(IllegalStateException.class);
         }
+    }
+
+    /**
+     * Only the requested region of a file is mapped, so a mapping can start part-way into the file.
+     *
+     * @param tempDir
+     *            a temporary directory to write the file to be mapped into.
+     * @throws IOException
+     *             if the file could not be written or mapped.
+     */
+    @Test
+    public void aRegionInTheMiddleOfAFileCanBeMapped(@TempDir final Path tempDir) throws IOException {
+        assumeTrue(VersionFinder.JAVA_MAJOR_VERSION >= 22);
+        final var arena = OffHeapMemory.openArena();
+        assertThat(arena).isNotNull();
+        final var file = tempDir.resolve("mapped.bin");
+        Files.write(file, new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 });
+        try (var fileChannel = FileChannel.open(file, StandardOpenOption.READ)) {
+            final var buf = OffHeapMemory.mapFileUsingArena(arena, fileChannel, /* position = */ 5L,
+                    /* size = */ 3L);
+            assertThat(buf).isNotNull();
+            assertThat(buf.capacity()).isEqualTo(3);
+            assertThat(buf.get(0)).isEqualTo((byte) 6);
+            assertThat(buf.get(2)).isEqualTo((byte) 8);
+        } finally {
+            OffHeapMemory.closeArena(arena, /* log = */ null);
+        }
+    }
+
+    /**
+     * Mapping a region that runs off the end of a read-only file fails with an {@link IOException}, rather than
+     * with whatever exception the reflective call wrapped it in -- the caller retries mapping after garbage
+     * collection, and can only do that if it can tell an I/O failure from a failure to call the mapping API at all.
+     *
+     * @param tempDir
+     *            a temporary directory to write the file to be mapped into.
+     * @throws IOException
+     *             if the file could not be written.
+     */
+    @Test
+    public void mappingPastTheEndOfAReadOnlyFileFailsWithAnIOException(@TempDir final Path tempDir)
+            throws IOException {
+        assumeTrue(VersionFinder.JAVA_MAJOR_VERSION >= 22);
+        final var arena = OffHeapMemory.openArena();
+        assertThat(arena).isNotNull();
+        final var file = tempDir.resolve("short.bin");
+        Files.write(file, new byte[] { 1, 2, 3, 4 });
+        try (var fileChannel = FileChannel.open(file, StandardOpenOption.READ)) {
+            assertThatThrownBy(() -> OffHeapMemory.mapFileUsingArena(arena, fileChannel, /* position = */ 0L,
+                    /* size = */ 1024L)).isInstanceOf(IOException.class);
+        } finally {
+            OffHeapMemory.closeArena(arena, /* log = */ null);
+        }
+    }
+
+    /** Closing an arena that has already been closed reports failure, rather than throwing. */
+    @Test
+    public void closingAnArenaTwiceReportsFailureRatherThanThrowing() {
+        assumeTrue(VersionFinder.JAVA_MAJOR_VERSION >= 22);
+        final var arena = OffHeapMemory.openArena();
+        assertThat(arena).isNotNull();
+        assertThat(OffHeapMemory.closeArena(arena, /* log = */ null)).isTrue();
+        assertThat(OffHeapMemory.closeArena(arena, /* log = */ null)).isFalse();
+    }
+
+    /**
+     * On JDK 22+, a direct {@link ByteBuffer} cannot be freed on its own -- it is freed by closing the arena that
+     * allocated it, so that the terminally-deprecated {@code Unsafe::invokeCleaner} is never called.
+     */
+    @Test
+    public void aDirectByteBufferIsNotFreedIndividuallyWhenThereIsAnArenaApi() {
+        assumeTrue(VersionFinder.JAVA_MAJOR_VERSION >= 22);
+        assertThat(OffHeapMemory.closeDirectByteBuffer(ByteBuffer.allocateDirect(32), /* log = */ null)).isFalse();
+    }
+
+    /** A buffer with no off-heap memory behind it has nothing to free, on any JDK version. */
+    @Test
+    public void aBufferThatIsNotDirectHasNothingToFree() {
+        assertThat(OffHeapMemory.closeDirectByteBuffer(ByteBuffer.allocate(32), /* log = */ null)).isFalse();
+    }
+
+    /**
+     * Loading the classes needed to free off-heap memory works, and works more than once -- it runs on every scan,
+     * but must only do the work the first time.
+     */
+    @Test
+    public void theClassesNeededToFreeOffHeapMemoryCanBeLoadedAheadOfTime() {
+        assertThatCode(OffHeapMemory::warmUpDirectByteBufferClosing).doesNotThrowAnyException();
+        assertThatCode(OffHeapMemory::warmUpDirectByteBufferClosing).doesNotThrowAnyException();
     }
 
     /**
