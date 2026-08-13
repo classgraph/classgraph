@@ -1901,6 +1901,13 @@ is fixed on the 4.x branch as well.
   scanning a nested jar locked the jar that contained it. The connection now bypasses the
   cache, and closes the outer jar as soon as the nested jar has been read.
 
+* `ScanResult#getPackageInfo()` and `ScanResult#getModuleInfo()` returned the packages and
+  modules in the iteration order of the hashmap they are stored in, so the order was
+  arbitrary and could differ from one run of the same scan to the next. Every other list
+  the API returns is sorted by name, including `ModuleInfo#getPackageInfo()` and
+  `PackageInfo#getChildren()`, which return the same kind of list. Both are now sorted by
+  name too.
+
 Two further bugs found during the port were only reachable through the JSON
 serialization API, which 5.x removes (`AnnotationParameterValue#toString()` threw
 `NullPointerException` for a null parameter value, and `ScanResult#fromJSON(String)` did

@@ -229,6 +229,16 @@ public class ModuleInfoTest {
         }
     }
 
+    /** The modules found by a scan are listed in name order. */
+    @Test
+    public void theModulesOfAScanAreListedInNameOrder() {
+        try (var scanResult = new ClassGraph().enableSystemJarsAndModules().enableClassInfo()
+                .acceptPackagesNonRecursive("javax.xml.parsers", "java.sql", "java.util.function").scan()) {
+            assertThat(scanResult.getModuleInfo().getNames()).contains("java.base", "java.sql", "java.xml")
+                    .isSorted();
+        }
+    }
+
     /**
      * Get a classpath element for the directory the module was compiled into, for constructing a {@link ModuleInfo}
      * directly.

@@ -53,6 +53,7 @@ import java.util.regex.Pattern;
 
 import io.github.classgraph.base.internal.utils.AcceptReject;
 import io.github.classgraph.base.internal.utils.Assert;
+import io.github.classgraph.base.internal.utils.CollectionUtils;
 import io.github.classgraph.base.internal.utils.FileUtils;
 import io.github.classgraph.base.internal.utils.JarUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
@@ -860,14 +861,16 @@ public final class ScanResult implements Closeable {
     /**
      * Get all modules found during the scan.
      *
-     * @return A list of all modules found during the scan, or the empty list if none.
+     * @return A list of all modules found during the scan, sorted by module name, or the empty list if none.
      * @throws IllegalStateException
      *             if this {@link ScanResult} has been closed, or if {@link ClassGraph#enableClassInfo()} was not
      *             called before scanning.
      */
     public ModuleInfoList getModuleInfo() {
         checkClassInfoEnabled();
-        return unmodifiable(new ModuleInfoList(moduleNameToModuleInfo().values()));
+        final var moduleInfoList = new ModuleInfoList(moduleNameToModuleInfo().values());
+        CollectionUtils.sortIfNotEmpty(moduleInfoList);
+        return unmodifiable(moduleInfoList);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -894,14 +897,16 @@ public final class ScanResult implements Closeable {
     /**
      * Get all packages found during the scan.
      *
-     * @return A list of all packages found during the scan, or the empty list if none.
+     * @return A list of all packages found during the scan, sorted by package name, or the empty list if none.
      * @throws IllegalStateException
      *             if this {@link ScanResult} has been closed, or if {@link ClassGraph#enableClassInfo()} was not
      *             called before scanning.
      */
     public PackageInfoList getPackageInfo() {
         checkClassInfoEnabled();
-        return unmodifiable(new PackageInfoList(packageNameToPackageInfo().values()));
+        final var packageInfoList = new PackageInfoList(packageNameToPackageInfo().values());
+        CollectionUtils.sortIfNotEmpty(packageInfoList);
+        return unmodifiable(packageInfoList);
     }
 
     // -------------------------------------------------------------------------------------------------------------

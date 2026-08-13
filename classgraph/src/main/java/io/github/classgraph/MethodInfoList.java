@@ -148,7 +148,7 @@ public class MethodInfoList extends InfoList<MethodInfo> {
      * Check whether the list contains a method with the given name.
      *
      * @param methodName
-     *            The name of a class.
+     *            The name of a method.
      * @return true if the list contains a method with the given name.
      */
     public boolean containsName(final String methodName) {
