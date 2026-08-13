@@ -170,15 +170,15 @@ public class ModuleReaderUtilsTest {
      * listing the module is rejected, naming the path that could not be read.
      */
     @Test
-    public void aResourceThatCannotBeReadIsRejected() {
+    public void aResourceThatCannotBeReadIsRejected() throws IOException {
         for (final var failure : new Failure[] { Failure.NULL, Failure.EMPTY }) {
             final var moduleReader = new FailingModuleReader(failure);
             assertThatThrownBy(() -> ModuleReaderUtils.open(moduleReader, "some/Resource.class"))
-                    .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("ModuleReader#open");
+                    .isInstanceOf(IOException.class).hasMessageContaining("ModuleReader#open");
             assertThatThrownBy(() -> ModuleReaderUtils.read(moduleReader, "some/Resource.class"))
-                    .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("ModuleReader#read");
+                    .isInstanceOf(IOException.class).hasMessageContaining("ModuleReader#read");
             assertThatThrownBy(() -> ModuleReaderUtils.find(moduleReader, "some/Resource.class"))
-                    .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("ModuleReader#find");
+                    .isInstanceOf(IOException.class).hasMessageContaining("ModuleReader#find");
 
             // A module that does not contain a resource is not an error, it just does not contain it
             assertThat(ModuleReaderUtils.contains(moduleReader, "some/Resource.class")).isFalse();
@@ -186,31 +186,33 @@ public class ModuleReaderUtilsTest {
     }
 
     /**
-     * The checked {@link IOException} that every {@link ModuleReader} method can throw is wrapped in an unchecked
-     * exception that names the call that failed, keeping the original exception as its cause.
+     * The {@link IOException} that every {@link ModuleReader} method can throw reaches the caller as an
+     * {@link IOException} that names the call that failed, keeping the original exception as its cause. (The caller
+     * is reading a resource, so an unchecked exception would escape the {@code throws IOException} that the caller
+     * declares, and would be reported to the user as something other than the read failure that it is.)
      */
     @Test
-    public void anIOExceptionFromAModuleReaderIsWrappedWithoutLosingTheCause() {
+    public void anIOExceptionFromAModuleReaderNamesTheCallThatFailed() {
         final var moduleReader = new FailingModuleReader(Failure.IO_EXCEPTION);
 
         assertThatThrownBy(() -> ModuleReaderUtils.list(moduleReader, "test.module", /* log = */ null))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(IOException.class)
                 .hasMessage("Could not call ModuleReader#list() for module test.module")
                 .hasRootCauseMessage("Simulated failure");
         assertThatThrownBy(() -> ModuleReaderUtils.open(moduleReader, "some/Resource.class"))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(IOException.class)
                 .hasMessage("Could not call ModuleReader#open(String) for path some/Resource.class")
                 .hasRootCauseMessage("Simulated failure");
         assertThatThrownBy(() -> ModuleReaderUtils.read(moduleReader, "some/Resource.class"))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(IOException.class)
                 .hasMessage("Could not call ModuleReader#read(String) for path some/Resource.class")
                 .hasRootCauseMessage("Simulated failure");
         assertThatThrownBy(() -> ModuleReaderUtils.find(moduleReader, "some/Resource.class"))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(IOException.class)
                 .hasMessage("Could not call ModuleReader#find(String) for path some/Resource.class")
                 .hasRootCauseMessage("Simulated failure");
         assertThatThrownBy(() -> ModuleReaderUtils.contains(moduleReader, "some/Resource.class"))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(IOException.class)
                 .hasMessage("Could not call ModuleReader#find(String) for path some/Resource.class")
                 .hasRootCauseMessage("Simulated failure");
     }

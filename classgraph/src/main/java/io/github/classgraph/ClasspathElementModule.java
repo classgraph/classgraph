@@ -334,7 +334,7 @@ class ClasspathElementModule extends ClasspathElement {
                 } finally {
                     moduleReaderRecycler().recycle(moduleReader);
                 }
-            } catch (final IOException | SecurityException | IllegalArgumentException e) {
+            } catch (final IOException | SecurityException e) {
                 return null;
             }
         }
@@ -370,7 +370,7 @@ class ClasspathElementModule extends ClasspathElement {
             try {
                 resourceRelativePaths = ModuleReaderUtils.list(moduleReaderRecycleOnClose.get(), moduleName,
                         subLog);
-            } catch (final SecurityException | IllegalArgumentException e) {
+            } catch (final IOException | SecurityException e) {
                 // A module whose contents cannot be listed is skipped, rather than aborting the whole scan. (A
                 // ModuleReader that returns null from list(), in violation of its contract, is handled by
                 // ModuleReaderUtils#list(ModuleReader, String, LogNode) instead, which treats the module as empty

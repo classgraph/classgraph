@@ -44,8 +44,12 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Helper methods for opening a {@link ModuleReference} and for calling {@link ModuleReader}, which convert its
- * {@link Optional} and {@link Stream} return values into plain values, and wrap the checked {@link IOException}
- * thrown by each of its methods in an unchecked exception.
+ * {@link Optional} and {@link Stream} return values into plain values.
+ *
+ * <p>
+ * Every way in which a module can fail to be read is reported as an {@link IOException}: the {@link IOException}
+ * thrown by the {@link ModuleReader} method itself, a resource that the module does not contain, and a
+ * {@code ModuleReader} implementation that returns null where its contract does not permit it.
  */
 public final class ModuleReaderUtils {
     /** Class can not be constructed. */
@@ -97,16 +101,18 @@ public final class ModuleReaderUtils {
      * @param log
      *            the log, or null for no logging.
      * @return A list of the paths of resources in the module.
+     * @throws IOException
+     *             If the contents of the module could not be listed.
      * @throws SecurityException
      *             If the module cannot be accessed.
      */
     public static List<String> list(final ModuleReader moduleReader, final String moduleName,
-            final @Nullable LogNode log) throws SecurityException {
+            final @Nullable LogNode log) throws IOException, SecurityException {
         final Stream<String> resourcesStream;
         try {
             resourcesStream = moduleReader.list();
         } catch (final IOException e) {
-            throw new IllegalArgumentException("Could not call ModuleReader#list() for module " + moduleName, e);
+            throw new IOException("Could not call ModuleReader#list() for module " + moduleName, e);
         }
         if (resourcesStream == null) {
             // ModuleReader#list() is specified to return a Stream<String>, and is not allowed to return null, so a
@@ -135,24 +141,25 @@ public final class ModuleReaderUtils {
      * @param path
      *            The path to the resource to open.
      * @return An {@link InputStream} for the content of the resource.
+     * @throws IOException
+     *             If the resource could not be opened.
      * @throws SecurityException
      *             If the module cannot be accessed.
-     * @throws IllegalArgumentException
-     *             If the module cannot be accessed.
      */
-    public static InputStream open(final ModuleReader moduleReader, final String path) throws SecurityException {
+    public static InputStream open(final ModuleReader moduleReader, final String path)
+            throws IOException, SecurityException {
         final Optional<InputStream> optionalInputStream;
         try {
             optionalInputStream = moduleReader.open(path);
         } catch (final IOException e) {
-            throw new IllegalArgumentException("Could not call ModuleReader#open(String) for path " + path, e);
+            throw new IOException("Could not call ModuleReader#open(String) for path " + path, e);
         }
         if (optionalInputStream == null) {
-            throw new IllegalArgumentException("Got null result from ModuleReader#open for path " + path);
+            throw new IOException("Got null result from ModuleReader#open for path " + path);
         }
         final var inputStream = optionalInputStream.orElse(null);
         if (inputStream == null) {
-            throw new IllegalArgumentException("Got null result from ModuleReader#open(String)#get()");
+            throw new IOException("Got null result from ModuleReader#open(String)#get()");
         }
         return inputStream;
     }
@@ -166,25 +173,27 @@ public final class ModuleReaderUtils {
      * @param path
      *            The path to the resource to open.
      * @return A {@link ByteBuffer} for the content of the resource.
+     * @throws IOException
+     *             If the resource could not be read.
      * @throws SecurityException
      *             If the module cannot be accessed.
      * @throws OutOfMemoryError
      *             if the resource is larger than 2GB, the maximum capacity of a byte buffer.
      */
     public static ByteBuffer read(final ModuleReader moduleReader, final String path)
-            throws SecurityException, OutOfMemoryError {
+            throws IOException, SecurityException, OutOfMemoryError {
         final Optional<ByteBuffer> optionalByteBuffer;
         try {
             optionalByteBuffer = moduleReader.read(path);
         } catch (final IOException e) {
-            throw new IllegalArgumentException("Could not call ModuleReader#read(String) for path " + path, e);
+            throw new IOException("Could not call ModuleReader#read(String) for path " + path, e);
         }
         if (optionalByteBuffer == null) {
-            throw new IllegalArgumentException("Got null result from ModuleReader#read(String)");
+            throw new IOException("Got null result from ModuleReader#read(String)");
         }
         final var byteBuffer = optionalByteBuffer.orElse(null);
         if (byteBuffer == null) {
-            throw new IllegalArgumentException("Got null result from ModuleReader#read(String).get()");
+            throw new IOException("Got null result from ModuleReader#read(String).get()");
         }
         return byteBuffer;
     }
@@ -198,15 +207,18 @@ public final class ModuleReaderUtils {
      * @param path
      *            The path to the resource to look for.
      * @return true if the module contains the named resource.
+     * @throws IOException
+     *             If the module could not be searched for the resource.
      * @throws SecurityException
      *             If the module cannot be accessed.
      */
-    public static boolean contains(final ModuleReader moduleReader, final String path) throws SecurityException {
+    public static boolean contains(final ModuleReader moduleReader, final String path)
+            throws IOException, SecurityException {
         final Optional<URI> optionalURI;
         try {
             optionalURI = moduleReader.find(path);
         } catch (final IOException e) {
-            throw new IllegalArgumentException("Could not call ModuleReader#find(String) for path " + path, e);
+            throw new IOException("Could not call ModuleReader#find(String) for path " + path, e);
         }
         return optionalURI != null && optionalURI.isPresent();
     }
@@ -219,22 +231,25 @@ public final class ModuleReaderUtils {
      * @param path
      *            The path to the resource to open.
      * @return A {@link URI} for the resource.
+     * @throws IOException
+     *             If the resource could not be located.
      * @throws SecurityException
      *             If the module cannot be accessed.
      */
-    public static URI find(final ModuleReader moduleReader, final String path) throws SecurityException {
+    public static URI find(final ModuleReader moduleReader, final String path)
+            throws IOException, SecurityException {
         final Optional<URI> optionalURI;
         try {
             optionalURI = moduleReader.find(path);
         } catch (final IOException e) {
-            throw new IllegalArgumentException("Could not call ModuleReader#find(String) for path " + path, e);
+            throw new IOException("Could not call ModuleReader#find(String) for path " + path, e);
         }
         if (optionalURI == null) {
-            throw new IllegalArgumentException("Got null result from ModuleReader#find(String)");
+            throw new IOException("Got null result from ModuleReader#find(String)");
         }
         final var uri = optionalURI.orElse(null);
         if (uri == null) {
-            throw new IllegalArgumentException("Got null result from ModuleReader#find(String).get()");
+            throw new IOException("Got null result from ModuleReader#find(String).get()");
         }
         return uri;
     }

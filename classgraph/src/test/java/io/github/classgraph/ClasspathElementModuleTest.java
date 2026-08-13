@@ -4,16 +4,21 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.module.ModuleDescriptor;
 import java.lang.module.ModuleFinder;
 import java.lang.module.ModuleReader;
 import java.lang.module.ModuleReference;
 import java.net.URI;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -40,6 +45,9 @@ public class ClasspathElementModuleTest {
 
     /** The path of a second classfile in {@link #PACKAGE_PATH}. */
     private static final String OTHER_CLASSFILE_PATH = PACKAGE_PATH + "/Supplier.class";
+
+    /** The path of the one resource of a module that cannot be read. */
+    private static final String UNREADABLE_PATH = "unreadable/resource.txt";
 
     /**
      * Scan one package of the {@code java.base} system module.
@@ -306,6 +314,82 @@ public class ClasspathElementModuleTest {
                 .isNotEqualTo(classpathElement.toString());
         // The classpath element prints as its module reference, which names the module and where it came from
         assertThat(classpathElement.toString()).contains("java.base");
+    }
+
+    /**
+     * A {@link ModuleReader} that contains one resource, but throws {@link IOException} whenever that resource is
+     * read.
+     */
+    private static class UnreadableModuleReader implements ModuleReader {
+        @Override
+        public Stream<String> list() {
+            return Stream.of(UNREADABLE_PATH);
+        }
+
+        @Override
+        public Optional<URI> find(final String name) {
+            return name.equals(UNREADABLE_PATH) ? Optional.of(URI.create("module:/unreadable.module/" + name))
+                    : Optional.empty();
+        }
+
+        @Override
+        public Optional<InputStream> open(final String name) throws IOException {
+            throw new IOException("Simulated read failure");
+        }
+
+        @Override
+        public Optional<ByteBuffer> read(final String name) throws IOException {
+            throw new IOException("Simulated read failure");
+        }
+
+        @Override
+        public void close() {
+            // Nothing to close
+        }
+    }
+
+    /**
+     * A resource in a module that cannot be read reports the failure as an {@link IOException}, and every attempt
+     * to read it fails the same way -- a resource left marked as open by the first attempt would throw
+     * {@link IllegalStateException} instead. Each failed attempt also returns its {@link ModuleReader} to the
+     * recycler, rather than leaving it checked out, so no further readers have to be opened.
+     *
+     * @throws InterruptedException
+     *             if opening the classpath element was interrupted.
+     */
+    @Test
+    public void aResourceInAModuleThatCannotBeReadFailsTheSameWayEveryTime() throws InterruptedException {
+        final var moduleReadersOpened = new AtomicInteger();
+        final SingletonMap<ModuleReference, Recycler<ModuleReader, IOException>, IOException> //
+        unreadableModuleReaders = new SingletonMap<>() {
+            @Override
+            public Recycler<ModuleReader, IOException> newInstance(final ModuleReference key,
+                    final @Nullable LogNode log) {
+                return new Recycler<>() {
+                    @Override
+                    public ModuleReader newInstance() {
+                        moduleReadersOpened.incrementAndGet();
+                        return new UnreadableModuleReader();
+                    }
+                };
+            }
+        };
+        final var classpathElement = new ClasspathElementModule(moduleReferenceWithNoLocation("unreadable.module"),
+                unreadableModuleReaders, new Scanner.ClasspathEntryWorkUnit(null, null, null, 0, "", new String[0]),
+                /* isLookupOnly = */ true, new ScanSpec());
+        classpathElement.open(/* workQueue = */ null, /* log = */ null);
+
+        final var resource = classpathElement.getResource(UNREADABLE_PATH);
+        assertThat(resource).as("resource with path " + UNREADABLE_PATH).isNotNull();
+        for (var attempt = 0; attempt < 2; attempt++) {
+            assertThatThrownBy(resource::read).as("read").isInstanceOf(IOException.class)
+                    .hasRootCauseMessage("Simulated read failure");
+            assertThatThrownBy(resource::open).as("open").isInstanceOf(IOException.class)
+                    .hasRootCauseMessage("Simulated read failure");
+            assertThatThrownBy(resource::load).as("load").isInstanceOf(IOException.class)
+                    .hasRootCauseMessage("Simulated read failure");
+        }
+        assertThat(moduleReadersOpened).as("module readers opened").hasValue(1);
     }
 
     /**
