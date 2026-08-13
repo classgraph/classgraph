@@ -56,6 +56,12 @@ import nonapi.io.github.classgraph.utils.VersionFinder;
  * A logical zipfile, which represents a zipfile contained within a ZipFileSlice of a PhysicalZipFile.
  */
 public class LogicalZipFile extends ZipFileSlice {
+    /**
+     * Bit 11 of an entry's general purpose bit flag, the "language encoding flag", which declares that the entry's
+     * name is encoded in UTF-8 rather than in the zip specification's default of IBM Code Page 437.
+     */
+    private static final int UTF8_NAME_FLAG_BIT = 1 << 11;
+
     /** The zipfile entries. */
     public List<FastZipEntry> entries;
 
@@ -638,7 +644,11 @@ public class LogicalZipFile extends ZipFileSlice {
                     }
                     break;
                 }
-                final String entryName = cenReader.readString(filenameStartOff, filenameLen);
+                // Read the entry flag bits before the entry name, since bit 11 gives the name's character encoding
+                final int flags = cenReader.readUnsignedShort(entOff + 8);
+
+                final String entryName = ZipEntryNameCodec.readEntryName(cenReader, filenameStartOff, filenameLen,
+                        /* isUtf8 = */ (flags & UTF8_NAME_FLAG_BIT) != 0);
                 String entryNameSanitized = FileUtils.sanitizeEntryPath(entryName, /* removeInitialSlash = */ true,
                         /* removeFinalSlash = */ false);
                 if (entryNameSanitized.isEmpty() || entryName.endsWith("/")) {
@@ -646,8 +656,6 @@ public class LogicalZipFile extends ZipFileSlice {
                     continue;
                 }
 
-                // Check entry flag bits
-                final int flags = cenReader.readUnsignedShort(entOff + 8);
                 if ((flags & 1) != 0) {
                     if (log != null) {
                         log.log("Skipping encrypted zip entry: " + entryNameSanitized);
@@ -767,13 +775,10 @@ public class LogicalZipFile extends ZipFileSlice {
                                 // Replace non-Unicode entry name with Unicode version. The data area of this
                                 // extra field is version(1) + nameCRC32(4) + name, so the name starts 5 bytes
                                 // into the data area (i.e. 9 bytes after the tag), and is (size - 5) bytes long.
-                                final String unicodeEntryName;
-                                try {
-                                    unicodeEntryName = cenReader.readString(tagOff + 9, size - 5);
-                                } catch (final IllegalArgumentException e) {
-                                    throw new IOException("Malformed extended Unicode entry name for entry: "
-                                            + entryNameSanitized);
-                                }
+                                // This extra field's name is always UTF-8, whatever the entry's language
+                                // encoding flag says
+                                final String unicodeEntryName = ZipEntryNameCodec.readEntryName(cenReader,
+                                        tagOff + 9, size - 5, /* isUtf8 = */ true);
                                 // The replacement name has to be sanitized, and tested for naming a directory,
                                 // exactly as the name it replaces was -- otherwise an entry can carry a path
                                 // such as "pkg/../../x" or "/abs/x" simply by declaring it here
