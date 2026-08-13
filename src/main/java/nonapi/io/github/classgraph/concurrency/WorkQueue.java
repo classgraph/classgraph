@@ -37,6 +37,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import nonapi.io.github.classgraph.utils.LogNode;
@@ -63,8 +64,35 @@ public class WorkQueue<T> implements AutoCloseable {
      */
     private final AtomicInteger numIncompleteWorkUnits = new AtomicInteger();
 
-    /** The Future object added for each worker, used to detect worker completion. */
-    private final ConcurrentLinkedQueue<Future<?>> workerFutures = new ConcurrentLinkedQueue<>();
+    /** The worker tasks that were submitted to the ExecutorService, used to detect worker completion. */
+    private final ConcurrentLinkedQueue<Worker> workerTasks = new ConcurrentLinkedQueue<>();
+
+    /**
+     * A worker submitted to the {@link ExecutorService}, and the flag that decides whether the worker runs the work
+     * loop or is abandoned. The worker sets the flag when it starts, and {@link WorkQueue#close()} sets it if the
+     * worker has not started by then; whichever sets it first wins, so once {@link WorkQueue#close()} has claimed a
+     * worker, that worker is guaranteed never to run the work loop, and does not have to be waited for.
+     */
+    private static class Worker {
+        /** Whether the worker or {@link WorkQueue#close()} claimed this worker first. */
+        private final AtomicBoolean claimed;
+
+        /** The {@link Future} of the submitted worker. */
+        private final Future<?> future;
+
+        /**
+         * Constructor.
+         *
+         * @param claimed
+         *            whether the worker or {@link WorkQueue#close()} claimed this worker first.
+         * @param future
+         *            the {@link Future} of the submitted worker.
+         */
+        private Worker(final AtomicBoolean claimed, final Future<?> future) {
+            this.claimed = claimed;
+            this.future = future;
+        }
+    }
 
     /**
      * The shared InterruptionChecker, used to detect thread interruption and execution exceptions, and to shut down
@@ -195,13 +223,16 @@ public class WorkQueue<T> implements AutoCloseable {
      */
     private void startWorkers(final ExecutorService executorService, final int numTasks) {
         for (int i = 0; i < numTasks; i++) {
-            workerFutures.add(executorService.submit(new Callable<Void>() {
+            final AtomicBoolean claimed = new AtomicBoolean();
+            workerTasks.add(new Worker(claimed, executorService.submit(new Callable<Void>() {
                 @Override
                 public Void call() throws Exception {
-                    runWorkLoop();
+                    if (claimed.compareAndSet(false, true)) {
+                        runWorkLoop();
+                    }
                     return null;
                 }
-            }));
+            })));
         }
     }
 
@@ -306,7 +337,17 @@ public class WorkQueue<T> implements AutoCloseable {
      */
     @Override
     public void close() throws ExecutionException {
-        for (Future<?> future; (future = workerFutures.poll()) != null;) {
+        for (Worker worker; (worker = workerTasks.poll()) != null;) {
+            // If the ExecutorService did not have a free thread to start a worker on, claiming the worker here
+            // stops it running the work loop if it is started later, so there is nothing to wait for. Waiting for
+            // it instead would block forever if the ExecutorService cannot free up a thread until this thread
+            // returns, which is the case when the work queue was itself started by a task submitted to the same
+            // ExecutorService. (All the work has been done by the time this method is called, whether or not
+            // every worker ran.)
+            if (worker.claimed.compareAndSet(false, true)) {
+                continue;
+            }
+            final Future<?> future = worker.future;
             try {
                 // Block on completion using future.get(), which may throw one of the exceptions below
                 future.get();
