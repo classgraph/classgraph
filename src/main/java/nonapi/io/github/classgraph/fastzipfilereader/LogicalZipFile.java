@@ -626,6 +626,18 @@ public class LogicalZipFile extends ZipFileSlice {
                     }
                     break;
                 }
+
+                // The extra field area has to be within the central directory too, otherwise reading the extra
+                // fields would read beyond the end of it. (The comment is not tested here, because it is never
+                // read -- an entry whose comment is the only part of it that does not fit is still readable.
+                // Either way, the record after this one starts past the end of the central directory, so the loop
+                // ends here.)
+                if (filenameEndOff + extraFieldLen > cenSize) {
+                    if (log != null) {
+                        log.log("Extra field area extends past end of entry -- skipping entry at offset " + entOff);
+                    }
+                    break;
+                }
                 final String entryName = cenReader.readString(filenameStartOff, filenameLen);
                 String entryNameSanitized = FileUtils.sanitizeEntryPath(entryName, /* removeInitialSlash = */ true,
                         /* removeFinalSlash = */ false);
@@ -743,8 +755,10 @@ public class LogicalZipFile extends ZipFileSlice {
                         } else if (tag == 0x7855) {
                             // Info-ZIP Unix UID and GID fields (currently ignored)
 
-                        } else if (tag == 0x7075) {
-                            // Info-ZIP Unicode path extra field
+                        } else if (tag == 0x7075 && size >= 1) {
+                            // Info-ZIP Unicode path extra field. (The size test is what stops the version byte
+                            // from being read out of the next extra field, or out of the next central directory
+                            // record, when this extra field has an empty data area.)
                             final int version = cenReader.readUnsignedByte(tagOff + 4 + 0);
                             if (version != 1) {
                                 throw new IOException("Unknown Unicode entry name format " + version

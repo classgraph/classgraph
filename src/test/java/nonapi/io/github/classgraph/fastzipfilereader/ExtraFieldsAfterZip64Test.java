@@ -251,4 +251,29 @@ public class ExtraFieldsAfterZip64Test {
         assertThat(entryNamesReadBack(tempDir, "empty-trailing-extra-field.jar",
                 makeUnicodePathExtraField(UNICODE_NAME), emptyExtraField)).containsExactly(UNICODE_NAME);
     }
+
+    /**
+     * A Unicode path extra field with a zero-length data area holds no name to rename its entry with, and no version
+     * byte either, so it has nothing to read. The bytes that follow it are not part of it, so they must not be read
+     * as if they were its version byte -- here they are the end of the central directory, so reading them fails.
+     */
+    @Test
+    public void emptyUnicodePathExtraFieldAtTheEndOfTheCentralDirectory(@TempDir final File tempDir)
+            throws Exception {
+        final byte[] emptyUnicodePathExtraField = new byte[] { 0x75, 0x70, 0, 0 };
+        assertThat(entryNamesReadBack(tempDir, "empty-unicode-path.jar", emptyUnicodePathExtraField))
+                .containsExactly(LEGACY_NAME);
+    }
+
+    /**
+     * The same empty Unicode path extra field, but with another extra field after it: the bytes that would be read
+     * as its version byte belong to that next field, and reading the rest of the extra field area has to carry on.
+     */
+    @Test
+    public void emptyUnicodePathExtraFieldFollowedByAnotherExtraField(@TempDir final File tempDir)
+            throws Exception {
+        final byte[] emptyUnicodePathExtraField = new byte[] { 0x75, 0x70, 0, 0 };
+        assertThat(entryNamesReadBack(tempDir, "empty-then-unicode-path.jar", emptyUnicodePathExtraField,
+                makeUnicodePathExtraField(UNICODE_NAME))).containsExactly(UNICODE_NAME);
+    }
 }
