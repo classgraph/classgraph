@@ -35,7 +35,7 @@ import java.nio.channels.FileChannel.MapMode;
 
 import io.github.classgraph.base.internal.utils.FileUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
-import io.github.classgraph.base.internal.utils.OffHeapMemory;
+import io.github.classgraph.vfs.internal.slice.OffHeapMemory;
 import io.github.classgraph.base.internal.utils.VersionFinder;
 import org.jspecify.annotations.Nullable;
 
@@ -92,6 +92,11 @@ final class FileMapping {
         if (fileLength > FileUtils.MAX_BUFFER_SIZE) {
             return null;
         }
+        // Mapping a file is the only thing that makes ClassGraph allocate off-heap memory, and it is not freed
+        // until the reading session is closed, which can happen long after the file was mapped -- so load the
+        // classes needed to free it now, while the classloader that loaded ClassGraph is certainly still alive
+        // #331
+        OffHeapMemory.warmUpDirectByteBufferClosing();
         // (openArena returns null on JDK older than 22)
         final var arena = OffHeapMemory.openArena();
         ByteBuffer byteBuffer = null;

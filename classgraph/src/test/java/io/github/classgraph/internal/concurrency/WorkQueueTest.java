@@ -1,4 +1,4 @@
-package io.github.classgraph.base.internal.concurrency;
+package io.github.classgraph.internal.concurrency;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -20,7 +20,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-import io.github.classgraph.base.internal.concurrency.WorkQueue.WorkUnitProcessor;
+import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
+import io.github.classgraph.internal.concurrency.WorkQueue.WorkUnitProcessor;
 
 /** Tests for {@link WorkQueue}. */
 public class WorkQueueTest {

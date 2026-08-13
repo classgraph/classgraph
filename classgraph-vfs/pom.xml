@@ -28,8 +28,8 @@
 		     modules above this one need them. They are marked x-internal so that tooling does not offer them
 		     for import, and they are not covered by the project's API compatibility guarantees. -->
 		<osgiExportPackage>io.github.classgraph.vfs;version="${project.version}",io.github.classgraph.vfs.internal;x-internal:=true,io.github.classgraph.vfs.internal.slice;x-internal:=true,io.github.classgraph.vfs.internal.slice.reader;x-internal:=true,io.github.classgraph.vfs.internal.zip;x-internal:=true,io.github.classgraph.vfs.internal.spec;x-internal:=true</osgiExportPackage>
-		<osgiImportPackage>io.github.classgraph.base.internal.concurrency,io.github.classgraph.base.internal.recycler,io.github.classgraph.base.internal.utils,org.jspecify.annotations;resolution:="optional"</osgiImportPackage>
-		<osgiDependencies>io.github.classgraph.base</osgiDependencies>
+		<osgiImportPackage>io.github.classgraph.base.internal.concurrency,io.github.classgraph.base.internal.recycler,io.github.classgraph.base.internal.reflection,io.github.classgraph.base.internal.utils,sun.misc;resolution:="optional",org.jspecify.annotations;resolution:="optional"</osgiImportPackage>
+		<osgiDependencies>io.github.classgraph.base,jdk.unsupported</osgiDependencies>
 
 		<!-- This module produces a jar, so it needs its resources and the modular copy of its Javadoc -->
 		<maven.antrun.skip>false</maven.antrun.skip>

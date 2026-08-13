@@ -1,4 +1,4 @@
-package io.github.classgraph.base.internal.utils;
+package io.github.classgraph.vfs.internal.slice;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -14,6 +14,8 @@ import java.nio.file.StandardOpenOption;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+
+import io.github.classgraph.base.internal.utils.VersionFinder;
 
 /**
  * Tests for {@link OffHeapMemory}.

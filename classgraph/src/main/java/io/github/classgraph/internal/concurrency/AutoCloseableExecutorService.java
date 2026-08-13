@@ -26,7 +26,7 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.classgraph.base.internal.concurrency;
+package io.github.classgraph.internal.concurrency;
 
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
@@ -34,6 +34,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+
+import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 
 /** A ThreadPoolExecutor that can be used in a try-with-resources block. */
 public class AutoCloseableExecutorService extends ThreadPoolExecutor implements AutoCloseable {
