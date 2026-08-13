@@ -26,28 +26,34 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.classgraph.internal.types;
+package io.github.classgraph.base.internal.reflection;
 
-import java.io.Serial;
-import org.jspecify.annotations.Nullable;
-
-/**
- * A parsing exception.
- */
-public class ParseException extends Exception {
-    /** serialVersionUID. */
-    @Serial
-    private static final long serialVersionUID = 1L;
+/** A class to read the classes in the current call stack. */
+public final class CallStackReader {
+    /**
+     * Constructor.
+     */
+    private CallStackReader() {
+        // Cannot be constructed
+    }
 
     /**
-     * A parsing exception.
+     * Get the classes in the current call stack.
      *
-     * @param parser
-     *            The parser, or null if there is no parsing context to report.
-     * @param msg
-     *            The exception message.
+     * @return The classes in the call stack, innermost frame first.
      */
-    public ParseException(final @Nullable Parser parser, final String msg) {
-        super(parser == null ? msg : msg + " (" + parser.getPositionInfo() + ")");
+    public static Class<?>[] getClassContext() {
+        try {
+            final var callStack = StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE)
+                    .walk(stackFrames -> stackFrames.map(StackWalker.StackFrame::getDeclaringClass)
+                            .toArray(Class<?>[]::new));
+            if (callStack.length > 0) {
+                return callStack;
+            }
+        } catch (Exception | LinkageError e) {
+            // Fall through
+        }
+        // The call stack could not be read -- fall back to naming just this class
+        return new Class<?>[] { CallStackReader.class };
     }
 }

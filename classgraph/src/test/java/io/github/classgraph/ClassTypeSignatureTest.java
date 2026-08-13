@@ -11,7 +11,7 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import io.github.classgraph.internal.types.ParseException;
+import io.github.classgraph.base.internal.parser.ParseException;
 
 /**
  * {@link ClassTypeSignature} is the generic type signature of a class declaration: its type parameters, its

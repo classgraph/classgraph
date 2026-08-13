@@ -59,9 +59,6 @@ module io.github.classgraph.vfs {
     // above this one use, e.g. the LogNode passed to the archive reader
     requires transitive io.github.classgraph.base;
 
-    // OffHeapMemory requires jdk.unsupported (for usage of Unsafe on JDK 17-21)
-    requires jdk.unsupported;
-
     // JSpecify nullability annotations are only needed at compile time. This deliberately is not "requires
     // transitive", even though the annotations appear in exported signatures: that would force every modular
     // downstream project to put JSpecify on its own module path, which is what broke Log4j 2.24.0 for its users.

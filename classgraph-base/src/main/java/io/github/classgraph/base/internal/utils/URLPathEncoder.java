@@ -26,16 +26,14 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.classgraph.internal.utils;
+package io.github.classgraph.base.internal.utils;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 
-import io.github.classgraph.base.internal.utils.JarUtils;
 import io.github.classgraph.base.internal.utils.VersionFinder.OperatingSystem;
-import io.github.classgraph.base.internal.utils.VersionFinder;
 
 /** A simple URL path encoder. */
 public final class URLPathEncoder {

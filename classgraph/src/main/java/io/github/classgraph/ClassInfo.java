@@ -55,13 +55,13 @@ import java.util.function.Function;
 
 import io.github.classgraph.Classfile.ClassContainment;
 import io.github.classgraph.Classfile.ClassTypeAnnotationDecorator;
+import io.github.classgraph.base.internal.parser.ParseException;
+import io.github.classgraph.base.internal.parser.Parser;
 import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.internal.scanspec.ScanSpec;
-import io.github.classgraph.internal.types.ParseException;
-import io.github.classgraph.internal.types.Parser;
-import io.github.classgraph.internal.types.TypeUtils;
 import io.github.classgraph.internal.types.TypeUtils.ModifierType;
+import io.github.classgraph.internal.types.TypeUtils;
 import org.jspecify.annotations.Nullable;
 
 /**

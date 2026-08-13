@@ -43,12 +43,12 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import io.github.classgraph.Scanner.ClassfileScanWorkUnit;
 import io.github.classgraph.base.internal.concurrency.WorkQueue;
+import io.github.classgraph.base.internal.parser.ParseException;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
 import io.github.classgraph.base.internal.utils.JarUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.base.internal.utils.StringUtils;
 import io.github.classgraph.internal.scanspec.ScanSpec;
-import io.github.classgraph.internal.types.ParseException;
 import io.github.classgraph.vfs.internal.slice.reader.ClassfileReader;
 import org.jspecify.annotations.Nullable;
 

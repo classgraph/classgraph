@@ -34,8 +34,8 @@ import java.util.Objects;
 import java.util.Set;
 
 import io.github.classgraph.Classfile.TypePathNode;
-import io.github.classgraph.internal.types.ParseException;
-import io.github.classgraph.internal.types.Parser;
+import io.github.classgraph.base.internal.parser.ParseException;
+import io.github.classgraph.base.internal.parser.Parser;
 import org.jspecify.annotations.Nullable;
 
 /**

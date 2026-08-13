@@ -26,34 +26,28 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.classgraph.classpath.internal;
+package io.github.classgraph.base.internal.parser;
 
-/** A class to read the classes in the current call stack. */
-final class CallStackReader {
-    /**
-     * Constructor.
-     */
-    private CallStackReader() {
-        // Cannot be constructed
-    }
+import java.io.Serial;
+import org.jspecify.annotations.Nullable;
+
+/**
+ * A parsing exception.
+ */
+public class ParseException extends Exception {
+    /** serialVersionUID. */
+    @Serial
+    private static final long serialVersionUID = 1L;
 
     /**
-     * Get the classes in the current call stack.
+     * A parsing exception.
      *
-     * @return The classes in the call stack, innermost frame first.
+     * @param parser
+     *            The parser, or null if there is no parsing context to report.
+     * @param msg
+     *            The exception message.
      */
-    static Class<?>[] getClassContext() {
-        try {
-            final var callStack = StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE)
-                    .walk(stackFrames -> stackFrames.map(StackWalker.StackFrame::getDeclaringClass)
-                            .toArray(Class<?>[]::new));
-            if (callStack.length > 0) {
-                return callStack;
-            }
-        } catch (Exception | LinkageError e) {
-            // Fall through
-        }
-        // The call stack could not be read -- fall back to naming just this class
-        return new Class<?>[] { CallStackReader.class };
+    public ParseException(final @Nullable Parser parser, final String msg) {
+        super(parser == null ? msg : msg + " (" + parser.getPositionInfo() + ")");
     }
 }

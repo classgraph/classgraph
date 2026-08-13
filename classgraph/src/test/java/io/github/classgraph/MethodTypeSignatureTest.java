@@ -11,7 +11,7 @@ import java.util.RandomAccess;
 
 import org.junit.jupiter.api.Test;
 
-import io.github.classgraph.internal.types.ParseException;
+import io.github.classgraph.base.internal.parser.ParseException;
 
 /**
  * {@link MethodTypeSignature} is the generic type signature of a method: its type parameters, parameter types,

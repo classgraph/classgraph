@@ -30,6 +30,9 @@ package io.github.classgraph.internal.types;
 
 import java.lang.reflect.Modifier;
 
+import io.github.classgraph.base.internal.parser.ParseException;
+import io.github.classgraph.base.internal.parser.Parser;
+
 /**
  * Utilities for parsing Java type descriptors and type signatures.
  *

@@ -1,4 +1,4 @@
-package io.github.classgraph.internal.types;
+package io.github.classgraph.base.internal.parser;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;

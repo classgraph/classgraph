@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
 
-import io.github.classgraph.internal.types.ParseException;
+import io.github.classgraph.base.internal.parser.ParseException;
 
 /**
  * {@code MethodTypeSignature#toStringInternal} passes {@code useSimpleNames} down to the type parameters, the
