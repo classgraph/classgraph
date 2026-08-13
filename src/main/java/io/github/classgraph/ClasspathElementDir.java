@@ -553,7 +553,10 @@ class ClasspathElementDir extends ClasspathElement {
 
                         // Save last modified time
                         try {
-                            fileToLastModified.put(subPath.toFile(), fileAttributes.lastModifiedTime().toMillis());
+                            // Read the timestamp through the File API, which is what the timestamps are
+                            // compared against, and which does not agree with the file attributes on Java 8
+                            final File subFile = subPath.toFile();
+                            fileToLastModified.put(subFile, subFile.lastModified());
                         } catch (final UnsupportedOperationException e) {
                             // Ignore
                         }
@@ -576,7 +579,10 @@ class ClasspathElementDir extends ClasspathElement {
                         final Resource resource = newResource(subPath, fileAttributes);
                         addAcceptedResource(resource, parentMatchStatus, /* isClassfileOnly = */ true, subLog);
                         try {
-                            fileToLastModified.put(subPath.toFile(), fileAttributes.lastModifiedTime().toMillis());
+                            // Read the timestamp through the File API, which is what the timestamps are
+                            // compared against, and which does not agree with the file attributes on Java 8
+                            final File subFile = subPath.toFile();
+                            fileToLastModified.put(subFile, subFile.lastModified());
                         } catch (final UnsupportedOperationException e) {
                             // Ignore
                         }
