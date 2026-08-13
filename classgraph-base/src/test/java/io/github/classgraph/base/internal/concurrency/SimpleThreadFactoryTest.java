@@ -1,4 +1,4 @@
-package io.github.classgraph.internal.concurrency;
+package io.github.classgraph.base.internal.concurrency;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

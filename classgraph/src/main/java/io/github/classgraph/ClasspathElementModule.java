@@ -45,7 +45,7 @@ import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import io.github.classgraph.base.internal.concurrency.SingletonMap;
 import io.github.classgraph.base.internal.concurrency.SingletonMap.NewInstanceException;
 import io.github.classgraph.base.internal.concurrency.SingletonMap.NullSingletonException;
-import io.github.classgraph.internal.concurrency.WorkQueue;
+import io.github.classgraph.base.internal.concurrency.WorkQueue;
 import io.github.classgraph.base.internal.recycler.Recycler;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
 import io.github.classgraph.base.internal.utils.LogNode;

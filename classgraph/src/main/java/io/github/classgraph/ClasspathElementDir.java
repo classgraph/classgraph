@@ -49,7 +49,7 @@ import java.util.Objects;
 import java.util.Set;
 
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
-import io.github.classgraph.internal.concurrency.WorkQueue;
+import io.github.classgraph.base.internal.concurrency.WorkQueue;
 import io.github.classgraph.base.internal.utils.FastPathResolver;
 import io.github.classgraph.base.internal.utils.FileUtils;
 import io.github.classgraph.base.internal.utils.LogNode;

@@ -42,7 +42,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import io.github.classgraph.Scanner.ClassfileScanWorkUnit;
-import io.github.classgraph.internal.concurrency.WorkQueue;
+import io.github.classgraph.base.internal.concurrency.WorkQueue;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
 import io.github.classgraph.base.internal.utils.JarUtils;
 import io.github.classgraph.base.internal.utils.LogNode;

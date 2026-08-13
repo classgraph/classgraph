@@ -1,4 +1,4 @@
-package io.github.classgraph.internal.concurrency;
+package io.github.classgraph.base.internal.concurrency;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -9,8 +9,6 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
-
-import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 
 /** Tests for {@link AutoCloseableExecutorService}. */
 public class AutoCloseableExecutorServiceTest {
