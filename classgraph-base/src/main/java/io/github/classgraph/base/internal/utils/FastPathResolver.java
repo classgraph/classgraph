@@ -328,6 +328,26 @@ public final class FastPathResolver {
     }
 
     /**
+     * The authority at the beginning of the path of a URL whose scheme has one, e.g. {@code "host:8080"} in
+     * {@code "http://host:8080/dir"}, or the empty string if the prefix is not that of such a URL. The authority
+     * names a server rather than a directory, so it belongs with the scheme prefix: a {@code ".."} segment resolves
+     * within the path, and must not be able to climb up into the authority and point the URL at a different server.
+     *
+     * @param prefix
+     *            the scheme prefix that was stripped from the front of the path
+     * @param path
+     *            what was left after the prefix was stripped
+     * @return the authority, or the empty string if there is none.
+     */
+    private static String urlAuthority(final String prefix, final String path) {
+        if (!prefix.endsWith("//")) {
+            return "";
+        }
+        final var authorityEndIdx = path.indexOf('/');
+        return authorityEndIdx < 0 ? path : path.substring(0, authorityEndIdx);
+    }
+
+    /**
      * Strip the authority of a {@code "file:"} URL, which names the local machine and is not part of the path.
      *
      * @param path
@@ -522,30 +542,41 @@ public final class FastPathResolver {
         // path still has to be a path rather than a URL, since a URL has no filesystem to ask
         final var leaveParentSegments = namesFileOnDisk && parsed.prefix.isEmpty();
         final String pathResolved;
+        var prefix = parsed.prefix;
         if (parsed.isAbsolutePath || resolveBasePath == null || resolveBasePath.isEmpty()) {
             // There is no base path to resolve against, or path is an absolute path or http(s):// URL (ignore the
             // base path). A root path is the one kind of path whose final separator must not be removed, since the
             // separator is the whole of the directory's name
-            pathResolved = "/".equals(pathStr) || isDriveRoot ? pathStr
-                    : FileUtils.sanitizeEntryPath(pathStr, /* removeInitialSlash = */ false,
+            final var authority = urlAuthority(prefix, pathStr);
+            prefix += authority;
+            final var path = pathStr.substring(authority.length());
+            pathResolved = "/".equals(path) || isDriveRoot ? path
+                    : FileUtils.sanitizeEntryPath(path, /* removeInitialSlash = */ false,
                             /* removeFinalSlash = */ true,
                             /* collapseParentSegmentsInFirstSection = */ !leaveParentSegments);
         } else {
-            // Path is a relative path -- resolve it relative to the base path
-            pathResolved = FileUtils.sanitizeEntryPath(
-                    resolveBasePath + (resolveBasePath.endsWith("/") ? "" : "/") + pathStr,
+            // Path is a relative path -- resolve it relative to the base path. The base path may be a URL, e.g. the
+            // dir of a jarfile that was fetched over http, so its scheme prefix is split off before the two are
+            // joined and added back below: sanitizing the joined path would otherwise collapse the empty segment
+            // between the scheme and the authority, and turn "http://host/dir" into "http:/host/dir"
+            final var parsedBasePath = stripSchemePrefixes(resolveBasePath);
+            final var basePathRaw = parsedBasePath.startIdx == 0 ? resolveBasePath
+                    : resolveBasePath.substring(parsedBasePath.startIdx);
+            final var authority = urlAuthority(parsedBasePath.prefix, basePathRaw);
+            prefix = parsedBasePath.prefix + authority;
+            final var basePath = basePathRaw.substring(authority.length());
+            pathResolved = FileUtils.sanitizeEntryPath(basePath + (basePath.endsWith("/") ? "" : "/") + pathStr,
                     /* removeInitialSlash = */ false, /* removeFinalSlash = */ true,
                     /* collapseParentSegmentsInFirstSection = */ !leaveParentSegments);
         }
 
         // Add any prefix back, e.g. "https://". A prefix that already ends with a separator supplies the root
         // path's own separator, so joining the two must not double it ("C:/" must not become "C://")
-        if (parsed.prefix.isEmpty()) {
+        if (prefix.isEmpty()) {
             return pathResolved;
         }
-        return parsed.prefix.endsWith("/") && pathResolved.startsWith("/")
-                ? parsed.prefix + pathResolved.substring(1)
-                : parsed.prefix + pathResolved;
+        return prefix.endsWith("/") && pathResolved.startsWith("/") ? prefix + pathResolved.substring(1)
+                : prefix + pathResolved;
     }
 
     /**

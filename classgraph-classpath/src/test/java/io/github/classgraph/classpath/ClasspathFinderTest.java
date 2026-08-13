@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assumptions.abort;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -17,6 +19,8 @@ import java.util.zip.ZipOutputStream;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+
+import com.sun.net.httpserver.HttpServer;
 
 /** Tests for the public API of the classpath finder. */
 public class ClasspathFinderTest {
@@ -280,6 +284,66 @@ public class ClasspathFinderTest {
         final var missing = tempDir.resolve("missing.jar").toFile();
         try (var classpath = new ClasspathFinder().overrideClasspath(notAJar.toFile(), missing).find()) {
             assertThat(classpath.getLocations()).containsExactly(locationOf(notAJar.toFile()), locationOf(missing));
+        }
+    }
+
+    /**
+     * Serve the given bytes over HTTP on the loopback interface, so that a jarfile can be reached by URL without
+     * touching the network.
+     *
+     * @param path
+     *            the path to serve the bytes at, e.g. {@code "/lib.jar"}.
+     * @param body
+     *            the bytes to serve.
+     * @return the server, which the caller must stop.
+     * @throws IOException
+     *             if the server could not be started.
+     */
+    private static HttpServer serve(final String path, final byte[] body) throws IOException {
+        final var server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0),
+                /* backlog = */ 1);
+        server.createContext(path, exchange -> {
+            exchange.sendResponseHeaders(200, body.length);
+            try (var responseBody = exchange.getResponseBody()) {
+                responseBody.write(body);
+            }
+        });
+        server.start();
+        return server;
+    }
+
+    /**
+     * A classpath element named by a URL is only read if its scheme has been enabled. It is reported either way,
+     * but until the scheme is enabled the jarfile it names is not fetched, so the elements it declares are not
+     * found.
+     *
+     * @param tempDir
+     *            a temporary directory to build the jarfile in.
+     * @throws IOException
+     *             if the jarfile could not be built, or the server could not be started.
+     */
+    @Test
+    public void aUrlClasspathElementIsOnlyReadIfItsSchemeIsEnabled(@TempDir final Path tempDir) throws IOException {
+        final var jarBytes = Files.readAllBytes(
+                writeJarWithManifest(tempDir.resolve("served.jar"), "Class-Path", "declared.jar").toPath());
+        final var server = serve("/served.jar", jarBytes);
+        try {
+            final var jarURL = "http://" + server.getAddress().getHostString() + ":" + server.getAddress().getPort()
+                    + "/served.jar";
+            final var declaredURL = jarURL.replace("served.jar", "declared.jar");
+
+            // The scheme has not been enabled, so the jarfile is not fetched and its manifest is not read
+            try (var classpath = new ClasspathFinder().overrideClasspath((Object) jarURL).find()) {
+                assertThat(classpath.getLocations()).containsExactly(jarURL);
+            }
+
+            // With the scheme enabled, the jarfile is fetched, and the element its manifest declares is found too
+            try (var classpath = new ClasspathFinder().enableURLScheme("http").overrideClasspath((Object) jarURL)
+                    .find()) {
+                assertThat(classpath.getLocations()).containsExactly(jarURL, declaredURL);
+            }
+        } finally {
+            server.stop(0);
         }
     }
 
