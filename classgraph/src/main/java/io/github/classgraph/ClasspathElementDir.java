@@ -392,13 +392,19 @@ class ClasspathElementDir extends ClasspathElement {
 
         private PathSlice openAndCreateSlice() throws IOException {
             checkCanOpen();
-            // (A resource in a directory classpath element is read once and then closed, so it is not worth
-            // memory-mapping it, even on a platform where files are memory-mapped)
-            final var slice = new PathSlice(resourcePath, scanResources, /* checkAccess = */ false,
-                    /* memoryMapWholeFile = */ false, /* log = */ null);
-            pathSlice = slice;
-            length = slice.sliceLength;
-            return slice;
+            try {
+                // (A resource in a directory classpath element is read once and then closed, so it is not worth
+                // memory-mapping it, even on a platform where files are memory-mapped)
+                final var slice = new PathSlice(resourcePath, scanResources, /* checkAccess = */ false,
+                        /* memoryMapWholeFile = */ false, /* log = */ null);
+                pathSlice = slice;
+                length = slice.sliceLength;
+                return slice;
+            } catch (final IOException e) {
+                // Leave the resource closed if it could not be opened, so that opening it can be tried again
+                close();
+                throw e;
+            }
         }
     }
 

@@ -2,6 +2,7 @@ package io.github.classgraph;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.IOException;
@@ -236,6 +237,32 @@ public class ResourceTest {
             resource.open();
         }
         assertThatCode(resource::close).doesNotThrowAnyException();
+    }
+
+    /**
+     * A resource that could not be opened is left closed, rather than being left marked as open, so that opening it
+     * can be tried again, and so that anything acquired for the failed attempt is released.
+     *
+     * @param tempDir
+     *            a temporary directory to write the test file to
+     * @throws IOException
+     *             if the test file cannot be written or deleted
+     */
+    @Test
+    public void aResourceThatCouldNotBeOpenedIsLeftClosed(@TempDir final Path tempDir) throws IOException {
+        final var file = Files.writeString(tempDir.resolve("deleted.txt"), TEXT_FILE_CONTENT);
+        try (var scanResult = new ClassGraph().acceptPathsNonRecursive("").overrideClasspath(tempDir).scan()) {
+            final var resource = resource(scanResult, "deleted.txt");
+            Files.delete(file);
+            // The file is gone, so every attempt to read the resource fails with an IOException, and each attempt
+            // fails the same way -- a resource left marked as open by the first attempt would make the second one
+            // throw IllegalStateException instead
+            for (var attempt = 0; attempt < 2; attempt++) {
+                assertThatThrownBy(resource::open).as("open").isInstanceOf(IOException.class);
+                assertThatThrownBy(resource::read).as("read").isInstanceOf(IOException.class);
+                assertThatThrownBy(resource::load).as("load").isInstanceOf(IOException.class);
+            }
+        }
     }
 
     /** A resource in a directory classpath element locates itself and its classpath element on the filesystem. */
