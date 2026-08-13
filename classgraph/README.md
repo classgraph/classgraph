@@ -1,0 +1,187 @@
+# classgraph
+
+The scanner and the class graph API: this is the main ClassGraph library, and the one to depend on
+unless you know you want something narrower.
+
+```xml
+<dependency>
+    <groupId>io.github.classgraph</groupId>
+    <artifactId>classgraph</artifactId>
+    <version>X.Y.Z</version>
+</dependency>
+```
+
+Module name: `io.github.classgraph`. Requires JDK 17 or newer. Depends on
+[`classgraph-classpath`](../classgraph-classpath) and, through it,
+[`classgraph-vfs`](../classgraph-vfs) and [`classgraph-base`](../classgraph-base), all pulled in
+transitively.
+
+The [repository README](../README.md) is the introduction; the
+[wiki](https://github.com/classgraph/classgraph/wiki) is the full documentation, in particular the
+[ClassGraph API](https://github.com/classgraph/classgraph/wiki/ClassGraph-API) (building a scan),
+[ScanResult API](https://github.com/classgraph/classgraph/wiki/ScanResult-API) (querying one),
+[ClassInfo API](https://github.com/classgraph/classgraph/wiki/ClassInfo-API), and
+[Recipes](https://github.com/classgraph/classgraph/wiki/Recipes).
+
+## What it does
+
+ClassGraph inverts the Java reflection API. Reflection can tell you the superclass of a class you
+already have; ClassGraph tells you every class that extends a given class, implements a given
+interface, or carries a given annotation -- anywhere on the classpath or module path, **without
+loading or initializing any of the scanned classes**. It reads classfiles directly, so a class that
+would fail to load (a missing dependency, a static initializer with side effects, a different JDK
+target) is still fully described.
+
+It also indexes non-class resources, so you can find every file matching a pattern across every
+classpath element and module, rather than asking one classloader for one known path.
+
+Scanning runs in parallel across all available cores, and jarfiles are read through memory-mapped
+buffers without extracting anything to disk.
+
+Nothing a scan produces holds a classloader: `ScanResult`, `ClassInfo` and `Resource` describe what
+was found, and loading a class is left to you, with a classloader you hold.
+
+## Recipes
+
+Every scan follows the same shape: configure a `ClassGraph`, call `scan()`, query the `ScanResult`,
+close it. A `ScanResult` holds the file handles and memory mappings taken during the scan, so it is
+`AutoCloseable` and belongs in a try-with-resources block.
+
+### Find every subclass of a class
+
+```java
+try (ScanResult scanResult = new ClassGraph().enableClassInfo().acceptPackages("com.xyz").scan()) {
+    for (ClassInfo subclass : scanResult.getAllSubclasses(Widget.class)) {
+        System.out.println(subclass.getName());
+    }
+}
+```
+
+`acceptPackages` restricts the scan to the packages you care about, and is the single biggest thing
+you can do for scan time -- without it, everything on the classpath is scanned.
+`getDirectSubclasses` returns only the immediate subclasses; `getAllSubclasses` returns the whole
+subtree. Both have a `String` overload, for when the superclass itself should not be loaded.
+
+### Find every class implementing an interface, and instantiate them
+
+```java
+try (URLClassLoader classLoader = new URLClassLoader(urls);
+        ScanResult scanResult = new ClassGraph().overrideClassLoaders(classLoader)
+                .enableClassInfo().acceptPackages("com.xyz").scan()) {
+    for (ClassInfo classInfo : scanResult.getAllClassesImplementing(Plugin.class)) {
+        Class<?> cls = Class.forName(classInfo.getName(), /* initialize = */ false, classLoader);
+        Plugin plugin = (Plugin) cls.getDeclaredConstructor().newInstance();
+        plugin.start();
+    }
+}
+```
+
+`Class.forName` is the point at which a class is actually loaded -- everything before it is
+classfile parsing only. Hold the classloader you scanned with, and load through it.
+
+### Find classes by annotation, and read the annotation's parameters
+
+```java
+try (ScanResult scanResult = new ClassGraph()
+        .enableClassInfo().enableAnnotationInfo().acceptPackages("com.xyz").scan()) {
+    for (ClassInfo routeClass : scanResult.getClassesWithAnnotation("com.xyz.Route")) {
+        AnnotationInfo route = routeClass.getAllAnnotationInfo("com.xyz.Route");
+        System.out.println(routeClass.getName() + " -> " + route.getParameterValues().getValue("value"));
+    }
+}
+```
+
+Annotation parameter values are read out of the classfile, so neither the annotation class nor the
+annotated class has to be loadable. `getParameterValues()` includes values that fall back to the
+annotation's declared defaults; `getDeclaredParameterValues()` returns only what was written.
+`getDirectAnnotationInfo(...)` ignores meta-annotations, where `getAllAnnotationInfo(...)` follows
+them.
+
+### Find annotated methods
+
+```java
+try (ScanResult scanResult = new ClassGraph()
+        .enableMethodInfo().enableAnnotationInfo().acceptPackages("com.xyz").scan()) {
+    for (ClassInfo classInfo : scanResult.getClassesWithMethodAnnotation("com.xyz.Handler")) {
+        for (MethodInfo method : classInfo.getMethodInfoWithAnnotation("com.xyz.Handler")) {
+            System.out.println(classInfo.getName() + "#" + method.getName() + " returns "
+                    + method.getTypeSignatureOrTypeDescriptor().getResultType());
+        }
+    }
+}
+```
+
+`enableMethodInfo()` and `enableFieldInfo()` are off by default because they cost scan time and
+memory. `enableAllInfo()` switches on everything at once, which is convenient while exploring and
+wasteful in production.
+
+### Find resources, not classes
+
+```java
+try (ScanResult scanResult = new ClassGraph().acceptPaths("templates").scan()) {
+    for (Resource resource : scanResult.getResourcesWithExtension("html")) {
+        System.out.println(resource.getPath() + " in " + resource.getClasspathElementURI());
+        System.out.println(resource.getContentAsString());
+    }
+}
+```
+
+No `enableClassInfo()` here: resource scanning needs no classfile parsing at all, so leaving it off
+makes the scan much faster. Sibling methods are `getAllResources()`, `getResourcesWithPath(path)`,
+and `getResourcesMatchingWildcard(pattern)`. A `Resource` can be read with `getContentAsString()`,
+`load()` (byte array), `open()` (stream), or `read()` (memory-mapped `ByteBuffer`, no copy).
+
+If all you want is to list the files in a jarfile, with no scan at all, use
+[`classgraph-vfs`](../classgraph-vfs) directly.
+
+### Look at the module graph
+
+```java
+try (ScanResult scanResult = new ClassGraph()
+        .enableClassInfo().enableSystemJarsAndModules().scan()) {
+    for (ModuleInfo moduleInfo : scanResult.getModuleInfo()) {
+        System.out.println(moduleInfo.getName() + ": " + moduleInfo.getClassInfo().size() + " classes");
+    }
+}
+```
+
+System jars and modules are skipped by default, since almost no scan wants the JDK's own classes.
+
+### Read an enum's constants without loading it
+
+```java
+try (ScanResult scanResult = new ClassGraph()
+        .enableClassInfo().enableFieldInfo().acceptPackages("com.xyz").scan()) {
+    ClassInfo enumInfo = scanResult.getClassInfo("com.xyz.Color");
+    if (enumInfo != null && enumInfo.isEnum()) {
+        enumInfo.getEnumConstants().forEach(constant -> System.out.println(constant.getName()));
+    }
+}
+```
+
+This is the general pattern for anything you might have reached for `Class.forName` to get:
+annotation parameters, enum constants, method and field signatures and modifiers, and class
+references inside annotations are all in the scan result already.
+
+### Scan once at build time
+
+There is no `ScanResult` serialization -- work out what you need during the build, save just that,
+and read it back at runtime. This is also how ClassGraph is used with Android and GraalVM
+`native-image`, where there is no usable runtime classpath to scan. See
+[Build-Time Scanning](https://github.com/classgraph/classgraph/wiki/Build-Time-Scanning).
+
+### Work out why a class is not found
+
+```java
+try (ScanResult scanResult = new ClassGraph().verbose().enableClassInfo().scan()) {
+    // ...
+}
+```
+
+The verbose log names every classpath element found, every classloader consulted, and every
+classfile accepted or rejected, and is the first thing to attach to a bug report. It is written to
+the `io.github.classgraph.ClassGraph` logger at `INFO` level.
+
+## License
+
+MIT. See [LICENSE-ClassGraph.txt](../LICENSE-ClassGraph.txt).
