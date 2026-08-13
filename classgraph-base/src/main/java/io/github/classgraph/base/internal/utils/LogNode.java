@@ -110,14 +110,24 @@ public final class LogNode {
     /**
      * The elapsed time formatter. Uses the same locale as the date/time formatter, so that logs read the same way
      * whatever the default locale is -- otherwise the decimal separator would be a comma in some locales.
+     *
+     * <p>
+     * A {@link DecimalFormat} is not threadsafe, so this is only ever used while holding the lock on
+     * {@link #dateTimeFormatter}: the only method that formats an elapsed time is
+     * {@link #toString(int, StringBuilder)}, which is private, and every path into it runs inside the
+     * {@code synchronized (dateTimeFormatter)} block in {@link #toString()}.
      */
     private static final DecimalFormat nanoFormatter = new DecimalFormat("0.000000",
             DecimalFormatSymbols.getInstance(Locale.US));
 
     /**
      * If true, log entries are output in realtime, as well as added to the LogNode tree.
+     *
+     * <p>
+     * Volatile, since {@link #logInRealtime(boolean)} is called from the caller's thread, whereas this field is
+     * read by the {@link LogNode} constructor, which is called from the scan threads.
      */
-    private static boolean logInRealtime;
+    private static volatile boolean logInRealtime;
 
     /**
      * If logInRealtime is true, log entries are output in realtime, as well as added to the LogNode tree. This can

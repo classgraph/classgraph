@@ -534,6 +534,10 @@ public class ClasspathOrder {
         // Add all elements in the requested directory to the classpath
         final var dirLog = log == null ? null
                 : log.log("Adding classpath elements from wildcarded directory: " + baseDirPath);
+        // N.B. the entries are deliberately not sorted: the java launcher expands a classpath wildcard by listing
+        // the directory too, so leaving the listing order alone gives the same classpath order the runtime itself
+        // would use for the same wildcard. (The order is unspecified on both sides -- it is the order the
+        // filesystem stores the directory entries in.)
         final var baseDirFiles = baseDir.listFiles();
         if (baseDirFiles == null) {
             return false;

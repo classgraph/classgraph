@@ -32,9 +32,11 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 
+import io.github.classgraph.base.internal.utils.CollectionUtils;
 import io.github.classgraph.base.internal.utils.FastPathResolver;
 import io.github.classgraph.base.internal.utils.FileUtils;
 import io.github.classgraph.classpath.internal.classloaderhandler.ClassLoaderHandlerRegistry;
@@ -139,15 +141,26 @@ public final class ClasspathExpander {
         for (final String libDirPrefix : ClassLoaderHandlerRegistry.AUTOMATIC_LIB_DIR_PREFIXES) {
             final var libDirPath = dirPath.resolve(libDirPrefix);
             if (FileUtils.canReadAndIsDir(libDirPath)) {
+                final List<Path> libJarsInLibDir = new ArrayList<>();
                 try (var stream = Files.newDirectoryStream(libDirPath,
                         filePath -> filePath.toString().toLowerCase(Locale.ROOT).endsWith(".jar")
                                 && Files.isRegularFile(filePath))) {
                     for (final Path filePath : stream) {
-                        libJars.add(filePath);
+                        libJarsInLibDir.add(filePath);
                     }
                 } catch (final IOException e) {
                     // Ignore -- thrown by Files.newDirectoryStream
                 }
+                // A directory lists its entries in whatever order the filesystem stores them, so sort the jars of
+                // each lib dir into a fixed order, otherwise the same directory would produce a different classpath
+                // order on different machines, and which of two jars containing the same class masks the other
+                // would vary from run to run. Compare the filenames rather than the Paths, since Path#compareTo is
+                // case-insensitive on Windows, which would order the same set of jars differently there.
+                // Each lib dir is sorted on its own, so that the order of AUTOMATIC_LIB_DIR_PREFIXES still decides
+                // which lib dir's jars come first.
+                CollectionUtils.sortIfNotEmpty(libJarsInLibDir,
+                        Comparator.comparing(libJarPath -> libJarPath.getFileName().toString()));
+                libJars.addAll(libJarsInLibDir);
             }
         }
         return libJars;
