@@ -790,7 +790,7 @@ public final class ScanResult implements Closeable {
     /**
      * Get all modules found during the scan.
      *
-     * @return A list of all modules found during the scan, or the empty list if none.
+     * @return A list of all modules found during the scan, sorted by module name, or the empty list if none.
      */
     public ModuleInfoList getModuleInfo() {
         if (closed.get()) {
@@ -799,7 +799,9 @@ public final class ScanResult implements Closeable {
         if (!scanSpec.enableClassInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableClassInfo() before #scan()");
         }
-        return new ModuleInfoList(moduleNameToModuleInfo.values());
+        final ModuleInfoList moduleInfoList = new ModuleInfoList(moduleNameToModuleInfo.values());
+        CollectionUtils.sortIfNotEmpty(moduleInfoList);
+        return moduleInfoList;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -826,7 +828,7 @@ public final class ScanResult implements Closeable {
     /**
      * Get all packages found during the scan.
      *
-     * @return A list of all packages found during the scan, or the empty list if none.
+     * @return A list of all packages found during the scan, sorted by package name, or the empty list if none.
      */
     public PackageInfoList getPackageInfo() {
         if (closed.get()) {
@@ -835,7 +837,9 @@ public final class ScanResult implements Closeable {
         if (!scanSpec.enableClassInfo) {
             throw new IllegalArgumentException("Please call ClassGraph#enableClassInfo() before #scan()");
         }
-        return new PackageInfoList(packageNameToPackageInfo.values());
+        final PackageInfoList packageInfoList = new PackageInfoList(packageNameToPackageInfo.values());
+        CollectionUtils.sortIfNotEmpty(packageInfoList);
+        return packageInfoList;
     }
 
     // -------------------------------------------------------------------------------------------------------------
