@@ -269,11 +269,12 @@ class Scanner implements Callable<ScanResult> {
                 // Whether or not a classpath element should be skipped, add any child classpath elements that are
                 // not marked to be skipped (i.e. keep recursing below)
             }
-            // Sort child elements into correct order, then traverse to them in order
-            final List<ClasspathElement> childClasspathElementsSorted = CollectionUtils
+            // Sort child elements into the order they were listed in by this classpath element, then traverse to
+            // them in order
+            final List<ClasspathElement.ChildClasspathElement> childClasspathElementsSorted = CollectionUtils
                     .sortCopy(currClasspathElement.childClasspathElements);
-            for (final ClasspathElement childClasspathElt : childClasspathElementsSorted) {
-                findClasspathOrderRec(childClasspathElt, visitedClasspathElts, order);
+            for (final ClasspathElement.ChildClasspathElement childClasspathElt : childClasspathElementsSorted) {
+                findClasspathOrderRec(childClasspathElt.classpathElement, visitedClasspathElts, order);
             }
         }
     }
@@ -628,8 +629,13 @@ class Scanner implements Callable<ScanResult> {
                     if (isToplevelRef) {
                         toplevelClasspathEltsOut.add(classpathElement);
                     } else {
-                        // Link classpath element to its parent, if it is not a toplevel element
-                        workUnit.parentClasspathElement.childClasspathElements.add(classpathElement);
+                        // Link classpath element to its parent, if it is not a toplevel element. The index is
+                        // recorded on the edge from the parent, since the same classpath element can be named by
+                        // the Class-Path manifest entries of two different jarfiles, at a different position
+                        // within each of them (#810)
+                        workUnit.parentClasspathElement.childClasspathElements
+                                .add(new ClasspathElement.ChildClasspathElement(
+                                        workUnit.classpathElementIdxWithinParent, classpathElement));
                     }
                     classpathElement.addReference(isToplevelRef, workUnit.classpathElementIdxWithinParent,
                             workUnit.classLoader);
