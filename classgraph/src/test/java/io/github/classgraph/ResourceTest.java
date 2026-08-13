@@ -12,6 +12,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Map;
+import java.util.zip.CRC32;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -97,6 +100,66 @@ public class ResourceTest {
             }
 
             assertThat(resource(scanResult, TEXT_FILE).load()).isEqualTo(expected);
+        }
+    }
+
+    /**
+     * The same content is returned by every accessor for an entry in a jarfile too, whether the entry is deflated,
+     * so that it has to be inflated into RAM to be read, or stored, so that it can be read in place.
+     *
+     * @param tempDir
+     *            a temporary directory to write the test jarfile to
+     * @throws IOException
+     *             if the test jarfile cannot be written
+     */
+    @Test
+    public void theContentOfAJarEntryCanBeReadThroughEveryAccessor(@TempDir final Path tempDir) throws IOException {
+        final var content = TEXT_FILE_CONTENT.getBytes(StandardCharsets.UTF_8);
+        final var jarPath = tempDir.resolve("jar-entry-content.jar");
+        try (var zipOut = new ZipOutputStream(Files.newOutputStream(jarPath))) {
+            zipOut.putNextEntry(new ZipEntry("deflated.txt"));
+            zipOut.write(content);
+            zipOut.closeEntry();
+
+            final var storedEntry = new ZipEntry("stored.txt");
+            storedEntry.setMethod(ZipEntry.STORED);
+            storedEntry.setSize(content.length);
+            storedEntry.setCompressedSize(content.length);
+            final var crc = new CRC32();
+            crc.update(content);
+            storedEntry.setCrc(crc.getValue());
+            zipOut.putNextEntry(storedEntry);
+            zipOut.write(content);
+            zipOut.closeEntry();
+        }
+
+        try (var scanResult = new ClassGraph().acceptPathsNonRecursive("").overrideClasspath(jarPath).scan()) {
+            for (final String entryName : new String[] { "deflated.txt", "stored.txt" }) {
+                final var forOpen = resource(scanResult, entryName);
+                try (var inputStream = forOpen.open()) {
+                    assertThat(inputStream.readAllBytes()).as(entryName).isEqualTo(content);
+                }
+                forOpen.close();
+
+                final var forRead = resource(scanResult, entryName);
+                final var byteBuffer = forRead.read();
+                final var readBytes = new byte[byteBuffer.remaining()];
+                byteBuffer.get(readBytes);
+                assertThat(readBytes).as(entryName).isEqualTo(content);
+                forRead.close();
+
+                final var forReadCloseable = resource(scanResult, entryName);
+                try (var closeableByteBuffer = forReadCloseable.readCloseable()) {
+                    final var closeableBytes = new byte[closeableByteBuffer.getByteBuffer().remaining()];
+                    closeableByteBuffer.getByteBuffer().get(closeableBytes);
+                    assertThat(closeableBytes).as(entryName).isEqualTo(content);
+                }
+
+                assertThat(resource(scanResult, entryName).load()).as(entryName).isEqualTo(content);
+                assertThat(resource(scanResult, entryName).getContentAsString()).as(entryName)
+                        .isEqualTo(TEXT_FILE_CONTENT);
+                assertThat(resource(scanResult, entryName).getLength()).as(entryName).isEqualTo(content.length);
+            }
         }
     }
 

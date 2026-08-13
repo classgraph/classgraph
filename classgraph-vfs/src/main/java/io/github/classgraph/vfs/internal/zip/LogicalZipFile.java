@@ -532,8 +532,10 @@ public class LogicalZipFile extends ZipFileSlice {
         }
         if (slice.sliceLength > 22 + 32) {
             // If EOCD signature was not found, read the last 64kB of file to RAM in a single chunk so that we can
-            // scan back through it at higher speed to locate the EOCD signature
-            final var bytesToRead = (int) Math.min(slice.sliceLength, 65536);
+            // scan back through it at higher speed to locate the EOCD signature. (The comment can be up to 65535
+            // bytes long, and the EOCD record itself is 22 bytes long, so the record can start as far back as 65557
+            // bytes from the end of the zipfile.)
+            final var bytesToRead = (int) Math.min(slice.sliceLength, 22 + 65535);
             final var eocdBytes = new byte[bytesToRead];
             final var readStartOff = slice.sliceLength - bytesToRead;
             if (reader.read(readStartOff, eocdBytes, 0, bytesToRead) < bytesToRead) {

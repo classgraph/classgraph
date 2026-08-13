@@ -10,6 +10,7 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import io.github.classgraph.ArrayTypeSignature;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
 import io.github.classgraph.ClassRefTypeSignature;
@@ -83,6 +84,18 @@ public class Issue735Test {
 
     /** Binds Generic's T to a parameterized type that contains a wildcard. */
     abstract static class BoundToWildcardedType implements Generic<List<? extends Number>> {
+    }
+
+    /** Binds Generic's T to a parameterized type that contains an unbounded wildcard. */
+    abstract static class BoundToUnboundedWildcardedType implements Generic<List<?>> {
+    }
+
+    /** Binds Generic's T to a parameterized type that contains a lower-bounded wildcard. */
+    abstract static class BoundToLowerBoundedWildcardedType implements Generic<List<? super Integer>> {
+    }
+
+    /** Binds Generic's T to an inner class of a parameterized outer class. */
+    abstract static class BoundToInnerOfParameterizedOuter implements Generic<Outer<Short>.Inner> {
     }
 
     /** Uses Generic in raw form, so supplies no type argument for T. */
@@ -223,6 +236,44 @@ public class Issue735Test {
     @Test
     void typeVariableIsResolvedAsArrayElementType() {
         assertThat(resolvedResultType("getArrayOfT", BoundToString.class)).isEqualTo("java.lang.String[]");
+    }
+
+    /**
+     * An array element type is rebuilt in full, whatever kind of type is substituted into it: another type
+     * variable, a parameterized type, a wildcard of any of the three forms, or a reference to an inner class that
+     * carries type arguments on the outer class.
+     */
+    @Test
+    void anySubstitutedArrayElementTypeIsRebuilt() {
+        assertThat(resolvedResultType("getArrayOfT", PassesThrough.class)).isEqualTo("U[]");
+        assertThat(resolvedResultType("getArrayOfT", BoundToWildcardedType.class))
+                .isEqualTo("java.util.List<? extends java.lang.Number>[]");
+        assertThat(resolvedResultType("getArrayOfT", BoundToUnboundedWildcardedType.class))
+                .isEqualTo("java.util.List<?>[]");
+        assertThat(resolvedResultType("getArrayOfT", BoundToLowerBoundedWildcardedType.class))
+                .isEqualTo("java.util.List<? super java.lang.Integer>[]");
+        assertThat(resolvedResultType("getArrayOfT", BoundToInnerOfParameterizedOuter.class))
+                .isEqualTo(Outer.class.getName() + "<java.lang.Short>$Inner[]");
+    }
+
+    /**
+     * The type signature string of a rebuilt array type is the array type it describes, so that two arrays of the
+     * same resolved element type are equal.
+     */
+    @Test
+    void aRebuiltArrayTypeSignatureDescribesTheResolvedType() {
+        final var resolved = scanResult.getClassInfo(Generic.class.getName()).getMethodInfo("getArrayOfT").get(0)
+                .getTypeSignatureOrTypeDescriptor().getResultType()
+                .resolveTypeVariables(scanResult.getClassInfo(BoundToString.class.getName()));
+        assertThat(((ArrayTypeSignature) resolved).getTypeSignatureString()).isEqualTo("[Ljava/lang/String;");
+
+        // The array type of Pair#getGrid(), resolved to String[][], describes the same type as Generic#getArrayOfT()
+        // resolved to String[], with one more dimension
+        final var grid = scanResult.getClassInfo(Pair.class.getName()).getMethodInfo("getGrid").get(0)
+                .getTypeSignatureOrTypeDescriptor().getResultType()
+                .resolveTypeVariables(scanResult.getClassInfo(PairBound.class.getName()));
+        assertThat(((ArrayTypeSignature) grid).getTypeSignatureString()).isEqualTo("[[Ljava/lang/String;");
+        assertThat(((ArrayTypeSignature) grid).getNestedType()).isEqualTo(resolved);
     }
 
     /** A binding that has to be composed across two levels of the hierarchy. */

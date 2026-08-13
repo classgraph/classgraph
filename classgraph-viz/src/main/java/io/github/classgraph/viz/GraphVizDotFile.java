@@ -139,17 +139,15 @@ public final class GraphVizDotFile {
     }
 
     /**
-     * Encode HTML-unsafe characters as HTML entities.
+     * Encode HTML-unsafe characters as HTML entities. All whitespace, including newlines, is turned into a plain
+     * space, since a label is laid out by GraphViz as a single line of text unless it is broken up by table cells.
      *
      * @param unsafeStr
      *            The string to escape to make HTML-safe.
-     * @param turnNewlineIntoBreak
-     *            If true, turn '\n' into a break element in the output.
      * @param buf
      *            the buffer to append to
      */
-    private static void htmlEncode(final CharSequence unsafeStr, final boolean turnNewlineIntoBreak,
-            final StringBuilder buf) {
+    private static void htmlEncode(final CharSequence unsafeStr, final StringBuilder buf) {
         for (int i = 0, n = unsafeStr.length(); i < n; i++) {
             final var c = unsafeStr.charAt(i);
             switch (c) {
@@ -175,13 +173,6 @@ public final class GraphVizDotFile {
             case '©' -> buf.append("&copy;");
             case '®' -> buf.append("&reg;");
             case (char) 0x00A0 -> buf.append("&nbsp;");
-            case '\n' -> {
-                if (turnNewlineIntoBreak) {
-                    buf.append("<br>");
-                } else {
-                    buf.append(' '); // Newlines function as whitespace in HTML text
-                }
-            }
             default -> {
                 if (c <= 32 || isUnicodeWhitespace(c)) {
                     buf.append(' ');
@@ -191,18 +182,6 @@ public final class GraphVizDotFile {
             }
             }
         }
-    }
-
-    /**
-     * Encode HTML-unsafe characters as HTML entities.
-     *
-     * @param unsafeStr
-     *            The string to escape to make HTML-safe.
-     * @param buf
-     *            the buffer to append to
-     */
-    private static void htmlEncode(final CharSequence unsafeStr, final StringBuilder buf) {
-        htmlEncode(unsafeStr, /* turnNewlineIntoBreak = */ false, buf);
     }
 
     /**

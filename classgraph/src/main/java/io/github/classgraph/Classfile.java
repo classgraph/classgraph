@@ -2578,7 +2578,9 @@ class Classfile {
                 + (isAnnotation ? "annotation class" : isInterface ? "interface class" : "class") //
                 + " " + className);
         if (superclassName != null) {
-            subLog.log("Super" + (isInterface && !isAnnotation ? "interface" : "class") + ": " + superclassName);
+            // An interface names its superinterfaces in its interface list, not in its superclass slot, which
+            // always holds java.lang.Object -- so this is the superclass whatever kind of class this is
+            subLog.log("Superclass: " + superclassName);
         }
         if (implementedInterfaces != null) {
             subLog.log("Interfaces: " + StringUtils.join(", ", implementedInterfaces));
