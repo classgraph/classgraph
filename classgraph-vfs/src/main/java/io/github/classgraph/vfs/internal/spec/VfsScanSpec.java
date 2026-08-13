@@ -90,9 +90,10 @@ public class VfsScanSpec {
      *
      * <p>
      * Memory mapping is measurably faster on Windows and is not on Linux or macOS, where it can even be slower, so
-     * it is turned on for Windows only and there is no API to change it (see BENCHMARK.md for the measurements).
-     * This field is public so that tests can override the platform's choice and exercise both paths whatever
-     * platform they are running on.
+     * it is turned on for Windows only and there is no API to change it. (The measurements are at
+     * <a href="https://github.com/classgraph/classgraph/wiki/Memory-Mapping-Benchmark">Memory mapping
+     * benchmark</a>.) This field is public so that tests can override the platform's choice and exercise both paths
+     * whatever platform they are running on.
      */
     public boolean memoryMapFiles = VersionFinder.OS == OperatingSystem.Windows;
 
