@@ -287,9 +287,20 @@ anyway.
 
 ### ClassGraph no longer loads classes
 
-ClassGraph reads classfiles; it does not load them any more. Everything that turned a
-scan result into a live `Class`, `Method`, `Field`, `Constructor`, enum constant or
-annotation instance has been removed, along with the classloader that did the loading:
+ClassGraph reads classfiles; it does not load them any more.
+
+Class loading was the source of many of the hardest-to-understand bugs in 4.x. Loading a
+class means picking a classloader for it, and the right choice depends on details that
+cannot be reliably predicted from outside the application: which loader delegates to which,
+which one has the class visible to it, whether loading it will run static initializers with
+side effects, and what the framework the code is running under expects. 4.x tried to
+anticipate the right answer in every environment, and every environment it had not
+anticipated produced another bug. The application knows which classloader it wants;
+ClassGraph does not, so it no longer guesses.
+
+Everything that turned a scan result into a live `Class`, `Method`, `Field`,
+`Constructor`, enum constant or annotation instance has been removed, along with the
+classloader that did the loading:
 
 | Removed in 5.x |
 | --- |
