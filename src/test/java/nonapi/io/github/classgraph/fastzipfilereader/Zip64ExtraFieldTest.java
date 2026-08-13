@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
@@ -243,6 +245,65 @@ public class Zip64ExtraFieldTest {
             nestedJarHandler.close(/* log = */ null);
         }
         return entries;
+    }
+
+    /**
+     * Read back the name and content of every entry of a zipfile, streaming the content of each entry rather than
+     * loading it into an array in one go.
+     *
+     * @param jarFile
+     *            the zipfile to read
+     * @return one {@code "name: content"} string per entry
+     * @throws Exception
+     *             if the zipfile could not be read
+     */
+    private static List<String> entriesStreamedBack(final File jarFile) throws Exception {
+        final NestedJarHandler nestedJarHandler = new NestedJarHandler(new ScanSpec(), new InterruptionChecker(),
+                new ReflectionUtils());
+        final List<String> entries = new ArrayList<>();
+        try {
+            final Entry<LogicalZipFile, String> logicalZipFileAndPackageRoot = nestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap
+                    .get(jarFile.getPath(), /* log = */ null);
+            for (final FastZipEntry zipEntry : logicalZipFileAndPackageRoot.getKey().entries) {
+                final ByteArrayOutputStream content = new ByteArrayOutputStream();
+                try (InputStream inputStream = zipEntry.getSlice().open()) {
+                    final byte[] buf = new byte[1024];
+                    for (int numRead; (numRead = inputStream.read(buf)) > 0;) {
+                        content.write(buf, 0, numRead);
+                    }
+                }
+                entries.add(zipEntry.entryName + ": " + content.toString("UTF-8"));
+            }
+        } finally {
+            // The jarfile must not be left open, otherwise the temporary directory cannot be deleted on Windows
+            nestedJarHandler.close(/* log = */ null);
+        }
+        return entries;
+    }
+
+    /**
+     * An entry whose compressed size runs past the end of the zipfile has no complete content to read, so reading
+     * it fails rather than returning whatever bytes happen to follow it.
+     */
+    @Test
+    public void aCompressedSizeThatRunsPastTheEndOfTheZipfile(@TempDir final File tempDir) throws Exception {
+        final File jarFile = writeZip(tempDir, "csize-past-eof.jar", CONTENTS.length, 0xfffffff0L, 0,
+                new byte[0]);
+        assertThatThrownBy(() -> entriesStreamedBack(jarFile)).isInstanceOf(IOException.class)
+                .hasMessageContaining("Unexpected EOF when trying to read zip entry data: " + ENTRY_NAME);
+    }
+
+    /**
+     * A compressed size can be made large enough that adding it to the entry's start position overflows a 64-bit
+     * value, which must not let the entry past the check that its content lies within the zipfile.
+     */
+    @Test
+    public void aCompressedSizeLargeEnoughToOverflowTheEndOfTheZipfile(@TempDir final File tempDir)
+            throws Exception {
+        final File jarFile = writeZip(tempDir, "csize-overflow.jar", CONTENTS.length, OVERFLOWED, 0,
+                zip64ExtraField(null, Long.MAX_VALUE, null, null));
+        assertThatThrownBy(() -> entriesStreamedBack(jarFile)).isInstanceOf(IOException.class)
+                .hasMessageContaining("Unexpected EOF when trying to read zip entry data: " + ENTRY_NAME);
     }
 
     /** An entry that did not overflow any of its central directory fields has no Zip64 extra field at all. */

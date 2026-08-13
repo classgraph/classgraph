@@ -100,14 +100,18 @@ public abstract class Slice implements Closeable {
         this.inflatedLengthHint = inflatedLengthHint;
         this.nestedJarHandler = nestedJarHandler;
 
-        if (sliceStartPos < 0L) {
+        if (offset < 0L || sliceStartPos < 0L) {
             throw new IllegalArgumentException("Invalid startPos");
         }
         if (length < 0L) {
             throw new IllegalArgumentException("Invalid length");
         }
-        if (parentSlice != null && (sliceStartPos < parentSliceStartPos
-                || sliceStartPos + length > parentSliceStartPos + parentSlice.sliceLength)) {
+        // Compare the length against the space left in the parent by subtraction, rather than comparing the end of
+        // this slice against the end of the parent by addition -- a zip entry can claim a compressed size large
+        // enough to overflow that addition, which would make an out-of-range slice look contained, and reading it
+        // would then return bytes from beyond the end of the entry. Both operands here are non-negative, so the
+        // subtraction cannot overflow.
+        if (parentSlice != null && length > parentSlice.sliceLength - offset) {
             throw new IllegalArgumentException("Child slice is not completely contained within parent slice");
         }
     }
