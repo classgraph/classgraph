@@ -198,6 +198,19 @@ public class URLPathEncoderTest {
     }
 
     /**
+     * A character outside the Basic Multilingual Plane survives decoding. Such a character is stored as a surrogate
+     * pair, and the two surrogates only encode as UTF-8 together, so encoding each of them on its own turns the
+     * character into "??", renaming the path.
+     */
+    @Test
+    public void charactersOutsideTheBasicMultilingualPlaneAreDecoded() {
+        // U+1D54F MATHEMATICAL DOUBLE-STRUCK CAPITAL X, and U+1F600 GRINNING FACE
+        final var path = "/tmp/𝕏😀.jar";
+        assertThat(URLPathEncoder.decodePath(path)).isEqualTo(path);
+        assertThat(URLPathEncoder.decodePath(URLPathEncoder.encodePath(path))).isEqualTo(path);
+    }
+
+    /**
      * The server of a UNC path has to be in the path of a {@code "file:"} URI, not in its authority, otherwise
      * {@link java.net.URL} reads the URI back as a local path with the server dropped. Verified on Windows: opening
      * {@code file://server/share/x} fails with {@code FileNotFoundException: \share\x}, while

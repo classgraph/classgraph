@@ -121,8 +121,13 @@ public final class URLPathEncoder {
             } else if (c <= 0x7f) {
                 buf.write((byte) c);
             } else {
+                // A character outside the Basic Multilingual Plane is stored as a surrogate pair, and the two
+                // surrogates only encode as UTF-8 together -- encoding each of them on its own produces '?' for
+                // both, silently renaming the path
+                final var codePoint = str.codePointAt(chrIdx);
+                chrIdx += Character.charCount(codePoint) - 1;
                 try {
-                    buf.write(Character.toString(c).getBytes(StandardCharsets.UTF_8));
+                    buf.write(Character.toString(codePoint).getBytes(StandardCharsets.UTF_8));
                 } catch (final IOException e) {
                     // Ignore
                 }
