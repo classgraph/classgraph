@@ -285,8 +285,34 @@ public class ClassfileReaderTest {
             reader.skip(4);
             assertThat(reader.currPos()).isEqualTo(4);
             assertThat(reader.readInt()).isEqualTo(0x89ABCDEF);
-            assertThatThrownBy(() -> reader.skip(-1)).isInstanceOf(IllegalArgumentException.class)
+        }
+    }
+
+    /**
+     * A skip past the end of the classfile is rejected, and leaves the read position where it was. The number of
+     * bytes to skip is read from the classfile -- it is the length of an attribute that is not of interest -- so a
+     * corrupt classfile can ask for a skip of almost 2GB, or, since an attribute length is an unsigned 32-bit value
+     * and no classfile can be that long anyway, for a skip of a negative number of bytes.
+     *
+     * @param source
+     *            the kind of classpath element to read from
+     * @throws IOException
+     *             if the content could not be read
+     */
+    @ParameterizedTest
+    @EnumSource(Source.class)
+    public void aSkipPastTheEndOfTheClassfileIsRejected(final Source source) throws IOException {
+        try (var reader = reader(source, PATTERN)) {
+            assertThat(reader.readInt()).isEqualTo(0x01234567);
+
+            assertThatThrownBy(() -> reader.skip(PATTERN.length)).isInstanceOf(IOException.class);
+            assertThatThrownBy(() -> reader.skip(Integer.MAX_VALUE)).isInstanceOf(IOException.class);
+            assertThatThrownBy(() -> reader.skip(-1)).isInstanceOf(IOException.class)
                     .hasMessage("Tried to skip a negative number of bytes");
+
+            // The read position did not move, so the reads that stay within the classfile still succeed
+            assertThat(reader.currPos()).isEqualTo(4);
+            assertThat(reader.readInt()).isEqualTo(0x89ABCDEF);
         }
     }
 

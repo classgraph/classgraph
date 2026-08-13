@@ -420,13 +420,22 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
     @Override
     public void skip(final int bytesToSkip) throws IOException {
         if (bytesToSkip < 0) {
-            throw new IllegalArgumentException("Tried to skip a negative number of bytes");
+            // The number of bytes to skip is the length of a part of the classfile that is not of interest, read
+            // from the classfile itself, so a negative value is a corrupt classfile rather than a caller error: an
+            // attribute length is an unsigned 32-bit value, and one larger than 2GB reads back as a negative int
+            throw new IOException("Tried to skip a negative number of bytes");
         }
-        final var idx = currIdx;
-        if (idx + bytesToSkip > arrUsed) {
-            readTo(idx + bytesToSkip);
+        // The target position is computed in long arithmetic, because a length close to 2GB read from a corrupt
+        // classfile would otherwise wrap the position negative, and the read after it would be made outside the
+        // buffer rather than being rejected here
+        final var targetIdx = currIdx + (long) bytesToSkip;
+        if (targetIdx > arrUsed) {
+            if (targetIdx > FileUtils.MAX_BUFFER_SIZE) {
+                throw new IOException("Tried to skip past the 2GB limit");
+            }
+            readTo((int) targetIdx);
         }
-        currIdx += bytesToSkip;
+        currIdx = (int) targetIdx;
     }
 
     @Override
