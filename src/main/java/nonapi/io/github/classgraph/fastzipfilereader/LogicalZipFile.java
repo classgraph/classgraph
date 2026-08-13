@@ -682,31 +682,40 @@ public class LogicalZipFile extends ZipFileSlice {
                             }
                             break;
                         }
-                        if (tag == 1 && size >= 20) {
-                            // Zip64 extended information extra field
-                            final long uncompressedSize64 = cenReader.readLong(tagOff + 4 + 0);
+                        if (tag == 1) {
+                            // Zip64 extended information extra field. Each of the uncompressed size, the
+                            // compressed size and the local file header offset is present in this field only
+                            // if the central directory field it belongs to holds the overflow marker
+                            // 0xffffffff, and the values that are present appear in this fixed order, so which
+                            // value each 8 bytes of this field holds depends on which of the central directory
+                            // fields overflowed. (The three values can be followed by the 4-byte number of the
+                            // disk the entry starts on, which is of no use here, since multi-disk zipfiles are
+                            // not supported.)
+                            long valueOff = tagOff + 4;
+                            final long dataEndOff = valueOff + size;
                             if (uncompressedSize == 0xffffffffL) {
-                                uncompressedSize = uncompressedSize64;
-                            } else if (uncompressedSize != uncompressedSize64) {
-                                throw new IOException("Mismatch in uncompressed size: " + uncompressedSize + " vs. "
-                                        + uncompressedSize64 + ": " + entryNameSanitized);
-                            }
-                            final long compressedSize64 = cenReader.readLong(tagOff + 4 + 8);
-                            if (compressedSize == 0xffffffffL) {
-                                compressedSize = compressedSize64;
-                            } else if (compressedSize != compressedSize64) {
-                                throw new IOException("Mismatch in compressed size: " + compressedSize + " vs. "
-                                        + compressedSize64 + ": " + entryNameSanitized);
-                            }
-                            // Only compressed size and uncompressed size are required fields
-                            if (size >= 28) {
-                                final long pos64 = cenReader.readLong(tagOff + 4 + 16);
-                                if (pos == 0xffffffffL) {
-                                    pos = pos64;
-                                } else if (pos != pos64) {
-                                    throw new IOException("Mismatch in entry pos: " + pos + " vs. " + pos64 + ": "
+                                if (valueOff + 8 > dataEndOff) {
+                                    throw new IOException("Zip64 extra field is missing the uncompressed size: "
                                             + entryNameSanitized);
                                 }
+                                uncompressedSize = cenReader.readLong(valueOff);
+                                valueOff += 8;
+                            }
+                            if (compressedSize == 0xffffffffL) {
+                                if (valueOff + 8 > dataEndOff) {
+                                    throw new IOException("Zip64 extra field is missing the compressed size: "
+                                            + entryNameSanitized);
+                                }
+                                compressedSize = cenReader.readLong(valueOff);
+                                valueOff += 8;
+                            }
+                            if (pos == 0xffffffffL) {
+                                if (valueOff + 8 > dataEndOff) {
+                                    throw new IOException(
+                                            "Zip64 extra field is missing the local file header offset: "
+                                                    + entryNameSanitized);
+                                }
+                                pos = cenReader.readLong(valueOff);
                             }
 
                         } else if (tag == 0x5455 && size >= 1 + 4) {
