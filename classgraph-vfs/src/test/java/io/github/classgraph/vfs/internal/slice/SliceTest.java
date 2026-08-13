@@ -178,6 +178,54 @@ public class SliceTest {
     }
 
     /**
+     * A stream that returns zero from a read of a non-empty buffer is not treated as the end of the stream.
+     *
+     * <p>
+     * {@link InputStream#read(byte[], int, int)} is supposed to block until at least one byte has been read, but a
+     * stream that returns zero instead is the reason the end of the stream has to be probed for at all. The probe
+     * used to be a read into a one-byte array, which has the same ambiguity, so a stream that returned zero twice
+     * in a row was read as an empty stream, silently discarding its whole content.
+     *
+     * @throws IOException
+     *             if the stream could not be read
+     */
+    @Test
+    public void aStreamThatReturnsZeroFromAReadIsNotTreatedAsEndOfStream() throws IOException {
+        final var stream = new InputStream() {
+            private final InputStream wrapped = new ByteArrayInputStream(CONTENT);
+
+            /** The number of reads into a non-empty buffer left to answer with zero. */
+            private int zeroReadsLeft = 2;
+
+            @Override
+            public int read() throws IOException {
+                return wrapped.read();
+            }
+
+            @Override
+            public int read(final byte[] buf, final int off, final int len) throws IOException {
+                if (len == 0) {
+                    return 0;
+                }
+                if (zeroReadsLeft > 0) {
+                    zeroReadsLeft--;
+                    return 0;
+                }
+                return wrapped.read(buf, off, len);
+            }
+        };
+        final var scanResources = scanResources();
+        try {
+            final var slice = Slice.fromInputStream(stream, "zeroreads.bin", /* inputStreamLengthHint = */ -1L,
+                    scanResources, /* log = */ null);
+            assertThat(slice.sliceLength).isEqualTo(CONTENT.length);
+            assertThat(slice.load()).containsExactly(CONTENT);
+        } finally {
+            scanResources.close(/* log = */ null);
+        }
+    }
+
+    /**
      * Closing the resources owned by a scan closes every slice that was left open, including slices that span the
      * same range of two different files. Otherwise one of the files stays open, which on Windows stops it from
      * being deleted.
