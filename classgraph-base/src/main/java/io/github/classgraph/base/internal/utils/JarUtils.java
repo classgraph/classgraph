@@ -77,6 +77,8 @@ public final class JarUtils {
             "jar:", "file:", "http://", "https://", //
             // Tomcat serves a non-exploded WAR file through its own "war:" URL protocol (#925)
             "war:", //
+            // Spring Boot addresses entries within an executable jar through its own "nested:" URL protocol
+            "nested:", //
             // Allow for escaping of ':' characters in paths. This is a ClassGraph extension -- the JDK splits
             // java.class.path on File.pathSeparator with no escape syntax at all -- but it is safe, because
             // File.separatorChar is '/' on every platform whose File.pathSeparatorChar is ':', so a backslash

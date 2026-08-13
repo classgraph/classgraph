@@ -74,6 +74,19 @@ public class JarUtilsTest {
                 .containsExactly("http://domain/jar1.jar", "https://domain/jar2.jar");
     }
 
+    /**
+     * A path element written as a URL in a container's own URL protocol is one path element, not two: Tomcat serves
+     * a non-exploded WAR through a {@code "war:"} URL, and Spring Boot addresses an entry within an executable jar
+     * through a {@code "nested:"} URL, and both of those schemes sit inside a {@code "jar:"} URL.
+     */
+    @Test
+    public void containerURLSchemesAreNotSplitAtTheirScheme() {
+        assertThat(JarUtils.smartPathSplit("war:file:/a/app.war*/WEB-INF/classes/:/tmp/jar2.jar", ':', null))
+                .containsExactly("war:file:/a/app.war*/WEB-INF/classes/", "/tmp/jar2.jar");
+        assertThat(JarUtils.smartPathSplit("jar:nested:/a/app.jar/!BOOT-INF/classes/!/:/tmp/jar2.jar", ':', null))
+                .containsExactly("jar:nested:/a/app.jar/!BOOT-INF/classes/!/", "/tmp/jar2.jar");
+    }
+
     /** A scheme that is only a URL scheme because the user registered it is not split at either. */
     @Test
     public void registeredURLSchemesAreNotSplitAtTheirScheme() {
