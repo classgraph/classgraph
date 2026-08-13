@@ -54,6 +54,7 @@ import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.base.internal.utils.JarUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.base.internal.utils.VersionFinder;
+import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.ModulePathInfo;
 import io.github.classgraph.classpath.internal.spec.ClassLoaderAndModuleLayerSpec;
 import io.github.classgraph.internal.scanspec.ScanSpec;
@@ -624,6 +625,27 @@ public class ClassGraph {
      */
     public ClassGraph ignoreParentClassLoaders() {
         scanSpec.classpathSpec.ignoreParentClassLoaders = true;
+        return this;
+    }
+
+    /**
+     * Register a {@link ClassLoaderHandler}, which teaches ClassGraph how to read the classpath out of a
+     * {@link ClassLoader} that it does not already know about.
+     *
+     * <p>
+     * ClassGraph ships with handlers for the classloaders of the common application servers, build tools and
+     * frameworks, so this is only needed for a classloader that none of those handle. Registered handlers are
+     * offered each classloader before the built-in handlers are, in the order they were registered, so a registered
+     * handler can also override a built-in one: the built-in handlers still run afterwards, but a classloader or
+     * classpath entry that has already been placed keeps the position the registered handler gave it.
+     *
+     * @param classLoaderHandler
+     *            the {@link ClassLoaderHandler} to register.
+     * @return this (for method chaining).
+     */
+    public ClassGraph registerClassLoaderHandler(final ClassLoaderHandler classLoaderHandler) {
+        Assert.notNull(classLoaderHandler, "classLoaderHandler");
+        scanSpec.classpathSpec.classLoaderHandlers.add(classLoaderHandler);
         return this;
     }
 

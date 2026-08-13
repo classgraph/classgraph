@@ -46,7 +46,7 @@ import org.jspecify.annotations.Nullable;
 /** A class to find the unique ordered classpath elements. */
 public class ClassLoaderProbe {
     /** The classpath order. */
-    private final ClasspathOrder classpathOrder;
+    private final ClasspathOrderBuilder classpathOrder;
 
     /** The {@link ModuleFinder}, if modules are to be scanned. */
     private final @Nullable ModuleFinder moduleFinder;
@@ -64,7 +64,7 @@ public class ClassLoaderProbe {
      *
      * @return The order of raw classpath elements obtained from ClassLoaders.
      */
-    public ClasspathOrder getClasspathOrder() {
+    public ClasspathOrderBuilder getClasspathOrder() {
         return classpathOrder;
     }
 
@@ -240,7 +240,7 @@ public class ClassLoaderProbe {
                         scanTargets.scanNonSystemModules(), scanSystemModules, classLoaderProbeLog)
                 : null;
 
-        classpathOrder = new ClasspathOrder(classpathSpec);
+        classpathOrder = new ClasspathOrderBuilder(classpathSpec);
 
         // Only look for environment classloaders if classpath and classloaders are not overridden
         final var classLoaderFinder = classpathSpec.overrideClasspath == null
@@ -326,9 +326,17 @@ public class ClassLoaderProbe {
     private ClassLoader[] addClassLoaderClasspathEntries(final ClasspathSpec classpathSpec,
             final ClassLoaderAndModuleLayerSpec classLoaderAndModuleLayerSpec,
             final ClassLoader[] contextClassLoaders, final @Nullable LogNode log) {
+        // Wrap the ClassLoaderHandlers the user registered. These are offered each classloader before the built-in
+        // handlers are, so that a user handler can override a built-in one.
+        final List<ClassLoaderHandlerRegistryEntry> userClassLoaderHandlers = classpathSpec.classLoaderHandlers
+                .stream().map(ClassLoaderHandlerRegistryEntry::new).toList();
+
         // List ClassLoaderHandlers
         if (log != null) {
             final var classLoaderHandlerLog = log.log("ClassLoaderHandlers:");
+            for (final ClassLoaderHandlerRegistryEntry classLoaderHandlerEntry : userClassLoaderHandlers) {
+                classLoaderHandlerLog.log(classLoaderHandlerEntry.getHandlerName() + " (registered by the caller)");
+            }
             for (final ClassLoaderHandlerRegistryEntry classLoaderHandlerEntry : //
             ClassLoaderHandlerRegistry.CLASS_LOADER_HANDLERS) {
                 classLoaderHandlerLog.log(classLoaderHandlerEntry.getHandlerName());
@@ -338,7 +346,7 @@ public class ClassLoaderProbe {
         // Find all unique classloaders, in delegation order
         final var classloaderOrderLog = log == null ? null
                 : log.log("Finding unique classloaders in delegation order");
-        final ClassLoaderOrder classLoaderOrder = new ClassLoaderOrder();
+        final var classLoaderOrder = new ClassLoaderOrderBuilder(userClassLoaderHandlers);
         final var overrideClassLoaders = classLoaderAndModuleLayerSpec.overrideClassLoaders;
         final var origClassLoaderOrder = overrideClassLoaders != null
                 ? overrideClassLoaders.toArray(ClassLoader[]::new)

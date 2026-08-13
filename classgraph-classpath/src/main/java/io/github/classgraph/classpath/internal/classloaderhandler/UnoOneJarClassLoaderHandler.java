@@ -28,11 +28,12 @@
  */
 package io.github.classgraph.classpath.internal.classloaderhandler;
 
+import io.github.classgraph.base.ClassGraphLog;
 import io.github.classgraph.base.internal.reflection.ReflectionUtils;
-import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.base.internal.utils.VersionFinder;
-import io.github.classgraph.classpath.internal.ClassLoaderOrder;
-import io.github.classgraph.classpath.internal.ClasspathOrder;
+import io.github.classgraph.classpath.ClassLoaderHandler;
+import io.github.classgraph.classpath.ClassLoaderOrder;
+import io.github.classgraph.classpath.ClasspathOrder;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -44,21 +45,21 @@ class UnoOneJarClassLoaderHandler implements ClassLoaderHandler {
     }
 
     @Override
-    public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
+    public boolean canHandle(final Class<?> classLoaderClass, final @Nullable ClassGraphLog log) {
         return classIsOrExtendsOrImplements(classLoaderClass, "com.needhamsoftware.unojar.JarClassLoader")
                 || classIsOrExtendsOrImplements(classLoaderClass, "com.simontuffs.onejar.JarClassLoader");
     }
 
     @Override
     public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
-            final @Nullable LogNode log) {
+            final @Nullable ClassGraphLog log) {
         classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
         classLoaderOrder.add(classLoader, log);
     }
 
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-            final @Nullable LogNode log) {
+            final @Nullable ClassGraphLog log) {
 
         // For Uno-Jar:
 

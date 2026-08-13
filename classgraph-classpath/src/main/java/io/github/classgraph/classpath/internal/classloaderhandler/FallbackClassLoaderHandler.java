@@ -33,10 +33,11 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
+import io.github.classgraph.base.ClassGraphLog;
 import io.github.classgraph.base.internal.reflection.ReflectionUtils;
-import io.github.classgraph.base.internal.utils.LogNode;
-import io.github.classgraph.classpath.internal.ClassLoaderOrder;
-import io.github.classgraph.classpath.internal.ClasspathOrder;
+import io.github.classgraph.classpath.ClassLoaderHandler;
+import io.github.classgraph.classpath.ClassLoaderOrder;
+import io.github.classgraph.classpath.ClasspathOrder;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -48,14 +49,14 @@ class FallbackClassLoaderHandler implements ClassLoaderHandler {
     }
 
     @Override
-    public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
+    public boolean canHandle(final Class<?> classLoaderClass, final @Nullable ClassGraphLog log) {
         // This is the fallback handler, it handles anything
         return true;
     }
 
     @Override
     public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
-            final @Nullable LogNode log) {
+            final @Nullable ClassGraphLog log) {
         classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
         classLoaderOrder.add(classLoader, log);
     }
@@ -115,7 +116,7 @@ class FallbackClassLoaderHandler implements ClassLoaderHandler {
 
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-            final @Nullable LogNode log) {
+            final @Nullable ClassGraphLog log) {
         var valid = false;
         for (final ClasspathSource classpathSource : CLASSPATH_SOURCES) {
             final var classpathEntryObj = classpathSource.isMethod()
@@ -168,7 +169,7 @@ class FallbackClassLoaderHandler implements ClassLoaderHandler {
      * @return true if any classpath entries were found.
      */
     private static boolean findClasspathOrderByProbingForResources(final ClassLoader classLoader,
-            final ClasspathOrder classpathOrder, final @Nullable LogNode log) {
+            final ClasspathOrder classpathOrder, final @Nullable ClassGraphLog log) {
         final var probeLog = log == null ? null
                 : log.log("Probing for classpath elements using " + classLoader.getClass().getName()
                         + "#getResources(String)");

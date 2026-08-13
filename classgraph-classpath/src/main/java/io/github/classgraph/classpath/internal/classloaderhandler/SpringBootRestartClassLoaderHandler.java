@@ -28,9 +28,10 @@
  */
 package io.github.classgraph.classpath.internal.classloaderhandler;
 
-import io.github.classgraph.base.internal.utils.LogNode;
-import io.github.classgraph.classpath.internal.ClassLoaderOrder;
-import io.github.classgraph.classpath.internal.ClasspathOrder;
+import io.github.classgraph.base.ClassGraphLog;
+import io.github.classgraph.classpath.ClassLoaderHandler;
+import io.github.classgraph.classpath.ClassLoaderOrder;
+import io.github.classgraph.classpath.ClasspathOrder;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -46,14 +47,14 @@ class SpringBootRestartClassLoaderHandler implements ClassLoaderHandler {
     }
 
     @Override
-    public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
+    public boolean canHandle(final Class<?> classLoaderClass, final @Nullable ClassGraphLog log) {
         return classIsOrExtendsOrImplements(classLoaderClass,
                 "org.springframework.boot.devtools.restart.classloader.RestartClassLoader");
     }
 
     @Override
     public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
-            final @Nullable LogNode log) {
+            final @Nullable ClassGraphLog log) {
         // The Restart classloader is a parent-last classloader, so add the Restart classloader itself to the
         // classloader order first
         classLoaderOrder.add(classLoader, log);
@@ -83,7 +84,7 @@ class SpringBootRestartClassLoaderHandler implements ClassLoaderHandler {
     // #267, #268
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-            final @Nullable LogNode log) {
+            final @Nullable ClassGraphLog log) {
         // The Restart classloader doesn't itself store any URLs
     }
 

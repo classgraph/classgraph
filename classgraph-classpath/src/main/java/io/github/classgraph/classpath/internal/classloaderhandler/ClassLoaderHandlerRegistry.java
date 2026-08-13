@@ -30,9 +30,10 @@ package io.github.classgraph.classpath.internal.classloaderhandler;
 
 import java.util.List;
 
-import io.github.classgraph.base.internal.utils.LogNode;
-import io.github.classgraph.classpath.internal.ClassLoaderOrder;
-import io.github.classgraph.classpath.internal.ClasspathOrder;
+import io.github.classgraph.base.ClassGraphLog;
+import io.github.classgraph.classpath.ClassLoaderHandler;
+import io.github.classgraph.classpath.ClassLoaderOrder;
+import io.github.classgraph.classpath.ClasspathOrder;
 import org.jspecify.annotations.Nullable;
 
 /** The registry for ClassLoaderHandler classes. */
@@ -57,9 +58,6 @@ public final class ClassLoaderHandlerRegistry {
             new ClassLoaderHandlerRegistryEntry(new PlexusClassWorldsClassRealmClassLoaderHandler()),
             new ClassLoaderHandlerRegistryEntry(new QuarkusClassLoaderHandler()),
             new ClassLoaderHandlerRegistryEntry(new UnoOneJarClassLoaderHandler()),
-
-            // For unit testing of PARENT_LAST delegation order
-            new ClassLoaderHandlerRegistryEntry(new ParentLastDelegationOrderTestClassLoaderHandler()),
 
             // JPMS support (this handler does nothing, since modules are handled separately)
             new ClassLoaderHandlerRegistryEntry(new JPMSClassLoaderHandler()),
@@ -163,7 +161,7 @@ public final class ClassLoaderHandlerRegistry {
          * @param classLoaderHandler
          *            The ClassLoaderHandler class.
          */
-        private ClassLoaderHandlerRegistryEntry(final ClassLoaderHandler classLoaderHandler) {
+        public ClassLoaderHandlerRegistryEntry(final ClassLoaderHandler classLoaderHandler) {
             this.classLoaderHandler = classLoaderHandler;
             this.packageRootPrefixes = classLoaderHandler.getPackageRootPrefixes();
         }
@@ -189,7 +187,7 @@ public final class ClassLoaderHandlerRegistry {
         }
 
         /**
-         * Call {@code canHandle(Class, LogNode)} on the associated {@link ClassLoaderHandler}.
+         * Call {@code canHandle(Class, ClassGraphLog)} on the associated {@link ClassLoaderHandler}.
          *
          * @param classLoader
          *            the {@link ClassLoader}.
@@ -197,12 +195,12 @@ public final class ClassLoaderHandlerRegistry {
          *            the log node, or null to skip logging
          * @return true, if this {@link ClassLoaderHandler} can handle the {@link ClassLoader}.
          */
-        public boolean canHandle(final Class<?> classLoader, final @Nullable LogNode log) {
+        public boolean canHandle(final Class<?> classLoader, final @Nullable ClassGraphLog log) {
             return classLoaderHandler.canHandle(classLoader, log);
         }
 
         /**
-         * Call {@code findClassLoaderOrder(ClassLoader, ClassLoaderOrder, LogNode)} on the associated
+         * Call {@code findClassLoaderOrder(ClassLoader, ClassLoaderOrder, ClassGraphLog)} on the associated
          * {@link ClassLoaderHandler}.
          *
          * @param classLoader
@@ -213,12 +211,12 @@ public final class ClassLoaderHandlerRegistry {
          *            the log node, or null to skip logging
          */
         public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
-                final @Nullable LogNode log) {
+                final @Nullable ClassGraphLog log) {
             classLoaderHandler.findClassLoaderOrder(classLoader, classLoaderOrder, log);
         }
 
         /**
-         * Call {@code findClasspathOrder(ClassLoader, ClasspathOrder, LogNode)} on the associated
+         * Call {@code findClasspathOrder(ClassLoader, ClasspathOrder, ClassGraphLog)} on the associated
          * {@link ClassLoaderHandler}.
          *
          * @param classLoader
@@ -229,7 +227,7 @@ public final class ClassLoaderHandlerRegistry {
          *            the log node, or null to skip logging
          */
         public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-                final @Nullable LogNode log) {
+                final @Nullable ClassGraphLog log) {
             classLoaderHandler.findClasspathOrder(classLoader, classpathOrder, log);
         }
     }

@@ -42,6 +42,7 @@ import io.github.classgraph.base.internal.utils.AcceptReject.AcceptRejectWholeSt
 import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.base.internal.utils.JarUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
+import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.ModulePathInfo;
 import org.jspecify.annotations.Nullable;
 
@@ -105,6 +106,12 @@ public class ClasspathSpec {
 
     /** If true, do not fetch paths from parent classloaders. */
     public boolean ignoreParentClassLoaders;
+
+    /**
+     * The {@link ClassLoaderHandler} instances the user registered, in registration order. These are offered each
+     * classloader before the built-in handlers are.
+     */
+    public final List<ClassLoaderHandler> classLoaderHandlers = new ArrayList<>();
 
     /**
      * If true, do not search module layers that are the parent of other module layers.

@@ -28,10 +28,11 @@
  */
 package io.github.classgraph.classpath.internal.classloaderhandler;
 
+import io.github.classgraph.base.ClassGraphLog;
 import io.github.classgraph.base.internal.reflection.ReflectionUtils;
-import io.github.classgraph.base.internal.utils.LogNode;
-import io.github.classgraph.classpath.internal.ClassLoaderOrder;
-import io.github.classgraph.classpath.internal.ClasspathOrder;
+import io.github.classgraph.classpath.ClassLoaderHandler;
+import io.github.classgraph.classpath.ClassLoaderOrder;
+import io.github.classgraph.classpath.ClasspathOrder;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -45,7 +46,7 @@ class WebsphereTraditionalClassLoaderHandler implements ClassLoaderHandler {
     }
 
     @Override
-    public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
+    public boolean canHandle(final Class<?> classLoaderClass, final @Nullable ClassGraphLog log) {
         return classIsOrExtendsOrImplements(classLoaderClass, "com.ibm.ws.classloader.CompoundClassLoader")
                 || classIsOrExtendsOrImplements(classLoaderClass, "com.ibm.ws.classloader.ProtectionClassLoader")
                 || classIsOrExtendsOrImplements(classLoaderClass, "com.ibm.ws.bootstrap.ExtClassLoader");
@@ -53,14 +54,14 @@ class WebsphereTraditionalClassLoaderHandler implements ClassLoaderHandler {
 
     @Override
     public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
-            final @Nullable LogNode log) {
+            final @Nullable ClassGraphLog log) {
         classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
         classLoaderOrder.add(classLoader, log);
     }
 
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-            final @Nullable LogNode log) {
+            final @Nullable ClassGraphLog log) {
         final var classpath = (String) ReflectionUtils.invokeMethod(false, classLoader, "getClassPath");
         classpathOrder.addClasspathPathStr(classpath, classLoader, log);
     }

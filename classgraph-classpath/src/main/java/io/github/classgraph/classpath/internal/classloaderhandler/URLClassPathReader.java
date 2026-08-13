@@ -33,9 +33,9 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
+import io.github.classgraph.base.ClassGraphLog;
 import io.github.classgraph.base.internal.reflection.ReflectionUtils;
-import io.github.classgraph.base.internal.utils.LogNode;
-import io.github.classgraph.classpath.internal.ClasspathOrder;
+import io.github.classgraph.classpath.ClasspathOrder;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -105,7 +105,7 @@ final class URLClassPathReader {
      *            the log node, or null to skip logging.
      */
     static void addAllClasspathEntries(final Object ucp, final ClassLoader classLoader,
-            final ClasspathOrder classpathOrder, final @Nullable LogNode log) {
+            final ClasspathOrder classpathOrder, final @Nullable ClassGraphLog log) {
         classpathOrder.addClasspathEntryObject(ReflectionUtils.invokeMethod(false, ucp, "getURLs"), classLoader,
                 log);
         addUnlistedClasspathEntries(ucp, classLoader, classpathOrder, log);
@@ -125,7 +125,7 @@ final class URLClassPathReader {
      *            the log node, or null to skip logging.
      */
     static void addUnlistedClasspathEntries(final Object ucp, final ClassLoader classLoader,
-            final ClasspathOrder classpathOrder, final @Nullable LogNode log) {
+            final ClasspathOrder classpathOrder, final @Nullable ClassGraphLog log) {
 
         // The JDK adds to and removes from this deque while holding the deque's own monitor, so hold it too
         final var unopenedUrls = ReflectionUtils.getFieldVal(false, ucp, "unopenedUrls");

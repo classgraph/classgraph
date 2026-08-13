@@ -28,10 +28,11 @@
  */
 package io.github.classgraph.classpath.internal.classloaderhandler;
 
+import io.github.classgraph.base.ClassGraphLog;
 import io.github.classgraph.base.internal.reflection.ReflectionUtils;
-import io.github.classgraph.base.internal.utils.LogNode;
-import io.github.classgraph.classpath.internal.ClassLoaderOrder;
-import io.github.classgraph.classpath.internal.ClasspathOrder;
+import io.github.classgraph.classpath.ClassLoaderHandler;
+import io.github.classgraph.classpath.ClassLoaderOrder;
+import io.github.classgraph.classpath.ClasspathOrder;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -43,13 +44,13 @@ class EquinoxContextFinderClassLoaderHandler implements ClassLoaderHandler {
     }
 
     @Override
-    public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
+    public boolean canHandle(final Class<?> classLoaderClass, final @Nullable ClassGraphLog log) {
         return classIsOrExtendsOrImplements(classLoaderClass, "org.eclipse.osgi.internal.framework.ContextFinder");
     }
 
     @Override
     public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
-            final @Nullable LogNode log) {
+            final @Nullable ClassGraphLog log) {
         classLoaderOrder.delegateTo(
                 (ClassLoader) ReflectionUtils.getFieldVal(false, classLoader, "parentContextClassLoader"),
                 /* isParent = */ true, log);
@@ -59,7 +60,7 @@ class EquinoxContextFinderClassLoaderHandler implements ClassLoaderHandler {
 
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-            final @Nullable LogNode log) {
+            final @Nullable ClassGraphLog log) {
         // Nothing to handle -- embedded parentContextClassLoader will be used instead.
     }
 

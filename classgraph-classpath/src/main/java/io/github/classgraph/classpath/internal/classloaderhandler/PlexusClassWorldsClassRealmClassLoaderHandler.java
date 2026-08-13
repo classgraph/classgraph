@@ -30,9 +30,9 @@ package io.github.classgraph.classpath.internal.classloaderhandler;
 
 import java.util.SortedSet;
 
+import io.github.classgraph.base.ClassGraphLog;
 import io.github.classgraph.base.internal.reflection.ReflectionUtils;
-import io.github.classgraph.base.internal.utils.LogNode;
-import io.github.classgraph.classpath.internal.ClassLoaderOrder;
+import io.github.classgraph.classpath.ClassLoaderOrder;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -46,7 +46,7 @@ class PlexusClassWorldsClassRealmClassLoaderHandler extends URLClassLoaderHandle
     }
 
     @Override
-    public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
+    public boolean canHandle(final Class<?> classLoaderClass, final @Nullable ClassGraphLog log) {
         return classIsOrExtendsOrImplements(classLoaderClass, "org.codehaus.plexus.classworlds.realm.ClassRealm");
     }
 
@@ -73,7 +73,7 @@ class PlexusClassWorldsClassRealmClassLoaderHandler extends URLClassLoaderHandle
 
     @Override
     public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
-            final @Nullable LogNode log) {
+            final @Nullable ClassGraphLog log) {
         // From ClassRealm#loadClassFromImport(String) -> getImportClassLoader(String)
         final var foreignImports = ReflectionUtils.getFieldVal(false, classLoader, "foreignImports");
         if (foreignImports != null) {

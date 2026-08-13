@@ -32,10 +32,11 @@ import java.lang.reflect.Array;
 import java.util.HashSet;
 import java.util.Set;
 
+import io.github.classgraph.base.ClassGraphLog;
 import io.github.classgraph.base.internal.reflection.ReflectionUtils;
-import io.github.classgraph.base.internal.utils.LogNode;
-import io.github.classgraph.classpath.internal.ClassLoaderOrder;
-import io.github.classgraph.classpath.internal.ClasspathOrder;
+import io.github.classgraph.classpath.ClassLoaderHandler;
+import io.github.classgraph.classpath.ClassLoaderOrder;
+import io.github.classgraph.classpath.ClasspathOrder;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -50,7 +51,7 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
     }
 
     @Override
-    public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
+    public boolean canHandle(final Class<?> classLoaderClass, final @Nullable ClassGraphLog log) {
         // EquinoxClassLoader is the classloader Equinox uses by default, but a framework extension can install a
         // ClassLoaderHook that supplies its own subclass of the abstract ModuleClassLoader instead
         return classIsOrExtendsOrImplements(classLoaderClass, "org.eclipse.osgi.internal.loader.ModuleClassLoader")
@@ -60,7 +61,7 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
 
     @Override
     public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
-            final @Nullable LogNode log) {
+            final @Nullable ClassGraphLog log) {
         classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
         classLoaderOrder.add(classLoader, log);
     }
@@ -80,7 +81,8 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
      *            the log node, or null to skip logging
      */
     private static void addBundleFile(final @Nullable Object bundlefile, final Set<Object> path,
-            final ClassLoader classLoader, final ClasspathOrder classpathOrderOut, final @Nullable LogNode log) {
+            final ClassLoader classLoader, final ClasspathOrder classpathOrderOut,
+            final @Nullable ClassGraphLog log) {
         // Don't get stuck in infinite loop
         if (bundlefile != null && path.add(bundlefile)) {
             // type File
@@ -136,7 +138,7 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
      *            the log node, or null to skip logging
      */
     private static void addClasspathEntries(final @Nullable Object owner, final ClassLoader classLoader,
-            final ClasspathOrder classpathOrderOut, final @Nullable LogNode log) {
+            final ClasspathOrder classpathOrderOut, final @Nullable ClassGraphLog log) {
         // type ClasspathEntry[]
         final var entries = ReflectionUtils.getFieldVal(false, owner, "entries");
         if (entries != null) {
@@ -152,7 +154,7 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
 
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-            final @Nullable LogNode log) {
+            final @Nullable ClassGraphLog log) {
         // type ClasspathManager -- ModuleClassLoader declares getClasspathManager() as public abstract, so any
         // subclass has it, whereas the "manager" field is specific to Equinox's own EquinoxClassLoader
         var manager = ReflectionUtils.invokeMethod(false, classLoader, "getClasspathManager");
@@ -171,7 +173,7 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
             }
         }
         // Only read system bundles once per scan (all bundles should give the same results for this).
-        if (classpathOrder.tryAddEquinoxSystemBundles()) {
+        if (classpathOrder.claimOncePerScan("system-bundles")) {
             // type BundleLoader -- as with getClasspathManager() above, prefer the public accessor declared by
             // ModuleClassLoader over the "delegate" field of EquinoxClassLoader
             var delegate = ReflectionUtils.invokeMethod(false, classLoader, "getBundleLoader");

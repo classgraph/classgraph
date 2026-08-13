@@ -45,16 +45,17 @@ import java.util.Set;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
+import io.github.classgraph.base.ClassGraphLog;
 import io.github.classgraph.base.internal.utils.FastPathResolver;
 import io.github.classgraph.base.internal.utils.FileUtils;
 import io.github.classgraph.base.internal.utils.JarUtils;
-import io.github.classgraph.base.internal.utils.LogNode;
+import io.github.classgraph.classpath.ClasspathOrder;
 import io.github.classgraph.classpath.internal.classloaderhandler.ClassLoaderHandlerRegistry;
 import io.github.classgraph.classpath.internal.spec.ClasspathSpec;
 import org.jspecify.annotations.Nullable;
 
 /** A class to find the unique ordered classpath elements. */
-public class ClasspathOrder {
+public class ClasspathOrderBuilder implements ClasspathOrder {
     /** The scan spec. */
     private final ClasspathSpec classpathSpec;
 
@@ -76,31 +77,8 @@ public class ClasspathOrder {
      */
     private String[] currPackageRootPrefixes = ClassLoaderHandlerRegistry.DEFAULT_PACKAGE_ROOT_PREFIXES;
 
-    /**
-     * True once the Equinox system bundles have been added to this classpath order.
-     */
-    private boolean addedEquinoxSystemBundles;
-
-    /**
-     * Test whether the Equinox system bundles still need to be added to the classpath order, and if so, atomically
-     * record that they are being added, so that they are only added once.
-     *
-     * <p>
-     * All Equinox bundles yield the same system bundles, so they only need to be read from the first Equinox
-     * classloader encountered. This flag is held here, on a per-scan object, rather than in a static field of the
-     * {@code ClassLoaderHandler}: a single handler instance is shared between all scans, so a static flag would
-     * stay set after the first scan, and every subsequent scan in the same JVM would silently omit the system
-     * bundles from the classpath.
-     *
-     * @return true the first time this method is called for a given scan, false every time thereafter.
-     */
-    public synchronized boolean tryAddEquinoxSystemBundles() {
-        if (addedEquinoxSystemBundles) {
-            return false;
-        }
-        addedEquinoxSystemBundles = true;
-        return true;
-    }
+    /** The keys that {@link #claimOncePerScan(String)} has already been called with. */
+    private final Set<String> claimedOncePerScan = new HashSet<>();
 
     /**
      * A classpath element and the string form of the {@link ClassLoader} it was obtained from.
@@ -191,8 +169,13 @@ public class ClasspathOrder {
      * @param classpathSpec
      *            the scan spec
      */
-    ClasspathOrder(final ClasspathSpec classpathSpec) {
+    ClasspathOrderBuilder(final ClasspathSpec classpathSpec) {
         this.classpathSpec = classpathSpec;
+    }
+
+    @Override
+    public synchronized boolean claimOncePerScan(final String key) {
+        return claimedOncePerScan.add(key);
     }
 
     /**
@@ -378,11 +361,11 @@ public class ClasspathOrder {
      * @param pathElementStrResolved
      *            the resolved path of the classpath element.
      * @param log
-     *            the LogNode instance to use if logging in verbose mode.
+     *            the log node, or null to skip logging
      * @return true if the classpath element passes the filters.
      */
     private boolean passesFilters(final @Nullable URL pathElementURL, final String pathElementStr,
-            final String pathElementStrResolved, final @Nullable LogNode log) {
+            final String pathElementStrResolved, final @Nullable ClassGraphLog log) {
         // The path is tested in both the form it was found in and its resolved form, since a filter may have been
         // written to match either
         if (filter(pathElementURL, pathElementStr) && (pathElementStrResolved.equals(pathElementStr)
@@ -409,12 +392,12 @@ public class ClasspathOrder {
      * @param classLoader
      *            the classloader
      * @param log
-     *            the LogNode instance to use if logging in verbose mode.
+     *            the log node, or null to skip logging
      * @return true, if added and unique
      */
     private boolean addClasspathEntryAndLog(final Object pathElement, final String pathElementStr,
             final String pathElementStrResolved, final @Nullable ClassLoader classLoader,
-            final @Nullable LogNode log) {
+            final @Nullable ClassGraphLog log) {
         final var added = addClasspathEntry(pathElement, pathElementStrResolved, classLoader);
         if (log != null) {
             log.log((added ? "Found classpath element: " : "Ignoring duplicate classpath element: ")
@@ -452,11 +435,11 @@ public class ClasspathOrder {
      * @param pathElementStr
      *            the path of the classpath element.
      * @param log
-     *            the LogNode instance to use if logging in verbose mode.
+     *            the log node, or null to skip logging
      * @return the {@link URL} of the classpath element, or null if it could not be converted to a {@link URL}.
      */
     private static @Nullable URL toClasspathElementURL(final Object pathElement, final String pathElementStr,
-            final @Nullable LogNode log) {
+            final @Nullable ClassGraphLog log) {
         URL pathElementURL = null;
         try {
             pathElementURL = pathElement instanceof final URL url ? url
@@ -499,11 +482,11 @@ public class ClasspathOrder {
      * @param classLoader
      *            the ClassLoader that this classpath element was obtained from.
      * @param log
-     *            the LogNode instance to use if logging in verbose mode.
+     *            the log node, or null to skip logging
      * @return true if the contents of the directory could be listed.
      */
     private boolean addWildcardedDirEntries(final String baseDirPath, final @Nullable ClassLoader classLoader,
-            final @Nullable LogNode log) {
+            final @Nullable ClassGraphLog log) {
         // A wildcarded classpath entry is only ever reached as a path string, never as a URL, so there is no URL to
         // apply the user's URL filters to
         if (!passesFilters(/* pathElementURL = */ null, baseDirPath, baseDirPath, log)) {
@@ -566,12 +549,13 @@ public class ClasspathOrder {
      * @param classLoader
      *            the ClassLoader that this classpath element was obtained from.
      * @param log
-     *            the LogNode instance to use if logging in verbose mode.
+     *            the log node, or null to skip logging
      * @return true (and add the classpath element) if pathElement is not null, empty, nonexistent, or filtered out
      *         by user-specified criteria, otherwise return false.
      */
+    @Override
     public boolean addClasspathEntry(final @Nullable Object pathElement, final @Nullable ClassLoader classLoader,
-            final @Nullable LogNode log) {
+            final @Nullable ClassGraphLog log) {
         if (pathElement == null) {
             return false;
         }
@@ -649,11 +633,12 @@ public class ClasspathOrder {
      * @param classLoader
      *            the ClassLoader that this classpath was obtained from.
      * @param log
-     *            the LogNode instance to use if logging in verbose mode.
+     *            the log node, or null to skip logging
      * @return true (and add the classpath element) if pathElement is not null or empty, otherwise return false.
      */
+    @Override
     public boolean addClasspathEntries(final @Nullable List<Object> overrideClasspath,
-            final @Nullable ClassLoader classLoader, final @Nullable LogNode log) {
+            final @Nullable ClassLoader classLoader, final @Nullable ClassGraphLog log) {
         if (overrideClasspath == null || overrideClasspath.isEmpty()) {
             return false;
         } else {
@@ -672,11 +657,12 @@ public class ClasspathOrder {
      * @param classLoader
      *            the ClassLoader that this classpath was obtained from.
      * @param log
-     *            the LogNode instance to use if logging in verbose mode.
+     *            the log node, or null to skip logging
      * @return true (and add the classpath element) if pathElement is not null or empty, otherwise return false.
      */
+    @Override
     public boolean addClasspathPathStr(final @Nullable String pathStr, final @Nullable ClassLoader classLoader,
-            final @Nullable LogNode log) {
+            final @Nullable ClassGraphLog log) {
         if (pathStr == null || pathStr.isEmpty()) {
             return false;
         } else {
@@ -704,11 +690,12 @@ public class ClasspathOrder {
      * @param classLoader
      *            the ClassLoader that this classpath was obtained from.
      * @param log
-     *            the LogNode instance to use if logging in verbose mode.
+     *            the log node, or null to skip logging
      * @return true (and add the classpath element) if pathElement is not null or empty, otherwise return false.
      */
+    @Override
     public boolean addClasspathEntryObject(final @Nullable Object pathObject,
-            final @Nullable ClassLoader classLoader, final @Nullable LogNode log) {
+            final @Nullable ClassLoader classLoader, final @Nullable ClassGraphLog log) {
         var valid = false;
         if (pathObject != null) {
             if (pathObject instanceof URL || pathObject instanceof URI || pathObject instanceof Path

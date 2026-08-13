@@ -37,13 +37,22 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import io.github.classgraph.base.internal.utils.LogNode;
+import io.github.classgraph.base.ClassGraphLog;
+import io.github.classgraph.classpath.ClassLoaderHandler;
+import io.github.classgraph.classpath.ClassLoaderOrder;
 import io.github.classgraph.classpath.internal.classloaderhandler.ClassLoaderHandlerRegistry;
 import io.github.classgraph.classpath.internal.classloaderhandler.ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry;
 import org.jspecify.annotations.Nullable;
 
 /** A class to find all unique classloaders. */
-public class ClassLoaderOrder {
+public class ClassLoaderOrderBuilder implements ClassLoaderOrder {
+    /**
+     * The registry entries for the {@link ClassLoaderHandler} instances the user registered, in registration order.
+     * These are offered each classloader before the built-in handlers are, so that a user handler can override a
+     * built-in one.
+     */
+    private final List<ClassLoaderHandlerRegistryEntry> userClassLoaderHandlers;
+
     /** The {@link ClassLoader} order. */
     private final Map<ClassLoader, List<ClassLoaderHandlerRegistryEntry>> classLoaderOrder = new LinkedHashMap<>();
 
@@ -73,8 +82,11 @@ public class ClassLoaderOrder {
     /**
      * Constructor.
      *
+     * @param userClassLoaderHandlers
+     *            the registry entries for the {@link ClassLoaderHandler} instances the user registered.
      */
-    public ClassLoaderOrder() {
+    public ClassLoaderOrderBuilder(final List<ClassLoaderHandlerRegistryEntry> userClassLoaderHandlers) {
+        this.userClassLoaderHandlers = userClassLoaderHandlers;
     }
 
     /**
@@ -106,18 +118,23 @@ public class ClassLoaderOrder {
      * @return the registry entries that can handle the classloader, or a singleton list containing the fallback
      *         handler if none can.
      */
-    private static List<ClassLoaderHandlerRegistryEntry> getClassLoaderHandlerRegistryEntries(
-            final ClassLoader classLoader, final @Nullable LogNode log) {
+    private List<ClassLoaderHandlerRegistryEntry> getClassLoaderHandlerRegistryEntries(
+            final ClassLoader classLoader, final @Nullable ClassGraphLog log) {
         final List<ClassLoaderHandlerRegistryEntry> ents = new ArrayList<>();
-        var matched = false;
+        // The user's handlers are offered the classloader before the built-in handlers are, so that a user handler
+        // can override a built-in one
+        for (final ClassLoaderHandlerRegistryEntry ent : userClassLoaderHandlers) {
+            if (ent.canHandle(classLoader.getClass(), log)) {
+                ents.add(ent);
+            }
+        }
         for (final ClassLoaderHandlerRegistryEntry ent : ClassLoaderHandlerRegistry.CLASS_LOADER_HANDLERS) {
             if (ent.canHandle(classLoader.getClass(), log)) {
                 // This ClassLoaderHandler can handle the ClassLoader class, or one of its superclasses
                 ents.add(ent);
-                matched = true;
             }
         }
-        if (!matched) {
+        if (ents.isEmpty()) {
             ents.add(ClassLoaderHandlerRegistry.FALLBACK_HANDLER);
         }
         return ents;
@@ -131,7 +148,8 @@ public class ClassLoaderOrder {
      * @param log
      *            the log node, or null to skip logging
      */
-    public void add(final @Nullable ClassLoader classLoader, final @Nullable LogNode log) {
+    @Override
+    public void add(final @Nullable ClassLoader classLoader, final @Nullable ClassGraphLog log) {
         if (classLoader == null) {
             return;
         }
@@ -145,9 +163,10 @@ public class ClassLoaderOrder {
      *
      * <p>
      * The classloader is not placed in the order here: its handler places it, by calling
-     * {@link #add(ClassLoader, LogNode)} either before or after it delegates to the classloader's parent, according
-     * to whether the classloader resolves classes parent-first or parent-last. That is what puts the classpath
-     * elements in the order that classes are resolved in, which is the order that class masking depends on.
+     * {@link #add(ClassLoader, ClassGraphLog)} either before or after it delegates to the classloader's parent,
+     * according to whether the classloader resolves classes parent-first or parent-last. That is what puts the
+     * classpath elements in the order that classes are resolved in, which is the order that class masking depends
+     * on.
      *
      * @param classLoader
      *            the class loader, or null (ignored)
@@ -156,8 +175,9 @@ public class ClassLoaderOrder {
      * @param log
      *            the log node, or null to skip logging
      */
+    @Override
     public void delegateTo(final @Nullable ClassLoader classLoader, final boolean isParent,
-            final @Nullable LogNode log) {
+            final @Nullable ClassGraphLog log) {
         if (classLoader == null) {
             return;
         }

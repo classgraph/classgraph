@@ -28,10 +28,11 @@
  */
 package io.github.classgraph.classpath.internal.classloaderhandler;
 
+import io.github.classgraph.base.ClassGraphLog;
 import io.github.classgraph.base.internal.reflection.ReflectionUtils;
-import io.github.classgraph.base.internal.utils.LogNode;
-import io.github.classgraph.classpath.internal.ClassLoaderOrder;
-import io.github.classgraph.classpath.internal.ClasspathOrder;
+import io.github.classgraph.classpath.ClassLoaderHandler;
+import io.github.classgraph.classpath.ClassLoaderOrder;
+import io.github.classgraph.classpath.ClasspathOrder;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -45,7 +46,7 @@ class JPMSClassLoaderHandler implements ClassLoaderHandler {
     }
 
     @Override
-    public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
+    public boolean canHandle(final Class<?> classLoaderClass, final @Nullable ClassGraphLog log) {
         return classIsOrExtendsOrImplements(classLoaderClass, "jdk.internal.loader.ClassLoaders$AppClassLoader")
                 || classIsOrExtendsOrImplements(classLoaderClass, "jdk.internal.loader.BuiltinClassLoader");
     }
@@ -66,7 +67,7 @@ class JPMSClassLoaderHandler implements ClassLoaderHandler {
 
     @Override
     public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
-            final @Nullable LogNode log) {
+            final @Nullable ClassGraphLog log) {
         classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
         // The bootstrap classloader has a URLClassPath only if the boot classpath was appended to, either with
         // -Xbootclasspath/a or with the Boot-Class-Path attribute of a Java agent's manifest. Those entries are not
@@ -83,7 +84,7 @@ class JPMSClassLoaderHandler implements ClassLoaderHandler {
 
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-            final @Nullable LogNode log) {
+            final @Nullable ClassGraphLog log) {
         // These classloaders load most of what they load from modules, which are scanned through the JPMS API, not
         // as classpath elements. They can also load classes from a `jdk.internal.loader.URLClassPath ucp` field,
         // and some of what is in that field is reachable in no other way:

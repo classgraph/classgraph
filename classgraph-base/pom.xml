@@ -27,7 +27,7 @@
 		<!-- The internal packages are exported because OSGi has no equivalent of a qualified export, and the
 		     modules above this one need them. They are marked x-internal so that tooling does not offer them
 		     for import, and they are not covered by the project's API compatibility guarantees. -->
-		<osgiExportPackage>io.github.classgraph.base.internal.utils;x-internal:=true,io.github.classgraph.base.internal.reflection;x-internal:=true,io.github.classgraph.base.internal.concurrency;x-internal:=true,io.github.classgraph.base.internal.recycler;x-internal:=true</osgiExportPackage>
+		<osgiExportPackage>io.github.classgraph.base;version="${project.version}",io.github.classgraph.base.internal.utils;x-internal:=true,io.github.classgraph.base.internal.reflection;x-internal:=true,io.github.classgraph.base.internal.concurrency;x-internal:=true,io.github.classgraph.base.internal.recycler;x-internal:=true</osgiExportPackage>
 		<osgiImportPackage>javax.xml,javax.xml.xpath,javax.xml.namespace,javax.xml.parsers,org.w3c.dom,sun.misc;resolution:="optional",io.github.toolfactory.narcissus;resolution:="optional",org.jspecify.annotations;resolution:="optional"</osgiImportPackage>
 		<osgiDependencies>java.xml,jdk.unsupported,java.logging</osgiDependencies>
 

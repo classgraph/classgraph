@@ -244,6 +244,27 @@ public class ClasspathFinder {
         return this;
     }
 
+    /**
+     * Register a {@link ClassLoaderHandler}, which teaches this library how to read the classpath out of a
+     * {@link ClassLoader} that it does not already know about.
+     *
+     * <p>
+     * There are built-in handlers for the classloaders of the common application servers, build tools and
+     * frameworks, so this is only needed for a classloader that none of those handle. Registered handlers are
+     * offered each classloader before the built-in handlers are, in the order they were registered, so a registered
+     * handler can also override a built-in one: the built-in handlers still run afterwards, but a classloader or
+     * classpath entry that has already been placed keeps the position the registered handler gave it.
+     *
+     * @param classLoaderHandler
+     *            the {@link ClassLoaderHandler} to register.
+     * @return this (for method chaining).
+     */
+    public ClasspathFinder registerClassLoaderHandler(final ClassLoaderHandler classLoaderHandler) {
+        Assert.notNull(classLoaderHandler, "classLoaderHandler");
+        classpathSpec.classLoaderHandlers.add(classLoaderHandler);
+        return this;
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**

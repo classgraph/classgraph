@@ -26,29 +26,40 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.classgraph.classpath.internal.classloaderhandler;
+package io.github.classgraph.issues.issue267;
 
-import io.github.classgraph.base.internal.reflection.ReflectionUtils;
-import io.github.classgraph.base.internal.utils.LogNode;
-import io.github.classgraph.classpath.internal.ClassLoaderOrder;
-import io.github.classgraph.classpath.internal.ClasspathOrder;
+import io.github.classgraph.base.ClassGraphLog;
+import io.github.classgraph.classpath.ClassLoaderHandler;
+import io.github.classgraph.classpath.ClassLoaderOrder;
+import io.github.classgraph.classpath.ClasspathOrder;
 import org.jspecify.annotations.Nullable;
 
-/** ClassLoaderHandler that is used to test PARENT_LAST delegation order. */
-class ParentLastDelegationOrderTestClassLoaderHandler implements ClassLoaderHandler {
+/**
+ * A {@link ClassLoaderHandler} for {@link FakeRestartClassLoader}, which resolves classes parent-last.
+ *
+ * <p>
+ * This is registered with {@code ClassGraph#registerClassLoaderHandler(ClassLoaderHandler)} rather than being one
+ * of the built-in handlers, so it also serves as the test that a handler can be written from outside ClassGraph,
+ * using nothing but the public API.
+ *
+ * <p>
+ * This class and its constructor have to be public, because {@link ClassLoadingWorksWithParentLastLoaders}
+ * instantiates it while itself loaded by {@link FakeRestartClassLoader}, which puts the two classes in different
+ * runtime packages even though they share a package name.
+ */
+public class FakeRestartClassLoaderHandler implements ClassLoaderHandler {
     /** Constructor. */
-    ParentLastDelegationOrderTestClassLoaderHandler() {
+    public FakeRestartClassLoaderHandler() {
     }
 
     @Override
-    public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
-        return classIsOrExtendsOrImplements(classLoaderClass,
-                "io.github.classgraph.issues.issue267.FakeRestartClassLoader");
+    public boolean canHandle(final Class<?> classLoaderClass, final @Nullable ClassGraphLog log) {
+        return classIsOrExtendsOrImplements(classLoaderClass, FakeRestartClassLoader.class.getName());
     }
 
     @Override
     public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
-            final @Nullable LogNode log) {
+            final @Nullable ClassGraphLog log) {
         // Add self first, then delegate to parent
         classLoaderOrder.add(classLoader, log);
         classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
@@ -56,22 +67,7 @@ class ParentLastDelegationOrderTestClassLoaderHandler implements ClassLoaderHand
 
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-            final @Nullable LogNode log) {
-        final var classpath = (String) ReflectionUtils.invokeMethod(/* throwException = */ true, classLoader,
-                "getClasspath");
-        classpathOrder.addClasspathEntry(classpath, classLoader, log);
-    }
-
-    /**
-     * Get the automatic package root prefixes for classpath elements obtained from this classloader.
-     *
-     * <p>
-     * Only used for unit testing of classloader delegation order.
-     *
-     * @return the package root prefixes.
-     */
-    @Override
-    public String[] getPackageRootPrefixes() {
-        return ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES;
+            final @Nullable ClassGraphLog log) {
+        classpathOrder.addClasspathEntry(((FakeRestartClassLoader) classLoader).getClasspath(), classLoader, log);
     }
 }

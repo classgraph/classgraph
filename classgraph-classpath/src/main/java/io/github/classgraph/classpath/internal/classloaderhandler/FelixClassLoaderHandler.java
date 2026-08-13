@@ -33,10 +33,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import io.github.classgraph.base.ClassGraphLog;
 import io.github.classgraph.base.internal.reflection.ReflectionUtils;
-import io.github.classgraph.base.internal.utils.LogNode;
-import io.github.classgraph.classpath.internal.ClassLoaderOrder;
-import io.github.classgraph.classpath.internal.ClasspathOrder;
+import io.github.classgraph.classpath.ClassLoaderHandler;
+import io.github.classgraph.classpath.ClassLoaderOrder;
+import io.github.classgraph.classpath.ClasspathOrder;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -53,7 +54,7 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
     }
 
     @Override
-    public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
+    public boolean canHandle(final Class<?> classLoaderClass, final @Nullable ClassGraphLog log) {
         return classIsOrExtendsOrImplements(classLoaderClass,
                 "org.apache.felix.framework.BundleWiringImpl$BundleClassLoaderJava5")
                 || classIsOrExtendsOrImplements(classLoaderClass,
@@ -62,7 +63,7 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
 
     @Override
     public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
-            final @Nullable LogNode log) {
+            final @Nullable ClassGraphLog log) {
         classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
         classLoaderOrder.add(classLoader, log);
     }
@@ -94,7 +95,7 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
      */
     private static void addBundle(final @Nullable Object bundleWiring, final ClassLoader classLoader,
             final ClasspathOrder classpathOrderOut, final Set<@Nullable Object> bundles,
-            final @Nullable LogNode log) {
+            final @Nullable ClassGraphLog log) {
         // Track the bundles we've processed to prevent loops
         bundles.add(bundleWiring);
 
@@ -125,7 +126,7 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
 
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-            final @Nullable LogNode log) {
+            final @Nullable ClassGraphLog log) {
         // Get the wiring for the ClassLoader's bundle
         final Set<@Nullable Object> bundles = new HashSet<>();
         final var bundleWiring = ReflectionUtils.getFieldVal(false, classLoader, "m_wiring");

@@ -35,8 +35,10 @@ import org.jspecify.annotations.NullMarked;
  * URL handling, logging, reflection, and accept/reject matching.
  *
  * <p>
- * This module has no public API of its own, and is not useful on its own. It
- * exports its packages only to the other ClassGraph modules.
+ * This module is not useful on its own. Its only public API is
+ * {@link io.github.classgraph.base.ClassGraphLog}, the verbose log that
+ * ClassGraph hands to code it calls out to; every other package is exported
+ * only to the other ClassGraph modules.
  *
  * <p>
  * This module is {@link org.jspecify.annotations.NullMarked}: unless a type is
@@ -46,6 +48,8 @@ import org.jspecify.annotations.NullMarked;
  */
 @NullMarked
 module io.github.classgraph.base {
+    exports io.github.classgraph.base;
+
     // The internal packages are the internals of ClassGraph. They are only exported to the modules that are built on
     // top of this one, and they are not covered by the project's API compatibility guarantees.
     exports io.github.classgraph.base.internal.concurrency to io.github.classgraph, io.github.classgraph.classpath,

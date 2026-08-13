@@ -18,19 +18,19 @@ import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.base.internal.utils.FastPathResolver;
 import io.github.classgraph.base.internal.utils.FileUtils;
-import io.github.classgraph.classpath.internal.ClasspathOrder.Entry;
+import io.github.classgraph.classpath.internal.ClasspathOrderBuilder.Entry;
 import io.github.classgraph.classpath.internal.spec.ClasspathSpec;
 
-/** Tests for {@link ClasspathOrder}. */
+/** Tests for {@link ClasspathOrderBuilder}. */
 public class ClasspathOrderTest {
     /** The scan spec shared by a single test. */
     private final ClasspathSpec classpathSpec = new ClasspathSpec();
 
     /** The classpath order under test. */
-    private final ClasspathOrder classpathOrder = new ClasspathOrder(classpathSpec);
+    private final ClasspathOrderBuilder classpathOrder = new ClasspathOrderBuilder(classpathSpec);
 
     /**
-     * Resolve a path the same way {@link ClasspathOrder} does, so that the expected values do not have to be
+     * Resolve a path the same way {@link ClasspathOrderBuilder} does, so that the expected values do not have to be
      * written differently for each platform.
      *
      * @param path
@@ -42,7 +42,7 @@ public class ClasspathOrderTest {
     }
 
     /**
-     * Create an empty file, and return its path in the form {@link ClasspathOrder} would resolve it to.
+     * Create an empty file, and return its path in the form {@link ClasspathOrderBuilder} would resolve it to.
      *
      * @param path
      *            the path of the file to create.
@@ -73,14 +73,21 @@ public class ClasspathOrderTest {
     }
 
     /**
-     * The Equinox system bundles are only added once per scan, so the first caller is told to add them and every
-     * later caller is not. The flag is per {@link ClasspathOrder} instance, so the next scan adds them again.
+     * A piece of work is claimed by the first caller only, and each key is claimed separately. The claimed keys are
+     * held per {@link ClasspathOrderBuilder} instance, and every scan builds a new one, so the next scan can claim
+     * the same key again. If these were held in a static field, or in a field of the
+     * {@link io.github.classgraph.classpath.ClassLoaderHandler} that claims them (handler instances are shared
+     * between scans), every scan after the first would silently skip the work.
      */
     @Test
-    public void equinoxSystemBundlesAreOnlyAddedOncePerScan() {
-        assertThat(classpathOrder.tryAddEquinoxSystemBundles()).isTrue();
-        assertThat(classpathOrder.tryAddEquinoxSystemBundles()).isFalse();
-        assertThat(new ClasspathOrder(classpathSpec).tryAddEquinoxSystemBundles()).isTrue();
+    public void workIsClaimedOncePerScan() {
+        assertThat(classpathOrder.claimOncePerScan("system-bundles")).isTrue();
+        assertThat(classpathOrder.claimOncePerScan("system-bundles")).isFalse();
+        assertThat(classpathOrder.claimOncePerScan("system-bundles")).isFalse();
+        // A different key is claimed separately
+        assertThat(classpathOrder.claimOncePerScan("something-else")).isTrue();
+        // The next scan claims the same key again
+        assertThat(new ClasspathOrderBuilder(classpathSpec).claimOncePerScan("system-bundles")).isTrue();
     }
 
     /**

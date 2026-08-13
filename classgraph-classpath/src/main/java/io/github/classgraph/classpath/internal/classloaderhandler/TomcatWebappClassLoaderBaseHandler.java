@@ -31,10 +31,11 @@ package io.github.classgraph.classpath.internal.classloaderhandler;
 import java.io.File;
 import java.util.List;
 
+import io.github.classgraph.base.ClassGraphLog;
 import io.github.classgraph.base.internal.reflection.ReflectionUtils;
-import io.github.classgraph.base.internal.utils.LogNode;
-import io.github.classgraph.classpath.internal.ClassLoaderOrder;
-import io.github.classgraph.classpath.internal.ClasspathOrder;
+import io.github.classgraph.classpath.ClassLoaderHandler;
+import io.github.classgraph.classpath.ClassLoaderOrder;
+import io.github.classgraph.classpath.ClasspathOrder;
 import org.jspecify.annotations.Nullable;
 
 /** Extract classpath entries from the Tomcat/Catalina WebappClassLoaderBase. */
@@ -44,7 +45,7 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
     }
 
     @Override
-    public boolean canHandle(final Class<?> classLoaderClass, final @Nullable LogNode log) {
+    public boolean canHandle(final Class<?> classLoaderClass, final @Nullable ClassGraphLog log) {
         return classIsOrExtendsOrImplements(classLoaderClass, "org.apache.catalina.loader.WebappClassLoaderBase");
     }
 
@@ -66,7 +67,7 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
 
     @Override
     public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
-            final @Nullable LogNode log) {
+            final @Nullable ClassGraphLog log) {
         final var isParentFirst = isParentFirst(classLoader);
         if (isParentFirst) {
             // Use parent-first delegation order
@@ -92,7 +93,7 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
 
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-            final @Nullable LogNode log) {
+            final @Nullable ClassGraphLog log) {
         // type StandardRoot (implements WebResourceRoot)
         var resources = ReflectionUtils.invokeMethod(false, classLoader, "getResources");
         if (resources == null) {
@@ -140,7 +141,7 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
      *            the log.
      */
     private static void addWebResourceSet(final Object webResourceSet, final ClassLoader classLoader,
-            final ClasspathOrder classpathOrder, final @Nullable LogNode log) {
+            final ClasspathOrder classpathOrder, final @Nullable ClassGraphLog log) {
         // For DirResourceSet
         final var file = (File) ReflectionUtils.invokeMethod(false, webResourceSet, "getFileBase");
         var base = file == null ? null : file.getPath();

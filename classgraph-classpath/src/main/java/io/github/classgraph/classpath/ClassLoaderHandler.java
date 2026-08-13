@@ -26,25 +26,32 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.classgraph.classpath.internal.classloaderhandler;
+package io.github.classgraph.classpath;
 
-import io.github.classgraph.base.internal.utils.LogNode;
-import io.github.classgraph.classpath.internal.ClassLoaderOrder;
-import io.github.classgraph.classpath.internal.ClasspathOrder;
+import io.github.classgraph.base.ClassGraphLog;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A ClassLoader handler.
+ * Teaches ClassGraph how to read the classpath out of a {@link ClassLoader} that it does not already know about.
  *
  * <p>
- * Implementations must have a no-argument constructor, and are instantiated once each by
- * {@link ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry}. Implementations must be stateless, since a
- * single instance is shared across all scans.
+ * ClassGraph ships with handlers for the classloaders of the common application servers, build tools and
+ * frameworks. Write one of these only for a classloader that none of those handle, then register it with
+ * {@code ClassGraph#registerClassLoaderHandler(ClassLoaderHandler)} before scanning. A registered handler is
+ * offered every classloader before the built-in handlers are, so it can also override a built-in handler: the
+ * built-in handlers still run afterwards, but a classloader or classpath entry that has already been placed keeps
+ * the position the registered handler gave it.
  *
  * <p>
- * If you create a custom ClassLoaderHandler, please consider submitting it to the ClassGraph open source project.
+ * Implementations must be stateless: a single instance handles every classloader in every scan, and scans can run
+ * concurrently. State that belongs to one scan goes in the {@link ClasspathOrder} that is passed in; see
+ * {@link ClasspathOrder#claimOncePerScan(String)}.
+ *
+ * <p>
+ * If you write a handler for a classloader that others are likely to hit, please consider contributing it to the
+ * ClassGraph project.
  */
-interface ClassLoaderHandler {
+public interface ClassLoaderHandler {
     /**
      * Check whether this {@link ClassLoaderHandler} can handle a given {@link ClassLoader}.
      *
@@ -54,12 +61,12 @@ interface ClassLoaderHandler {
      *            the log node, or null to skip logging
      * @return true if this {@link ClassLoaderHandler} can handle the {@link ClassLoader}.
      */
-    boolean canHandle(Class<?> classLoaderClass, @Nullable LogNode log);
+    boolean canHandle(Class<?> classLoaderClass, @Nullable ClassGraphLog log);
 
     /**
      * Return true if the class is, extends, or implements a given named class or interface. Used by
-     * {@link #canHandle(Class, LogNode)} implementations to recognize a {@link ClassLoader} by name without loading
-     * its class.
+     * {@link #canHandle(Class, ClassGraphLog)} implementations to recognize a {@link ClassLoader} by name without
+     * loading its class.
      *
      * @param cls
      *            the class to test, or null.
@@ -92,7 +99,8 @@ interface ClassLoaderHandler {
      * @param log
      *            the log node, or null to skip logging
      */
-    void findClassLoaderOrder(ClassLoader classLoader, ClassLoaderOrder classLoaderOrder, @Nullable LogNode log);
+    void findClassLoaderOrder(ClassLoader classLoader, ClassLoaderOrder classLoaderOrder,
+            @Nullable ClassGraphLog log);
 
     /**
      * Find the classpath entries for the associated {@link ClassLoader}.
@@ -104,12 +112,12 @@ interface ClassLoaderHandler {
      * @param log
      *            the log node, or null to skip logging
      */
-    void findClasspathOrder(ClassLoader classLoader, ClasspathOrder classpathOrder, @Nullable LogNode log);
+    void findClasspathOrder(ClassLoader classLoader, ClasspathOrder classpathOrder, @Nullable ClassGraphLog log);
 
     /**
      * The automatic package root prefixes (e.g. {@code "BOOT-INF/classes/"}) to look for and strip within classpath
-     * elements obtained from this classloader, or {@link ClassLoaderHandlerRegistry#NO_PACKAGE_ROOT_PREFIXES} if
-     * this classloader's classpath elements always have their classes at the root.
+     * elements obtained from this classloader. The default is an empty array, meaning that this classloader's
+     * classpath elements always have their classes at the root.
      *
      * <p>
      * Package roots must only be declared here if the classloader really can produce classpath elements in that
@@ -119,5 +127,7 @@ interface ClassLoaderHandler {
      * @return the package root prefixes.
      */
     // #929
-    String[] getPackageRootPrefixes();
+    default String[] getPackageRootPrefixes() {
+        return new String[0];
+    }
 }

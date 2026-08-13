@@ -41,13 +41,14 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 
+import io.github.classgraph.base.ClassGraphLog;
 import org.jspecify.annotations.Nullable;
 
 /**
  * A tree-structured threadsafe log that allows you to add log entries in arbitrary order, and have the output
  * retain a sane order. The order may also be made deterministic by specifying a sort key for log entries.
  */
-public final class LogNode {
+public final class LogNode implements ClassGraphLog {
     // Mitigate log4j2 vulnerability (CVE-2021-44228), in case log4j is added to the classpath as the logger
     // https://blog.cloudflare.com/inside-the-log4j2-vulnerability-cve-2021-44228/
     static {
@@ -427,6 +428,7 @@ public final class LogNode {
      *            The {@link Throwable} that was thrown.
      * @return a child log node, which can be used to add sub-entries.
      */
+    @Override
     public LogNode log(final @Nullable String msg, final Throwable e) {
         return addChild("", msg, -1L).addChild(e);
     }
@@ -438,6 +440,7 @@ public final class LogNode {
      *            The message.
      * @return a child log node, which can be used to add sub-entries.
      */
+    @Override
     public LogNode log(final @Nullable String msg) {
         return addChild("", msg, -1L);
     }
