@@ -34,6 +34,7 @@ import java.lang.module.ModuleReference;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
+import java.nio.file.FileSystem;
 import java.nio.file.Path;
 import java.util.List;
 
@@ -212,6 +213,43 @@ public abstract class VfsRoot {
     public abstract @Nullable VfsEntry getEntry(String name) throws IOException;
 
     // -------------------------------------------------------------------------------------------------------------
+
+    /** The {@link FileSystem} view of this root, created on first use. */
+    private volatile @Nullable FileSystem fileSystem;
+
+    /**
+     * Returns a read-only {@link FileSystem} view of this root, so that it can be read through
+     * {@link java.nio.file.Files} and {@link Path} whatever kind of storage it actually is -- a directory, a
+     * jarfile, a jarfile nested inside another jarfile, a package root, a jarfile that exists only in RAM, or a
+     * module.
+     *
+     * <p>
+     * The path separator is {@code '/'} and the root directory is {@code "/"}, whichever kind of root this is.
+     * Directories are synthesized from the names of the entries below them, since a jarfile need not contain an
+     * entry for every directory whose contents it holds, and the whole entry list is read to do that, so the first
+     * call is as expensive as {@link #getEntries()}.
+     *
+     * <p>
+     * The filesystem is read-only: every operation that would write throws
+     * {@link java.nio.file.ReadOnlyFileSystemException}. Its {@link FileSystem#close()} throws
+     * {@link UnsupportedOperationException}, because the {@link Vfs} owns the file handles, memory mappings and
+     * temporary files behind it -- close the {@link Vfs} instead, which invalidates the filesystem along with
+     * everything else it handed out.
+     *
+     * @return a {@link FileSystem} view of this root. The same instance is returned every time.
+     */
+    public FileSystem asFileSystem() {
+        var fs = fileSystem;
+        if (fs == null) {
+            synchronized (this) {
+                fs = fileSystem;
+                if (fs == null) {
+                    fileSystem = fs = new VfsFileSystem(this);
+                }
+            }
+        }
+        return fs;
+    }
 
     /**
      * Returns the path of this root, with the package root appended if there is one.

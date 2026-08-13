@@ -53,6 +53,13 @@
  * byte array or a string, whichever the caller wants, whatever the entry is stored in.
  *
  * <p>
+ * {@link io.github.classgraph.vfs.VfsRoot#asFileSystem()} presents a whole root as a read-only
+ * {@link java.nio.file.FileSystem}, and {@link io.github.classgraph.vfs.VfsEntry#asPath()} presents a single entry
+ * as a {@link java.nio.file.Path} within it, so that code written against {@link java.nio.file.Files} can read a
+ * nested jarfile, a package root, a module, or a jarfile held in RAM -- none of which the zip filesystem provider
+ * that ships with the JDK can open.
+ *
+ * <p>
  * The zipfile reader in this package is a good deal faster than {@link java.util.zip.ZipFile}, and unlike
  * {@link java.util.zip.ZipFile} it can read a jarfile that is nested inside another jarfile, as produced by Spring
  * Boot and other executable-jar formats. A nested jarfile is read in place through a slice of the enclosing

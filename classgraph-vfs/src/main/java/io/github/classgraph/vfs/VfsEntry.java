@@ -134,6 +134,17 @@ public abstract class VfsEntry {
     }
 
     /**
+     * Returns this entry as a {@link Path} within the {@link VfsRoot#asFileSystem()} view of the root it came from,
+     * so that it can be handed to code that reads through {@link java.nio.file.Files}. Unlike
+     * {@link #getNioPath()}, this never returns null, whatever kind of storage the entry is held in.
+     *
+     * @return this entry, as a {@link Path} of a read-only virtual filesystem.
+     */
+    public Path asPath() {
+        return getRoot().asFileSystem().getPath("/" + getName());
+    }
+
+    /**
      * Returns the {@link Path} of this entry in the filesystem, if it has one.
      *
      * @return the {@link Path} of the entry, or null if the entry is not a file in a filesystem this JVM has

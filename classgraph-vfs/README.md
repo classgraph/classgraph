@@ -3,8 +3,10 @@
 A virtual filesystem: it reads directories, jarfiles and modules through one interface, however they
 are named -- by path string, `File`, `Path`, `URI`, `URL`, `ModuleReference`, `InputStream` or byte
 array -- and hands back the content of anything it finds as a stream, a channel, a `ByteBuffer`, a
-byte array or a string. It has no scanner and no classfile parser: if you want to find classes, use
-[`classgraph`](../classgraph) instead, which is built on this library.
+byte array, a string, or a `java.nio.file.Path` in a read-only `FileSystem` view, so that
+`java.nio.file.Files` can read a jarfile nested inside another jarfile. It has no scanner and no
+classfile parser: if you want to find classes, use [`classgraph`](../classgraph) instead, which is
+built on this library.
 
 ```xml
 <dependency>
@@ -45,10 +47,49 @@ way in produces the same `VfsRoot`, and every `VfsEntry` reads out in every way.
 | `java.nio.ByteBuffer` (a memory mapping where possible) | `entry.read()` |
 | `byte[]` | `entry.load()` |
 | `String`, decoded as UTF-8 | `entry.loadAsString()` |
+| `java.nio.file.Path`, in the filesystem view below | `entry.asPath()` |
+| `java.nio.file.FileSystem`, over a whole root | `root.asFileSystem()` |
 
 A root also names itself in every way it can: `getPath()`, `getURI()`, `getURL()`, `getFile()`,
 `getNioPath()` and `getModuleReference()`, each returning null where the underlying storage has no
 such name -- a module of the running JDK has no file, and a jarfile downloaded into RAM has no path.
+
+## Reading through `java.nio.file.Files`
+
+`root.asFileSystem()` returns a read-only `FileSystem` over any root, so anything that takes a
+`Path` can read a directory, a jarfile, a jarfile nested inside another jarfile, a package root, a
+jarfile that exists only in RAM, or a module, without knowing which of those it has:
+
+```java
+try (Vfs vfs = new Vfs()) {
+    FileSystem fs = vfs.open("/path/to/outer.jar!/BOOT-INF/lib/inner.jar").asFileSystem();
+    byte[] classfile = Files.readAllBytes(fs.getPath("/com/xyz/Widget.class"));
+    try (Stream<Path> paths = Files.walk(fs.getPath("/"))) {
+        paths.filter(Files::isRegularFile).forEach(System.out::println);
+    }
+}
+```
+
+The JDK ships a zip filesystem provider, but it can only open a jarfile it can name as a `Path`. It
+cannot open a module, and it cannot open a jarfile that was never written to disk. It also cannot
+name a nested jarfile: given `jar:file:/path/to/outer.jar!/BOOT-INF/lib/inner.jar` it keeps only the
+part before the first `!/`, and silently opens `outer.jar` instead, so the entries of `inner.jar`
+are not there. Nesting can be reached by opening each level in turn and handing the inner `Path` to
+the next, but that requires knowing the depth in advance, and each level is read into memory
+whether or not anything is read from it.
+
+The separator is `/` and the root directory is `/`, whichever kind of root it is a view of. Files
+are read with `Files.newInputStream`, `Files.newByteChannel`, `Files.readAllBytes` and
+`Files.readString`; directories are listed with `Files.newDirectoryStream`, `Files.list` and
+`Files.walk`, and are synthesized from the names of the entries below them, since a jarfile need not
+contain an entry for every directory whose contents it holds. `getPathMatcher` supports both `glob:`
+and `regex:`. `basic` is the only attribute view.
+
+It is a read-only filesystem: everything that would write -- `Files.delete`, `Files.write`,
+`Files.copy`, `Files.move`, `Files.createDirectory`, `Files.newOutputStream`, `setTimes`, and
+`newByteChannel` with a write option -- throws `ReadOnlyFileSystemException`. Its `close()` throws
+`UnsupportedOperationException`, because the `Vfs` owns the file handles, memory mappings and
+temporary files behind it; close the `Vfs` instead, after which `isOpen()` returns false.
 
 ## What it reads that `java.util.zip` does not
 

@@ -462,6 +462,15 @@ public class Vfs implements Closeable {
     }
 
     /**
+     * Returns whether this {@link Vfs} has been closed.
+     *
+     * @return true if this {@link Vfs} has been closed.
+     */
+    boolean isClosed() {
+        return closed;
+    }
+
+    /**
      * Returns the resources that the roots opened by this {@link Vfs} are backed by.
      *
      * @return the resources.
