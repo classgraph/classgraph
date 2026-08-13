@@ -78,6 +78,12 @@ public class MalformedZipEntryTest {
         /** The filename length to write in the central directory record, or null to write the real length. */
         private Integer cenFilenameLen;
 
+        /** The extra field length to write in the central directory record, or null to write the real length. */
+        private Integer cenExtraFieldLen;
+
+        /** The comment length to write in the central directory record, or null to write no comment. */
+        private Integer cenCommentLen;
+
         /** The signature to write at the head of the central directory record. */
         private long cenSignature = CEN_SIGNATURE;
 
@@ -173,6 +179,32 @@ public class MalformedZipEntryTest {
          */
         private EntrySpec cenFilenameLen(final int cenFilenameLen) {
             this.cenFilenameLen = cenFilenameLen;
+            return this;
+        }
+
+        /**
+         * Set the extra field length written in the central directory record, which need not be the real length of
+         * the extra field area that follows it.
+         *
+         * @param cenExtraFieldLen
+         *            the extra field length
+         * @return this (for method chaining)
+         */
+        private EntrySpec cenExtraFieldLen(final int cenExtraFieldLen) {
+            this.cenExtraFieldLen = cenExtraFieldLen;
+            return this;
+        }
+
+        /**
+         * Set the comment length written in the central directory record. No comment is written after it, so any
+         * nonzero length is a length the record does not have room for.
+         *
+         * @param cenCommentLen
+         *            the comment length
+         * @return this (for method chaining)
+         */
+        private EntrySpec cenCommentLen(final int cenCommentLen) {
+            this.cenCommentLen = cenCommentLen;
             return this;
         }
 
@@ -362,8 +394,9 @@ public class MalformedZipEntryTest {
             write32(zip, entrySpec.cenCompressedSize == null ? CONTENTS.length : entrySpec.cenCompressedSize);
             write32(zip, entrySpec.cenUncompressedSize == null ? CONTENTS.length : entrySpec.cenUncompressedSize);
             write16(zip, entrySpec.cenFilenameLen == null ? nameBytes.length : entrySpec.cenFilenameLen);
-            write16(zip, entrySpec.extraField.length);
-            write16(zip, 0); // Comment length
+            write16(zip,
+                    entrySpec.cenExtraFieldLen == null ? entrySpec.extraField.length : entrySpec.cenExtraFieldLen);
+            write16(zip, entrySpec.cenCommentLen == null ? 0 : entrySpec.cenCommentLen);
             write16(zip, 0); // Disk number start
             write16(zip, 0); // Internal file attributes
             write32(zip, 0); // External file attributes
@@ -622,6 +655,18 @@ public class MalformedZipEntryTest {
                 .containsExactly("etc/passwd");
     }
 
+    /**
+     * A Unicode path extra field with an empty data area holds no name to rename its entry with, and no version
+     * byte either -- the bytes that follow the field belong to the next record, so they must not be read as if they
+     * were the version byte of this one.
+     */
+    @Test
+    public void anEmptyUnicodePathExtraFieldIsIgnored(@TempDir final File tempDir) throws Exception {
+        assertThat(entryNamesReadBack(writeZip(tempDir, "unicode-path-empty.jar",
+                entry("testpkg/name.txt").extraField(extraField(0x7075, new byte[0])), entry(GOOD_NAME))))
+                .containsExactly("testpkg/name.txt", GOOD_NAME);
+    }
+
     /** Only version 1 of the Unicode path extra field is defined, so any other version cannot be read. */
     @Test
     public void aUnicodePathExtraFieldOfAnUnknownVersionIsRejected(@TempDir final File tempDir) throws Exception {
@@ -654,5 +699,32 @@ public class MalformedZipEntryTest {
                 entry("testpkg/long-name.txt").cenFilenameLen(60000));
         assertThat(entryNamesReadBack(jarFile)).containsExactly(GOOD_NAME);
         assertThat(verboseLogOfReading(jarFile)).contains("Filename extends past end of entry");
+    }
+
+    /**
+     * A record whose extra field area extends past the end of the central directory has the same problem as one
+     * whose name does: the position of the record after it is unknown, so the entries read so far are kept and the
+     * rest are dropped.
+     */
+    @Test
+    public void aRecordWhoseExtraFieldAreaExtendsPastTheCentralDirectoryEndsTheEntries(@TempDir final File tempDir)
+            throws Exception {
+        final var jarFile = writeZip(tempDir, "long-extra-field-area.jar", entry(GOOD_NAME),
+                entry("testpkg/long-extra-field-area.txt").cenExtraFieldLen(60000));
+        assertThat(entryNamesReadBack(jarFile)).containsExactly(GOOD_NAME);
+        assertThat(verboseLogOfReading(jarFile)).contains("Extra field area extends past end of entry");
+    }
+
+    /**
+     * A record whose comment extends past the end of the central directory ends the entries too, but that record
+     * itself is still read: the comment is the one part of a record that is never read, so an entry whose comment
+     * is the only part of it that does not fit is not damaged by that.
+     */
+    @Test
+    public void aRecordWhoseCommentExtendsPastTheCentralDirectoryIsStillRead(@TempDir final File tempDir)
+            throws Exception {
+        assertThat(entryNamesReadBack(writeZip(tempDir, "long-comment.jar", entry(GOOD_NAME),
+                entry("testpkg/long-comment.txt").cenCommentLen(60000))))
+                .containsExactly(GOOD_NAME, "testpkg/long-comment.txt");
     }
 }

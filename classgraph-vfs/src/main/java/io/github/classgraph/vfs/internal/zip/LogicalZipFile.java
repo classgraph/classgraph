@@ -29,7 +29,6 @@
 package io.github.classgraph.vfs.internal.zip;
 
 import java.io.ByteArrayOutputStream;
-import java.io.EOFException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.AbstractMap.SimpleEntry;
@@ -771,7 +770,9 @@ public class LogicalZipFile extends ZipFileSlice {
             } else if (tag == 0x7855) {
                 // Info-ZIP Unix UID and GID fields (currently ignored)
 
-            } else if (tag == 0x7075) {
+            } else if (tag == 0x7075 && size >= 1) {
+                // (The size test is what stops the version byte from being read out of the next extra field, or out
+                // of the next central directory record, when this extra field has an empty data area)
                 readUnicodePathExtraField(cenReader, tagOff, size, entryFields);
             }
             extraFieldOff += 4 + size;
@@ -1007,41 +1008,44 @@ public class LogicalZipFile extends ZipFileSlice {
     private @Nullable FastZipEntry readEntries(final RandomAccessReader cenReader, final CentralDirectory cen,
             final @Nullable LogNode log) throws IOException {
         FastZipEntry manifestZipEntry = null;
-        try {
-            var entSize = 0;
-            for (var entOff = 0L; entOff + 46 <= cen.cenSize(); entOff += entSize) {
-                final var sig = cenReader.readUnsignedInt(entOff);
-                if (sig != 0x02014b50L) {
-                    throw new IOException("Invalid central directory signature: 0x"
-                            + Integer.toString((int) sig, 16) + ": " + getPath());
-                }
-                final var filenameLen = cenReader.readUnsignedShort(entOff + 28);
-                final var extraFieldLen = cenReader.readUnsignedShort(entOff + 30);
-                final var commentLen = cenReader.readUnsignedShort(entOff + 32);
-                entSize = 46 + filenameLen + extraFieldLen + commentLen;
-
-                if (entOff + 46 + filenameLen > cen.cenSize()) {
-                    if (log != null) {
-                        log.log("Filename extends past end of entry -- skipping entry at offset " + entOff);
-                    }
-                    break;
-                }
-
-                final var entry = readEntry(cenReader, entOff, filenameLen, extraFieldLen, cen.locPos(), log);
-                if (entry != null) {
-                    entries.add(entry);
-
-                    // Record manifest entry
-                    if (MANIFEST_PATH.equals(entry.entryName)) {
-                        manifestZipEntry = entry;
-                    }
-                }
+        var entSize = 0;
+        for (var entOff = 0L; entOff + 46 <= cen.cenSize(); entOff += entSize) {
+            final var sig = cenReader.readUnsignedInt(entOff);
+            if (sig != 0x02014b50L) {
+                throw new IOException("Invalid central directory signature: 0x" + Integer.toString((int) sig, 16)
+                        + ": " + getPath());
             }
-        } catch (EOFException | IndexOutOfBoundsException e) {
-            // Stop reading entries if any entry is not within file
-            if (log != null) {
-                log.log("Reached premature EOF"
-                        + (entries.isEmpty() ? "" : " after reading zip entry " + entries.get(entries.size() - 1)));
+            final var filenameLen = cenReader.readUnsignedShort(entOff + 28);
+            final var extraFieldLen = cenReader.readUnsignedShort(entOff + 30);
+            final var commentLen = cenReader.readUnsignedShort(entOff + 32);
+            entSize = 46 + filenameLen + extraFieldLen + commentLen;
+
+            if (entOff + 46 + filenameLen > cen.cenSize()) {
+                if (log != null) {
+                    log.log("Filename extends past end of entry -- skipping entry at offset " + entOff);
+                }
+                break;
+            }
+
+            // The extra field area has to be within the central directory too, otherwise reading the extra fields
+            // would read beyond the end of it. (The comment is not tested here, because it is never read -- an
+            // entry whose comment is the only part of it that does not fit is still readable. Either way, the
+            // record after this one starts past the end of the central directory, so the loop ends here.)
+            if (entOff + 46 + filenameLen + extraFieldLen > cen.cenSize()) {
+                if (log != null) {
+                    log.log("Extra field area extends past end of entry -- skipping entry at offset " + entOff);
+                }
+                break;
+            }
+
+            final var entry = readEntry(cenReader, entOff, filenameLen, extraFieldLen, cen.locPos(), log);
+            if (entry != null) {
+                entries.add(entry);
+
+                // Record manifest entry
+                if (MANIFEST_PATH.equals(entry.entryName)) {
+                    manifestZipEntry = entry;
+                }
             }
         }
         return manifestZipEntry;
