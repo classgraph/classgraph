@@ -1870,6 +1870,20 @@ is fixed on the 4.x branch as well.
   were for a classloader with a non-null parent. On 5.x this is visible through
   `ClasspathFinder`, which is public API of `classgraph-classpath`.
 
+* A scan run on an `ExecutorService` that had no free thread hung forever. The scan is
+  submitted to the `ExecutorService`, and the work queue it then starts submits one worker
+  per parallel task to the same `ExecutorService` and does a share of the work on its own
+  thread, so that the work still gets done if no worker can be started -- but the barrier
+  at the end of the work queue waited for the result of every worker it had submitted,
+  including the ones the `ExecutorService` had never had a free thread to start, and those
+  cannot start until the thread waiting for them returns. So
+  `scan(Executors.newSingleThreadExecutor(), 4)`, and any other call whose
+  `ExecutorService` was smaller than its parallelism, or was shared with enough other work
+  to leave no thread free, never returned. The barrier now waits only for workers that
+  really started, and a worker that has not started by then is stopped from running the
+  work loop if it starts later. (All the work is done by the time the barrier is reached,
+  whether or not every worker ran.)
+
 Two further bugs found during the port were only reachable through the JSON
 serialization API, which 5.x removes (`AnnotationParameterValue#toString()` threw
 `NullPointerException` for a null parameter value, and `ScanResult#fromJSON(String)` did
