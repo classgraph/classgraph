@@ -1884,6 +1884,15 @@ is fixed on the 4.x branch as well.
   work loop if it starts later. (All the work is done by the time the barrier is reached,
   whether or not every worker ran.)
 
+* `ScanResult#getClasspathContentsLastModifiedMillis()` returned the timestamps recorded
+  during the scan, so its result never changed however the files changed, although it is
+  documented to check the current timestamps "so this should increase between calls if
+  something changes in accepted paths" -- which is the only thing the method is useful
+  for, and is what its companion `isClasspathContentsModifiedSinceScan()` has always done.
+  It now reads the current timestamp of each file that the scan recorded. Timestamps in
+  the future are still ignored, and a file that has been deleted since the scan no longer
+  contributes a timestamp.
+
 Two further bugs found during the port were only reachable through the JSON
 serialization API, which 5.x removes (`AnnotationParameterValue#toString()` threw
 `NullPointerException` for a null parameter value, and `ScanResult#fromJSON(String)` did

@@ -1835,7 +1835,10 @@ public final class ScanResult implements Closeable {
         var maxLastModifiedTime = 0L;
         if (fileToLastModified != null) {
             final var currTime = System.currentTimeMillis();
-            for (final long timestamp : fileToLastModified.values()) {
+            for (final File file : fileToLastModified.keySet()) {
+                // Read the current timestamp of each file, rather than the timestamp recorded during the scan, so
+                // that the returned value increases when something is modified
+                final var timestamp = file.lastModified();
                 if (timestamp > maxLastModifiedTime && timestamp < currTime) {
                     maxLastModifiedTime = timestamp;
                 }

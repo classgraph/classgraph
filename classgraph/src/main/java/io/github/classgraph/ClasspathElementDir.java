@@ -625,8 +625,8 @@ class ClasspathElementDir extends ClasspathElement {
     }
 
     /**
-     * Record the last modified time of a file, so that {@link ScanResult#classpathContentsModifiedSinceScan()} can
-     * detect changes to it.
+     * Record the last modified time of a file, so that {@link ScanResult#isClasspathContentsModifiedSinceScan()}
+     * can detect changes to it.
      *
      * @param path
      *            the {@link Path} of the file
