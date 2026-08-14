@@ -39,37 +39,51 @@ import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.attribute.PosixFilePermission;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.ZipEntry;
 
 import io.github.classgraph.base.internal.utils.LogNode;
+import io.github.classgraph.base.internal.utils.ProxyingInputStream;
 import io.github.classgraph.base.internal.utils.URLPathEncoder;
 import io.github.classgraph.vfs.CloseableByteBuffer;
+import io.github.classgraph.vfs.Vfs;
+import io.github.classgraph.vfs.VfsEntry;
 import io.github.classgraph.vfs.internal.slice.reader.ClassfileReader;
 import org.jspecify.annotations.Nullable;
 
 /**
  * A classpath or module path resource (i.e. file) that was found in an accepted/non-rejected package inside a
  * classpath element or module.
+ *
+ * <p>
+ * A resource is read through the virtual filesystem, so that a file in a directory, an entry of a jarfile and a
+ * resource in a module are all read the same way. Call {@link #getVfsEntry()} to reach the {@link VfsEntry} behind
+ * the resource, which offers the rest of the {@link Vfs} API. Each kind of classpath element subclasses this only
+ * to say how the resource is named or located within it, since that is all that differs between them.
  */
 public abstract class Resource implements AutoCloseable, Comparable<Resource> {
     /** The classpath element this resource was obtained from. */
     private final ClasspathElement classpathElement;
 
+    /** The entry in the virtual filesystem that this resource is read from. */
+    private final VfsEntry entry;
+
+    /** The path of the resource relative to the package root. */
+    private final String path;
+
     /** True if this resource is currently open. */
     private final AtomicBoolean isOpen = new AtomicBoolean();
 
-    /** The input stream, or null. */
-    @Nullable
-    InputStream inputStream;
+    /** The stream this resource was opened as, or null if it has not been opened as a stream. */
+    private @Nullable InputStream inputStream;
 
-    /** The byte buffer, or null. */
-    @Nullable
-    ByteBuffer byteBuffer;
+    /** The buffer this resource was read into, or null if it has not been read into a buffer. */
+    private @Nullable CloseableByteBuffer closeableByteBuffer;
 
     /** The length, or -1L for unknown. */
-    long length;
+    private long length;
 
     /** The cached result of toString(), or null if not yet computed. */
     private @Nullable String toString;
@@ -88,12 +102,16 @@ public abstract class Resource implements AutoCloseable, Comparable<Resource> {
      *
      * @param classpathElement
      *            the classpath element this resource was obtained from.
-     * @param length
-     *            the length the length of the resource.
+     * @param entry
+     *            the entry in the virtual filesystem that this resource is read from.
+     * @param path
+     *            the path of the resource relative to the package root.
      */
-    Resource(final ClasspathElement classpathElement, final long length) {
+    Resource(final ClasspathElement classpathElement, final VfsEntry entry, final String path) {
         this.classpathElement = classpathElement;
-        this.length = length;
+        this.entry = entry;
+        this.path = path;
+        this.length = entry.getLength();
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -235,6 +253,21 @@ public abstract class Resource implements AutoCloseable, Comparable<Resource> {
     }
 
     /**
+     * Get the {@link VfsEntry} that this {@link Resource} is read from, giving access to the rest of the
+     * {@link Vfs} API for the resource: reading it as a {@link java.nio.channels.ReadableByteChannel}, addressing
+     * it as a {@link java.nio.file.Path} of a read-only virtual filesystem, or asking for its compressed size.
+     *
+     * <p>
+     * The returned entry stops working once the {@link ScanResult} that this {@link Resource} came from is closed,
+     * since closing the {@link ScanResult} closes the {@link Vfs} that the entry is read through.
+     *
+     * @return the {@link VfsEntry} that this {@link Resource} is read from.
+     */
+    public VfsEntry getVfsEntry() {
+        return entry;
+    }
+
+    /**
      * Convenience method to get the content of this {@link Resource} as a String. Assumes UTF8 encoding. (Calls
      * {@link #close()} after completion.)
      *
@@ -259,7 +292,9 @@ public abstract class Resource implements AutoCloseable, Comparable<Resource> {
      *         example for a resource path of {@code "META-INF/versions/11/com/xyz/resource.xml"}, returns
      *         {@code "com/xyz/resource.xml"}.
      */
-    public abstract String getPath();
+    public String getPath() {
+        return path;
+    }
 
     /**
      * Get the full path of this classpath resource relative to the root of the classpath element.
@@ -283,34 +318,68 @@ public abstract class Resource implements AutoCloseable, Comparable<Resource> {
      * @throws IOException
      *             If the {@link InputStream} could not be opened.
      */
-    public abstract InputStream open() throws IOException;
+    public InputStream open() throws IOException {
+        checkCanOpen();
+        try {
+            inputStream = new ProxyingInputStream(entry.open()) {
+                /** True once the resource has been closed, so that it is only closed once. */
+                private boolean closedResource;
+
+                @Override
+                public void close() throws IOException {
+                    try {
+                        super.close();
+                    } finally {
+                        // Closing the stream closes the resource it was opened on. Closing the stream a second time
+                        // must not close the resource again, since by then the resource may have been reopened.
+                        if (!closedResource) {
+                            closedResource = true;
+                            Resource.this.close();
+                        }
+                    }
+                }
+            };
+            length = entry.getLength();
+            return inputStream;
+
+        } catch (final IOException e) {
+            // Leave the resource closed if it could not be opened, so that opening it can be tried again, and so
+            // that anything the entry checked out in order to open it is handed back
+            close();
+            throw e;
+        }
+    }
 
     /**
-     * Open a {@link ByteBuffer} for a classpath resource. Make sure you call {@link Resource#close()} when you are
-     * finished with the {@link ByteBuffer}, so that the {@link ByteBuffer} is released or unmapped. See also
-     * {@link #readCloseable()}.
-     *
-     * @return The allocated or mapped {@link ByteBuffer} for the resource file content.
-     * @throws IOException
-     *             If the resource could not be read.
-     */
-    public abstract ByteBuffer read() throws IOException;
-
-    /**
-     * Open a {@link ByteBuffer} for a classpath resource, and wrap it in a {@link CloseableByteBuffer} instance,
-     * which implements the {@link AutoCloseable#close()} method to free the underlying {@link ByteBuffer} when
-     * {@link CloseableByteBuffer#close()} is called, by automatically calling {@link Resource#close()}.
+     * Read a classpath resource as a {@link ByteBuffer}, which is a memory mapping of the resource where the
+     * resource is stored uncompressed in a file that can be mapped. Call
+     * {@link CloseableByteBuffer#getByteBuffer()} on the returned instance to reach the {@link ByteBuffer}.
      *
      * <p>
-     * Call {@link CloseableByteBuffer#getByteBuffer()} on the returned instance to access the underlying
-     * {@link ByteBuffer}.
+     * Close the returned {@link CloseableByteBuffer} when you have finished with it, so that the {@link ByteBuffer}
+     * is released or unmapped. You can also close the {@link Resource} instead, which closes the buffer -- closing
+     * both is safe, since the buffer is only released once.
      *
-     * @return The allocated or mapped {@link ByteBuffer} for the resource file content.
+     * @return The allocated or mapped {@link ByteBuffer} for the resource file content, wrapped so that it can be
+     *         closed.
      * @throws IOException
      *             If the resource could not be read.
      */
-    public CloseableByteBuffer readCloseable() throws IOException {
-        return new CloseableByteBuffer(read(), this::close);
+    public CloseableByteBuffer read() throws IOException {
+        checkCanOpen();
+        try {
+            final var entryBuffer = entry.read();
+            closeableByteBuffer = entryBuffer;
+            // The buffer may belong to whatever produced it, and is only valid until this resource is closed
+            final var buffer = Objects.requireNonNull(entryBuffer.getByteBuffer());
+            length = buffer.remaining();
+            // Closing the returned wrapper closes this resource, which releases the buffer the entry produced
+            return new CloseableByteBuffer(buffer, this::close);
+
+        } catch (final IOException e) {
+            close();
+            throw e;
+        }
     }
 
     /**
@@ -322,16 +391,36 @@ public abstract class Resource implements AutoCloseable, Comparable<Resource> {
      * @throws IOException
      *             If the file contents could not be loaded in their entirety.
      */
-    public abstract byte[] load() throws IOException;
+    public byte[] load() throws IOException {
+        checkCanOpen();
+        try (Resource res = this) { // Close this after use
+            final var byteArray = entry.load();
+            res.length = byteArray.length;
+            return byteArray;
+        }
+    }
 
     /**
-     * Open a {@link ClassfileReader} on the resource (for reading classfiles).
+     * Open a {@link ClassfileReader} on the resource (for reading classfiles). Each kind of storage reads a
+     * classfile in whichever way is cheapest for it, so the reader is opened by the virtual filesystem; this method
+     * only marks the resource as open, and arranges for closing the reader to close the resource.
      *
      * @return the {@link ClassfileReader}.
      * @throws IOException
      *             if an I/O exception occurs.
      */
-    abstract ClassfileReader openClassfile() throws IOException;
+    ClassfileReader openClassfileReader() throws IOException {
+        checkCanOpen();
+        try {
+            final var classfileReader = entry.openClassfileReader(this);
+            length = entry.getLength();
+            return classfileReader;
+
+        } catch (final IOException e) {
+            close();
+            throw e;
+        }
+    }
 
     /**
      * Get the length of the resource.
@@ -360,7 +449,9 @@ public abstract class Resource implements AutoCloseable, Comparable<Resource> {
      * @return The millis since the epoch indicating the date / time that this file resource was last modified.
      *         Returns 0L if the last modified date is unknown.
      */
-    public abstract long getLastModifiedMillis();
+    public long getLastModifiedMillis() {
+        return entry.getLastModifiedTimeMillis();
+    }
 
     /**
      * Get the POSIX file permissions for the resource. POSIX file permissions are obtained from the directory
@@ -370,7 +461,9 @@ public abstract class Resource implements AutoCloseable, Comparable<Resource> {
      *
      * @return The set of {@link PosixFilePermission} permission flags for the resource, or null if unknown.
      */
-    public abstract @Nullable Set<PosixFilePermission> getPosixFilePermissions();
+    public @Nullable Set<PosixFilePermission> getPosixFilePermissions() {
+        return entry.getPosixFilePermissions();
+    }
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -430,19 +523,28 @@ public abstract class Resource implements AutoCloseable, Comparable<Resource> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Close the underlying InputStream, or release/unmap the underlying ByteBuffer.
+     * Close the underlying InputStream, or release/unmap the underlying ByteBuffer. Closing a resource that is
+     * already closed has no effect, so a resource can be closed both directly and through the stream or buffer it
+     * was opened as.
      */
     @Override
     public void close() {
-        // Subclasses override this, guarding the body with markClosed() and calling super.close() at the end
-        final var in = inputStream;
-        if (in != null) {
-            try {
-                in.close();
-            } catch (final IOException e) {
-                // Ignore
+        if (markClosed()) {
+            final var closeableBuffer = closeableByteBuffer;
+            if (closeableBuffer != null) {
+                closeableByteBuffer = null;
+                // Releases the buffer, and hands back anything the entry checked out in order to read it
+                closeableBuffer.close();
             }
-            inputStream = null;
+            final var in = inputStream;
+            if (in != null) {
+                inputStream = null;
+                try {
+                    in.close();
+                } catch (final IOException e) {
+                    // Ignore
+                }
+            }
         }
     }
 }

@@ -221,7 +221,7 @@ class ClasspathElementDir extends ClasspathElement {
     /**
      * A {@link Resource} for a file in a directory classpath element.
      */
-    private final class DirResource extends VfsResource {
+    private final class DirResource extends Resource {
         /**
          * Constructor.
          *

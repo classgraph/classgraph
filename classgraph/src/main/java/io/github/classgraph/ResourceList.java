@@ -450,7 +450,9 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
         Assert.notNull(byteBufferConsumer, "byteBufferConsumer");
         for (final Resource resource : this) {
             try (resource) {
-                byteBufferConsumer.accept(resource, resource.read());
+                // The buffer is only valid until the resource is closed, which is why the consumer is called with
+                // the plain ByteBuffer rather than something it could close early
+                byteBufferConsumer.accept(resource, Objects.requireNonNull(resource.read().getByteBuffer()));
             }
         }
         return this;
@@ -468,7 +470,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
         Assert.notNull(byteBufferConsumer, "byteBufferConsumer");
         for (final Resource resource : this) {
             try (resource) {
-                byteBufferConsumer.accept(resource, resource.read());
+                byteBufferConsumer.accept(resource, Objects.requireNonNull(resource.read().getByteBuffer()));
             } catch (final IOException e) {
                 // Ignore
             }

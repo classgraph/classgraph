@@ -97,15 +97,15 @@ public class ClasspathElementModuleTest {
                 assertThat(inputStream.readAllBytes()).isEqualTo(expected);
             }
 
-            final var forRead = resource(scanResult, CLASSFILE_PATH);
-            final var byteBuffer = forRead.read();
+            final var forCloseResource = resource(scanResult, CLASSFILE_PATH);
+            final var byteBuffer = forCloseResource.read().getByteBuffer();
             final var readBytes = new byte[byteBuffer.remaining()];
             byteBuffer.get(readBytes);
             assertThat(readBytes).isEqualTo(expected);
-            forRead.close();
+            forCloseResource.close();
 
-            final var forReadCloseable = resource(scanResult, CLASSFILE_PATH);
-            try (var closeableByteBuffer = forReadCloseable.readCloseable()) {
+            final var forCloseBuffer = resource(scanResult, CLASSFILE_PATH);
+            try (var closeableByteBuffer = forCloseBuffer.read()) {
                 final var closeableBytes = new byte[closeableByteBuffer.getByteBuffer().remaining()];
                 closeableByteBuffer.getByteBuffer().get(closeableBytes);
                 assertThat(closeableBytes).isEqualTo(expected);
@@ -155,7 +155,7 @@ public class ClasspathElementModuleTest {
             }
 
             final var read = resource(scanResult, CLASSFILE_PATH);
-            assertThat(read.read().remaining()).isEqualTo((int) read.getLength());
+            assertThat(read.read().getByteBuffer().remaining()).isEqualTo((int) read.getLength());
             read.close();
 
             final var loaded = resource(scanResult, CLASSFILE_PATH);

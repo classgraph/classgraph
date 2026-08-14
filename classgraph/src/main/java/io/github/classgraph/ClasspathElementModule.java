@@ -143,7 +143,7 @@ class ClasspathElementModule extends ClasspathElement {
     /**
      * A {@link Resource} for a resource in a module.
      */
-    private final class ModuleResource extends VfsResource {
+    private final class ModuleResource extends Resource {
         /**
          * Constructor.
          *
@@ -158,7 +158,7 @@ class ClasspathElementModule extends ClasspathElement {
         public URI getURI() {
             // A module can have no location, in which case the classpath element has no URI to build this URI on
             // top of, so ask the module itself where the resource is
-            return entry.getURI();
+            return getVfsEntry().getURI();
         }
     }
 

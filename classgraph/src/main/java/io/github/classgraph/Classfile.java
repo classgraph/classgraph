@@ -2514,7 +2514,7 @@ class Classfile {
         this.scanSpec = scanSpec;
 
         // Open a BufferedSequentialReader for the classfile
-        try (var classfileReader = classfileResource.openClassfile()) {
+        try (var classfileReader = classfileResource.openClassfileReader()) {
             reader = classfileReader;
 
             // Check magic number

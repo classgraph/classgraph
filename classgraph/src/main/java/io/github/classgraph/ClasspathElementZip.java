@@ -303,7 +303,7 @@ class ClasspathElementZip extends ClasspathElement {
     /**
      * A {@link Resource} for an entry in a zipfile classpath element.
      */
-    private final class ZipResource extends VfsResource {
+    private final class ZipResource extends Resource {
         /**
          * Constructor.
          *
@@ -321,7 +321,7 @@ class ClasspathElementZip extends ClasspathElement {
         @Override
         public String getPathRelativeToClasspathElement() {
             // The name of the entry in the zipfile, which for an entry of a multi-release jar is the versioned name
-            final var entryName = Objects.requireNonNull(entry.getZipEntry()).entryName;
+            final var entryName = Objects.requireNonNull(getVfsEntry().getZipEntry()).entryName;
             return entryName.startsWith(packageRootPrefix) ? entryName.substring(packageRootPrefix.length())
                     : entryName;
         }

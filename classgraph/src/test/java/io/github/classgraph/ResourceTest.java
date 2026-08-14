@@ -72,9 +72,7 @@ public class ResourceTest {
         }
     }
 
-    /**
-     * The same content is returned by {@code open()}, {@code read()}, {@code readCloseable()} and {@code load()}.
-     */
+    /** The same content is returned by {@code open()}, {@code read()} and {@code load()}. */
     @Test
     public void theContentCanBeReadThroughEveryAccessor() throws IOException {
         try (var scanResult = scanTestResourcesDir()) {
@@ -86,21 +84,59 @@ public class ResourceTest {
             }
             forOpen.close();
 
-            final var forRead = resource(scanResult, TEXT_FILE);
-            final var byteBuffer = forRead.read();
+            // Closing the resource releases the buffer it was read into
+            final var forCloseResource = resource(scanResult, TEXT_FILE);
+            final var byteBuffer = forCloseResource.read().getByteBuffer();
             final var readBytes = new byte[byteBuffer.remaining()];
             byteBuffer.get(readBytes);
             assertThat(readBytes).isEqualTo(expected);
-            forRead.close();
+            forCloseResource.close();
 
-            final var forReadCloseable = resource(scanResult, TEXT_FILE);
-            try (var closeableByteBuffer = forReadCloseable.readCloseable()) {
+            // Closing the buffer works just as well, and closes the resource it was read from
+            final var forCloseBuffer = resource(scanResult, TEXT_FILE);
+            try (var closeableByteBuffer = forCloseBuffer.read()) {
                 final var closeableBytes = new byte[closeableByteBuffer.getByteBuffer().remaining()];
                 closeableByteBuffer.getByteBuffer().get(closeableBytes);
                 assertThat(closeableBytes).isEqualTo(expected);
             }
 
             assertThat(resource(scanResult, TEXT_FILE).load()).isEqualTo(expected);
+        }
+    }
+
+    /**
+     * Closing the buffer returned by {@code read()} closes the resource it was read from, so the resource can be
+     * read again afterwards, and closing both the buffer and the resource releases the content only once.
+     */
+    @Test
+    public void closingTheBufferReturnedByReadClosesTheResource() throws IOException {
+        try (var scanResult = scanTestResourcesDir()) {
+            final var resource = resource(scanResult, TEXT_FILE);
+            final var buffer = resource.read();
+            // A resource that is still open cannot be read a second time
+            assertThatThrownBy(resource::read).isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("already open");
+
+            buffer.close();
+            assertThat(buffer.getByteBuffer()).isNull();
+            // Closing the buffer closed the resource, so it can be read again
+            assertThatCode(resource::read).doesNotThrowAnyException();
+
+            resource.close();
+            assertThatCode(buffer::close).doesNotThrowAnyException();
+        }
+    }
+
+    /** A resource is read through the virtual filesystem, and hands out the entry it is read from. */
+    @Test
+    public void aResourceHandsOutTheVfsEntryItIsReadFrom() throws IOException {
+        try (var scanResult = scanTestResourcesDir()) {
+            final var resource = resource(scanResult, TEXT_FILE);
+            final var entry = resource.getVfsEntry();
+            assertThat(entry.getName()).isEqualTo(resource.getPath());
+            assertThat(entry.getLength()).isEqualTo(TEXT_FILE_CONTENT.length());
+            // The entry reads the same content, without going through the resource
+            assertThat(entry.loadAsString()).isEqualTo(TEXT_FILE_CONTENT);
         }
     }
 
@@ -142,15 +178,15 @@ public class ResourceTest {
                 }
                 forOpen.close();
 
-                final var forRead = resource(scanResult, entryName);
-                final var byteBuffer = forRead.read();
+                final var forCloseResource = resource(scanResult, entryName);
+                final var byteBuffer = forCloseResource.read().getByteBuffer();
                 final var readBytes = new byte[byteBuffer.remaining()];
                 byteBuffer.get(readBytes);
                 assertThat(readBytes).as(entryName).isEqualTo(content);
-                forRead.close();
+                forCloseResource.close();
 
-                final var forReadCloseable = resource(scanResult, entryName);
-                try (var closeableByteBuffer = forReadCloseable.readCloseable()) {
+                final var forCloseBuffer = resource(scanResult, entryName);
+                try (var closeableByteBuffer = forCloseBuffer.read()) {
                     final var closeableBytes = new byte[closeableByteBuffer.getByteBuffer().remaining()];
                     closeableByteBuffer.getByteBuffer().get(closeableBytes);
                     assertThat(closeableBytes).as(entryName).isEqualTo(content);
@@ -201,7 +237,7 @@ public class ResourceTest {
         VfsScanSpecAccess.vfsScanSpecOf(classGraph).memoryMapFiles = true;
         try (var scanResult = classGraph.scan()) {
             final var resource = resource(scanResult, "stored.txt");
-            final var byteBuffer = resource.read();
+            final var byteBuffer = resource.read().getByteBuffer();
             assertThat(byteBuffer.position()).isZero();
             assertThat(byteBuffer.capacity()).isEqualTo(content.length);
             assertThat(byteBuffer.remaining()).isEqualTo(content.length);

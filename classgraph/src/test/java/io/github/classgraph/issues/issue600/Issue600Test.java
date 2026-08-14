@@ -73,7 +73,7 @@ class Issue600Test {
     private void assertReadCloseResources(final ResourceList resources) {
         for (final Resource resource : resources) {
             assertDoesNotThrow((Executable) () -> {
-                final var buffer = resource.read();
+                final var buffer = resource.read().getByteBuffer();
                 try {
                     assertTrue(buffer.hasRemaining());
                 } finally {
