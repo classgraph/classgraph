@@ -75,8 +75,8 @@ final class DirRoot extends VfsRoot {
         } catch (final IOError | SecurityException e) {
             throw new IOException("Could not resolve directory " + dir + " : " + e, e);
         }
-        if (!Files.isDirectory(this.dir)) {
-            throw new IOException("Not a directory: " + this.dir);
+        if (!FileUtils.canReadAndIsDir(this.dir)) {
+            throw new IOException("Not a readable directory: " + this.dir);
         }
         this.pathStr = FastPathResolver.resolve(FileUtils.currDirPath(), this.dir.toString());
     }

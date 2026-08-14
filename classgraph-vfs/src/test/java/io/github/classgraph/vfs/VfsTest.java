@@ -345,6 +345,29 @@ public class VfsTest {
         }
     }
 
+    /**
+     * A directory that cannot be read cannot be opened as a root, since nothing can be listed or read through it.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the directory could not be written.
+     */
+    @Test
+    public void anUnreadableDirectoryCannotBeOpened(@TempDir final File tempDir) throws IOException {
+        final var unreadable = new File(tempDir, "unreadable");
+        assertThat(unreadable.mkdir()).isTrue();
+        if (!unreadable.setReadable(false) || unreadable.canRead()) {
+            // Running as root, or on a filesystem that does not enforce permissions, the directory stays readable
+            abort("Directories cannot be made unreadable here");
+        }
+
+        try (var vfs = new Vfs()) {
+            assertThatThrownBy(() -> vfs.open(unreadable)).isInstanceOf(IOException.class)
+                    .hasMessageContaining("Not a readable directory");
+        }
+    }
+
     /** The same jarfile can be named by a path string, a File, a Path, a URI or a URL. */
     @Test
     public void aJarfileCanBeNamedInEveryWayJavaNamesAFile(@TempDir final File tempDir) throws IOException {
