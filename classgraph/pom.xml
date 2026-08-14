@@ -104,12 +104,17 @@
 						     happen on every JDK: javac used to find it by scanning the test classpath, but
 						     JDK 23 turned that scan off by default, so on a current JDK the benchmarks were
 						     compiling to class files with no BenchmarkList beside them and could not be run.
+						     Naming it is also the only way to say this that every supported JDK understands:
+						     the -proc:full flag that turns discovery back on does not exist before JDK 21,
+						     whereas asking for a processor by name has always enabled processing.
 						     Only this module has benchmarks, so only this module needs the processor.
 						     Everything else about the execution, including the lint flags, is inherited from
 						     the same execution id in the parent pom. -->
 						<id>default-testCompile</id>
 						<configuration>
-							<proc>full</proc>
+							<annotationProcessors>
+								<annotationProcessor>org.openjdk.jmh.generators.BenchmarkProcessor</annotationProcessor>
+							</annotationProcessors>
 							<annotationProcessorPaths>
 								<path>
 									<groupId>org.openjdk.jmh</groupId>
