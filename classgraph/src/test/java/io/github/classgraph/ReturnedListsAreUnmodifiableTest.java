@@ -282,8 +282,10 @@ public class ReturnedListsAreUnmodifiableTest {
             assertThat(isUnmodifiable(classInfo.getDeclaredMethodInfo().get("method"))).isTrue();
 
             // Annotation-filtered accessors
+            assertThat(classInfo.getDeclaredMethodInfoWithAnnotation(Deprecated.class.getName())).isNotEmpty();
             assertThat(isUnmodifiable(classInfo.getDeclaredMethodInfoWithAnnotation(Deprecated.class.getName())))
                     .isTrue();
+            assertThat(classInfo.getDeclaredFieldInfoWithAnnotation(Deprecated.class.getName())).isNotEmpty();
             assertThat(isUnmodifiable(classInfo.getDeclaredFieldInfoWithAnnotation(Deprecated.class.getName())))
                     .isTrue();
             assertThat(isUnmodifiable(classInfo.getAllAnnotationInfo().getRepeatable(Deprecated.class.getName())))
@@ -329,6 +331,10 @@ public class ReturnedListsAreUnmodifiableTest {
         /** A field whose type has a suffix, so that suffix type arguments are present. */
         public Map.Entry<String, String> entryField;
 
+        /** An annotated field, so that the annotation-filtered field accessors have something to return. */
+        @Deprecated
+        public int annotatedField;
+
         /**
          * A method.
          *
@@ -353,6 +359,16 @@ public class ReturnedListsAreUnmodifiableTest {
          */
         public <T extends Comparable<T>> T genericMethod(final T param) throws IllegalStateException {
             return param;
+        }
+
+        /**
+         * An annotated method, so that the annotation-filtered method accessors have something to return.
+         *
+         * @return zero
+         */
+        @Deprecated
+        public int annotatedMethod() {
+            return 0;
         }
     }
 }
