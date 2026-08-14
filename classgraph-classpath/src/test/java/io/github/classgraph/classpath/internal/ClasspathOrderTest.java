@@ -7,7 +7,9 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URL;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -270,8 +272,14 @@ public class ClasspathOrderTest {
     public void wildcardedClasspathEntriesAreExpandedWhateverObjectTheyArriveAs(@TempDir final Path tempDir)
             throws IOException {
         final var jar = createFile(tempDir.resolve("a.jar"));
-        for (final Object wildcarded : List.of(tempDir + "/*", new File(tempDir.toFile(), "*"),
-                tempDir.resolve("*"))) {
+        final var wildcardedForms = new ArrayList<Object>(List.of(tempDir + "/*", new File(tempDir.toFile(), "*")));
+        try {
+            wildcardedForms.add(tempDir.resolve("*"));
+        } catch (final InvalidPathException e) {
+            // A wildcard can only arrive as a Path on a filesystem whose path names may contain '*', which the
+            // Windows filesystem's may not
+        }
+        for (final Object wildcarded : wildcardedForms) {
             final var order = new ClasspathOrderBuilder(classpathSpec);
             assertThat(order.addClasspathEntry(wildcarded, null, null)).isTrue();
             assertThat(order.getOrder().stream().map(entry -> entry.location).toList()).containsExactly(jar);

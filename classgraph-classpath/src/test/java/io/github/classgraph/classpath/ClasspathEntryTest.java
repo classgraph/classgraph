@@ -3,6 +3,7 @@ package io.github.classgraph.classpath;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
@@ -42,6 +43,19 @@ public class ClasspathEntryTest {
     }
 
     /**
+     * The location a file is reported at. A classpath element's location separates path segments with {@code /} on
+     * every platform, so that the same jarfile is named the same way whichever OS it is read on, whereas
+     * {@link Path#toString()} uses the platform's own separator.
+     *
+     * @param path
+     *            the path of the file.
+     * @return the location the file is reported at.
+     */
+    private static String locationOf(final Path path) {
+        return path.toString().replace(File.separatorChar, '/');
+    }
+
+    /**
      * Find a classpath consisting of a single classpath element, named by the given object.
      *
      * @param classpathElement
@@ -60,7 +74,7 @@ public class ClasspathEntryTest {
     public void eachFormOfClasspathElementIsWrappedInItsOwnSubclass(@TempDir final Path tempDir)
             throws IOException {
         final var jar = writeJar(tempDir.resolve("lib.jar"));
-        final var location = jar.toString();
+        final var location = locationOf(jar);
 
         try (var classpath = findClasspath(location)) {
             assertThat(classpath.getEntries()).singleElement().isInstanceOf(ClasspathEntry.OfPathString.class)
@@ -104,20 +118,29 @@ public class ClasspathEntryTest {
      * jarfile is not read a second time under the relative name it was found as.
      */
     @Test
-    public void aClasspathElementFoundAtARelativePathIsOpenedAtItsLocation(@TempDir final Path tempDir)
-            throws IOException {
-        final var jar = writeJar(tempDir.resolve("lib.jar"));
-        final var relativeJar = Path.of("").toAbsolutePath().relativize(jar);
-        assertThat(relativeJar.isAbsolute()).isFalse();
+    public void aClasspathElementFoundAtARelativePathIsOpenedAtItsLocation() throws IOException {
+        // The jarfile is written below the working directory rather than in a temporary directory, because a path
+        // can only be relativized against the working directory when the two share a root, and on Windows the
+        // temporary directory is usually on a different drive
+        final var dir = Files.createTempDirectory(Files.createDirectories(Path.of("target")), "relative-element-")
+                .toAbsolutePath();
+        try {
+            final var jar = writeJar(dir.resolve("lib.jar"));
+            final var relativeJar = Path.of("").toAbsolutePath().relativize(jar);
+            assertThat(relativeJar.isAbsolute()).isFalse();
 
-        for (final Object classpathElement : new Object[] { relativeJar, relativeJar.toFile() }) {
-            try (var classpath = findClasspath(classpathElement)) {
-                final var entry = classpath.getEntries().get(0);
-                assertThat(Path.of(entry.location()).toRealPath()).isEqualTo(jar.toRealPath());
-                try (var root = entry.open(classpath.getVfs())) {
-                    assertThat(root).isSameAs(classpath.getVfs().open(entry.location()));
+            for (final Object classpathElement : new Object[] { relativeJar, relativeJar.toFile() }) {
+                try (var classpath = findClasspath(classpathElement)) {
+                    final var entry = classpath.getEntries().get(0);
+                    assertThat(Path.of(entry.location()).toRealPath()).isEqualTo(jar.toRealPath());
+                    try (var root = entry.open(classpath.getVfs())) {
+                        assertThat(root).isSameAs(classpath.getVfs().open(entry.location()));
+                    }
                 }
             }
+        } finally {
+            Files.deleteIfExists(dir.resolve("lib.jar"));
+            Files.deleteIfExists(dir);
         }
     }
 
@@ -174,7 +197,7 @@ public class ClasspathEntryTest {
         final var second = writeJar(tempDir.resolve("second.jar"));
         try (var classpath = new ClasspathFinder().overrideClasspath(first, second).find()) {
             assertThat(classpath).containsExactlyElementsOf(classpath.getEntries())
-                    .extracting(ClasspathEntry::location).containsExactly(first.toString(), second.toString());
+                    .extracting(ClasspathEntry::location).containsExactly(locationOf(first), locationOf(second));
         }
     }
 }
