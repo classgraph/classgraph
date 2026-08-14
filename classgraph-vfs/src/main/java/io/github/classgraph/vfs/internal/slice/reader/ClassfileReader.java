@@ -39,6 +39,7 @@ import java.util.Objects;
 
 import io.github.classgraph.base.internal.utils.FileUtils;
 import io.github.classgraph.base.internal.utils.StringUtils;
+import io.github.classgraph.vfs.VfsEntry;
 import io.github.classgraph.vfs.internal.slice.ArraySlice;
 import io.github.classgraph.vfs.internal.slice.FileSlice;
 import io.github.classgraph.vfs.internal.slice.Slice;
@@ -99,6 +100,26 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Au
     private static final int BUF_CHUNK_SIZE = 8192 - 8;
 
     /**
+     * Constructor for reading a classfile out of a virtual filesystem. Whatever the entry has to open in order to
+     * be read is opened by this reader, and closed by {@link #close()}, so the entry itself does not need to be
+     * opened by the caller.
+     *
+     * @param entry
+     *            the {@link VfsEntry} to read the classfile from.
+     * @throws IOException
+     *             If the entry could not be opened.
+     */
+    public ClassfileReader(final VfsEntry entry) throws IOException {
+        // The entry opens whatever it has to in order to be read, and this reader closes it
+        ownsInputStream = true;
+        inflaterInputStream = entry.open();
+        arr = new byte[INITIAL_BUF_SIZE];
+        // Telling the reader how long the classfile is saves it from growing the buffer to find out
+        final var length = entry.getLength();
+        classfileLengthHint = length < 0L ? -1 : (int) Math.min(length, FileUtils.MAX_BUFFER_SIZE);
+    }
+
+    /**
      * Constructor. The {@link Slice} stays open: it belongs to the caller, which closes it. If the slice is
      * deflated, the inflater stream that this reader opens on it does belong to this reader, and is closed by
      * {@link #close()}.
@@ -114,35 +135,33 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Au
         if (slice.isDeflatedZipEntry) {
             // If this is a deflated slice, need to read from an InflaterInputStream to fill buffer
             inflaterInputStream = slice.open();
-            arr = new byte[INITIAL_BUF_SIZE];
             classfileLengthHint = (int) Math.min(slice.inflatedLengthHint, FileUtils.MAX_BUFFER_SIZE);
-        } else {
-            if (slice instanceof final ArraySlice arraySlice) {
-                // If slice is an ArraySlice, avoid copying by simply reusing the wrapped byte array in place of the
-                // buffer array, and mark it as fully loaded
-                if (arraySlice.sliceStartPos == 0 && arraySlice.sliceLength == arraySlice.arr.length) {
-                    // ArraySlice is the whole array
-                    arr = arraySlice.arr;
-                } else {
-                    // ArraySlice covers only a partial array, and this class doesn't support a starting offset, so
-                    // copy the sliced part of the array to a new buffer
-                    arr = Arrays.copyOfRange(arraySlice.arr, (int) arraySlice.sliceStartPos,
-                            (int) (arraySlice.sliceStartPos + arraySlice.sliceLength));
-                }
-                arrUsed = arr.length;
-                classfileLengthHint = arr.length;
+            arr = new byte[INITIAL_BUF_SIZE];
+        } else if (slice instanceof final ArraySlice arraySlice) {
+            // If slice is an ArraySlice, avoid copying by simply reusing the wrapped byte array in place of the
+            // buffer array, and mark it as fully loaded
+            if (arraySlice.sliceStartPos == 0 && arraySlice.sliceLength == arraySlice.arr.length) {
+                // ArraySlice is the whole array
+                arr = arraySlice.arr;
             } else {
-                // Otherwise this is a FileSlice -- need to fetch chunks of bytes using a random access reader
-                randomAccessReader = slice.randomAccessReader();
-                arr = new byte[INITIAL_BUF_SIZE];
-                classfileLengthHint = (int) Math.min(slice.sliceLength, FileUtils.MAX_BUFFER_SIZE);
+                // ArraySlice covers only a partial array, and this class doesn't support a starting offset, so
+                // copy the sliced part of the array to a new buffer
+                arr = Arrays.copyOfRange(arraySlice.arr, (int) arraySlice.sliceStartPos,
+                        (int) (arraySlice.sliceStartPos + arraySlice.sliceLength));
             }
+            arrUsed = arr.length;
+            classfileLengthHint = arr.length;
+        } else {
+            // Otherwise this is a FileSlice -- need to fetch chunks of bytes using a random access reader
+            randomAccessReader = slice.randomAccessReader();
+            classfileLengthHint = (int) Math.min(slice.sliceLength, FileUtils.MAX_BUFFER_SIZE);
+            arr = new byte[INITIAL_BUF_SIZE];
         }
     }
 
     /**
-     * Constructor for reading an entry that is already open as a stream, such as a resource in a module. The stream
-     * belongs to the caller, which opens it in a try-with-resources and closes it once the reader has been closed.
+     * Constructor for reading a classfile that is already open as a stream. The stream belongs to the caller, which
+     * opens it in a try-with-resources and closes it once the reader has been closed.
      *
      * @param inputStream
      *            the {@link InputStream} to read from.

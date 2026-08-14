@@ -32,11 +32,7 @@ import java.io.File;
 import java.io.IOError;
 import java.io.IOException;
 import java.net.URI;
-import java.nio.file.FileVisitResult;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.SimpleFileVisitor;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.util.List;
 import java.util.Objects;
 
@@ -140,41 +136,33 @@ class ClasspathElementDir extends ClasspathElement {
     /**
      * Find the first classfile beneath a directory, so that the class it declares can be compared to its path.
      *
-     * @param dir
+     * @param packageRoot
      *            the directory to search.
      * @return the first classfile found beneath the directory, or null if there are none. Classfiles beneath a
      *         {@code META-INF} directory are ignored, since the path of a classfile in a multi-release jar layout
      *         ({@code META-INF/versions/N/}) does not correspond to the name of the class it declares.
      */
-    private static Path findFirstClassfile(final Path dir) {
-        final var firstClassfile = new Path[1];
+    private @Nullable VfsEntry findFirstClassfile(final Path packageRoot) {
+        final var firstClassfile = new VfsEntry[1];
         try {
-            Files.walkFileTree(dir, new SimpleFileVisitor<>() {
+            vfs.open(packageRoot).walk(new VfsVisitor() {
                 @Override
-                public FileVisitResult preVisitDirectory(final Path subDir, final BasicFileAttributes attrs) {
-                    final var subDirName = subDir.getFileName();
-                    return subDirName != null && "META-INF".equals(subDirName.toString())
-                            ? FileVisitResult.SKIP_SUBTREE
-                            : FileVisitResult.CONTINUE;
+                public boolean enterDirectory(final String dirName) {
+                    return !dirName.equals("META-INF/") && !dirName.endsWith("/META-INF/");
                 }
 
                 @Override
-                public FileVisitResult visitFile(final Path file, final BasicFileAttributes attrs) {
-                    if (file.getFileName().toString().endsWith(".class")) {
-                        firstClassfile[0] = file;
-                        return FileVisitResult.TERMINATE;
+                public boolean visitEntry(final VfsEntry entry) {
+                    if (!entry.getName().endsWith(".class")) {
+                        return true;
                     }
-                    return FileVisitResult.CONTINUE;
-                }
-
-                @Override
-                public FileVisitResult visitFileFailed(final Path file, final IOException e) {
-                    // Ignore unreadable files
-                    return FileVisitResult.CONTINUE;
+                    firstClassfile[0] = entry;
+                    // The first classfile is all that is needed, so stop the walk
+                    return false;
                 }
             });
-        } catch (final IOException | SecurityException e) {
-            // Ignore
+        } catch (final IOException e) {
+            // A directory that cannot be listed has no classfiles to check
         }
         return firstClassfile[0];
     }
@@ -189,18 +177,17 @@ class ClasspathElementDir extends ClasspathElement {
      *         {@link ClasspathElement#getClassNameDisprovingPackageRoot(ClassfileReader, String)}).
      */
     // #929
-    private static @Nullable String getClassNameDisprovingPackageRoot(final Path packageRoot) {
-        final var classfilePath = findFirstClassfile(packageRoot);
-        if (classfilePath == null) {
+    private @Nullable String getClassNameDisprovingPackageRoot(final Path packageRoot) {
+        final var classfileEntry = findFirstClassfile(packageRoot);
+        if (classfileEntry == null) {
             // There are no classfiles beneath the candidate package root, so there is nothing to check
             return null;
         }
-        final var classfileRelativePath = packageRoot.relativize(classfilePath).toString()
-                .replace(File.separatorChar, '/');
-        try (var inputStream = Files.newInputStream(classfilePath);
-                var classfileReader = new ClassfileReader(inputStream)) {
-            return getClassNameDisprovingPackageRoot(classfileReader, classfileRelativePath);
-        } catch (final IOException | SecurityException e) {
+        try (var classfileReader = new ClassfileReader(classfileEntry)) {
+            // The entry is named relative to the candidate package root, which is the path to compare the class
+            // declared by the classfile against
+            return getClassNameDisprovingPackageRoot(classfileReader, classfileEntry.getName());
+        } catch (final IOException e) {
             // If the classfile cannot be read, give the candidate package root the benefit of the doubt
             return null;
         }

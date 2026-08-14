@@ -2513,9 +2513,9 @@ class Classfile {
         this.stringInternMap = stringInternMap;
         this.scanSpec = scanSpec;
 
-        // Open a BufferedSequentialReader for the classfile. Closing the stream closes the resource it was opened
-        // on, so the resource does not need its own try-with-resources here.
-        try (var inputStream = classfileResource.open(); var classfileReader = new ClassfileReader(inputStream)) {
+        // Read the classfile through the virtual filesystem, which knows the fastest way to hand over the bytes of
+        // the kind of classpath element the classfile is in
+        try (var classfileReader = new ClassfileReader(classfileResource.getVfsEntry())) {
             reader = classfileReader;
 
             // Check magic number

@@ -80,6 +80,11 @@ final class ArchiveEntry extends VfsEntry {
     }
 
     @Override
+    public String getStoredName() {
+        return zipEntry.entryName;
+    }
+
+    @Override
     public String getPath() {
         return zipEntry.getPath();
     }
@@ -125,11 +130,6 @@ final class ArchiveEntry extends VfsEntry {
             }
         }
         return permissions;
-    }
-
-    @Override
-    public FastZipEntry getZipEntry() {
-        return zipEntry;
     }
 
     // -------------------------------------------------------------------------------------------------------------

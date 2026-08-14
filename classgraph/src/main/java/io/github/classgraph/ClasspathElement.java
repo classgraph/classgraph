@@ -52,7 +52,6 @@ import io.github.classgraph.internal.scanspec.ScanSpec;
 import io.github.classgraph.internal.scanspec.ScanSpec.ScanSpecPathMatch;
 import io.github.classgraph.vfs.internal.slice.reader.ClassfileReader;
 import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
-import io.github.classgraph.vfs.internal.zip.FastZipEntry;
 import io.github.classgraph.vfs.internal.zip.LogicalZipFile;
 import org.jspecify.annotations.Nullable;
 
@@ -323,11 +322,11 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      *
      * <p>
      * A versioned path is only reached here if it was not already resolved by the multi-release machinery: for a
-     * jarfile, {@link FastZipEntry#entryNameUnversioned} has any version prefix stripped, and the module system
-     * strips version prefixes for modules, so a remaining version prefix means either a nested versioned section,
-     * or a versioned section in a jar whose manifest is missing the {@code Multi-Release} key. Directories are not
-     * multi-release at all -- the JVM loads the base version of a class from a directory even when a versioned copy
-     * is present alongside it.
+     * jarfile, the virtual filesystem strips any version prefix from the name it reports for an entry, and the
+     * module system strips version prefixes for modules, so a remaining version prefix means either a nested
+     * versioned section, or a versioned section in a jar whose manifest is missing the {@code Multi-Release} key.
+     * Directories are not multi-release at all -- the JVM loads the base version of a class from a directory even
+     * when a versioned copy is present alongside it.
      *
      * @param relativePath
      *            the path of an entry, relative to the root of the classpath element.

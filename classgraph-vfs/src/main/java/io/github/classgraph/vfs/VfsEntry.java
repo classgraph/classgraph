@@ -42,7 +42,6 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.util.Objects;
 import java.util.Set;
 
-import io.github.classgraph.vfs.internal.zip.FastZipEntry;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -96,6 +95,22 @@ public abstract class VfsEntry {
      * @return the name of the entry.
      */
     public abstract String getName();
+
+    /**
+     * Returns the name this entry is stored under within its root, before the root's package root prefix was
+     * stripped from it and before any multi-release version prefix was resolved. Use {@link #getName()} to look an
+     * entry up or to match it against a path; use this to report where the entry physically lies within its root.
+     *
+     * <p>
+     * This differs from {@link #getName()} only for an entry of a jarfile: in a root opened at a package root, this
+     * name still has the package root prefix on it, and for an entry of a multi-release jarfile that is only
+     * present for some JDK versions, this is the versioned name.
+     *
+     * @return the name the entry is stored under.
+     */
+    public String getStoredName() {
+        return getName();
+    }
 
     /**
      * Returns the full path of this entry, which locates it on the machine rather than within its root: a
@@ -189,17 +204,6 @@ public abstract class VfsEntry {
      *         for a jarfile written without them, and for a file in a filesystem that does not support them.
      */
     public @Nullable Set<PosixFilePermission> getPosixFilePermissions() {
-        return null;
-    }
-
-    /**
-     * Returns the central directory entry that this entry reads from. This is for the other ClassGraph modules,
-     * which need the entry's compression method and its position within the jarfile, and is not part of the API.
-     *
-     * @return the zip entry, or null if this entry is not in an archive.
-     * @hidden
-     */
-    public @Nullable FastZipEntry getZipEntry() {
         return null;
     }
 

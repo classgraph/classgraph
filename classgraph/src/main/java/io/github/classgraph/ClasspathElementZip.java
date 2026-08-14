@@ -321,7 +321,7 @@ class ClasspathElementZip extends ClasspathElement {
         @Override
         public String getPathRelativeToClasspathElement() {
             // The name of the entry in the zipfile, which for an entry of a multi-release jar is the versioned name
-            final var entryName = Objects.requireNonNull(getVfsEntry().getZipEntry()).entryName;
+            final var entryName = getVfsEntry().getStoredName();
             return entryName.startsWith(packageRootPrefix) ? entryName.substring(packageRootPrefix.length())
                     : entryName;
         }
@@ -384,8 +384,7 @@ class ClasspathElementZip extends ClasspathElement {
             final var entry = firstClassfileEntry[i];
             String disprovingClassName = null;
             if (entry != null) {
-                final var zipEntry = Objects.requireNonNull(entry.getZipEntry());
-                try (var classfileReader = new ClassfileReader(zipEntry.getSlice())) {
+                try (var classfileReader = new ClassfileReader(entry)) {
                     disprovingClassName = getClassNameDisprovingPackageRoot(classfileReader,
                             entry.getName().substring(prefix.length()));
                 } catch (final IOException e) {
