@@ -333,8 +333,8 @@ public class VfsTest {
     }
 
     /**
-     * A jarfile reached through a symlinked directory is opened once, not once per path that reaches it, since a
-     * root is named by the canonical path of the jarfile that backs it.
+     * A jarfile reached through a symlinked directory is named by the jarfile it reaches, so that naming it either
+     * way reaches the one root rather than reading the jarfile a second time.
      *
      * @param tempDir
      *            a temporary directory.
@@ -353,9 +353,11 @@ public class VfsTest {
             final var root = vfs.open(linkedDir.resolve("widget.jar").toString());
             // The root is named by the jarfile the symlink points at, rather than by the path it was opened from
             assertThat(root.getPath()).contains("/real/").doesNotContain("/link/");
-            // So both paths reach the one root, rather than the jarfile being read a second time under its own name
+            // So naming the jarfile directly reaches that same root, rather than reading it a second time. Only the
+            // canonical path is guaranteed to do so: the temporary directory is itself reached through a symlink on
+            // some platforms, and two paths that are both non-canonical are two different names for this purpose
             assertThat(vfs.open(root.getPath())).isSameAs(root);
-            assertThat(vfs.open(jarFile.getPath())).isSameAs(root);
+            assertThat(vfs.open(jarFile.getCanonicalPath())).isSameAs(root);
             assertThat(entryContent(root, "com/xyz/widget.txt")).isEqualTo(RESOURCE_CONTENT);
         }
     }
