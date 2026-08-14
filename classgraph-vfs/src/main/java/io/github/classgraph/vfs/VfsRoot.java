@@ -493,13 +493,24 @@ public abstract class VfsRoot implements AutoCloseable, Iterable<VfsEntry> {
     }
 
     /**
+     * Returns the path this root reports itself at: the path of the directory or jarfile that backs it, with the
+     * package root appended if it was opened at one. This is what fully names a root, so it is the path {@link Vfs}
+     * caches it under, as well as what {@link #toString()} returns.
+     *
+     * @return the path of this root, with the package root appended if there is one.
+     */
+    String reportedPath() {
+        final var packageRoot = getPackageRoot();
+        return packageRoot.isEmpty() ? getPath() : getPath() + "!/" + packageRoot;
+    }
+
+    /**
      * Returns the path of this root, with the package root appended if there is one.
      *
      * @return the root, as a string.
      */
     @Override
     public String toString() {
-        final var packageRoot = getPackageRoot();
-        return packageRoot.isEmpty() ? getPath() : getPath() + "!/" + packageRoot;
+        return reportedPath();
     }
 }

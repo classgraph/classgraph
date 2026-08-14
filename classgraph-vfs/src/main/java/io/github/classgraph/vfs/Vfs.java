@@ -300,7 +300,33 @@ public class Vfs implements AutoCloseable {
             return alreadyOpened;
         }
         final var root = openUncached(resolvedPath, logNode == null ? null : logNode.log("Opening " + path));
-        return cacheRoot(rootsByPath, resolvedPath, root, path);
+        final var cachedRoot = cacheRoot(rootsByPath, resolvedPath, root, path);
+        cacheRootUnderReportedPath(cachedRoot, resolvedPath);
+        return cachedRoot;
+    }
+
+    /**
+     * Cache a root under the path it reports itself at, as well as under the path it was opened from. A root is
+     * named by the canonical path of the directory or jarfile that backs it, which is not always the path it was
+     * opened from: a symlink, or -- on Windows -- a path written in 8.3 short form, reaches the same file under
+     * another name. Without this, handing the path a root reports back to {@link #open(String)} would read the same
+     * directory or jarfile a second time.
+     *
+     * @param root
+     *            the root, already cached under the path it was opened from.
+     * @param openedFrom
+     *            the resolved path the root was opened from.
+     */
+    private void cacheRootUnderReportedPath(final VfsRoot root, final String openedFrom) {
+        final var reportedPath = root.reportedPath();
+        if (!reportedPath.equals(openedFrom)) {
+            rootsByPath.putIfAbsent(reportedPath, root);
+            if (closed.get()) {
+                // close() cleared the caches between the two keys being added, so it did not see this one -- take
+                // it back out again, rather than leaving a root in the cache of a closed Vfs
+                rootsByPath.remove(reportedPath, root);
+            }
+        }
     }
 
     /**

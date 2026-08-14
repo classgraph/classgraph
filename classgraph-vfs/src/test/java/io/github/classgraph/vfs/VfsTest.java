@@ -2,6 +2,7 @@ package io.github.classgraph.vfs;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assumptions.abort;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -139,6 +140,25 @@ public class VfsTest {
     private static byte[] readFile(final File file) throws IOException {
         try (var inputStream = new FileInputStream(file)) {
             return inputStream.readAllBytes();
+        }
+    }
+
+    /**
+     * Create a symlink, or skip the test if the filesystem does not allow it (creating a symlink needs a privilege
+     * that is not granted by default on Windows).
+     *
+     * @param link
+     *            the symlink to create.
+     * @param target
+     *            the target of the symlink.
+     * @return the symlink.
+     */
+    private static Path createSymbolicLinkOrSkip(final Path link, final Path target) {
+        try {
+            return Files.createSymbolicLink(link, target);
+        } catch (IOException | UnsupportedOperationException | SecurityException e) {
+            abort("Symlinks cannot be created: " + e);
+            return link;
         }
     }
 
@@ -304,9 +324,38 @@ public class VfsTest {
             assertThat(vfs.open(uri)).isSameAs(root);
             assertThat(vfs.open(uri.toURL())).isSameAs(root);
             assertThat(vfs.open("jar:" + uri + "!/")).isSameAs(root);
-            // Path.of() respells a path with the platform's own separator, which on Windows means the same jarfile
-            // arrives written with backslashes rather than with the forward slashes a root is named with
-            assertThat(vfs.open(Path.of(root.getPath()))).isSameAs(root);
+            // A root is named by the canonical path of the jarfile that backs it, written with forward slashes on
+            // every platform, so the path it reports is not always the path it was opened from -- but it is always
+            // a path that reopens the same root
+            assertThat(vfs.open(root.getPath())).isSameAs(root);
+            assertThat(entryContent(root, "com/xyz/widget.txt")).isEqualTo(RESOURCE_CONTENT);
+        }
+    }
+
+    /**
+     * A jarfile reached through a symlinked directory is opened once, not once per path that reaches it, since a
+     * root is named by the canonical path of the jarfile that backs it.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the jarfile could not be written.
+     */
+    @Test
+    public void aJarfileReachedThroughASymlinkIsOpenedOnce(@TempDir final File tempDir) throws IOException {
+        final var realDir = new File(tempDir, "real");
+        assertThat(realDir.mkdir()).isTrue();
+        final var jarFile = new File(realDir, "widget.jar");
+        writeJar(jarFile, "com/xyz/widget.txt");
+        final var linkedDir = createSymbolicLinkOrSkip(new File(tempDir, "link").toPath(), realDir.toPath());
+
+        try (var vfs = new Vfs()) {
+            final var root = vfs.open(linkedDir.resolve("widget.jar").toString());
+            // The root is named by the jarfile the symlink points at, rather than by the path it was opened from
+            assertThat(root.getPath()).contains("/real/").doesNotContain("/link/");
+            // So both paths reach the one root, rather than the jarfile being read a second time under its own name
+            assertThat(vfs.open(root.getPath())).isSameAs(root);
+            assertThat(vfs.open(jarFile.getPath())).isSameAs(root);
             assertThat(entryContent(root, "com/xyz/widget.txt")).isEqualTo(RESOURCE_CONTENT);
         }
     }
