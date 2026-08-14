@@ -2513,8 +2513,9 @@ class Classfile {
         this.stringInternMap = stringInternMap;
         this.scanSpec = scanSpec;
 
-        // Open a BufferedSequentialReader for the classfile
-        try (var classfileReader = classfileResource.openClassfileReader()) {
+        // Open a BufferedSequentialReader for the classfile. Closing the stream closes the resource it was opened
+        // on, so the resource does not need its own try-with-resources here.
+        try (var inputStream = classfileResource.open(); var classfileReader = new ClassfileReader(inputStream)) {
             reader = classfileReader;
 
             // Check magic number

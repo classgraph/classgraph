@@ -385,7 +385,7 @@ class ClasspathElementZip extends ClasspathElement {
             String disprovingClassName = null;
             if (entry != null) {
                 final var zipEntry = Objects.requireNonNull(entry.getZipEntry());
-                try (var classfileReader = new ClassfileReader(zipEntry.getSlice(), /* resourceToClose = */ null)) {
+                try (var classfileReader = new ClassfileReader(zipEntry.getSlice())) {
                     disprovingClassName = getClassNameDisprovingPackageRoot(classfileReader,
                             entry.getName().substring(prefix.length()));
                 } catch (final IOException e) {

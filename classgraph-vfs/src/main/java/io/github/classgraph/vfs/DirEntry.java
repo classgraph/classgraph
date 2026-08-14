@@ -41,7 +41,6 @@ import java.util.Set;
 
 import io.github.classgraph.base.internal.utils.URLPathEncoder;
 import io.github.classgraph.vfs.internal.slice.PathSlice;
-import io.github.classgraph.vfs.internal.slice.reader.ClassfileReader;
 import org.jspecify.annotations.Nullable;
 
 /** One file in a directory tree. */
@@ -211,24 +210,4 @@ final class DirEntry extends VfsEntry {
         }
     }
 
-    @Override
-    public ClassfileReader openClassfileReader(final @Nullable AutoCloseable resourceToClose) throws IOException {
-        // A file in a directory is stored uncompressed, so the reader can fetch chunks of it at random rather than
-        // having to read it as a stream
-        final var slice = openSlice();
-        try {
-            return new ClassfileReader(slice, () -> {
-                try {
-                    slice.close();
-                } finally {
-                    if (resourceToClose != null) {
-                        resourceToClose.close();
-                    }
-                }
-            });
-        } catch (final IOException e) {
-            slice.close();
-            throw e;
-        }
-    }
 }

@@ -446,6 +446,26 @@ public class VfsTest {
         }
     }
 
+    /**
+     * A nested jarfile can equally be named by a {@code "jar:"} URL string, since the {@code "jar:"} and
+     * {@code "file:"} prefixes are stripped before the path is read. The {@code "!/"} separator means the same
+     * thing with or without them: it is identified by testing the filesystem, not by the URL scheme.
+     */
+    @Test
+    public void aNestedJarfileCanAlsoBeNamedByAJarUrlString(@TempDir final File tempDir) throws IOException {
+        final var innerJarFile = new File(tempDir, "inner.jar");
+        writeJar(innerJarFile, "com/xyz/widget.txt");
+        final var outerJarFile = new File(tempDir, "outer.jar");
+        writeJarContainingJar(outerJarFile, "lib/inner.jar", readFile(innerJarFile));
+
+        try (var vfs = new Vfs()) {
+            final var root = vfs.open("jar:" + outerJarFile.toURI() + "!/lib/inner.jar");
+            assertThat(entryContent(root, "com/xyz/widget.txt")).isEqualTo(RESOURCE_CONTENT);
+            // The same jarfile, named without the URL scheme prefixes
+            assertThat(root.getPath()).isEqualTo(vfs.open(outerJarFile.getPath() + "!/lib/inner.jar").getPath());
+        }
+    }
+
     /** With nested jarfiles disabled, a nested jarfile is not opened. */
     @Test
     public void aNestedJarfileIsNotOpenedIfNestedJarsAreDisabled(@TempDir final File tempDir) throws IOException {

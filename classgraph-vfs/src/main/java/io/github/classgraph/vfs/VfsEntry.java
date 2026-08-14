@@ -35,13 +35,13 @@ import java.net.URI;
 import java.net.URL;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.Objects;
 import java.util.Set;
 
-import io.github.classgraph.vfs.internal.slice.reader.ClassfileReader;
 import io.github.classgraph.vfs.internal.zip.FastZipEntry;
 import org.jspecify.annotations.Nullable;
 
@@ -263,23 +263,23 @@ public abstract class VfsEntry {
      *             if the entry is larger than the largest possible array.
      */
     public String loadAsString() throws IOException {
-        return new String(load(), StandardCharsets.UTF_8);
+        return loadAsString(StandardCharsets.UTF_8);
     }
 
     /**
-     * Open a reader on this entry's content, for parsing the classfile it holds. Each kind of root reads a
-     * classfile in whichever way is cheapest for it. This is for the other ClassGraph modules, which read
-     * classfiles from every kind of root, and is not part of the API.
+     * Read this entry's whole content and decode it in the given charset. Bytes that the charset cannot decode are
+     * replaced rather than throwing, as {@link String#String(byte[], Charset)} specifies.
      *
-     * @param resourceToClose
-     *            a resource to close once the reader is closed, or null if there is none.
-     * @return the reader, which the caller owns and must close.
+     * @param charset
+     *            the charset to decode the content in.
+     * @return the content of the entry, as a string.
      * @throws IOException
      *             if the entry could not be read, or if the {@link Vfs} has been closed.
-     * @hidden
+     * @throws OutOfMemoryError
+     *             if the entry is larger than the largest possible array.
      */
-    public ClassfileReader openClassfileReader(final @Nullable AutoCloseable resourceToClose) throws IOException {
-        return new ClassfileReader(open(), resourceToClose);
+    public String loadAsString(final Charset charset) throws IOException {
+        return new String(load(), charset);
     }
 
     // -------------------------------------------------------------------------------------------------------------

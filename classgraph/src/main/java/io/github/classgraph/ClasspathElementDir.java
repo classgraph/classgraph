@@ -198,7 +198,7 @@ class ClasspathElementDir extends ClasspathElement {
         final var classfileRelativePath = packageRoot.relativize(classfilePath).toString()
                 .replace(File.separatorChar, '/');
         try (var inputStream = Files.newInputStream(classfilePath);
-                var classfileReader = new ClassfileReader(inputStream, /* resourceToClose = */ null)) {
+                var classfileReader = new ClassfileReader(inputStream)) {
             return getClassNameDisprovingPackageRoot(classfileReader, classfileRelativePath);
         } catch (final IOException | SecurityException e) {
             // If the classfile cannot be read, give the candidate package root the benefit of the doubt

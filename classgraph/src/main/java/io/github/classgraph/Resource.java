@@ -50,7 +50,6 @@ import io.github.classgraph.base.internal.utils.URLPathEncoder;
 import io.github.classgraph.vfs.CloseableByteBuffer;
 import io.github.classgraph.vfs.Vfs;
 import io.github.classgraph.vfs.VfsEntry;
-import io.github.classgraph.vfs.internal.slice.reader.ClassfileReader;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -397,28 +396,6 @@ public abstract class Resource implements AutoCloseable, Comparable<Resource> {
             final var byteArray = entry.load();
             res.length = byteArray.length;
             return byteArray;
-        }
-    }
-
-    /**
-     * Open a {@link ClassfileReader} on the resource (for reading classfiles). Each kind of storage reads a
-     * classfile in whichever way is cheapest for it, so the reader is opened by the virtual filesystem; this method
-     * only marks the resource as open, and arranges for closing the reader to close the resource.
-     *
-     * @return the {@link ClassfileReader}.
-     * @throws IOException
-     *             if an I/O exception occurs.
-     */
-    ClassfileReader openClassfileReader() throws IOException {
-        checkCanOpen();
-        try {
-            final var classfileReader = entry.openClassfileReader(this);
-            length = entry.getLength();
-            return classfileReader;
-
-        } catch (final IOException e) {
-            close();
-            throw e;
         }
     }
 

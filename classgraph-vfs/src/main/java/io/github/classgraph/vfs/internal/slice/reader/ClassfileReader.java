@@ -51,14 +51,17 @@ import org.jspecify.annotations.Nullable;
  */
 public class ClassfileReader implements RandomAccessReader, SequentialReader, AutoCloseable {
     /**
-     * The underlying resource to close when {@link ClassfileReader#close()} is called.
-     */
-    private @Nullable AutoCloseable resourceToClose;
-
-    /**
-     * If slice is deflated, a wrapper for {@link java.util.zip.InflaterInputStream}.
+     * The stream the classfile is read through, if it is not read by random access: either an
+     * {@link java.util.zip.InflaterInputStream} that this reader opened on a deflated {@link Slice}, or a stream
+     * that the caller opened and passed in.
      */
     private @Nullable InputStream inflaterInputStream;
+
+    /**
+     * True if this reader opened {@link #inflaterInputStream} itself, and so has to close it. A stream that the
+     * caller passed in belongs to the caller, which closes it in its own try-with-resources.
+     */
+    private final boolean ownsInputStream;
 
     /**
      * If slice is not deflated, a {@link RandomAccessReader} for either the {@link ArraySlice} or {@link FileSlice}
@@ -96,17 +99,18 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Au
     private static final int BUF_CHUNK_SIZE = 8192 - 8;
 
     /**
-     * Constructor.
+     * Constructor. The {@link Slice} stays open: it belongs to the caller, which closes it. If the slice is
+     * deflated, the inflater stream that this reader opens on it does belong to this reader, and is closed by
+     * {@link #close()}.
      *
      * @param slice
      *            the {@link Slice} to read.
-     * @param resourceToClose
-     *            the resource to close when {@link ClassfileReader#close()} is called, or null.
      * @throws IOException
      *             If an inflater cannot be opened on the {@link Slice}.
      */
-    public ClassfileReader(final Slice slice, final @Nullable AutoCloseable resourceToClose) throws IOException {
-        this.resourceToClose = resourceToClose;
+    public ClassfileReader(final Slice slice) throws IOException {
+        // Only the deflated branch opens a stream, and only a stream this reader opened is closed by close()
+        ownsInputStream = true;
         if (slice.isDeflatedZipEntry) {
             // If this is a deflated slice, need to read from an InflaterInputStream to fill buffer
             inflaterInputStream = slice.open();
@@ -137,17 +141,16 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Au
     }
 
     /**
-     * Constructor for reader of module {@link InputStream} (which is not deflated).
+     * Constructor for reading an entry that is already open as a stream, such as a resource in a module. The stream
+     * belongs to the caller, which opens it in a try-with-resources and closes it once the reader has been closed.
      *
      * @param inputStream
      *            the {@link InputStream} to read from.
-     * @param resourceToClose
-     *            the underlying resource to close when {@link ClassfileReader#close()} is called, or null.
      */
-    public ClassfileReader(final InputStream inputStream, final @Nullable AutoCloseable resourceToClose) {
+    public ClassfileReader(final InputStream inputStream) {
+        ownsInputStream = false;
         inflaterInputStream = inputStream;
         arr = new byte[INITIAL_BUF_SIZE];
-        this.resourceToClose = resourceToClose;
     }
 
     /**
@@ -470,27 +473,17 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Au
 
     @Override
     public void close() {
-        // Close each of the two resources in its own try block, so that a failure to close the input stream does
-        // not skip the close of the underlying resource, leaving its file handle or memory mapping open
+        // Only the inflater stream that this reader opened on a deflated slice is closed here. Everything else the
+        // reader was given -- a slice, or a stream the caller opened -- belongs to the caller, which closes it.
         try {
             final var inflaterInputStream = this.inflaterInputStream;
-            if (inflaterInputStream != null) {
+            if (ownsInputStream && inflaterInputStream != null) {
                 inflaterInputStream.close();
             }
-        } catch (final Exception e) {
+        } catch (final IOException e) {
             // Ignore
         } finally {
             this.inflaterInputStream = null;
-        }
-        try {
-            final var resourceToClose = this.resourceToClose;
-            if (resourceToClose != null) {
-                resourceToClose.close();
-            }
-        } catch (final Exception e) {
-            // Ignore
-        } finally {
-            this.resourceToClose = null;
         }
     }
 }

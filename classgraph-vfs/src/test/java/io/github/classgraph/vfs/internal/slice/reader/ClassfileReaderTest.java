@@ -5,18 +5,15 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.Deflater;
 
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -164,7 +161,7 @@ public class ClassfileReaderTest {
         switch (source) {
         case ARRAY:
             return new ClassfileReader(new ArraySlice(content, /* isDeflatedZipEntry = */ false,
-                    /* inflatedLengthHint = */ 0L, scanResources), /* resourceToClose = */ null);
+                    /* inflatedLengthHint = */ 0L, scanResources));
         case ARRAY_SUB_SLICE: {
             // Four bytes of padding, then the content, then four more bytes of padding
             final var padded = new byte[content.length + 8];
@@ -172,7 +169,7 @@ public class ClassfileReaderTest {
             final var wholeArray = new ArraySlice(padded, /* isDeflatedZipEntry = */ false,
                     /* inflatedLengthHint = */ 0L, scanResources);
             return new ClassfileReader(wholeArray.slice(4, content.length, /* isDeflatedZipEntry = */ false,
-                    /* inflatedLengthHint = */ 0L), /* resourceToClose = */ null);
+                    /* inflatedLengthHint = */ 0L));
         }
         case FILE:
         case FILE_MEMORY_MAPPED: {
@@ -181,18 +178,15 @@ public class ClassfileReaderTest {
             final var file = Files.write(tempDir.resolve("content" + numFilesWritten++ + ".bin"), content).toFile();
             return new ClassfileReader(new FileSlice(file,
                     source == Source.FILE_MEMORY_MAPPED ? memoryMappedScanResources : scanResources,
-                    /* log = */ null), /* resourceToClose = */ null);
+                    /* log = */ null));
         }
         case DEFLATED:
-            return new ClassfileReader(
-                    new ArraySlice(deflate(content), /* isDeflatedZipEntry = */ true,
-                            /* inflatedLengthHint = */ content.length, scanResources),
-                    /* resourceToClose = */ null);
+            return new ClassfileReader(new ArraySlice(deflate(content), /* isDeflatedZipEntry = */ true,
+                    /* inflatedLengthHint = */ content.length, scanResources));
         case INPUT_STREAM_SHORT_READS:
-            return new ClassfileReader(new ShortReadInputStream(new ByteArrayInputStream(content)),
-                    /* resourceToClose = */ null);
+            return new ClassfileReader(new ShortReadInputStream(new ByteArrayInputStream(content)));
         default:
-            return new ClassfileReader(new ByteArrayInputStream(content), /* resourceToClose = */ null);
+            return new ClassfileReader(new ByteArrayInputStream(content));
         }
     }
 
@@ -418,27 +412,5 @@ public class ClassfileReaderTest {
                     .isEqualTo("java.lang.String");
             assertThat(reader.currPos()).isEqualTo(content.length);
         }
-    }
-
-    /**
-     * Closing the reader closes the classpath element it was reading, and closing it twice closes that element only
-     * once, since it may have been reopened in the meantime.
-     *
-     * @throws IOException
-     *             if the content could not be read
-     */
-    @Test
-    public void closingTheReaderClosesTheClasspathElementItWasReadingOnlyOnce() throws IOException {
-        final var closeCount = new AtomicInteger();
-        final Closeable resourceToClose = closeCount::incrementAndGet;
-
-        final var reader = new ClassfileReader(new ArraySlice(PATTERN, /* isDeflatedZipEntry = */ false,
-                /* inflatedLengthHint = */ 0L, scanResources), resourceToClose);
-        assertThat(reader.readInt()).isEqualTo(0x01234567);
-
-        reader.close();
-        assertThat(closeCount).hasValue(1);
-        reader.close();
-        assertThat(closeCount).hasValue(1);
     }
 }

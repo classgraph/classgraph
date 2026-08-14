@@ -25,7 +25,7 @@ public class ClassfileReaderSequentialReadStringTest {
     @Test
     public void sequentialReadStringBuffersBeforeReading() throws IOException {
         final var data = "Hello".getBytes(StandardCharsets.UTF_8);
-        try (var reader = new ClassfileReader(new ByteArrayInputStream(data), null)) {
+        try (var reader = new ClassfileReader(new ByteArrayInputStream(data))) {
             assertThat(reader.readString(5)).isEqualTo("Hello");
         }
     }
@@ -36,7 +36,7 @@ public class ClassfileReaderSequentialReadStringTest {
     @Test
     public void consecutiveSequentialReadStringsAdvancePosition() throws IOException {
         final var data = "HelloWorld".getBytes(StandardCharsets.UTF_8);
-        try (var reader = new ClassfileReader(new ByteArrayInputStream(data), null)) {
+        try (var reader = new ClassfileReader(new ByteArrayInputStream(data))) {
             assertThat(reader.readString(5)).isEqualTo("Hello");
             assertThat(reader.currPos()).isEqualTo(5);
             assertThat(reader.readString(5)).isEqualTo("World");
@@ -50,7 +50,7 @@ public class ClassfileReaderSequentialReadStringTest {
     @Test
     public void sequentialReadStringInterleavesWithOtherReads() throws IOException {
         final byte[] data = { 0, 3, 'a', 'b', 'c' };
-        try (var reader = new ClassfileReader(new ByteArrayInputStream(data), null)) {
+        try (var reader = new ClassfileReader(new ByteArrayInputStream(data))) {
             final var len = reader.readUnsignedShort();
             assertThat(len).isEqualTo(3);
             assertThat(reader.readString(len)).isEqualTo("abc");
