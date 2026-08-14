@@ -28,6 +28,7 @@
  */
 package io.github.classgraph.vfs;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
@@ -41,6 +42,7 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.util.Objects;
 import java.util.Set;
 
+import io.github.classgraph.vfs.internal.slice.reader.ClassfileReader;
 import io.github.classgraph.vfs.internal.zip.FastZipEntry;
 import org.jspecify.annotations.Nullable;
 
@@ -263,6 +265,22 @@ public abstract class VfsEntry {
      */
     public String loadAsString() throws IOException {
         return new String(load(), StandardCharsets.UTF_8);
+    }
+
+    /**
+     * Open a reader on this entry's content, for parsing the classfile it holds. Each kind of root reads a
+     * classfile in whichever way is cheapest for it. This is for the other ClassGraph modules, which read
+     * classfiles from every kind of root, and is not part of the API.
+     *
+     * @param resourceToClose
+     *            a resource to close once the reader is closed, or null if there is none.
+     * @return the reader, which the caller owns and must close.
+     * @throws IOException
+     *             if the entry could not be read, or if the {@link Vfs} has been closed.
+     * @hidden
+     */
+    public ClassfileReader openClassfileReader(final @Nullable Closeable resourceToClose) throws IOException {
+        return new ClassfileReader(open(), resourceToClose);
     }
 
     // -------------------------------------------------------------------------------------------------------------

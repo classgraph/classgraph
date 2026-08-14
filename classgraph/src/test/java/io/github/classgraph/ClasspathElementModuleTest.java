@@ -26,12 +26,8 @@ import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import io.github.classgraph.base.internal.concurrency.SingletonMap;
-import io.github.classgraph.base.internal.recycler.Recycler;
-import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.internal.scanspec.ScanSpec;
 import io.github.classgraph.vfs.Vfs;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Tests for the classpath element of a module, and for the resources read from it. A module is read through a
@@ -265,22 +261,11 @@ public class ClasspathElementModuleTest {
      * @return the classpath element.
      */
     private static ClasspathElementModule classpathElementFor(final ModuleReference moduleReference) {
+        // The classpath element is not opened, so the module is never read -- it is only asked for its identity and
+        // location
         return new ClasspathElementModule(moduleReference, VFS,
                 new Scanner.ClasspathEntryWorkUnit(null, null, null, 0, "", new String[0]),
-                /* isLookupOnly = */ false, new ScanSpec()) {
-            @Override
-                    SingletonMap<ModuleReference, Recycler<ModuleReader, IOException>, IOException> //
-                    moduleReaderRecyclerMap() {
-                // The module is never read by these tests, only asked for its identity and location
-                return new SingletonMap<>() {
-                    @Override
-                    public Recycler<ModuleReader, IOException> newInstance(final ModuleReference key,
-                            final @Nullable LogNode log) {
-                        throw new UnsupportedOperationException();
-                    }
-                };
-            }
-        };
+                /* isLookupOnly = */ false, new ScanSpec());
     }
 
     /**
@@ -365,48 +350,33 @@ public class ClasspathElementModuleTest {
      * {@link IllegalStateException} instead. Each failed attempt also returns its {@link ModuleReader} to the
      * recycler, rather than leaving it checked out, so no further readers have to be opened.
      *
-     * @throws InterruptedException
-     *             if opening the classpath element was interrupted.
+     * @throws IOException
+     *             if the virtual filesystem could not be closed.
      */
     @Test
-    public void aResourceInAModuleThatCannotBeReadFailsTheSameWayEveryTime() throws InterruptedException {
+    public void aResourceInAModuleThatCannotBeReadFailsTheSameWayEveryTime() throws IOException {
         final var moduleReadersOpened = new AtomicInteger();
-        final SingletonMap<ModuleReference, Recycler<ModuleReader, IOException>, IOException> //
-        unreadableModuleReaders = new SingletonMap<>() {
-            @Override
-            public Recycler<ModuleReader, IOException> newInstance(final ModuleReference key,
-                    final @Nullable LogNode log) {
-                return new Recycler<>() {
-                    @Override
-                    public ModuleReader newInstance() {
-                        moduleReadersOpened.incrementAndGet();
-                        return new UnreadableModuleReader();
-                    }
-                };
-            }
-        };
-        final var classpathElement = new ClasspathElementModule(moduleReferenceWithNoLocation("unreadable.module"),
-                VFS, new Scanner.ClasspathEntryWorkUnit(null, null, null, 0, "", new String[0]),
-                /* isLookupOnly = */ true, new ScanSpec()) {
-            @Override
-                    SingletonMap<ModuleReference, Recycler<ModuleReader, IOException>, IOException> //
-                    moduleReaderRecyclerMap() {
-                return unreadableModuleReaders;
-            }
-        };
-        classpathElement.open(/* workQueue = */ null, /* log = */ null);
+        // A virtual filesystem of this test's own, so that the readers it opens for the unreadable module are closed
+        // as soon as the test is over
+        try (var vfs = new Vfs()) {
+            final var classpathElement = new ClasspathElementModule(
+                    unreadableModuleReference("unreadable.module", moduleReadersOpened), vfs,
+                    new Scanner.ClasspathEntryWorkUnit(null, null, null, 0, "", new String[0]),
+                    /* isLookupOnly = */ true, new ScanSpec());
+            classpathElement.open(/* workQueue = */ null, /* log = */ null);
 
-        final var resource = classpathElement.getResource(UNREADABLE_PATH);
-        assertThat(resource).as("resource with path " + UNREADABLE_PATH).isNotNull();
-        for (var attempt = 0; attempt < 2; attempt++) {
-            assertThatThrownBy(resource::read).as("read").isInstanceOf(IOException.class)
-                    .hasRootCauseMessage("Simulated read failure");
-            assertThatThrownBy(resource::open).as("open").isInstanceOf(IOException.class)
-                    .hasRootCauseMessage("Simulated read failure");
-            assertThatThrownBy(resource::load).as("load").isInstanceOf(IOException.class)
-                    .hasRootCauseMessage("Simulated read failure");
+            final var resource = classpathElement.getResource(UNREADABLE_PATH);
+            assertThat(resource).as("resource with path " + UNREADABLE_PATH).isNotNull();
+            for (var attempt = 0; attempt < 2; attempt++) {
+                assertThatThrownBy(resource::read).as("read").isInstanceOf(IOException.class)
+                        .hasRootCauseMessage("Simulated read failure");
+                assertThatThrownBy(resource::open).as("open").isInstanceOf(IOException.class)
+                        .hasRootCauseMessage("Simulated read failure");
+                assertThatThrownBy(resource::load).as("load").isInstanceOf(IOException.class)
+                        .hasRootCauseMessage("Simulated read failure");
+            }
+            assertThat(moduleReadersOpened).as("module readers opened").hasValue(1);
         }
-        assertThat(moduleReadersOpened).as("module readers opened").hasValue(1);
     }
 
     /**
@@ -422,6 +392,32 @@ public class ClasspathElementModuleTest {
             @Override
             public ModuleReader open() {
                 throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public String toString() {
+                return "module " + moduleName;
+            }
+        };
+    }
+
+    /**
+     * A module reference that reports no location, and whose one resource cannot be read.
+     *
+     * @param moduleName
+     *            the name of the module.
+     * @param moduleReadersOpened
+     *            a counter to increment each time a {@link ModuleReader} is opened for the module.
+     * @return the module reference.
+     */
+    private static ModuleReference unreadableModuleReference(final String moduleName,
+            final AtomicInteger moduleReadersOpened) {
+        final var descriptor = ModuleDescriptor.newModule(moduleName).build();
+        return new ModuleReference(descriptor, /* location = */ null) {
+            @Override
+            public ModuleReader open() {
+                moduleReadersOpened.incrementAndGet();
+                return new UnreadableModuleReader();
             }
 
             @Override

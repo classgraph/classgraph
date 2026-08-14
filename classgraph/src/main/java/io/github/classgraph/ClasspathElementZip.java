@@ -31,13 +31,10 @@ package io.github.classgraph;
 import java.io.File;
 import java.io.IOError;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.nio.ByteBuffer;
 import java.nio.file.Path;
-import java.nio.file.attribute.PosixFilePermission;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -57,7 +54,6 @@ import io.github.classgraph.classpath.internal.ClasspathExpander;
 import io.github.classgraph.internal.scanspec.ScanSpec.ScanSpecPathMatch;
 import io.github.classgraph.internal.scanspec.ScanSpec;
 import io.github.classgraph.vfs.internal.slice.reader.ClassfileReader;
-import io.github.classgraph.vfs.internal.zip.FastZipEntry;
 import io.github.classgraph.vfs.internal.zip.LogicalZipFile;
 import io.github.classgraph.vfs.Vfs;
 import io.github.classgraph.vfs.VfsEntry;
@@ -67,15 +63,6 @@ import org.jspecify.annotations.Nullable;
 
 /** A zip/jarfile classpath element. */
 class ClasspathElementZip extends ClasspathElement {
-    /**
-     * The POSIX file permissions corresponding to the nine mode bits of a zip entry's external file attributes, in
-     * bit order, from the most significant bit ({@code 0400}) to the least significant ({@code 0001}).
-     */
-    private static final PosixFilePermission[] POSIX_FILE_PERMISSION_BITS = { PosixFilePermission.OWNER_READ,
-            PosixFilePermission.OWNER_WRITE, PosixFilePermission.OWNER_EXECUTE, PosixFilePermission.GROUP_READ,
-            PosixFilePermission.GROUP_WRITE, PosixFilePermission.GROUP_EXECUTE, PosixFilePermission.OTHERS_READ,
-            PosixFilePermission.OTHERS_WRITE, PosixFilePermission.OTHERS_EXECUTE };
-
     /** No automatic package root prefix is stripped from the entry names of this classpath element. */
     private static final String[] NO_PACKAGE_ROOT_PREFIXES = {};
 
@@ -303,133 +290,40 @@ class ClasspathElementZip extends ClasspathElement {
     /**
      * Create a new {@link Resource} object for a resource or classfile discovered while scanning paths.
      *
-     * @param zipEntry
-     *            the zip entry
+     * @param entry
+     *            the entry in the virtual filesystem
      * @param pathRelativeToPackageRoot
      *            the path relative to package root
      * @return the resource
      */
-    private Resource newResource(final FastZipEntry zipEntry, final String pathRelativeToPackageRoot) {
-        return new ZipResource(zipEntry, pathRelativeToPackageRoot);
+    private Resource newResource(final VfsEntry entry, final String pathRelativeToPackageRoot) {
+        return new ZipResource(entry, pathRelativeToPackageRoot);
     }
 
     /**
      * A {@link Resource} for an entry in a zipfile classpath element.
      */
-    private class ZipResource extends Resource {
-        /** The zip entry of the resource. */
-        private final FastZipEntry zipEntry;
-
-        /** The path of the resource, relative to the package root. */
-        private final String pathRelativeToPackageRoot;
-
+    private final class ZipResource extends VfsResource {
         /**
          * Constructor.
          *
-         * @param zipEntry
-         *            the zip entry of the resource.
+         * @param entry
+         *            the zip entry of the resource, as an entry in the virtual filesystem.
          * @param pathRelativeToPackageRoot
-         *            the path of the resource, relative to the package root.
+         *            the path of the resource, relative to the package root, i.e. with the package root prefix
+         *            and/or any Spring Boot prefix ({@code "BOOT-INF/classes/"} or {@code "WEB-INF/classes/"})
+         *            removed.
          */
-        ZipResource(final FastZipEntry zipEntry, final String pathRelativeToPackageRoot) {
-            super(ClasspathElementZip.this, zipEntry.uncompressedSize);
-            this.zipEntry = zipEntry;
-            this.pathRelativeToPackageRoot = pathRelativeToPackageRoot;
-        }
-
-        /**
-         * Path with package root prefix and/or any Spring Boot prefix ("BOOT-INF/classes/" or "WEB-INF/classes/")
-         * removed.
-         */
-        @Override
-        public String getPath() {
-            return pathRelativeToPackageRoot;
+        ZipResource(final VfsEntry entry, final String pathRelativeToPackageRoot) {
+            super(ClasspathElementZip.this, entry, pathRelativeToPackageRoot);
         }
 
         @Override
         public String getPathRelativeToClasspathElement() {
-            if (zipEntry.entryName.startsWith(packageRootPrefix)) {
-                return zipEntry.entryName.substring(packageRootPrefix.length());
-            } else {
-                return zipEntry.entryName;
-            }
-        }
-
-        @Override
-        public long getLastModifiedMillis() {
-            return zipEntry.getLastModifiedTimeMillis();
-        }
-
-        @Override
-        public @Nullable Set<PosixFilePermission> getPosixFilePermissions() {
-            final var fileAttributes = zipEntry.fileAttributes;
-            if (fileAttributes == 0) {
-                // Zip entries written by tools that do not record Unix mode bits have zero file attributes
-                return null;
-            }
-            final Set<PosixFilePermission> perms = new HashSet<>();
-            for (var i = 0; i < POSIX_FILE_PERMISSION_BITS.length; i++) {
-                if ((fileAttributes & (0400 >> i)) != 0) {
-                    perms.add(POSIX_FILE_PERMISSION_BITS[i]);
-                }
-            }
-            return perms;
-        }
-
-        @Override
-        ClassfileReader openClassfile() throws IOException {
-            return new ClassfileReader(open(), this);
-        }
-
-        @Override
-        public InputStream open() throws IOException {
-            checkCanOpen();
-            try {
-                inputStream = zipEntry.getSlice().open(this);
-                length = zipEntry.uncompressedSize;
-                return inputStream;
-
-            } catch (final IOException e) {
-                close();
-                throw e;
-            }
-        }
-
-        @Override
-        public ByteBuffer read() throws IOException {
-            checkCanOpen();
-            try {
-                byteBuffer = zipEntry.getSlice().read();
-                length = byteBuffer.remaining();
-                return byteBuffer;
-            } catch (final IOException e) {
-                close();
-                throw e;
-            }
-        }
-
-        @Override
-        public byte[] load() throws IOException {
-            checkCanOpen();
-            try (Resource res = this) { // Close this after use
-                final var byteArray = zipEntry.getSlice().load();
-                res.length = byteArray.length;
-                return byteArray;
-            }
-        }
-
-        @Override
-        public void close() {
-            if (markClosed()) {
-                if (byteBuffer != null) {
-                    // ByteBuffer should be a duplicate or slice, or should wrap an array, so it doesn't need to
-                    // be unmapped
-                    byteBuffer = null;
-                }
-
-                // Close inputStream
-                super.close();
-            }
+            // The name of the entry in the zipfile, which for an entry of a multi-release jar is the versioned name
+            final var entryName = Objects.requireNonNull(entry.getZipEntry()).entryName;
+            return entryName.startsWith(packageRootPrefix) ? entryName.substring(packageRootPrefix.length())
+                    : entryName;
         }
     }
 
@@ -593,8 +487,7 @@ class ClasspathElementZip extends ClasspathElement {
                 return true;
             }
 
-            addZipEntryResource(Objects.requireNonNull(entry.getZipEntry()), relativePath, parentMatchStatus,
-                    subLog);
+            addZipEntryResource(entry, relativePath, parentMatchStatus, subLog);
             return true;
         }
     }
@@ -714,8 +607,8 @@ class ClasspathElementZip extends ClasspathElement {
     /**
      * Add a zip entry as a {@link Resource}, and, if the resource is accepted, schedule it for scanning.
      *
-     * @param zipEntry
-     *            the zip entry
+     * @param entry
+     *            the zip entry, as an entry in the virtual filesystem
      * @param relativePath
      *            the path of the entry relative to the package root
      * @param parentMatchStatus
@@ -723,9 +616,9 @@ class ClasspathElementZip extends ClasspathElement {
      * @param log
      *            the log node, or null to skip logging
      */
-    private void addZipEntryResource(final FastZipEntry zipEntry, final String relativePath,
+    private void addZipEntryResource(final VfsEntry entry, final String relativePath,
             final ScanSpecPathMatch parentMatchStatus, final @Nullable LogNode log) {
-        final var resource = newResource(zipEntry, relativePath);
+        final var resource = newResource(entry, relativePath);
         if (relativePathToResource.putIfAbsent(relativePath, resource) == null) {
             if (isAcceptedResourcePath(relativePath, parentMatchStatus)) {
                 // Resource is accepted

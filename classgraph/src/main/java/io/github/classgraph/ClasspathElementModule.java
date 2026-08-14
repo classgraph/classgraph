@@ -30,32 +30,22 @@ package io.github.classgraph;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.lang.module.ModuleReader;
 import java.lang.module.ModuleReference;
 import java.net.URI;
-import java.nio.ByteBuffer;
-import java.nio.file.attribute.PosixFilePermission;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
-import io.github.classgraph.base.internal.concurrency.SingletonMap.NewInstanceException;
-import io.github.classgraph.base.internal.concurrency.SingletonMap.NullSingletonException;
-import io.github.classgraph.base.internal.concurrency.SingletonMap;
 import io.github.classgraph.base.internal.concurrency.WorkQueue;
-import io.github.classgraph.base.internal.recycler.Recycler;
 import io.github.classgraph.base.internal.utils.LogNode;
-import io.github.classgraph.vfs.internal.module.ModuleReaderUtils;
-import io.github.classgraph.base.internal.utils.ProxyingInputStream;
 import io.github.classgraph.internal.scanspec.ScanSpec.ScanSpecPathMatch;
 import io.github.classgraph.internal.scanspec.ScanSpec;
 import io.github.classgraph.vfs.Vfs;
 import io.github.classgraph.vfs.VfsEntry;
+import io.github.classgraph.vfs.VfsRoot;
 import io.github.classgraph.vfs.VfsVisitor;
-import io.github.classgraph.vfs.internal.slice.reader.ClassfileReader;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -68,31 +58,21 @@ class ClasspathElementModule extends ClasspathElement {
     /** The module. */
     final ModuleReference moduleReference;
 
-    /** The virtual filesystem that the module is read through. */
+    /** The virtual filesystem that the module is enumerated and read through. */
     private final Vfs vfs;
 
-    /** The module reader recycler, or null until {@link #open} has been called. */
-    private @Nullable Recycler<ModuleReader, IOException> moduleReaderRecycler;
-
-            /**
-             * A singleton map from a {@link ModuleReference} to a {@link ModuleReader} recycler for the module.
-             *
-             * @return the map.
-             */
-            SingletonMap<ModuleReference, Recycler<ModuleReader, IOException>, IOException> //
-            moduleReaderRecyclerMap() {
-        return vfs.getNestedJarHandler().scanResources.moduleReaderRecyclerMap();
-    }
+    /** The module, as a root of the virtual filesystem, or null until {@link #open} has been called. */
+    private @Nullable VfsRoot moduleRoot;
 
     /**
-     * Get the module reader recycler.
+     * Get the module as a root of the virtual filesystem.
      *
-     * @return the module reader recycler
+     * @return the root.
      * @throws NullPointerException
      *             if {@link #open} has not been called, or it failed to open the module
      */
-    private Recycler<ModuleReader, IOException> moduleReaderRecycler() {
-        return Objects.requireNonNull(moduleReaderRecycler);
+    private VfsRoot moduleRoot() {
+        return Objects.requireNonNull(moduleRoot);
     }
 
     /** All resource paths. */
@@ -128,8 +108,7 @@ class ClasspathElementModule extends ClasspathElement {
     }
 
     @Override
-    void open(final @Nullable WorkQueue<ClasspathEntryWorkUnit> workQueueIgnored, final @Nullable LogNode log)
-            throws InterruptedException {
+    void open(final @Nullable WorkQueue<ClasspathEntryWorkUnit> workQueueIgnored, final @Nullable LogNode log) {
         if (!scanSpec.classpathSpec.scanModules) {
             if (log != null) {
                 log(classpathElementIdx, "Skipping module, since module scanning is disabled: " + getModuleName(),
@@ -139,11 +118,12 @@ class ClasspathElementModule extends ClasspathElement {
             return;
         }
         try {
-            moduleReaderRecycler = moduleReaderRecyclerMap().get(moduleReference, log);
-        } catch (final IOException | NullSingletonException | NewInstanceException e) {
+            moduleRoot = vfs.open(moduleReference);
+        } catch (final IOException e) {
+            // The module itself is not opened until it is listed or read, so this only fails if the virtual
+            // filesystem has been closed
             if (log != null) {
-                log(classpathElementIdx, "Skipping invalid module " + getModuleName() + " : "
-                        + (e.getCause() == null ? e : e.getCause()), log);
+                log(classpathElementIdx, "Skipping module " + getModuleName() + " : " + e, log);
             }
             skipClasspathElement = true;
         }
@@ -152,167 +132,33 @@ class ClasspathElementModule extends ClasspathElement {
     /**
      * Create a new {@link Resource} object for a resource or classfile discovered while scanning paths.
      *
-     * @param resourcePath
-     *            the resource path
+     * @param entry
+     *            the resource, as an entry in the virtual filesystem
      * @return the resource
      */
-    private Resource newResource(final String resourcePath) {
-        return new ModuleResource(resourcePath);
+    private Resource newResource(final VfsEntry entry) {
+        return new ModuleResource(entry);
     }
 
     /**
-     * A {@link Resource} for an entry in a module. Reading it acquires a {@link ModuleReader} from the classpath
-     * element's recycler, and closing it returns that reader to the recycler.
+     * A {@link Resource} for a resource in a module.
      */
-    private class ModuleResource extends Resource {
-        /** The path of the resource within the module. */
-        private final String resourcePath;
-
-        /** The module reader, or null if no module reader is currently acquired. */
-        private @Nullable ModuleReader moduleReader;
-
+    private final class ModuleResource extends VfsResource {
         /**
          * Constructor.
          *
-         * @param resourcePath
-         *            the path of the resource within the module.
+         * @param entry
+         *            the resource, as an entry in the virtual filesystem.
          */
-        ModuleResource(final String resourcePath) {
-            super(ClasspathElementModule.this, /* length unknown */ -1L);
-            this.resourcePath = resourcePath;
-        }
-
-        @Override
-        public String getPath() {
-            return resourcePath;
-        }
-
-        @Override
-        public long getLastModifiedMillis() {
-            return 0L; // Unknown
-        }
-
-        @Override
-        public @Nullable Set<PosixFilePermission> getPosixFilePermissions() {
-            return null; // N/A
-        }
-
-        @Override
-        public ByteBuffer read() throws IOException {
-            checkCanOpen();
-            try {
-                final var reader = moduleReaderRecycler().acquire();
-                moduleReader = reader;
-                // ModuleReader#read(String name) internally calls:
-                // InputStream is = open(name); return ByteBuffer.wrap(is.readAllBytes());
-                final var buf = ModuleReaderUtils.read(reader, resourcePath);
-                // Keep the buffer that the ModuleReader returned, since that is the one that has to be handed back
-                // to ModuleReader#release, but hand the caller a read-only view of it, since the buffer belongs to
-                // the ModuleReader and is reclaimed by it when this resource is closed
-                byteBuffer = buf;
-                length = buf.remaining();
-                return buf.asReadOnlyBuffer();
-
-            } catch (final IOException e) {
-                // Leave the resource closed if it could not be read, so that reading it can be tried again, and so
-                // that the ModuleReader acquired above is recycled rather than being left checked out
-                close();
-                throw e;
-            } catch (final SecurityException | OutOfMemoryError e) {
-                close();
-                throw new IOException("Could not open " + this, e);
-            }
-        }
-
-        @Override
-        ClassfileReader openClassfile() throws IOException {
-            return new ClassfileReader(open(), this);
+        ModuleResource(final VfsEntry entry) {
+            super(ClasspathElementModule.this, entry, entry.getName());
         }
 
         @Override
         public URI getURI() {
-            try {
-                final var localModuleReader = moduleReaderRecycler().acquire();
-                try {
-                    return ModuleReaderUtils.find(localModuleReader, resourcePath);
-                } finally {
-                    moduleReaderRecycler().recycle(localModuleReader);
-                }
-            } catch (final IOException e) {
-                throw new IllegalStateException("Could not get URI for " + this + " : " + e);
-            }
-        }
-
-        @Override
-        public InputStream open() throws IOException {
-            checkCanOpen();
-            try {
-                final Resource thisResource = this;
-                final var reader = moduleReaderRecycler().acquire();
-                moduleReader = reader;
-                inputStream = new ProxyingInputStream(ModuleReaderUtils.open(reader, resourcePath)) {
-                    @Override
-                    public void close() throws IOException {
-                        // Close the wrapped InputStream obtained from moduleReader
-                        super.close();
-                        try {
-                            // Close the Resource, releasing any underlying ByteBuffer and recycling the
-                            // moduleReader
-                            thisResource.close();
-                        } catch (final Exception e) {
-                            // Ignore
-                        }
-                    }
-                };
-                // Length cannot be obtained from ModuleReader
-                length = -1L;
-                return inputStream;
-
-            } catch (final IOException e) {
-                // Leave the resource closed if it could not be opened, so that opening it can be tried again, and
-                // so that the ModuleReader acquired above is recycled rather than being left checked out
-                close();
-                throw e;
-            } catch (final SecurityException e) {
-                close();
-                throw new IOException("Could not open " + this, e);
-            }
-        }
-
-        @Override
-        public byte[] load() throws IOException {
-            try (Resource res = this) { // Close this after use
-                final var buf = read(); // Fill byteBuffer
-                // The buffer belongs to the ModuleReader, which reclaims it when this resource is closed at the end
-                // of this try block, so the content has to be copied out rather than aliased
-                final var byteArray = new byte[buf.remaining()];
-                buf.get(byteArray);
-                res.length = byteArray.length;
-                return byteArray;
-            }
-        }
-
-        @Override
-        public void close() {
-            if (markClosed()) {
-                final var reader = moduleReader;
-                if (reader != null) {
-                    final var buf = byteBuffer;
-                    if (buf != null) {
-                        // Release any open ByteBuffer
-                        reader.release(buf);
-                        byteBuffer = null;
-                    }
-                    // Recycle the (open) ModuleReader instance.
-                    moduleReaderRecycler().recycle(reader);
-                    // Don't call ModuleReader#close(), leave the ModuleReader open in the recycler. Just set
-                    // the ref to null here. The ModuleReader will be closed by ClasspathElementModule#close().
-                    moduleReader = null;
-                }
-
-                // Close inputStream
-                super.close();
-            }
+            // A module can have no location, in which case the classpath element has no URI to build this URI on
+            // top of, so ask the module itself where the resource is
+            return entry.getURI();
         }
     }
 
@@ -327,25 +173,20 @@ class ClasspathElementModule extends ClasspathElement {
     @Override
     @Nullable
     Resource getResource(final String relativePath) {
-        if (isLookupOnly) {
-            // The paths of the resources in a module that is not being scanned were never listed, so ask the module
-            // reader whether the module contains this one
-            if (skipClasspathElement) {
-                return null;
-            }
-            try {
-                final var moduleReader = moduleReaderRecycler().acquire();
-                try {
-                    return ModuleReaderUtils.contains(moduleReader, relativePath) ? newResource(relativePath)
-                            : null;
-                } finally {
-                    moduleReaderRecycler().recycle(moduleReader);
-                }
-            } catch (final IOException | SecurityException e) {
-                return null;
-            }
+        if (skipClasspathElement) {
+            return null;
         }
-        return allResourcePaths.contains(relativePath) ? newResource(relativePath) : null;
+        // The paths of the resources in a module that is not being scanned were never listed, so for such a module
+        // the module itself has to be asked whether it contains this resource
+        if (!isLookupOnly && !allResourcePaths.contains(relativePath)) {
+            return null;
+        }
+        try {
+            final var entry = moduleRoot().getEntry(relativePath);
+            return entry == null ? null : newResource(entry);
+        } catch (final IOException e) {
+            return null;
+        }
     }
 
     /**
@@ -374,7 +215,7 @@ class ClasspathElementModule extends ClasspathElement {
             // Let the virtual filesystem enumerate the module, and decide here which of the entries it offers are
             // wanted. The directory the entries are in is offered before the entries themselves, so the accept /
             // reject status of a directory only has to be worked out once for all the entries in it.
-            vfs.open(moduleReference).walk(new VfsVisitor() {
+            moduleRoot().walk(new VfsVisitor() {
                 /** The accept/reject match status of the directory currently being walked. */
                 private ScanSpecPathMatch parentMatchStatus = ScanSpecPathMatch.NOT_WITHIN_ACCEPTED_PATH;
 
@@ -424,14 +265,14 @@ class ClasspathElementModule extends ClasspathElement {
                     if (allResourcePaths.add(relativePath)) {
                         if (isAcceptedResourcePath(relativePath, parentMatchStatus)) {
                             // Add accepted resource
-                            addAcceptedResource(newResource(relativePath), parentMatchStatus,
+                            addAcceptedResource(newResource(entry), parentMatchStatus,
                                     /* isClassfileOnly = */ false, subLog);
                         } else if (scanSpec.enableClassInfo && "module-info.class".equals(relativePath)) {
                             // Add module descriptor as an accepted classfile resource, so that it is scanned, but
                             // don't add it to the list of resources in the ScanResult, since it is not in an
                             // accepted package (#352)
-                            addAcceptedResource(newResource(relativePath), parentMatchStatus,
-                                    /* isClassfileOnly = */ true, subLog);
+                            addAcceptedResource(newResource(entry), parentMatchStatus, /* isClassfileOnly = */ true,
+                                    subLog);
                         }
                     }
                     return true;

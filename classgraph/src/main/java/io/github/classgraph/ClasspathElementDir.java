@@ -31,18 +31,14 @@ package io.github.classgraph;
 import java.io.File;
 import java.io.IOError;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URI;
-import java.nio.ByteBuffer;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.nio.file.attribute.PosixFilePermission;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import io.github.classgraph.base.internal.concurrency.WorkQueue;
@@ -55,8 +51,6 @@ import io.github.classgraph.internal.scanspec.ScanSpec;
 import io.github.classgraph.vfs.Vfs;
 import io.github.classgraph.vfs.VfsEntry;
 import io.github.classgraph.vfs.VfsVisitor;
-import io.github.classgraph.vfs.internal.ScanResources;
-import io.github.classgraph.vfs.internal.slice.PathSlice;
 import io.github.classgraph.vfs.internal.slice.reader.ClassfileReader;
 import org.jspecify.annotations.Nullable;
 
@@ -67,9 +61,6 @@ class ClasspathElementDir extends ClasspathElement {
 
     /** The virtual filesystem that the directory is enumerated and read through. */
     private final Vfs vfs;
-
-    /** The resources owned by the scan. */
-    private final ScanResources scanResources;
 
     /**
      * A directory classpath element.
@@ -85,7 +76,6 @@ class ClasspathElementDir extends ClasspathElement {
         super(workUnit, scanSpec);
         this.classpathEltPath = (Path) Objects.requireNonNull(workUnit.classpathEntryObj);
         this.vfs = vfs;
-        this.scanResources = vfs.getNestedJarHandler().scanResources;
     }
 
     @Override
@@ -231,16 +221,7 @@ class ClasspathElementDir extends ClasspathElement {
     /**
      * A {@link Resource} for a file in a directory classpath element.
      */
-    private class DirResource extends Resource {
-        /** The file, as an entry in the virtual filesystem. */
-        private final VfsEntry entry;
-
-        /** The path of the file relative to the classpath element root, with any leading slashes removed. */
-        private final String path;
-
-        /** The {@link PathSlice} opened on the file. */
-        private @Nullable PathSlice pathSlice;
-
+    private final class DirResource extends VfsResource {
         /**
          * Constructor.
          *
@@ -248,104 +229,29 @@ class ClasspathElementDir extends ClasspathElement {
          *            the file, as an entry in the virtual filesystem.
          */
         DirResource(final VfsEntry entry) {
-            super(ClasspathElementDir.this, entry.getLength());
-            this.entry = entry;
-            final var entryName = entry.getName();
-            var startIdx = 0;
-            while (startIdx < entryName.length() && entryName.charAt(startIdx) == '/') {
-                startIdx++;
-            }
-            this.path = startIdx == 0 ? entryName : entryName.substring(startIdx);
-        }
-
-        @Override
-        public String getPath() {
-            return path;
+            super(ClasspathElementDir.this, entry, stripLeadingSlashes(entry.getName()));
         }
 
         @Override
         public String getPathRelativeToClasspathElement() {
             return packageRootPrefix.isEmpty() ? getPath() : packageRootPrefix + getPath();
         }
+    }
 
-        @Override
-        public long getLastModifiedMillis() {
-            return entry.getLastModifiedTimeMillis();
+    /**
+     * Strip any leading slashes from the name of an entry, to give the path of the resource relative to the package
+     * root.
+     *
+     * @param entryName
+     *            the name of the entry.
+     * @return the name, without any leading slashes.
+     */
+    private static String stripLeadingSlashes(final String entryName) {
+        var startIdx = 0;
+        while (startIdx < entryName.length() && entryName.charAt(startIdx) == '/') {
+            startIdx++;
         }
-
-        @Override
-        public @Nullable Set<PosixFilePermission> getPosixFilePermissions() {
-            return entry.getPosixFilePermissions();
-        }
-
-        @Override
-        public ByteBuffer read() throws IOException {
-            byteBuffer = openAndCreateSlice().read();
-            return byteBuffer;
-        }
-
-        @Override
-        ClassfileReader openClassfile() throws IOException {
-            // Classfile won't be compressed, so wrap it in a new PathSlice and then open it
-            return new ClassfileReader(openAndCreateSlice(), this);
-        }
-
-        @Override
-        public InputStream open() throws IOException {
-            final var slice = openAndCreateSlice();
-            inputStream = slice.open(this);
-            return inputStream;
-        }
-
-        @Override
-        public byte[] load() throws IOException {
-            try {
-                return openAndCreateSlice().load();
-            } finally {
-                close();
-            }
-        }
-
-        @Override
-        public void close() {
-            if (markClosed()) {
-                if (byteBuffer != null) {
-                    // Any ByteBuffer ref should be a duplicate, so it doesn't need to be cleaned
-                    byteBuffer = null;
-                }
-                final var slice = pathSlice;
-                if (slice != null) {
-                    // (PathSlice#close() marks the slice as closed)
-                    slice.close();
-                    pathSlice = null;
-                }
-
-                // Close inputStream
-                super.close();
-            }
-        }
-
-        private PathSlice openAndCreateSlice() throws IOException {
-            checkCanOpen();
-            try {
-                final var resourcePath = entry.getNioPath();
-                if (resourcePath == null) {
-                    // Cannot happen: every entry of a directory classpath element is a file in the filesystem
-                    throw new IOException("Resource is not backed by a file: " + entry.getPath());
-                }
-                // (A resource in a directory classpath element is read once and then closed, so it is not worth
-                // memory-mapping it, even on a platform where files are memory-mapped)
-                final var slice = new PathSlice(resourcePath, scanResources, /* checkAccess = */ false,
-                        /* memoryMapWholeFile = */ false, /* log = */ null);
-                pathSlice = slice;
-                length = slice.sliceLength;
-                return slice;
-            } catch (final IOException e) {
-                // Leave the resource closed if it could not be opened, so that opening it can be tried again
-                close();
-                throw e;
-            }
-        }
+        return startIdx == 0 ? entryName : entryName.substring(startIdx);
     }
 
     /**
