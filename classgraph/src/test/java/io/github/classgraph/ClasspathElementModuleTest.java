@@ -29,6 +29,7 @@ import io.github.classgraph.base.internal.concurrency.SingletonMap;
 import io.github.classgraph.base.internal.recycler.Recycler;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.internal.scanspec.ScanSpec;
+import io.github.classgraph.vfs.Vfs;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -259,17 +260,22 @@ public class ClasspathElementModuleTest {
      * @return the classpath element.
      */
     private static ClasspathElementModule classpathElementFor(final ModuleReference moduleReference) {
-        final SingletonMap<ModuleReference, Recycler<ModuleReader, IOException>, IOException> //
-        noModuleReaders = new SingletonMap<>() {
+        return new ClasspathElementModule(moduleReference, new Vfs(),
+                new Scanner.ClasspathEntryWorkUnit(null, null, null, 0, "", new String[0]),
+                /* isLookupOnly = */ false, new ScanSpec()) {
             @Override
-            public Recycler<ModuleReader, IOException> newInstance(final ModuleReference key,
-                    final @Nullable LogNode log) {
-                throw new UnsupportedOperationException();
+                    SingletonMap<ModuleReference, Recycler<ModuleReader, IOException>, IOException> //
+                    moduleReaderRecyclerMap() {
+                // The module is never read by these tests, only asked for its identity and location
+                return new SingletonMap<>() {
+                    @Override
+                    public Recycler<ModuleReader, IOException> newInstance(final ModuleReference key,
+                            final @Nullable LogNode log) {
+                        throw new UnsupportedOperationException();
+                    }
+                };
             }
         };
-        return new ClasspathElementModule(moduleReference, noModuleReaders,
-                new Scanner.ClasspathEntryWorkUnit(null, null, null, 0, "", new String[0]),
-                /* isLookupOnly = */ false, new ScanSpec());
     }
 
     /**
@@ -375,8 +381,14 @@ public class ClasspathElementModuleTest {
             }
         };
         final var classpathElement = new ClasspathElementModule(moduleReferenceWithNoLocation("unreadable.module"),
-                unreadableModuleReaders, new Scanner.ClasspathEntryWorkUnit(null, null, null, 0, "", new String[0]),
-                /* isLookupOnly = */ true, new ScanSpec());
+                new Vfs(), new Scanner.ClasspathEntryWorkUnit(null, null, null, 0, "", new String[0]),
+                /* isLookupOnly = */ true, new ScanSpec()) {
+            @Override
+                    SingletonMap<ModuleReference, Recycler<ModuleReader, IOException>, IOException> //
+                    moduleReaderRecyclerMap() {
+                return unreadableModuleReaders;
+            }
+        };
         classpathElement.open(/* workQueue = */ null, /* log = */ null);
 
         final var resource = classpathElement.getResource(UNREADABLE_PATH);

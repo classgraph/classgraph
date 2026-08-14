@@ -38,11 +38,10 @@ import java.util.Map;
 
 import io.github.classgraph.Scanner.ClassfileScanWorkUnit;
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
-import io.github.classgraph.base.internal.concurrency.SingletonMap;
-import io.github.classgraph.base.internal.recycler.Recycler;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.classpath.internal.classloaderhandler.ClassLoaderHandlerRegistry;
 import io.github.classgraph.internal.scanspec.ScanSpec;
+import io.github.classgraph.vfs.Vfs;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -66,11 +65,8 @@ class UnscannedModules {
     /** The modules that are not being scanned, and that were not rejected. */
     private final List<ModuleReference> unscannedModules;
 
-    /**
-     * A singleton map from a {@link ModuleReference} to a {@link ModuleReader} recycler for the module.
-     */
-    private final SingletonMap<ModuleReference, Recycler<ModuleReader, IOException>, IOException> //
-    moduleReaderRecyclerMap;
+    /** The virtual filesystem that the modules are read through. */
+    private final Vfs vfs;
 
     /**
      * The string form of the classloader to record for each module, or null if there is none.
@@ -99,17 +95,16 @@ class UnscannedModules {
      *            the modules that are not being scanned, and that were not rejected
      * @param classLoaderStr
      *            the string form of the classloader to record for each module, or null if there is none
-     * @param moduleReaderRecyclerMap
-     *            the map from a module to its module reader recycler
+     * @param vfs
+     *            the virtual filesystem to read the modules through
      * @param scanSpec
      *            the scan spec
      */
     UnscannedModules(final List<ModuleReference> unscannedModules, final @Nullable String classLoaderStr,
-            final SingletonMap<ModuleReference, Recycler<ModuleReader, IOException>, IOException> //
-            moduleReaderRecyclerMap, final ScanSpec scanSpec) {
+            final Vfs vfs, final ScanSpec scanSpec) {
         this.unscannedModules = unscannedModules;
         this.classLoaderStr = classLoaderStr;
-        this.moduleReaderRecyclerMap = moduleReaderRecyclerMap;
+        this.vfs = vfs;
         this.scanSpec = scanSpec;
     }
 
@@ -193,7 +188,7 @@ class UnscannedModules {
             final @Nullable LogNode log) throws InterruptedException {
         var classpathElement = moduleToClasspathElement.get(moduleReference);
         if (classpathElement == null) {
-            classpathElement = new ClasspathElementModule(moduleReference, moduleReaderRecyclerMap,
+            classpathElement = new ClasspathElementModule(moduleReference, vfs,
                     new ClasspathEntryWorkUnit(null, classLoaderStr, null, 0, "",
                             ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES),
                     /* isLookupOnly = */ true, scanSpec);

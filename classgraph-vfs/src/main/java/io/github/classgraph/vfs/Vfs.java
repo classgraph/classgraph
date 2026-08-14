@@ -94,7 +94,7 @@ import org.jspecify.annotations.Nullable;
  */
 public class Vfs implements Closeable {
     /** Everything this virtual filesystem is configured with. */
-    private final VfsScanSpec vfsScanSpec = new VfsScanSpec();
+    private final VfsScanSpec vfsScanSpec;
 
     /** The handler that opens jarfiles and owns the resources they are backed by. */
     private final NestedJarHandler nestedJarHandler;
@@ -113,7 +113,42 @@ public class Vfs implements Closeable {
 
     /** Constructor. */
     public Vfs() {
-        this.nestedJarHandler = new NestedJarHandler(vfsScanSpec, new InterruptionChecker());
+        this(new VfsScanSpec(), new InterruptionChecker(), /* log = */ null);
+    }
+
+    /**
+     * Constructor for the other ClassGraph modules, which configure the virtual filesystem through a
+     * {@link VfsScanSpec} built from their own API rather than through the methods of this class, and which share
+     * an {@link InterruptionChecker} and a {@link LogNode} with the rest of a scan.
+     *
+     * <p>
+     * The parameter types are in packages that are only exported to those modules, so this constructor cannot be
+     * called from anywhere else, and it is not part of the API.
+     *
+     * @param vfsScanSpec
+     *            everything the virtual filesystem is configured with.
+     * @param interruptionChecker
+     *            the interruption checker to share with the rest of the scan.
+     * @param log
+     *            the log node, or null to not log.
+     * @hidden
+     */
+    public Vfs(final VfsScanSpec vfsScanSpec, final InterruptionChecker interruptionChecker,
+            final @Nullable LogNode log) {
+        this.vfsScanSpec = vfsScanSpec;
+        this.nestedJarHandler = new NestedJarHandler(vfsScanSpec, interruptionChecker);
+        this.log = log;
+    }
+
+    /**
+     * Returns the handler that opens jarfiles and owns the resources that everything opened by this {@link Vfs} is
+     * backed by. This is for the other ClassGraph modules, and is not part of the API.
+     *
+     * @return the handler.
+     * @hidden
+     */
+    public NestedJarHandler getNestedJarHandler() {
+        return nestedJarHandler;
     }
 
     // -------------------------------------------------------------------------------------------------------------

@@ -38,6 +38,8 @@ import java.nio.file.FileSystem;
 import java.nio.file.Path;
 import java.util.List;
 
+import io.github.classgraph.base.internal.utils.Assert;
+import io.github.classgraph.base.internal.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -201,7 +203,25 @@ public abstract class VfsRoot {
      * @throws IOException
      *             if the entries could not be listed, or if the {@link Vfs} has been closed.
      */
-    public abstract void walk(VfsVisitor visitor) throws IOException;
+    public final void walk(final VfsVisitor visitor) throws IOException {
+        Assert.notNull(visitor, "visitor");
+        walk(visitor, getVfs().log());
+    }
+
+    /**
+     * Walk the entries under the package root, logging to the given log node rather than to the one the {@link Vfs}
+     * was given. This is for the other ClassGraph modules, which nest what the virtual filesystem logs under the
+     * part of the scan log that it belongs to, and is not part of the API.
+     *
+     * @param visitor
+     *            the visitor to hand the entries to.
+     * @param log
+     *            the log node, or null to not log.
+     * @throws IOException
+     *             if the entries could not be listed, or if the {@link Vfs} has been closed.
+     * @hidden
+     */
+    public abstract void walk(VfsVisitor visitor, @Nullable LogNode log) throws IOException;
 
     /**
      * Returns the entries under the package root, not including directories.

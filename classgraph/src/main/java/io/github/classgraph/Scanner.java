@@ -77,6 +77,7 @@ import io.github.classgraph.classpath.internal.ClassLoaderProbe;
 import io.github.classgraph.classpath.internal.classloaderhandler.ClassLoaderHandlerRegistry;
 import io.github.classgraph.classpath.internal.spec.ClassLoaderAndModuleLayerSpec;
 import io.github.classgraph.internal.scanspec.ScanSpec;
+import io.github.classgraph.vfs.Vfs;
 import io.github.classgraph.vfs.internal.zip.NestedJarHandler;
 import org.jspecify.annotations.Nullable;
 
@@ -89,7 +90,10 @@ class Scanner implements Callable<ScanResult> {
     /** If true, performing a scan. If false, only fetching the classpath. */
     private final boolean performScan;
 
-    /** The nested jar handler. */
+    /** The virtual filesystem that everything on the classpath and the module path is read through. */
+    private final Vfs vfs;
+
+    /** The nested jar handler, which is owned by {@link #vfs}. */
     private final NestedJarHandler nestedJarHandler;
 
     /** The executor service. */
@@ -175,7 +179,11 @@ class Scanner implements Callable<ScanResult> {
         this.interruptionChecker = executorService instanceof final AutoCloseableExecutorService autoCloseableExecSvc
                 ? autoCloseableExecSvc.interruptionChecker
                 : new InterruptionChecker();
-        this.nestedJarHandler = new NestedJarHandler(scanSpec.vfsScanSpec, interruptionChecker);
+        // The virtual filesystem owns the file handles, memory mappings and temporary files that everything read
+        // during the scan is backed by. It is given no log node of its own, since each part of the scan passes the
+        // log node that what it reads should be logged under.
+        this.vfs = new Vfs(scanSpec.vfsScanSpec, interruptionChecker, /* log = */ null);
+        this.nestedJarHandler = vfs.getNestedJarHandler();
         this.numParallelTasks = numParallelTasks;
         this.scanResultProcessor = scanResultProcessor;
         this.failureHandler = failureHandler;
@@ -209,8 +217,8 @@ class Scanner implements Callable<ScanResult> {
                 addModules(moduleFinder.getNonSystemModuleReferences(), /* isSystemModules = */ false,
                         defaultClassLoaderStr, unscannedModuleReferences, classLoaderProbeLog);
             }
-            this.unscannedModules = new UnscannedModules(unscannedModuleReferences, defaultClassLoaderStr,
-                    nestedJarHandler.scanResources.moduleReaderRecyclerMap(), scanSpec);
+            this.unscannedModules = new UnscannedModules(unscannedModuleReferences, defaultClassLoaderStr, vfs,
+                    scanSpec);
 
             // Turn the toplevel classpath entries into work units, so that the ClassLoaderProbe (and the classloader
             // references it holds) can be discarded now that the classpath has been found
@@ -262,8 +270,7 @@ class Scanner implements Callable<ScanResult> {
                     : scanSpec.classpathSpec.moduleAcceptReject.isAcceptedAndNotRejected(moduleName);
             if (isAccepted) {
                 // Create a new ClasspathElementModule
-                final var classpathElementModule = new ClasspathElementModule(moduleReference,
-                        nestedJarHandler.scanResources.moduleReaderRecyclerMap(),
+                final var classpathElementModule = new ClasspathElementModule(moduleReference, vfs,
                         new ClasspathEntryWorkUnit(null, defaultClassLoaderStr, null, moduleOrder.size(), "",
                                 ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES),
                         /* isLookupOnly = */ false, scanSpec);

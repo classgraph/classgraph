@@ -42,6 +42,7 @@ import io.github.classgraph.base.internal.concurrency.SingletonMap.NewInstanceEx
 import io.github.classgraph.base.internal.concurrency.SingletonMap.NullSingletonException;
 import io.github.classgraph.base.internal.recycler.Recycler;
 import io.github.classgraph.base.internal.utils.Assert;
+import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.vfs.internal.module.ModuleReaderUtils;
 import org.jspecify.annotations.Nullable;
 
@@ -149,39 +150,55 @@ final class ModuleRoot extends VfsRoot {
     }
 
     @Override
-    public void walk(final VfsVisitor visitor) throws IOException {
+    public void walk(final VfsVisitor visitor, final @Nullable LogNode log) throws IOException {
         Assert.notNull(visitor, "visitor");
-        // A module reader lists the whole module in one call, so there is nothing to be saved by walking it lazily
-        walkEntryList(getEntries(), visitor);
+        // A module reader lists the whole module in one call, so there is nothing to be saved by walking it lazily.
+        // The list is not put in the cache that getEntries() fills, since a walk only passes over it once, and
+        // caching it would keep an object per resource in the module alive for as long as the Vfs is open
+        final var entriesCurr = entries;
+        walkEntryList(entriesCurr == null ? listEntries(log) : entriesCurr, visitor);
     }
 
     @Override
     public List<VfsEntry> getEntries() throws IOException {
         var entriesCurr = entries;
         if (entriesCurr == null) {
-            final var recycler = moduleReaderRecycler();
-            final List<String> resourcePaths;
-            try (var moduleReader = recycler.acquireRecycleOnClose()) {
-                resourcePaths = ModuleReaderUtils.list(moduleReader.get(), getPath(), getVfs().log());
-            } catch (final SecurityException e) {
-                throw new IOException("Could not list the contents of module " + getPath() + " : " + e, e);
-            }
-            // List the entries of a module in a deterministic order, since ModuleReader#list() does not specify one
-            Collections.sort(resourcePaths);
-            final List<VfsEntry> entriesTmp = new ArrayList<>(resourcePaths.size());
-            for (final var resourcePath : resourcePaths) {
-                // "Whether the stream of elements includes names corresponding to directories in the module is
-                // module reader specific" -- a directory can only be told apart from a resource by its trailing '/'
-                if (!resourcePath.endsWith("/")) {
-                    entriesTmp.add(new ModuleEntry(this, resourcePath));
-                }
-            }
-            entriesCurr = Collections.unmodifiableList(entriesTmp);
+            entriesCurr = listEntries(getVfs().log());
             // Two threads racing here each list the module, and both get an equivalent list back, which is harmless
             // -- the entries hold no resources
             entries = entriesCurr;
         }
         return entriesCurr;
+    }
+
+    /**
+     * List the entries of the module, logging to the given log node.
+     *
+     * @param log
+     *            the log node, or null to not log.
+     * @return the entries.
+     * @throws IOException
+     *             if the module could not be listed, or if the {@link Vfs} has been closed.
+     */
+    private List<VfsEntry> listEntries(final @Nullable LogNode log) throws IOException {
+        final var recycler = moduleReaderRecycler();
+        final List<String> resourcePaths;
+        try (var moduleReader = recycler.acquireRecycleOnClose()) {
+            resourcePaths = ModuleReaderUtils.list(moduleReader.get(), getPath(), log);
+        } catch (final SecurityException e) {
+            throw new IOException("Could not list the contents of module " + getPath() + " : " + e, e);
+        }
+        // List the entries of a module in a deterministic order, since ModuleReader#list() does not specify one
+        Collections.sort(resourcePaths);
+        final List<VfsEntry> entriesTmp = new ArrayList<>(resourcePaths.size());
+        for (final var resourcePath : resourcePaths) {
+            // "Whether the stream of elements includes names corresponding to directories in the module is
+            // module reader specific" -- a directory can only be told apart from a resource by its trailing '/'
+            if (!resourcePath.endsWith("/")) {
+                entriesTmp.add(new ModuleEntry(this, resourcePath));
+            }
+        }
+        return Collections.unmodifiableList(entriesTmp);
     }
 
     @Override

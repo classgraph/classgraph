@@ -39,6 +39,7 @@ import java.util.List;
 import java.util.Map;
 
 import io.github.classgraph.base.internal.utils.Assert;
+import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.base.internal.utils.URLPathEncoder;
 import io.github.classgraph.vfs.internal.zip.LogicalZipFile;
 import org.jspecify.annotations.Nullable;
@@ -136,7 +137,7 @@ final class ArchiveRoot extends VfsRoot {
     }
 
     @Override
-    public void walk(final VfsVisitor visitor) {
+    public void walk(final VfsVisitor visitor, final @Nullable LogNode logIgnored) {
         Assert.notNull(visitor, "visitor");
         walkEntryList(entries, visitor);
     }

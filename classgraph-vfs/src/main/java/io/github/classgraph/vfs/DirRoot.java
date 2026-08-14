@@ -44,6 +44,7 @@ import java.util.Set;
 import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.base.internal.utils.FastPathResolver;
 import io.github.classgraph.base.internal.utils.FileUtils;
+import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.base.internal.utils.URLPathEncoder;
 import org.jspecify.annotations.Nullable;
 
@@ -120,7 +121,7 @@ final class DirRoot extends VfsRoot {
     }
 
     @Override
-    public void walk(final VfsVisitor visitor) throws IOException {
+    public void walk(final VfsVisitor visitor, final @Nullable LogNode logIgnored) throws IOException {
         Assert.notNull(visitor, "visitor");
         // Symlinks can make a directory tree cyclic, so record which directories have already been walked, by their
         // canonical path -- otherwise a directory that contains a symlink to one of its own ancestors makes this

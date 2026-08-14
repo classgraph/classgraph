@@ -47,12 +47,14 @@ import io.github.classgraph.base.internal.concurrency.SingletonMap.NullSingleton
 import io.github.classgraph.base.internal.concurrency.SingletonMap;
 import io.github.classgraph.base.internal.concurrency.WorkQueue;
 import io.github.classgraph.base.internal.recycler.Recycler;
-import io.github.classgraph.base.internal.utils.CollectionUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.vfs.internal.module.ModuleReaderUtils;
 import io.github.classgraph.base.internal.utils.ProxyingInputStream;
 import io.github.classgraph.internal.scanspec.ScanSpec.ScanSpecPathMatch;
 import io.github.classgraph.internal.scanspec.ScanSpec;
+import io.github.classgraph.vfs.Vfs;
+import io.github.classgraph.vfs.VfsEntry;
+import io.github.classgraph.vfs.VfsVisitor;
 import io.github.classgraph.vfs.internal.slice.reader.ClassfileReader;
 import org.jspecify.annotations.Nullable;
 
@@ -66,14 +68,21 @@ class ClasspathElementModule extends ClasspathElement {
     /** The module. */
     final ModuleReference moduleReference;
 
-    /**
-     * A singleton map from a {@link ModuleReference} to a {@link ModuleReader} recycler for the module.
-     */
-    private final SingletonMap<ModuleReference, Recycler<ModuleReader, IOException>, IOException> //
-    moduleReaderRecyclerMap;
+    /** The virtual filesystem that the module is read through. */
+    private final Vfs vfs;
 
     /** The module reader recycler, or null until {@link #open} has been called. */
     private @Nullable Recycler<ModuleReader, IOException> moduleReaderRecycler;
+
+            /**
+             * A singleton map from a {@link ModuleReference} to a {@link ModuleReader} recycler for the module.
+             *
+             * @return the map.
+             */
+            SingletonMap<ModuleReference, Recycler<ModuleReader, IOException>, IOException> //
+            moduleReaderRecyclerMap() {
+        return vfs.getNestedJarHandler().scanResources.moduleReaderRecyclerMap();
+    }
 
     /**
      * Get the module reader recycler.
@@ -100,22 +109,20 @@ class ClasspathElementModule extends ClasspathElement {
      *
      * @param moduleReference
      *            the module
+     * @param vfs
+     *            the virtual filesystem to read the module through
      * @param workUnit
      *            the work unit
-     * @param moduleReaderRecyclerMap
-     *            the map from a module to its module reader recycler
      * @param isLookupOnly
      *            true if the module is not being scanned, and was only opened so that the classfiles of individual
      *            classes can be read from it
      * @param scanSpec
      *            the scan spec
      */
-    ClasspathElementModule(final ModuleReference moduleReference,
-            final SingletonMap<ModuleReference, Recycler<ModuleReader, IOException>, IOException> //
-            moduleReaderRecyclerMap, final ClasspathEntryWorkUnit workUnit, final boolean isLookupOnly,
-            final ScanSpec scanSpec) {
+    ClasspathElementModule(final ModuleReference moduleReference, final Vfs vfs,
+            final ClasspathEntryWorkUnit workUnit, final boolean isLookupOnly, final ScanSpec scanSpec) {
         super(workUnit, scanSpec);
-        this.moduleReaderRecyclerMap = moduleReaderRecyclerMap;
+        this.vfs = vfs;
         this.moduleReference = moduleReference;
         this.isLookupOnly = isLookupOnly;
     }
@@ -132,7 +139,7 @@ class ClasspathElementModule extends ClasspathElement {
             return;
         }
         try {
-            moduleReaderRecycler = moduleReaderRecyclerMap.get(moduleReference, log);
+            moduleReaderRecycler = moduleReaderRecyclerMap().get(moduleReference, log);
         } catch (final IOException | NullSingletonException | NewInstanceException e) {
             if (log != null) {
                 log(classpathElementIdx, "Skipping invalid module " + getModuleName() + " : "
@@ -363,85 +370,73 @@ class ClasspathElementModule extends ClasspathElement {
         // Determine whether this is a modular jar
         final var isModularJar = getModuleName() != null;
 
-        try (var moduleReaderRecycleOnClose //
-                = moduleReaderRecycler().acquireRecycleOnClose()) {
-            // Look for accepted files in the module.
-            final List<String> resourceRelativePaths;
-            try {
-                resourceRelativePaths = ModuleReaderUtils.list(moduleReaderRecycleOnClose.get(), moduleName,
-                        subLog);
-            } catch (final IOException | SecurityException e) {
-                // A module whose contents cannot be listed is skipped, rather than aborting the whole scan. (A
-                // ModuleReader that returns null from list(), in violation of its contract, is handled by
-                // ModuleReaderUtils#list(ModuleReader, String, LogNode) instead, which treats the module as empty
-                // -- see #887)
-                if (subLog != null) {
-                    subLog.log("Could not get resource list for module " + moduleName + " -- skipping this module",
-                            e);
-                }
-                return;
-            }
-            CollectionUtils.sortIfNotEmpty(resourceRelativePaths);
+        try {
+            // Let the virtual filesystem enumerate the module, and decide here which of the entries it offers are
+            // wanted. The directory the entries are in is offered before the entries themselves, so the accept /
+            // reject status of a directory only has to be worked out once for all the entries in it.
+            vfs.open(moduleReference).walk(new VfsVisitor() {
+                /** The accept/reject match status of the directory currently being walked. */
+                private ScanSpecPathMatch parentMatchStatus = ScanSpecPathMatch.NOT_WITHIN_ACCEPTED_PATH;
 
-            final var parentDirMatchStatusCache = new ParentDirMatchStatusCache();
-            for (final String relativePath : resourceRelativePaths) {
-                // From ModuleReader#find(): "If the module reader can determine that the name locates a directory
-                // then the resulting URI will end with a slash ('/')." But from the documentation for
-                // ModuleReader#list(): "Whether the stream of elements includes names corresponding to directories
-                // in the module is module reader specific." We don't have a way of checking if a resource is a
-                // directory without trying to open it, unless ModuleReader#list() also decides to put a "/" on the
-                // end of resource paths corresponding to directories. Skip directories if they are found, but if
-                // they are not able to be skipped, we will have to settle for having some IOExceptions thrown when
-                // directories are mistaken for resource files.
-                if (relativePath.endsWith("/")) {
-                    continue;
+                @Override
+                public boolean enterDirectory(final String dirName) {
+                    parentMatchStatus = scanSpec.dirAcceptMatchStatus(dirName);
+                    // Never skip a directory, even a rejected one: every entry still has to be offered to
+                    // checkResourcePathAcceptReject below, which is what records whether this module contains a
+                    // rejected or a specifically accepted classpath element resource path
+                    return true;
                 }
 
-                // A versioned path in a module must be a nested versioned section, i.e. a path like
-                // "META-INF/versions/{version}/META-INF/versions/{version}/", since META-INF should only ever exist
-                // in the module root
-                if (isIgnoredVersionedPath(relativePath)) {
-                    if (subLog != null) {
-                        subLog.log(
-                                "Found unexpected nested versioned entry in module -- skipping: " + relativePath);
+                @Override
+                public boolean visitEntry(final VfsEntry entry) {
+                    final var relativePath = entry.getName();
+
+                    // A versioned path in a module must be a nested versioned section, i.e. a path like
+                    // "META-INF/versions/{version}/META-INF/versions/{version}/", since META-INF should only ever
+                    // exist in the module root
+                    if (isIgnoredVersionedPath(relativePath)) {
+                        if (subLog != null) {
+                            subLog.log("Found unexpected nested versioned entry in module -- skipping: "
+                                    + relativePath);
+                        }
+                        return true;
                     }
-                    continue;
-                }
 
-                if (isIgnoredDefaultPackageClassfile(isModularJar, relativePath)) {
-                    continue;
-                }
-
-                // Accept/reject classpath elements based on file resource paths
-                if (!checkResourcePathAcceptReject(relativePath, log)) {
-                    // The whole classpath element is rejected, so stop scanning the rest of it
-                    break;
-                }
-
-                final var parentMatchStatus = parentDirMatchStatusCache.getParentMatchStatus(relativePath);
-                if (parentMatchStatus == ScanSpecPathMatch.HAS_REJECTED_PATH_PREFIX) {
-                    // The parent dir or one of its ancestral dirs is rejected
-                    if (subLog != null) {
-                        subLog.log("Skipping rejected path: " + relativePath);
+                    if (isIgnoredDefaultPackageClassfile(isModularJar, relativePath)) {
+                        return true;
                     }
-                    continue;
-                }
 
-                // Found non-rejected relative path
-                if (allResourcePaths.add(relativePath)) {
-                    if (isAcceptedResourcePath(relativePath, parentMatchStatus)) {
-                        // Add accepted resource
-                        addAcceptedResource(newResource(relativePath), parentMatchStatus,
-                                /* isClassfileOnly = */ false, subLog);
-                    } else if (scanSpec.enableClassInfo && "module-info.class".equals(relativePath)) {
-                        // Add module descriptor as an accepted classfile resource, so that it is scanned, but don't
-                        // add it to the list of resources in the ScanResult, since it is not in an accepted package
-                        // (#352)
-                        addAcceptedResource(newResource(relativePath), parentMatchStatus,
-                                /* isClassfileOnly = */ true, subLog);
+                    // Accept/reject classpath elements based on file resource paths
+                    if (!checkResourcePathAcceptReject(relativePath, log)) {
+                        // The whole classpath element is rejected, so stop scanning the rest of it
+                        return false;
                     }
+
+                    if (parentMatchStatus == ScanSpecPathMatch.HAS_REJECTED_PATH_PREFIX) {
+                        // The parent dir or one of its ancestral dirs is rejected
+                        if (subLog != null) {
+                            subLog.log("Skipping rejected path: " + relativePath);
+                        }
+                        return true;
+                    }
+
+                    // Found non-rejected relative path
+                    if (allResourcePaths.add(relativePath)) {
+                        if (isAcceptedResourcePath(relativePath, parentMatchStatus)) {
+                            // Add accepted resource
+                            addAcceptedResource(newResource(relativePath), parentMatchStatus,
+                                    /* isClassfileOnly = */ false, subLog);
+                        } else if (scanSpec.enableClassInfo && "module-info.class".equals(relativePath)) {
+                            // Add module descriptor as an accepted classfile resource, so that it is scanned, but
+                            // don't add it to the list of resources in the ScanResult, since it is not in an
+                            // accepted package (#352)
+                            addAcceptedResource(newResource(relativePath), parentMatchStatus,
+                                    /* isClassfileOnly = */ true, subLog);
+                        }
+                    }
+                    return true;
                 }
-            }
+            }, subLog);
 
             // Save last modified time for the module file
             final var moduleFile = getFile();
@@ -450,8 +445,12 @@ class ClasspathElementModule extends ClasspathElement {
             }
 
         } catch (final IOException e) {
+            // A module whose contents cannot be listed is skipped, rather than aborting the whole scan. (A
+            // ModuleReader that returns null from list(), in violation of its contract, is handled by
+            // ModuleReaderUtils#list(ModuleReader, String, LogNode) instead, which treats the module as empty
+            // -- see #887)
             if (subLog != null) {
-                subLog.log("Exception opening module " + moduleName, e);
+                subLog.log("Could not read module " + moduleName + " -- skipping this module", e);
             }
             skipClasspathElement = true;
         }
