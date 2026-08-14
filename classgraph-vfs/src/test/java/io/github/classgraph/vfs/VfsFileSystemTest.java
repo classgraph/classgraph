@@ -8,6 +8,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.module.ModuleFinder;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.ClosedFileSystemException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
@@ -570,8 +571,7 @@ public class VfsFileSystemTest {
     }
 
     /**
-     * A filesystem is a view of its root, is not closeable in its own right, and stops being open when the
-     * {@link Vfs} that opened the root is closed.
+     * A filesystem is a view of its root, and stops being open when the {@link Vfs} that opened the root is closed.
      *
      * @param tempDir
      *            a temporary directory.
@@ -596,8 +596,6 @@ public class VfsFileSystemTest {
             assertThat(fileSystem.toString()).isEqualTo(root.toString());
             assertThat(fileSystem.provider().getScheme()).isEqualTo("vfs");
 
-            // The Vfs owns the file handles, so the filesystem cannot be closed on its own
-            assertThatThrownBy(fileSystem::close).isInstanceOf(UnsupportedOperationException.class);
             assertThatThrownBy(fileSystem::newWatchService).isInstanceOf(UnsupportedOperationException.class);
             assertThatThrownBy(fileSystem::getUserPrincipalLookupService)
                     .isInstanceOf(UnsupportedOperationException.class);
@@ -605,5 +603,70 @@ public class VfsFileSystemTest {
                     .isInstanceOf(UnsupportedOperationException.class);
         }
         assertThat(fileSystem.isOpen()).isFalse();
+    }
+
+    /**
+     * Closing the filesystem closes the root it is a view of, so that it can be used in a try-with-resources, and
+     * every subsequent read of it throws {@link ClosedFileSystemException}.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the root could not be read.
+     */
+    @Test
+    public void closingTheFilesystemClosesTheRoot(@TempDir final Path tempDir) throws IOException {
+        final var jarFile = tempDir.resolve("library.jar").toFile();
+        writeJar(jarFile);
+
+        try (var vfs = new Vfs()) {
+            final var root = vfs.open(jarFile);
+            final FileSystem fileSystem;
+            try (var fs = root.asFileSystem()) {
+                fileSystem = fs;
+                // Read an entry, so that the directory index is built before the close
+                assertThat(Files.readAllBytes(fs.getPath("/root.txt"))).isEqualTo(contentOf("root.txt"));
+            }
+            assertThat(fileSystem.isOpen()).isFalse();
+            assertThat(root.isClosed()).isTrue();
+
+            // The index was built before the close, but is not served from after it
+            assertThatThrownBy(() -> Files.readAllBytes(fileSystem.getPath("/root.txt")))
+                    .isInstanceOf(ClosedFileSystemException.class);
+            assertThatThrownBy(() -> Files.exists(fileSystem.getPath("/root.txt")))
+                    .isInstanceOf(ClosedFileSystemException.class);
+            assertThatThrownBy(() -> Files.newDirectoryStream(fileSystem.getPath("/")))
+                    .isInstanceOf(ClosedFileSystemException.class);
+
+            // Closing twice has no effect, and the root can be opened again, since closing it uncached it
+            fileSystem.close();
+            final var reopened = vfs.open(jarFile);
+            assertThat(reopened).isNotSameAs(root);
+            assertThat(Files.readAllBytes(reopened.asFileSystem().getPath("/root.txt")))
+                    .isEqualTo(contentOf("root.txt"));
+        }
+    }
+
+    /**
+     * A filesystem that is closed before anything has been read from it throws {@link ClosedFileSystemException}
+     * too, rather than failing to build its directory index.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the root could not be read.
+     */
+    @Test
+    public void aFilesystemClosedBeforeItWasReadThrowsTheSameException(@TempDir final Path tempDir)
+            throws IOException {
+        final var jarFile = tempDir.resolve("library.jar").toFile();
+        writeJar(jarFile);
+
+        try (var vfs = new Vfs()) {
+            final var fileSystem = vfs.open(jarFile).asFileSystem();
+            fileSystem.close();
+            assertThatThrownBy(() -> Files.readAllBytes(fileSystem.getPath("/root.txt")))
+                    .isInstanceOf(ClosedFileSystemException.class);
+        }
     }
 }

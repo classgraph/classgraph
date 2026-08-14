@@ -384,10 +384,10 @@ public abstract class VfsRoot implements AutoCloseable {
      *
      * <p>
      * The filesystem is read-only: every operation that would write throws
-     * {@link java.nio.file.ReadOnlyFileSystemException}. Its {@link FileSystem#close()} throws
-     * {@link UnsupportedOperationException}, because the {@link Vfs} owns the file handles, memory mappings and
-     * temporary files behind it -- close the {@link Vfs} instead, which invalidates the filesystem along with
-     * everything else it handed out.
+     * {@link java.nio.file.ReadOnlyFileSystemException}. Its {@link FileSystem#close()} closes this root, and
+     * closing this root closes the filesystem, so either one can be used in a try-with-resources. Neither releases
+     * the file handles, memory mappings and temporary files behind the root, which belong to the {@link Vfs} --
+     * close the {@link Vfs} to release those.
      *
      * @return a {@link FileSystem} view of this root. The same instance is returned every time.
      */
@@ -409,7 +409,8 @@ public abstract class VfsRoot implements AutoCloseable {
     /**
      * Close this root, dropping the {@link FileSystem} view of it if one was created, and removing it from the
      * cache of the {@link Vfs} that opened it, so that opening the same path again builds a new root. Every
-     * {@link VfsEntry} this root handed out stops working, as does the {@link FileSystem} view.
+     * {@link VfsEntry} this root handed out stops working, as does the {@link FileSystem} view, which from then on
+     * throws {@link java.nio.file.ClosedFileSystemException}.
      *
      * <p>
      * This releases nothing that a root shares with the rest of the {@link Vfs} -- the jarfile that backs it may

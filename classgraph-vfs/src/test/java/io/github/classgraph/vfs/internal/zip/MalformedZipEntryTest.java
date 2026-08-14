@@ -492,7 +492,8 @@ public class MalformedZipEntryTest {
         final var useParentHandlers = LOGGER.getUseParentHandlers();
         LOGGER.setUseParentHandlers(false);
         LOGGER.addHandler(handler);
-        try (var vfs = new Vfs().verbose()) {
+        try (var vfs = new Vfs()) {
+            vfs.verbose();
             vfs.open(jarFile.getPath()).getEntries();
         } finally {
             LOGGER.removeHandler(handler);

@@ -474,7 +474,8 @@ public class VfsTest {
         final var outerJarFile = new File(tempDir, "outer.jar");
         writeJarContainingJar(outerJarFile, "lib/inner.jar", readFile(innerJarFile));
 
-        try (var vfs = new Vfs().disableNestedJars()) {
+        try (var vfs = new Vfs()) {
+            vfs.disableNestedJars();
             assertThatThrownBy(() -> vfs.open(outerJarFile.getPath() + "!/lib/inner.jar"))
                     .isInstanceOf(IOException.class);
         }
@@ -671,7 +672,7 @@ public class VfsTest {
     @Test
     public void aStringThatIsNotAURLSchemeIsRejected() {
         try (var vfs = new Vfs()) {
-            assertThat(vfs.enableURLScheme("https")).isSameAs(vfs);
+            vfs.enableURLScheme("https");
             // A one-character scheme cannot be told apart from a Windows drive letter
             assertThatThrownBy(() -> vfs.enableURLScheme("c")).isInstanceOf(IllegalArgumentException.class);
             // The commonest mistake: including the scheme's trailing ':'
@@ -720,7 +721,7 @@ public class VfsTest {
         writeMultiReleaseJar(jarFile, "com/xyz/widget.txt");
 
         try (var vfs = new Vfs()) {
-            assertThat(vfs.enableMultiReleaseVersions()).isSameAs(vfs);
+            vfs.enableMultiReleaseVersions();
             final var root = vfs.open(jarFile.getPath());
             assertThat(root.getEntries()).extracting(VfsEntry::getName).containsExactlyInAnyOrder(
                     "META-INF/MANIFEST.MF", "com/xyz/widget.txt", "META-INF/versions/9/com/xyz/widget.txt",
@@ -734,7 +735,7 @@ public class VfsTest {
     @Test
     public void aNegativeMaxBufferedJarRAMSizeIsRejected() {
         try (var vfs = new Vfs()) {
-            assertThat(vfs.maxBufferedJarRAMSize(1024)).isSameAs(vfs);
+            vfs.maxBufferedJarRAMSize(1024);
             assertThatThrownBy(() -> vfs.maxBufferedJarRAMSize(-1)).isInstanceOf(IllegalArgumentException.class);
         }
     }

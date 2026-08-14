@@ -22,10 +22,10 @@ Module name: `io.github.classgraph.vfs`. Requires JDK 17 or newer. No dependenci
 Three classes carry the API: `Vfs` opens things, a `VfsRoot` is one opened directory, jarfile or
 module, and a `VfsEntry` is one file within it. Two more turn up as you use them:
 `CloseableByteBuffer` wraps a buffer you have to close, and `VfsVisitor` is the callback that
-`VfsRoot#walk()` takes. Those five types are the public API -- `VfsEntry` has two further public
-methods returning types from the internal packages, which are exported only to ClassGraph's own
-modules. See the [Vfs API](https://github.com/classgraph/classgraph/wiki/Vfs-API) for the full
-reference.
+`VfsRoot#walk()` takes. Those five types are the public API -- `VfsEntry` has one further public
+method, `getZipEntry()`, which returns a type from the internal packages, exported only to
+ClassGraph's own modules. See the
+[Vfs API](https://github.com/classgraph/classgraph/wiki/Vfs-API) for the full reference.
 
 ## One interface over every kind of storage
 
@@ -70,6 +70,22 @@ A `VfsRoot` is `AutoCloseable` too, but closing one only drops that root: its en
 behind it stays open, because other roots may be reading the same jarfile. Only the `Vfs` releases
 storage.
 
+So a root does not have to be closed, and there is nothing to leak by not closing one. An IDE
+cannot know that, though: with resource analysis switched on -- which is the default in Eclipse --
+`VfsRoot root = vfs.open(path)` is reported as *"Potential resource leak: 'root' may not be
+closed"*, because `vfs.open()` returns an `AutoCloseable`. Declaring the root in the
+try-with-resources silences it and costs nothing:
+
+```java
+try (Vfs vfs = new Vfs(); VfsRoot root = vfs.open("/path/to/library.jar")) {
+    // ...
+}
+```
+
+Every recipe below declares its roots that way, so none of them produces the warning. Where a root
+is opened and used without being named -- `vfs.open(path).getEntries()` -- the same warning is
+reported against the unnamed value, and can be ignored.
+
 ## Reading through `java.nio.file.Files`
 
 `root.asFileSystem()` returns a read-only `FileSystem` over any root, so anything that takes a
@@ -77,8 +93,9 @@ storage.
 jarfile that exists only in RAM, or a module, without knowing which of those it has:
 
 ```java
-try (Vfs vfs = new Vfs()) {
-    FileSystem fs = vfs.open("/path/to/outer.jar!/BOOT-INF/lib/inner.jar").asFileSystem();
+try (Vfs vfs = new Vfs();
+        VfsRoot root = vfs.open("/path/to/outer.jar!/BOOT-INF/lib/inner.jar");
+        FileSystem fs = root.asFileSystem()) {
     byte[] classfile = Files.readAllBytes(fs.getPath("/com/xyz/Widget.class"));
     try (Stream<Path> paths = Files.walk(fs.getPath("/"))) {
         paths.filter(Files::isRegularFile).forEach(System.out::println);
@@ -103,10 +120,13 @@ and `regex:`. `basic` is the only attribute view.
 
 It is a read-only filesystem: everything that would write -- `Files.delete`, `Files.write`,
 `Files.copy`, `Files.move`, `Files.createDirectory`, `Files.newOutputStream`, `setTimes`, and
-`newByteChannel` with a write option -- throws `ReadOnlyFileSystemException`. Its `close()` throws
-`UnsupportedOperationException`, because the `Vfs` owns the file handles, memory mappings and
-temporary files behind it; close the `VfsRoot` to drop this view of it, or the `Vfs` to release the
-storage behind it. Either one makes `isOpen()` return false.
+`newByteChannel` with a write option -- throws `ReadOnlyFileSystemException`.
+
+Its `close()` closes the root it is a view of, and closing the root closes it, so either can go in
+the try-with-resources. After that `isOpen()` returns false and every read of it throws
+`ClosedFileSystemException`, as `java.nio.file.FileSystem` specifies. Neither releases any storage:
+the file handles, memory mappings and temporary files belong to the `Vfs`, and are released when the
+`Vfs` is closed, which also makes every filesystem view it handed out report itself closed.
 
 ## What it reads that `java.util.zip` does not
 
@@ -135,9 +155,16 @@ storage behind it. Either one makes `isOpen()` return false.
 counted by file. The locking is unavoidable there: a `RandomAccessFile` has one cursor, so the
 seek and the read have to be atomic with respect to each other.
 
-`classgraph-vfs` never has a cursor to protect. Entries are read through memory-mapped
-`ByteBuffer` slices with absolute indexing, and the central directory is parsed once into an
-immutable index, so entry lookup and entry reads take no locks at all.
+`classgraph-vfs` never has a cursor to protect. Every read names the absolute offset it wants: a
+file is read either through a memory-mapped `ByteBuffer`, which is indexed absolutely, or through
+`FileChannel#read(ByteBuffer, long)`, which takes the position as an argument rather than carrying
+one, and which reaches `pread` without taking the channel's position lock. The central directory is
+parsed once into an immutable index. So entry lookup and entry reads take no locks at all.
+
+(Which of the two is used is a speed choice, not a correctness one. Memory mapping is measurably
+faster on Windows and is not on Linux or macOS, where it can be slower, so it is used on Windows
+only. See the
+[memory mapping benchmark](https://github.com/classgraph/classgraph/wiki/Memory-Mapping-Benchmark).)
 
 What that is worth depends on the access pattern. Bulk decompression still parallelizes reasonably
 well under `ZipFile`, because inflation happens outside the monitor and dominates the time. Entry
@@ -167,12 +194,11 @@ ClassGraph scan a jarfile in parallel.
 ### List what is in a directory, a jarfile or a module
 
 ```java
-try (Vfs vfs = new Vfs()) {
-    List<VfsRoot> roots = List.of(
-            vfs.open("/path/to/classes"),
-            vfs.open("/path/to/library.jar"),
-            vfs.open(ModuleFinder.ofSystem().find("java.logging").orElseThrow()));
-    for (VfsRoot root : roots) {
+try (Vfs vfs = new Vfs();
+        VfsRoot dir = vfs.open("/path/to/classes");
+        VfsRoot jar = vfs.open("/path/to/library.jar");
+        VfsRoot module = vfs.open(ModuleFinder.ofSystem().find("java.logging").orElseThrow())) {
+    for (VfsRoot root : List.of(dir, jar, module)) {
         System.out.println(root + " (" + root.getKind() + ")");
         for (VfsEntry entry : root.getEntries()) {
             System.out.println("  " + entry.getName() + " (" + entry.getLength() + " bytes)");
@@ -193,8 +219,8 @@ is cheaper: it offers each directory before the entries in it, so an unwanted on
 and for a directory tree a skipped directory is never even listed.
 
 ```java
-try (Vfs vfs = new Vfs()) {
-    vfs.open("/path/to/classes").walk(new VfsVisitor() {
+try (Vfs vfs = new Vfs(); VfsRoot root = vfs.open("/path/to/classes")) {
+    root.walk(new VfsVisitor() {
         @Override
         public boolean enterDirectory(String dirName) {
             // Do not descend into a test tree
@@ -221,17 +247,30 @@ prefix such as `BOOT-INF/classes/` from the names before judging them would othe
 ### Read one entry
 
 ```java
-try (Vfs vfs = new Vfs()) {
-    VfsEntry entry = vfs.open("/path/to/library.jar").getEntry("META-INF/MANIFEST.MF");
+try (Vfs vfs = new Vfs(); VfsRoot root = vfs.open("/path/to/library.jar")) {
+    VfsEntry entry = root.getEntry("META-INF/MANIFEST.MF");
     if (entry != null) {
         System.out.println(entry.loadAsString());
     }
 }
 ```
 
-`getEntry` returns null if there is no such entry. Use `entry.open()` to stream a large entry rather
-than holding it in memory, or `entry.read()` to get a `ByteBuffer` -- which is the memory mapping
-itself, with no copy, where the entry is stored uncompressed in a file that could be mapped:
+`getEntry` returns null if there is no such entry. There are four ways to read one, differing only
+in what you get back and who has to release it.
+
+`entry.open()` streams the content, so a large entry never has to be held in memory. The stream is
+yours to close:
+
+```java
+try (InputStream inputStream = entry.open()) {
+    // ... Read from inputStream ...
+}
+```
+
+`entry.read()` hands back the content as a `ByteBuffer` -- which is the memory mapping itself, with
+no copy, where the entry is stored uncompressed in a file that could be mapped. It is wrapped in a
+`CloseableByteBuffer` because it has to be released or unmapped when you have finished with it,
+which `close()` does:
 
 ```java
 try (CloseableByteBuffer closeableBuffer = entry.read()) {
@@ -240,30 +279,37 @@ try (CloseableByteBuffer closeableBuffer = entry.read()) {
 }
 ```
 
-The buffer is wrapped in a `CloseableByteBuffer` because it has to be released or unmapped when you
-have finished with it, which `close()` does. `entry.load()` and `entry.loadAsString()` copy the
-content instead, so there is nothing to close and the result stays valid after the `Vfs` is closed.
+`entry.load()` and `entry.loadAsString()` copy the content into a `byte[]` and a UTF-8 `String`
+respectively. There is nothing to close, and the result stays valid after the `Vfs` is closed:
+
+```java
+byte[] classfile = entry.load();
+String manifest = entry.loadAsString();
+```
+
+All four throw `IOException` if the entry cannot be read, or if the `Vfs` has been closed. A fifth,
+`entry.openChannel()`, returns a `ReadableByteChannel` for code that reads that way.
 
 ### Read a jarfile that is not on disk
 
 ```java
 try (Vfs vfs = new Vfs();
-        InputStream inputStream = new URL(url).openStream()) {
-    VfsRoot root = vfs.open(inputStream, "downloaded.jar");
+        InputStream inputStream = URI.create(url).toURL().openStream();
+        VfsRoot root = vfs.open(inputStream, "downloaded.jar")) {
     System.out.println(root.getEntries().size() + " entries");
 }
 ```
 
 The stream is read into RAM, or spilled to a temporary file if it is larger than
 `maxBufferedJarRAMSize`. `vfs.open(byte[], String)` does the same for a jarfile you already hold.
-Alternatively, let the library do the fetching: `new Vfs().enableURLScheme("https")` allows
-`vfs.open("https://.../library.jar")`.
+Alternatively, let the library do the fetching: after `vfs.enableURLScheme("https")`, the URL can be
+opened directly with `vfs.open("https://.../library.jar")`.
 
 ### Read a jarfile nested inside another jarfile
 
 ```java
-try (Vfs vfs = new Vfs()) {
-    VfsRoot nested = vfs.open("/path/to/outer.jar!/BOOT-INF/lib/inner.jar");
+try (Vfs vfs = new Vfs();
+        VfsRoot nested = vfs.open("/path/to/outer.jar!/BOOT-INF/lib/inner.jar")) {
     for (VfsEntry entry : nested.getEntries()) {
         System.out.println(entry.getName());
     }
@@ -274,11 +320,22 @@ Nothing is extracted to disk unless the nested jarfile is stored deflated and is
 `maxBufferedJarRAMSize`. Call `disableNestedJars()` if `!/` in a path should only ever mean a
 package root.
 
+A `jar:` or `jar:file:` prefix is accepted, but is not needed and changes nothing:
+`/path/outer.jar!/lib/inner.jar`, `file:/path/outer.jar!/lib/inner.jar` and
+`jar:file:/path/outer.jar!/lib/inner.jar` all open the same nested jarfile. Which `!` separates the
+levels is not decided by the prefix, because it cannot be: `!` is a legal filename character on
+every platform, `JarURLConnection` defines the separator as `!/` and offers no way to escape a
+literal one, so `/dir!/x.jar` is genuinely ambiguous between a jarfile `x.jar` in a directory named
+`dir!` and an entry `x.jar` inside a jarfile named `dir`. It is decided by looking at the storage
+instead: each `!` is tried in turn, and the first one whose preceding path names an existing file
+is the separator, since the outermost jarfile has to exist to be read at all. A path with a remote
+URL scheme cannot be checked that way, so for those the first `!` is taken to be the separator.
+
 ### Read from a package root
 
 ```java
-try (Vfs vfs = new Vfs()) {
-    VfsRoot classes = vfs.open("/path/to/spring-boot-app.jar!/BOOT-INF/classes");
+try (Vfs vfs = new Vfs();
+        VfsRoot classes = vfs.open("/path/to/spring-boot-app.jar!/BOOT-INF/classes")) {
     // Names are reported relative to the package root, so this prints "com/xyz/MyApp.class",
     // not "BOOT-INF/classes/com/xyz/MyApp.class"
     classes.getEntries().forEach(entry -> System.out.println(entry.getName()));
@@ -289,9 +346,9 @@ try (Vfs vfs = new Vfs()) {
 ### Read from a filesystem other than the default one
 
 ```java
-try (FileSystem fileSystem = FileSystems.newFileSystem(Path.of("/path/to/library.jar"), null);
-        Vfs vfs = new Vfs()) {
-    VfsRoot root = vfs.open(fileSystem.getPath("/"));
+try (FileSystem fileSystem = FileSystems.newFileSystem(Path.of("/path/to/library.jar"));
+        Vfs vfs = new Vfs();
+        VfsRoot root = vfs.open(fileSystem.getPath("/"))) {
     root.getEntries().forEach(entry -> System.out.println(entry.getName()));
 }
 ```
@@ -301,8 +358,8 @@ Any `Path` works, whatever provider it belongs to, whether it names a directory 
 ### Find a root's module name
 
 ```java
-try (Vfs vfs = new Vfs()) {
-    String moduleName = vfs.open("/path/to/library.jar").getModuleName();
+try (Vfs vfs = new Vfs(); VfsRoot root = vfs.open("/path/to/library.jar")) {
+    String moduleName = root.getModuleName();
     System.out.println(moduleName != null
             ? "module name: " + moduleName
             : "no Automatic-Module-Name in the manifest");
@@ -315,8 +372,11 @@ own name.
 ### Work out why something is not read as expected
 
 ```java
-try (Vfs vfs = new Vfs().verbose()) {
-    vfs.open("/path/to/library.jar");
+try (Vfs vfs = new Vfs()) {
+    vfs.verbose();
+    try (VfsRoot root = vfs.open("/path/to/library.jar")) {
+        System.out.println(root.getEntries().size() + " entries");
+    }
 }
 ```
 

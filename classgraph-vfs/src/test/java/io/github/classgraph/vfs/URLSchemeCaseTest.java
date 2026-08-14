@@ -45,7 +45,8 @@ public class URLSchemeCaseTest {
             zipOut.closeEntry();
         }
 
-        try (var vfs = new Vfs().enableURLScheme(SCHEME)) {
+        try (var vfs = new Vfs()) {
+            vfs.enableURLScheme(SCHEME);
             final var url = SCHEME.toUpperCase(Locale.ROOT) + ":" + jarFile.getPath();
             final var entry = Objects.requireNonNull(vfs.open(url).getEntry("com/xyz/widget.txt"));
             assertThat(new String(entry.load(), StandardCharsets.UTF_8)).isEqualTo(RESOURCE_CONTENT);

@@ -163,44 +163,38 @@ public class Vfs implements AutoCloseable {
      * <p>
      * The log is written when this {@link Vfs} is closed.
      *
-     * @return this (for method chaining).
      * @throws IllegalStateException
      *             if this {@link Vfs} has been closed.
      */
-    public synchronized Vfs verbose() {
+    public synchronized void verbose() {
         checkOpen();
         if (log == null) {
             log = new LogNode();
         }
-        return this;
     }
 
     /**
      * Do not open jarfiles nested within other jarfiles, so that a path containing {@code "!/"} can only name a
      * package root within a jarfile, not a jarfile within a jarfile.
      *
-     * @return this (for method chaining).
      * @throws IllegalStateException
      *             if this {@link Vfs} has been closed.
      */
-    public Vfs disableNestedJars() {
+    public void disableNestedJars() {
         checkOpen();
         vfsScanSpec.scanNestedJars = false;
-        return this;
     }
 
     /**
      * Report every version of a multi-release jarfile's entries, rather than only the newest version of each entry
      * that this JVM can run.
      *
-     * @return this (for method chaining).
      * @throws IllegalStateException
      *             if this {@link Vfs} has been closed.
      */
-    public Vfs enableMultiReleaseVersions() {
+    public void enableMultiReleaseVersions() {
         checkOpen();
         vfsScanSpec.enableMultiReleaseVersions = true;
-        return this;
     }
 
     /**
@@ -214,17 +208,15 @@ public class Vfs implements AutoCloseable {
      * @param scheme
      *            the URL scheme to allow, e.g. {@code "https"}. The scheme name only, without the trailing
      *            {@code ':'}.
-     * @return this (for method chaining).
      * @throws IllegalArgumentException
      *             if {@code scheme} is shorter than two characters (a one-character scheme cannot be told apart
      *             from a Windows drive letter), or is not a valid URL scheme.
      * @throws IllegalStateException
      *             if this {@link Vfs} has been closed.
      */
-    public Vfs enableURLScheme(final String scheme) {
+    public void enableURLScheme(final String scheme) {
         checkOpen();
         vfsScanSpec.enableURLScheme(scheme);
-        return this;
     }
 
     /**
@@ -237,19 +229,17 @@ public class Vfs implements AutoCloseable {
      *
      * @param maxBufferedJarRAMSize
      *            the maximum number of bytes to hold in RAM.
-     * @return this (for method chaining).
      * @throws IllegalArgumentException
      *             if {@code maxBufferedJarRAMSize} is negative.
      * @throws IllegalStateException
      *             if this {@link Vfs} has been closed.
      */
-    public Vfs maxBufferedJarRAMSize(final int maxBufferedJarRAMSize) {
+    public void maxBufferedJarRAMSize(final int maxBufferedJarRAMSize) {
         checkOpen();
         if (maxBufferedJarRAMSize < 0) {
             throw new IllegalArgumentException("maxBufferedJarRAMSize cannot be negative");
         }
         vfsScanSpec.maxBufferedJarRAMSize = maxBufferedJarRAMSize;
-        return this;
     }
 
     // -------------------------------------------------------------------------------------------------------------

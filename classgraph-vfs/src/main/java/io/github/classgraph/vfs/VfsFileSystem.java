@@ -31,6 +31,7 @@ package io.github.classgraph.vfs;
 import java.io.IOError;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.file.ClosedFileSystemException;
 import java.nio.file.FileStore;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
@@ -110,10 +111,17 @@ final class VfsFileSystem extends FileSystem {
      * Returns the directory index, building it on first use.
      *
      * @return the index.
+     * @throws ClosedFileSystemException
+     *             if this filesystem has been closed.
      * @throws IOException
      *             if the entries of the root could not be listed.
      */
     private Index index() throws IOException {
+        // Every read of this filesystem's content goes through the index, including reads through a Path of it,
+        // so this is the one place that has to turn away access after a close
+        if (root.isClosed()) {
+            throw new ClosedFileSystemException();
+        }
         var idx = index;
         if (idx != null) {
             return idx;
@@ -257,17 +265,20 @@ final class VfsFileSystem extends FileSystem {
      * {@inheritDoc}
      *
      * <p>
-     * A virtual filesystem does not own the storage it is a view of -- the {@link Vfs} that opened the root does.
-     * Call {@link VfsRoot#close()} to drop this view of the root, or {@link Vfs#close()} to release the storage
-     * behind it.
+     * This closes the {@link VfsRoot} that this filesystem is a view of, so every subsequent access to the
+     * filesystem, or to a {@link Path} of it, throws {@link ClosedFileSystemException}.
      *
-     * @throws UnsupportedOperationException
-     *             always.
+     * <p>
+     * It releases nothing that the root shares with the rest of the {@link Vfs} -- the jarfile that backs it may
+     * back other roots too, and stays open along with the file handles, memory mappings and temporary files behind
+     * it. Call {@link Vfs#close()} to release those.
+     *
+     * <p>
+     * Closing an already-closed filesystem has no effect.
      */
     @Override
     public void close() {
-        throw new UnsupportedOperationException(
-                "A virtual filesystem cannot be closed; close the Vfs that opened the root instead");
+        root.close();
     }
 
     @Override
