@@ -30,12 +30,14 @@ package io.github.classgraph.vfs;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.lang.module.ModuleReference;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -57,11 +59,14 @@ import org.jspecify.annotations.Nullable;
  * A root stops working once it is closed, or once the {@link Vfs} that produced it is closed.
  *
  * <p>
+ * Iterating a root iterates its entries, in the same order as {@link #getEntries()}.
+ *
+ * <p>
  * Every method is safe to call from multiple threads at once, and {@link #close()} takes effect the moment it is
  * called, so a thread that lists or reads entries after that -- even while the close is still running -- gets an
  * {@link IOException} rather than entries of storage that is being released.
  */
-public abstract class VfsRoot implements AutoCloseable {
+public abstract class VfsRoot implements AutoCloseable, Iterable<VfsEntry> {
     /** The {@link Vfs} that opened this root. */
     private final Vfs vfs;
 
@@ -277,6 +282,35 @@ public abstract class VfsRoot implements AutoCloseable {
     public final List<VfsEntry> getEntries() throws IOException {
         checkNotClosed(getPath());
         return getEntriesImpl();
+    }
+
+    /**
+     * Returns an iterator over the entries under the package root, in the same order as {@link #getEntries()}, so
+     * that a root can be iterated directly:
+     *
+     * <pre>
+     * for (VfsEntry entry : root) {
+     *     System.out.println(entry.getName());
+     * }
+     * </pre>
+     *
+     * <p>
+     * Listing the entries can fail, and {@link Iterable#iterator()} cannot declare a checked exception, so the
+     * {@link IOException} that {@link #getEntries()} throws is wrapped in an {@link UncheckedIOException} here, the
+     * same way {@link java.nio.file.DirectoryStream} wraps it. Call {@link #getEntries()} instead, to handle that
+     * failure as a checked exception.
+     *
+     * @return an iterator over the entries.
+     * @throws UncheckedIOException
+     *             if the entries could not be listed, or if the {@link Vfs} has been closed.
+     */
+    @Override
+    public final Iterator<VfsEntry> iterator() {
+        try {
+            return getEntries().iterator();
+        } catch (final IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     /**

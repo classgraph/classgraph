@@ -36,17 +36,20 @@
  * {@link io.github.classgraph.classpath.Classpath}:
  *
  * <pre>
- * for (ClasspathEntry entry : new ClasspathFinder().find().getEntries()) {
- *     System.out.println(entry.location());
+ * try (Classpath classpath = new ClasspathFinder().find()) {
+ *     for (ClasspathEntry entry : classpath) {
+ *         System.out.println(entry.location());
+ *     }
  * }
  * </pre>
  *
  * <p>
- * This package reports where classes and resources <i>would be</i> loaded from. It does not open, read or verify
- * the existence of anything it reports -- an entry may name a jar or directory that does not exist, and nested jars
- * are reported in the {@code outer.jar!/inner.jar} form rather than being extracted. Use
- * <a href="https://github.com/classgraph/classgraph">ClassGraph</a> itself, which is built on this library, to
- * actually read what is at each location.
+ * This package reports where classes and resources <i>would be</i> loaded from. Finding the classpath does not open
+ * or verify the existence of anything it reports -- an entry may name a jar or directory that does not exist, and
+ * nested jars are reported in the {@code outer.jar!/inner.jar} form rather than being extracted. To read what is at
+ * an element, open it with {@link io.github.classgraph.classpath.ClasspathEntry#open}, which lists its contents; or
+ * use <a href="https://github.com/classgraph/classgraph">ClassGraph</a> itself, which is built on this library, to
+ * parse the classfiles it finds there.
  *
  * <p>
  * This package is {@link org.jspecify.annotations.NullMarked}: unless a type is annotated

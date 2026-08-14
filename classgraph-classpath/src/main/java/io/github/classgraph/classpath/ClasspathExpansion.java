@@ -132,7 +132,8 @@ final class ClasspathExpansion {
         for (final String childLocation : childLocations(entry.location())) {
             // A child classpath element is loaded by the classloader of the element that declared it, and inherits
             // its package roots
-            addRec(new ClasspathEntry(childLocation, entry.classLoaderName(), entry.packageRootPrefixes()));
+            addRec(new ClasspathEntry.OfPathString(childLocation, entry.classLoaderName(),
+                    entry.packageRootPrefixes()));
         }
     }
 

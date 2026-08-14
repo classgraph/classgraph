@@ -577,22 +577,23 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
             hasWildcardSuffix = true;
             pathElementStr = "";
             // Leave pathElementURL null, so that wildcards can be handled below
-        } else if (schemeMatcher.matcher(pathElementStr).find()) {
+        } else if (!(pathElement instanceof Path) && schemeMatcher.matcher(pathElementStr).find()) {
             // Path element string is a URL with a scheme other than `[jar:]file:`, so the URL has to actually be
-            // parsed, since the scheme may be a custom scheme
+            // parsed, since the scheme may be a custom scheme. A Path is exempt: the scheme in its string form is
+            // the scheme of its own filesystem, which usually has no URL handler, so parsing it as a URL would at
+            // best find nothing and at worst produce a URL that names a different file
             pathElementURL = toClasspathElementURL(pathElement, pathElementStr, log);
         }
 
-        if (pathElementURL != null || pathElement instanceof URI || pathElement instanceof File
-                || pathElement instanceof Path) {
+        if (!hasWildcardSuffix && (pathElementURL != null || pathElement instanceof URL
+                || pathElement instanceof URI || pathElement instanceof File || pathElement instanceof Path)) {
             if (!passesFilters(pathElementURL, pathElementStr, pathElementStr, log)) {
                 return false;
             }
-            // For a URL object, or a URI or Path that was parsed into a URL, use the URL (so that URL scheme
-            // handling can be undertaken later); for a File object, use the resolved path string; otherwise use the
-            // object itself
-            final var classpathElementObj = pathElement instanceof File ? pathElementStr
-                    : pathElementURL != null ? pathElementURL : pathElement;
+            // For a URI or Path that was parsed into a URL, use the URL (so that URL scheme handling can be
+            // undertaken later); otherwise use the object itself, so that the filesystem of a Path, and the form a
+            // File or URI was found in, are not lost
+            final var classpathElementObj = pathElementURL != null ? pathElementURL : pathElement;
             return addClasspathEntryAndLog(classpathElementObj, pathElementStr, pathElementStr, classLoader, log);
         }
 

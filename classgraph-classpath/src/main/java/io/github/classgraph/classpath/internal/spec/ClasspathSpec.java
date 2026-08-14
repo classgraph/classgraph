@@ -28,9 +28,11 @@
  */
 package io.github.classgraph.classpath.internal.spec;
 
+import java.io.File;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URL;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -147,9 +149,13 @@ public class ClasspathSpec {
             throw new IllegalArgumentException(
                     "Need to pass ClassLoader instances to overrideClassLoaders, not overrideClasspath");
         }
+        // A classpath element of a type the classpath order understands is kept as it is, so that the filesystem of
+        // a Path and the scheme of a URL or URI are not lost. Anything else is read by its string form, which is
+        // taken now rather than at scan time, so that a mutable object cannot change what it names in between
         this.overrideClasspath
                 .add(overrideClasspathElement instanceof String || overrideClasspathElement instanceof URL
-                        || overrideClasspathElement instanceof URI ? overrideClasspathElement
+                        || overrideClasspathElement instanceof URI || overrideClasspathElement instanceof File
+                        || overrideClasspathElement instanceof Path ? overrideClasspathElement
                                 : overrideClasspathElement.toString());
     }
 

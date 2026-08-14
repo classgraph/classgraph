@@ -31,6 +31,7 @@ package io.github.classgraph.classpath;
 import java.lang.module.ModuleReference;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 
 import io.github.classgraph.classpath.internal.ClassLoaderProbe;
@@ -45,8 +46,12 @@ import io.github.classgraph.vfs.Vfs;
  * again, and deletes any temporary files that were needed to open a jarfile nested inside another jarfile, so a
  * {@link Classpath} is best obtained in a try-with-resources statement. The classpath elements and the modules can
  * still be read after {@link #close()} has been called.
+ *
+ * <p>
+ * Iterating a {@link Classpath} iterates its classpath elements, in the same order as {@link #getEntries()}. The
+ * modules are listed separately, by {@link #getModules()}.
  */
-public class Classpath implements AutoCloseable {
+public class Classpath implements AutoCloseable, Iterable<ClasspathEntry> {
     /** The classpath elements, in the order the classloaders would search them. */
     private final List<ClasspathEntry> entries;
 
@@ -114,6 +119,17 @@ public class Classpath implements AutoCloseable {
     }
 
     /**
+     * Returns an iterator over the classpath elements, in the same order as {@link #getEntries()}, so that a
+     * {@link Classpath} can be iterated directly.
+     *
+     * @return an iterator over the classpath elements.
+     */
+    @Override
+    public Iterator<ClasspathEntry> iterator() {
+        return entries.iterator();
+    }
+
+    /**
      * Returns the {@link ClasspathEntry#location()} of each classpath element, in the same order as
      * {@link #getEntries()}.
      *
@@ -172,7 +188,8 @@ public class Classpath implements AutoCloseable {
      * Returns the {@link Vfs} that the jarfiles on the classpath were read through, so that they can be read again
      * without being opened a second time. It opens a directory, a jarfile, or a jarfile nested inside another
      * jarfile all the same way, and it has the same settings that the {@link ClasspathFinder} was configured with,
-     * so a {@link ClasspathEntry#location()} can be handed straight to {@link Vfs#open(String)}.
+     * so it can be passed straight to {@link ClasspathEntry#open(Vfs)} to read a classpath element, or to
+     * {@link Vfs#open(java.lang.module.ModuleReference)} to read a module.
      *
      * <p>
      * The {@link Vfs} is closed by {@link #close()}, along with everything opened through it, so do not close it

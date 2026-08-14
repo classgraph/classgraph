@@ -61,9 +61,8 @@ import org.jspecify.annotations.Nullable;
  * {@link InputStream}, or as a byte array -- and gives back the same {@link VfsRoot} interface for all of them.
  *
  * <pre>
- * try (Vfs vfs = new Vfs()) {
- *     VfsRoot root = vfs.open("outer.jar!/lib/inner.jar");
- *     for (VfsEntry entry : root.getEntries()) {
+ * try (Vfs vfs = new Vfs(); VfsRoot root = vfs.open("outer.jar!/lib/inner.jar")) {
+ *     for (VfsEntry entry : root) {
  *         byte[] content = entry.load();
  *         // ...
  *     }

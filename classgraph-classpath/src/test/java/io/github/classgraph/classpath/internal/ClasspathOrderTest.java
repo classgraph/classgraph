@@ -252,12 +252,30 @@ public class ClasspathOrderTest {
         assertThat(entryObjects().get(0)).isInstanceOf(URL.class);
     }
 
-    /** A {@link File} classpath entry is recorded as its path string, not as the {@link File} object. */
+    /** A {@link File} classpath entry is recorded as the {@link File} object it arrived as. */
     @Test
-    public void fileClasspathEntriesAreRecordedAsPathStrings(@TempDir final Path tempDir) throws IOException {
+    public void fileClasspathEntriesAreRecordedAsFiles(@TempDir final Path tempDir) throws IOException {
         final var jar = createFile(tempDir.resolve("a.jar"));
-        assertThat(classpathOrder.addClasspathEntry(new File(jar), null, null)).isTrue();
-        assertThat(entryObjects()).containsExactly(jar);
+        final var file = new File(jar);
+        assertThat(classpathOrder.addClasspathEntry(file, null, null)).isTrue();
+        assertThat(entryObjects()).containsExactly(file);
+        assertThat(locations()).containsExactly(jar);
+    }
+
+    /**
+     * A wildcarded classpath entry is expanded into the jarfiles in the directory it names, whether it arrives as a
+     * path string or as a {@link File} or {@link Path} object.
+     */
+    @Test
+    public void wildcardedClasspathEntriesAreExpandedWhateverObjectTheyArriveAs(@TempDir final Path tempDir)
+            throws IOException {
+        final var jar = createFile(tempDir.resolve("a.jar"));
+        for (final Object wildcarded : List.of(tempDir + "/*", new File(tempDir.toFile(), "*"),
+                tempDir.resolve("*"))) {
+            final var order = new ClasspathOrderBuilder(classpathSpec);
+            assertThat(order.addClasspathEntry(wildcarded, null, null)).isTrue();
+            assertThat(order.getOrder().stream().map(entry -> entry.location).toList()).containsExactly(jar);
+        }
     }
 
     /** A delimited classpath string is split into its path elements, which are then added in order. */
@@ -286,7 +304,8 @@ public class ClasspathOrderTest {
         // of those elements were added, so a whole array of duplicates is still reported as valid
         assertThat(classpathOrder.addClasspathEntryObject(new String[] { jarA }, null, null)).isTrue();
 
-        assertThat(entryObjects()).containsExactly(jarA, jarB, jarC, jarD);
+        // Each element is kept in the form it arrived in, so the one that arrived as a File is still a File
+        assertThat(entryObjects()).containsExactly(jarA, new File(jarB), jarC, jarD);
     }
 
     /**

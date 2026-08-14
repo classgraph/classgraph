@@ -200,21 +200,22 @@ try (Vfs vfs = new Vfs();
         VfsRoot module = vfs.open(ModuleFinder.ofSystem().find("java.logging").orElseThrow())) {
     for (VfsRoot root : List.of(dir, jar, module)) {
         System.out.println(root + " (" + root.getKind() + ")");
-        for (VfsEntry entry : root.getEntries()) {
+        for (VfsEntry entry : root) {
             System.out.println("  " + entry.getName() + " (" + entry.getLength() + " bytes)");
         }
     }
 }
 ```
 
-`getEntries()` lists files, not directories, and names them relative to the root, so the same loop
-walks all three kinds of root. Closing the `Vfs` releases every file handle, memory mapping and
+A root is `Iterable<VfsEntry>`, and iterating it lists files, not directories, and names them
+relative to the root, so the same loop walks all three kinds of root. `getEntries()` returns the
+same entries as a `List`. Closing the `Vfs` releases every file handle, memory mapping and
 temporary file it took, and invalidates every `VfsRoot` and `VfsEntry` it handed out, so do not let
 them escape the `try` block.
 
 ### List only the part of a root you want
 
-`getEntries()` builds a list of every file in the root. When only some of them are wanted, `walk()`
+Iterating a root builds a list of every file in it. When only some of them are wanted, `walk()`
 is cheaper: it offers each directory before the entries in it, so an unwanted one can be skipped,
 and for a directory tree a skipped directory is never even listed.
 
@@ -310,7 +311,7 @@ opened directly with `vfs.open("https://.../library.jar")`.
 ```java
 try (Vfs vfs = new Vfs();
         VfsRoot nested = vfs.open("/path/to/outer.jar!/BOOT-INF/lib/inner.jar")) {
-    for (VfsEntry entry : nested.getEntries()) {
+    for (VfsEntry entry : nested) {
         System.out.println(entry.getName());
     }
 }

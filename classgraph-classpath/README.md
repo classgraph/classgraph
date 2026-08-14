@@ -57,7 +57,7 @@ nested jarfiles.
 
 ```java
 try (Classpath classpath = new ClasspathFinder().find()) {
-    for (ClasspathEntry entry : classpath.getEntries()) {
+    for (ClasspathEntry entry : classpath) {
         System.out.println(entry.location()
                 + "  [classloader: " + entry.classLoaderName() + "]"
                 + (entry.packageRootPrefixes().isEmpty() ? ""
@@ -66,11 +66,11 @@ try (Classpath classpath = new ClasspathFinder().find()) {
 }
 ```
 
-`ClasspathEntry` is a record of three components. `location()` is an absolute path, or a nested
-path of the form `outer.jar!/inner.jar`, or a URL for anything that is not a local file --
-so do not assume `Path.of(entry.location())` will succeed. `packageRootPrefixes()` lists the
-prefixes to strip from entry names within that element, e.g. `BOOT-INF/classes` for a Spring Boot
-jarfile; it is empty for an ordinary jarfile.
+Iterating the `Classpath` iterates its entries, in classpath order; `getEntries()` returns the same
+list. `location()` is an absolute path, or a nested path of the form `outer.jar!/inner.jar`, or a
+URL for anything that is not a local file -- so do not assume `Path.of(entry.location())` will
+succeed. `packageRootPrefixes()` lists the prefixes to strip from entry names within that element,
+e.g. `BOOT-INF/classes` for a Spring Boot jarfile; it is empty for an ordinary jarfile.
 
 ### Read every classfile on the classpath, without the scanner
 
@@ -80,13 +80,12 @@ Combining this library with [`classgraph-vfs`](../classgraph-vfs):
 try (Classpath classpath = new ClasspathFinder().find()) {
     // The virtual filesystem that the classpath was read through
     Vfs vfs = classpath.getVfs();
-    for (ClasspathEntry entry : classpath.getEntries()) {
+    for (ClasspathEntry entry : classpath) {
         // A classpath entry can be a directory, a jarfile or a jarfile nested in another jarfile.
         // The virtual filesystem opens all of them, and lists their contents the same way.
-        VfsRoot root = vfs.open(entry.location());
-        for (VfsEntry vfsEntry : root.getEntries()) {
-            if (vfsEntry.getName().endsWith(".class")) {
-                System.out.println(vfsEntry.getPath());
+        for (VfsEntry resource : entry.open(vfs)) {
+            if (resource.getName().endsWith(".class")) {
+                System.out.println(resource.getPath());
             }
         }
     }
@@ -99,7 +98,20 @@ been parsed -- opening a `new Vfs()` here instead would read every one of them a
 closed by `classpath.close()`, along with every root and entry it handed out, so do not let those
 escape the `try` block.
 
-A classpath entry can also be a URL for something that is not a local file, and `vfs.open` will
+`entry.open(vfs)` opens the classpath element in whichever form the classloader named it in -- a
+path string, a `File`, a `Path`, a `URL` or a `URI` -- rather than flattening it to `location()` and
+parsing that back. That matters for the forms a location cannot round-trip: a `Path` in a filesystem
+other than the default one is reached only through its own filesystem, and a `URL` keeps the scheme
+it was found with. `ClasspathEntry` is a sealed type with one subclass per form, so code that needs
+the original object can ask for it:
+
+```java
+if (entry instanceof ClasspathEntry.OfURL urlEntry) {
+    System.out.println("Served over " + urlEntry.url().getProtocol());
+}
+```
+
+A classpath entry can also be a URL for something that is not a local file, and `open` will
 throw `IOException` for one of those unless its scheme is allowed. Call
 `new ClasspathFinder().enableURLScheme("https")` before `find()`, rather than configuring the `Vfs`
 afterwards, so that the setting is in place while the classpath is being found.
@@ -116,7 +128,19 @@ try (Classpath classpath = new ClasspathFinder().find()) {
 
 Modules are a separate list from the classpath entries: `getModules()` returns all of them,
 `getSystemModules()` the ones from the JDK itself, and `getNonSystemModules()` the rest. Iterating
-`getEntries()` alone will not see them.
+the `Classpath` alone will not see them. A module's contents are read through the same virtual
+filesystem as a classpath element:
+
+```java
+try (Classpath classpath = new ClasspathFinder().find()) {
+    Vfs vfs = classpath.getVfs();
+    for (ModuleReference module : classpath.getNonSystemModules()) {
+        for (VfsEntry resource : vfs.open(module)) {
+            System.out.println(resource.getPath());
+        }
+    }
+}
+```
 
 ### Read the module path settings
 
@@ -142,9 +166,10 @@ try (Classpath classpath = new ClasspathFinder()
 }
 ```
 
-The varargs and `Iterable` overloads take one classpath entry per element, of any type whose
-`toString()` is a location -- `String`, `File`, `Path`, `URL`, `URI`. The `String` overload instead
-takes a whole path and splits it on the platform's path separator. Related switches:
+The varargs and `Iterable` overloads take one classpath entry per element. A `String`, `File`,
+`Path`, `URL` or `URI` is kept in that form, and is what `entry.open(vfs)` later opens; anything
+else is read by its `toString()`. The `String` overload instead takes a whole path and splits it on
+the platform's path separator. Related switches:
 `overrideClassLoaders(...)` and `addClassLoader(...)` to control which
 classloaders are consulted, `ignoreParentClassLoaders()` to stop at the given one,
 `overrideModuleLayers(...)` and `addModuleLayer(...)` for JPMS layers, and `ignoreModules()` to skip

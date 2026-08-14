@@ -43,5 +43,14 @@
 			<artifactId>classgraph-vfs</artifactId>
 			<version>${project.version}</version>
 		</dependency>
+
+		<!-- Test dependencies: -->
+		<!-- An in-memory filesystem, used to test that a classpath element found as a Path in a filesystem other
+		     than the default one is opened through that filesystem -->
+		<dependency>
+			<groupId>com.google.jimfs</groupId>
+			<artifactId>jimfs</artifactId>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 </project>
