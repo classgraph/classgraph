@@ -66,7 +66,6 @@ org.eclipse.jdt.core.compiler.problem.tasks=warning
 org.eclipse.jdt.core.compiler.problem.terminalDeprecation=warning
 org.eclipse.jdt.core.compiler.problem.typeParameterHiding=warning
 org.eclipse.jdt.core.compiler.problem.uncheckedTypeOperation=warning
-org.eclipse.jdt.core.compiler.problem.unhandledWarningToken=warning
 org.eclipse.jdt.core.compiler.problem.unlikelyCollectionMethodArgumentType=warning
 org.eclipse.jdt.core.compiler.problem.unlikelyEqualsArgumentType=warning
 org.eclipse.jdt.core.compiler.problem.unnecessaryTypeCheck=warning
@@ -222,3 +221,11 @@ org.eclipse.jdt.core.compiler.problem.APILeak=ignore
 # comments and tags, on fixtures whose names already say what they are.
 org.eclipse.jdt.core.compiler.problem.missingJavadocComments=ignore
 org.eclipse.jdt.core.compiler.problem.missingJavadocTags=ignore
+
+# The two compilers do not accept the same @SuppressWarnings tokens: javac has "try", "this-escape" and
+# others that JDT has never had, and JDT has "resource", "nls" and others that javac has never had. Because
+# the build compiles everything twice and fails on any warning from either compiler, a source that needs to
+# silence a javac-only warning has no token it can write that JDT also recognizes. Reporting the token JDT
+# does not know would make that source unbuildable. A token that is recognized but silences nothing is still
+# reported, by problem.unusedWarningToken above, so a stale suppression is still caught.
+org.eclipse.jdt.core.compiler.problem.unhandledWarningToken=ignore

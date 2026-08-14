@@ -586,6 +586,14 @@
 								<compilerArgs>
 									<arg>-Xlint:all</arg>
 									<arg>${javacLintSuppressions}</arg>
+									<!-- The "processing" lint lists every annotation in the sources that no -->
+									<!-- annotation processor claimed. The test sources are full of annotations -->
+									<!-- that are meant to be read reflectively and never processed (@Test and -->
+									<!-- the rest of JUnit, and the annotations the scanner tests scan for), so -->
+									<!-- on a JDK that runs the JMH processor over src/test/perf, javac lists -->
+									<!-- all of them and -Werror fails the build. Off for the test sources only: -->
+									<!-- the main sources keep the lint. -->
+									<arg>-Xlint:-processing</arg>
 									<arg>-Werror</arg>
 									<arg>-parameters</arg>
 								</compilerArgs>
