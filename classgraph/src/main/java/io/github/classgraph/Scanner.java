@@ -940,29 +940,30 @@ class Scanner implements Callable<ScanResult> {
                 classpathEltZips.add(new SimpleEntry<>(classpathEltZip.getZipFilePath(), classpathElt));
 
                 // Handle module-related manifest entries
-                if (classpathEltZip.logicalZipFile != null) {
+                final var zipRoot = classpathEltZip.vfsRoot;
+                if (zipRoot != null) {
                     // From JEP 261: "A <module>/<package> pair in the value of an Add-Exports attribute has the
                     // same meaning as the command-line option --add-exports <module>/<package>=ALL-UNNAMED. A
                     // <module>/<package> pair in the value of an Add-Opens attribute has the same meaning as the
                     // command-line option --add-opens <module>/<package>=ALL-UNNAMED."
-                    if (classpathEltZip.logicalZipFile.addExportsManifestEntryValue != null) {
-                        for (final String addExports : JarUtils.smartPathSplit(
-                                classpathEltZip.logicalZipFile.addExportsManifestEntryValue, ' ',
+                    final var addExportsManifestValue = zipRoot.getAddExportsManifestValue();
+                    if (addExportsManifestValue != null) {
+                        for (final String addExports : JarUtils.smartPathSplit(addExportsManifestValue, ' ',
                                 scanSpec.classpathSpec.allowedURLSchemes)) {
                             scanSpec.classpathSpec.modulePathInfo.addExportsEntry(addExports + "=ALL-UNNAMED");
                         }
                     }
-                    if (classpathEltZip.logicalZipFile.addOpensManifestEntryValue != null) {
-                        for (final String addOpens : JarUtils.smartPathSplit(
-                                classpathEltZip.logicalZipFile.addOpensManifestEntryValue, ' ',
+                    final var addOpensManifestValue = zipRoot.getAddOpensManifestValue();
+                    if (addOpensManifestValue != null) {
+                        for (final String addOpens : JarUtils.smartPathSplit(addOpensManifestValue, ' ',
                                 scanSpec.classpathSpec.allowedURLSchemes)) {
                             scanSpec.classpathSpec.modulePathInfo.addOpensEntry(addOpens + "=ALL-UNNAMED");
                         }
                     }
                     // Retrieve Automatic-Module-Name manifest entry, if present
-                    if (classpathEltZip.logicalZipFile.automaticModuleNameManifestEntryValue != null) {
-                        classpathEltZip.moduleNameFromManifestFile = //
-                                classpathEltZip.logicalZipFile.automaticModuleNameManifestEntryValue;
+                    final var moduleName = zipRoot.getModuleName();
+                    if (moduleName != null) {
+                        classpathEltZip.moduleNameFromManifestFile = moduleName;
                     }
                 }
             }

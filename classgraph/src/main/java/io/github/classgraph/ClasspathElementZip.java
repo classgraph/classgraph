@@ -72,12 +72,6 @@ class ClasspathElementZip extends ClasspathElement {
      */
     private final String rawPath;
     /**
-     * The logical zipfile for this classpath element, or null until {@link #open} has been called (or if the
-     * classpath element could not be opened).
-     */
-    @Nullable
-    LogicalZipFile logicalZipFile;
-    /**
      * The normalized path of the jarfile, "!/"-separated if nested, excluding any package root.
      */
     private String zipFilePath;
@@ -95,7 +89,8 @@ class ClasspathElementZip extends ClasspathElement {
      * The jarfile, as a root of the virtual filesystem, or null until {@link #open} has been called (or if the
      * classpath element could not be opened).
      */
-    private @Nullable VfsRoot vfsRoot;
+    @Nullable
+    VfsRoot vfsRoot;
     /**
      * The name of the module from the {@code Automatic-Module-Name} manifest attribute, if one is present in the
      * root of the classpath element.
@@ -252,10 +247,10 @@ class ClasspathElementZip extends ClasspathElement {
                 throw new IOException("Not a jarfile: " + rawPath);
             }
             this.vfsRoot = root;
-            this.logicalZipFile = logicalZipFile = openedZipFile;
+            logicalZipFile = openedZipFile;
 
-            // Get the normalized path of the logical zipfile
-            zipFilePath = FastPathResolver.resolve(FileUtils.currDirPath(), logicalZipFile.getPath());
+            // Get the normalized path of the jarfile
+            zipFilePath = FastPathResolver.resolve(FileUtils.currDirPath(), root.getPath());
 
             // Get package root of jarfile
             final var packageRoot = root.getPackageRoot();
@@ -499,7 +494,7 @@ class ClasspathElementZip extends ClasspathElement {
      */
     @Override
     void scanPaths(final @Nullable LogNode log) {
-        if (this.logicalZipFile == null) {
+        if (this.vfsRoot == null) {
             skipClasspathElement = true;
         }
         if (skipClasspathElement) {
@@ -716,10 +711,10 @@ class ClasspathElementZip extends ClasspathElement {
     @Override
     @Nullable
     File getFile() {
-        if (logicalZipFile != null) {
-            return logicalZipFile.getPhysicalFile();
+        if (vfsRoot != null) {
+            return vfsRoot.getFile();
         } else {
-            // Not performing a full scan (only getting classpath elements), so logicalZipFile is not set
+            // Not performing a full scan (only getting classpath elements), so the jarfile was never opened
             return new File(outermostZipFilePathResolved());
         }
     }

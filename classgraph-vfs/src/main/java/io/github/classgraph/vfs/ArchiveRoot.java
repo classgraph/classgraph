@@ -136,6 +136,16 @@ final class ArchiveRoot extends VfsRoot {
     }
 
     @Override
+    public @Nullable String getAddExportsManifestValue() {
+        return logicalZipFile.addExportsManifestEntryValue;
+    }
+
+    @Override
+    public @Nullable String getAddOpensManifestValue() {
+        return logicalZipFile.addOpensManifestEntryValue;
+    }
+
+    @Override
     public LogicalZipFile getLogicalZipFile() {
         return logicalZipFile;
     }

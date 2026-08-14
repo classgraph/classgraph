@@ -201,8 +201,40 @@ public abstract class VfsRoot implements AutoCloseable, Iterable<VfsEntry> {
     }
 
     /**
-     * Returns the jarfile that this root reads from. This is for the other ClassGraph modules, which need the
-     * jarfile's manifest and central directory as well as its entries, and is not part of the API.
+     * Returns the value of the {@code Add-Exports} manifest entry of this root's jarfile, which JEP 261 defines as
+     * a space-separated list of {@code <module>/<package>} pairs, each meaning the same as the command line option
+     * {@code --add-exports <module>/<package>=ALL-UNNAMED}.
+     *
+     * @return the value of the {@code Add-Exports} manifest entry, or null if this root is not an archive, or its
+     *         manifest does not declare one.
+     */
+    public @Nullable String getAddExportsManifestValue() {
+        return null;
+    }
+
+    /**
+     * Returns the value of the {@code Add-Opens} manifest entry of this root's jarfile, which JEP 261 defines as a
+     * space-separated list of {@code <module>/<package>} pairs, each meaning the same as the command line option
+     * {@code --add-opens <module>/<package>=ALL-UNNAMED}.
+     *
+     * @return the value of the {@code Add-Opens} manifest entry, or null if this root is not an archive, or its
+     *         manifest does not declare one.
+     */
+    public @Nullable String getAddOpensManifestValue() {
+        return null;
+    }
+
+    /**
+     * Returns the jarfile that this root reads from, as the internal type that the zipfile parser produces. This is
+     * the one seam between the virtual filesystem and the ClassGraph modules built on top of it, and is not part of
+     * the API: {@link LogicalZipFile} lives in a package that is only exported to those modules, so nothing outside
+     * them can name the returned type.
+     *
+     * <p>
+     * Anything a caller can get from the rest of this class should be got from the rest of this class instead. What
+     * is left over is the manifest's {@code Class-Path} and {@code Bundle-ClassPath} entries and the arithmetic on
+     * the chain of nested zipfile slices that resolving them needs, which is how ClassGraph decides what else goes
+     * on the classpath rather than anything the virtual filesystem has an opinion about.
      *
      * @return the jarfile, or null if this root is not an archive.
      * @hidden
