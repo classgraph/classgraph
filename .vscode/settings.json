@@ -1,7 +1,8 @@
 {
     // Compiler warning settings for the Red Hat Java extension, which compiles with the Eclipse Java compiler.
-    // The path is resolved against the workspace root folder. See the header of that file for what is on, what
-    // is off, and why.
+    // The Maven build hands the same file to the Eclipse batch compiler, so the editor and the build agree on
+    // every severity. The path is resolved against the workspace root folder. See the header of that file for
+    // what is on, what is off, and why.
     "java.settings.url": ".vscode/org.eclipse.jdt.core.prefs",
 
     // Leave JDT's null analysis alone. On "automatic" the extension finds the JSpecify annotations on the

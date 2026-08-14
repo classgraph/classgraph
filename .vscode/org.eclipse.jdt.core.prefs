@@ -1,8 +1,13 @@
-# Compiler warning settings for ClassGraph, for editors that use the Eclipse Java compiler (JDT) --
-# principally VS Code, through the Red Hat Java extension. It is wired up by "java.settings.url" in
-# .vscode/settings.json, which resolves a relative path against each workspace root folder. It cannot live in
-# .settings/org.eclipse.jdt.core.prefs, where Eclipse would look for it, because .gitignore excludes .settings/,
-# and because Eclipse would need one copy of it per project (the repo has six).
+# Compiler warning settings for ClassGraph, used by the Eclipse Java compiler (JDT) in two places: editors
+# that compile with it -- principally VS Code, through the Red Hat Java extension -- and the Maven build,
+# whose ecj-check-main and ecj-check-test steps pass this file to the Eclipse batch compiler as "-properties"
+# before javac runs. There is therefore only one set of severities, and the editor and the build cannot end up
+# disagreeing about what is a warning.
+#
+# The editor end is wired up by "java.settings.url" in .vscode/settings.json, which resolves a relative path
+# against each workspace root folder. It cannot live in .settings/org.eclipse.jdt.core.prefs, where Eclipse
+# would look for it, because .gitignore excludes .settings/, and because Eclipse would need one copy of it per
+# project (the repo has six).
 #
 # Every severity-valued option that JDT defines is listed here, so the set is closed: a check is on because it
 # is set to "warning" below, and off because there is a reason recorded below for turning it off. If a future
@@ -10,11 +15,10 @@
 # added.
 #
 # With these settings the whole codebase compiles with no errors, warnings or infos -- all five modules, main
-# and test sources both. If you see a warning in the editor, it is new.
-#
-# The Maven build is the gate, not this file: it compiles the main sources with -Xlint:all -Werror, runs
-# NullAway for null analysis, and runs javadoc:javadoc. This file exists so that the editor agrees with that
-# gate instead of contradicting it.
+# and test sources both. If you see a warning in the editor, it is new, and the Maven build will reject it:
+# the ecj steps run with -failOnWarning. The build also compiles the main sources with javac under
+# -Xlint:all -Werror, runs NullAway for null analysis, and runs javadoc:javadoc. Two compilers are used
+# because each one reports things the other does not.
 
 
 # ---------------------------------------------------------------------------------------------------------

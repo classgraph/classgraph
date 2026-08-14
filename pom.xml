@@ -389,7 +389,114 @@
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-antrun-plugin</artifactId>
+					<dependencies>
+						<!-- The Eclipse batch compiler, run by the two ecj-check executions below. It is a plugin -->
+						<!-- dependency rather than something found on the machine, so that CI and a developer's -->
+						<!-- workstation gate on exactly the same compiler version. -->
+						<dependency>
+							<groupId>org.eclipse.jdt</groupId>
+							<artifactId>ecj</artifactId>
+							<version>3.46.0</version>
+						</dependency>
+					</dependencies>
 					<executions>
+						<!-- Compile every source file with the Eclipse compiler before javac gets to it, and fail -->
+						<!-- the build on any warning. The two compilers disagree about plenty: each one has -->
+						<!-- diagnostics the other lacks, so a build that only ever runs javac silently accumulates -->
+						<!-- the warnings that show up in an IDE, which compiles with ecj. The severities come from -->
+						<!-- .vscode/org.eclipse.jdt.core.prefs, the same file the IDE reads, so the IDE and the -->
+						<!-- build cannot drift apart. Nothing is written to disk: "-d none" means the run is a -->
+						<!-- check and javac still produces every class file. -->
+						<execution>
+							<id>ecj-check-main</id>
+							<!-- process-resources is the last phase before compile -->
+							<phase>process-resources</phase>
+							<goals>
+								<goal>run</goal>
+							</goals>
+							<configuration>
+								<target>
+									<!-- ecj is given the "io" subdirectory rather than the source root, because it -->
+									<!-- has no way to exclude a source file and it cannot compile module-info.java: -->
+									<!-- Narcissus is a multi-release jar whose module descriptor lives under -->
+									<!-- META-INF/versions/9/, which ecj cannot read (javac can). Every main source -->
+									<!-- other than module-info.java is under "io", and this fails the build if that -->
+									<!-- ever stops being true, rather than quietly leaving the new file unchecked. -->
+									<fileset id="ecjUncheckedMainSources" dir="${project.build.sourceDirectory}"
+										includes="**/*.java" excludes="io/**,module-info.java" />
+									<pathconvert property="ecjUncheckedMainSourceList"
+										refid="ecjUncheckedMainSources" setonempty="false" />
+									<fail if="ecjUncheckedMainSourceList"
+										message="The Eclipse compiler check only covers the &quot;io&quot; subdirectory of the source root, so these sources would go unchecked: ${ecjUncheckedMainSourceList}. Move them under &quot;io&quot;, or extend the ecj-check-main execution in the root pom.xml to cover them." />
+									<!-- On the classpath but not yet created, and ecj grumbles about that -->
+									<mkdir dir="${project.build.outputDirectory}" />
+									<java classname="org.eclipse.jdt.internal.compiler.batch.Main" fork="true"
+										failonerror="true" dir="${project.basedir}">
+										<classpath refid="maven.plugin.classpath" />
+										<arg value="--release" />
+										<arg value="${maven.compiler.release}" />
+										<arg value="-encoding" />
+										<arg value="${project.build.sourceEncoding}" />
+										<!-- Error Prone and NullAway run as annotation processors under javac -->
+										<arg value="-proc:none" />
+										<!-- Check only: write no class files, and leave target/classes to javac -->
+										<arg value="-d" />
+										<arg value="none" />
+										<arg value="-failOnWarning" />
+										<arg value="-properties" />
+										<arg file="${rootDir}/.vscode/org.eclipse.jdt.core.prefs" />
+										<arg value="-classpath" />
+										<arg pathref="maven.compile.classpath" />
+										<arg file="${project.build.sourceDirectory}/io" />
+									</java>
+								</target>
+							</configuration>
+						</execution>
+						<execution>
+							<id>ecj-check-test</id>
+							<!-- process-test-resources is the last phase before test-compile -->
+							<phase>process-test-resources</phase>
+							<goals>
+								<goal>run</goal>
+							</goals>
+							<configuration>
+								<target xmlns:if="ant:if">
+									<!-- Unlike the main sources, the test sources have no module descriptor, so the -->
+									<!-- whole source root can be handed to ecj. Fail if one ever appears, rather -->
+									<!-- than letting ecj report a confusing resolution error. -->
+									<fail message="Test sources now contain a module descriptor, which the ecj-check-test execution in the root pom.xml cannot compile. See the note on ecj-check-main.">
+										<condition>
+											<available
+												file="${project.build.testSourceDirectory}/module-info.java" />
+										</condition>
+									</fail>
+									<!-- build-helper adds src/test/perf as a second test source root, and only some -->
+									<!-- modules have one -->
+									<available property="ecjHasPerfTestSources" file="${project.basedir}/src/test/perf"
+										type="dir" />
+									<!-- On the classpath but not yet created, and ecj grumbles about that -->
+									<mkdir dir="${project.build.testOutputDirectory}" />
+									<java classname="org.eclipse.jdt.internal.compiler.batch.Main" fork="true"
+										failonerror="true" dir="${project.basedir}">
+										<classpath refid="maven.plugin.classpath" />
+										<arg value="--release" />
+										<arg value="${maven.compiler.release}" />
+										<arg value="-encoding" />
+										<arg value="${project.build.sourceEncoding}" />
+										<arg value="-proc:none" />
+										<arg value="-d" />
+										<arg value="none" />
+										<arg value="-failOnWarning" />
+										<arg value="-properties" />
+										<arg file="${rootDir}/.vscode/org.eclipse.jdt.core.prefs" />
+										<arg value="-classpath" />
+										<arg pathref="maven.test.classpath" />
+										<arg file="${project.build.testSourceDirectory}" />
+										<arg file="${project.basedir}/src/test/perf" if:set="ecjHasPerfTestSources" />
+									</java>
+								</target>
+							</configuration>
+						</execution>
 						<execution>
 							<!-- Make duplicate copy of Javadoc into a subdirectory with the name of the module, -->
 							<!-- since Eclipse (and possibly other tools) detects the presence of the module -->
