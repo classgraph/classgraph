@@ -19,9 +19,13 @@ built on this library.
 Module name: `io.github.classgraph.vfs`. Requires JDK 17 or newer. No dependencies other than
 `classgraph-base`, which is pulled in transitively.
 
-The whole API is three classes: `Vfs` opens things, a `VfsRoot` is one opened directory, jarfile or
-module, and a `VfsEntry` is one file within it. See the
-[Vfs API](https://github.com/classgraph/classgraph/wiki/Vfs-API) for the full reference.
+Three classes carry the API: `Vfs` opens things, a `VfsRoot` is one opened directory, jarfile or
+module, and a `VfsEntry` is one file within it. Two more turn up as you use them:
+`CloseableByteBuffer` wraps a buffer you have to close, and `VfsVisitor` is the callback that
+`VfsRoot#walk()` takes. Those five types are the public API -- `VfsEntry` has two further public
+methods returning types from the internal packages, which are exported only to ClassGraph's own
+modules. See the [Vfs API](https://github.com/classgraph/classgraph/wiki/Vfs-API) for the full
+reference.
 
 ## One interface over every kind of storage
 
@@ -44,7 +48,7 @@ way in produces the same `VfsRoot`, and every `VfsEntry` reads out in every way.
 | --- | --- |
 | `java.io.InputStream` | `entry.open()` |
 | `java.nio.channels.ReadableByteChannel` | `entry.openChannel()` |
-| `java.nio.ByteBuffer` (a memory mapping where possible) | `entry.read()` |
+| `java.nio.ByteBuffer` (a memory mapping where possible), wrapped in a `CloseableByteBuffer` | `entry.read()` |
 | `byte[]` | `entry.load()` |
 | `String`, decoded as UTF-8 | `entry.loadAsString()` |
 | `java.nio.file.Path`, in the filesystem view below | `entry.asPath()` |
@@ -227,7 +231,18 @@ try (Vfs vfs = new Vfs()) {
 
 `getEntry` returns null if there is no such entry. Use `entry.open()` to stream a large entry rather
 than holding it in memory, or `entry.read()` to get a `ByteBuffer` -- which is the memory mapping
-itself, with no copy, where the entry is stored uncompressed in a file that could be mapped.
+itself, with no copy, where the entry is stored uncompressed in a file that could be mapped:
+
+```java
+try (CloseableByteBuffer closeableBuffer = entry.read()) {
+    ByteBuffer byteBuffer = closeableBuffer.getByteBuffer();
+    // ... Read from byteBuffer ...
+}
+```
+
+The buffer is wrapped in a `CloseableByteBuffer` because it has to be released or unmapped when you
+have finished with it, which `close()` does. `entry.load()` and `entry.loadAsString()` copy the
+content instead, so there is nothing to close and the result stays valid after the `Vfs` is closed.
 
 ### Read a jarfile that is not on disk
 

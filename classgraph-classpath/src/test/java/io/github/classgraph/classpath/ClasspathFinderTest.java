@@ -22,6 +22,9 @@ import org.junit.jupiter.api.io.TempDir;
 
 import com.sun.net.httpserver.HttpServer;
 
+import io.github.classgraph.vfs.Vfs;
+import io.github.classgraph.vfs.VfsEntry;
+
 /** Tests for the public API of the classpath finder. */
 public class ClasspathFinderTest {
     /** The classpath of the JVM running the tests contains the directory the test classes were compiled to. */
@@ -113,6 +116,28 @@ public class ClasspathFinderTest {
     @Test
     public void theModulePathInfoIsReachable() {
         assertThat(new ClasspathFinder().find().getModulePathInfo()).isNotNull();
+    }
+
+    /**
+     * The jarfiles on the classpath are read through a {@link io.github.classgraph.vfs.Vfs} that the result hands
+     * out, so that a classpath element can be read without opening it a second time, and closing the result closes
+     * that virtual filesystem.
+     */
+    @Test
+    public void theVfsTheClasspathWasReadThroughIsReachable(@TempDir final Path tempDir) throws IOException {
+        final var jar = writeJarWithEntry(tempDir.resolve("lib.jar"), "com/xyz/Widget.class");
+        final Vfs vfs;
+        try (var classpath = new ClasspathFinder().overrideClasspath((Object) jar).find()) {
+            vfs = classpath.getVfs();
+            final var location = classpath.getLocations().get(0);
+            final var root = vfs.open(location);
+            assertThat(root.getEntries()).extracting(VfsEntry::getName).containsExactly("com/xyz/Widget.class");
+            // Opening the same location again hands back the root that is already open, rather than reading the
+            // jarfile a second time
+            assertThat(vfs.open(location)).isSameAs(root);
+        }
+        // Closing the Classpath closed the Vfs it was read through
+        assertThatThrownBy(() -> vfs.open(locationOf(jar))).isInstanceOf(IOException.class);
     }
 
     /** The result prints one classpath element or module per line. */

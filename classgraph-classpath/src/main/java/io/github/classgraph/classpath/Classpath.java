@@ -169,6 +169,23 @@ public class Classpath implements AutoCloseable {
     }
 
     /**
+     * Returns the {@link Vfs} that the jarfiles on the classpath were read through, so that they can be read again
+     * without being opened a second time. It opens a directory, a jarfile, or a jarfile nested inside another
+     * jarfile all the same way, and it has the same settings that the {@link ClasspathFinder} was configured with,
+     * so a {@link ClasspathEntry#location()} can be handed straight to {@link Vfs#open(String)}.
+     *
+     * <p>
+     * The {@link Vfs} is closed by {@link #close()}, along with everything opened through it, so do not close it
+     * yourself, and do not let anything it hands out escape the block that the {@link Classpath} is closed at the
+     * end of.
+     *
+     * @return the {@link Vfs} that the jarfiles on the classpath were read through.
+     */
+    public Vfs getVfs() {
+        return vfs;
+    }
+
+    /**
      * Returns the classpath elements and the modules, one per line.
      *
      * @return the classpath, as a string.

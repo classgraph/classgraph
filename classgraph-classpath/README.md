@@ -77,7 +77,9 @@ jarfile; it is empty for an ordinary jarfile.
 Combining this library with [`classgraph-vfs`](../classgraph-vfs):
 
 ```java
-try (Classpath classpath = new ClasspathFinder().find(); Vfs vfs = new Vfs()) {
+try (Classpath classpath = new ClasspathFinder().find()) {
+    // The virtual filesystem that the classpath was read through
+    Vfs vfs = classpath.getVfs();
     for (ClasspathEntry entry : classpath.getEntries()) {
         // A classpath entry can be a directory, a jarfile or a jarfile nested in another jarfile.
         // The virtual filesystem opens all of them, and lists their contents the same way.
@@ -91,8 +93,16 @@ try (Classpath classpath = new ClasspathFinder().find(); Vfs vfs = new Vfs()) {
 }
 ```
 
+`classpath.getVfs()` is the same `Vfs` that the jarfiles' manifests were read through while the
+classpath was being found, so the jarfiles are still open and their central directories have already
+been parsed -- opening a `new Vfs()` here instead would read every one of them a second time. It is
+closed by `classpath.close()`, along with every root and entry it handed out, so do not let those
+escape the `try` block.
+
 A classpath entry can also be a URL for something that is not a local file, and `vfs.open` will
-throw `IOException` for one of those unless its scheme is allowed with `vfs.enableURLScheme("https")`.
+throw `IOException` for one of those unless its scheme is allowed. Call
+`new ClasspathFinder().enableURLScheme("https")` before `find()`, rather than configuring the `Vfs`
+afterwards, so that the setting is in place while the classpath is being found.
 
 ### List the modules
 
