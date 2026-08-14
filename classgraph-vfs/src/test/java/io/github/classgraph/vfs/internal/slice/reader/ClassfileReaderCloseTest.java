@@ -8,21 +8,20 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Objects;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
-import io.github.classgraph.vfs.internal.ScanResources;
-import io.github.classgraph.vfs.internal.slice.FileSlice;
-import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
+import io.github.classgraph.vfs.Vfs;
 
 /**
- * Tests that {@link ClassfileReader#close()} closes only what the reader itself opened. A
- * {@link java.io.InputStream} or a {@link io.github.classgraph.vfs.internal.slice.Slice} that the caller handed to
- * the reader belongs to the caller, which closes it in its own try-with-resources; closing it here as well would
- * close it out from under a caller that is still using it, or close it twice.
+ * Tests that {@link ClassfileReader#close()} closes only what the reader itself opened. Reading a
+ * {@link io.github.classgraph.vfs.VfsEntry} opens a stream that belongs to the reader, and so is closed by it,
+ * whereas a {@link java.io.InputStream} that the caller handed to the reader belongs to the caller, which closes it
+ * in its own try-with-resources; closing that as well would close it out from under a caller that is still using
+ * it, or close it twice.
  */
 public class ClassfileReaderCloseTest {
     /** An input stream that is at EOF, and that records whether it was closed. */
@@ -41,17 +40,17 @@ public class ClassfileReaderCloseTest {
         }
     }
 
-    /** A temporary directory to write the file that the file slice reads. */
+    /** A temporary directory to write the classpath element that the entry is read from. */
     @TempDir
     private Path tempDir;
 
-    /** The resources owned by the scan, closed when the test ends. */
-    private final ScanResources scanResources = new ScanResources(new VfsScanSpec(), new InterruptionChecker());
+    /** The virtual filesystem the classpath element is opened through, closed when the test ends. */
+    private final Vfs vfs = new Vfs();
 
-    /** Close the slices that the test opened. */
+    /** Close the classpath element that the test opened. */
     @AfterEach
-    public void closeScanResources() {
-        scanResources.close(/* log = */ null);
+    public void closeVfs() {
+        vfs.close();
     }
 
     /** A stream that the caller opened is left open, so that the caller can close it itself. */
@@ -63,24 +62,26 @@ public class ClassfileReaderCloseTest {
     }
 
     /**
-     * A slice that the caller opened is left open, so that the caller can keep reading the classpath element the
-     * classfile came from.
+     * Reading an entry leaves the classpath element it came from open, so that the rest of it can still be read.
+     * The reader opens a stream on the entry, and closing the reader closes that stream and nothing above it.
      *
      * @throws IOException
-     *             if the file the slice reads could not be written or read
+     *             if the classpath element could not be written or read
      */
     @Test
-    public void aSliceOpenedByTheCallerIsNotClosedByTheReader() throws IOException {
+    public void theClasspathElementAnEntryCameFromIsNotClosedByTheReader() throws IOException {
         final var content = new byte[] { 0x01, 0x23, 0x45, 0x67 };
-        final var file = Files.write(tempDir.resolve("content.bin"), content).toFile();
-        try (var slice = new FileSlice(file, scanResources, /* log = */ null)) {
-            final var reader = new ClassfileReader(slice);
-            assertThat(reader.readInt()).isEqualTo(0x01234567);
-            reader.close();
+        final var dir = Files.createDirectories(tempDir.resolve("dir"));
+        Files.write(dir.resolve("Test.class"), content);
 
-            // The slice can still be read, so the reader did not close it
-            assertThat(slice.load()).containsExactly(content);
+        final var root = vfs.open(dir.toFile());
+        final var entry = Objects.requireNonNull(root.getEntry("Test.class"));
+        try (var reader = new ClassfileReader(entry)) {
+            assertThat(reader.readInt()).isEqualTo(0x01234567);
         }
+
+        // The entry can still be read, so the reader closed only the stream it opened
+        assertThat(entry.load()).containsExactly(content);
     }
 
     /**

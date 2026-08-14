@@ -11,44 +11,45 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.zip.Deflater;
+import java.util.Objects;
+import java.util.zip.CRC32;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
-import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
-import io.github.classgraph.vfs.internal.ScanResources;
-import io.github.classgraph.vfs.internal.slice.ArraySlice;
-import io.github.classgraph.vfs.internal.slice.FileSlice;
-import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
+import io.github.classgraph.vfs.Vfs;
+import io.github.classgraph.vfs.VfsEntry;
+import io.github.classgraph.vfs.VfsRoot;
 
 /**
  * Tests that a classfile is read the same way whichever kind of classpath element it came from. The reader buffers
- * the classfile up to the point it has been read so far, and where the bytes are pulled from differs by source: a
- * jar that was read into RAM hands over its array as the buffer, a jar on disk is read in chunks, a deflated zip
- * entry is inflated into the buffer, and a module is read from a plain stream.
+ * the classfile up to the point it has been read so far, and where the bytes come from differs by source: an entry
+ * of a directory is read straight from the file, a stored zip entry is sliced out of the jarfile, a deflated zip
+ * entry is inflated as it is read, and a module is read from a plain stream.
  */
 public class ClassfileReaderTest {
+    /** The package that the classfile is put in within the directory or jarfile it is read from. */
+    private static final String PACKAGE_NAME = "pkg";
+
+    /** The name that the classfile is given within the directory or jarfile it is read from. */
+    private static final String ENTRY_NAME = PACKAGE_NAME + "/Test.class";
+
     /** The kinds of classpath element that a classfile can be read from. */
     enum Source {
-        /** A jar that was read into RAM, whose whole array is the classfile. */
-        ARRAY,
+        /** An entry of a directory classpath element. */
+        DIR_ENTRY,
 
-        /** A jar that was read into RAM, where the classfile is one entry within the array. */
-        ARRAY_SUB_SLICE,
+        /** A zip entry that was stored rather than deflated, which is sliced out of the jarfile as it is read. */
+        JAR_ENTRY_STORED,
 
-        /** A jar on disk, read in chunks through a random access reader. */
-        FILE,
+        /** A deflated zip entry, which is inflated as it is read. */
+        JAR_ENTRY_DEFLATED,
 
-        /** A jar on disk, read through a memory mapping, which is what is done by default on Windows. */
-        FILE_MEMORY_MAPPED,
-
-        /** A deflated zip entry, inflated into the buffer as it is read. */
-        DEFLATED,
-
-        /** A module, read from a plain {@link java.io.InputStream}. */
+        /** A module, read from a plain {@link java.io.InputStream}, whose length is not known ahead of time. */
         INPUT_STREAM,
 
         /**
@@ -89,61 +90,65 @@ public class ClassfileReaderTest {
     private static final byte[] PATTERN = { 0x01, 0x23, 0x45, 0x67, (byte) 0x89, (byte) 0xAB, (byte) 0xCD,
             (byte) 0xEF };
 
-    /** A temporary directory to write the file that the file slice reads. */
+    /** A temporary directory to write the directory classpath elements to. */
     @TempDir
     private Path tempDir;
 
-    /** The resources owned by the scan, closed when the test ends. */
-    private final ScanResources scanResources = scanResources(/* memoryMapFiles = */ false);
+    /** The virtual filesystem the classpath elements are opened through, closed when the test ends. */
+    private final Vfs vfs = new Vfs();
 
-    /** The resources owned by a scan that memory-maps the files it reads, closed when the test ends. */
-    private final ScanResources memoryMappedScanResources = scanResources(/* memoryMapFiles = */ true);
+    /** The number of roots opened so far, so that each reader can be given a classpath element of its own. */
+    private int numRootsOpened;
 
-    /** The number of files written so far, so that each file slice can be given a file of its own. */
-    private int numFilesWritten;
-
-    /**
-     * Create the resources for a scan that either does or does not memory-map the files it reads, so that both ways
-     * of reading a file are exercised whatever platform the test is running on.
-     *
-     * @param memoryMapFiles
-     *            whether the scan should memory-map the files it reads
-     * @return the resources
-     */
-    private static ScanResources scanResources(final boolean memoryMapFiles) {
-        final var vfsScanSpec = new VfsScanSpec();
-        vfsScanSpec.memoryMapFiles = memoryMapFiles;
-        return new ScanResources(vfsScanSpec, new InterruptionChecker());
-    }
-
-    /** Close the slices that the test opened. */
+    /** Close the classpath elements that the test opened. */
     @AfterEach
-    public void closeScanResources() {
-        scanResources.close(/* log = */ null);
-        memoryMappedScanResources.close(/* log = */ null);
+    public void closeVfs() {
+        vfs.close();
     }
 
     /**
-     * Deflate content the way a zip entry is deflated, which is without the zlib wrapper.
+     * Build a jarfile in RAM holding the classfile as its only entry.
      *
      * @param content
-     *            the content to deflate
-     * @return the deflated content
+     *            the content of the classfile
+     * @param compressionMethod
+     *            {@link ZipEntry#STORED} or {@link ZipEntry#DEFLATED}
+     * @return the bytes of the jarfile
+     * @throws IOException
+     *             if the jarfile could not be written
      */
-    private static byte[] deflate(final byte[] content) {
-        final var deflater = new Deflater(Deflater.DEFAULT_COMPRESSION, /* nowrap = */ true);
-        try {
-            deflater.setInput(content);
-            deflater.finish();
-            final var deflated = new ByteArrayOutputStream();
-            final var buf = new byte[8192];
-            while (!deflater.finished()) {
-                deflated.write(buf, 0, deflater.deflate(buf));
+    private static byte[] jar(final byte[] content, final int compressionMethod) throws IOException {
+        final var jarBytes = new ByteArrayOutputStream();
+        try (var zipOut = new ZipOutputStream(jarBytes)) {
+            final var zipEntry = new ZipEntry(ENTRY_NAME);
+            zipEntry.setMethod(compressionMethod);
+            if (compressionMethod == ZipEntry.STORED) {
+                // A stored entry's size and CRC have to be known before its content is written, since they go in the
+                // local file header, which precedes it
+                final var crc = new CRC32();
+                crc.update(content);
+                zipEntry.setSize(content.length);
+                zipEntry.setCompressedSize(content.length);
+                zipEntry.setCrc(crc.getValue());
             }
-            return deflated.toByteArray();
-        } finally {
-            deflater.end();
+            zipOut.putNextEntry(zipEntry);
+            zipOut.write(content);
+            zipOut.closeEntry();
         }
+        return jarBytes.toByteArray();
+    }
+
+    /**
+     * The classfile entry of a classpath element.
+     *
+     * @param root
+     *            the classpath element
+     * @return the entry
+     * @throws IOException
+     *             if the classpath element could not be read
+     */
+    private static VfsEntry entry(final VfsRoot root) throws IOException {
+        return Objects.requireNonNull(root.getEntry(ENTRY_NAME), () -> "No entry " + ENTRY_NAME + " in " + root);
     }
 
     /**
@@ -155,34 +160,22 @@ public class ClassfileReaderTest {
      *            the content of the classfile
      * @return the reader
      * @throws IOException
-     *             if the content could not be written to a file, or an inflater could not be opened
+     *             if the classpath element could not be written or opened
      */
     private ClassfileReader reader(final Source source, final byte[] content) throws IOException {
         switch (source) {
-        case ARRAY:
-            return new ClassfileReader(new ArraySlice(content, /* isDeflatedZipEntry = */ false,
-                    /* inflatedLengthHint = */ 0L, scanResources));
-        case ARRAY_SUB_SLICE: {
-            // Four bytes of padding, then the content, then four more bytes of padding
-            final var padded = new byte[content.length + 8];
-            System.arraycopy(content, 0, padded, 4, content.length);
-            final var wholeArray = new ArraySlice(padded, /* isDeflatedZipEntry = */ false,
-                    /* inflatedLengthHint = */ 0L, scanResources);
-            return new ClassfileReader(wholeArray.slice(4, content.length, /* isDeflatedZipEntry = */ false,
-                    /* inflatedLengthHint = */ 0L));
+        case DIR_ENTRY: {
+            // Each reader is given a directory of its own, both because a Vfs hands back the same root the second
+            // time a path is opened, and because on Windows a file that is still memory-mapped cannot be rewritten
+            final var dir = tempDir.resolve("dir" + numRootsOpened++);
+            Files.createDirectories(dir.resolve(PACKAGE_NAME));
+            Files.write(dir.resolve(ENTRY_NAME), content);
+            return new ClassfileReader(entry(vfs.open(dir.toFile())));
         }
-        case FILE:
-        case FILE_MEMORY_MAPPED: {
-            // Each slice is given a file of its own, because on Windows a file that an earlier slice still has
-            // memory-mapped cannot be written to again
-            final var file = Files.write(tempDir.resolve("content" + numFilesWritten++ + ".bin"), content).toFile();
-            return new ClassfileReader(new FileSlice(file,
-                    source == Source.FILE_MEMORY_MAPPED ? memoryMappedScanResources : scanResources,
-                    /* log = */ null));
-        }
-        case DEFLATED:
-            return new ClassfileReader(new ArraySlice(deflate(content), /* isDeflatedZipEntry = */ true,
-                    /* inflatedLengthHint = */ content.length, scanResources));
+        case JAR_ENTRY_STORED:
+            return new ClassfileReader(entry(vfs.open(jar(content, ZipEntry.STORED), "stored.jar")));
+        case JAR_ENTRY_DEFLATED:
+            return new ClassfileReader(entry(vfs.open(jar(content, ZipEntry.DEFLATED), "deflated.jar")));
         case INPUT_STREAM_SHORT_READS:
             return new ClassfileReader(new ShortReadInputStream(new ByteArrayInputStream(content)));
         default:

@@ -35,26 +35,23 @@ import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.ReadOnlyBufferException;
 import java.util.Arrays;
-import java.util.Objects;
 
 import io.github.classgraph.base.internal.utils.FileUtils;
 import io.github.classgraph.base.internal.utils.StringUtils;
 import io.github.classgraph.vfs.VfsEntry;
-import io.github.classgraph.vfs.internal.slice.ArraySlice;
-import io.github.classgraph.vfs.internal.slice.FileSlice;
-import io.github.classgraph.vfs.internal.slice.Slice;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A {@link Slice} reader that works as either a {@link RandomAccessReader} or a {@link SequentialReader}. The file
- * is buffered up to the point it has been read so far. Reads in <b>big endian</b> order, as required by the
- * classfile format.
+ * A classfile reader that works as either a {@link RandomAccessReader} or a {@link SequentialReader}. The classfile
+ * is read as a stream, and is buffered up to the point it has been read so far, so that the random access methods
+ * can go back over any part of it that has already been read, which is how the constant pool is parsed. Reads in
+ * <b>big endian</b> order, as required by the classfile format.
  */
 public class ClassfileReader implements RandomAccessReader, SequentialReader, AutoCloseable {
     /**
-     * The stream the classfile is read through, if it is not read by random access: either an
-     * {@link java.util.zip.InflaterInputStream} that this reader opened on a deflated {@link Slice}, or a stream
-     * that the caller opened and passed in.
+     * The stream the classfile is read through: either the stream that the {@link VfsEntry} opened, which inflates
+     * the entry if it is deflated, or a stream that the caller opened and passed in. Null once this reader has been
+     * closed.
      */
     private @Nullable InputStream inflaterInputStream;
 
@@ -63,12 +60,6 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Au
      * caller passed in belongs to the caller, which closes it in its own try-with-resources.
      */
     private final boolean ownsInputStream;
-
-    /**
-     * If slice is not deflated, a {@link RandomAccessReader} for either the {@link ArraySlice} or {@link FileSlice}
-     * concrete subclass.
-     */
-    private @Nullable RandomAccessReader randomAccessReader;
 
     /** Buffer. */
     private byte[] arr;
@@ -120,46 +111,6 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Au
     }
 
     /**
-     * Constructor. The {@link Slice} stays open: it belongs to the caller, which closes it. If the slice is
-     * deflated, the inflater stream that this reader opens on it does belong to this reader, and is closed by
-     * {@link #close()}.
-     *
-     * @param slice
-     *            the {@link Slice} to read.
-     * @throws IOException
-     *             If an inflater cannot be opened on the {@link Slice}.
-     */
-    public ClassfileReader(final Slice slice) throws IOException {
-        // Only the deflated branch opens a stream, and only a stream this reader opened is closed by close()
-        ownsInputStream = true;
-        if (slice.isDeflatedZipEntry) {
-            // If this is a deflated slice, need to read from an InflaterInputStream to fill buffer
-            inflaterInputStream = slice.open();
-            classfileLengthHint = (int) Math.min(slice.inflatedLengthHint, FileUtils.MAX_BUFFER_SIZE);
-            arr = new byte[INITIAL_BUF_SIZE];
-        } else if (slice instanceof final ArraySlice arraySlice) {
-            // If slice is an ArraySlice, avoid copying by simply reusing the wrapped byte array in place of the
-            // buffer array, and mark it as fully loaded
-            if (arraySlice.sliceStartPos == 0 && arraySlice.sliceLength == arraySlice.arr.length) {
-                // ArraySlice is the whole array
-                arr = arraySlice.arr;
-            } else {
-                // ArraySlice covers only a partial array, and this class doesn't support a starting offset, so
-                // copy the sliced part of the array to a new buffer
-                arr = Arrays.copyOfRange(arraySlice.arr, (int) arraySlice.sliceStartPos,
-                        (int) (arraySlice.sliceStartPos + arraySlice.sliceLength));
-            }
-            arrUsed = arr.length;
-            classfileLengthHint = arr.length;
-        } else {
-            // Otherwise this is a FileSlice -- need to fetch chunks of bytes using a random access reader
-            randomAccessReader = slice.randomAccessReader();
-            classfileLengthHint = (int) Math.min(slice.sliceLength, FileUtils.MAX_BUFFER_SIZE);
-            arr = new byte[INITIAL_BUF_SIZE];
-        }
-    }
-
-    /**
      * Constructor for reading a classfile that is already open as a stream. The stream belongs to the caller, which
      * opens it in a try-with-resources and closes it once the reader has been closed.
      *
@@ -204,11 +155,9 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Au
         // underestimate, classfile will be truncated). If -1, assume 2GB is the max size.
         final var maxArrLen = classfileLengthHint == -1 ? FileUtils.MAX_BUFFER_SIZE : classfileLengthHint;
         final var inflaterInputStream = this.inflaterInputStream;
-        final var randomAccessReader = this.randomAccessReader;
-        if (inflaterInputStream == null && randomAccessReader == null) {
-            // If neither inflaterInputStream nor randomAccessReader is set, then slice is an ArraySlice, and array
-            // is already "fully loaded" (the ArraySlice's backing array is used as the buffer).
-            throw new IOException("Tried to read past end of fixed array buffer");
+        if (inflaterInputStream == null) {
+            // The stream is only cleared by close(), so the buffer cannot be filled any further than it already is
+            throw new IOException("Tried to read past the buffered part of a closed classfile reader");
         }
         if (targetArrUsed > FileUtils.MAX_BUFFER_SIZE || targetArrUsed < 0 || arrUsed == maxArrLen) {
             throw new IOException("Hit 2GB limit while trying to grow buffer array");
@@ -228,33 +177,18 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Au
         }
         arr = Arrays.copyOf(arr, (int) Math.min(newArrLength, maxArrLen));
 
-        // Figure out the maximum number of bytes that can be read into the array
-        final var maxBytesToRead = arr.length - arrUsed;
-
-        // Read a new chunk into the buffer, starting at position arrUsed
-        if (inflaterInputStream != null) {
-            // Read from the input stream. InputStream#read is not required to transfer the whole of the requested
-            // range in a single call, and the channel-backed streams that a module or a directory is read through
-            // really can transfer less, so keep reading until the target has been reached or the stream is
-            // exhausted. (Each call may still transfer more than the target, filling the rest of the buffer.)
-            while (arrUsed < targetArrUsed) {
-                final var numRead = inflaterInputStream.read(arr, arrUsed, arr.length - arrUsed);
-                if (numRead <= 0) {
-                    // -1 => end of stream; 0 => the buffer has no space left
-                    break;
-                }
-                arrUsed += numRead;
+        // Read a new chunk into the buffer, starting at position arrUsed. InputStream#read is not required to
+        // transfer the whole of the requested range in a single call, and the channel-backed streams that a module
+        // or a directory is read through really can transfer less, so keep reading until the target has been
+        // reached or the stream is exhausted. (Each call may still transfer more than the target, filling the rest
+        // of the buffer.)
+        while (arrUsed < targetArrUsed) {
+            final var numRead = inflaterInputStream.read(arr, arrUsed, arr.length - arrUsed);
+            if (numRead <= 0) {
+                // -1 => end of stream; 0 => the buffer has no space left
+                break;
             }
-        } else /* inflaterInputStream == null, so this is a (non-deflated) FileSlice */ {
-            // Don't read past end of slice
-            final var bytesToRead = Math.min(maxBytesToRead, maxArrLen - arrUsed);
-            // Read bytes from FileSlice into arr randomAccessReader is non-null if inflaterInputStream is null (see
-            // above)
-            final var numBytesRead = Objects.requireNonNull(randomAccessReader).read(/* srcOffset = */ arrUsed,
-                    /* dstArr = */ arr, /* dstArrStart = */ arrUsed, /* numBytes = */ bytesToRead);
-            if (numBytesRead > 0) {
-                arrUsed += numBytesRead;
-            }
+            arrUsed += numRead;
         }
 
         // Check the buffer was able to be filled to the requested position
@@ -492,8 +426,8 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Au
 
     @Override
     public void close() {
-        // Only the inflater stream that this reader opened on a deflated slice is closed here. Everything else the
-        // reader was given -- a slice, or a stream the caller opened -- belongs to the caller, which closes it.
+        // Only the stream that this reader opened on a VfsEntry is closed here. A stream that the caller opened
+        // belongs to the caller, which closes it in its own try-with-resources.
         try {
             final var inflaterInputStream = this.inflaterInputStream;
             if (ownsInputStream && inflaterInputStream != null) {
