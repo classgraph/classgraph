@@ -40,7 +40,6 @@ import io.github.classgraph.base.internal.utils.CollectionUtils;
 import io.github.classgraph.base.internal.utils.FastPathResolver;
 import io.github.classgraph.base.internal.utils.FileUtils;
 import io.github.classgraph.classpath.internal.classloaderhandler.ClassLoaderHandlerRegistry;
-import io.github.classgraph.vfs.internal.zip.FastZipEntry;
 import io.github.classgraph.vfs.internal.zip.LogicalZipFile;
 
 /**
@@ -175,15 +174,9 @@ public final class ClasspathExpander {
      *            the list to add the child classpath entries to.
      */
     private static void addNestedLibJars(final LogicalZipFile logicalZipFile, final List<ChildEntry> childEntries) {
-        for (final FastZipEntry zipEntry : logicalZipFile.entries) {
-            for (final String libDirPrefix : ClassLoaderHandlerRegistry.AUTOMATIC_LIB_DIR_PREFIXES) {
-                // Even if a package root is given, e.g. BOOT-INF/classes, still look in lib/ etc. for jars
-                if (zipEntry.entryNameUnversioned.startsWith(libDirPrefix)
-                        && zipEntry.entryNameUnversioned.endsWith(".jar")) {
-                    childEntries.add(new ChildEntry(zipEntry.getPath(), ChildEntryOrigin.NESTED_LIB_JAR));
-                    break;
-                }
-            }
+        for (final String nestedJarPath : logicalZipFile
+                .nestedJarPaths(ClassLoaderHandlerRegistry.AUTOMATIC_LIB_DIR_PREFIXES)) {
+            childEntries.add(new ChildEntry(nestedJarPath, ChildEntryOrigin.NESTED_LIB_JAR));
         }
     }
 

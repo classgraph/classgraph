@@ -1188,6 +1188,34 @@ public class LogicalZipFile extends ZipFileSlice {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /**
+     * Get the paths of the jarfiles stored under any of the given directories within this jarfile.
+     *
+     * <p>
+     * The package root is ignored, since a jarfile can have both a package root and library directories alongside
+     * it, e.g. a Spring Boot executable jar stores its classes under {@code BOOT-INF/classes/} and the jarfiles it
+     * depends on under {@code BOOT-INF/lib/}.
+     *
+     * @param dirPrefixes
+     *            the directories to look under, each ending with {@code '/'}.
+     * @return the paths of the jarfiles, in the order they appear in the central directory.
+     */
+    public List<String> nestedJarPaths(final String[] dirPrefixes) {
+        final List<String> nestedJarPaths = new ArrayList<>();
+        for (final var zipEntry : entries) {
+            for (final String dirPrefix : dirPrefixes) {
+                if (zipEntry.entryNameUnversioned.startsWith(dirPrefix)
+                        && zipEntry.entryNameUnversioned.endsWith(".jar")) {
+                    nestedJarPaths.add(zipEntry.getPath());
+                    break;
+                }
+            }
+        }
+        return nestedJarPaths;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
     @Override
     public String toString() {
         return getPath();
