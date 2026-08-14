@@ -34,6 +34,8 @@ public class TypeArgumentAnnotationTest {
     static class U {
     }
 
+    // The annotations on this parameter are the fixture -- the parameter itself is never used
+    @SuppressWarnings("unused")
     void setValueList(final List<@A @B("foo") @C(t = U.class) @D(n = 50) ?> valueList) {
     }
 

@@ -28,8 +28,6 @@
  */
 package io.github.classgraph;
 
-import static io.github.classgraph.PotentiallyUnmodifiableList.unmodifiable;
-
 import java.io.Serial;
 import java.lang.annotation.Annotation;
 import java.lang.annotation.Inherited;

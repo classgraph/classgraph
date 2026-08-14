@@ -25,6 +25,8 @@ public class Issue696Test {
 
     public static class BrokenAnnotation {
         public class Dynamic {
+            // The annotations on these parameters are the fixture -- the parameters themselves are never used
+            @SuppressWarnings("unused")
             public Dynamic(@Foo final String param1, @Bar final String param2) {
             }
         }

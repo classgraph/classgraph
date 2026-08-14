@@ -17,7 +17,7 @@ public class URLSchemeCaseTest {
     /** Register the URL stream handler for the custom scheme. */
     @BeforeAll
     static void setup() {
-        new CustomURLScheme();
+        CustomURLScheme.register();
     }
 
     /** A classpath element whose URL scheme is written in uppercase is scanned by the enabled scheme. */

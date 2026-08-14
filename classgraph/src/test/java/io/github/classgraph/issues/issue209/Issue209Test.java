@@ -57,7 +57,7 @@ public class Issue209Test {
                 var result = new ClassGraph()
                         .acceptPackages("org.springframework.boot.loader.util", "com.foo", "issue209lib") //
                         .overrideClassLoaders(classLoader).scan()) {
-            assertThat(result.getAllClasses().getNames()).containsOnlyElementsOf(classNames);
+            assertThat(result.getAllClasses().getNames()).hasSameElementsAs(classNames);
             // The classfile of each class must be readable, including the classfile of the class that is in a jar
             // nested within the Spring Boot jar
             for (final var className : classNames) {

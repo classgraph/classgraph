@@ -13,6 +13,8 @@ public class Issue329Test {
     /** The Class Foo. */
     public class Foo {
         /** Constructor. */
+        // The allocation is the fixture: it is what makes Foo reference Bar in its constant pool
+        @SuppressWarnings("unused")
         public Foo() {
             new Bar();
         }

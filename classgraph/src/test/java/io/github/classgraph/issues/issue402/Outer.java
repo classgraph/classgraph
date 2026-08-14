@@ -17,6 +17,8 @@ class Outer {
         }
     }
 
+    // The type parameter is the fixture, and is deliberately not used by the body
+    @SuppressWarnings("unused")
     class MiddleGeneric<T> {
         class InnerGeneric<U> {
         }

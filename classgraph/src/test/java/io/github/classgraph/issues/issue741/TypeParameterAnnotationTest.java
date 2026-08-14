@@ -32,6 +32,8 @@ public class TypeParameterAnnotationTest {
     static class U {
     }
 
+    // The annotations on this type parameter are the fixture -- the parameter itself is never used
+    @SuppressWarnings("unused")
     <@A @B("foo") @C(t = U.class) @D(n = 50) T> void setValue(final T value) {
     }
 

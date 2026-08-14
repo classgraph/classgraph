@@ -83,6 +83,8 @@ public class JBossModuleClassLoaderTest {
      *             if the modules could not be created.
      */
     @Test
+    // The second ModuleClassLoader is constructed for its side effect: it registers itself with its module
+    @SuppressWarnings("unused")
     public void theJarsOfEveryModuleTheModuleLoaderKnowsAreOnTheClasspath(@TempDir final Path tempDir)
             throws IOException {
         final var ownJar = Files.createFile(tempDir.resolve("own.jar"));

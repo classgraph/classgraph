@@ -57,7 +57,7 @@
  * <p>
  * The {@code @NullMarked} contract is checked at compile time, and only for callers that run a null checker of
  * their own. Public methods in this package therefore also check their arguments at runtime, and throw
- * {@link NullPointerException} if a null is passed for a parameter that is not annotated
+ * {@link java.lang.NullPointerException} if a null is passed for a parameter that is not annotated
  * {@link org.jspecify.annotations.Nullable}, so that the failure happens at the call that passed the null rather
  * than deeper in the library, or silently, as a "not found" result. Individual methods do not repeat this in their
  * own documentation.

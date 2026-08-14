@@ -63,6 +63,8 @@ public class GraphVizDotFileTest {
 
     /** The class that is graphed. */
     @Location("C:\\Windows")
+    // This fixture is graphed, not called, so its members and their parameters are never used
+    @SuppressWarnings("unused")
     public static class Derived extends Base implements Marker, Serializable {
         /** Removed from the graph, since it is an implementation detail of serialization. */
         private static final long serialVersionUID = 1L;

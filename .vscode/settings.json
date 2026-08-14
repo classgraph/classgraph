@@ -1,3 +1,12 @@
 {
-    "java.compile.nullAnalysis.mode": "automatic"
+    // Compiler warning settings for the Red Hat Java extension, which compiles with the Eclipse Java compiler.
+    // The path is resolved against the workspace root folder. See the header of that file for what is on, what
+    // is off, and why.
+    "java.settings.url": ".vscode/org.eclipse.jdt.core.prefs",
+
+    // Leave JDT's null analysis alone. On "automatic" the extension finds the JSpecify annotations on the
+    // classpath and switches JDT's own null analysis on for every project, overriding the setting in the file
+    // above -- and JDT has no JSpecify mode, so it then reports around 15,600 warnings that are not defects.
+    // NullAway does the null analysis instead, in the Maven build. Again, see the header of that file.
+    "java.compile.nullAnalysis.mode": "disabled"
 }

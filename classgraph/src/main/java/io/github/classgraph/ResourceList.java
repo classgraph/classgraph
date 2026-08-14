@@ -28,8 +28,6 @@
  */
 package io.github.classgraph;
 
-import static io.github.classgraph.PotentiallyUnmodifiableList.unmodifiable;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serial;

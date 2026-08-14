@@ -28,8 +28,6 @@
  */
 package io.github.classgraph;
 
-import java.io.IOException;
-import java.lang.module.ModuleReader;
 import java.lang.module.ModuleReference;
 import java.util.Collection;
 import java.util.HashMap;

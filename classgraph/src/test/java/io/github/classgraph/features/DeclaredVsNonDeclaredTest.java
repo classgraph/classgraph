@@ -87,6 +87,9 @@ public class DeclaredVsNonDeclaredTest {
     public abstract static class B extends A {
 
         /** The x. */
+        // A field that shadows the superclass field of the same name is the fixture: the test checks that the
+        // declared and non-declared field accessors tell the two apart
+        @SuppressWarnings("hiding")
         int x;
 
         /*

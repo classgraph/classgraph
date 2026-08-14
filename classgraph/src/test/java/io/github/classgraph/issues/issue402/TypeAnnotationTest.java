@@ -105,6 +105,8 @@ class TypeAnnotationTest {
     interface V {
     }
 
+    // The signature of this method is the fixture -- its parameter is never used
+    @SuppressWarnings("unused")
     <@A T extends @B U> @D U t(@E final T t) {
         return null;
     }

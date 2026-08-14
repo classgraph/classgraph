@@ -9,9 +9,9 @@ import org.junit.jupiter.api.Test;
 
 /** Tests for {@link ReflectionUtils}. */
 public class ReflectionUtilsTest {
-    /** The reflection utilities under test. */
-
     /** A superclass, so that the tests can check that inherited members are found. */
+    // The members of this class are read and invoked reflectively, by name, so the compiler cannot see them used
+    @SuppressWarnings("unused")
     private static class Base {
         /** A private field of the superclass. */
         private final String baseField = "base field";
@@ -27,6 +27,8 @@ public class ReflectionUtilsTest {
     }
 
     /** A class whose private members the tests read and invoke. */
+    // The members of this class are read and invoked reflectively, by name, so the compiler cannot see them used
+    @SuppressWarnings("unused")
     private static class Sub extends Base {
         /** A private static field. */
         private static final String STATIC_FIELD = "static field";
@@ -185,7 +187,7 @@ public class ReflectionUtilsTest {
         final var obj = new Sub();
         assertThat(ReflectionUtils.invokeMethod(false, obj, "throwsAnException")).isNull();
         assertThatThrownBy(() -> ReflectionUtils.invokeMethod(true, obj, "throwsAnException"))
-                .isInstanceOf(IllegalArgumentException.class).getRootCause()
+                .isInstanceOf(IllegalArgumentException.class).rootCause()
                 .isInstanceOf(UnsupportedOperationException.class).hasMessage("thrown by the method");
     }
 

@@ -586,7 +586,7 @@ public class VfsTest {
 
     /** A string that is not a URL scheme is rejected, rather than being stored where it can never match. */
     @Test
-    public void aStringThatIsNotAURLSchemeIsRejected() throws IOException {
+    public void aStringThatIsNotAURLSchemeIsRejected() {
         try (var vfs = new Vfs()) {
             assertThat(vfs.enableURLScheme("https")).isSameAs(vfs);
             // A one-character scheme cannot be told apart from a Windows drive letter
@@ -649,7 +649,7 @@ public class VfsTest {
 
     /** A negative RAM size is rejected. */
     @Test
-    public void aNegativeMaxBufferedJarRAMSizeIsRejected() throws IOException {
+    public void aNegativeMaxBufferedJarRAMSizeIsRejected() {
         try (var vfs = new Vfs()) {
             assertThat(vfs.maxBufferedJarRAMSize(1024)).isSameAs(vfs);
             assertThatThrownBy(() -> vfs.maxBufferedJarRAMSize(-1)).isInstanceOf(IllegalArgumentException.class);

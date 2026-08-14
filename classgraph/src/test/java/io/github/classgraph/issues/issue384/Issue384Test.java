@@ -46,7 +46,7 @@ import io.github.classgraph.features.CustomURLScheme;
 class Issue384Test {
     @BeforeAll
     static void setup() {
-        new CustomURLScheme();
+        CustomURLScheme.register();
     }
 
     /**

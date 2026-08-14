@@ -211,7 +211,7 @@ public class ReturnedListsAreUnmodifiableTest {
             assertThat(throwsUnsupported(() -> classInfoList.remove(0))).isTrue();
             // Removing by value is a different method from removing by index, and is rejected whether or not the
             // value is in the list
-            assertThat(throwsUnsupported(() -> classInfoList.remove((Object) classInfoList.get(0)))).isTrue();
+            assertThat(throwsUnsupported(() -> classInfoList.remove(classInfoList.get(0)))).isTrue();
             assertThat(throwsUnsupported(() -> classInfoList.remove(new Object()))).isTrue();
             assertThat(throwsUnsupported(() -> classInfoList.listIterator().add(classInfoList.get(0)))).isTrue();
             assertThat(throwsUnsupported(() -> classInfoList.listIterator(1).set(classInfoList.get(0)))).isTrue();

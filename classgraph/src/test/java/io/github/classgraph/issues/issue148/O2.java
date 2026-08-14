@@ -13,6 +13,8 @@ public class O2 {
     /**
      * Constructor.
      */
+    // The allocation is the fixture: it is what makes the compiler emit a second anonymous class
+    @SuppressWarnings("unused")
     public O2() {
         new SI() {
         };

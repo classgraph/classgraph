@@ -8,6 +8,8 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.TypeVariableSignature;
 
 public class Issue706Test {
+    // The type parameter is the fixture, and is deliberately not used by the body
+    @SuppressWarnings("unused")
     public static class GenericBase<T> {
     }
 

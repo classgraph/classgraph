@@ -57,4 +57,13 @@ public class CustomURLScheme {
             }
         } : null);
     }
+
+    /**
+     * Register the {@link URLStreamHandler} for {@link #SCHEME}. The registration is performed by the static
+     * initializer, and calling this method is what triggers it -- reading {@link #SCHEME} would not, because a
+     * constant of a primitive or {@link String} type is inlined into the caller at compile time.
+     */
+    public static void register() {
+        // Empty -- the work is done by the static initializer
+    }
 }

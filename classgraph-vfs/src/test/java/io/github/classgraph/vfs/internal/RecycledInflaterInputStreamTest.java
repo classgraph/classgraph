@@ -122,7 +122,7 @@ class RecycledInflaterInputStreamTest {
      * {@link java.io.InputStream#reset()} has to throw an {@link IOException}, not an unchecked exception.
      */
     @Test
-    void markIsANoOpAndResetThrowsIOException() throws IOException {
+    void markIsANoOpAndResetThrowsIOException() {
         try (var recycler = inflaterRecycler();
                 var inflaterInputStream = new RecycledInflaterInputStream(
                         new ByteArrayInputStream(deflate(rawBytes())), recycler)) {
@@ -207,7 +207,7 @@ class RecycledInflaterInputStreamTest {
      * to the recycler and may since have been handed out to another stream. Closing twice is not an error.
      */
     @Test
-    void aClosedStreamCannotBeReadFrom() throws IOException {
+    void aClosedStreamCannotBeReadFrom() {
         try (var recycler = inflaterRecycler()) {
             final var inflaterInputStream = new RecycledInflaterInputStream(
                     new ByteArrayInputStream(deflate(rawBytes())), recycler);

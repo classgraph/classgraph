@@ -18,6 +18,8 @@ public class GenericClassSimpleNamesTest {
     /**
      * A generic class with a bounded type parameter, a superclass and a superinterface.
      */
+    // The type parameter, and the redundant superinterface, are both part of the fixture
+    @SuppressWarnings("unused")
     public static class Generic<T extends Number> extends ArrayList<String> implements List<String> {
         /** serialVersionUID. */
         @Serial
@@ -27,6 +29,8 @@ public class GenericClassSimpleNamesTest {
     /**
      * A non-generic class with a superclass and a superinterface, for comparison.
      */
+    // The superinterface is redundant on purpose: the test checks how superinterfaces are rendered
+    @SuppressWarnings("unused")
     public static class NonGeneric extends ArrayList<String> implements List<String> {
         /** serialVersionUID. */
         @Serial

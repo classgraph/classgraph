@@ -1,0 +1,220 @@
+# Compiler warning settings for ClassGraph, for editors that use the Eclipse Java compiler (JDT) --
+# principally VS Code, through the Red Hat Java extension. It is wired up by "java.settings.url" in
+# .vscode/settings.json, which resolves a relative path against each workspace root folder. It cannot live in
+# .settings/org.eclipse.jdt.core.prefs, where Eclipse would look for it, because .gitignore excludes .settings/,
+# and because Eclipse would need one copy of it per project (the repo has six).
+#
+# Every severity-valued option that JDT defines is listed here, so the set is closed: a check is on because it
+# is set to "warning" below, and off because there is a reason recorded below for turning it off. If a future
+# JDT release adds an option, it will not appear here, and will take that release's own default until it is
+# added.
+#
+# With these settings the whole codebase compiles with no errors, warnings or infos -- all five modules, main
+# and test sources both. If you see a warning in the editor, it is new.
+#
+# The Maven build is the gate, not this file: it compiles the main sources with -Xlint:all -Werror, runs
+# NullAway for null analysis, and runs javadoc:javadoc. This file exists so that the editor agrees with that
+# gate instead of contradicting it.
+
+
+# ---------------------------------------------------------------------------------------------------------
+# Checks that are on. Anything reported by one of these is a defect to fix, not noise to live with.
+# ---------------------------------------------------------------------------------------------------------
+
+org.eclipse.jdt.core.compiler.problem.annotationSuperInterface=warning
+org.eclipse.jdt.core.compiler.problem.assertIdentifier=warning
+org.eclipse.jdt.core.compiler.problem.comparingIdentical=warning
+org.eclipse.jdt.core.compiler.problem.deadCode=warning
+org.eclipse.jdt.core.compiler.problem.deprecation=warning
+org.eclipse.jdt.core.compiler.problem.discouragedReference=warning
+org.eclipse.jdt.core.compiler.problem.emptyStatement=warning
+org.eclipse.jdt.core.compiler.problem.enumIdentifier=warning
+org.eclipse.jdt.core.compiler.problem.fallthroughCase=warning
+org.eclipse.jdt.core.compiler.problem.fieldHiding=warning
+org.eclipse.jdt.core.compiler.problem.finalParameterBound=warning
+org.eclipse.jdt.core.compiler.problem.finallyBlockNotCompletingNormally=warning
+org.eclipse.jdt.core.compiler.problem.forbiddenReference=warning
+org.eclipse.jdt.core.compiler.problem.hiddenCatchBlock=warning
+org.eclipse.jdt.core.compiler.problem.incompatibleNonInheritedInterfaceMethod=warning
+org.eclipse.jdt.core.compiler.problem.incompleteEnumSwitch=warning
+org.eclipse.jdt.core.compiler.problem.indirectStaticAccess=warning
+org.eclipse.jdt.core.compiler.problem.invalidJavadoc=warning
+org.eclipse.jdt.core.compiler.problem.methodWithConstructorName=warning
+org.eclipse.jdt.core.compiler.problem.missingDefaultCase=warning
+org.eclipse.jdt.core.compiler.problem.missingDeprecatedAnnotation=warning
+org.eclipse.jdt.core.compiler.problem.missingHashCodeMethod=warning
+org.eclipse.jdt.core.compiler.problem.missingOverrideAnnotation=warning
+org.eclipse.jdt.core.compiler.problem.missingSerialVersion=warning
+org.eclipse.jdt.core.compiler.problem.missingSynchronizedOnInheritedMethod=warning
+org.eclipse.jdt.core.compiler.problem.noEffectAssignment=warning
+org.eclipse.jdt.core.compiler.problem.noImplicitStringConversion=warning
+org.eclipse.jdt.core.compiler.problem.nullReference=warning
+org.eclipse.jdt.core.compiler.problem.overridingPackageDefaultMethod=warning
+org.eclipse.jdt.core.compiler.problem.parameterAssignment=warning
+org.eclipse.jdt.core.compiler.problem.possibleAccidentalBooleanAssignment=warning
+org.eclipse.jdt.core.compiler.problem.rawTypeReference=warning
+org.eclipse.jdt.core.compiler.problem.redundantNullCheck=warning
+org.eclipse.jdt.core.compiler.problem.redundantSpecificationOfTypeArguments=warning
+org.eclipse.jdt.core.compiler.problem.redundantSuperinterface=warning
+org.eclipse.jdt.core.compiler.problem.reportPreviewFeatures=warning
+org.eclipse.jdt.core.compiler.problem.staticAccessReceiver=warning
+org.eclipse.jdt.core.compiler.problem.tasks=warning
+org.eclipse.jdt.core.compiler.problem.terminalDeprecation=warning
+org.eclipse.jdt.core.compiler.problem.typeParameterHiding=warning
+org.eclipse.jdt.core.compiler.problem.uncheckedTypeOperation=warning
+org.eclipse.jdt.core.compiler.problem.unhandledWarningToken=warning
+org.eclipse.jdt.core.compiler.problem.unlikelyCollectionMethodArgumentType=warning
+org.eclipse.jdt.core.compiler.problem.unlikelyEqualsArgumentType=warning
+org.eclipse.jdt.core.compiler.problem.unnecessaryTypeCheck=warning
+org.eclipse.jdt.core.compiler.problem.unstableAutoModuleName=warning
+org.eclipse.jdt.core.compiler.problem.unusedDeclaredThrownException=warning
+org.eclipse.jdt.core.compiler.problem.unusedImport=warning
+org.eclipse.jdt.core.compiler.problem.unusedLabel=warning
+org.eclipse.jdt.core.compiler.problem.unusedLambdaParameter=warning
+org.eclipse.jdt.core.compiler.problem.unusedLocal=warning
+org.eclipse.jdt.core.compiler.problem.unusedObjectAllocation=warning
+org.eclipse.jdt.core.compiler.problem.unusedParameter=warning
+org.eclipse.jdt.core.compiler.problem.unusedPrivateMember=warning
+org.eclipse.jdt.core.compiler.problem.unusedTypeArgumentsForMethodInvocation=warning
+org.eclipse.jdt.core.compiler.problem.unusedTypeParameter=warning
+org.eclipse.jdt.core.compiler.problem.unusedWarningToken=warning
+org.eclipse.jdt.core.compiler.problem.varargsArgumentNeedCast=warning
+
+# An "if" whose condition is a compile-time constant is how a debugging switch is written, so the dead branch
+# is not a mistake. Every other kind of dead code is still reported, by problem.deadCode above.
+org.eclipse.jdt.core.compiler.problem.deadCodeInTrivialIfStatement=disabled
+
+# An assert that establishes a value is non-null counts as establishing it, for problem.nullReference.
+org.eclipse.jdt.core.compiler.problem.includeNullInfoFromAsserts=enabled
+
+# An unused parameter or a "throws" clause that the body never triggers is the author's own mistake when the
+# method is free-standing, but it is imposed from outside when the method overrides or implements something,
+# so only free-standing methods are reported. A parameter or exception named by the Javadoc is documented,
+# which is a use.
+org.eclipse.jdt.core.compiler.problem.unusedDeclaredThrownExceptionExemptExceptionAndThrowable=enabled
+org.eclipse.jdt.core.compiler.problem.unusedDeclaredThrownExceptionIncludeDocCommentReference=enabled
+org.eclipse.jdt.core.compiler.problem.unusedDeclaredThrownExceptionWhenOverriding=disabled
+org.eclipse.jdt.core.compiler.problem.unusedParameterIncludeDocCommentReference=enabled
+org.eclipse.jdt.core.compiler.problem.unusedParameterWhenImplementingAbstract=disabled
+org.eclipse.jdt.core.compiler.problem.unusedParameterWhenOverridingConcrete=disabled
+
+
+# ---------------------------------------------------------------------------------------------------------
+# JDT's null analysis is off, because NullAway already does it, and does it correctly for JSpecify.
+#
+# The modules are annotated @NullMarked, which is JSpecify. JDT has no JSpecify mode -- there is no mention of
+# JSpecify anywhere in the JDT compiler -- so when it is pointed at the JSpecify annotations it applies its
+# own older rules to them. The two disagree on unannotated code: JSpecify says a type from a library that was
+# never annotated has unspecified nullness and must not be diagnosed, whereas JDT reports every value that
+# crosses that boundary. Since the JDK itself is unannotated, that is every call ClassGraph makes into the
+# JDK. Turning it on produces around 15,600 warnings, and none of them is a defect. It is also all or nothing:
+# problem.nullSpecViolation cannot be set to ignore -- JDT silently forces it back to error.
+#
+# NullAway runs instead, over the main sources, as an Error Prone plugin at ERROR severity, in JSpecify mode
+# (see the "nullcheck" profile in pom.xml). The test sources are deliberately left unannotated. The keys below
+# have no effect while annotation.nullanalysis is disabled; they are pinned so that they cannot start firing.
+# ---------------------------------------------------------------------------------------------------------
+
+org.eclipse.jdt.core.compiler.annotation.nullanalysis=disabled
+org.eclipse.jdt.core.compiler.annotation.missingNonNullByDefaultAnnotation=ignore
+org.eclipse.jdt.core.compiler.annotation.nonnull=org.jspecify.annotations.NonNull
+org.eclipse.jdt.core.compiler.annotation.nonnullbydefault=org.jspecify.annotations.NullMarked
+org.eclipse.jdt.core.compiler.annotation.nullable=org.jspecify.annotations.Nullable
+org.eclipse.jdt.core.compiler.problem.annotatedTypeArgumentToUnannotated=ignore
+org.eclipse.jdt.core.compiler.problem.nonnullParameterAnnotationDropped=ignore
+org.eclipse.jdt.core.compiler.problem.nonnullTypeVariableFromLegacyInvocation=ignore
+org.eclipse.jdt.core.compiler.problem.nullAnnotationInferenceConflict=ignore
+org.eclipse.jdt.core.compiler.problem.nullSpecViolation=ignore
+org.eclipse.jdt.core.compiler.problem.nullUncheckedConversion=ignore
+org.eclipse.jdt.core.compiler.problem.pessimisticNullAnalysisForFreeTypeVariables=ignore
+org.eclipse.jdt.core.compiler.problem.redundantNullAnnotation=ignore
+org.eclipse.jdt.core.compiler.problem.syntacticNullAnalysisForFields=enabled
+
+# Not part of the annotation-based analysis: this one is JDT's own flow analysis, and it reports a dereference
+# on any path it cannot prove safe, which includes every value that has been null-checked on some other path.
+# Actual null dereferences are still reported, by problem.nullReference above.
+org.eclipse.jdt.core.compiler.problem.potentialNullReference=ignore
+
+
+# ---------------------------------------------------------------------------------------------------------
+# JDT's resource analysis is off, because it cannot see how ClassGraph closes things.
+#
+# Closeables in ClassGraph belong to a lifecycle tree: a Vfs closes the roots opened under it, a ScanResult
+# closes the Vfs, and so on, so the object that opens a resource is usually not the method that closes it.
+# JDT's analysis works within a single method, and reports every one of those hand-offs -- 689 of them for
+# potentiallyUnclosedCloseable alone. Marking them up would mean Eclipse's own @Owning and @NotOwning
+# annotations throughout the codebase, which would add an Eclipse dependency to a library that has none.
+# ---------------------------------------------------------------------------------------------------------
+
+org.eclipse.jdt.core.compiler.problem.explicitlyClosedAutoCloseable=ignore
+org.eclipse.jdt.core.compiler.problem.incompatibleOwningContract=ignore
+org.eclipse.jdt.core.compiler.problem.insufficientResourceAnalysis=ignore
+org.eclipse.jdt.core.compiler.problem.potentiallyUnclosedCloseable=ignore
+org.eclipse.jdt.core.compiler.problem.unclosedCloseable=ignore
+
+
+# ---------------------------------------------------------------------------------------------------------
+# Checks that are off, with the reason for each.
+# ---------------------------------------------------------------------------------------------------------
+
+# ClassGraph reads its own fields without a "this." prefix, and names a parameter or a local after the field
+# it sets or computes. That is the house style, and it accounts for all 76 sites; JDT's own exemption for
+# constructor and setter parameters does not cover them, because it does not apply when the field is
+# inherited, or when the method is neither a constructor nor a setter. A field that shadows an inherited
+# field is a different matter, and is still reported, by problem.fieldHiding above.
+org.eclipse.jdt.core.compiler.problem.localVariableHiding=ignore
+org.eclipse.jdt.core.compiler.problem.specialParameterHidingField=disabled
+org.eclipse.jdt.core.compiler.problem.unqualifiedFieldAccess=ignore
+
+# An "else" after a branch that returns, and an "if" chain that could have been a guard clause, are both
+# readable. Which one to write is a judgement call, made per site.
+org.eclipse.jdt.core.compiler.problem.unnecessaryElse=ignore
+
+# Boxing at an API boundary is unavoidable in a library that hands out collections, and boxing on a hot path
+# is a measurement question, not something a compiler warning can settle.
+org.eclipse.jdt.core.compiler.problem.autoboxing=ignore
+
+# Whether a private method could be static is not worth 1,181 warnings, and several of the methods it names
+# have to stay instance methods because a test invokes them reflectively.
+org.eclipse.jdt.core.compiler.problem.reportMethodCanBePotentiallyStatic=ignore
+org.eclipse.jdt.core.compiler.problem.reportMethodCanBeStatic=ignore
+
+# A private member reached from a nested class needed a synthetic accessor method before Java 11. Since then
+# nestmates can reach each other directly, so there is nothing left to warn about.
+org.eclipse.jdt.core.compiler.problem.syntheticAccessEmulation=ignore
+
+# ClassGraph is not localized, so no string in it is a translatable message.
+org.eclipse.jdt.core.compiler.problem.nonExternalizedStringLiteral=ignore
+
+# An empty method body is the point of a test fixture, and an empty catch block that is meant to be empty is
+# already explained by a comment where it matters.
+org.eclipse.jdt.core.compiler.problem.undocumentedEmptyBlock=ignore
+
+# A catch block that does not need the exception cannot say so: unnamed variables arrived in Java 21, and
+# ClassGraph compiles against Java 17. Naming the parameter and ignoring it is the only option available.
+org.eclipse.jdt.core.compiler.problem.unusedExceptionParameter=ignore
+
+# An override that does not call super is how you replace behaviour rather than extend it, which is the
+# normal case here, not a suspicious one.
+org.eclipse.jdt.core.compiler.problem.overridingMethodWithoutSuperInvocation=ignore
+
+# Every member of a deprecated type is deprecated along with it. Repeating the annotation on each member adds
+# nothing, and would change what the deprecation fixtures in the tests actually declare.
+org.eclipse.jdt.core.compiler.problem.memberOfDeprecatedTypeNotDeprecated=ignore
+
+# @SuppressWarnings on a whole method suppresses more than the one statement that needed it. That is a fair
+# observation, but the alternative -- splitting a method so the annotation can sit on a smaller scope -- is
+# worse. A suppression that suppresses nothing at all is still reported, by problem.unusedWarningToken above.
+org.eclipse.jdt.core.compiler.problem.suppressWarningsNotFullyAnalysed=ignore
+
+# The JSpecify annotations appear in exported signatures, but module-info.java deliberately requires JSpecify
+# with "requires static" rather than "requires transitive", so that a modular downstream project is not
+# forced to put JSpecify on its own module path. The comment in classgraph-base/src/main/java/module-info.java
+# records why. This check reports exactly that decision, six times.
+org.eclipse.jdt.core.compiler.problem.APILeak=ignore
+
+# The main sources are fully documented, and stay that way because the Maven build runs javadoc:javadoc --
+# with these checks on, they report nothing at all in main sources. In test sources they report 492 missing
+# comments and tags, on fixtures whose names already say what they are.
+org.eclipse.jdt.core.compiler.problem.missingJavadocComments=ignore
+org.eclipse.jdt.core.compiler.problem.missingJavadocTags=ignore

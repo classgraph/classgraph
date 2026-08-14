@@ -99,9 +99,13 @@ public class MethodInfoTest {
         return null;
     }
 
+    // The throws clause is the fixture: the test reads the thrown types from the method descriptor
+    @SuppressWarnings("unused")
     public void throwsException() throws X {
     }
 
+    // The throws clause is the fixture: the test reads the thrown types from the method descriptor
+    @SuppressWarnings("unused")
     public <X2 extends X> void throwsGenericException() throws X, X2 {
     }
 

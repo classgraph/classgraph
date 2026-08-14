@@ -58,6 +58,8 @@ public class Issue735Test {
         /**
          * A generic method whose own type parameter T shadows the interface's type parameter T.
          */
+        // A type parameter that shadows the interface's own type parameter is the fixture
+        @SuppressWarnings("hiding")
         <T> T identity(T t);
 
         void setT(T t);

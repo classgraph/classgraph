@@ -52,7 +52,7 @@ public class AutoCloseableExecutorServiceTest {
      * though nothing calls get() on the task's future.
      */
     @Test
-    public void anExceptionThrownByASubmittedTaskIsRecorded() throws InterruptedException {
+    public void anExceptionThrownByASubmittedTaskIsRecorded() {
         final var cause = new IllegalStateException("the reason");
         final AutoCloseableExecutorService executorService;
         try (var closeableExecutorService = new AutoCloseableExecutorService(1)) {

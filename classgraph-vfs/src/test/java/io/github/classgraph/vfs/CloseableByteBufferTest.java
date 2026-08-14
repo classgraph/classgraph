@@ -3,7 +3,6 @@ package io.github.classgraph.vfs;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -16,7 +15,7 @@ import org.junit.jupiter.api.Test;
 public class CloseableByteBufferTest {
     /** The wrapped buffer is returned until the wrapper is closed, then the close action runs and it is dropped. */
     @Test
-    public void bufferIsReleasedOnClose() throws IOException {
+    public void bufferIsReleasedOnClose() {
         final var byteBuffer = ByteBuffer.allocate(8);
         final var numCloseActionsRun = new AtomicInteger();
         try (var closeableByteBuffer = new CloseableByteBuffer(byteBuffer, numCloseActionsRun::incrementAndGet)) {
@@ -28,7 +27,7 @@ public class CloseableByteBufferTest {
 
     /** Closing twice runs the close action only once, so a buffer cannot be unmapped twice. */
     @Test
-    public void closeIsIdempotent() throws IOException {
+    public void closeIsIdempotent() {
         final var numCloseActionsRun = new AtomicInteger();
         final var closeableByteBuffer = new CloseableByteBuffer(ByteBuffer.allocate(8),
                 numCloseActionsRun::incrementAndGet);

@@ -23,6 +23,8 @@ public class TypeParameterNamedObjectTest {
      * @param <T>
      *            a type parameter bounded by the type parameter named {@code Object}.
      */
+    // A type parameter named Object, shadowing java.lang.Object, is the fixture
+    @SuppressWarnings("hiding")
     public static class TypeParameterNamedObject<Object, T extends Object> {
     }
 

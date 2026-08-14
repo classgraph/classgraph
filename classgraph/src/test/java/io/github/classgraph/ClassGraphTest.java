@@ -283,7 +283,7 @@ public class ClassGraphTest {
 
     /** A classpath element is only scanned if every {@link URL} filter accepts its {@link URL}. */
     @Test
-    public void classpathElementsCanBeFilteredByURL() throws IOException {
+    public void classpathElementsCanBeFilteredByURL() {
         final var urls = new ArrayList<URL>();
         try (var scanResult = new ClassGraph().overrideClasspath(classesDir.toString(), markerDir.toString())
                 .filterClasspathElementsByURL(url -> {

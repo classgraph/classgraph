@@ -54,6 +54,8 @@ class ClassTypeAnnotation {
     }
 
     /***/
+    // The type parameter is the fixture, and is deliberately not used by the body
+    @SuppressWarnings("unused")
     private static class E<T> extends @P Z implements @Q A, @R B {
     }
 

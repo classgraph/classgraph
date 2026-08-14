@@ -44,9 +44,12 @@ public final class CallStackReader {
      */
     public static Class<?>[] getClassContext() {
         try {
+            // The array element type is given explicitly on toArray(), because otherwise it is inferred from
+            // the stream element type, which captures the wildcard of Class<?> -- and an array constructor
+            // reference cannot produce an array of a captured type
             final var callStack = StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE)
                     .walk(stackFrames -> stackFrames.map(StackWalker.StackFrame::getDeclaringClass)
-                            .toArray(Class<?>[]::new));
+                            .<Class<?>> toArray(Class<?>[]::new));
             if (callStack.length > 0) {
                 return callStack;
             }

@@ -20,10 +20,14 @@ import io.github.classgraph.base.internal.parser.ParseException;
  */
 public class ClassTypeSignatureTest {
     /** A generic superclass. */
+    // The type parameter is the fixture, and is deliberately not used by the body
+    @SuppressWarnings("unused")
     public static class Base<T> {
     }
 
     /** A generic interface. */
+    // The type parameter is the fixture, and is deliberately not used by the body
+    @SuppressWarnings("unused")
     public interface Iface<U> {
     }
 

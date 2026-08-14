@@ -1614,11 +1614,20 @@ public final class ScanResult implements AutoCloseable {
      *             if this {@link ScanResult} has been closed, or if {@link ClassGraph#enableClassInfo()} and
      *             {@link ClassGraph#enableAnnotationInfo()} were not both called before scanning.
      */
-    @SuppressWarnings("unchecked")
-    public ClassInfoList getClassesWithAllAnnotations(final Class<? extends Annotation>... annotations) {
-        Assert.notNullElements(annotations, "annotations");
+    // @SafeVarargs, rather than @SuppressWarnings("unchecked"): the varargs array is only read from, so this also
+    // stops the caller having to suppress a warning at every call site. It requires the method to be final.
+    // The array is checked element by element here rather than by a call to Assert.notNullElements(), because
+    // handing the array to any method at all is what makes @SafeVarargs untrue -- that method could store an
+    // element of the wrong type into it -- and javac warns about exactly that.
+    @SafeVarargs
+    public final ClassInfoList getClassesWithAllAnnotations(final Class<? extends Annotation>... annotations) {
+        if (annotations == null) {
+            throw new NullPointerException("annotations must not be null");
+        }
         final List<String> annotationNames = new ArrayList<>();
-        for (final Class<?> cls : annotations) {
+        for (int i = 0; i < annotations.length; i++) {
+            final Class<?> cls = annotations[i];
+            Assert.notNull(cls, "annotations[" + i + "]");
             Assert.isAnnotation(cls);
             annotationNames.add(cls.getName());
         }
@@ -1638,11 +1647,20 @@ public final class ScanResult implements AutoCloseable {
      *             if this {@link ScanResult} has been closed, or if {@link ClassGraph#enableClassInfo()} and
      *             {@link ClassGraph#enableAnnotationInfo()} were not both called before scanning.
      */
-    @SuppressWarnings("unchecked")
-    public ClassInfoList getClassesWithAnyAnnotation(final Class<? extends Annotation>... annotations) {
-        Assert.notNullElements(annotations, "annotations");
+    // @SafeVarargs, rather than @SuppressWarnings("unchecked"): the varargs array is only read from, so this also
+    // stops the caller having to suppress a warning at every call site. It requires the method to be final.
+    // The array is checked element by element here rather than by a call to Assert.notNullElements(), because
+    // handing the array to any method at all is what makes @SafeVarargs untrue -- that method could store an
+    // element of the wrong type into it -- and javac warns about exactly that.
+    @SafeVarargs
+    public final ClassInfoList getClassesWithAnyAnnotation(final Class<? extends Annotation>... annotations) {
+        if (annotations == null) {
+            throw new NullPointerException("annotations must not be null");
+        }
         final List<String> annotationNames = new ArrayList<>();
-        for (final Class<?> cls : annotations) {
+        for (int i = 0; i < annotations.length; i++) {
+            final Class<?> cls = annotations[i];
+            Assert.notNull(cls, "annotations[" + i + "]");
             Assert.isAnnotation(cls);
             annotationNames.add(cls.getName());
         }
