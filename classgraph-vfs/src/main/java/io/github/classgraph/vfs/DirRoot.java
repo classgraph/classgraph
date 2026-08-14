@@ -121,12 +121,12 @@ final class DirRoot extends VfsRoot {
     }
 
     @Override
-    public void walk(final VfsVisitor visitor, final @Nullable LogNode logIgnored) throws IOException {
+    public void walk(final VfsVisitor visitor, final @Nullable LogNode log) throws IOException {
         Assert.notNull(visitor, "visitor");
         // Symlinks can make a directory tree cyclic, so record which directories have already been walked, by their
         // canonical path -- otherwise a directory that contains a symlink to one of its own ancestors makes this
         // recursion run until it runs out of stack
-        walkRecursively(dir, "", visitor, new HashSet<>());
+        walkRecursively(dir, "", visitor, new HashSet<>(), log);
     }
 
     @Override
@@ -155,12 +155,14 @@ final class DirRoot extends VfsRoot {
      *            the visitor to hand the entries to.
      * @param visitedDirs
      *            the canonical paths of the directories that have already been walked.
+     * @param log
+     *            the log node, or null to not log.
      * @return true to go on walking, or false if the visitor asked for the walk to stop.
      * @throws IOException
      *             if the directory could not be listed.
      */
     private boolean walkRecursively(final Path currDir, final String namePrefix, final VfsVisitor visitor,
-            final Set<Path> visitedDirs) throws IOException {
+            final Set<Path> visitedDirs, final @Nullable LogNode log) throws IOException {
         // Ask before listing, since not listing an unwanted directory is the whole point of asking
         if (!visitor.enterDirectory(namePrefix.isEmpty() ? "/" : namePrefix)) {
             return true;
@@ -170,9 +172,15 @@ final class DirRoot extends VfsRoot {
             canonicalDir = currDir.toRealPath();
         } catch (final IOException | SecurityException e) {
             // A directory that cannot be resolved is skipped, rather than aborting the whole listing
+            if (log != null) {
+                log.log("Could not canonicalize path: " + currDir + " : " + e);
+            }
             return true;
         }
         if (!visitedDirs.add(canonicalDir)) {
+            if (log != null) {
+                log.log("Reached symlink cycle, stopping recursion: " + currDir);
+            }
             return true;
         }
         final List<Path> children = new ArrayList<>();
@@ -182,6 +190,9 @@ final class DirRoot extends VfsRoot {
             }
         } catch (final IOException | SecurityException e) {
             // A directory that cannot be opened is skipped, rather than aborting the whole listing
+            if (log != null) {
+                log.log("Could not read directory " + currDir + " : " + e.getMessage());
+            }
             return true;
         }
         // List the entries of a directory in a deterministic order, since the order a filesystem returns them in is
@@ -191,15 +202,18 @@ final class DirRoot extends VfsRoot {
         // the walk are grouped the same way the filesystem groups the metadata they need
         final List<Path> subDirs = new ArrayList<>();
         for (final Path child : children) {
-            if (Files.isDirectory(child)) {
+            // Read the attributes of each child once, both to tell the files from the subdirectories and to hand
+            // to the entry, so that a walk costs one metadata read per child
+            final var attributes = FileUtils.readAttributes(child);
+            if (attributes.isDirectory()) {
                 subDirs.add(child);
-            } else if (Files.isRegularFile(child)
-                    && !visitor.visitEntry(new DirEntry(this, child, namePrefix + child.getFileName()))) {
+            } else if (attributes.isRegularFile() && !visitor
+                    .visitEntry(new DirEntry(this, child, namePrefix + child.getFileName(), attributes))) {
                 return false;
             }
         }
         for (final Path subDir : subDirs) {
-            if (!walkRecursively(subDir, namePrefix + subDir.getFileName() + "/", visitor, visitedDirs)) {
+            if (!walkRecursively(subDir, namePrefix + subDir.getFileName() + "/", visitor, visitedDirs, log)) {
                 return false;
             }
         }
@@ -224,6 +238,6 @@ final class DirRoot extends VfsRoot {
         if (!resolved.startsWith(dir) || !Files.isRegularFile(resolved)) {
             return null;
         }
-        return new DirEntry(this, resolved, name);
+        return new DirEntry(this, resolved, name, /* attributes = */ null);
     }
 }

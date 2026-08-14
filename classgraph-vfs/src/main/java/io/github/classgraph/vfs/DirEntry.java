@@ -34,6 +34,7 @@ import java.io.InputStream;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.PosixFileAttributes;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.Set;
@@ -50,6 +51,11 @@ final class DirEntry extends VfsEntry {
     /** The name of this entry, relative to the root directory. */
     private final String name;
 
+    /**
+     * The attributes of the file, if they were read while listing the directory that contains it, otherwise null.
+     */
+    private final @Nullable BasicFileAttributes attributes;
+
     /** The length of the file, or -1 if it has not been read yet. */
     private long length = -1L;
 
@@ -62,11 +68,17 @@ final class DirEntry extends VfsEntry {
      *            the file.
      * @param name
      *            the name of this entry, relative to the root directory.
+     * @param attributes
+     *            the attributes of the file, if they have already been read, otherwise null. Listing a directory
+     *            has to read the attributes of each of its children anyway, in order to tell the files from the
+     *            subdirectories, so handing them to the entry saves reading them a second time.
      */
-    DirEntry(final DirRoot root, final Path path, final String name) {
+    DirEntry(final DirRoot root, final Path path, final String name,
+            final @Nullable BasicFileAttributes attributes) {
         super(root);
         this.path = path;
         this.name = name;
+        this.attributes = attributes;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -99,6 +111,14 @@ final class DirEntry extends VfsEntry {
 
     @Override
     public long getLength() {
+        final var attributesCurr = attributes;
+        if (attributesCurr != null) {
+            try {
+                return attributesCurr.size();
+            } catch (final UnsupportedOperationException e) {
+                return -1L;
+            }
+        }
         // Reading the size of a file costs a system call, so it is only read if it is asked for, and is then kept
         var lengthCurr = length;
         if (lengthCurr < 0L) {
@@ -114,6 +134,14 @@ final class DirEntry extends VfsEntry {
 
     @Override
     public long getLastModifiedTimeMillis() {
+        final var attributesCurr = attributes;
+        if (attributesCurr != null) {
+            try {
+                return attributesCurr.lastModifiedTime().toMillis();
+            } catch (final UnsupportedOperationException e) {
+                return 0L;
+            }
+        }
         try {
             return Files.getLastModifiedTime(path).toMillis();
         } catch (final IOException | SecurityException e) {
@@ -123,6 +151,11 @@ final class DirEntry extends VfsEntry {
 
     @Override
     public @Nullable Set<PosixFilePermission> getPosixFilePermissions() {
+        // On a POSIX filesystem, the attributes read while listing the directory are already POSIX attributes, so
+        // the permissions come for free
+        if (attributes instanceof final PosixFileAttributes posixAttributes) {
+            return posixAttributes.permissions();
+        }
         try {
             return Files.readAttributes(path, PosixFileAttributes.class).permissions();
         } catch (final IOException | UnsupportedOperationException | SecurityException e) {

@@ -673,7 +673,7 @@ class Scanner implements Callable<ScanResult> {
                         () -> {
                             final ClasspathElement classpathElt = isJar
                                     ? new ClasspathElementZip(workUnit, nestedJarHandler, scanSpec)
-                                    : new ClasspathElementDir(workUnit, nestedJarHandler.scanResources, scanSpec);
+                                    : new ClasspathElementDir(workUnit, vfs, scanSpec);
 
                             allClasspathEltsOut.add(classpathElt);
 

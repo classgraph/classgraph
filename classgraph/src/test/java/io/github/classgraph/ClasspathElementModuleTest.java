@@ -22,6 +22,7 @@ import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -38,6 +39,10 @@ import org.jspecify.annotations.Nullable;
  * the other kinds of classpath element do, and a reader has to be acquired and released around every read.
  */
 public class ClasspathElementModuleTest {
+    /** The virtual filesystem that the classpath elements under test are created against. */
+    @AutoClose
+    private static final Vfs VFS = new Vfs();
+
     /** A package in the {@code java.base} system module that holds only classfiles. */
     private static final String PACKAGE_PATH = "java/util/function";
 
@@ -260,7 +265,7 @@ public class ClasspathElementModuleTest {
      * @return the classpath element.
      */
     private static ClasspathElementModule classpathElementFor(final ModuleReference moduleReference) {
-        return new ClasspathElementModule(moduleReference, new Vfs(),
+        return new ClasspathElementModule(moduleReference, VFS,
                 new Scanner.ClasspathEntryWorkUnit(null, null, null, 0, "", new String[0]),
                 /* isLookupOnly = */ false, new ScanSpec()) {
             @Override
@@ -381,7 +386,7 @@ public class ClasspathElementModuleTest {
             }
         };
         final var classpathElement = new ClasspathElementModule(moduleReferenceWithNoLocation("unreadable.module"),
-                new Vfs(), new Scanner.ClasspathEntryWorkUnit(null, null, null, 0, "", new String[0]),
+                VFS, new Scanner.ClasspathEntryWorkUnit(null, null, null, 0, "", new String[0]),
                 /* isLookupOnly = */ true, new ScanSpec()) {
             @Override
                     SingletonMap<ModuleReference, Recycler<ModuleReader, IOException>, IOException> //

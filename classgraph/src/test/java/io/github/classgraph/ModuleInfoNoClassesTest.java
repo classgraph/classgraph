@@ -4,11 +4,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.nio.file.Path;
 
+import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import io.github.classgraph.classpath.internal.classloaderhandler.ClassLoaderHandlerRegistry;
 import io.github.classgraph.internal.scanspec.ScanSpec;
+import io.github.classgraph.vfs.Vfs;
 
 /**
  * A {@link ModuleInfo} is created as soon as any classfile is read from a module, including a
@@ -18,6 +20,10 @@ import io.github.classgraph.internal.scanspec.ScanSpec;
  * {@link ModuleInfo#getPackageInfo()} and {@link ModuleInfo#getPackageInfo(String)}, have always handled this.
  */
 public class ModuleInfoNoClassesTest {
+    /** The virtual filesystem the classpath element would read through, if the test read anything from it. */
+    @AutoClose
+    private final Vfs vfs = new Vfs();
+
     /**
      * A {@link ModuleInfo} with no classes returns an empty list rather than throwing.
      */
@@ -26,7 +32,7 @@ public class ModuleInfoNoClassesTest {
         final var workUnit = new ClasspathEntryWorkUnit(Path.of("."), /* classLoader = */ null,
                 /* parentClasspathElement = */ null, /* classpathElementIdx = */ 0, /* packageRootPrefix = */ "",
                 ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES);
-        final var classpathElement = new ClasspathElementDir(workUnit, /* scanResources = */ null, new ScanSpec());
+        final var classpathElement = new ClasspathElementDir(workUnit, vfs, new ScanSpec());
         final var moduleInfo = new ModuleInfo(/* moduleRef = */ null, classpathElement, "com.xyz.mymodule");
         assertThat(moduleInfo.getClassInfo()).isEmpty();
         assertThat(moduleInfo.getClassInfo("com.xyz.Foo")).isNull();

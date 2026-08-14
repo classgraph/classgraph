@@ -9,6 +9,7 @@ import java.nio.file.Path;
 
 import javax.tools.ToolProvider;
 
+import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -16,6 +17,7 @@ import org.junit.jupiter.api.io.TempDir;
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import io.github.classgraph.classpath.internal.classloaderhandler.ClassLoaderHandlerRegistry;
 import io.github.classgraph.internal.scanspec.ScanSpec;
+import io.github.classgraph.vfs.Vfs;
 
 /**
  * A {@link ModuleInfo} is created for every module that a scan reads at least one classfile from, whether the
@@ -35,6 +37,10 @@ public class ModuleInfoTest {
 
     /** The directory holding the compiled module. */
     private static Path moduleDir;
+
+    /** The virtual filesystem that the classpath element for the module directory reads through. */
+    @AutoClose
+    private static final Vfs VFS = new Vfs();
 
     /**
      * Compile a module with an annotated module declaration, one annotation type and one ordinary class.
@@ -249,6 +255,6 @@ public class ModuleInfoTest {
         final var workUnit = new ClasspathEntryWorkUnit(moduleDir, /* classLoader = */ null,
                 /* parentClasspathElement = */ null, /* classpathElementIdx = */ 0, /* packageRootPrefix = */ "",
                 ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES);
-        return new ClasspathElementDir(workUnit, /* scanResources = */ null, new ScanSpec());
+        return new ClasspathElementDir(workUnit, VFS, new ScanSpec());
     }
 }

@@ -39,24 +39,22 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.nio.file.attribute.PosixFileAttributes;
 import java.nio.file.attribute.PosixFilePermission;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import io.github.classgraph.base.internal.concurrency.WorkQueue;
-import io.github.classgraph.base.internal.utils.FastPathResolver;
 import io.github.classgraph.base.internal.utils.FileUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.base.internal.utils.URLPathEncoder;
 import io.github.classgraph.classpath.internal.ClasspathExpander;
 import io.github.classgraph.internal.scanspec.ScanSpec.ScanSpecPathMatch;
 import io.github.classgraph.internal.scanspec.ScanSpec;
+import io.github.classgraph.vfs.Vfs;
+import io.github.classgraph.vfs.VfsEntry;
+import io.github.classgraph.vfs.VfsVisitor;
 import io.github.classgraph.vfs.internal.ScanResources;
 import io.github.classgraph.vfs.internal.slice.PathSlice;
 import io.github.classgraph.vfs.internal.slice.reader.ClassfileReader;
@@ -64,18 +62,11 @@ import org.jspecify.annotations.Nullable;
 
 /** A directory classpath element, using the {@link Path} API. */
 class ClasspathElementDir extends ClasspathElement {
-    /**
-     * The {@link Resource#length} value indicating that the resource length has not yet been read.
-     */
-    private static final int NOT_YET_LOADED_LENGTH = -2;
-
     /** The directory at the root of the classpath element. */
     private final Path classpathEltPath;
 
-    /**
-     * Used to ensure that recursive scanning doesn't get into an infinite loop due to a link cycle.
-     */
-    private final Set<Path> scannedCanonicalPaths = new HashSet<>();
+    /** The virtual filesystem that the directory is enumerated and read through. */
+    private final Vfs vfs;
 
     /** The resources owned by the scan. */
     private final ScanResources scanResources;
@@ -85,16 +76,16 @@ class ClasspathElementDir extends ClasspathElement {
      *
      * @param workUnit
      *            the work unit -- workUnit.classpathEntryObj must be a {@link Path} object
-     * @param scanResources
-     *            the resources owned by the scan
+     * @param vfs
+     *            the virtual filesystem to enumerate and read the directory through
      * @param scanSpec
      *            the scan spec
      */
-    ClasspathElementDir(final ClasspathEntryWorkUnit workUnit, final ScanResources scanResources,
-            final ScanSpec scanSpec) {
+    ClasspathElementDir(final ClasspathEntryWorkUnit workUnit, final Vfs vfs, final ScanSpec scanSpec) {
         super(workUnit, scanSpec);
         this.classpathEltPath = (Path) Objects.requireNonNull(workUnit.classpathEntryObj);
-        this.scanResources = scanResources;
+        this.vfs = vfs;
+        this.scanResources = vfs.getNestedJarHandler().scanResources;
     }
 
     @Override
@@ -226,49 +217,26 @@ class ClasspathElementDir extends ClasspathElement {
     }
 
     /**
-     * Create a new {@link Resource} object for a resource or classfile discovered while scanning paths.
+     * Create a new {@link Resource} object for a file discovered while scanning the directory, or looked up by
+     * path.
      *
-     * @param resourcePath
-     *            the {@link Path} for the resource
-     * @param attributes
-     *            the file attributes of the resource, or null if not yet known
+     * @param entry
+     *            the entry in the virtual filesystem
      * @return the resource
      */
-    private Resource newResource(final Path resourcePath, final @Nullable BasicFileAttributes attributes) {
-        return newResource(resourcePath,
-                FastPathResolver.resolve(classpathEltPath.relativize(resourcePath).toString()), attributes);
-    }
-
-    /**
-     * Create a new {@link Resource} object for a resource or classfile discovered while scanning paths, where the
-     * resolved path of the resource relative to the classpath element has already been computed by the caller.
-     *
-     * @param resourcePath
-     *            the {@link Path} for the resource
-     * @param resourcePathRelativeStr
-     *            the path of the resource relative to the classpath element root, as already resolved by
-     *            {@link FastPathResolver#resolve(String)}
-     * @param attributes
-     *            the file attributes of the resource, or null if not yet known
-     * @return the resource
-     */
-    private Resource newResource(final Path resourcePath, final String resourcePathRelativeStr,
-            final @Nullable BasicFileAttributes attributes) {
-        return new DirResource(resourcePath, resourcePathRelativeStr, attributes);
+    private Resource newResource(final VfsEntry entry) {
+        return new DirResource(entry);
     }
 
     /**
      * A {@link Resource} for a file in a directory classpath element.
      */
     private class DirResource extends Resource {
-        /** The {@link Path} of the file. */
-        private final Path resourcePath;
+        /** The file, as an entry in the virtual filesystem. */
+        private final VfsEntry entry;
 
         /** The path of the file relative to the classpath element root, with any leading slashes removed. */
         private final String path;
-
-        /** The file attributes of the file, or null if not yet known. */
-        private final @Nullable BasicFileAttributes attributes;
 
         /** The {@link PathSlice} opened on the file. */
         private @Nullable PathSlice pathSlice;
@@ -276,35 +244,18 @@ class ClasspathElementDir extends ClasspathElement {
         /**
          * Constructor.
          *
-         * @param resourcePath
-         *            the {@link Path} for the resource.
-         * @param resourcePathRelativeStr
-         *            the path of the resource relative to the classpath element root.
-         * @param attributes
-         *            the file attributes of the resource, or null if not yet known.
+         * @param entry
+         *            the file, as an entry in the virtual filesystem.
          */
-        DirResource(final Path resourcePath, final String resourcePathRelativeStr,
-                final @Nullable BasicFileAttributes attributes) {
-            super(ClasspathElementDir.this, attributes == null ? NOT_YET_LOADED_LENGTH : attributes.size());
-            this.resourcePath = resourcePath;
-            this.attributes = attributes;
+        DirResource(final VfsEntry entry) {
+            super(ClasspathElementDir.this, entry.getLength());
+            this.entry = entry;
+            final var entryName = entry.getName();
             var startIdx = 0;
-            while (startIdx < resourcePathRelativeStr.length() && resourcePathRelativeStr.charAt(startIdx) == '/') {
+            while (startIdx < entryName.length() && entryName.charAt(startIdx) == '/') {
                 startIdx++;
             }
-            this.path = startIdx == 0 ? resourcePathRelativeStr : resourcePathRelativeStr.substring(startIdx);
-        }
-
-        @Override
-        public long getLength() {
-            if (length == NOT_YET_LOADED_LENGTH) {
-                try {
-                    length = Files.size(resourcePath);
-                } catch (IOException | SecurityException e) {
-                    length = -1;
-                }
-            }
-            return length;
+            this.path = startIdx == 0 ? entryName : entryName.substring(startIdx);
         }
 
         @Override
@@ -319,28 +270,12 @@ class ClasspathElementDir extends ClasspathElement {
 
         @Override
         public long getLastModifiedMillis() {
-            try {
-                return attributes == null ? resourcePath.toFile().lastModified()
-                        : attributes.lastModifiedTime().toMillis();
-            } catch (final UnsupportedOperationException e) {
-                return 0L;
-            }
+            return entry.getLastModifiedTimeMillis();
         }
 
         @Override
         public @Nullable Set<PosixFilePermission> getPosixFilePermissions() {
-            Set<PosixFilePermission> posixFilePermissions = null;
-            try {
-                if (attributes instanceof final PosixFileAttributes posixFileAttributes) {
-                    posixFilePermissions = posixFileAttributes.permissions();
-                } else {
-                    posixFilePermissions = Files.readAttributes(resourcePath, PosixFileAttributes.class)
-                            .permissions();
-                }
-            } catch (UnsupportedOperationException | IOException | SecurityException e) {
-                // POSIX attributes not supported
-            }
-            return posixFilePermissions;
+            return entry.getPosixFilePermissions();
         }
 
         @Override
@@ -393,6 +328,11 @@ class ClasspathElementDir extends ClasspathElement {
         private PathSlice openAndCreateSlice() throws IOException {
             checkCanOpen();
             try {
+                final var resourcePath = entry.getNioPath();
+                if (resourcePath == null) {
+                    // Cannot happen: every entry of a directory classpath element is a file in the filesystem
+                    throw new IOException("Resource is not backed by a file: " + entry.getPath());
+                }
                 // (A resource in a directory classpath element is read once and then closed, so it is not worth
                 // memory-mapping it, even on a platform where files are memory-mapped)
                 final var slice = new PathSlice(resourcePath, scanResources, /* checkAccess = */ false,
@@ -419,52 +359,15 @@ class ClasspathElementDir extends ClasspathElement {
     @Override
     @Nullable
     Resource getResource(final String relativePath) {
-        final var resourcePath = classpathEltPath.resolve(relativePath);
-        return FileUtils.canReadAndIsFile(resourcePath) ? newResource(resourcePath, null) : null;
-    }
-
-    /**
-     * Canonicalize a directory path, and check that it has not been reached before, so that recursive scanning
-     * doesn't get stuck in an infinite loop due to symlinks.
-     *
-     * @param path
-     *            the directory {@link Path}
-     * @param log
-     *            the log node, or null to skip logging
-     * @return the canonical path, or null if the path could not be canonicalized, or has already been scanned.
-     */
-    private @Nullable Path canonicalizeIfNotAlreadyScanned(final Path path, final @Nullable LogNode log) {
         try {
-            final var canonicalPath = path.toRealPath();
-            if (!scannedCanonicalPaths.add(canonicalPath)) {
-                if (log != null) {
-                    log.log("Reached symlink cycle, stopping recursion: " + path);
-                }
-                return null;
-            }
-            return canonicalPath;
+            // The virtual filesystem checks that a file exists and is a regular file, but not that it can be read
+            final var entry = FileUtils.canReadAndIsFile(classpathEltPath.resolve(relativePath))
+                    ? vfs.open(classpathEltPath).getEntry(relativePath)
+                    : null;
+            return entry == null ? null : newResource(entry);
         } catch (final IOException | SecurityException e) {
-            if (log != null) {
-                log.log("Could not canonicalize path: " + path, e);
-            }
             return null;
         }
-    }
-
-    /**
-     * Get the path of a directory relative to the classpath element root, with any leading {@code "/"} removed and
-     * a trailing {@code "/"} added.
-     *
-     * @param path
-     *            the directory {@link Path}
-     * @return the relative path of the directory
-     */
-    private String getDirRelativePathStr(final Path path) {
-        var dirRelativePathStr = FastPathResolver.resolve(classpathEltPath.relativize(path).toString());
-        while (dirRelativePathStr.startsWith("/")) {
-            dirRelativePathStr = dirRelativePathStr.substring(1);
-        }
-        return dirRelativePathStr.endsWith("/") ? dirRelativePathStr : dirRelativePathStr + "/";
     }
 
     /**
@@ -519,114 +422,18 @@ class ClasspathElementDir extends ClasspathElement {
     }
 
     /**
-     * List the entries of a directory, in sorted order.
+     * Record the last modified time of a directory, so that
+     * {@link ScanResult#isClasspathContentsModifiedSinceScan()} can detect changes to it.
      *
-     * @param path
-     *            the directory {@link Path}
-     * @param log
-     *            the log node, or null to skip logging
-     * @return the paths within the directory, or null if the directory could not be read.
+     * @param dir
+     *            the {@link Path} of the directory
      */
-    private static @Nullable List<Path> listDirEntries(final Path path, final @Nullable LogNode log) {
-        final List<Path> pathsInDir = new ArrayList<>();
-        try (var stream = Files.newDirectoryStream(path)) {
-            for (final Path subPath : stream) {
-                pathsInDir.add(subPath);
-            }
-        } catch (IOException | SecurityException e) {
-            if (log != null) {
-                log.log("Could not read directory " + path + " : " + e.getMessage());
-            }
-            return null;
-        }
-        Collections.sort(pathsInDir);
-        return pathsInDir;
-    }
-
-    /**
-     * Add the accepted files of a directory as resources, removing them from {@code pathsInDir} so that only
-     * subdirectories are left to recurse into.
-     *
-     * @param pathsInDir
-     *            the paths within the directory
-     * @param getFileAttributes
-     *            the file attribute cache for the directory
-     * @param parentMatchStatus
-     *            the match status of the directory
-     * @param subLog
-     *            the log node, or null to skip logging
-     * @return false if the classpath element was rejected by one of the file paths, so that scanning should stop.
-     */
-    private boolean scanFilesInDir(final List<Path> pathsInDir,
-            final FileUtils.FileAttributesGetter getFileAttributes, final ScanSpecPathMatch parentMatchStatus,
-            final @Nullable LogNode subLog) {
-        // Determine whether this is a modular jar
-        final var isModularJar = getModuleName() != null;
-
-        // Do preorder traversal (files in dir, then subdirs), to reduce filesystem cache misses
-        final var pathsIterator = pathsInDir.iterator();
-        while (pathsIterator.hasNext()) {
-            final var subPath = pathsIterator.next();
-            // Process files in dir before recursing
-            final var fileAttributes = getFileAttributes.get(subPath);
-            if (fileAttributes.isRegularFile()) {
-                pathsIterator.remove();
-                final var subPathRelative = classpathEltPath.relativize(subPath);
-                final var subPathRelativeStr = FastPathResolver.resolve(subPathRelative.toString());
-                if (isIgnoredDefaultPackageClassfile(isModularJar, subPathRelativeStr)) {
-                    continue;
-                }
-
-                // Accept/reject classpath elements based on file resource paths
-                if (!checkResourcePathAcceptReject(subPathRelativeStr, subLog)) {
-                    return false;
-                }
-
-                if (isAcceptedResourcePath(subPathRelativeStr, parentMatchStatus)) {
-                    // Resource is accepted
-                    final var resource = newResource(subPath, subPathRelativeStr, fileAttributes);
-                    addAcceptedResource(resource, parentMatchStatus, /* isClassfileOnly = */ false, subLog);
-                    recordLastModified(subPath, fileAttributes);
-                } else {
-                    if (subLog != null) {
-                        subLog.log("Skipping non-accepted file: " + subPathRelative);
-                    }
-                }
-            }
-        }
-        return true;
-    }
-
-    /**
-     * Add the module descriptor of the package root as a resource, if there is one, removing it from
-     * {@code pathsInDir}. This is called for the package root even when the package root is not accepted, so that
-     * the module name is always known.
-     *
-     * @param pathsInDir
-     *            the paths within the package root
-     * @param getFileAttributes
-     *            the file attribute cache for the package root
-     * @param parentMatchStatus
-     *            the match status of the package root
-     * @param subLog
-     *            the log node, or null to skip logging
-     */
-    private void scanForModuleDescriptor(final List<Path> pathsInDir,
-            final FileUtils.FileAttributesGetter getFileAttributes, final ScanSpecPathMatch parentMatchStatus,
-            final @Nullable LogNode subLog) {
-        final var pathsIterator = pathsInDir.iterator();
-        while (pathsIterator.hasNext()) {
-            final var subPath = pathsIterator.next();
-            if ("module-info.class".equals(subPath.getFileName().toString())) {
-                final var fileAttributes = getFileAttributes.get(subPath);
-                if (fileAttributes.isRegularFile()) {
-                    pathsIterator.remove();
-                    final var resource = newResource(subPath, fileAttributes);
-                    addAcceptedResource(resource, parentMatchStatus, /* isClassfileOnly = */ true, subLog);
-                    recordLastModified(subPath, fileAttributes);
-                    break;
-                }
-            }
+    private void recordLastModified(final Path dir) {
+        try {
+            final var file = dir.toFile();
+            fileToLastModified.put(file, file.lastModified());
+        } catch (final UnsupportedOperationException | SecurityException e) {
+            // Ignore
         }
     }
 
@@ -634,87 +441,100 @@ class ClasspathElementDir extends ClasspathElement {
      * Record the last modified time of a file, so that {@link ScanResult#isClasspathContentsModifiedSinceScan()}
      * can detect changes to it.
      *
-     * @param path
-     *            the {@link Path} of the file
-     * @param attributes
-     *            the file attributes, or null to read the last modified time through the {@link File} API.
+     * @param entry
+     *            the file, as an entry in the virtual filesystem
      */
-    private void recordLastModified(final Path path, final @Nullable BasicFileAttributes attributes) {
+    private void recordLastModified(final VfsEntry entry) {
+        final var path = entry.getNioPath();
+        if (path == null) {
+            return;
+        }
         try {
-            if (attributes == null) {
-                final var file = path.toFile();
-                fileToLastModified.put(file, file.lastModified());
-            } else {
-                fileToLastModified.put(path.toFile(), attributes.lastModifiedTime().toMillis());
-            }
-        } catch (final UnsupportedOperationException e) {
+            fileToLastModified.put(path.toFile(), entry.getLastModifiedTimeMillis());
+        } catch (final UnsupportedOperationException | SecurityException e) {
             // Ignore
         }
     }
 
     /**
-     * Recursively scan a {@link Path} for sub-path patterns matching the scan spec.
-     *
-     * @param path
-     *            the {@link Path}
-     * @param log
-     *            the log node, or null to skip logging
+     * The {@link VfsVisitor} that applies the scan spec to the directory tree as the virtual filesystem walks it.
+     * The walk visits the files of a directory before recursing into its subdirectories, and calls
+     * {@link #enterDirectory(String)} for a directory before listing it, so the match status of the directory that
+     * contains a file is always known by the time the file is visited.
      */
-    private void scanPathRecursively(final Path path, final @Nullable LogNode log) {
-        final var canonicalPath = canonicalizeIfNotAlreadyScanned(path, log);
-        if (canonicalPath == null) {
-            return;
-        }
-        final var dirRelativePathStr = getDirRelativePathStr(path);
-        final var parentMatchStatus = getDirMatchStatus(dirRelativePathStr, log);
-        if (parentMatchStatus == null) {
-            return;
+    private final class DirScanVisitor implements VfsVisitor {
+        /** The log node for the classpath element, or null to skip logging. */
+        private final @Nullable LogNode subLog;
+
+        /** The match status of the directory currently being visited. */
+        private ScanSpecPathMatch parentMatchStatus = ScanSpecPathMatch.NOT_WITHIN_ACCEPTED_PATH;
+
+        /** True if the directory currently being visited is the package root. */
+        private boolean isPackageRootDir;
+
+        /** True if this classpath element is a modular jar. */
+        private boolean isModularJar;
+
+        /**
+         * Constructor.
+         *
+         * @param subLog
+         *            the log node for the classpath element, or null to skip logging.
+         */
+        DirScanVisitor(final @Nullable LogNode subLog) {
+            this.subLog = subLog;
         }
 
-        final var subLog = log == null ? null
-                // Log dirs after files (addAcceptedResources() precedes log entry with "0:")
-                : log.log("1:" + canonicalPath,
-                        "Scanning Path: " + FastPathResolver.resolve(path.toString()) + (path.equals(canonicalPath)
-                                ? ""
-                                : " ; canonical path: " + FastPathResolver.resolve(canonicalPath.toString())));
-
-        final var pathsInDir = listDirEntries(path, log);
-        if (pathsInDir == null) {
-            return;
-        }
-        final var getFileAttributes = FileUtils.createCachedAttributesGetter();
-
-        // Only scan files in directory if directory is not only an ancestor of an accepted path
-        if (parentMatchStatus != ScanSpecPathMatch.ANCESTOR_OF_ACCEPTED_PATH) {
-            if (!scanFilesInDir(pathsInDir, getFileAttributes, parentMatchStatus, subLog)) {
-                return;
+        @Override
+        public boolean enterDirectory(final String dirName) {
+            if (containsRejectedClasspathElementResourcePath) {
+                // A rejected resource path rejects the whole classpath element, so stop scanning the rest of it.
+                // Refusing to enter any further directory ends the walk, since the files of a directory are only
+                // visited once the directory has been entered.
+                return false;
             }
-        } else if (scanSpec.enableClassInfo && "/".equals(dirRelativePathStr)) {
-            // Always check for module descriptor in package root, even if package root isn't in accept
-            scanForModuleDescriptor(pathsInDir, getFileAttributes, parentMatchStatus, subLog);
-        }
-
-        // Recurse into subdirectories (the files in the directory have been removed from pathsInDir)
-        for (final Path subPath : pathsInDir) {
-            try {
-                if (getFileAttributes.get(subPath).isDirectory()) {
-                    scanPathRecursively(subPath, subLog);
-                    if (containsRejectedClasspathElementResourcePath) {
-                        // The whole classpath element is rejected, so stop scanning the rest of it
-                        return;
-                    }
-                }
-            } catch (final SecurityException e) {
-                if (subLog != null) {
-                    subLog.log("Could not read sub-directory " + subPath + " : " + e.getMessage());
-                }
+            final var matchStatus = getDirMatchStatus(dirName, subLog);
+            if (matchStatus == null) {
+                return false;
             }
+            parentMatchStatus = matchStatus;
+            isPackageRootDir = "/".equals(dirName);
+            // A directory classpath element is a modular jar if it has a module descriptor, which is read from the
+            // package root before any other directory is entered
+            isModularJar = getModuleName() != null;
+            recordLastModified(isPackageRootDir ? classpathEltPath : classpathEltPath.resolve(dirName));
+            return true;
         }
 
-        if (subLog != null) {
-            subLog.addElapsedTime();
+        @Override
+        public boolean visitEntry(final VfsEntry entry) {
+            final var entryName = entry.getName();
+            if (parentMatchStatus == ScanSpecPathMatch.ANCESTOR_OF_ACCEPTED_PATH) {
+                // The directory is only an ancestor of an accepted path, so none of its files are accepted -- but
+                // the module descriptor of the package root is always read, so that the module name is known even
+                // when the package root is not accepted
+                if (isPackageRootDir && scanSpec.enableClassInfo && "module-info.class".equals(entryName)) {
+                    addAcceptedResource(newResource(entry), parentMatchStatus, /* isClassfileOnly = */ true,
+                            subLog);
+                    recordLastModified(entry);
+                }
+                return true;
+            }
+            if (isIgnoredDefaultPackageClassfile(isModularJar, entryName)) {
+                return true;
+            }
+            // Accept/reject classpath elements based on file resource paths
+            if (!checkResourcePathAcceptReject(entryName, subLog)) {
+                return false;
+            }
+            if (isAcceptedResourcePath(entryName, parentMatchStatus)) {
+                addAcceptedResource(newResource(entry), parentMatchStatus, /* isClassfileOnly = */ false, subLog);
+                recordLastModified(entry);
+            } else if (subLog != null) {
+                subLog.log("Skipping non-accepted file: " + entryName);
+            }
+            return true;
         }
-        recordLastModified(path, /* attributes = */ null);
     }
 
     /**
@@ -736,7 +556,13 @@ class ClasspathElementDir extends ClasspathElement {
         final var subLog = log == null ? null
                 : log(classpathElementIdx, "Scanning Path classpath element " + getURI(), log);
 
-        scanPathRecursively(classpathEltPath, subLog);
+        try {
+            vfs.open(classpathEltPath).walk(new DirScanVisitor(subLog), subLog);
+        } catch (final IOException | SecurityException e) {
+            if (subLog != null) {
+                subLog.log("Could not scan directory " + classpathEltPath + " : " + e);
+            }
+        }
 
         finishScanPaths(subLog);
     }

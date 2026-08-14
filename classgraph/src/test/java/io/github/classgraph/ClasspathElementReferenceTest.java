@@ -4,11 +4,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.nio.file.Path;
 
+import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import io.github.classgraph.classpath.internal.classloaderhandler.ClassLoaderHandlerRegistry;
 import io.github.classgraph.internal.scanspec.ScanSpec;
+import io.github.classgraph.vfs.Vfs;
 
 /**
  * The same directory or jar can be referenced by more than one work unit, e.g. through a parent-last classloader
@@ -26,6 +28,10 @@ import io.github.classgraph.internal.scanspec.ScanSpec;
  */
 // #810
 class ClasspathElementReferenceTest {
+    /** The virtual filesystem the classpath elements would read through, if the tests read anything from them. */
+    @AutoClose
+    private static final Vfs VFS = new Vfs();
+
     /**
      * Build a classpath element as if it had been created by the work unit for the given reference.
      */
@@ -34,8 +40,7 @@ class ClasspathElementReferenceTest {
         final var dir = Path.of(".");
         final var workUnit = new ClasspathEntryWorkUnit(dir, classLoaderStr, /* parentClasspathElement = */ null,
                 idx, /* packageRootPrefix = */ "", ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES);
-        final ClasspathElement classpathElement = new ClasspathElementDir(workUnit, /* scanResources = */ null,
-                new ScanSpec());
+        final ClasspathElement classpathElement = new ClasspathElementDir(workUnit, VFS, new ScanSpec());
         classpathElement.addReference(isToplevelRef, idx, classLoaderStr);
         return classpathElement;
     }
