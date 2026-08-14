@@ -233,7 +233,7 @@ final class DirRoot extends VfsRoot {
         }
         // A name containing ".." must not be able to reach outside the root, and an absolute name must not be able
         // to replace it -- Path#resolve returns the argument unchanged if it is absolute
-        if (!resolved.startsWith(dir) || !Files.isRegularFile(resolved)) {
+        if (!resolved.startsWith(dir) || !FileUtils.canReadAndIsFile(resolved)) {
             return null;
         }
         return new DirEntry(this, resolved, name, /* attributes = */ null);

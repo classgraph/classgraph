@@ -405,12 +405,13 @@ public abstract class VfsRoot implements AutoCloseable, Iterable<VfsEntry> {
     }
 
     /**
-     * Returns the entry with the given name, or null if there is no such entry. If the root contains more than one
-     * entry with the same name, the first one is returned, which is the one a classloader would find.
+     * Returns the entry with the given name, or null if there is no such entry, or it cannot be read. If the root
+     * contains more than one entry with the same name, the first one is returned, which is the one a classloader
+     * would find.
      *
      * @param name
      *            the name of the entry, relative to the package root, e.g. {@code "com/xyz/Widget.class"}.
-     * @return the entry, or null if there is no entry with that name.
+     * @return the entry, or null if there is no readable entry with that name.
      * @throws IOException
      *             if the root could not be searched, or if the {@link Vfs} has been closed.
      */
@@ -425,7 +426,7 @@ public abstract class VfsRoot implements AutoCloseable, Iterable<VfsEntry> {
      *
      * @param name
      *            the name of the entry, relative to the package root.
-     * @return the entry, or null if there is no entry with that name.
+     * @return the entry, or null if there is no readable entry with that name.
      * @throws IOException
      *             if the root could not be searched.
      */

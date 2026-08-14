@@ -323,6 +323,28 @@ public class VfsTest {
         }
     }
 
+    /**
+     * A file that cannot be read is not reported as an entry, since an entry is something that can be read.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the directory could not be written or read.
+     */
+    @Test
+    public void anUnreadableFileIsNotAnEntry(@TempDir final File tempDir) throws IOException {
+        final var unreadable = new File(tempDir, "unreadable.txt");
+        Files.writeString(unreadable.toPath(), RESOURCE_CONTENT);
+        if (!unreadable.setReadable(false) || unreadable.canRead()) {
+            // Running as root, or on a filesystem that does not enforce permissions, the file stays readable
+            abort("Files cannot be made unreadable here");
+        }
+
+        try (var vfs = new Vfs()) {
+            assertThat(vfs.open(tempDir).getEntry("unreadable.txt")).isNull();
+        }
+    }
+
     /** The same jarfile can be named by a path string, a File, a Path, a URI or a URL. */
     @Test
     public void aJarfileCanBeNamedInEveryWayJavaNamesAFile(@TempDir final File tempDir) throws IOException {

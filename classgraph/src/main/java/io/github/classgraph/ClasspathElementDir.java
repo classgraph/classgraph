@@ -253,10 +253,7 @@ class ClasspathElementDir extends ClasspathElement {
     @Nullable
     Resource getResource(final String relativePath) {
         try {
-            // The virtual filesystem checks that a file exists and is a regular file, but not that it can be read
-            final var entry = FileUtils.canReadAndIsFile(classpathEltPath.resolve(relativePath))
-                    ? vfs.open(classpathEltPath).getEntry(relativePath)
-                    : null;
+            final var entry = vfs.open(classpathEltPath).getEntry(relativePath);
             return entry == null ? null : newResource(entry);
         } catch (final IOException | SecurityException e) {
             return null;
