@@ -17,13 +17,13 @@ import org.junit.jupiter.api.io.TempDir;
 import io.github.classgraph.vfs.Vfs;
 
 /**
- * Tests that {@link ClassfileReader#close()} closes only what the reader itself opened. Reading a
+ * Tests that {@link RandomAccessOrSequentialReader#close()} closes only what the reader itself opened. Reading a
  * {@link io.github.classgraph.vfs.VfsEntry} opens a stream that belongs to the reader, and so is closed by it,
  * whereas a {@link java.io.InputStream} that the caller handed to the reader belongs to the caller, which closes it
  * in its own try-with-resources; closing that as well would close it out from under a caller that is still using
  * it, or close it twice.
  */
-public class ClassfileReaderCloseTest {
+public class RandomAccessOrSequentialReaderCloseTest {
     /** An input stream that is at EOF, and that records whether it was closed. */
     private static final class RecordingInputStream extends InputStream {
         /** True once {@link #close()} has been called. */
@@ -57,7 +57,7 @@ public class ClassfileReaderCloseTest {
     @Test
     public void aStreamOpenedByTheCallerIsNotClosedByTheReader() {
         final var inputStream = new RecordingInputStream();
-        new ClassfileReader(inputStream).close();
+        new RandomAccessOrSequentialReader(inputStream).close();
         assertThat(inputStream.closed).isFalse();
     }
 
@@ -76,7 +76,7 @@ public class ClassfileReaderCloseTest {
 
         final var root = vfs.open(dir.toFile());
         final var entry = Objects.requireNonNull(root.getEntry("Test.class"));
-        try (var reader = new ClassfileReader(entry)) {
+        try (var reader = new RandomAccessOrSequentialReader(entry)) {
             assertThat(reader.readInt()).isEqualTo(0x01234567);
         }
 
@@ -85,7 +85,7 @@ public class ClassfileReaderCloseTest {
     }
 
     /**
-     * Closing the reader twice is safe. ({@link ClassfileReader#close()} does not declare a checked exception, so a
+     * Closing the reader twice is safe. ({@link RandomAccessOrSequentialReader#close()} does not declare a checked exception, so a
      * failure to close the stream the reader opened is swallowed rather than being reported to the caller.)
      *
      * @throws IOException
@@ -93,7 +93,7 @@ public class ClassfileReaderCloseTest {
      */
     @Test
     public void closingTheReaderTwiceIsSafe() throws IOException {
-        final var reader = new ClassfileReader(new ByteArrayInputStream(new byte[] { 0x01, 0x23, 0x45, 0x67 }));
+        final var reader = new RandomAccessOrSequentialReader(new ByteArrayInputStream(new byte[] { 0x01, 0x23, 0x45, 0x67 }));
         assertThat(reader.readInt()).isEqualTo(0x01234567);
         reader.close();
         assertThatCode(reader::close).doesNotThrowAnyException();

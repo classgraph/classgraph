@@ -31,7 +31,7 @@ import io.github.classgraph.vfs.VfsRoot;
  * of a directory is read straight from the file, a stored zip entry is sliced out of the jarfile, a deflated zip
  * entry is inflated as it is read, and a module is read from a plain stream.
  */
-public class ClassfileReaderTest {
+public class RandomAccessOrSequentialReaderTest {
     /** The package that the classfile is put in within the directory or jarfile it is read from. */
     private static final String PACKAGE_NAME = "pkg";
 
@@ -162,7 +162,7 @@ public class ClassfileReaderTest {
      * @throws IOException
      *             if the classpath element could not be written or opened
      */
-    private ClassfileReader reader(final Source source, final byte[] content) throws IOException {
+    private RandomAccessOrSequentialReader reader(final Source source, final byte[] content) throws IOException {
         switch (source) {
         case DIR_ENTRY: {
             // Each reader is given a directory of its own, both because a Vfs hands back the same root the second
@@ -170,16 +170,16 @@ public class ClassfileReaderTest {
             final var dir = tempDir.resolve("dir" + numRootsOpened++);
             Files.createDirectories(dir.resolve(PACKAGE_NAME));
             Files.write(dir.resolve(ENTRY_NAME), content);
-            return new ClassfileReader(entry(vfs.open(dir.toFile())));
+            return new RandomAccessOrSequentialReader(entry(vfs.open(dir.toFile())));
         }
         case JAR_ENTRY_STORED:
-            return new ClassfileReader(entry(vfs.open(jar(content, ZipEntry.STORED), "stored.jar")));
+            return new RandomAccessOrSequentialReader(entry(vfs.open(jar(content, ZipEntry.STORED), "stored.jar")));
         case JAR_ENTRY_DEFLATED:
-            return new ClassfileReader(entry(vfs.open(jar(content, ZipEntry.DEFLATED), "deflated.jar")));
+            return new RandomAccessOrSequentialReader(entry(vfs.open(jar(content, ZipEntry.DEFLATED), "deflated.jar")));
         case INPUT_STREAM_SHORT_READS:
-            return new ClassfileReader(new ShortReadInputStream(new ByteArrayInputStream(content)));
+            return new RandomAccessOrSequentialReader(new ShortReadInputStream(new ByteArrayInputStream(content)));
         default:
-            return new ClassfileReader(new ByteArrayInputStream(content));
+            return new RandomAccessOrSequentialReader(new ByteArrayInputStream(content));
         }
     }
 
@@ -366,6 +366,40 @@ public class ClassfileReaderTest {
             assertThatThrownBy(() -> reader.bufferTo(PATTERN.length + 1)).isInstanceOf(IOException.class);
 
             // The reads that stay within the classfile still succeed
+            assertThat(reader.readInt(0)).isEqualTo(0x01234567);
+        }
+    }
+
+    /**
+     * An offset that is out of range is rejected, rather than being silently narrowed to an int, or added to the
+     * number of bytes to read to give a sum that wraps negative -- either of which would turn a read from outside
+     * the content into one that looks like it is already buffered. Offsets are read out of the content itself (a
+     * classfile constant pool holds them), so corrupt content can ask for a read at any offset.
+     *
+     * @param source
+     *            the kind of classpath element to read from
+     * @throws IOException
+     *             if the content could not be read
+     */
+    @ParameterizedTest
+    @EnumSource(Source.class)
+    public void anOutOfRangeOffsetIsRejected(final Source source) throws IOException {
+        try (var reader = reader(source, PATTERN)) {
+            // Adding the number of bytes to read to these offsets wraps an int sum negative
+            assertThatThrownBy(() -> reader.readByte(Integer.MAX_VALUE)).isInstanceOf(IOException.class);
+            assertThatThrownBy(() -> reader.readUnsignedShort(Integer.MAX_VALUE)).isInstanceOf(IOException.class);
+            assertThatThrownBy(() -> reader.readLong(Integer.MAX_VALUE - 4)).isInstanceOf(IOException.class);
+            assertThatThrownBy(() -> reader.readString(Integer.MAX_VALUE, 8)).isInstanceOf(IOException.class);
+            assertThatThrownBy(() -> reader.read(Integer.MAX_VALUE, new byte[8], 0, 8))
+                    .isInstanceOf(IOException.class);
+
+            // Narrowing this offset to an int gives 0, which is within the content
+            assertThatThrownBy(() -> reader.readInt(0x1_0000_0000L)).isInstanceOf(IOException.class);
+
+            // A negative offset indexes outside the buffer
+            assertThatThrownBy(() -> reader.readByte(-1)).isInstanceOf(IOException.class);
+
+            // The reads that stay within the content still succeed
             assertThat(reader.readInt(0)).isEqualTo(0x01234567);
         }
     }

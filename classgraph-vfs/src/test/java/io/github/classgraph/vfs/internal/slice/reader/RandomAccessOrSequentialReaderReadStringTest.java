@@ -9,23 +9,23 @@ import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tests the sequential {@link ClassfileReader#readString(int)} overload.
+ * Tests the sequential {@link RandomAccessOrSequentialReader#readString(int)} overload.
  *
  * <p>
- * A {@link ClassfileReader} built on an {@link java.io.InputStream} starts with an allocated but completely
+ * A {@link RandomAccessOrSequentialReader} built on an {@link java.io.InputStream} starts with an allocated but completely
  * unfilled buffer, so a read that does not first grow the buffer returns the zero bytes the array was allocated
  * with, rather than the stream contents. Every other sequential read method delegates to its random access
  * counterpart, which buffers the requested range first; {@code readString} used to read straight out of the buffer
  * instead.
  */
-public class ClassfileReaderSequentialReadStringTest {
+public class RandomAccessOrSequentialReaderReadStringTest {
     /**
      * A sequential readString from an unfilled buffer must return the stream contents, not NUL bytes.
      */
     @Test
     public void sequentialReadStringBuffersBeforeReading() throws IOException {
         final var data = "Hello".getBytes(StandardCharsets.UTF_8);
-        try (var reader = new ClassfileReader(new ByteArrayInputStream(data))) {
+        try (var reader = new RandomAccessOrSequentialReader(new ByteArrayInputStream(data))) {
             assertThat(reader.readString(5)).isEqualTo("Hello");
         }
     }
@@ -36,7 +36,7 @@ public class ClassfileReaderSequentialReadStringTest {
     @Test
     public void consecutiveSequentialReadStringsAdvancePosition() throws IOException {
         final var data = "HelloWorld".getBytes(StandardCharsets.UTF_8);
-        try (var reader = new ClassfileReader(new ByteArrayInputStream(data))) {
+        try (var reader = new RandomAccessOrSequentialReader(new ByteArrayInputStream(data))) {
             assertThat(reader.readString(5)).isEqualTo("Hello");
             assertThat(reader.currPos()).isEqualTo(5);
             assertThat(reader.readString(5)).isEqualTo("World");
@@ -50,7 +50,7 @@ public class ClassfileReaderSequentialReadStringTest {
     @Test
     public void sequentialReadStringInterleavesWithOtherReads() throws IOException {
         final byte[] data = { 0, 3, 'a', 'b', 'c' };
-        try (var reader = new ClassfileReader(new ByteArrayInputStream(data))) {
+        try (var reader = new RandomAccessOrSequentialReader(new ByteArrayInputStream(data))) {
             final var len = reader.readUnsignedShort();
             assertThat(len).isEqualTo(3);
             assertThat(reader.readString(len)).isEqualTo("abc");

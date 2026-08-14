@@ -47,7 +47,7 @@ import io.github.classgraph.internal.scanspec.ScanSpec;
 import io.github.classgraph.vfs.Vfs;
 import io.github.classgraph.vfs.VfsEntry;
 import io.github.classgraph.vfs.VfsVisitor;
-import io.github.classgraph.vfs.internal.slice.reader.ClassfileReader;
+import io.github.classgraph.vfs.internal.slice.reader.RandomAccessOrSequentialReader;
 import org.jspecify.annotations.Nullable;
 
 /** A directory classpath element, using the {@link Path} API. */
@@ -174,7 +174,7 @@ class ClasspathElementDir extends ClasspathElement {
      * @param packageRoot
      *            the candidate package root directory.
      * @return null if the candidate is a package root, otherwise the name of the class that disproves it (see
-     *         {@link ClasspathElement#getClassNameDisprovingPackageRoot(ClassfileReader, String)}).
+     *         {@link ClasspathElement#getClassNameDisprovingPackageRoot(RandomAccessOrSequentialReader, String)}).
      */
     // #929
     private @Nullable String getClassNameDisprovingPackageRoot(final Path packageRoot) {
@@ -183,7 +183,7 @@ class ClasspathElementDir extends ClasspathElement {
             // There are no classfiles beneath the candidate package root, so there is nothing to check
             return null;
         }
-        try (var classfileReader = new ClassfileReader(classfileEntry)) {
+        try (var classfileReader = new RandomAccessOrSequentialReader(classfileEntry)) {
             // The entry is named relative to the candidate package root, which is the path to compare the class
             // declared by the classfile against
             return getClassNameDisprovingPackageRoot(classfileReader, classfileEntry.getName());

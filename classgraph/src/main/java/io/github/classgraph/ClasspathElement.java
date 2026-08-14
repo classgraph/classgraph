@@ -50,7 +50,7 @@ import io.github.classgraph.base.internal.utils.JarUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.internal.scanspec.ScanSpec;
 import io.github.classgraph.internal.scanspec.ScanSpec.ScanSpecPathMatch;
-import io.github.classgraph.vfs.internal.slice.reader.ClassfileReader;
+import io.github.classgraph.vfs.internal.slice.reader.RandomAccessOrSequentialReader;
 import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
 import io.github.classgraph.vfs.internal.zip.LogicalZipFile;
 import org.jspecify.annotations.Nullable;
@@ -396,7 +396,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      *         declared by the classfile, which disproves that the candidate is a package root.
      */
     // #929
-    static @Nullable String getClassNameDisprovingPackageRoot(final ClassfileReader classfileReader,
+    static @Nullable String getClassNameDisprovingPackageRoot(final RandomAccessOrSequentialReader classfileReader,
             final String classfileRelativePath) {
         final var className = Classfile.readClassName(classfileReader);
         return className == null || (className + ".class").equals(classfileRelativePath) ? null

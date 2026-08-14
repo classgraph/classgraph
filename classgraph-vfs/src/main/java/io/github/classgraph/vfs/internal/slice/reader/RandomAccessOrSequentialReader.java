@@ -42,22 +42,22 @@ import io.github.classgraph.vfs.VfsEntry;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A classfile reader that works as either a {@link RandomAccessReader} or a {@link SequentialReader}. The classfile
- * is read as a stream, and is buffered up to the point it has been read so far, so that the random access methods
- * can go back over any part of it that has already been read, which is how the constant pool is parsed. Reads in
- * <b>big endian</b> order, as required by the classfile format.
+ * A reader that works as either a {@link RandomAccessReader} or a {@link SequentialReader}. The content is read as
+ * a stream, and is buffered up to the point it has been read so far, so that the random access methods can go back
+ * over any part of it that has already been read. (Parsing a classfile needs exactly this: the constant pool is
+ * read sequentially, then indexed into.) Reads in <b>big endian</b> order.
  */
-public class ClassfileReader implements RandomAccessReader, SequentialReader, AutoCloseable {
+public class RandomAccessOrSequentialReader implements RandomAccessReader, SequentialReader, AutoCloseable {
     /**
-     * The stream the classfile is read through: either the stream that the {@link VfsEntry} opened, which inflates
+     * The stream the content is read through: either the stream that the {@link VfsEntry} opened, which inflates
      * the entry if it is deflated, or a stream that the caller opened and passed in. Null once this reader has been
      * closed.
      */
-    private @Nullable InputStream inflaterInputStream;
+    private @Nullable InputStream inputStream;
 
     /**
-     * True if this reader opened {@link #inflaterInputStream} itself, and so has to close it. A stream that the
-     * caller passed in belongs to the caller, which closes it in its own try-with-resources.
+     * True if this reader opened {@link #inputStream} itself, and so has to close it. A stream that the caller
+     * passed in belongs to the caller, which closes it in its own try-with-resources.
      */
     private final boolean ownsInputStream;
 
@@ -67,17 +67,15 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Au
     /** The number of bytes used in arr. */
     private int arrUsed;
 
-    /** The current read index within the slice. */
+    /** The current read index within the stream. */
     private int currIdx;
 
-    /**
-     * The length of the classfile if known (because it is not deflated), or -1 if unknown (because it is deflated).
-     */
-    private int classfileLengthHint = -1;
+    /** The length of the content if known, or -1 if unknown (e.g. because the entry it comes from is deflated). */
+    private int lengthHint = -1;
 
     /**
-     * Initial buffer size. For most classfiles, only the first 16-64kb needs to be read (we don't read the
-     * bytecodes).
+     * Initial buffer size. For most content only a prefix is read -- for a classfile, the first 16-64kb, since the
+     * bytecodes are not read.
      */
     private static final int INITIAL_BUF_SIZE = 16384;
 
@@ -91,35 +89,35 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Au
     private static final int BUF_CHUNK_SIZE = 8192 - 8;
 
     /**
-     * Constructor for reading a classfile out of a virtual filesystem. Whatever the entry has to open in order to
-     * be read is opened by this reader, and closed by {@link #close()}, so the entry itself does not need to be
-     * opened by the caller.
+     * Constructor for reading an entry of a virtual filesystem. Whatever the entry has to open in order to be read
+     * is opened by this reader, and closed by {@link #close()}, so the entry itself does not need to be opened by
+     * the caller.
      *
      * @param entry
-     *            the {@link VfsEntry} to read the classfile from.
+     *            the {@link VfsEntry} to read.
      * @throws IOException
      *             If the entry could not be opened.
      */
-    public ClassfileReader(final VfsEntry entry) throws IOException {
+    public RandomAccessOrSequentialReader(final VfsEntry entry) throws IOException {
         // The entry opens whatever it has to in order to be read, and this reader closes it
         ownsInputStream = true;
-        inflaterInputStream = entry.open();
+        inputStream = entry.open();
         arr = new byte[INITIAL_BUF_SIZE];
-        // Telling the reader how long the classfile is saves it from growing the buffer to find out
+        // Telling the reader how long the entry is saves it from growing the buffer to find out
         final var length = entry.getLength();
-        classfileLengthHint = length < 0L ? -1 : (int) Math.min(length, FileUtils.MAX_BUFFER_SIZE);
+        lengthHint = length < 0L ? -1 : (int) Math.min(length, FileUtils.MAX_BUFFER_SIZE);
     }
 
     /**
-     * Constructor for reading a classfile that is already open as a stream. The stream belongs to the caller, which
+     * Constructor for reading content that is already open as a stream. The stream belongs to the caller, which
      * opens it in a try-with-resources and closes it once the reader has been closed.
      *
      * @param inputStream
      *            the {@link InputStream} to read from.
      */
-    public ClassfileReader(final InputStream inputStream) {
+    public RandomAccessOrSequentialReader(final InputStream inputStream) {
         ownsInputStream = false;
-        inflaterInputStream = inputStream;
+        this.inputStream = inputStream;
         arr = new byte[INITIAL_BUF_SIZE];
     }
 
@@ -146,25 +144,29 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Au
      * the given number of bytes at the given start index.
      *
      * @param targetArrUsed
-     *            the target value for {@link #arrUsed} (i.e. the number of bytes that must be filled in the array)
+     *            the target value for {@link #arrUsed} (i.e. the number of bytes that must be filled in the array).
+     *            Taken as a long so that a caller can hand over a sum of two ints without having to check first
+     *            whether it fits in an int -- one that does not is out of range, and is rejected below.
      * @throws IOException
      *             Signals that an I/O exception has occurred.
      */
-    private void readTo(final int targetArrUsed) throws IOException {
+    private void readTo(final long targetArrUsed) throws IOException {
         // Array does not need to grow larger than the length hint (if the uncompressed size of the zip entry is an
-        // underestimate, classfile will be truncated). If -1, assume 2GB is the max size.
-        final var maxArrLen = classfileLengthHint == -1 ? FileUtils.MAX_BUFFER_SIZE : classfileLengthHint;
-        final var inflaterInputStream = this.inflaterInputStream;
-        if (inflaterInputStream == null) {
+        // underestimate, the content will be truncated). If -1, assume 2GB is the max size.
+        final var maxArrLen = lengthHint == -1 ? FileUtils.MAX_BUFFER_SIZE : lengthHint;
+        final var inputStream = this.inputStream;
+        if (inputStream == null) {
             // The stream is only cleared by close(), so the buffer cannot be filled any further than it already is
-            throw new IOException("Tried to read past the buffered part of a closed classfile reader");
+            throw new IOException("Tried to read past the buffered part of a closed reader");
         }
         if (targetArrUsed > FileUtils.MAX_BUFFER_SIZE || targetArrUsed < 0 || arrUsed == maxArrLen) {
             throw new IOException("Hit 2GB limit while trying to grow buffer array");
         }
 
-        // Need to read at least BUF_CHUNK_SIZE (but don't overshoot past 2GB limit)
-        final var maxNewArrUsed = (int) Math.min(Math.max(targetArrUsed, (long) (arrUsed + BUF_CHUNK_SIZE)),
+        // Need to read at least BUF_CHUNK_SIZE (but don't overshoot past 2GB limit). The chunk end is computed in
+        // long arithmetic, because arrUsed can be within BUF_CHUNK_SIZE of the 2GB limit, and an int sum would wrap
+        // negative there rather than being clamped by the Math.min below.
+        final var maxNewArrUsed = (int) Math.min(Math.max(targetArrUsed, (long) arrUsed + (long) BUF_CHUNK_SIZE),
                 maxArrLen);
 
         // Double the size of the array if it's too small to contain the new chunk of bytes
@@ -183,7 +185,7 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Au
         // reached or the stream is exhausted. (Each call may still transfer more than the target, filling the rest
         // of the buffer.)
         while (arrUsed < targetArrUsed) {
-            final var numRead = inflaterInputStream.read(arr, arrUsed, arr.length - arrUsed);
+            final var numRead = inputStream.read(arr, arrUsed, arr.length - arrUsed);
             if (numRead <= 0) {
                 // -1 => end of stream; 0 => the buffer has no space left
                 break;
@@ -198,7 +200,7 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Au
     }
 
     /**
-     * Ensure that the given number of bytes have been read into the buffer from the beginning of the slice.
+     * Ensure that the given number of bytes have been read into the buffer from the beginning of the content.
      *
      * @param numBytes
      *            the number of bytes to ensure have been buffered
@@ -211,16 +213,41 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Au
         }
     }
 
+    /**
+     * Ensure that the given number of bytes have been read into the buffer, starting at the given offset, so that
+     * the read that follows can be served straight out of the buffer.
+     *
+     * @param srcOffset
+     *            the offset the read starts at.
+     * @param numBytes
+     *            the number of bytes to be read.
+     * @return {@code srcOffset} as an index into the buffer.
+     * @throws IOException
+     *             on EOF, or if the range is out of bounds, or if the bytes could not be read.
+     */
+    private int bufferFor(final long srcOffset, final int numBytes) throws IOException {
+        // The offset is range-checked before it is narrowed to an int, since narrowing it silently would turn a
+        // read from outside the content into a read from within it
+        if (srcOffset < 0L || srcOffset > FileUtils.MAX_BUFFER_SIZE) {
+            throw new IOException("Read offset out of range: " + srcOffset);
+        }
+        final var idx = (int) srcOffset;
+        // The end of the range is compared by subtraction rather than by adding numBytes to idx, because an offset
+        // and a length read out of corrupt content can sum to more than an int holds, and a wrapped sum would make
+        // a read from past the end of the content look like one that is already buffered
+        if (numBytes > arrUsed - idx) {
+            readTo((long) idx + numBytes);
+        }
+        return idx;
+    }
+
     @Override
     public int read(final long srcOffset, final byte[] dstArr, final int dstArrStart, final int numBytes)
             throws IOException {
         if (numBytes == 0) {
             return 0;
         }
-        final var idx = (int) srcOffset;
-        if (idx + numBytes > arrUsed) {
-            readTo(idx + numBytes);
-        }
+        final var idx = bufferFor(srcOffset, numBytes);
         final var numBytesToRead = Math.max(Math.min(numBytes, dstArr.length - dstArrStart), 0);
         if (numBytesToRead == 0) {
             return -1;
@@ -239,10 +266,7 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Au
         if (numBytes == 0) {
             return 0;
         }
-        final var idx = (int) srcOffset;
-        if (idx + numBytes > arrUsed) {
-            readTo(idx + numBytes);
-        }
+        final var idx = bufferFor(srcOffset, numBytes);
         final var numBytesToRead = Math.max(Math.min(numBytes, dstBuf.capacity() - dstBufStart), 0);
         if (numBytesToRead == 0) {
             return -1;
@@ -259,19 +283,13 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Au
 
     @Override
     public byte readByte(final long offset) throws IOException {
-        final var idx = (int) offset;
-        if (idx + 1 > arrUsed) {
-            readTo(idx + 1);
-        }
+        final var idx = bufferFor(offset, 1);
         return arr[idx];
     }
 
     @Override
     public int readUnsignedByte(final long offset) throws IOException {
-        final var idx = (int) offset;
-        if (idx + 1 > arrUsed) {
-            readTo(idx + 1);
-        }
+        final var idx = bufferFor(offset, 1);
         return arr[idx] & 0xff;
     }
 
@@ -282,20 +300,14 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Au
 
     @Override
     public int readUnsignedShort(final long offset) throws IOException {
-        final var idx = (int) offset;
-        if (idx + 2 > arrUsed) {
-            readTo(idx + 2);
-        }
+        final var idx = bufferFor(offset, 2);
         return ((arr[idx] & 0xff) << 8) //
                 | (arr[idx + 1] & 0xff);
     }
 
     @Override
     public int readInt(final long offset) throws IOException {
-        final var idx = (int) offset;
-        if (idx + 4 > arrUsed) {
-            readTo(idx + 4);
-        }
+        final var idx = bufferFor(offset, 4);
         return ((arr[idx] & 0xff) << 24) //
                 | ((arr[idx + 1] & 0xff) << 16) //
                 | ((arr[idx + 2] & 0xff) << 8) //
@@ -309,10 +321,7 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Au
 
     @Override
     public long readLong(final long offset) throws IOException {
-        final var idx = (int) offset;
-        if (idx + 8 > arrUsed) {
-            readTo(idx + 8);
-        }
+        final var idx = bufferFor(offset, 8);
         return ((arr[idx] & 0xffL) << 56) //
                 | ((arr[idx + 1] & 0xffL) << 48) //
                 | ((arr[idx + 2] & 0xffL) << 40) //
@@ -375,20 +384,21 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Au
     @Override
     public void skip(final int bytesToSkip) throws IOException {
         if (bytesToSkip < 0) {
-            // The number of bytes to skip is the length of a part of the classfile that is not of interest, read
-            // from the classfile itself, so a negative value is a corrupt classfile rather than a caller error: an
-            // attribute length is an unsigned 32-bit value, and one larger than 2GB reads back as a negative int
+            // The number of bytes to skip is usually the length of a part of the content that is not of interest,
+            // read from the content itself, so a negative value means corrupt content rather than a caller error:
+            // a classfile attribute length is an unsigned 32-bit value, and one larger than 2GB reads back as a
+            // negative int
             throw new IOException("Tried to skip a negative number of bytes");
         }
-        // The target position is computed in long arithmetic, because a length close to 2GB read from a corrupt
-        // classfile would otherwise wrap the position negative, and the read after it would be made outside the
+        // The target position is computed in long arithmetic, because a length close to 2GB read from corrupt
+        // content would otherwise wrap the position negative, and the read after it would be made outside the
         // buffer rather than being rejected here
         final var targetIdx = currIdx + (long) bytesToSkip;
         if (targetIdx > arrUsed) {
             if (targetIdx > FileUtils.MAX_BUFFER_SIZE) {
                 throw new IOException("Tried to skip past the 2GB limit");
             }
-            readTo((int) targetIdx);
+            readTo(targetIdx);
         }
         currIdx = (int) targetIdx;
     }
@@ -396,10 +406,7 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Au
     @Override
     public String readString(final long offset, final int numBytes, final boolean replaceSlashWithDot,
             final boolean stripLSemicolon) throws IOException {
-        final var idx = (int) offset;
-        if (idx + numBytes > arrUsed) {
-            readTo(idx + numBytes);
-        }
+        final var idx = bufferFor(offset, numBytes);
         return StringUtils.readString(arr, idx, numBytes, replaceSlashWithDot, stripLSemicolon);
     }
 
@@ -429,14 +436,14 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Au
         // Only the stream that this reader opened on a VfsEntry is closed here. A stream that the caller opened
         // belongs to the caller, which closes it in its own try-with-resources.
         try {
-            final var inflaterInputStream = this.inflaterInputStream;
-            if (ownsInputStream && inflaterInputStream != null) {
-                inflaterInputStream.close();
+            final var inputStream = this.inputStream;
+            if (ownsInputStream && inputStream != null) {
+                inputStream.close();
             }
         } catch (final IOException e) {
             // Ignore
         } finally {
-            this.inflaterInputStream = null;
+            this.inputStream = null;
         }
     }
 }

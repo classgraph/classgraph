@@ -53,7 +53,7 @@ import io.github.classgraph.classpath.internal.ClasspathExpander.ChildEntry;
 import io.github.classgraph.classpath.internal.ClasspathExpander;
 import io.github.classgraph.internal.scanspec.ScanSpec.ScanSpecPathMatch;
 import io.github.classgraph.internal.scanspec.ScanSpec;
-import io.github.classgraph.vfs.internal.slice.reader.ClassfileReader;
+import io.github.classgraph.vfs.internal.slice.reader.RandomAccessOrSequentialReader;
 import io.github.classgraph.vfs.internal.zip.LogicalZipFile;
 import io.github.classgraph.vfs.Vfs;
 import io.github.classgraph.vfs.VfsEntry;
@@ -379,7 +379,7 @@ class ClasspathElementZip extends ClasspathElement {
             final var entry = firstClassfileEntry[i];
             String disprovingClassName = null;
             if (entry != null) {
-                try (var classfileReader = new ClassfileReader(entry)) {
+                try (var classfileReader = new RandomAccessOrSequentialReader(entry)) {
                     disprovingClassName = getClassNameDisprovingPackageRoot(classfileReader,
                             entry.getName().substring(prefix.length()));
                 } catch (final IOException e) {

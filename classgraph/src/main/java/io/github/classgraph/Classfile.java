@@ -49,7 +49,7 @@ import io.github.classgraph.base.internal.utils.JarUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.base.internal.utils.StringUtils;
 import io.github.classgraph.internal.scanspec.ScanSpec;
-import io.github.classgraph.vfs.internal.slice.reader.ClassfileReader;
+import io.github.classgraph.vfs.internal.slice.reader.RandomAccessOrSequentialReader;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -62,9 +62,9 @@ import org.jspecify.annotations.Nullable;
  */
 class Classfile {
     /**
-     * The {@link ClassfileReader} for the current classfile, or null once the classfile has been read.
+     * The {@link RandomAccessOrSequentialReader} for the current classfile, or null once the classfile has been read.
      */
-    private @Nullable ClassfileReader reader;
+    private @Nullable RandomAccessOrSequentialReader reader;
 
     /** The classpath element that contains this classfile. */
     private final ClasspathElement classpathElement;
@@ -185,13 +185,13 @@ class Classfile {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the {@link ClassfileReader} for the current classfile.
+     * Get the {@link RandomAccessOrSequentialReader} for the current classfile.
      *
      * @return the reader
      * @throws NullPointerException
      *             if the classfile has already been read.
      */
-    private ClassfileReader reader() {
+    private RandomAccessOrSequentialReader reader() {
         return Objects.requireNonNull(reader);
     }
 
@@ -1301,14 +1301,14 @@ class Classfile {
      * of {@link #readConstantPoolEntries(LogNode)} followed by {@link #readBasicClassInfo()}, for the case where a
      * classfile has to be read before scanning has started, so none of the scanning context needed by the
      * {@link Classfile} constructor is available yet. (Used to check whether a candidate package root really is a
-     * package root -- see {@link ClasspathElement#getClassNameDisprovingPackageRoot(ClassfileReader, String)}.)
+     * package root -- see {@link ClasspathElement#getClassNameDisprovingPackageRoot(RandomAccessOrSequentialReader, String)}.)
      *
      * @param reader
      *            a reader for the classfile.
      * @return the name of the class defined by the classfile, in binary form, with {@code '/'} as the package
      *         separator (e.g. {@code "java/lang/String"}), or null if the class name could not be read.
      */
-    static @Nullable String readClassName(final ClassfileReader reader) {
+    static @Nullable String readClassName(final RandomAccessOrSequentialReader reader) {
         try {
             // Skip the magic number and the minor and major version
             reader.skip(8);
@@ -2515,7 +2515,7 @@ class Classfile {
 
         // Read the classfile through the virtual filesystem, which knows the fastest way to hand over the bytes of
         // the kind of classpath element the classfile is in
-        try (var classfileReader = new ClassfileReader(classfileResource.getVfsEntry())) {
+        try (var classfileReader = new RandomAccessOrSequentialReader(classfileResource.getVfsEntry())) {
             reader = classfileReader;
 
             // Check magic number

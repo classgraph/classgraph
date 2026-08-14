@@ -22,7 +22,7 @@ import org.junit.jupiter.params.provider.EnumSource;
  * Tests that the three little-endian {@link RandomAccessReader} implementations read the same values from the same
  * bytes. A file is read through {@link RandomAccessByteBufferReader} when it is memory-mapped and through
  * {@link RandomAccessFileChannelReader} when it is not, and through {@link RandomAccessArrayReader} when it was
- * read into RAM, so the three of them have to agree. ({@link ClassfileReader} also implements the interface, but
+ * read into RAM, so the three of them have to agree. ({@link RandomAccessOrSequentialReader} also implements the interface, but
  * reads in big-endian order, as the classfile format requires, so it is tested separately.)
  */
 public class RandomAccessReaderTest {
