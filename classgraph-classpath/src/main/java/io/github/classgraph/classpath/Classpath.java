@@ -34,7 +34,7 @@ import java.util.Collections;
 import java.util.List;
 
 import io.github.classgraph.classpath.internal.ClassLoaderProbe;
-import io.github.classgraph.vfs.internal.zip.NestedJarHandler;
+import io.github.classgraph.vfs.Vfs;
 
 /**
  * Where a JVM loads its classes and resources from: the classpath elements and the modules that were found by a
@@ -59,8 +59,8 @@ public class Classpath implements AutoCloseable {
     /** The module path switches the JVM was launched with. */
     private final ModulePathInfo modulePathInfo;
 
-    /** The jarfiles that were opened to read their manifests. */
-    private final NestedJarHandler nestedJarHandler;
+    /** The virtual filesystem that the jarfiles were read through, in order to read their manifests. */
+    private final Vfs vfs;
 
     /**
      * Constructor.
@@ -71,13 +71,13 @@ public class Classpath implements AutoCloseable {
      *            the classpath finder that found the classpath.
      * @param modulePathInfo
      *            the module path switches the JVM was launched with.
-     * @param nestedJarHandler
-     *            the jarfiles that were opened to read their manifests.
+     * @param vfs
+     *            the virtual filesystem that the jarfiles were read through, in order to read their manifests.
      */
     Classpath(final List<ClasspathEntry> entries, final ClassLoaderProbe classLoaderProbe,
-            final ModulePathInfo modulePathInfo, final NestedJarHandler nestedJarHandler) {
+            final ModulePathInfo modulePathInfo, final Vfs vfs) {
         this.entries = List.copyOf(entries);
-        this.nestedJarHandler = nestedJarHandler;
+        this.vfs = vfs;
 
         final var moduleFinder = classLoaderProbe.getModuleFinder();
         final var systemModulesTmp = moduleFinder == null ? null : moduleFinder.getSystemModuleReferences();
@@ -97,7 +97,7 @@ public class Classpath implements AutoCloseable {
      */
     @Override
     public void close() {
-        nestedJarHandler.close(null);
+        vfs.close(/* logNode = */ null);
     }
 
     /**

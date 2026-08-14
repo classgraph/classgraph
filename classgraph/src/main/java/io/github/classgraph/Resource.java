@@ -28,7 +28,6 @@
  */
 package io.github.classgraph;
 
-import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -54,7 +53,7 @@ import org.jspecify.annotations.Nullable;
  * A classpath or module path resource (i.e. file) that was found in an accepted/non-rejected package inside a
  * classpath element or module.
  */
-public abstract class Resource implements Closeable, Comparable<Resource> {
+public abstract class Resource implements AutoCloseable, Comparable<Resource> {
     /** The classpath element this resource was obtained from. */
     private final ClasspathElement classpathElement;
 
@@ -299,7 +298,7 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
 
     /**
      * Open a {@link ByteBuffer} for a classpath resource, and wrap it in a {@link CloseableByteBuffer} instance,
-     * which implements the {@link Closeable#close()} method to free the underlying {@link ByteBuffer} when
+     * which implements the {@link AutoCloseable#close()} method to free the underlying {@link ByteBuffer} when
      * {@link CloseableByteBuffer#close()} is called, by automatically calling {@link Resource#close()}.
      *
      * <p>

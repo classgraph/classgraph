@@ -260,7 +260,8 @@ final class VfsFileSystem extends FileSystem {
      *
      * <p>
      * A virtual filesystem does not own the storage it is a view of -- the {@link Vfs} that opened the root does.
-     * Call {@link Vfs#close()} instead.
+     * Call {@link VfsRoot#close()} to drop this view of the root, or {@link Vfs#close()} to release the storage
+     * behind it.
      *
      * @throws UnsupportedOperationException
      *             always.
@@ -273,7 +274,7 @@ final class VfsFileSystem extends FileSystem {
 
     @Override
     public boolean isOpen() {
-        return !root.getVfs().isClosed();
+        return !root.isClosed();
     }
 
     @Override

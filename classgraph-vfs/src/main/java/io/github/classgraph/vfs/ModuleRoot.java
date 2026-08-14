@@ -136,8 +136,8 @@ final class ModuleRoot extends VfsRoot {
      *             if the module could not be opened, or if the {@link Vfs} has been closed.
      */
     Recycler<ModuleReader, IOException> moduleReaderRecycler() throws IOException {
+        checkNotClosed(getPath());
         final var vfs = getVfs();
-        vfs.checkNotClosed(getPath());
         try {
             return vfs.scanResources().moduleReaderRecyclerMap().get(moduleReference, /* log = */ null);
         } catch (final NullSingletonException | NewInstanceException e) {

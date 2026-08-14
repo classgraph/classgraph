@@ -40,7 +40,7 @@ import io.github.classgraph.classpath.internal.ClassLoaderProbe;
 import io.github.classgraph.classpath.internal.spec.ClassLoaderAndModuleLayerSpec;
 import io.github.classgraph.classpath.internal.spec.ClasspathSpec;
 import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
-import io.github.classgraph.vfs.internal.zip.NestedJarHandler;
+import io.github.classgraph.vfs.Vfs;
 
 /**
  * Finds the classpath and the module path of the running JVM: where its classes and resources would be loaded from,
@@ -337,14 +337,15 @@ public class ClasspathFinder {
                         List.of(entry.packageRootPrefixes)));
             }
 
-            // Add the classpath elements that those in turn declare, by reading their manifests
-            final var nestedJarHandler = new NestedJarHandler(vfsScanSpec, new InterruptionChecker());
+            // Add the classpath elements that those in turn declare, by reading their manifests. The virtual
+            // filesystem owns the jarfiles that are opened to do that, and is given no log node of its own, since
+            // this method passes the log node that what it reads should be logged under.
+            final var vfs = new Vfs(vfsScanSpec, new InterruptionChecker(), /* log = */ null);
             var classpath = (Classpath) null;
             try {
                 final var expandedEntries = ClasspathExpansion.expand(classLoaderEntries, vfsScanSpec,
-                        nestedJarHandler, log);
-                classpath = new Classpath(expandedEntries, classLoaderProbe, classpathSpec.modulePathInfo,
-                        nestedJarHandler);
+                        vfs.getNestedJarHandler(), log);
+                classpath = new Classpath(expandedEntries, classLoaderProbe, classpathSpec.modulePathInfo, vfs);
                 return classpath;
             } catch (final InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -352,7 +353,7 @@ public class ClasspathFinder {
             } finally {
                 if (classpath == null) {
                     // Ownership of the open jarfiles was not passed to a Classpath, so close them here
-                    nestedJarHandler.close(log);
+                    vfs.close(log);
                 }
             }
         } finally {

@@ -30,7 +30,6 @@
 package io.github.classgraph.vfs.internal.slice;
 
 import java.io.BufferedOutputStream;
-import java.io.Closeable;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -54,7 +53,7 @@ import org.jspecify.annotations.Nullable;
  * {@link #randomAccessReader()} or {@link #open()} returns a new reader or stream with its own read position and
  * scratch buffers, and each of those must be used by only one thread.
  */
-public abstract class Slice implements Closeable {
+public abstract class Slice implements AutoCloseable {
     /** The resources owned by the scan that opened this slice. */
     protected final ScanResources scanResources;
 
@@ -311,12 +310,13 @@ public abstract class Slice implements Closeable {
      * Open this {@link Slice} as an {@link InputStream}.
      *
      * @param resourceToClose
-     *            the {@link Closeable} to close when the returned {@code InputStream} is closed, or null if none.
+     *            the {@link AutoCloseable} to close when the returned {@code InputStream} is closed, or null if
+     *            none.
      * @return the input stream
      * @throws IOException
      *             if an inflater cannot be created for this {@link Slice}.
      */
-    public InputStream open(final @Nullable Closeable resourceToClose) throws IOException {
+    public InputStream open(final @Nullable AutoCloseable resourceToClose) throws IOException {
         final InputStream rawInputStream = new SliceInputStream(this, resourceToClose);
         return isDeflatedZipEntry ? scanResources.openInflaterInputStream(rawInputStream) : rawInputStream;
     }

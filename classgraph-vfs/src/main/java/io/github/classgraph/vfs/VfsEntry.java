@@ -28,7 +28,6 @@
  */
 package io.github.classgraph.vfs;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
@@ -279,7 +278,7 @@ public abstract class VfsEntry {
      *             if the entry could not be read, or if the {@link Vfs} has been closed.
      * @hidden
      */
-    public ClassfileReader openClassfileReader(final @Nullable Closeable resourceToClose) throws IOException {
+    public ClassfileReader openClassfileReader(final @Nullable AutoCloseable resourceToClose) throws IOException {
         return new ClassfileReader(open(), resourceToClose);
     }
 

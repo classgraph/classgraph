@@ -78,7 +78,6 @@ import io.github.classgraph.classpath.internal.classloaderhandler.ClassLoaderHan
 import io.github.classgraph.classpath.internal.spec.ClassLoaderAndModuleLayerSpec;
 import io.github.classgraph.internal.scanspec.ScanSpec;
 import io.github.classgraph.vfs.Vfs;
-import io.github.classgraph.vfs.internal.zip.NestedJarHandler;
 import org.jspecify.annotations.Nullable;
 
 /** The classpath scanner. */
@@ -92,9 +91,6 @@ class Scanner implements Callable<ScanResult> {
 
     /** The virtual filesystem that everything on the classpath and the module path is read through. */
     private final Vfs vfs;
-
-    /** The nested jar handler, which is owned by {@link #vfs}. */
-    private final NestedJarHandler nestedJarHandler;
 
     /** The executor service. */
     private final ExecutorService executorService;
@@ -183,7 +179,6 @@ class Scanner implements Callable<ScanResult> {
         // during the scan is backed by. It is given no log node of its own, since each part of the scan passes the
         // log node that what it reads should be logged under.
         this.vfs = new Vfs(scanSpec.vfsScanSpec, interruptionChecker, /* log = */ null);
-        this.nestedJarHandler = vfs.getNestedJarHandler();
         this.numParallelTasks = numParallelTasks;
         this.scanResultProcessor = scanResultProcessor;
         this.failureHandler = failureHandler;
@@ -232,7 +227,7 @@ class Scanner implements Callable<ScanResult> {
                         /* packageRootPrefix = */ "", rawClasspathEntry.packageRootPrefixes));
             }
         } catch (final InterruptedException e) {
-            nestedJarHandler.close(/* log = */ null);
+            vfs.close(/* logNode = */ null);
             throw e;
         }
     }
@@ -1087,8 +1082,7 @@ class Scanner implements Callable<ScanResult> {
 
         // Return a new ScanResult
         final var scanResult = new ScanResult(scanSpec, finalClasspathEltOrder, classNameToClassInfo,
-                packageNameToPackageInfo, moduleNameToModuleInfo, fileToLastModified, nestedJarHandler,
-                topLevelLog);
+                packageNameToPackageInfo, moduleNameToModuleInfo, fileToLastModified, vfs, topLevelLog);
 
         // Set the ScanResult in each classpath element, so that the classpath elements can determine when the
         // ScanResult is closed
@@ -1281,8 +1275,8 @@ class Scanner implements Callable<ScanResult> {
             }
             return new ScanResult(scanSpec, finalClasspathEltOrderFiltered,
                     /* classNameToClassInfo = */ new HashMap<>(), /* packageNameToPackageInfo = */ new HashMap<>(),
-                    /* moduleNameToModuleInfo = */ new HashMap<>(), /* fileToLastModified = */ null,
-                    nestedJarHandler, topLevelLog);
+                    /* moduleNameToModuleInfo = */ new HashMap<>(), /* fileToLastModified = */ null, vfs,
+                    topLevelLog);
         }
     }
 
@@ -1351,7 +1345,7 @@ class Scanner implements Callable<ScanResult> {
                 if (removeTemporaryFilesAfterScan) {
                     // If removeTemporaryFilesAfterScan was set, remove temp files and close resources, zipfiles and
                     // modules
-                    nestedJarHandler.close(topLevelLog);
+                    vfs.close(topLevelLog);
                 }
                 // If there is no failure handler set, re-throw the exception
                 throw e;
@@ -1373,7 +1367,7 @@ class Scanner implements Callable<ScanResult> {
                     if (removeTemporaryFilesAfterScan) {
                         // If removeTemporaryFilesAfterScan was set, remove temp files and close resources, zipfiles
                         // and modules
-                        nestedJarHandler.close(topLevelLog);
+                        vfs.close(topLevelLog);
                     }
                     // A scan is only given a failure handler by ClassGraph#scanAsync, which runs the scanner
                     // inside a Runnable that catches ExecutionException and passes it to the same handler.
@@ -1389,7 +1383,7 @@ class Scanner implements Callable<ScanResult> {
             // If removeTemporaryFilesAfterScan was set, remove any temp files. If no temp files were created (i.e.
             // if there were no nested jars), nothing is closed, so the returned ScanResult can still be used to
             // read resources and load classes (#916)
-            nestedJarHandler.removeTemporaryFiles(topLevelLog);
+            vfs.removeTemporaryFiles(topLevelLog);
         }
         return scanResult;
     }

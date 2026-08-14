@@ -28,7 +28,6 @@
  */
 package io.github.classgraph.vfs;
 
-import java.io.Closeable;
 import java.io.IOError;
 import java.io.IOException;
 import java.io.InputStream;
@@ -176,8 +175,9 @@ final class DirEntry extends VfsEntry {
      *             if the file could not be opened, or if the {@link Vfs} has been closed.
      */
     private PathSlice openSlice() throws IOException {
-        final var vfs = getRoot().getVfs();
-        vfs.checkNotClosed(getPath());
+        final var root = getRoot();
+        root.checkNotClosed(getPath());
+        final var vfs = root.getVfs();
         return new PathSlice(path, vfs.scanResources(), /* checkAccess = */ false, /* memoryMapWholeFile = */ false,
                 /* log = */ null);
     }
@@ -208,7 +208,7 @@ final class DirEntry extends VfsEntry {
     }
 
     @Override
-    public ClassfileReader openClassfileReader(final @Nullable Closeable resourceToClose) throws IOException {
+    public ClassfileReader openClassfileReader(final @Nullable AutoCloseable resourceToClose) throws IOException {
         // A file in a directory is stored uncompressed, so the reader can fetch chunks of it at random rather than
         // having to read it as a stream
         final var slice = openSlice();

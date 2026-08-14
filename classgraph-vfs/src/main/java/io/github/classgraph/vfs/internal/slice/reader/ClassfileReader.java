@@ -29,7 +29,6 @@
  */
 package io.github.classgraph.vfs.internal.slice.reader;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.BufferUnderflowException;
@@ -50,11 +49,11 @@ import org.jspecify.annotations.Nullable;
  * is buffered up to the point it has been read so far. Reads in <b>big endian</b> order, as required by the
  * classfile format.
  */
-public class ClassfileReader implements RandomAccessReader, SequentialReader, Closeable {
+public class ClassfileReader implements RandomAccessReader, SequentialReader, AutoCloseable {
     /**
      * The underlying resource to close when {@link ClassfileReader#close()} is called.
      */
-    private @Nullable Closeable resourceToClose;
+    private @Nullable AutoCloseable resourceToClose;
 
     /**
      * If slice is deflated, a wrapper for {@link java.util.zip.InflaterInputStream}.
@@ -106,7 +105,7 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
      * @throws IOException
      *             If an inflater cannot be opened on the {@link Slice}.
      */
-    public ClassfileReader(final Slice slice, final @Nullable Closeable resourceToClose) throws IOException {
+    public ClassfileReader(final Slice slice, final @Nullable AutoCloseable resourceToClose) throws IOException {
         this.resourceToClose = resourceToClose;
         if (slice.isDeflatedZipEntry) {
             // If this is a deflated slice, need to read from an InflaterInputStream to fill buffer
@@ -145,7 +144,7 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
      * @param resourceToClose
      *            the underlying resource to close when {@link ClassfileReader#close()} is called, or null.
      */
-    public ClassfileReader(final InputStream inputStream, final @Nullable Closeable resourceToClose) {
+    public ClassfileReader(final InputStream inputStream, final @Nullable AutoCloseable resourceToClose) {
         inflaterInputStream = inputStream;
         arr = new byte[INITIAL_BUF_SIZE];
         this.resourceToClose = resourceToClose;

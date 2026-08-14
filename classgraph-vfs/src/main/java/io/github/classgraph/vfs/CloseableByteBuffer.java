@@ -28,16 +28,15 @@
  */
 package io.github.classgraph.vfs;
 
-import java.io.Closeable;
 import java.nio.ByteBuffer;
 
 import org.jspecify.annotations.Nullable;
 
 /**
- * A wrapper for {@link ByteBuffer} that implements the {@link Closeable} interface, releasing the
+ * A wrapper for {@link ByteBuffer} that implements the {@link AutoCloseable} interface, releasing the
  * {@link ByteBuffer} when it is no longer needed.
  */
-public class CloseableByteBuffer implements Closeable {
+public class CloseableByteBuffer implements AutoCloseable {
     /**
      * The wrapped {@link ByteBuffer}, or null once this wrapper has been closed.
      */
@@ -49,7 +48,7 @@ public class CloseableByteBuffer implements Closeable {
     private @Nullable Runnable onClose;
 
     /**
-     * A wrapper for {@link ByteBuffer} that implements the {@link Closeable} interface, releasing the
+     * A wrapper for {@link ByteBuffer} that implements the {@link AutoCloseable} interface, releasing the
      * {@link ByteBuffer} when it is no longer needed.
      *
      * @param byteBuffer

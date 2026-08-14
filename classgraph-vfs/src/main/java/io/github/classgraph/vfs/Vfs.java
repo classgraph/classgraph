@@ -29,7 +29,6 @@
 package io.github.classgraph.vfs;
 
 import java.io.ByteArrayInputStream;
-import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -92,7 +91,7 @@ import org.jspecify.annotations.Nullable;
  * at the same time get the same {@link VfsRoot}, and only one of them does the work of reading it. The
  * configuration methods are not thread-safe, and are intended to be called before the first call to {@code open}.
  */
-public class Vfs implements Closeable {
+public class Vfs implements AutoCloseable {
     /** Everything this virtual filesystem is configured with. */
     private final VfsScanSpec vfsScanSpec;
 
@@ -545,6 +544,23 @@ public class Vfs implements Closeable {
     }
 
     /**
+     * Remove a root from the cache, so that opening the path it was opened from builds a new root. Called by
+     * {@link VfsRoot#close()}.
+     *
+     * @param root
+     *            the root that was closed.
+     */
+    void rootClosed(final VfsRoot root) {
+        if (!closed) {
+            // A root can be cached under more than one key, e.g. under both the path it was opened from and the
+            // canonical path of the file that turned out to back it
+            rootsByPath.values().removeIf(cachedRoot -> cachedRoot == root);
+            rootsByModule.values().removeIf(cachedRoot -> cachedRoot == root);
+        }
+        // If this Vfs is already closing, the caches are cleared wholesale by close(), so there is nothing to do
+    }
+
+    /**
      * Close every root that was opened by this {@link Vfs}, release the file handles and memory mappings that back
      * them, and delete any temporary files that were created. Every {@link VfsRoot} and {@link VfsEntry} that was
      * handed out is invalidated, and any {@link InputStream} still being read from one of them will stop returning
@@ -555,13 +571,58 @@ public class Vfs implements Closeable {
      */
     @Override
     public void close() {
-        closed = true;
-        rootsByPath.clear();
-        rootsByModule.clear();
-        nestedJarHandler.close(log);
+        close(log);
         final var logCurr = log;
         if (logCurr != null) {
             logCurr.flush();
         }
+    }
+
+    /**
+     * Close this {@link Vfs}, logging to the given log node rather than to the one it was given. This is for the
+     * other ClassGraph modules, which nest what the virtual filesystem logs under the part of the scan log that it
+     * belongs to, and is not part of the API.
+     *
+     * @param logNode
+     *            the log node, or null to not log.
+     * @hidden
+     */
+    public void close(final @Nullable LogNode logNode) {
+        // Mark this Vfs as closed before closing the roots, so that each root knows the caches are about to be
+        // cleared wholesale and does not remove itself from them one at a time
+        closed = true;
+        for (final var root : rootsByPath.values()) {
+            root.close();
+        }
+        for (final var root : rootsByModule.values()) {
+            root.close();
+        }
+        rootsByPath.clear();
+        rootsByModule.clear();
+        nestedJarHandler.close(logNode);
+    }
+
+    /**
+     * Delete any temporary files that nested jarfiles were spilled to. This is for the other ClassGraph modules,
+     * which offer this as a scan option, and is not part of the API.
+     *
+     * <p>
+     * If no temporary files were created -- which is the case whenever no nested jarfiles were encountered, i.e.
+     * for an ordinary jarfile or directory classpath -- this does nothing, and this {@link Vfs} is left open and
+     * fully usable. If temporary files <i>were</i> created, they back memory-mapped slices of the extracted nested
+     * jarfiles, so they cannot be deleted without closing those slices first, and this {@link Vfs} is closed.
+     *
+     * @param logNode
+     *            the log node, or null to not log.
+     * @return true if there were temporary files to delete, in which case this {@link Vfs} is now closed.
+     * @hidden
+     */
+    public boolean removeTemporaryFiles(final @Nullable LogNode logNode) {
+        // #916
+        if (!nestedJarHandler.scanResources.hasTempFiles()) {
+            return false;
+        }
+        close(logNode);
+        return true;
     }
 }

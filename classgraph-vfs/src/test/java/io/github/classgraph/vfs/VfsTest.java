@@ -495,6 +495,78 @@ public class VfsTest {
         vfs.close();
     }
 
+    /**
+     * A single root can be closed without closing the whole virtual filesystem. Everything that root handed out
+     * stops working, and opening the same path again builds a fresh root, rather than handing back the closed one.
+     *
+     * @param tempDir
+     *            a temporary directory to write the jarfile into.
+     * @throws IOException
+     *             if the jarfile could not be written or read.
+     */
+    @Test
+    public void aRootCanBeClosedWithoutClosingTheVfs(@TempDir final File tempDir) throws IOException {
+        final var jarFile = new File(tempDir, "widget.jar");
+        writeJar(jarFile, "com/xyz/widget.txt");
+
+        try (var vfs = new Vfs()) {
+            final var root = vfs.open(jarFile.getPath());
+            final var entry = Objects.requireNonNull(root.getEntry("com/xyz/widget.txt"));
+            final var fileSystem = root.asFileSystem();
+
+            root.close();
+
+            assertThat(root.isClosed()).as("root closed").isTrue();
+            assertThat(fileSystem.isOpen()).as("filesystem view open").isFalse();
+            assertThatThrownBy(entry::open).as("open").isInstanceOf(IOException.class)
+                    .hasMessageContaining("closed");
+            assertThatThrownBy(entry::read).as("read").isInstanceOf(IOException.class)
+                    .hasMessageContaining("closed");
+            assertThatThrownBy(entry::load).as("load").isInstanceOf(IOException.class)
+                    .hasMessageContaining("closed");
+            // Closing twice is harmless
+            root.close();
+
+            // The closed root was dropped from the cache, so the same path opens a fresh root that works
+            final var reopened = vfs.open(jarFile.getPath());
+            assertThat(reopened).isNotSameAs(root);
+            assertThat(entryContent(reopened, "com/xyz/widget.txt")).isEqualTo(RESOURCE_CONTENT);
+        }
+    }
+
+    /**
+     * Closing the virtual filesystem closes every root it opened, whether the root was opened from a path or from a
+     * module reference.
+     *
+     * @param tempDir
+     *            a temporary directory to write the jarfile into.
+     * @throws IOException
+     *             if the jarfile could not be written or read.
+     */
+    @Test
+    public void closingTheVfsClosesEveryRootItOpened(@TempDir final File tempDir) throws IOException {
+        final var jarFile = new File(tempDir, "widget.jar");
+        writeJar(jarFile, "com/xyz/widget.txt");
+        final ModuleReference moduleReference = ModuleFinder.ofSystem().find("java.logging").orElseThrow();
+
+        final VfsRoot jarRoot;
+        final VfsRoot dirRoot;
+        final VfsRoot moduleRoot;
+        final VfsEntry dirEntry;
+        try (var vfs = new Vfs()) {
+            jarRoot = vfs.open(jarFile.getPath());
+            dirRoot = vfs.open(tempDir.getPath());
+            moduleRoot = vfs.open(moduleReference);
+            dirEntry = Objects.requireNonNull(dirRoot.getEntry("widget.jar"));
+            assertThat(jarRoot.isClosed()).as("jar root closed before").isFalse();
+        }
+
+        assertThat(jarRoot.isClosed()).as("jar root closed").isTrue();
+        assertThat(dirRoot.isClosed()).as("dir root closed").isTrue();
+        assertThat(moduleRoot.isClosed()).as("module root closed").isTrue();
+        assertThatThrownBy(dirEntry::load).isInstanceOf(IOException.class).hasMessageContaining("closed");
+    }
+
     /** Opening a path that is neither a directory nor a jarfile fails with an IOException. */
     @Test
     public void openingSomethingThatIsNotAJarfileFails(@TempDir final File tempDir) throws IOException {

@@ -30,7 +30,6 @@ package io.github.classgraph;
 
 import static io.github.classgraph.PotentiallyUnmodifiableList.unmodifiable;
 
-import java.io.Closeable;
 import java.io.File;
 import java.lang.annotation.Annotation;
 import java.lang.module.ModuleReference;
@@ -59,14 +58,14 @@ import io.github.classgraph.base.internal.utils.JarUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.classpath.ModulePathInfo;
 import io.github.classgraph.internal.scanspec.ScanSpec;
-import io.github.classgraph.vfs.internal.zip.NestedJarHandler;
+import io.github.classgraph.vfs.Vfs;
 import org.jspecify.annotations.Nullable;
 
 /**
  * The result of a scan. You should assign a ScanResult in a try-with-resources block, or manually close it when you
  * have finished with the result of a scan.
  */
-public final class ScanResult implements Closeable {
+public final class ScanResult implements AutoCloseable {
     /**
      * The order of classpath elements, after inner jars have been extracted to temporary files, etc.
      */
@@ -104,8 +103,8 @@ public final class ScanResult implements Closeable {
      */
     private @Nullable Map<File, Long> fileToLastModified;
 
-    /** The nested jar handler instance. */
-    private @Nullable NestedJarHandler nestedJarHandler;
+    /** The virtual filesystem that everything found by the scan was read through. */
+    private @Nullable Vfs vfs;
 
     /** The scan spec. */
     ScanSpec scanSpec;
@@ -198,8 +197,8 @@ public final class ScanResult implements Closeable {
      *            a map from module name to module info
      * @param fileToLastModified
      *            a map from file to last modified time
-     * @param nestedJarHandler
-     *            the nested jar handler
+     * @param vfs
+     *            the virtual filesystem that everything found by the scan was read through
      * @param topLevelLog
      *            the toplevel log
      */
@@ -207,7 +206,7 @@ public final class ScanResult implements Closeable {
             final Map<String, ClassInfo> classNameToClassInfo,
             final Map<String, PackageInfo> packageNameToPackageInfo,
             final Map<String, ModuleInfo> moduleNameToModuleInfo,
-            final @Nullable Map<File, Long> fileToLastModified, final NestedJarHandler nestedJarHandler,
+            final @Nullable Map<File, Long> fileToLastModified, final Vfs vfs,
             final @Nullable LogNode topLevelLog) {
         this.scanSpec = scanSpec;
         this.classpathOrder = classpathOrder;
@@ -215,7 +214,7 @@ public final class ScanResult implements Closeable {
         this.classNameToClassInfo = classNameToClassInfo;
         this.packageNameToPackageInfo = packageNameToPackageInfo;
         this.moduleNameToModuleInfo = moduleNameToModuleInfo;
-        this.nestedJarHandler = nestedJarHandler;
+        this.vfs = vfs;
         this.topLevelLog = topLevelLog;
 
         indexResourcesAndClassInfo(topLevelLog);
@@ -1894,11 +1893,12 @@ public final class ScanResult implements Closeable {
                 fileToLastModified.clear();
                 fileToLastModified = null;
             }
-            // nestedJarHandler should be closed last, since it needs to have all MappedByteBuffer refs dropped
-            // before it tries to delete any temporary files that were written to disk
-            if (nestedJarHandler != null) {
-                nestedJarHandler.close(topLevelLog);
-                nestedJarHandler = null;
+            // The virtual filesystem should be closed last, since it needs to have all MappedByteBuffer refs
+            // dropped before it tries to delete any temporary files that were written to disk
+            final var vfsCurr = vfs;
+            if (vfsCurr != null) {
+                vfs = null;
+                vfsCurr.close(topLevelLog);
             }
             // Flush log on exit, in case additional log entries were generated after scan() completed
             if (topLevelLog != null) {

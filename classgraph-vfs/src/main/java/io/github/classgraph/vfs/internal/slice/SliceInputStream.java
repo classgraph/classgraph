@@ -28,7 +28,6 @@
  */
 package io.github.classgraph.vfs.internal.slice;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Objects;
@@ -49,8 +48,8 @@ class SliceInputStream extends InputStream {
     /** The reader that the bytes are read through. */
     private final RandomAccessReader randomAccessReader;
 
-    /** The {@link Closeable} to close when this stream is closed, or null if none. */
-    private final @Nullable Closeable resourceToClose;
+    /** The {@link AutoCloseable} to close when this stream is closed, or null if none. */
+    private final @Nullable AutoCloseable resourceToClose;
 
     /** The current read position, relative to the start of the slice. */
     private long currOff;
@@ -70,9 +69,9 @@ class SliceInputStream extends InputStream {
      * @param slice
      *            the slice to read
      * @param resourceToClose
-     *            the {@link Closeable} to close when this stream is closed, or null if none
+     *            the {@link AutoCloseable} to close when this stream is closed, or null if none
      */
-    SliceInputStream(final Slice slice, final @Nullable Closeable resourceToClose) {
+    SliceInputStream(final Slice slice, final @Nullable AutoCloseable resourceToClose) {
         this.slice = slice;
         this.randomAccessReader = slice.randomAccessReader();
         this.resourceToClose = resourceToClose;

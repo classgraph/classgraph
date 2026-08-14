@@ -54,6 +54,18 @@ A root also names itself in every way it can: `getPath()`, `getURI()`, `getURL()
 `getNioPath()` and `getModuleReference()`, each returning null where the underlying storage has no
 such name -- a module of the running JDK has no file, and a jarfile downloaded into RAM has no path.
 
+## What owns what
+
+The `Vfs` owns everything opened through it: the file handles, the memory mappings, and the
+temporary files that a nested jarfile has to be spilled to when it cannot be read in place. Closing
+the `Vfs` releases all of them and closes every root it handed out, so a `Vfs` belongs in a
+try-with-resources block, as it is in every example below.
+
+A `VfsRoot` is `AutoCloseable` too, but closing one only drops that root: its entries and its
+`FileSystem` view stop working, and opening the same path again builds a fresh root. The jarfile
+behind it stays open, because other roots may be reading the same jarfile. Only the `Vfs` releases
+storage.
+
 ## Reading through `java.nio.file.Files`
 
 `root.asFileSystem()` returns a read-only `FileSystem` over any root, so anything that takes a
@@ -89,7 +101,8 @@ It is a read-only filesystem: everything that would write -- `Files.delete`, `Fi
 `Files.copy`, `Files.move`, `Files.createDirectory`, `Files.newOutputStream`, `setTimes`, and
 `newByteChannel` with a write option -- throws `ReadOnlyFileSystemException`. Its `close()` throws
 `UnsupportedOperationException`, because the `Vfs` owns the file handles, memory mappings and
-temporary files behind it; close the `Vfs` instead, after which `isOpen()` returns false.
+temporary files behind it; close the `VfsRoot` to drop this view of it, or the `Vfs` to release the
+storage behind it. Either one makes `isOpen()` return false.
 
 ## What it reads that `java.util.zip` does not
 

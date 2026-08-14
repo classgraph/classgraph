@@ -65,7 +65,7 @@ import org.jspecify.annotations.Nullable;
  * {@link NullPointerException} rather than silently handing out a resource that nothing will ever close. The
  * methods that release a resource stay callable, since releasing something twice has to be harmless.
  */
-public class ScanResources {
+public class ScanResources implements AutoCloseable {
     /** The settings that govern how archives are read. */
     public final VfsScanSpec vfsScanSpec;
 
@@ -290,6 +290,18 @@ public class ScanResources {
      */
     public boolean beginClose() {
         return !closed.getAndSet(true);
+    }
+
+    /**
+     * Close all open {@link Slice} instances, discard the pooled {@link ModuleReader} and {@link Inflater}
+     * instances, and delete any temporary files, without logging what was removed. Calling this more than once has
+     * no further effect.
+     */
+    @Override
+    public void close() {
+        if (beginClose()) {
+            close(/* log = */ null);
+        }
     }
 
     /**

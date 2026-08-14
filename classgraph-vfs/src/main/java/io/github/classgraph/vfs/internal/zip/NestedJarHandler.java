@@ -43,13 +43,11 @@ import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import io.github.classgraph.base.internal.concurrency.SingletonMap;
 import io.github.classgraph.base.internal.concurrency.SingletonMap.NewInstanceException;
 import io.github.classgraph.base.internal.concurrency.SingletonMap.NullSingletonException;
-import io.github.classgraph.base.internal.recycler.Recycler;
 import io.github.classgraph.base.internal.utils.FastPathResolver;
 import io.github.classgraph.base.internal.utils.FileUtils;
 import io.github.classgraph.base.internal.utils.JarUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.vfs.internal.ScanResources;
-import io.github.classgraph.vfs.internal.slice.Slice;
 import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
 import org.jspecify.annotations.Nullable;
 
@@ -59,7 +57,7 @@ import org.jspecify.annotations.Nullable;
  * along the way. Also owns the {@link ScanResources} that the opened zipfiles are backed by, and closes them when
  * {@link #close(LogNode)} is called.
  */
-public class NestedJarHandler {
+public class NestedJarHandler implements AutoCloseable {
     /** The resources opened by this handler. */
     public final ScanResources scanResources;
 
@@ -545,34 +543,16 @@ public class NestedJarHandler {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Remove any temporary files that extracted nested jars were spilled to.
-     *
-     * <p>
-     * If no temporary files were created -- which is the case whenever no nested jars were encountered, i.e. for an
-     * ordinary jar or directory classpath -- this does nothing, so that the handler remains fully usable. Closing
-     * the handler would close every open {@link Slice} and the inflater {@link Recycler}, leaving it unable to read
-     * any entry.
-     *
-     * <p>
-     * If temporary files <i>were</i> created, they back memory-mapped slices of the extracted nested jars, so they
-     * cannot be deleted without closing those slices first -- the whole handler is still torn down in that case.
-     *
-     * @param log
-     *            the log node, or null to skip logging
-     * @return true if the handler was closed (i.e. if temporary files existed and had to be removed)
+     * Close zipfiles, modules, and recyclers, and delete temporary files, without logging what was removed.
      */
-    // #916
-    public boolean removeTemporaryFiles(final @Nullable LogNode log) {
-        if (!scanResources.hasTempFiles()) {
-            // No temp files were created, so there is nothing to remove, and no need to close anything
-            return false;
-        }
-        close(log);
-        return true;
+    @Override
+    public void close() {
+        close(/* log = */ null);
     }
 
     /**
-     * Close zipfiles, modules, and recyclers, and delete temporary files.
+     * Close zipfiles, modules, and recyclers, and delete temporary files. Calling this more than once has no
+     * further effect.
      *
      * @param log
      *            The log.

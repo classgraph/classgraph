@@ -136,11 +136,13 @@ final class ArchiveEntry extends VfsEntry {
 
     @Override
     public InputStream open() throws IOException {
+        getRoot().checkNotClosed(getPath());
         return zipEntry.getSlice().open();
     }
 
     @Override
     public CloseableByteBuffer read() throws IOException {
+        getRoot().checkNotClosed(getPath());
         // The slice of a zip entry is a sub-slice of the zipfile, and owns no resources of its own, so there is
         // nothing to release when the buffer is closed -- the zipfile is released when the Vfs is closed
         return new CloseableByteBuffer(zipEntry.getSlice().read(), () -> {
@@ -150,6 +152,7 @@ final class ArchiveEntry extends VfsEntry {
 
     @Override
     public byte[] load() throws IOException {
+        getRoot().checkNotClosed(getPath());
         return zipEntry.getSlice().load();
     }
 }

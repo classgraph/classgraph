@@ -53,11 +53,14 @@ import org.jspecify.annotations.Nullable;
  * know which kind it is. {@link #getKind()} says which kind it is, for the cases that do need to know.
  *
  * <p>
- * A root stops working once the {@link Vfs} that produced it is closed.
+ * A root stops working once it is closed, or once the {@link Vfs} that produced it is closed.
  */
-public abstract class VfsRoot {
+public abstract class VfsRoot implements AutoCloseable {
     /** The {@link Vfs} that opened this root. */
     private final Vfs vfs;
+
+    /** True once {@link #close()} has been called. */
+    private volatile boolean closed;
 
     /**
      * Constructor.
@@ -350,6 +353,56 @@ public abstract class VfsRoot {
             }
         }
         return fs;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Close this root, dropping the {@link FileSystem} view of it if one was created, and removing it from the
+     * cache of the {@link Vfs} that opened it, so that opening the same path again builds a new root. Every
+     * {@link VfsEntry} this root handed out stops working, as does the {@link FileSystem} view.
+     *
+     * <p>
+     * This releases nothing that a root shares with the rest of the {@link Vfs} -- the jarfile that backs it may
+     * back other roots too, and stays open along with the file handles, memory mappings and temporary files behind
+     * it. Call {@link Vfs#close()} to release those.
+     *
+     * <p>
+     * Closing an already-closed root has no effect.
+     */
+    @Override
+    public void close() {
+        if (!closed) {
+            closed = true;
+            // The FileSystem view is the only thing a root creates for itself. It holds no file handles, only an
+            // index of the entry names, which is dropped here rather than kept alive by a closed root.
+            fileSystem = null;
+            vfs.rootClosed(this);
+        }
+    }
+
+    /**
+     * Returns whether this root has been closed, either directly or by closing the {@link Vfs} that opened it.
+     *
+     * @return true if this root has been closed.
+     */
+    boolean isClosed() {
+        return closed || vfs.isClosed();
+    }
+
+    /**
+     * Throw an {@link IOException} if this root, or the {@link Vfs} that opened it, has been closed.
+     *
+     * @param what
+     *            what was being read, for the error message.
+     * @throws IOException
+     *             if this root, or the {@link Vfs} that opened it, has been closed.
+     */
+    void checkNotClosed(final String what) throws IOException {
+        if (closed) {
+            throw new IOException("Cannot read " + what + " after the VfsRoot has been closed");
+        }
+        vfs.checkNotClosed(what);
     }
 
     /**
