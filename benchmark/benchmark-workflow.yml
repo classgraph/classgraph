@@ -40,6 +40,14 @@ jobs:
       shell: bash
       run: |
         set -e
+        # ClassGraph is a multi-module build, so its classes are under each module's target/classes,
+        # and there is no target/classes at the repository root. Windows java.exe wants ";" between
+        # classpath entries even when the step is run under bash.
+        SEP=":"
+        if [ "$RUNNER_OS" = "Windows" ] ; then SEP=";" ; fi
+        CP="classgraph/target/classes${SEP}classgraph-base/target/classes"
+        CP="${CP}${SEP}classgraph-vfs/target/classes${SEP}classgraph-classpath/target/classes"
+
         # The "one large jar" workload is the largest jar in the corpus on its own
         mkdir -p benchmark/huge
         cp benchmark/corpus/kotlin-compiler-embeddable-*.jar benchmark/huge/
@@ -52,11 +60,11 @@ jobs:
         df -h . | tail -1
 
         echo "== $RUNNER_OS / JDK ${{ matrix.java }} / can a jar be deleted while it is being scanned?"
-        java -cp target/classes benchmark/LockProbe.java benchmark/huge/kotlin-compiler-embeddable-2.1.0.jar
+        java -cp "$CP" benchmark/LockProbe.java benchmark/huge/kotlin-compiler-embeddable-2.1.0.jar
 
         for workload in corpus mixed huge ; do
           echo "== $RUNNER_OS / JDK ${{ matrix.java }} / $workload / warm page cache"
-          java -cp target/classes benchmark/Bench.java "benchmark/$workload" warm 12 none
+          java -cp "$CP" benchmark/Bench.java "benchmark/$workload" warm 12 none
         done
 
         # Dropping files from the page cache needs posix_fadvise on Linux and "purge" on macOS.
@@ -71,9 +79,9 @@ jobs:
             echo "== $RUNNER_OS / JDK ${{ matrix.java }} / $workload / cold page cache"
             # "sudo purge" takes no argument, so only the Linux command gets the directory
             if [ "$RUNNER_OS" = "Linux" ] ; then
-              java -cp target/classes benchmark/Bench.java "benchmark/$workload" cold 6 $EVICT "benchmark/$workload"
+              java -cp "$CP" benchmark/Bench.java "benchmark/$workload" cold 6 $EVICT "benchmark/$workload"
             else
-              java -cp target/classes benchmark/Bench.java "benchmark/$workload" cold 6 $EVICT
+              java -cp "$CP" benchmark/Bench.java "benchmark/$workload" cold 6 $EVICT
             fi
           done
         else

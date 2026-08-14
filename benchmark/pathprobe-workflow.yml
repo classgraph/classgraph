@@ -35,7 +35,14 @@ jobs:
       shell: bash
       # The probe's output is UTF-8, and the Windows console is not, so force the encoding
       run: |
-        java -Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8 -cp target/classes benchmark/PathProbe.java \
+        # ClassGraph is a multi-module build, so its classes are under each module's target/classes,
+        # and there is no target/classes at the repository root. Windows java.exe wants ";" between
+        # classpath entries even when the step is run under bash.
+        SEP=":"
+        if [ "$RUNNER_OS" = "Windows" ] ; then SEP=";" ; fi
+        CP="classgraph/target/classes${SEP}classgraph-base/target/classes"
+        CP="${CP}${SEP}classgraph-vfs/target/classes${SEP}classgraph-classpath/target/classes"
+        java -Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8 -cp "$CP" benchmark/PathProbe.java \
             | tee "probe-$RUNNER_OS-${{ matrix.java }}.txt"
     - name: Save the output, so the platforms can be diffed against each other
       if: always()
@@ -45,4 +52,8 @@ jobs:
         path: probe-*.txt
     - name: Fail the job if any end-to-end check did not pass
       shell: bash
-      run: grep -q '^failures	0$' "probe-$RUNNER_OS-${{ matrix.java }}.txt"
+      # The probe prints "failures<tab><count>". Matched with awk rather than grep, so that this file
+      # holds no literal tab character: a tab in a plain YAML scalar is legal in YAML 1.2 but not in
+      # YAML 1.1, and an editor that expands tabs on save would silently turn the check into one that
+      # can never match.
+      run: awk -F'\t' '$1 == "failures" && $2 == "0" { ok = 1 } END { exit !ok }' "probe-$RUNNER_OS-${{ matrix.java }}.txt"

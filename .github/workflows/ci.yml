@@ -52,3 +52,27 @@ jobs:
         cache: 'maven'
     - name: Check Javadoc
       run: ./mvnw --no-transfer-progress -B clean package -DskipTests javadoc:aggregate
+
+  # The benchmark drivers under benchmark/ are single-file source programs, run by hand from the two
+  # workflow files kept beside them, so nothing in the ordinary build compiles them and they rot
+  # silently: they were left calling a field that the module split had moved, and that was only
+  # noticed by chance. Compiling them here costs one short job and fails the moment an API they use
+  # is renamed. The classpath is the same one those two workflow files use, so a module rename breaks
+  # this job rather than a benchmark run six months later.
+  benchmark-drivers:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v7
+    - name: Set up JDK
+      uses: actions/setup-java@v5
+      with:
+        distribution: 'zulu'
+        java-version: '17'
+        cache: 'maven'
+    - name: Build ClassGraph
+      run: ./mvnw --no-transfer-progress -B -q clean compile
+    - name: Compile the benchmark drivers
+      run: |
+        javac -Xlint:all -Werror -d "$(mktemp -d)" \
+            -cp classgraph/target/classes:classgraph-base/target/classes:classgraph-vfs/target/classes:classgraph-classpath/target/classes \
+            benchmark/*.java
