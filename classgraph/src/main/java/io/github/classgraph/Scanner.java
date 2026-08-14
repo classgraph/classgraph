@@ -672,7 +672,7 @@ class Scanner implements Callable<ScanResult> {
                         // newInstance API doesn't support an extra parameter like this
                         () -> {
                             final ClasspathElement classpathElt = isJar
-                                    ? new ClasspathElementZip(workUnit, nestedJarHandler, scanSpec)
+                                    ? new ClasspathElementZip(workUnit, vfs, scanSpec)
                                     : new ClasspathElementDir(workUnit, vfs, scanSpec);
 
                             allClasspathEltsOut.add(classpathElt);

@@ -254,6 +254,27 @@ public class Vfs implements Closeable {
      *             if the path could not be opened or read, or if this {@link Vfs} has been closed.
      */
     public VfsRoot open(final String path) throws IOException {
+        return open(path, log);
+    }
+
+    /**
+     * Open a directory or a jarfile named by a path, logging to the given log node rather than to the one this
+     * {@link Vfs} was given. This is for the other ClassGraph modules, which nest what the virtual filesystem logs
+     * under the part of the scan log that it belongs to, and is not part of the API.
+     *
+     * <p>
+     * A path is only opened once, so only the first call for a given path logs anything.
+     *
+     * @param path
+     *            the path to open.
+     * @param logNode
+     *            the log node to log to, or null to not log.
+     * @return the opened root.
+     * @throws IOException
+     *             if the path could not be opened or read, or if this {@link Vfs} has been closed.
+     * @hidden
+     */
+    public VfsRoot open(final String path, final @Nullable LogNode logNode) throws IOException {
         Assert.notNull(path, "path");
         checkNotClosed(path);
         // computeIfAbsent is not used, because the mapping function must not itself open other jarfiles (the
@@ -262,8 +283,7 @@ public class Vfs implements Closeable {
         if (alreadyOpened != null) {
             return alreadyOpened;
         }
-        final var logNode = log == null ? null : log.log("Opening " + path);
-        final var root = openUncached(path, logNode);
+        final var root = openUncached(path, logNode == null ? null : logNode.log("Opening " + path));
         final var openedByAnotherThread = rootsByPath.putIfAbsent(path, root);
         return openedByAnotherThread == null ? root : openedByAnotherThread;
     }

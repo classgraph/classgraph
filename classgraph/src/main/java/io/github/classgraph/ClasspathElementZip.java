@@ -41,14 +41,11 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
-import io.github.classgraph.base.internal.concurrency.SingletonMap.NewInstanceException;
-import io.github.classgraph.base.internal.concurrency.SingletonMap.NullSingletonException;
 import io.github.classgraph.base.internal.concurrency.WorkQueue;
 import io.github.classgraph.base.internal.utils.FastPathResolver;
 import io.github.classgraph.base.internal.utils.FileUtils;
@@ -62,7 +59,10 @@ import io.github.classgraph.internal.scanspec.ScanSpec;
 import io.github.classgraph.vfs.internal.slice.reader.ClassfileReader;
 import io.github.classgraph.vfs.internal.zip.FastZipEntry;
 import io.github.classgraph.vfs.internal.zip.LogicalZipFile;
-import io.github.classgraph.vfs.internal.zip.NestedJarHandler;
+import io.github.classgraph.vfs.Vfs;
+import io.github.classgraph.vfs.VfsEntry;
+import io.github.classgraph.vfs.VfsRoot;
+import io.github.classgraph.vfs.VfsVisitor;
 import org.jspecify.annotations.Nullable;
 
 /** A zip/jarfile classpath element. */
@@ -75,6 +75,9 @@ class ClasspathElementZip extends ClasspathElement {
             PosixFilePermission.OWNER_WRITE, PosixFilePermission.OWNER_EXECUTE, PosixFilePermission.GROUP_READ,
             PosixFilePermission.GROUP_WRITE, PosixFilePermission.GROUP_EXECUTE, PosixFilePermission.OTHERS_READ,
             PosixFilePermission.OTHERS_WRITE, PosixFilePermission.OTHERS_EXECUTE };
+
+    /** No automatic package root prefix is stripped from the entry names of this classpath element. */
+    private static final String[] NO_PACKAGE_ROOT_PREFIXES = {};
 
     /**
      * The {@link String} representation of the path string, {@link URL}, {@link URI}, or {@link Path} for this
@@ -99,8 +102,13 @@ class ClasspathElementZip extends ClasspathElement {
      * A list of all automatic package root prefixes found as prefixes of paths within this zipfile.
      */
     private final Set<String> strippedAutomaticPackageRootPrefixes = new HashSet<>();
-    /** The nested jar handler. */
-    private final NestedJarHandler nestedJarHandler;
+    /** The virtual filesystem that the jarfile is enumerated and read through. */
+    private final Vfs vfs;
+    /**
+     * The jarfile, as a root of the virtual filesystem, or null until {@link #open} has been called (or if the
+     * classpath element could not be opened).
+     */
+    private @Nullable VfsRoot vfsRoot;
     /**
      * The name of the module from the {@code Automatic-Module-Name} manifest attribute, if one is present in the
      * root of the classpath element.
@@ -115,13 +123,12 @@ class ClasspathElementZip extends ClasspathElement {
      *
      * @param workUnit
      *            the work unit
-     * @param nestedJarHandler
-     *            the nested jar handler
+     * @param vfs
+     *            the virtual filesystem to enumerate and read the jarfile through
      * @param scanSpec
      *            the scan spec
      */
-    ClasspathElementZip(final ClasspathEntryWorkUnit workUnit, final NestedJarHandler nestedJarHandler,
-            final ScanSpec scanSpec) {
+    ClasspathElementZip(final ClasspathEntryWorkUnit workUnit, final Vfs vfs, final ScanSpec scanSpec) {
         super(workUnit, scanSpec);
         final var rawPathObj = Objects.requireNonNull(workUnit.classpathEntryObj);
 
@@ -141,7 +148,7 @@ class ClasspathElementZip extends ClasspathElement {
         }
         this.rawPath = rawPath;
         this.zipFilePath = rawPath; // May change when open() is called
-        this.nestedJarHandler = nestedJarHandler;
+        this.vfs = vfs;
     }
 
     /**
@@ -238,10 +245,8 @@ class ClasspathElementZip extends ClasspathElement {
      *            the log node, or null to skip logging
      * @return the {@link LogicalZipFile}, or null if the zipfile could not be opened, or if it should not be
      *         scanned.
-     * @throws InterruptedException
-     *             if the thread was interrupted
      */
-    private @Nullable LogicalZipFile openLogicalZipFile(final @Nullable LogNode log) throws InterruptedException {
+    private @Nullable LogicalZipFile openLogicalZipFile(final @Nullable LogNode log) {
         final var outermostZipFilePathResolved = outermostZipFilePathResolved();
         if (!scanSpec.jarAcceptReject.isAcceptedAndNotRejected(outermostZipFilePathResolved)) {
             if (log != null) {
@@ -252,24 +257,21 @@ class ClasspathElementZip extends ClasspathElement {
 
         final LogicalZipFile logicalZipFile;
         try {
-            // Get LogicalZipFile for innermost nested jarfile
-            final Entry<LogicalZipFile, String> logicalZipFileAndPackageRoot;
-            try {
-                logicalZipFileAndPackageRoot = nestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap()
-                        .get(rawPath, log);
-            } catch (final NullSingletonException | NewInstanceException e) {
-                // Generally thrown on the second and subsequent attempt to call .get(), after the first failed, or
-                // newInstance() threw an exception
-                throw new IOException("Could not get logical zipfile " + rawPath + " : "
-                        + (e.getCause() == null ? e : e.getCause()));
+            // Open the innermost nested jarfile through the virtual filesystem, which strips any package root from
+            // the names of the entries it reports
+            final var root = vfs.open(rawPath, log);
+            final var openedZipFile = root.getLogicalZipFile();
+            if (openedZipFile == null) {
+                throw new IOException("Not a jarfile: " + rawPath);
             }
-            this.logicalZipFile = logicalZipFile = logicalZipFileAndPackageRoot.getKey();
+            this.vfsRoot = root;
+            this.logicalZipFile = logicalZipFile = openedZipFile;
 
             // Get the normalized path of the logical zipfile
             zipFilePath = FastPathResolver.resolve(FileUtils.currDirPath(), logicalZipFile.getPath());
 
             // Get package root of jarfile
-            final var packageRoot = logicalZipFileAndPackageRoot.getValue();
+            final var packageRoot = root.getPackageRoot();
             if (!packageRoot.isEmpty()) {
                 packageRootPrefix = packageRoot + "/";
             }
@@ -449,19 +451,25 @@ class ClasspathElementZip extends ClasspathElement {
      * Filter out any candidate package root prefix that is really a package with the same name as the prefix, e.g.
      * a package named {@code classes} in a jar that has no {@code classes/} package root.
      *
-     * @param logicalZipFile
-     *            the logical zipfile
+     * @param root
+     *            the jarfile, as a root of the virtual filesystem
      * @param log
      *            the log node, or null to skip logging
      * @return the package root prefixes that were not disproved
      */
     // #929
-    private String[] getVerifiedPackageRootPrefixes(final LogicalZipFile logicalZipFile,
-            final @Nullable LogNode log) {
+    private String[] getVerifiedPackageRootPrefixes(final VfsRoot root, final @Nullable LogNode log) {
+        final List<VfsEntry> entries;
+        try {
+            entries = root.getEntries();
+        } catch (final IOException e) {
+            // The walk that follows lists the same entries, and logs the reason if they cannot be listed
+            return NO_PACKAGE_ROOT_PREFIXES;
+        }
         // Find the first classfile beneath each candidate package root prefix
-        final var firstClassfileEntry = new FastZipEntry[packageRootPrefixes.length];
-        for (final FastZipEntry zipEntry : logicalZipFile.entries) {
-            final var entryName = zipEntry.entryNameUnversioned;
+        final var firstClassfileEntry = new VfsEntry[packageRootPrefixes.length];
+        for (final VfsEntry entry : entries) {
+            final var entryName = entry.getName();
             if (!entryName.endsWith(".class")) {
                 continue;
             }
@@ -471,7 +479,7 @@ class ClasspathElementZip extends ClasspathElement {
                 // The path of a classfile below META-INF (e.g. in a multi-release jar) does not necessarily
                 // correspond to the name of the class it declares
                         && !entryName.startsWith("META-INF/", prefix.length())) {
-                    firstClassfileEntry[i] = zipEntry;
+                    firstClassfileEntry[i] = entry;
                 }
             }
         }
@@ -479,12 +487,13 @@ class ClasspathElementZip extends ClasspathElement {
         final List<String> verifiedPackageRootPrefixes = new ArrayList<>(packageRootPrefixes.length);
         for (var i = 0; i < packageRootPrefixes.length; i++) {
             final var prefix = packageRootPrefixes[i];
-            final var zipEntry = firstClassfileEntry[i];
+            final var entry = firstClassfileEntry[i];
             String disprovingClassName = null;
-            if (zipEntry != null) {
+            if (entry != null) {
+                final var zipEntry = Objects.requireNonNull(entry.getZipEntry());
                 try (var classfileReader = new ClassfileReader(zipEntry.getSlice(), /* resourceToClose = */ null)) {
                     disprovingClassName = getClassNameDisprovingPackageRoot(classfileReader,
-                            zipEntry.entryNameUnversioned.substring(prefix.length()));
+                            entry.getName().substring(prefix.length()));
                 } catch (final IOException e) {
                     // If the classfile cannot be read, give the candidate package root the benefit of the doubt
                 }
@@ -497,6 +506,97 @@ class ClasspathElementZip extends ClasspathElement {
             }
         }
         return verifiedPackageRootPrefixes.toArray(String[]::new);
+    }
+
+    /**
+     * Applies the scan spec to the entries of the jarfile as the virtual filesystem enumerates them, and records
+     * the accepted ones.
+     */
+    private final class ZipScanVisitor implements VfsVisitor {
+        /** True if the jarfile declares a module name. */
+        private final boolean isModularJar;
+
+        /** The automatic package root prefixes to strip from the names of the entries. */
+        private final String[] automaticPackageRootPrefixes;
+
+        /** The log node, or null to skip logging. */
+        private final @Nullable LogNode subLog;
+
+        /** The nested classpath roots that have already been logged, so that each is logged only once. */
+        private final Set<String> loggedNestedClasspathRootPrefixes = new HashSet<>();
+
+        /** The match status of the directory whose entries are currently being visited. */
+        private ScanSpecPathMatch parentMatchStatus = ScanSpecPathMatch.NOT_WITHIN_ACCEPTED_PATH;
+
+        /**
+         * Constructor.
+         *
+         * @param isModularJar
+         *            true if the jarfile declares a module name
+         * @param automaticPackageRootPrefixes
+         *            the automatic package root prefixes to strip from the names of the entries
+         * @param subLog
+         *            the log node, or null to skip logging
+         */
+        ZipScanVisitor(final boolean isModularJar, final String[] automaticPackageRootPrefixes,
+                final @Nullable LogNode subLog) {
+            this.isModularJar = isModularJar;
+            this.automaticPackageRootPrefixes = automaticPackageRootPrefixes;
+            this.subLog = subLog;
+        }
+
+        @Override
+        public boolean enterDirectory(final String dirName) {
+            // The entries of a directory are named before any automatic package root prefix is stripped, so the
+            // prefix has to be stripped from the directory name too, for the accept/reject criteria to judge the
+            // directory by the same path that they judge the entries in it by
+            final var relativeDirName = stripAutomaticPackageRootPrefix(dirName, automaticPackageRootPrefixes,
+                    /* recordStrippedPrefix = */ false);
+            parentMatchStatus = scanSpec.dirAcceptMatchStatus(relativeDirName.isEmpty() ? "/" : relativeDirName);
+            return true;
+        }
+
+        @Override
+        public boolean visitEntry(final VfsEntry entry) {
+            final var entryName = entry.getName();
+
+            if (isIgnoredVersionedPath(entryName)) {
+                if (subLog != null) {
+                    subLog.log("Found unexpected versioned entry in jar (the jar's manifest file may be missing "
+                            + "the \"Multi-Release\" key) -- skipping: " + entryName);
+                }
+                return true;
+            }
+
+            if (isIgnoredDefaultPackageClassfile(isModularJar, entryName)) {
+                return true;
+            }
+
+            if (isWithinNestedClasspathRoot(entryName, loggedNestedClasspathRootPrefixes, subLog)) {
+                return true;
+            }
+
+            final var relativePath = stripAutomaticPackageRootPrefix(entryName, automaticPackageRootPrefixes,
+                    /* recordStrippedPrefix = */ true);
+
+            // Accept/reject classpath elements based on file resource paths
+            if (!checkResourcePathAcceptReject(relativePath, subLog)) {
+                // The whole classpath element is rejected, so stop scanning the rest of it
+                return false;
+            }
+
+            if (parentMatchStatus == ScanSpecPathMatch.HAS_REJECTED_PATH_PREFIX) {
+                // The parent dir or one of its ancestral dirs is rejected
+                if (subLog != null) {
+                    subLog.log("Skipping rejected path: " + relativePath);
+                }
+                return true;
+            }
+
+            addZipEntryResource(Objects.requireNonNull(entry.getZipEntry()), relativePath, parentMatchStatus,
+                    subLog);
+            return true;
+        }
     }
 
     /**
@@ -518,7 +618,7 @@ class ClasspathElementZip extends ClasspathElement {
             throw new IllegalStateException("Already scanned classpath element " + getZipFilePath());
         }
 
-        final var logicalZipFile = Objects.requireNonNull(this.logicalZipFile);
+        final var root = Objects.requireNonNull(this.vfsRoot);
 
         final var subLog = log == null ? null
                 : log(classpathElementIdx, "Scanning jarfile classpath element " + getZipFilePath(), log);
@@ -527,55 +627,20 @@ class ClasspathElementZip extends ClasspathElement {
         // does not make the jar modular
         final var isModularJar = getDeclaredModuleName() != null;
 
-        // "classes/" and "test-classes/" are legal package names, so only strip a package root prefix from the
-        // relative path of an entry if the prefix is not simply a package with the same name (#929)
-        final var verifiedPackageRootPrefixes = packageRootPrefix.isEmpty() && packageRootPrefixes.length > 0
-                ? getVerifiedPackageRootPrefixes(logicalZipFile, subLog)
-                : packageRootPrefixes;
+        // An explicit package root has already been stripped from the names of the entries by the virtual
+        // filesystem, and rules out stripping an automatic package root prefix as well. "classes/" and
+        // "test-classes/" are legal package names, so only strip an automatic package root prefix from the relative
+        // path of an entry if the prefix is not simply a package with the same name (#929)
+        final var automaticPackageRootPrefixes = packageRootPrefix.isEmpty() && packageRootPrefixes.length > 0
+                ? getVerifiedPackageRootPrefixes(root, subLog)
+                : NO_PACKAGE_ROOT_PREFIXES;
 
-        final Set<String> loggedNestedClasspathRootPrefixes = new HashSet<>();
-        final var parentDirMatchStatusCache = new ParentDirMatchStatusCache();
-        for (final FastZipEntry zipEntry : logicalZipFile.entries) {
-            final var entryName = zipEntry.entryNameUnversioned;
-
-            if (isIgnoredVersionedPath(entryName)) {
-                if (subLog != null) {
-                    subLog.log("Found unexpected versioned entry in jar (the jar's manifest file may be missing "
-                            + "the \"Multi-Release\" key) -- skipping: " + entryName);
-                }
-                continue;
+        try {
+            root.walk(new ZipScanVisitor(isModularJar, automaticPackageRootPrefixes, subLog), subLog);
+        } catch (final IOException e) {
+            if (subLog != null) {
+                subLog.log("Could not read jarfile " + getZipFilePath() + " : " + e);
             }
-
-            if (isIgnoredDefaultPackageClassfile(isModularJar, entryName)) {
-                continue;
-            }
-
-            if (isWithinNestedClasspathRoot(entryName, loggedNestedClasspathRootPrefixes, subLog)) {
-                continue;
-            }
-
-            final var relativePath = stripPackageRootPrefix(entryName, verifiedPackageRootPrefixes);
-            if (relativePath == null) {
-                // Entry does not have the required package root prefix
-                continue;
-            }
-
-            // Accept/reject classpath elements based on file resource paths
-            if (!checkResourcePathAcceptReject(relativePath, subLog)) {
-                // The whole classpath element is rejected, so stop scanning the rest of it
-                break;
-            }
-
-            final var parentMatchStatus = parentDirMatchStatusCache.getParentMatchStatus(relativePath);
-            if (parentMatchStatus == ScanSpecPathMatch.HAS_REJECTED_PATH_PREFIX) {
-                // The parent dir or one of its ancestral dirs is rejected
-                if (subLog != null) {
-                    subLog.log("Skipping rejected path: " + relativePath);
-                }
-                continue;
-            }
-
-            addZipEntryResource(zipEntry, relativePath, parentMatchStatus, subLog);
         }
 
         // Save the last modified time for the zipfile
@@ -618,35 +683,32 @@ class ClasspathElementZip extends ClasspathElement {
     }
 
     /**
-     * Strip the package root prefix from the name of a zip entry, to give the path of the entry relative to the
-     * package root.
+     * Strip any automatic package root prefix, e.g. {@code "BOOT-INF/classes/"}, from the name of a zip entry or of
+     * a directory within the jarfile, to give the path relative to the package root.
      *
-     * @param entryName
-     *            the name of the zip entry
-     * @param verifiedPackageRootPrefixes
-     *            the automatic package root prefixes to strip, if this classpath element has no explicit package
-     *            root
-     * @return the path of the entry relative to the package root, or null if the entry is not within the package
-     *         root of this classpath element
+     * @param name
+     *            the name of the zip entry or directory, relative to any explicit package root
+     * @param automaticPackageRootPrefixes
+     *            the automatic package root prefixes to strip
+     * @param recordStrippedPrefix
+     *            if true, record the prefix that was stripped, for use by {@link #getAllURIs()}
+     * @return the path relative to the package root
      */
-    private @Nullable String stripPackageRootPrefix(final String entryName,
-            final String[] verifiedPackageRootPrefixes) {
-        if (!packageRootPrefix.isEmpty()) {
-            // Ignore entries without the correct classpath root prefix
-            return entryName.startsWith(packageRootPrefix) ? entryName.substring(packageRootPrefix.length()) : null;
-        }
-        // Strip any automatic package root prefix from the entry name
-        for (final String packageRoot : verifiedPackageRootPrefixes) {
-            if (entryName.startsWith(packageRoot)) {
-                // Strip final slash from package root, and store the package root for use by getAllURIs()
-                strippedAutomaticPackageRootPrefixes
-                        .add(packageRoot.endsWith("/") ? packageRoot.substring(0, packageRoot.length() - 1)
-                                : packageRoot);
+    private String stripAutomaticPackageRootPrefix(final String name, final String[] automaticPackageRootPrefixes,
+            final boolean recordStrippedPrefix) {
+        for (final String packageRoot : automaticPackageRootPrefixes) {
+            if (name.startsWith(packageRoot)) {
+                if (recordStrippedPrefix) {
+                    // Strip final slash from package root, and store the package root for use by getAllURIs()
+                    strippedAutomaticPackageRootPrefixes
+                            .add(packageRoot.endsWith("/") ? packageRoot.substring(0, packageRoot.length() - 1)
+                                    : packageRoot);
+                }
                 // Only one package root prefix can be stripped from a given path
-                return entryName.substring(packageRoot.length());
+                return name.substring(packageRoot.length());
             }
         }
-        return entryName;
+        return name;
     }
 
     /**

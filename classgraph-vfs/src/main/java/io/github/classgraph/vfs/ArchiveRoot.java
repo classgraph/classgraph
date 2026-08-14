@@ -137,6 +137,11 @@ final class ArchiveRoot extends VfsRoot {
     }
 
     @Override
+    public LogicalZipFile getLogicalZipFile() {
+        return logicalZipFile;
+    }
+
+    @Override
     public void walk(final VfsVisitor visitor, final @Nullable LogNode logIgnored) {
         Assert.notNull(visitor, "visitor");
         walkEntryList(entries, visitor);

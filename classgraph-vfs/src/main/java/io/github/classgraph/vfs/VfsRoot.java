@@ -40,6 +40,7 @@ import java.util.List;
 
 import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.base.internal.utils.LogNode;
+import io.github.classgraph.vfs.internal.zip.LogicalZipFile;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -182,6 +183,17 @@ public abstract class VfsRoot {
      * @return the module name, or null if there is none.
      */
     public @Nullable String getModuleName() {
+        return null;
+    }
+
+    /**
+     * Returns the jarfile that this root reads from. This is for the other ClassGraph modules, which need the
+     * jarfile's manifest and central directory as well as its entries, and is not part of the API.
+     *
+     * @return the jarfile, or null if this root is not an archive.
+     * @hidden
+     */
+    public @Nullable LogicalZipFile getLogicalZipFile() {
         return null;
     }
 

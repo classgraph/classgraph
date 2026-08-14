@@ -41,6 +41,7 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.util.Objects;
 import java.util.Set;
 
+import io.github.classgraph.vfs.internal.zip.FastZipEntry;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -187,6 +188,17 @@ public abstract class VfsEntry {
      *         for a jarfile written without them, and for a file in a filesystem that does not support them.
      */
     public @Nullable Set<PosixFilePermission> getPosixFilePermissions() {
+        return null;
+    }
+
+    /**
+     * Returns the central directory entry that this entry reads from. This is for the other ClassGraph modules,
+     * which need the entry's compression method and its position within the jarfile, and is not part of the API.
+     *
+     * @return the zip entry, or null if this entry is not in an archive.
+     * @hidden
+     */
+    public @Nullable FastZipEntry getZipEntry() {
         return null;
     }
 

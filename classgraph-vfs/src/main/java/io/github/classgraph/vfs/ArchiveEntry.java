@@ -127,6 +127,11 @@ final class ArchiveEntry extends VfsEntry {
         return permissions;
     }
 
+    @Override
+    public FastZipEntry getZipEntry() {
+        return zipEntry;
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     @Override

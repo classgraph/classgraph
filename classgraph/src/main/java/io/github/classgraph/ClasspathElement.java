@@ -373,39 +373,6 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
                         && scanSpec.classfileIsSpecificallyAccepted(relativePath));
     }
 
-    /**
-     * The accept/reject match status of the parent directory of the last relative path that was looked up.
-     *
-     * <p>
-     * The entries of a classpath element are scanned in sorted order, so consecutive entries usually share a parent
-     * directory, and caching the match status of the last parent directory means the match status only has to be
-     * computed once per directory, rather than once per entry.
-     */
-    protected final class ParentDirMatchStatusCache {
-        /** The parent directory of the last relative path that was looked up, or null if there was none. */
-        private @Nullable String prevParentRelativePath;
-
-        /** The match status of {@link #prevParentRelativePath}. */
-        private ScanSpecPathMatch prevParentMatchStatus = ScanSpecPathMatch.NOT_WITHIN_ACCEPTED_PATH;
-
-        /**
-         * Get the accept/reject match status of the parent directory of a relative path.
-         *
-         * @param relativePath
-         *            the path of an entry, relative to the package root.
-         * @return the match status of the parent directory of the entry.
-         */
-        ScanSpecPathMatch getParentMatchStatus(final String relativePath) {
-            final var lastSlashIdx = relativePath.lastIndexOf('/');
-            final var parentRelativePath = lastSlashIdx < 0 ? "/" : relativePath.substring(0, lastSlashIdx + 1);
-            if (!parentRelativePath.equals(prevParentRelativePath)) {
-                prevParentRelativePath = parentRelativePath;
-                prevParentMatchStatus = scanSpec.dirAcceptMatchStatus(parentRelativePath);
-            }
-            return prevParentMatchStatus;
-        }
-    }
-
     // -------------------------------------------------------------------------------------------------------------
 
     /**
