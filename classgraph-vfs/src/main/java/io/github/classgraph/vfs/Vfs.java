@@ -254,6 +254,11 @@ public class Vfs implements AutoCloseable {
      * a package root within the jarfile instead, e.g. {@code "spring-boot-app.jar!/BOOT-INF/classes"}, in which
      * case only the entries under that root are reported, with the root stripped from their names.
      *
+     * <p>
+     * A directory or jarfile is opened once however it is named, so the same {@link VfsRoot} is returned for a plain
+     * path, for the {@code "file:"} or {@code "jar:"} URL of the same thing, and, on Windows, for a path written
+     * with backslashes rather than forward slashes.
+     *
      * @param path
      *            the path to open.
      * @return the opened root.
@@ -284,14 +289,18 @@ public class Vfs implements AutoCloseable {
     public VfsRoot open(final String path, final @Nullable LogNode logNode) throws IOException {
         Assert.notNull(path, "path");
         checkNotClosed(path);
+        // The resolved path is the cache key, not the path as it was written: the same directory or jarfile can be
+        // named as a plain path, as a "file:" or "jar:" URL, with a trailing separator, or -- on Windows -- with
+        // backslashes rather than forward slashes, and all of those name one thing that is opened once
+        final var resolvedPath = FastPathResolver.resolve(path);
         // computeIfAbsent is not used, because the mapping function must not itself open other jarfiles (the
         // enclosing jarfiles of a nested one are opened on the way to it, which would be a recursive update)
-        final var alreadyOpened = rootsByPath.get(path);
+        final var alreadyOpened = rootsByPath.get(resolvedPath);
         if (alreadyOpened != null) {
             return alreadyOpened;
         }
-        final var root = openUncached(path, logNode == null ? null : logNode.log("Opening " + path));
-        return cacheRoot(rootsByPath, path, root, path);
+        final var root = openUncached(resolvedPath, logNode == null ? null : logNode.log("Opening " + path));
+        return cacheRoot(rootsByPath, resolvedPath, root, path);
     }
 
     /**
@@ -348,17 +357,16 @@ public class Vfs implements AutoCloseable {
     /**
      * Open a directory or a jarfile named by a path, without consulting or updating the cache of opened roots.
      *
-     * @param path
-     *            the path to open.
+     * @param resolvedPath
+     *            the path to open, in the form {@link FastPathResolver#resolve(String)} returns it, so that the
+     *            nested jar handler is keyed by the same spelling of the path that the cache of opened roots is.
      * @param logNode
      *            the log node, or null to skip logging.
      * @return the opened root.
      * @throws IOException
      *             if the path could not be opened or read.
      */
-    private VfsRoot openUncached(final String path, final @Nullable LogNode logNode) throws IOException {
-        // Strip any "jar:" and "file:" prefix, and normalize the path separators
-        final var resolvedPath = FastPathResolver.resolve(path);
+    private VfsRoot openUncached(final String resolvedPath, final @Nullable LogNode logNode) throws IOException {
         // A path with a "!/" section in it names something within a jarfile, and a path with a URL scheme names a
         // jarfile to download, so neither can be a directory
         if (JarUtils.lastIndexOfNestedJarSeparator(resolvedPath) < 0
@@ -379,17 +387,17 @@ public class Vfs implements AutoCloseable {
             // The nested jar handler caches the logical zipfile, so two threads that race here open it only once,
             // and both get the same LogicalZipFile back
             final var logicalZipFileAndPackageRoot = nestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap()
-                    .get(path, logNode);
+                    .get(resolvedPath, logNode);
             return new ArchiveRoot(this, logicalZipFileAndPackageRoot.getKey(),
                     logicalZipFileAndPackageRoot.getValue());
         } catch (final NullSingletonException | NewInstanceException e) {
             // Chain the cause, as well as naming it in the message -- otherwise the reason the path could not be
             // opened is not reachable from the stack trace
             final var cause = e.getCause() == null ? e : e.getCause();
-            throw new IOException("Could not open " + path + " : " + cause, cause);
+            throw new IOException("Could not open " + resolvedPath + " : " + cause, cause);
         } catch (final InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new IOException("Interrupted while opening " + path);
+            throw new IOException("Interrupted while opening " + resolvedPath);
         }
     }
 

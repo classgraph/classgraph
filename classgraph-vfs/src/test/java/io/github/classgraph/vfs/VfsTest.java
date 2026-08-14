@@ -296,17 +296,18 @@ public class VfsTest {
         final var uri = jarFile.toURI();
 
         try (var vfs = new Vfs()) {
-            // A File and a Path in the default filesystem name the same thing as the path string, so the same root
-            // is returned for all three
+            // A File, a Path in the default filesystem, a URI and a URL all name what the path string names, so
+            // each of them returns the root that the first of them opened, rather than opening the jarfile again
             final var root = vfs.open(jarFile.getPath());
             assertThat(vfs.open(jarFile)).isSameAs(root);
             assertThat(vfs.open(jarFile.toPath())).isSameAs(root);
-
-            // A URI and a URL are cached under the string they were named by, but reach the same jarfile
-            for (final var fromURI : new VfsRoot[] { vfs.open(uri), vfs.open(uri.toURL()) }) {
-                assertThat(fromURI.getPath()).isEqualTo(root.getPath());
-                assertThat(entryContent(fromURI, "com/xyz/widget.txt")).isEqualTo(RESOURCE_CONTENT);
-            }
+            assertThat(vfs.open(uri)).isSameAs(root);
+            assertThat(vfs.open(uri.toURL())).isSameAs(root);
+            assertThat(vfs.open("jar:" + uri + "!/")).isSameAs(root);
+            // Path.of() respells a path with the platform's own separator, which on Windows means the same jarfile
+            // arrives written with backslashes rather than with the forward slashes a root is named with
+            assertThat(vfs.open(Path.of(root.getPath()))).isSameAs(root);
+            assertThat(entryContent(root, "com/xyz/widget.txt")).isEqualTo(RESOURCE_CONTENT);
         }
     }
 
@@ -319,10 +320,10 @@ public class VfsTest {
             final var root = vfs.open(tempDir);
             assertThat(root.getKind()).isEqualTo(VfsRoot.Kind.DIRECTORY);
             assertThat(vfs.open(tempDir.toPath())).isSameAs(root);
-            for (final var named : new VfsRoot[] { vfs.open(tempDir.toURI()), vfs.open(tempDir.toURI().toURL()) }) {
-                assertThat(named.getKind()).isEqualTo(VfsRoot.Kind.DIRECTORY);
-                assertThat(entryContent(named, "root.txt")).isEqualTo(RESOURCE_CONTENT);
-            }
+            assertThat(vfs.open(tempDir.toURI())).isSameAs(root);
+            assertThat(vfs.open(tempDir.toURI().toURL())).isSameAs(root);
+            assertThat(vfs.open(Path.of(root.getPath()))).isSameAs(root);
+            assertThat(entryContent(root, "root.txt")).isEqualTo(RESOURCE_CONTENT);
         }
     }
 
