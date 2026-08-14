@@ -102,9 +102,10 @@ class ClasspathManifestEntryOrderTest {
         mainAttributes.put(Attributes.Name.MANIFEST_VERSION, "1.0");
         mainAttributes.put(Attributes.Name.CLASS_PATH, classpathManifestEntry);
         final var jarFile = dir.resolve(jarName);
-        try (var outputStream = Files.newOutputStream(jarFile);
-                var jarOutputStream = new JarOutputStream(outputStream, manifest)) {
-            // No entries -- the manifest is the whole jar
+        try (var outputStream = Files.newOutputStream(jarFile)) {
+            // No entries -- the manifest is the whole jar, so all that is left is to write the central
+            // directory. finish() does that without closing outputStream, which the try does.
+            new JarOutputStream(outputStream, manifest).finish();
         }
         return jarFile.toFile();
     }

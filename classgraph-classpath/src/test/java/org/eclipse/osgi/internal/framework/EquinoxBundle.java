@@ -4,7 +4,9 @@ import org.eclipse.osgi.container.Module;
 import org.jspecify.annotations.Nullable;
 
 /** Stand-in for Equinox' {@code EquinoxBundle}, one bundle installed in the framework. */
-public class EquinoxBundle {
+// Final because the constructor registers this bundle with its module before the constructor has returned, which
+// a subclass could observe
+public final class EquinoxBundle {
     /** The framework's view of this bundle, which knows where the bundle was installed from. */
     public final Module module;
 

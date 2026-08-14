@@ -10,7 +10,9 @@ import org.jspecify.annotations.Nullable;
  * This class must be in this exact package, with this exact name, because {@code JBossClassLoaderHandler} matches
  * the classloader by its fully-qualified class name.
  */
-public class ModuleClassLoader extends ClassLoader {
+// Final because the constructor registers this classloader with its module before the constructor has returned,
+// which a subclass could observe
+public final class ModuleClassLoader extends ClassLoader {
     /** The module whose classes this classloader loads, or null if it has none. */
     public final @Nullable Module module;
 

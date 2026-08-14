@@ -220,7 +220,6 @@ public class RecyclerTest {
             final var second = recycler.acquire();
             recycler.recycle(first);
             recycler.recycle(second);
-            recycler.close();
         }
         assertThat(numCloses).hasValue(2);
     }

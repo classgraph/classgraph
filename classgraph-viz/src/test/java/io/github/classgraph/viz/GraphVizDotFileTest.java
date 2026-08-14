@@ -76,9 +76,12 @@ public class GraphVizDotFileTest {
             INITIALIZED = 1;
         }
 
-        /** A field with a generic type, an annotation, and a name that has to be escaped in the graph. */
+        /**
+         * A field with a generic type, an annotation, a modifier beyond its visibility, and a name that has to be
+         * escaped in the graph. Transient because {@link Map} is not {@link Serializable}.
+         */
         @Indexed
-        public Map<String, List<Base>> \u00A3prices = Map.of();
+        public transient Map<String, List<Base>> \u00A3prices = Map.of();
 
         /** A field that is shown only if field visibility is ignored. */
         private int count;
@@ -248,7 +251,7 @@ public class GraphVizDotFileTest {
                 // The class annotation
                 "@" + FIXTURE + "Location(&quot;C:&#x5C;&#x5C;Windows&quot;)",
                 // A field, with its annotation, its modifiers and its type
-                "@" + FIXTURE + "Indexed public Map&lt;String, List&lt;Base&gt;&gt;",
+                "@" + FIXTURE + "Indexed public transient Map&lt;String, List&lt;Base&gt;&gt;",
                 // A method, with its parameter types and parameter names
                 "<b>find</b>", "String <B>key</B>, int <B>maximumNumberOfResults</B>",
                 // A constructor is named after its class, and has no return type
@@ -276,11 +279,11 @@ public class GraphVizDotFileTest {
     /** Type names in a class node are shown as simple names by default, and fully qualified names on request. */
     @Test
     public void typeNamesCanBeShownFullyQualified() {
-        assertThat(graph(scanResult, new GraphVizDotFileOptions().useFullyQualifiedNames()))
-                .contains("public java.util.Map&lt;java.lang.String, java.util.List&lt;" + FIXTURE + "Base&gt;&gt;")
+        assertThat(graph(scanResult, new GraphVizDotFileOptions().useFullyQualifiedNames())).contains(
+                "public transient java.util.Map&lt;java.lang.String, java.util.List&lt;" + FIXTURE + "Base&gt;&gt;")
                 .contains("java.lang.String <B>key</B>");
-        assertThat(graph()).contains("public Map&lt;String, List&lt;Base&gt;&gt;").contains("String <B>key</B>")
-                .doesNotContain("java.lang.String <B>key</B>");
+        assertThat(graph()).contains("public transient Map&lt;String, List&lt;Base&gt;&gt;")
+                .contains("String <B>key</B>").doesNotContain("java.lang.String <B>key</B>");
     }
 
     /**

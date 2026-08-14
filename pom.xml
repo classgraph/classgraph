@@ -580,7 +580,13 @@
 								<!-- the module descriptor does not export, and they use classes (e.g. java.awt) -->
 								<!-- that only the test code needs. -->
 								<useModulePath>false</useModulePath>
+								<!-- Maven replaces the plugin-level <compilerArgs> with this one rather than -->
+								<!-- appending to it, so the lint flags above have to be repeated here, or the -->
+								<!-- test sources would compile with no lint at all. -->
 								<compilerArgs>
+									<arg>-Xlint:all</arg>
+									<arg>${javacLintSuppressions}</arg>
+									<arg>-Werror</arg>
 									<arg>-parameters</arg>
 								</compilerArgs>
 							</configuration>

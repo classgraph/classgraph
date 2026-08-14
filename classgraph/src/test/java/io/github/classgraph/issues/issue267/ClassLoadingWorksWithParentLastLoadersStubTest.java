@@ -28,13 +28,7 @@
  */
 package io.github.classgraph.issues.issue267;
 
-import java.io.DataInputStream;
-import java.io.File;
-import java.io.IOException;
-
 import org.junit.jupiter.api.Test;
-
-import com.xyz.meta.A;
 
 /**
  * ClassLoadingWorksWithParentLastLoadersStub.
@@ -88,47 +82,5 @@ class TestLauncher extends Thread {
         } catch (final Throwable t) {
             thrown = t;
         }
-    }
-}
-
-class FakeRestartClassLoader extends ClassLoader {
-    private Class<?> getClass(final String name) throws ClassNotFoundException {
-        try {
-            final var b = loadClassFileData(name.replace('.', File.separatorChar) + ".class");
-            return defineClass(name, b, 0, b.length);
-        } catch (final IOException e) {
-            throw new ClassNotFoundException(name);
-        }
-    }
-
-    @Override
-    public Class<?> loadClass(final String name, final boolean resolve) throws ClassNotFoundException {
-        if (name.startsWith(A.class.getName())
-                || name.startsWith(ClassLoadingWorksWithParentLastLoaders.class.getName())) {
-            final var clazz = getClass(name);
-            if (resolve) {
-                resolveClass(clazz);
-            }
-        }
-        return super.loadClass(name, resolve);
-    }
-
-    private byte[] loadClassFileData(final String name) throws IOException {
-        try (var in = new DataInputStream(getClass().getClassLoader().getResourceAsStream(name))) {
-            final var size = in.available();
-            final var buff = new byte[size];
-            in.readFully(buff);
-            return buff;
-        }
-    }
-
-    public String getClasspath() {
-        final var classfileName = A.class.getName().replace('.', '/') + ".class";
-        final var classfileResource = getClass().getClassLoader().getResource(classfileName);
-        if (classfileResource == null) {
-            throw new IllegalArgumentException("Could not find classfile " + classfileName);
-        }
-        final var classfilePath = classfileResource.getFile();
-        return classfilePath.substring(0, classfilePath.length() - classfileName.length() - 1);
     }
 }

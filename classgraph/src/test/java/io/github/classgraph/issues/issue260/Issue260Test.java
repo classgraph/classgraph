@@ -28,7 +28,7 @@
  */
 package io.github.classgraph.issues.issue260;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
 import org.junit.jupiter.api.Test;
 
@@ -37,10 +37,8 @@ import io.github.classgraph.ClassGraph;
 public class Issue260Test {
     @Test
     public void issue260Test() {
-        try (var scanResult = new ClassGraph().acceptPackages(Issue260Test.class.getPackage().getName())
-                .enableAllInfo().scan()) {
-            // Should be no exception here
-            assertThat(true).isTrue();
-        }
+        // Scanning this package used to throw. The scan result itself is not read.
+        assertThatCode(() -> new ClassGraph().acceptPackages(Issue260Test.class.getPackage().getName())
+                .enableAllInfo().scan().close()).doesNotThrowAnyException();
     }
 }

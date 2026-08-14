@@ -46,12 +46,12 @@ public class Issue305Test {
         errPrintStreamHandler.setLevel(Level.INFO);
         rootLogger.addHandler(errPrintStreamHandler);
 
-        try (var scanResult = new ClassGraph()
+        // The scan is run for the log output it produces, and its result is not read
+        new ClassGraph()
                 .overrideClassLoaders(new URLClassLoader(new URL[] {
                         Issue305Test.class.getClassLoader().getResource("class-path-manifest-entry.jar") }))
                 // This .verbose() is needed (stderr is captured)
-                .verbose().scan()) {
-        }
+                .verbose().scan().close();
 
         final var systemErrMessages = new String(err.toByteArray());
         assertThat(systemErrMessages.indexOf("Found Class-Path entry in manifest file: "

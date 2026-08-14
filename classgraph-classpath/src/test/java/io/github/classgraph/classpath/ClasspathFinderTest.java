@@ -167,9 +167,10 @@ public class ClasspathFinderTest {
         for (var i = 0; i < attributeNamesAndValues.length; i += 2) {
             mainAttributes.putValue(attributeNamesAndValues[i], attributeNamesAndValues[i + 1]);
         }
-        try (var outputStream = Files.newOutputStream(jarFile);
-                var jarOutputStream = new JarOutputStream(outputStream, manifest)) {
-            // No entries -- the manifest is the whole jar
+        try (var outputStream = Files.newOutputStream(jarFile)) {
+            // No entries -- the manifest is the whole jar, so all that is left is to write the central
+            // directory. finish() does that without closing outputStream, which the try does.
+            new JarOutputStream(outputStream, manifest).finish();
         }
         return jarFile.toFile();
     }

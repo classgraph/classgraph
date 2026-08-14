@@ -29,6 +29,7 @@
 package io.github.classgraph.issues.issue286;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
@@ -41,10 +42,7 @@ public class Issue286Test {
     public void issue286Test() {
         final var jarURL = getClass().getClassLoader().getResource("issue286.jar");
         assertThat(jarURL).isNotNull();
-        var gotResult = false;
-        try (var scanResult = new ClassGraph().overrideClasspath(jarURL).scan()) {
-            gotResult = true;
-        }
-        assertThat(gotResult).isTrue();
+        // Scanning this jarfile used to take far longer than the timeout above. The scan result is not read.
+        assertThatCode(() -> new ClassGraph().overrideClasspath(jarURL).scan().close()).doesNotThrowAnyException();
     }
 }
