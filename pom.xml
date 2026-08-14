@@ -59,7 +59,14 @@
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
-		<!-- The minimum Java version that ClassGraph supports -->
+		<!-- The minimum Java version that ClassGraph supports. Keep this as "release", and never replace -->
+		<!-- it with "source" and "target": "release" compiles against the JDK 17 API, so calling a method -->
+		<!-- that a JDK 17 runtime does not have is a compile error, whereas "source" and "target" compile -->
+		<!-- against the API of whichever JDK is running the build, and such a call then builds cleanly and -->
+		<!-- throws NoSuchMethodError on JDK 17 alone. That is what broke ClassGraph in #284: JDK 9 changed -->
+		<!-- ByteBuffer.position(int) and its neighbours to return ByteBuffer rather than Buffer, and a -->
+		<!-- build with "source"/"target" 7 emitted calls to methods that JDK 7 and 8 did not have. The -->
+		<!-- requireProperty rule below fails the build if this property is removed. -->
 		<maven.compiler.release>17</maven.compiler.release>
 
 		<!-- Suppress the warning logged when Narcissus loads its native library -->
@@ -312,6 +319,21 @@
 										<version>[17,)</version>
 										<message>ClassGraph must be built with JDK 17 or later.</message>
 									</requireJavaVersion>
+									<!-- Building against the API of the JDK that happens to be running the -->
+									<!-- build, rather than against the API of the oldest JDK that ClassGraph -->
+									<!-- supports, produces code that compiles cleanly and then fails at -->
+									<!-- runtime. See the note on ${maven.compiler.release} for the details, -->
+									<!-- and #284 for the bug that this prevents. -->
+									<requireProperty>
+										<property>maven.compiler.release</property>
+										<regex>\d+</regex>
+										<message>maven.compiler.release must be set to the oldest JDK version
+											that ClassGraph supports, and must not be replaced by
+											maven.compiler.source and maven.compiler.target. See the note on that
+											property in the root pom.xml.</message>
+										<regexMessage>maven.compiler.release must be a JDK version
+											number.</regexMessage>
+									</requireProperty>
 								</rules>
 							</configuration>
 						</execution>
