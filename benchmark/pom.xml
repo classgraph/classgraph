@@ -15,6 +15,12 @@
         the memory mapping benchmark scans the same bytes on every operating system. Populate the corpus with:
 
         mvn -f benchmark/pom.xml dependency:copy-dependencies -DoutputDirectory=benchmark/corpus
+
+        These versions are a measurement fixture: nothing is compiled or run against them, they are only scanned.
+        Leave them out of routine dependency sweeps, because changing them changes what the benchmark scans, and
+        the corpus figures quoted on the "Memory mapping benchmark" wiki page are the ones a particular set of
+        pins produced. Bumping for a published CVE is still worth doing; when that happens, the corpus is no
+        longer the one those figures describe, so say so on that page.
     </description>
 
     <dependencies>
