@@ -1014,7 +1014,9 @@ public class LogicalZipFile extends ZipFileSlice {
             }
             return null;
         }
-        if (locHeaderPos + 4 >= slice.sliceLength) {
+        // Compared by subtraction rather than by adding to locHeaderPos, which a corrupt zipfile can push close
+        // enough to Long.MAX_VALUE for the sum to wrap negative and pass a test it should fail
+        if (locHeaderPos >= slice.sliceLength - 4) {
             if (log != null) {
                 log.log("Unexpected EOF when trying to read LOC header: " + entryFields.entryNameSanitized);
             }
