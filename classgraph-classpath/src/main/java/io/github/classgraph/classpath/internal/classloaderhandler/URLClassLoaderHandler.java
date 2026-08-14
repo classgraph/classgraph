@@ -92,4 +92,19 @@ class URLClassLoaderHandler implements ClassLoaderHandler {
     public String[] getPackageRootPrefixes() {
         return ClassLoaderHandlerRegistry.DEFAULT_PACKAGE_ROOT_PREFIXES;
     }
+
+    /**
+     * Get the automatic lib dirs for classpath elements obtained from this classloader.
+     *
+     * <p>
+     * A URLClassLoader lists every URL it loads from, so it has no lib dirs of its own. It is nevertheless
+     * routinely handed a Spring-Boot executable jar or a war to load from, and neither of those lists the jarfiles
+     * in its lib dir as classpath elements, so those are looked for.
+     *
+     * @return the lib dir prefixes.
+     */
+    @Override
+    public String[] getLibDirPrefixes() {
+        return ClassLoaderHandlerRegistry.ARCHIVE_LIB_DIR_PREFIXES;
+    }
 }

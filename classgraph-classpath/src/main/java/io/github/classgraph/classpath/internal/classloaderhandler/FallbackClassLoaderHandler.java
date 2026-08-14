@@ -257,4 +257,18 @@ class FallbackClassLoaderHandler implements ClassLoaderHandler {
     public String[] getPackageRootPrefixes() {
         return ClassLoaderHandlerRegistry.DEFAULT_PACKAGE_ROOT_PREFIXES;
     }
+
+    /**
+     * Get the automatic lib dirs for classpath elements obtained from this classloader.
+     *
+     * <p>
+     * Nothing is known about an unrecognized classloader, so only the lib dirs that are unambiguous in any
+     * classpath element are looked for.
+     *
+     * @return the lib dir prefixes.
+     */
+    @Override
+    public String[] getLibDirPrefixes() {
+        return ClassLoaderHandlerRegistry.ARCHIVE_LIB_DIR_PREFIXES;
+    }
 }

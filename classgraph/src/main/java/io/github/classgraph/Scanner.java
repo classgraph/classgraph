@@ -224,7 +224,8 @@ class Scanner implements Callable<ScanResult> {
                         // classpathElementIdxWithinParent is the original classpath index, for toplevel classpath
                         // elements
                         /* classpathElementIdxWithinParent = */ rawClasspathEntryWorkUnits.size(),
-                        /* packageRootPrefix = */ "", rawClasspathEntry.packageRootPrefixes));
+                        /* packageRootPrefix = */ "", rawClasspathEntry.packageRootPrefixes,
+                        rawClasspathEntry.libDirPrefixes));
             }
         } catch (final InterruptedException e) {
             vfs.close(/* logNode = */ null);
@@ -267,7 +268,8 @@ class Scanner implements Callable<ScanResult> {
                 // Create a new ClasspathElementModule
                 final var classpathElementModule = new ClasspathElementModule(moduleReference, vfs,
                         new ClasspathEntryWorkUnit(null, defaultClassLoaderStr, null, moduleOrder.size(), "",
-                                ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES),
+                                ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES,
+                                ClassLoaderHandlerRegistry.NO_LIB_DIR_PREFIXES),
                         /* isLookupOnly = */ false, scanSpec);
                 moduleOrder.add(classpathElementModule);
                 // Open the ClasspathElementModule
@@ -404,6 +406,12 @@ class Scanner implements Callable<ScanResult> {
         final String[] packageRootPrefixes;
 
         /**
+         * The lib dirs (e.g. {@code "BOOT-INF/lib/"}) whose jarfiles are to be added to the classpath if they are
+         * present within this classpath element, as declared by the {@code ClassLoaderHandler} that found it.
+         */
+        final String[] libDirPrefixes;
+
+        /**
          * Constructor.
          *
          * @param classpathEntryObj
@@ -418,17 +426,20 @@ class Scanner implements Callable<ScanResult> {
          *            the package root prefix
          * @param packageRootPrefixes
          *            the automatic package root prefixes to look for within this classpath element
+         * @param libDirPrefixes
+         *            the lib dirs whose jarfiles are to be added to the classpath, within this classpath element
          */
         public ClasspathEntryWorkUnit(final @Nullable Object classpathEntryObj,
                 final @Nullable String classLoaderStr, final @Nullable ClasspathElement parentClasspathElement,
                 final int classpathElementIdxWithinParent, final String packageRootPrefix,
-                final String[] packageRootPrefixes) {
+                final String[] packageRootPrefixes, final String[] libDirPrefixes) {
             this.classpathEntryObj = classpathEntryObj;
             this.classLoaderStr = classLoaderStr;
             this.parentClasspathElement = parentClasspathElement;
             this.classpathElementIdxWithinParent = classpathElementIdxWithinParent;
             this.packageRootPrefix = packageRootPrefix;
             this.packageRootPrefixes = packageRootPrefixes;
+            this.libDirPrefixes = libDirPrefixes;
         }
     }
 
@@ -913,6 +924,12 @@ class Scanner implements Callable<ScanResult> {
         }
     }
 
+    /** The manifest attribute that lists the packages a jarfile needs exported to it, from JEP 261. */
+    private static final String ADD_EXPORTS_KEY = "Add-Exports";
+
+    /** The manifest attribute that lists the packages a jarfile needs opened to it, from JEP 261. */
+    private static final String ADD_OPENS_KEY = "Add-Opens";
+
     /**
      * Find classpath elements whose path is a prefix of another classpath element, and record the nesting.
      *
@@ -942,28 +959,35 @@ class Scanner implements Callable<ScanResult> {
                 // Handle module-related manifest entries
                 final var zipRoot = classpathEltZip.vfsRoot;
                 if (zipRoot != null) {
-                    // From JEP 261: "A <module>/<package> pair in the value of an Add-Exports attribute has the
-                    // same meaning as the command-line option --add-exports <module>/<package>=ALL-UNNAMED. A
-                    // <module>/<package> pair in the value of an Add-Opens attribute has the same meaning as the
-                    // command-line option --add-opens <module>/<package>=ALL-UNNAMED."
-                    final var addExportsManifestValue = zipRoot.getAddExportsManifestValue();
-                    if (addExportsManifestValue != null) {
-                        for (final String addExports : JarUtils.smartPathSplit(addExportsManifestValue, ' ',
-                                scanSpec.classpathSpec.allowedURLSchemes)) {
-                            scanSpec.classpathSpec.modulePathInfo.addExportsEntry(addExports + "=ALL-UNNAMED");
+                    try {
+                        // From JEP 261: "A <module>/<package> pair in the value of an Add-Exports attribute has the
+                        // same meaning as the command-line option --add-exports <module>/<package>=ALL-UNNAMED. A
+                        // <module>/<package> pair in the value of an Add-Opens attribute has the same meaning as the
+                        // command-line option --add-opens <module>/<package>=ALL-UNNAMED."
+                        final var addExportsManifestValue = zipRoot.getManifestEntry(ADD_EXPORTS_KEY);
+                        if (addExportsManifestValue != null) {
+                            for (final String addExports : JarUtils.smartPathSplit(addExportsManifestValue, ' ',
+                                    scanSpec.classpathSpec.allowedURLSchemes)) {
+                                scanSpec.classpathSpec.modulePathInfo.addExportsEntry(addExports + "=ALL-UNNAMED");
+                            }
                         }
-                    }
-                    final var addOpensManifestValue = zipRoot.getAddOpensManifestValue();
-                    if (addOpensManifestValue != null) {
-                        for (final String addOpens : JarUtils.smartPathSplit(addOpensManifestValue, ' ',
-                                scanSpec.classpathSpec.allowedURLSchemes)) {
-                            scanSpec.classpathSpec.modulePathInfo.addOpensEntry(addOpens + "=ALL-UNNAMED");
+                        final var addOpensManifestValue = zipRoot.getManifestEntry(ADD_OPENS_KEY);
+                        if (addOpensManifestValue != null) {
+                            for (final String addOpens : JarUtils.smartPathSplit(addOpensManifestValue, ' ',
+                                    scanSpec.classpathSpec.allowedURLSchemes)) {
+                                scanSpec.classpathSpec.modulePathInfo.addOpensEntry(addOpens + "=ALL-UNNAMED");
+                            }
                         }
-                    }
-                    // Retrieve Automatic-Module-Name manifest entry, if present
-                    final var moduleName = zipRoot.getModuleName();
-                    if (moduleName != null) {
-                        classpathEltZip.moduleNameFromManifestFile = moduleName;
+                        // Retrieve Automatic-Module-Name manifest entry, if present
+                        final var moduleName = zipRoot.getModuleName();
+                        if (moduleName != null) {
+                            classpathEltZip.moduleNameFromManifestFile = moduleName;
+                        }
+                    } catch (final IOException e) {
+                        if (classLoaderProbeLog != null) {
+                            classLoaderProbeLog
+                                    .log("Could not read the manifest of " + classpathEltZip + " : " + e);
+                        }
                     }
                 }
             }

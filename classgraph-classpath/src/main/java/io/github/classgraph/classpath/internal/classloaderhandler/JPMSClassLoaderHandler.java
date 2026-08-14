@@ -120,4 +120,19 @@ class JPMSClassLoaderHandler implements ClassLoaderHandler {
     public String[] getPackageRootPrefixes() {
         return ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES;
     }
+
+    /**
+     * Get the automatic lib dirs for classpath elements obtained from this classloader.
+     *
+     * <p>
+     * A module has no lib dir, but the classpath entries that this handler reads from the classloader's
+     * {@code URLClassPath} are the ordinary classpath, which can contain a Spring-Boot executable jar or a war
+     * whose lib dir is not listed as a classpath element.
+     *
+     * @return the lib dir prefixes.
+     */
+    @Override
+    public String[] getLibDirPrefixes() {
+        return ClassLoaderHandlerRegistry.ARCHIVE_LIB_DIR_PREFIXES;
+    }
 }

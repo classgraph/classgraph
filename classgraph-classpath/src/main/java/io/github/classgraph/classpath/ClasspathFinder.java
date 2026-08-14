@@ -333,23 +333,21 @@ public class ClasspathFinder {
             // The classpath elements that the classloaders declared
             final List<ClasspathEntry> classLoaderEntries = new ArrayList<>();
             for (final var entry : classLoaderProbe.getClasspathOrder().getOrder()) {
-                classLoaderEntries.add(ClasspathEntry.of(entry.classpathEntryObj, entry.location,
-                        entry.getClassLoaderString(), List.of(entry.packageRootPrefixes)));
+                classLoaderEntries.add(
+                        ClasspathEntry.of(entry.classpathEntryObj, entry.location, entry.getClassLoaderString(),
+                                List.of(entry.packageRootPrefixes), List.of(entry.libDirPrefixes)));
             }
 
-            // Add the classpath elements that those in turn declare, by reading their manifests. The virtual
-            // filesystem owns the jarfiles that are opened to do that, and is given no log node of its own, since
-            // this method passes the log node that what it reads should be logged under.
+            // Add the classpath elements that those in turn declare, by reading their manifests and their lib dirs.
+            // The virtual filesystem owns the classpath elements that are opened to do that, and outlives this
+            // method: the returned Classpath hands it to the caller, so that a classpath element that was opened
+            // here is not opened a second time when the caller reads it.
             final var vfs = new Vfs(vfsScanSpec, new InterruptionChecker(), /* log = */ null);
             var classpath = (Classpath) null;
             try {
-                final var expandedEntries = ClasspathExpansion.expand(classLoaderEntries, vfsScanSpec,
-                        vfs.getNestedJarHandler(), log);
+                final var expandedEntries = ClasspathExpansion.expand(classLoaderEntries, vfs, vfsScanSpec, log);
                 classpath = new Classpath(expandedEntries, classLoaderProbe, classpathSpec.modulePathInfo, vfs);
                 return classpath;
-            } catch (final InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new IllegalStateException("Interrupted while reading the jarfiles on the classpath", e);
             } finally {
                 if (classpath == null) {
                     // Ownership of the open jarfiles was not passed to a Classpath, so close them here

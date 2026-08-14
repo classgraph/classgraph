@@ -84,4 +84,17 @@ class WeblogicClassLoaderHandler implements ClassLoaderHandler {
     public String[] getPackageRootPrefixes() {
         return ClassLoaderHandlerRegistry.DEFAULT_PACKAGE_ROOT_PREFIXES;
     }
+
+    /**
+     * Get the automatic lib dirs for classpath elements obtained from this classloader.
+     *
+     * <p>
+     * WebLogic deploys wars and ears, whose lib dirs are not listed as classpath elements.
+     *
+     * @return the lib dir prefixes.
+     */
+    @Override
+    public String[] getLibDirPrefixes() {
+        return ClassLoaderHandlerRegistry.ARCHIVE_LIB_DIR_PREFIXES;
+    }
 }

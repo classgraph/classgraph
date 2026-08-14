@@ -130,4 +130,21 @@ public interface ClassLoaderHandler {
     default String[] getPackageRootPrefixes() {
         return new String[0];
     }
+
+    /**
+     * The lib dirs (e.g. {@code "BOOT-INF/lib/"}) whose jarfiles this classloader adds to the classpath without
+     * listing them as classpath elements. The jarfiles found in these dirs within a classpath element obtained from
+     * this classloader are added to the classpath after the classpath element that contains them. The default is an
+     * empty array, meaning that this classloader lists every jarfile it loads from.
+     *
+     * <p>
+     * Lib dirs must only be declared here if the classloader really does load from them, since a lib dir prefix
+     * that is also a legal package name (e.g. {@code "lib/"}) will otherwise cause the jarfiles of a package of
+     * that name to be added to the classpath of every application that has one.
+     *
+     * @return the lib dir prefixes, each ending in a slash.
+     */
+    default String[] getLibDirPrefixes() {
+        return new String[0];
+    }
 }

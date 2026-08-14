@@ -234,6 +234,10 @@ same entries as a `List`. Closing the `Vfs` releases every file handle, memory m
 temporary file it took, and invalidates every `VfsRoot` and `VfsEntry` it handed out, so do not let
 them escape the `try` block.
 
+For a directory, an entry may name a file the process has no permission to read: telling the files
+from the subdirectories uses the metadata the walk already reads, and a permission check would cost
+a second syscall per file. Reading such an entry throws an `IOException`.
+
 ### List only the part of a root you want
 
 Iterating a root builds a list of every file in it. When only some of them are wanted, `walk()`
@@ -266,6 +270,21 @@ directories below it are still offered. That is deliberate — a caller that str
 prefix such as `BOOT-INF/classes/` from the names before judging them would otherwise prune
 `BOOT-INF/` and lose everything under it.
 
+When the part you want is simply everything under one path, `getEntries(String)` does the same walk
+for you, and skips the directories that cannot hold a match:
+
+```java
+try (Vfs vfs = new Vfs(); VfsRoot root = vfs.open("/path/to/app.jar")) {
+    // Every jarfile the application bundles
+    for (VfsEntry entry : root.getEntries("BOOT-INF/lib/")) {
+        System.out.println(entry.getName());
+    }
+}
+```
+
+The prefix is matched against the whole entry name, so it need not end at a directory boundary:
+`getEntries("com/xyz/Wid")` finds `com/xyz/Widget.class` too.
+
 ### Read one entry
 
 ```java
@@ -277,8 +296,13 @@ try (Vfs vfs = new Vfs(); VfsRoot root = vfs.open("/path/to/library.jar")) {
 }
 ```
 
-`getEntry` returns null if there is no such entry. There are four ways to read one, differing only
-in what you get back and who has to release it.
+`getEntry` returns null if there is no *readable* entry with that name: for a directory the name may
+not exist, may name a directory rather than a file, may name a file the process has no permission to
+read, or may point outside the root once `..` sections are resolved; for a jarfile or a module it may
+not exist, or may be an entry this root does not report — an encrypted entry, an entry stored with an
+unsupported compression method, or an entry hidden by a newer multi-release version of itself. Null
+does not say which, so test for the file directly if the difference matters. There are four ways to
+read an entry, differing only in what you get back and who has to release it.
 
 `entry.open()` streams the content, so a large entry never has to be held in memory. The stream is
 yours to close:
@@ -377,6 +401,27 @@ try (FileSystem fileSystem = FileSystems.newFileSystem(Path.of("/path/to/library
 
 Any `Path` works, whatever provider it belongs to, whether it names a directory or a jarfile.
 
+### Read a root's manifest
+
+```java
+try (Vfs vfs = new Vfs(); VfsRoot root = vfs.open("/path/to/library.jar")) {
+    System.out.println("main class: " + root.getManifestEntry("Main-Class"));
+
+    Map<String, String> manifest = root.getManifest();
+    if (manifest != null) {
+        manifest.forEach((name, value) -> System.out.println(name + " = " + value));
+    }
+}
+```
+
+Only the main section of `META-INF/MANIFEST.MF` is read — the sections after it describe individual
+entries of the jarfile rather than the jarfile as a whole. Attribute names are case insensitive, and
+a value split across several lines is joined back together. Both methods return null if the root has
+no manifest, and the manifest is read once and then cached.
+
+A directory and a module have a manifest read from the same place, so an exploded jarfile is
+described by its manifest just as the jarfile it was exploded from is.
+
 ### Find a root's module name
 
 ```java
@@ -394,8 +439,7 @@ own name.
 ### Work out why something is not read as expected
 
 ```java
-try (Vfs vfs = new Vfs()) {
-    vfs.verbose();
+try (Vfs vfs = new Vfs().verbose()) {
     try (VfsRoot root = vfs.open("/path/to/library.jar")) {
         System.out.println(root.getEntries().size() + " entries");
     }

@@ -175,7 +175,8 @@ public class RandomAccessOrSequentialReaderTest {
         case JAR_ENTRY_STORED:
             return new RandomAccessOrSequentialReader(entry(vfs.open(jar(content, ZipEntry.STORED), "stored.jar")));
         case JAR_ENTRY_DEFLATED:
-            return new RandomAccessOrSequentialReader(entry(vfs.open(jar(content, ZipEntry.DEFLATED), "deflated.jar")));
+            return new RandomAccessOrSequentialReader(
+                    entry(vfs.open(jar(content, ZipEntry.DEFLATED), "deflated.jar")));
         case INPUT_STREAM_SHORT_READS:
             return new RandomAccessOrSequentialReader(new ShortReadInputStream(new ByteArrayInputStream(content)));
         default:

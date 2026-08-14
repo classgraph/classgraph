@@ -177,6 +177,24 @@ public class ClasspathOrderTest {
         assertThat(entryObjects()).endsWith(jar);
     }
 
+    /**
+     * Each classpath entry records the lib dir prefixes of the classloader it was found by, and passing null resets
+     * them to the archive lib dirs for the entries added after that.
+     */
+    @Test
+    public void libDirPrefixesAreRecordedOnEachEntry(@TempDir final Path tempDir) throws IOException {
+        final var customPrefixes = new String[] { "custom/lib/" };
+        classpathOrder.setLibDirPrefixes(customPrefixes);
+        classpathOrder.addClasspathEntry(createFile(tempDir.resolve("a.jar")), null, null);
+        classpathOrder.setLibDirPrefixes(null);
+        classpathOrder.addClasspathEntry(createFile(tempDir.resolve("b.jar")), null, null);
+
+        assertThat(classpathOrder.getOrder()).hasSize(2);
+        assertThat(classpathOrder.getOrder().get(0).libDirPrefixes).isSameAs(customPrefixes);
+        assertThat(classpathOrder.getOrder().get(1).libDirPrefixes).containsExactly("BOOT-INF/lib/", "WEB-INF/lib/",
+                "WEB-INF/lib-provided/");
+    }
+
     /** A directory with a "/*" suffix is expanded into one classpath entry per file in the directory. */
     @Test
     public void wildcardDirectoriesAreExpanded(@TempDir final Path tempDir) throws IOException {
@@ -344,10 +362,11 @@ public class ClasspathOrderTest {
     @Test
     public void classpathEntriesAreEqualIfTheyNameTheSameElement() {
         final var prefixes = new String[] { "classes/" };
+        final var libDirPrefixes = new String[] { "lib/" };
         final var classLoader = getClass().getClassLoader();
-        final var entry = new Entry("/a/b.jar", "/a/b.jar", classLoader, prefixes);
-        final var sameElement = new Entry("/a/b.jar", "/a/b.jar", null, prefixes);
-        final var otherElement = new Entry("/a/c.jar", "/a/c.jar", classLoader, prefixes);
+        final var entry = new Entry("/a/b.jar", "/a/b.jar", classLoader, prefixes, libDirPrefixes);
+        final var sameElement = new Entry("/a/b.jar", "/a/b.jar", null, prefixes, libDirPrefixes);
+        final var otherElement = new Entry("/a/c.jar", "/a/c.jar", classLoader, prefixes, libDirPrefixes);
 
         assertThat(entry).isEqualTo(entry).isEqualTo(sameElement).isNotEqualTo(otherElement)
                 .isNotEqualTo("/a/b.jar");

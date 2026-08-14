@@ -54,7 +54,6 @@ import io.github.classgraph.classpath.internal.ClasspathExpander;
 import io.github.classgraph.internal.scanspec.ScanSpec.ScanSpecPathMatch;
 import io.github.classgraph.internal.scanspec.ScanSpec;
 import io.github.classgraph.vfs.internal.slice.reader.RandomAccessOrSequentialReader;
-import io.github.classgraph.vfs.internal.zip.LogicalZipFile;
 import io.github.classgraph.vfs.Vfs;
 import io.github.classgraph.vfs.VfsEntry;
 import io.github.classgraph.vfs.VfsRoot;
@@ -166,7 +165,7 @@ class ClasspathElementZip extends ClasspathElement {
                 workQueue.addWorkUnit(new ClasspathEntryWorkUnit(childClasspathEltPath, getClassLoaderString(),
                         /* parentClasspathElement = */ ClasspathElementZip.this,
                         /* orderWithinParentClasspathElement = */ childClasspathEntryIdx++,
-                        /* packageRootPrefix = */ "", packageRootPrefixes));
+                        /* packageRootPrefix = */ "", packageRootPrefixes, libDirPrefixes));
             }
         }
     }
@@ -184,21 +183,30 @@ class ClasspathElementZip extends ClasspathElement {
         }
         final var subLog = log == null ? null : log(classpathElementIdx, "Opening jar: " + rawPath, log);
 
-        final var logicalZipFile = openLogicalZipFile(subLog);
-        if (logicalZipFile == null) {
+        final var root = openVfsRoot(subLog);
+        if (root == null) {
             skipClasspathElement = true;
             return;
         }
 
         // Schedule the child classpath entries in the order they were found, since the classpath order determines
         // which of two copies of the same class masks the other
-        final var childScheduler = new ChildClasspathElementScheduler(workQueue);
-        for (final ChildEntry childEntry : ClasspathExpander.childEntries(logicalZipFile, zipFilePath,
-                vfsScanSpec.enableNestedJars)) {
+        final List<ChildEntry> childEntries;
+        try {
+            childEntries = ClasspathExpander.childEntries(root, List.of(libDirPrefixes),
+                    vfsScanSpec.enableNestedJars, subLog);
+        } catch (final IOException e) {
             if (subLog != null) {
-                subLog.log(childEntry.origin().getLogMessage() + ": " + childEntry.path());
+                subLog.log("Could not read the classpath elements declared by " + rawPath + " : " + e);
             }
-            childScheduler.schedule(childEntry.path());
+            return;
+        }
+        final var childScheduler = new ChildClasspathElementScheduler(workQueue);
+        for (final ChildEntry childEntry : childEntries) {
+            if (subLog != null) {
+                subLog.log(childEntry.origin().getLogMessage() + ": " + childEntry.location());
+            }
+            childScheduler.schedule(childEntry.location());
         }
     }
 
@@ -220,15 +228,21 @@ class ClasspathElementZip extends ClasspathElement {
         return plingIdx < 0 ? resolvedPath : resolvedPath.substring(0, plingIdx);
     }
 
+    /** The {@code "Implementation-Title"} that a jarfile of the JRE declares in its manifest. */
+    private static final String JRE_IMPLEMENTATION_TITLE = "Java Runtime Environment";
+
+    /** The {@code "Specification-Title"} that a jarfile of the JRE declares in its manifest. */
+    private static final String JRE_SPECIFICATION_TITLE = "Java Platform API Specification";
+
     /**
-     * Open the {@link LogicalZipFile} for this classpath element, and record its normalized path and package root.
+     * Open this classpath element through the virtual filesystem, and record its normalized path and package root.
      *
      * @param log
      *            the log node, or null to skip logging
-     * @return the {@link LogicalZipFile}, or null if the zipfile could not be opened, or if it should not be
-     *         scanned.
+     * @return the jarfile, as a root of the virtual filesystem, or null if it could not be opened, or if it should
+     *         not be scanned.
      */
-    private @Nullable LogicalZipFile openLogicalZipFile(final @Nullable LogNode log) {
+    private @Nullable VfsRoot openVfsRoot(final @Nullable LogNode log) {
         final var outermostZipFilePathResolved = outermostZipFilePathResolved();
         if (!scanSpec.jarAcceptReject.isAcceptedAndNotRejected(outermostZipFilePathResolved)) {
             if (log != null) {
@@ -237,17 +251,15 @@ class ClasspathElementZip extends ClasspathElement {
             return null;
         }
 
-        final LogicalZipFile logicalZipFile;
+        final VfsRoot root;
         try {
             // Open the innermost nested jarfile through the virtual filesystem, which strips any package root from
             // the names of the entries it reports
-            final var root = vfs.open(rawPath, log);
-            final var openedZipFile = root.getLogicalZipFile();
-            if (openedZipFile == null) {
+            root = vfs.open(rawPath, log);
+            if (root.getKind() != VfsRoot.Kind.ARCHIVE) {
                 throw new IOException("Not a jarfile: " + rawPath);
             }
             this.vfsRoot = root;
-            logicalZipFile = openedZipFile;
 
             // Get the normalized path of the jarfile
             zipFilePath = FastPathResolver.resolve(FileUtils.currDirPath(), root.getPath());
@@ -257,6 +269,14 @@ class ClasspathElementZip extends ClasspathElement {
             if (!packageRoot.isEmpty()) {
                 packageRootPrefix = packageRoot + "/";
             }
+
+            if (!scanSpec.classpathSpec.enableSystemJarsAndModules && isJREJar(root)) {
+                // Found a rejected JRE jar that was not caught by filtering for rt.jar in ClassLoaderProbe
+                if (log != null) {
+                    log.log("Ignoring JRE jar: " + rawPath);
+                }
+                return null;
+            }
         } catch (final IOException | IllegalArgumentException e) {
             if (log != null) {
                 log.log("Could not open jarfile " + rawPath + " : " + e);
@@ -264,22 +284,45 @@ class ClasspathElementZip extends ClasspathElement {
             return null;
         }
 
-        if (!scanSpec.classpathSpec.enableSystemJarsAndModules && logicalZipFile.isJREJar) {
-            // Found a rejected JRE jar that was not caught by filtering for rt.jar in ClassLoaderProbe (the isJREJar
-            // value was set by detecting JRE headers in the jar's manifest file)
-            if (log != null) {
-                log.log("Ignoring JRE jar: " + rawPath);
-            }
-            return null;
-        }
-
-        if (!logicalZipFile.isAcceptedAndNotRejected(scanSpec.jarAcceptReject)) {
+        if (!isAcceptedAndNotRejected()) {
             if (log != null) {
                 log.log("Skipping jarfile that is rejected or not accepted: " + rawPath);
             }
             return null;
         }
-        return logicalZipFile;
+        return root;
+    }
+
+    /**
+     * Check whether a jarfile is part of the JRE, which is identified by the titles that the jarfiles of the JRE
+     * declare in their manifests -- their filenames do not always give them away.
+     *
+     * @param root
+     *            the jarfile, as a root of the virtual filesystem
+     * @return true if the jarfile is part of the JRE
+     * @throws IOException
+     *             if the manifest could not be read
+     */
+    private static boolean isJREJar(final VfsRoot root) throws IOException {
+        return JRE_IMPLEMENTATION_TITLE.equalsIgnoreCase(root.getManifestEntry("Implementation-Title"))
+                || JRE_SPECIFICATION_TITLE.equalsIgnoreCase(root.getManifestEntry("Specification-Title"));
+    }
+
+    /**
+     * Check whether this jarfile, and every jarfile it is nested inside, is accepted and not rejected by the
+     * jarfile accept/reject criteria. A jarfile nested inside a rejected jarfile is rejected along with it, since
+     * it is only on the classpath because the jarfile that contains it is.
+     *
+     * @return true if this jarfile should be scanned
+     */
+    private boolean isAcceptedAndNotRejected() {
+        for (final String nestedJarPathComponent : zipFilePath.split("!/")) {
+            if (!nestedJarPathComponent.isEmpty()
+                    && !scanSpec.jarAcceptReject.isAcceptedAndNotRejected(nestedJarPathComponent)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**

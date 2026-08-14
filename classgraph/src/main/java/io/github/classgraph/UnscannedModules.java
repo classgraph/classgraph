@@ -188,7 +188,8 @@ class UnscannedModules {
         if (classpathElement == null) {
             classpathElement = new ClasspathElementModule(moduleReference, vfs,
                     new ClasspathEntryWorkUnit(null, classLoaderStr, null, 0, "",
-                            ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES),
+                            ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES,
+                            ClassLoaderHandlerRegistry.NO_LIB_DIR_PREFIXES),
                     /* isLookupOnly = */ true, scanSpec);
             classpathElement.open(/* workQueue = */ null, log);
             moduleToClasspathElement.put(moduleReference, classpathElement);

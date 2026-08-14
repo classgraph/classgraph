@@ -77,6 +77,13 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
      */
     private String[] currPackageRootPrefixes = ClassLoaderHandlerRegistry.DEFAULT_PACKAGE_ROOT_PREFIXES;
 
+    /**
+     * The lib dirs of the {@code ClassLoaderHandler} whose {@code findClasspathOrder} method is currently being
+     * called, or the default lib dirs if classpath entries are not currently being obtained from a
+     * {@code ClassLoaderHandler} (e.g. for {@code java.class.path} entries, or an overridden classpath).
+     */
+    private String[] currLibDirPrefixes = ClassLoaderHandlerRegistry.ARCHIVE_LIB_DIR_PREFIXES;
+
     /** The keys that {@link #claimOncePerScan(String)} has already been called with. */
     private final Set<String> claimedOncePerScan = new HashSet<>();
 
@@ -113,6 +120,12 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
         public final String[] packageRootPrefixes;
 
         /**
+         * The lib dirs whose jarfiles should be added to the classpath, within this classpath element, as declared
+         * by the {@code ClassLoaderHandler} that found it.
+         */
+        public final String[] libDirPrefixes;
+
+        /**
          * Constructor.
          *
          * @param classpathEntryObj
@@ -123,13 +136,16 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
          *            the classloader the classpath element was obtained from.
          * @param packageRootPrefixes
          *            the automatic package root prefixes to look for within this classpath element.
+         * @param libDirPrefixes
+         *            the lib dirs whose jarfiles should be added to the classpath, within this classpath element.
          */
         public Entry(final Object classpathEntryObj, final String location, final @Nullable ClassLoader classLoader,
-                final String[] packageRootPrefixes) {
+                final String[] packageRootPrefixes, final String[] libDirPrefixes) {
             this.classpathEntryObj = classpathEntryObj;
             this.location = location;
             this.classLoaderStr = Objects.toString(classLoader, null);
             this.packageRootPrefixes = packageRootPrefixes;
+            this.libDirPrefixes = libDirPrefixes;
         }
 
         /**
@@ -208,6 +224,19 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
         this.currPackageRootPrefixes = packageRootPrefixes == null
                 ? ClassLoaderHandlerRegistry.DEFAULT_PACKAGE_ROOT_PREFIXES
                 : packageRootPrefixes;
+    }
+
+    /**
+     * Set the lib dirs to record for subsequently-added classpath entries. Called before and after invoking the
+     * {@code findClasspathOrder} method of a {@code ClassLoaderHandler}, so that each classpath entry records the
+     * lib dirs of the classloader it was obtained from.
+     *
+     * @param libDirPrefixes
+     *            the lib dir prefixes, or null to reset to the default lib dirs.
+     */
+    public void setLibDirPrefixes(final String @Nullable [] libDirPrefixes) {
+        this.currLibDirPrefixes = libDirPrefixes == null ? ClassLoaderHandlerRegistry.ARCHIVE_LIB_DIR_PREFIXES
+                : libDirPrefixes;
     }
 
     /**
@@ -321,7 +350,7 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
             if (classpathEntryUniqueResolvedPaths.add(pathElementStrWithoutSuffix)) {
                 // Record classpath element in classpath order
                 order.add(new Entry(pathElementWithoutSuffix, pathElementStrWithoutSuffix, classLoader,
-                        currPackageRootPrefixes));
+                        currPackageRootPrefixes, currLibDirPrefixes));
                 return true;
             }
         } else {
@@ -329,7 +358,7 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
                     pathElementStrWithoutSuffix);
             if (classpathEntryUniqueResolvedPaths.add(pathElementStrResolved)) {
                 order.add(new Entry(pathElementStrResolved, pathElementStrResolved, classLoader,
-                        currPackageRootPrefixes));
+                        currPackageRootPrefixes, currLibDirPrefixes));
                 return true;
             }
         }

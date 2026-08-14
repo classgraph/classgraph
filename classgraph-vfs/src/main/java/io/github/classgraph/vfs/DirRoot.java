@@ -37,10 +37,12 @@ import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import io.github.classgraph.base.internal.utils.CollectionUtils;
 import io.github.classgraph.base.internal.utils.FastPathResolver;
 import io.github.classgraph.base.internal.utils.FileUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
@@ -194,8 +196,10 @@ final class DirRoot extends VfsRoot {
             return true;
         }
         // List the entries of a directory in a deterministic order, since the order a filesystem returns them in is
-        // not specified
-        Collections.sort(children);
+        // not specified. Compare the filenames rather than the Paths, since Path#compareTo is case-insensitive on
+        // Windows, which would order the same set of files differently there.
+        CollectionUtils.sortIfNotEmpty(children,
+                Comparator.comparing(child -> String.valueOf(child.getFileName())));
         // Visit the files of a directory before recursing into its subdirectories, so that the reads that follow
         // the walk are grouped the same way the filesystem groups the metadata they need
         final List<Path> subDirs = new ArrayList<>();

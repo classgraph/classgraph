@@ -194,4 +194,18 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
     public String[] getPackageRootPrefixes() {
         return new String[] { "WEB-INF/classes/", "classes/" };
     }
+
+    /**
+     * Get the automatic lib dirs for classpath elements obtained from this classloader.
+     *
+     * <p>
+     * Tomcat serves a webapp's jarfiles from "WEB-INF/lib/" within the webapp, and its own shared jarfiles from a
+     * "lib/" dir within $CATALINA_BASE, and does not always list those jarfiles as classpath elements.
+     *
+     * @return the lib dir prefixes.
+     */
+    @Override
+    public String[] getLibDirPrefixes() {
+        return ClassLoaderHandlerRegistry.SERVLET_CONTAINER_LIB_DIR_PREFIXES;
+    }
 }

@@ -89,12 +89,12 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>
  * Every method is safe to call from multiple threads at once. Two threads that ask for the same path at the same
- * time get back the same {@link VfsRoot}, and the jarfile behind it is only read once. Nothing can be configured
- * after construction, so there are no settings for one thread to change while another is reading.
- * {@link #close()} takes effect the moment it is called, so a thread that calls any other method after that --
- * even while the close is still running -- gets an {@link IOException} from an {@code open} method, or an
- * {@link IllegalStateException} from {@link #verbose()}, rather than a root backed by storage that is being
- * released.
+ * time get back the same {@link VfsRoot}, and the jarfile behind it is only read once. How storage is read is fixed
+ * at construction, so there are no settings for one thread to change while another is reading, and
+ * {@link #verbose()}, which only turns on logging, is synchronized like every other method. {@link #close()} takes
+ * effect the moment it is called, so a thread that calls any other method after that -- even while the close is
+ * still running -- gets an {@link IOException} from an {@code open} method, or an {@link IllegalStateException}
+ * from {@link #verbose()}, rather than a root backed by storage that is being released.
  */
 public class Vfs implements AutoCloseable {
     /** The default value of the {@code enableNestedJars} constructor parameter. */
@@ -122,7 +122,9 @@ public class Vfs implements AutoCloseable {
     /** True once {@link #close()} has been called. */
     private final AtomicBoolean closed = new AtomicBoolean();
 
-    /** Constructor, using the default value of every option -- see {@link #Vfs(boolean, boolean, Collection, int)}. */
+    /**
+     * Constructor, using the default value of every option -- see {@link #Vfs(boolean, boolean, Collection, int)}.
+     */
     public Vfs() {
         this(new VfsScanSpec(), new InterruptionChecker(), /* log = */ null);
     }
@@ -239,20 +241,16 @@ public class Vfs implements AutoCloseable {
      * <p>
      * The log is written when this {@link Vfs} is closed.
      *
-     * <p>
-     * This returns {@code void} rather than {@code this}: a method on an {@link AutoCloseable} that returns the
-     * {@link AutoCloseable} is reported as a resource leak by the resource analysis that Eclipse and VS Code run,
-     * both when it is called as a statement and when it is chained onto a constructor in a try-with-resources
-     * block, and there is no way to write the call that avoids it.
-     *
+     * @return this (for method chaining).
      * @throws IllegalStateException
      *             if this {@link Vfs} has been closed.
      */
-    public synchronized void verbose() {
+    public synchronized Vfs verbose() {
         checkOpen();
         if (log == null) {
             log = new LogNode();
         }
+        return this;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -269,9 +267,9 @@ public class Vfs implements AutoCloseable {
      * case only the entries under that root are reported, with the root stripped from their names.
      *
      * <p>
-     * A directory or jarfile is opened once however it is named, so the same {@link VfsRoot} is returned for a plain
-     * path, for the {@code "file:"} or {@code "jar:"} URL of the same thing, and, on Windows, for a path written
-     * with backslashes rather than forward slashes.
+     * A directory or jarfile is opened once however it is named, so the same {@link VfsRoot} is returned for a
+     * plain path, for the {@code "file:"} or {@code "jar:"} URL of the same thing, and, on Windows, for a path
+     * written with backslashes rather than forward slashes.
      *
      * @param path
      *            the path to open.
@@ -548,8 +546,8 @@ public class Vfs implements AutoCloseable {
 
     /**
      * Open a jarfile read from an {@link InputStream}. The stream is read to the end, into RAM or into a temporary
-     * file if it is longer than the maximum buffered jar RAM size this {@link Vfs} was constructed with, since a zipfile's central directory is at the
-     * end of the file and so cannot be reached by reading forwards.
+     * file if it is longer than the maximum buffered jar RAM size this {@link Vfs} was constructed with, since a
+     * zipfile's central directory is at the end of the file and so cannot be reached by reading forwards.
      *
      * <p>
      * Unlike the other {@code open} methods, this one does not cache what it opens, since each call reads a

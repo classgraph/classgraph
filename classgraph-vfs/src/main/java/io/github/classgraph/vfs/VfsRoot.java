@@ -37,13 +37,16 @@ import java.net.URI;
 import java.net.URL;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.base.internal.utils.LogNode;
-import io.github.classgraph.vfs.internal.zip.LogicalZipFile;
+import io.github.classgraph.vfs.internal.ManifestParser;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -191,59 +194,32 @@ public abstract class VfsRoot implements AutoCloseable, Iterable<VfsEntry> {
     }
 
     /**
-     * Returns the module name of this root: the name of the module for a module root, and the value of the
-     * {@code Automatic-Module-Name} manifest entry for a jarfile.
-     *
-     * @return the module name, or null if there is none.
-     */
-    public @Nullable String getModuleName() {
-        return null;
-    }
-
-    /**
-     * Returns the value of the {@code Add-Exports} manifest entry of this root's jarfile, which JEP 261 defines as
-     * a space-separated list of {@code <module>/<package>} pairs, each meaning the same as the command line option
-     * {@code --add-exports <module>/<package>=ALL-UNNAMED}.
-     *
-     * @return the value of the {@code Add-Exports} manifest entry, or null if this root is not an archive, or its
-     *         manifest does not declare one.
-     */
-    public @Nullable String getAddExportsManifestValue() {
-        return null;
-    }
-
-    /**
-     * Returns the value of the {@code Add-Opens} manifest entry of this root's jarfile, which JEP 261 defines as a
-     * space-separated list of {@code <module>/<package>} pairs, each meaning the same as the command line option
-     * {@code --add-opens <module>/<package>=ALL-UNNAMED}.
-     *
-     * @return the value of the {@code Add-Opens} manifest entry, or null if this root is not an archive, or its
-     *         manifest does not declare one.
-     */
-    public @Nullable String getAddOpensManifestValue() {
-        return null;
-    }
-
-    /**
-     * Returns the jarfile that this root reads from, as the internal type that the zipfile parser produces. This is
-     * the one seam between the virtual filesystem and the ClassGraph modules built on top of it, and is not part of
-     * the API: {@link LogicalZipFile} lives in a package that is only exported to those modules, so nothing outside
-     * them can name the returned type.
+     * Returns this root with its package root removed, so that the rest of the container it was opened within can
+     * be reached. For a Spring Boot application's {@code "app.jar!/BOOT-INF/classes"} that is the whole of
+     * {@code app.jar}, including the {@code "BOOT-INF/lib/"} directory of jarfiles the application depends on,
+     * which lies outside the package root and is therefore invisible from this root.
      *
      * <p>
-     * Anything a caller can get from the rest of this class should be got from the rest of this class instead. What
-     * is left over is the manifest's {@code Class-Path} and {@code Bundle-ClassPath} entries and the arithmetic on
-     * the chain of nested zipfile slices that resolving them needs, which is how ClassGraph decides what else goes
-     * on the classpath rather than anything the virtual filesystem has an opinion about.
+     * Closing this root closes the returned root too.
      *
-     * @return the jarfile, or null if this root is not an archive.
-     * @hidden
+     * @return the container this root was opened within, or this root itself if it was not opened at a package
+     *         root, which is always the case for a directory and for a module.
      */
-    public @Nullable LogicalZipFile getLogicalZipFile() {
-        return null;
+    public VfsRoot getContainerRoot() {
+        return this;
     }
 
-    // -------------------------------------------------------------------------------------------------------------
+    /**
+     * Returns the module name of this root: the name of the module for a module root, and the value of the
+     * {@code Automatic-Module-Name} manifest entry otherwise.
+     *
+     * @return the module name, or null if there is none.
+     * @throws IOException
+     *             if the manifest could not be read, or if the {@link Vfs} has been closed.
+     */
+    public @Nullable String getModuleName() throws IOException {
+        return getManifestEntry(AUTOMATIC_MODULE_NAME_KEY);
+    }
 
     /**
      * Walk the entries under the package root, not including directories, offering each directory to the visitor
@@ -306,6 +282,12 @@ public abstract class VfsRoot implements AutoCloseable, Iterable<VfsEntry> {
      * and the children of a directory sorted by name. For a jarfile, encrypted entries and entries stored with an
      * unsupported compression method are left out, and only the newest version of each entry that this JVM can run
      * is reported, unless the {@link Vfs} was constructed with multi-release versions enabled.
+     *
+     * <p>
+     * For a directory, an entry may name a file that the process has no permission to read: the walk tells the
+     * files from the subdirectories with the metadata it already reads, rather than spending a second syscall per
+     * file on a permission check. Reading such an entry throws an {@link IOException}, and
+     * {@link #getEntry(String)} returns null for its name.
      *
      * @return the entries, as an unmodifiable list.
      * @throws IOException
@@ -409,6 +391,20 @@ public abstract class VfsRoot implements AutoCloseable, Iterable<VfsEntry> {
      * contains more than one entry with the same name, the first one is returned, which is the one a classloader
      * would find.
      *
+     * <p>
+     * Null does not distinguish between the reasons for it: for a directory, the name may not exist, may name a
+     * directory rather than a file, may name a file that the process has no permission to read, or may point
+     * outside the root once {@code ".."} sections are resolved; for a jarfile or a module, the name may not exist,
+     * or may be an entry that this root does not report (an encrypted entry, an entry stored with an unsupported
+     * compression method, or an entry hidden by a newer multi-release version of itself). Test for the file
+     * directly if the difference matters.
+     *
+     * <p>
+     * A directory that is walked with {@link #walk(VfsVisitor)} or listed with {@link #getEntries()} does report an
+     * unreadable file as an entry, because the walk tells the files from the subdirectories with the metadata it
+     * already reads and does not spend a second syscall per file on a permission check. Reading such an entry then
+     * throws an {@link IOException}. So a name that a walk reports can still come back null from this method.
+     *
      * @param name
      *            the name of the entry, relative to the package root, e.g. {@code "com/xyz/Widget.class"}.
      * @return the entry, or null if there is no readable entry with that name.
@@ -431,6 +427,117 @@ public abstract class VfsRoot implements AutoCloseable, Iterable<VfsEntry> {
      *             if the root could not be searched.
      */
     abstract @Nullable VfsEntry getEntryImpl(String name) throws IOException;
+
+    /**
+     * Returns the entries under the package root whose name starts with the given prefix, not including
+     * directories. A prefix ending in {@code '/'} names a directory, and everything beneath it is returned, however
+     * deeply nested.
+     *
+     * <p>
+     * The entries come back in the same order as {@link #getEntries()} reports them in, and the same entries are
+     * left out as it leaves out. For a directory tree, only the directories that could hold an entry with this
+     * prefix are listed, so this costs much less than listing the whole tree.
+     *
+     * @param pathPrefix
+     *            the prefix to match, relative to the package root, with {@code '/'} as the separator and no
+     *            leading {@code '/'}, e.g. {@code "BOOT-INF/lib/"}. The empty string matches every entry.
+     * @return the matching entries, as an unmodifiable list.
+     * @throws IOException
+     *             if the entries could not be listed, or if the {@link Vfs} has been closed.
+     */
+    public final List<VfsEntry> getEntries(final String pathPrefix) throws IOException {
+        Assert.notNull(pathPrefix, "pathPrefix");
+        // Only the directories on the way to the prefix, and the directories below it, can hold a matching entry
+        final var dirPrefix = pathPrefix.substring(0, pathPrefix.lastIndexOf('/') + 1);
+        final List<VfsEntry> matchingEntries = new ArrayList<>();
+        walk(new VfsVisitor() {
+            @Override
+            public boolean enterDirectory(final String dirName) {
+                // The root directory is reported as "/", which is the empty prefix
+                final var dir = dirName.equals("/") ? "" : dirName;
+                return dir.startsWith(dirPrefix) || dirPrefix.startsWith(dir);
+            }
+
+            @Override
+            public boolean visitEntry(final VfsEntry entry) {
+                if (entry.getName().startsWith(pathPrefix)) {
+                    matchingEntries.add(entry);
+                }
+                return true;
+            }
+        });
+        return Collections.unmodifiableList(matchingEntries);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** The path of the manifest file within a root. */
+    private static final String MANIFEST_PATH = "META-INF/MANIFEST.MF";
+
+    /** The {@code "Automatic-Module-Name"} manifest key. */
+    private static final String AUTOMATIC_MODULE_NAME_KEY = "Automatic-Module-Name";
+
+    /** The manifest, read on first use, or null if this root has no manifest file. */
+    private @Nullable Map<String, String> manifest;
+
+    /** True once the manifest has been read, whether or not there turned out to be one. */
+    private boolean manifestRead;
+
+    /**
+     * Returns the main section of this root's manifest file, {@code META-INF/MANIFEST.MF}, which is read and parsed
+     * the first time it is asked for and cached from then on. A root opened at a package root reports the manifest
+     * of the container it was opened within, since that is the one that describes the jarfile as a whole.
+     *
+     * <p>
+     * A manifest is really only meaningful for a jarfile, but it is read the same way for a directory and for a
+     * module, so an exploded jarfile is described by its manifest just as the jarfile it was exploded from is.
+     *
+     * @return the manifest attributes, keyed case-insensitively by attribute name, as an unmodifiable map, or null
+     *         if this root has no manifest file.
+     * @throws IOException
+     *             if the manifest file could not be read, or if the {@link Vfs} has been closed.
+     */
+    public synchronized @Nullable Map<String, String> getManifest() throws IOException {
+        // This is synchronized rather than double-checked, so that a second thread asking for the manifest while
+        // the first is still reading it waits for that read rather than starting a second one
+        if (!manifestRead) {
+            manifest = readManifest();
+            manifestRead = true;
+        }
+        return manifest;
+    }
+
+    /**
+     * Returns the value of one attribute of this root's manifest file, reading the manifest if it has not already
+     * been read.
+     *
+     * @param key
+     *            the name of the attribute, e.g. {@code "Class-Path"}. Manifest attribute names are case
+     *            insensitive.
+     * @return the value of the attribute, or null if this root has no manifest file, or its manifest does not
+     *         declare that attribute.
+     * @throws IOException
+     *             if the manifest file could not be read, or if the {@link Vfs} has been closed.
+     */
+    public final @Nullable String getManifestEntry(final String key) throws IOException {
+        Assert.notNull(key, "key");
+        final var manifestAttributes = getManifest();
+        return manifestAttributes == null ? null : manifestAttributes.get(key);
+    }
+
+    /**
+     * Read and parse the manifest file of this root, through the same entry lookup and read that any other file of
+     * the root is read through.
+     *
+     * @return the manifest attributes, or null if this root has no manifest file.
+     * @throws IOException
+     *             if the manifest file could not be read, or if the {@link Vfs} has been closed.
+     */
+    @Nullable
+    Map<String, String> readManifest() throws IOException {
+        final var manifestEntry = getEntry(MANIFEST_PATH);
+        return manifestEntry == null ? null : ManifestParser.parse(manifestEntry.load());
+    }
 
     // -------------------------------------------------------------------------------------------------------------
 

@@ -28,6 +28,7 @@
  */
 package io.github.classgraph.classpath.internal.classloaderhandler;
 
+import java.util.Arrays;
 import java.util.List;
 
 import io.github.classgraph.base.ClassGraphLog;
@@ -76,24 +77,44 @@ public final class ClassLoaderHandlerRegistry {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Lib dirs whose jars should be added to the classpath automatically (to compensate for some classloaders not
-     * explicitly listing these jars as classpath elements).
+     * The lib dirs for classpath elements that have no automatic lib dirs at all.
      */
-    public static final String[] AUTOMATIC_LIB_DIR_PREFIXES = {
+    public static final String[] NO_LIB_DIR_PREFIXES = {};
+
+    /**
+     * The lib dirs of the standard packaged-archive layouts: Spring-Boot executable jars, and wars.
+     *
+     * <p>
+     * These are safe to look for in any classpath element, whatever classloader it came from, because neither
+     * {@code "BOOT-INF"} nor {@code "WEB-INF"} can ever be a real package name -- a hyphen is not a legal character
+     * in a Java identifier -- so jarfiles found in one of these dirs really are on the classpath of the archive
+     * that contains them, and are not just resources that happen to be jarfiles.
+     */
+    public static final String[] ARCHIVE_LIB_DIR_PREFIXES = {
             // Spring-Boot
-            // https://docs.spring.io/spring-boot/docs/2.3.0.RELEASE/reference/html/appendix-executable-jar-format.html
+            // https://docs.spring.io/spring-boot/docs/current/reference/html/appendix-executable-jar-format.html
             "BOOT-INF/lib/",
-            // Tomcat
-            "WEB-INF/lib/", "WEB-INF/lib-provided/",
-            // OSGi
-            "META-INF/lib/",
-            // Tomcat and others
-            "lib/",
-            // Extension dir
-            "lib/ext/",
-            // UnoJar and One-Jar
-            "main/" //
-    };
+            // War files
+            "WEB-INF/lib/", "WEB-INF/lib-provided/" };
+
+    /**
+     * The lib dirs of a servlet container, which serves a webapp's own jarfiles from the war layout, and the
+     * container's shared jarfiles from a {@code "lib/"} dir of its own.
+     */
+    public static final String[] SERVLET_CONTAINER_LIB_DIR_PREFIXES = archiveLibDirPrefixesPlus("lib/");
+
+    /**
+     * The lib dirs of an OSGi bundle. An OSGi bundle names the jarfiles it loads from in its
+     * {@code Bundle-ClassPath} manifest attribute, and by convention puts them in {@code "META-INF/lib/"}. A web
+     * application bundle is a war, so it uses the war layout.
+     */
+    public static final String[] OSGI_LIB_DIR_PREFIXES = archiveLibDirPrefixesPlus("META-INF/lib/");
+
+    /**
+     * The lib dirs of an Uno-Jar or One-JAR executable jarfile, which puts the jarfile it launches in
+     * {@code "main/"}, and the jarfiles that jarfile depends upon in {@code "lib/"}.
+     */
+    public static final String[] UNO_ONE_JAR_LIB_DIR_PREFIXES = archiveLibDirPrefixesPlus("lib/", "main/");
 
     /**
      * The package root prefixes for classpath elements that have no automatic package roots at all.
@@ -136,6 +157,27 @@ public final class ClassLoaderHandlerRegistry {
             // War files
             "WEB-INF/classes/" };
 
+    /**
+     * Extend {@link #ARCHIVE_LIB_DIR_PREFIXES} with the lib dirs of a specific kind of container.
+     *
+     * <p>
+     * Every classloader looks in the archive lib dirs, since any classloader can be handed a Spring-Boot jarfile or
+     * a war, whatever kind of container it belongs to, and those layouts are unambiguous. Only the extra lib dirs
+     * are specific to a container, because their names are ordinary directory names that could mean something else
+     * entirely in an archive built by anything else.
+     *
+     * @param extraLibDirPrefixes
+     *            the container's own lib dirs, each ending in a slash
+     * @return the archive lib dir prefixes, followed by the container's own lib dir prefixes
+     */
+    private static String[] archiveLibDirPrefixesPlus(final String... extraLibDirPrefixes) {
+        final String[] libDirPrefixes = Arrays.copyOf(ARCHIVE_LIB_DIR_PREFIXES,
+                ARCHIVE_LIB_DIR_PREFIXES.length + extraLibDirPrefixes.length);
+        System.arraycopy(extraLibDirPrefixes, 0, libDirPrefixes, ARCHIVE_LIB_DIR_PREFIXES.length,
+                extraLibDirPrefixes.length);
+        return libDirPrefixes;
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -155,6 +197,9 @@ public final class ClassLoaderHandlerRegistry {
         /** The package root prefixes for classpath elements found by this handler. */
         private final String[] packageRootPrefixes;
 
+        /** The lib dir prefixes for classpath elements found by this handler. */
+        private final String[] libDirPrefixes;
+
         /**
          * Constructor.
          *
@@ -164,6 +209,7 @@ public final class ClassLoaderHandlerRegistry {
         public ClassLoaderHandlerRegistryEntry(final ClassLoaderHandler classLoaderHandler) {
             this.classLoaderHandler = classLoaderHandler;
             this.packageRootPrefixes = classLoaderHandler.getPackageRootPrefixes();
+            this.libDirPrefixes = classLoaderHandler.getLibDirPrefixes();
         }
 
         /**
@@ -184,6 +230,16 @@ public final class ClassLoaderHandlerRegistry {
          */
         public String[] getPackageRootPrefixes() {
             return packageRootPrefixes;
+        }
+
+        /**
+         * The lib dirs (e.g. {@code "BOOT-INF/lib/"}) whose jarfiles should be added to the classpath, within
+         * classpath elements obtained from the associated {@link ClassLoaderHandler}.
+         *
+         * @return the lib dir prefixes.
+         */
+        public String[] getLibDirPrefixes() {
+            return libDirPrefixes;
         }
 
         /**

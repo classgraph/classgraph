@@ -85,15 +85,17 @@ public class RandomAccessOrSequentialReaderCloseTest {
     }
 
     /**
-     * Closing the reader twice is safe. ({@link RandomAccessOrSequentialReader#close()} does not declare a checked exception, so a
-     * failure to close the stream the reader opened is swallowed rather than being reported to the caller.)
+     * Closing the reader twice is safe. ({@link RandomAccessOrSequentialReader#close()} does not declare a checked
+     * exception, so a failure to close the stream the reader opened is swallowed rather than being reported to the
+     * caller.)
      *
      * @throws IOException
      *             if the reader could not be read from
      */
     @Test
     public void closingTheReaderTwiceIsSafe() throws IOException {
-        final var reader = new RandomAccessOrSequentialReader(new ByteArrayInputStream(new byte[] { 0x01, 0x23, 0x45, 0x67 }));
+        final var reader = new RandomAccessOrSequentialReader(
+                new ByteArrayInputStream(new byte[] { 0x01, 0x23, 0x45, 0x67 }));
         assertThat(reader.readInt()).isEqualTo(0x01234567);
         reader.close();
         assertThatCode(reader::close).doesNotThrowAnyException();

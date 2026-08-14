@@ -28,17 +28,13 @@
  */
 package io.github.classgraph.vfs.internal.zip;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -46,6 +42,7 @@ import io.github.classgraph.base.internal.utils.CollectionUtils;
 import io.github.classgraph.base.internal.utils.FileUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.base.internal.utils.StringUtils;
+import io.github.classgraph.vfs.internal.ManifestParser;
 import io.github.classgraph.vfs.internal.ScanResources;
 import io.github.classgraph.vfs.internal.slice.ArraySlice;
 import io.github.classgraph.vfs.internal.slice.reader.RandomAccessReader;
@@ -76,33 +73,8 @@ public class LogicalZipFile extends ZipFileSlice {
     /** A set of classpath roots found in the classpath for this zipfile. */
     Set<String> classpathRoots = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
-    /**
-     * The value of the "Class-Path" manifest entry, if present in the manifest, else null.
-     */
-    public @Nullable String classpathManifestEntryValue;
-
-    /**
-     * The value of the "Bundle-ClassPath" manifest entry, if present in the manifest, else null.
-     */
-    public @Nullable String bundleClassPathManifestEntryValue;
-
-    /**
-     * The value of the "Add-Exports" manifest entry, if present in the manifest, else null.
-     */
-    public @Nullable String addExportsManifestEntryValue;
-
-    /**
-     * The value of the "Add-Opens" manifest entry, if present in the manifest, else null.
-     */
-    public @Nullable String addOpensManifestEntryValue;
-
-    /**
-     * The value of the "Automatic-Module-Name" manifest entry, if present in the manifest, else null.
-     */
-    public @Nullable String automaticModuleNameManifestEntryValue;
-
-    /** If true, this is a JRE jar. */
-    public boolean isJREJar;
+    /** The main section of the manifest file, or null if the zipfile has no manifest file. */
+    private @Nullable Map<String, String> manifest;
 
     /** If true, multi-release versions should not be stripped in resource names. */
     private final boolean enableMultiReleaseVersions;
@@ -118,43 +90,14 @@ public class LogicalZipFile extends ZipFileSlice {
     /** {@code "META-INF/versions/"}. */
     public static final String MULTI_RELEASE_PATH_PREFIX = META_INF_PATH_PREFIX + "versions/";
 
-    /** The {@code "Implementation-Title"} manifest key. */
-    private static final byte[] IMPLEMENTATION_TITLE_KEY = manifestKeyToBytes("Implementation-Title");
-
-    /** The {@code "Specification-Title"} manifest key. */
-    private static final byte[] SPECIFICATION_TITLE_KEY = manifestKeyToBytes("Specification-Title");
-
-    /** The {@code "Class-Path"} manifest key. */
-    private static final byte[] CLASS_PATH_KEY = manifestKeyToBytes("Class-Path");
-
-    /** The {@code "Bundle-ClassPath"} manifest key. */
-    private static final byte[] BUNDLE_CLASSPATH_KEY = manifestKeyToBytes("Bundle-ClassPath");
+    /** The {@code "Multi-Release"} manifest key. */
+    private static final String MULTI_RELEASE_KEY = "Multi-Release";
 
     /** The {@code "Spring-Boot-Classes"} manifest key. */
-    private static final byte[] SPRING_BOOT_CLASSES_KEY = manifestKeyToBytes("Spring-Boot-Classes");
+    private static final String SPRING_BOOT_CLASSES_KEY = "Spring-Boot-Classes";
 
     /** The {@code "Spring-Boot-Lib"} manifest key. */
-    private static final byte[] SPRING_BOOT_LIB_KEY = manifestKeyToBytes("Spring-Boot-Lib");
-
-    /** The {@code "Multi-Release"} manifest key. */
-    private static final byte[] MULTI_RELEASE_KEY = manifestKeyToBytes("Multi-Release");
-
-    /** The {@code "Add-Exports"} manifest key. */
-    private static final byte[] ADD_EXPORTS_KEY = manifestKeyToBytes("Add-Exports");
-
-    /** The {@code "Add-Opens"} manifest key. */
-    private static final byte[] ADD_OPENS_KEY = manifestKeyToBytes("Add-Opens");
-
-    /** The {@code "Automatic-Module-Name"} manifest key. */
-    private static final byte[] AUTOMATIC_MODULE_NAME_KEY = manifestKeyToBytes("Automatic-Module-Name");
-
-    /** For quickly converting ASCII characters to lower case. */
-    private static final byte[] toLowerCase = new byte[256];
-    static {
-        for (var i = 32; i < 127; i++) {
-            toLowerCase[i] = (byte) Character.toLowerCase((char) i);
-        }
-    }
+    private static final String SPRING_BOOT_LIB_KEY = "Spring-Boot-Lib";
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -184,275 +127,73 @@ public class LogicalZipFile extends ZipFileSlice {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Extract a value from the manifest, and return the value as a string, along with the index after the
-     * terminating newline. Manifest files support three different line terminator types, and entries can be split
-     * across lines with a line terminator followed by a space.
-     *
-     * @param manifest
-     *            the manifest bytes
-     * @param startIdx
-     *            the start index of the manifest value
-     * @return the manifest value
-     */
-    private static Entry<String, Integer> getManifestValue(final byte[] manifest, final int startIdx) {
-        // See if manifest entry is split across multiple lines
-        var curr = startIdx;
-        final var len = manifest.length;
-        while (curr < len && manifest[curr] == (byte) ' ') {
-            // Skip initial spaces
-            curr++;
-        }
-        final var firstNonSpaceIdx = curr;
-        var isMultiLine = false;
-        for (; curr < len && !isMultiLine; curr++) {
-            final var b = manifest[curr];
-            if (b == (byte) '\r' && curr < len - 1 && manifest[curr + 1] == (byte) '\n') {
-                if (curr < len - 2 && manifest[curr + 2] == (byte) ' ') {
-                    isMultiLine = true;
-                }
-                break;
-            } else if (b == (byte) '\r' || b == (byte) '\n') {
-                if (curr < len - 1 && manifest[curr + 1] == (byte) ' ') {
-                    isMultiLine = true;
-                }
-                break;
-            }
-        }
-        String val;
-        if (!isMultiLine) {
-            // Fast path for single-line value
-            val = new String(manifest, firstNonSpaceIdx, curr - firstNonSpaceIdx, StandardCharsets.UTF_8);
-        } else {
-            // Skip (newline + space) sequences in multi-line values
-            final ByteArrayOutputStream buf = new ByteArrayOutputStream();
-            curr = firstNonSpaceIdx;
-            for (; curr < len; curr++) {
-                final var b = manifest[curr];
-                boolean isLineEnd;
-                if (b == (byte) '\r' && curr < len - 1 && manifest[curr + 1] == (byte) '\n') {
-                    // CRLF
-                    curr += 2;
-                    isLineEnd = true;
-                } else if (b == '\r' || b == '\n') {
-                    // CR or LF
-                    curr += 1;
-                    isLineEnd = true;
-                } else {
-                    buf.write(b);
-                    isLineEnd = false;
-                }
-                if (isLineEnd && curr < len && manifest[curr] != (byte) ' ') {
-                    // Value ends if line break is not followed by a space
-                    break;
-                }
-                // If line break was followed by a space, then the curr++ in the for loop header will skip it
-            }
-            val = buf.toString(StandardCharsets.UTF_8);
-        }
-        return new SimpleEntry<>(val.endsWith(" ") ? val.trim() : val, curr);
-    }
-
-    /**
-     * Manifest key to bytes.
-     *
-     * @param key
-     *            the manifest key
-     * @return the manifest key bytes, lowercased.
-     */
-    private static byte[] manifestKeyToBytes(final String key) {
-        final var bytes = new byte[key.length()];
-        for (var i = 0; i < key.length(); i++) {
-            bytes[i] = (byte) Character.toLowerCase(key.charAt(i));
-        }
-        return bytes;
-    }
-
-    /**
-     * Key matches at position.
-     *
-     * @param manifest
-     *            the manifest
-     * @param key
-     *            the key
-     * @param pos
-     *            the position to try matching
-     * @return true if the key matches at this position
-     */
-    private static boolean keyMatchesAtPosition(final byte[] manifest, final byte[] key, final int pos) {
-        if (pos + key.length + 1 > manifest.length || manifest[pos + key.length] != ':') {
-            return false;
-        }
-        for (var i = 0; i < key.length; i++) {
-            // Manifest keys are case insensitive. The manifest byte has to be masked to an unsigned value, since
-            // a byte >= 0x80 is negative, and would otherwise index outside the lookup table.
-            if (toLowerCase[manifest[i + pos] & 0xff] != key[i]) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    /**
-     * Parse the manifest entry of a zipfile.
+     * Parse the manifest file of a zipfile.
      *
      * @param manifestZipEntry
      *            the manifest zip entry
-     * @param log
-     *            the log node, or null to skip logging
      * @throws IOException
-     *             If an I/O exception occurs.
+     *             if the manifest names a nonstandard Spring Boot layout.
      * @throws InterruptedException
      *             If the thread was interrupted.
      */
-    private void parseManifest(final FastZipEntry manifestZipEntry, final @Nullable LogNode log)
-            throws IOException, InterruptedException {
-        // Load contents of manifest entry as a byte array
-        final var manifest = manifestZipEntry.getSlice().load();
+    private void parseManifest(final FastZipEntry manifestZipEntry) throws IOException, InterruptedException {
+        final var manifestMap = ManifestParser.parse(manifestZipEntry.getSlice().load());
+        manifest = manifestMap;
 
-        // Find field keys (separated by newlines)
-        for (var i = 0; i < manifest.length;) {
-            // There cannot be any space after a newline before the manifest key, so key starts immediately.
-            // Blank lines have no key to read.
-            final var isBlankLine = manifest[i] == (byte) '\n' || manifest[i] == (byte) '\r';
-            final var endIdx = isBlankLine ? -1 : parseManifestField(manifest, i, log);
-            if (endIdx >= 0) {
-                i = endIdx;
-                continue;
-            }
+        // A multi-release jar holds version-specific entries under "META-INF/versions/<version>/", and those
+        // entries mask their unversioned counterparts, so this has to be read while the zipfile is being parsed
+        // rather than left to the caller: it determines the name of every entry of the zipfile.
+        isMultiReleaseJar = "true".equalsIgnoreCase(manifestMap.get(MULTI_RELEASE_KEY));
 
-            // Field key didn't match -- skip to next key (after next newline that is not followed by a space)
-            for (; i < manifest.length - 2; i++) {
-                if (manifest[i] == (byte) '\r' && manifest[i + 1] == (byte) '\n' && manifest[i + 2] != (byte) ' ') {
-                    i += 2;
-                    break;
-                } else if ((manifest[i] == (byte) '\r' || manifest[i] == (byte) '\n')
-                        && manifest[i + 1] != (byte) ' ') {
-                    i++;
-                    break;
-                }
-            }
-            if (i >= manifest.length - 2) {
-                break;
-            }
-        }
+        // ClassGraph looks for the classes and the lib jars of a Spring Boot jar in the standard locations, so a
+        // jar that declares a different layout has to be rejected rather than silently scanned as if it were empty
+        checkSpringBootLayout(manifestMap, SPRING_BOOT_CLASSES_KEY, "classes", "BOOT-INF/classes",
+                "WEB-INF/classes");
+        checkSpringBootLayout(manifestMap, SPRING_BOOT_LIB_KEY, "lib jars", "BOOT-INF/lib", "WEB-INF/lib");
     }
 
     /**
-     * Read one field of the manifest, if its key is one of the keys that ClassGraph looks for, and record the
-     * field's value.
+     * Check that a Spring Boot manifest entry names one of the standard locations, if it is present at all. A
+     * trailing {@code '/'} is optional in both the manifest entry and the standard locations.
      *
-     * @param manifest
-     *            the manifest contents
-     * @param keyStartIdx
-     *            the index of the start of the field key
-     * @param log
-     *            the log node, or null to skip logging
-     * @return the index of the character after the field's value, or -1 if the field key was not recognized
+     * @param manifestMap
+     *            the main section of the manifest
+     * @param key
+     *            the manifest key to check
+     * @param description
+     *            what is stored at the named location, for the exception message
+     * @param standardLocations
+     *            the locations ClassGraph knows how to scan
      * @throws IOException
-     *             if the manifest names a nonstandard Spring Boot layout.
+     *             if the manifest entry is present and names a location that is not one of the standard locations.
      */
-    private int parseManifestField(final byte[] manifest, final int keyStartIdx, final @Nullable LogNode log)
-            throws IOException {
-        if (keyMatchesAtPosition(manifest, IMPLEMENTATION_TITLE_KEY, keyStartIdx)) {
-            final var manifestValueAndEndIdx = getManifestValue(manifest,
-                    keyStartIdx + IMPLEMENTATION_TITLE_KEY.length + 1);
-            if ("Java Runtime Environment".equalsIgnoreCase(manifestValueAndEndIdx.getKey())) {
-                isJREJar = true;
-            }
-            return manifestValueAndEndIdx.getValue();
-
-        } else if (keyMatchesAtPosition(manifest, SPECIFICATION_TITLE_KEY, keyStartIdx)) {
-            final var manifestValueAndEndIdx = getManifestValue(manifest,
-                    keyStartIdx + SPECIFICATION_TITLE_KEY.length + 1);
-            if ("Java Platform API Specification".equalsIgnoreCase(manifestValueAndEndIdx.getKey())) {
-                isJREJar = true;
-            }
-            return manifestValueAndEndIdx.getValue();
-
-        } else if (keyMatchesAtPosition(manifest, CLASS_PATH_KEY, keyStartIdx)) {
-            final var manifestValueAndEndIdx = getManifestValue(manifest, keyStartIdx + CLASS_PATH_KEY.length + 1);
-            // Add Class-Path manifest entry values to classpath
-            classpathManifestEntryValue = manifestValueAndEndIdx.getKey();
-            if (log != null) {
-                log.log("Found Class-Path entry in manifest file: " + classpathManifestEntryValue);
-            }
-            return manifestValueAndEndIdx.getValue();
-
-        } else if (keyMatchesAtPosition(manifest, BUNDLE_CLASSPATH_KEY, keyStartIdx)) {
-            final var manifestValueAndEndIdx = getManifestValue(manifest,
-                    keyStartIdx + BUNDLE_CLASSPATH_KEY.length + 1);
-            // Add Bundle-ClassPath manifest entry values to classpath
-            bundleClassPathManifestEntryValue = manifestValueAndEndIdx.getKey();
-            if (log != null) {
-                log.log("Found Bundle-ClassPath entry in manifest file: " + bundleClassPathManifestEntryValue);
-            }
-            return manifestValueAndEndIdx.getValue();
-
-        } else if (keyMatchesAtPosition(manifest, SPRING_BOOT_CLASSES_KEY, keyStartIdx)) {
-            final var manifestValueAndEndIdx = getManifestValue(manifest,
-                    keyStartIdx + SPRING_BOOT_CLASSES_KEY.length + 1);
-            final var springBootClassesFieldVal = manifestValueAndEndIdx.getKey();
-            if (!"BOOT-INF/classes".equals(springBootClassesFieldVal)
-                    && !"BOOT-INF/classes/".equals(springBootClassesFieldVal)
-                    && !"WEB-INF/classes".equals(springBootClassesFieldVal)
-                    && !"WEB-INF/classes/".equals(springBootClassesFieldVal)) {
-                throw new IOException("Spring boot classes are at \"" + springBootClassesFieldVal
-                        + "\" rather than the standard location \"BOOT-INF/classes/\" or \"WEB-INF/classes/\" "
-                        + "-- please report this at https://github.com/classgraph/classgraph/issues");
-            }
-            return manifestValueAndEndIdx.getValue();
-
-        } else if (keyMatchesAtPosition(manifest, SPRING_BOOT_LIB_KEY, keyStartIdx)) {
-            final var manifestValueAndEndIdx = getManifestValue(manifest,
-                    keyStartIdx + SPRING_BOOT_LIB_KEY.length + 1);
-            final var springBootLibFieldVal = manifestValueAndEndIdx.getKey();
-            if (!"BOOT-INF/lib".equals(springBootLibFieldVal) && !"BOOT-INF/lib/".equals(springBootLibFieldVal)
-                    && !"WEB-INF/lib".equals(springBootLibFieldVal)
-                    && !"WEB-INF/lib/".equals(springBootLibFieldVal)) {
-                throw new IOException("Spring boot lib jars are at \"" + springBootLibFieldVal
-                        + "\" rather than the standard location \"BOOT-INF/lib/\" or \"WEB-INF/lib/\" "
-                        + "-- please report this at https://github.com/classgraph/classgraph/issues");
-            }
-            return manifestValueAndEndIdx.getValue();
-
-        } else if (keyMatchesAtPosition(manifest, MULTI_RELEASE_KEY, keyStartIdx)) {
-            final var manifestValueAndEndIdx = getManifestValue(manifest,
-                    keyStartIdx + MULTI_RELEASE_KEY.length + 1);
-            if ("true".equalsIgnoreCase(manifestValueAndEndIdx.getKey())) {
-                isMultiReleaseJar = true;
-            }
-            return manifestValueAndEndIdx.getValue();
-
-        } else if (keyMatchesAtPosition(manifest, ADD_EXPORTS_KEY, keyStartIdx)) {
-            final var manifestValueAndEndIdx = getManifestValue(manifest, keyStartIdx + ADD_EXPORTS_KEY.length + 1);
-            addExportsManifestEntryValue = manifestValueAndEndIdx.getKey();
-            if (log != null) {
-                log.log("Found Add-Exports entry in manifest file: " + addExportsManifestEntryValue);
-            }
-            return manifestValueAndEndIdx.getValue();
-
-        } else if (keyMatchesAtPosition(manifest, ADD_OPENS_KEY, keyStartIdx)) {
-            final var manifestValueAndEndIdx = getManifestValue(manifest, keyStartIdx + ADD_OPENS_KEY.length + 1);
-            addOpensManifestEntryValue = manifestValueAndEndIdx.getKey();
-            if (log != null) {
-                log.log("Found Add-Opens entry in manifest file: " + addOpensManifestEntryValue);
-            }
-            return manifestValueAndEndIdx.getValue();
-
-        } else if (keyMatchesAtPosition(manifest, AUTOMATIC_MODULE_NAME_KEY, keyStartIdx)) {
-            final var manifestValueAndEndIdx = getManifestValue(manifest,
-                    keyStartIdx + AUTOMATIC_MODULE_NAME_KEY.length + 1);
-            automaticModuleNameManifestEntryValue = manifestValueAndEndIdx.getKey();
-            if (log != null) {
-                log.log("Found Automatic-Module-Name entry in manifest file: "
-                        + automaticModuleNameManifestEntryValue);
-            }
-            return manifestValueAndEndIdx.getValue();
-
-        } else {
-            // Key name was unrecognized
-            return -1;
+    private static void checkSpringBootLayout(final Map<String, String> manifestMap, final String key,
+            final String description, final String... standardLocations) throws IOException {
+        final var location = manifestMap.get(key);
+        if (location == null) {
+            return;
         }
+        final var locationWithoutSlash = location.endsWith("/") ? location.substring(0, location.length() - 1)
+                : location;
+        for (final String standardLocation : standardLocations) {
+            if (standardLocation.equals(locationWithoutSlash)) {
+                return;
+            }
+        }
+        throw new IOException(
+                "Spring boot " + description + " are at \"" + location + "\" rather than the standard location \""
+                        + StringUtils.join("/\" or \"", List.of(standardLocations))
+                        + "/\" -- please report this at https://github.com/classgraph/classgraph/issues");
+    }
+
+    /**
+     * Get the main section of the manifest file of this zipfile.
+     *
+     * @return the manifest attributes, keyed case-insensitively by attribute name, or null if this zipfile has no
+     *         {@code META-INF/MANIFEST.MF} entry.
+     */
+    public @Nullable Map<String, String> getManifest() {
+        return manifest;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1178,40 +919,12 @@ public class LogicalZipFile extends ZipFileSlice {
 
         // Parse manifest file, if present
         if (manifestZipEntry != null) {
-            parseManifest(manifestZipEntry, log);
+            parseManifest(manifestZipEntry);
         }
 
         if (isMultiReleaseJar) {
             maskMultiReleaseEntries(log);
         }
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Get the paths of the jarfiles stored under any of the given directories within this jarfile.
-     *
-     * <p>
-     * The package root is ignored, since a jarfile can have both a package root and library directories alongside
-     * it, e.g. a Spring Boot executable jar stores its classes under {@code BOOT-INF/classes/} and the jarfiles it
-     * depends on under {@code BOOT-INF/lib/}.
-     *
-     * @param dirPrefixes
-     *            the directories to look under, each ending with {@code '/'}.
-     * @return the paths of the jarfiles, in the order they appear in the central directory.
-     */
-    public List<String> nestedJarPaths(final String[] dirPrefixes) {
-        final List<String> nestedJarPaths = new ArrayList<>();
-        for (final var zipEntry : entries) {
-            for (final String dirPrefix : dirPrefixes) {
-                if (zipEntry.entryNameUnversioned.startsWith(dirPrefix)
-                        && zipEntry.entryNameUnversioned.endsWith(".jar")) {
-                    nestedJarPaths.add(zipEntry.getPath());
-                    break;
-                }
-            }
-        }
-        return nestedJarPaths;
     }
 
     // -------------------------------------------------------------------------------------------------------------

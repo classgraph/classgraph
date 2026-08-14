@@ -87,9 +87,8 @@ class UnoOneJarClassLoaderHandler implements ClassLoaderHandler {
             classpathOrder.addClasspathEntryObject(oneJarClassPath.split("\\|"), classLoader, log);
         }
 
-        // For both UnoJar and OneJar, "libs/" and "main/" will be automatically picked up as library roots for
-        // nested jars, based on ClassLoaderHandlerRegistry.AUTOMATIC_LIB_DIR_PREFIXES. ("main/" contains
-        // "main.jar".)
+        // For both Uno-Jar and One-Jar, "lib/" and "main/" are automatically picked up as library roots for nested
+        // jars -- see getLibDirPrefixes(). ("main/" contains "main.jar".)
     }
 
     /**
@@ -104,5 +103,19 @@ class UnoOneJarClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public String[] getPackageRootPrefixes() {
         return ClassLoaderHandlerRegistry.DEFAULT_PACKAGE_ROOT_PREFIXES;
+    }
+
+    /**
+     * Get the automatic lib dirs for classpath elements obtained from this classloader.
+     *
+     * <p>
+     * Uno-Jar and One-Jar package an application as a single jarfile, with the application in "main/main.jar" and
+     * its dependencies in "lib/", and neither is listed as a classpath element.
+     *
+     * @return the lib dir prefixes.
+     */
+    @Override
+    public String[] getLibDirPrefixes() {
+        return ClassLoaderHandlerRegistry.UNO_ONE_JAR_LIB_DIR_PREFIXES;
     }
 }

@@ -85,17 +85,23 @@ class ClasspathElementDir extends ClasspathElement {
             return;
         }
         try {
-            // Auto-add nested lib dirs. The child classpath entries are added in the order they were found,
+            // Auto-add the jarfiles in the lib dirs, and the classpath elements that the directory's manifest
+            // declares -- an exploded jarfile in a directory declares the same classpath elements that the jarfile
+            // it was exploded from declares. The child classpath entries are added in the order they were found,
             // since the classpath order determines which of two copies of the same class masks the other.
             var childClasspathEntryIdx = 0;
-            for (final Path libJarPath : ClasspathExpander.libJarsInDir(classpathEltPath)) {
+            for (final var childEntry : ClasspathExpander.childEntries(vfs.open(classpathEltPath),
+                    List.of(libDirPrefixes), vfsScanSpec.enableNestedJars, log)) {
                 if (log != null) {
-                    log(classpathElementIdx, "Found lib jar: " + libJarPath, log);
+                    log(classpathElementIdx, childEntry.origin().getLogMessage() + ": " + childEntry.location(),
+                            log);
                 }
-                workQueue.addWorkUnit(new ClasspathEntryWorkUnit(libJarPath, getClassLoaderString(),
-                        /* parentClasspathElement = */ this,
-                        /* orderWithinParentClasspathElement = */ childClasspathEntryIdx++,
-                        /* packageRootPrefix = */ "", packageRootPrefixes));
+                final var childPath = childEntry.path();
+                workQueue.addWorkUnit(
+                        new ClasspathEntryWorkUnit(childPath == null ? childEntry.location() : childPath,
+                                getClassLoaderString(), /* parentClasspathElement = */ this,
+                                /* orderWithinParentClasspathElement = */ childClasspathEntryIdx++,
+                                /* packageRootPrefix = */ "", packageRootPrefixes, libDirPrefixes));
             }
             // Only look for package roots if the package root is empty
             if (packageRootPrefix.isEmpty()) {
@@ -120,11 +126,11 @@ class ClasspathElementDir extends ClasspathElement {
                         workQueue.addWorkUnit(new ClasspathEntryWorkUnit(packageRoot, getClassLoaderString(),
                                 /* parentClasspathElement = */ this,
                                 /* orderWithinParentClasspathElement = */ childClasspathEntryIdx++,
-                                packageRootPrefix, packageRootPrefixes));
+                                packageRootPrefix, packageRootPrefixes, libDirPrefixes));
                     }
                 }
             }
-        } catch (final SecurityException e) {
+        } catch (final IOException | SecurityException e) {
             if (log != null) {
                 log(classpathElementIdx,
                         "Skipping classpath element, since dir cannot be accessed: " + classpathEltPath, log);

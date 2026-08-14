@@ -297,7 +297,10 @@ public class ClasspathFinderTest {
     @Test
     public void libDirJarsAreAddedToTheClasspath(@TempDir final Path tempDir) throws IOException {
         final var dir = Files.createDirectory(tempDir.resolve("exploded"));
-        final var libJar = writeJarWithEntry(dir.resolve("lib").resolve("in-lib-dir.jar"), "resource.txt");
+        // "BOOT-INF/lib/" is looked in whatever classloader found the classpath element, since it can only ever be a
+        // Spring Boot lib dir -- a lib dir named "lib/" is only looked in by the classloaders that support it
+        final var libJar = writeJarWithEntry(dir.resolve("BOOT-INF").resolve("lib").resolve("in-lib-dir.jar"),
+                "resource.txt");
         try (var classpath = new ClasspathFinder().overrideClasspath((Object) dir.toFile()).find()) {
             assertThat(classpath.getLocations()).containsExactly(locationOf(dir.toFile()), locationOf(libJar));
         }

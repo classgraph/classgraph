@@ -20,6 +20,7 @@ import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.zip.CRC32;
@@ -69,6 +70,47 @@ public class VfsTest {
             zipOut.putNextEntry(new ZipEntry(entryName));
             zipOut.write(RESOURCE_CONTENT.getBytes(StandardCharsets.UTF_8));
             zipOut.closeEntry();
+        }
+    }
+
+    /**
+     * Write a jarfile holding an entry for each of the given names, and no manifest, so that it holds exactly the
+     * entries the test asks for.
+     *
+     * @param jarFile
+     *            the jarfile to write.
+     * @param entryNames
+     *            the names of the entries to write.
+     * @throws IOException
+     *             if the jarfile could not be written.
+     */
+    private static void writeJarWithEntries(final File jarFile, final String... entryNames) throws IOException {
+        try (var fileOut = new FileOutputStream(jarFile); var zipOut = new ZipOutputStream(fileOut)) {
+            for (final String entryName : entryNames) {
+                zipOut.putNextEntry(new ZipEntry(entryName));
+                zipOut.write(RESOURCE_CONTENT.getBytes(StandardCharsets.UTF_8));
+                zipOut.closeEntry();
+            }
+        }
+    }
+
+    /**
+     * Write a directory holding a file for each of the given names, creating the directories on the way to each of
+     * them.
+     *
+     * @param dir
+     *            the directory to write.
+     * @param fileNames
+     *            the names of the files to write, relative to the directory.
+     * @throws IOException
+     *             if the directory could not be written.
+     */
+    private static void writeDirWithFiles(final File dir, final String... fileNames) throws IOException {
+        for (final String fileName : fileNames) {
+            final var file = new File(dir, fileName);
+            final var parentDir = Objects.requireNonNull(file.getParentFile());
+            assertThat(parentDir.mkdirs() || parentDir.isDirectory()).isTrue();
+            Files.writeString(file.toPath(), RESOURCE_CONTENT);
         }
     }
 
@@ -283,6 +325,132 @@ public class VfsTest {
 
         try (var vfs = new Vfs()) {
             assertThat(vfs.open(jarFile.getPath()).getModuleName()).isEqualTo("com.xyz.widget");
+        }
+    }
+
+    /**
+     * The main section of a jarfile's manifest is read, keyed case-insensitively by attribute name, and an
+     * attribute that the manifest does not declare is null rather than an error.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the jarfile could not be written or read.
+     */
+    @Test
+    public void theManifestOfAJarfileIsRead(@TempDir final File tempDir) throws IOException {
+        final var jarFile = new File(tempDir, "widget.jar");
+        writeJar(jarFile, "com/xyz/widget.txt");
+
+        try (var vfs = new Vfs()) {
+            final var root = vfs.open(jarFile.getPath());
+            assertThat(root.getManifest()).containsOnly(Map.entry("Manifest-Version", "1.0"),
+                    Map.entry("Automatic-Module-Name", "com.xyz.widget"));
+            assertThat(root.getManifestEntry("automatic-module-name")).isEqualTo("com.xyz.widget");
+            assertThat(root.getManifestEntry("Main-Class")).isNull();
+            // The manifest is read once and then cached, so the same map is handed out every time
+            assertThat(root.getManifest()).isSameAs(root.getManifest());
+        }
+    }
+
+    /**
+     * A directory's manifest is read from the same place a jarfile's is, so an exploded jarfile is described by its
+     * manifest just as the jarfile it was exploded from is.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the directory could not be written or read.
+     */
+    @Test
+    public void theManifestOfADirectoryIsRead(@TempDir final File tempDir) throws IOException {
+        final var dir = new File(tempDir, "exploded");
+        assertThat(new File(dir, "META-INF").mkdirs()).isTrue();
+        Files.writeString(new File(dir, "META-INF/MANIFEST.MF").toPath(),
+                "Manifest-Version: 1.0\r\nClass-Path: lib/dep.jar\r\n\r\n");
+
+        try (var vfs = new Vfs()) {
+            assertThat(vfs.open(dir.getPath()).getManifestEntry("Class-Path")).isEqualTo("lib/dep.jar");
+        }
+    }
+
+    /**
+     * A root with no manifest file has no manifest at all, rather than an empty one, and every attribute of it is
+     * null.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the directory could not be written or read.
+     */
+    @Test
+    public void aRootWithNoManifestFileHasNoManifest(@TempDir final File tempDir) throws IOException {
+        final var dir = new File(tempDir, "classes");
+        writeDirWithFiles(dir, "com/xyz/widget.txt");
+
+        try (var vfs = new Vfs()) {
+            final var root = vfs.open(dir.getPath());
+            assertThat(root.getManifest()).isNull();
+            assertThat(root.getManifestEntry("Automatic-Module-Name")).isNull();
+        }
+    }
+
+    /**
+     * Only the entries of a jarfile whose names start with a prefix are listed, in the order the whole root lists
+     * them in.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the jarfile could not be written or read.
+     */
+    @Test
+    public void theEntriesOfAJarfileUnderAPrefixAreListed(@TempDir final File tempDir) throws IOException {
+        final var jarFile = new File(tempDir, "app.jar");
+        writeJarWithEntries(jarFile, "root.txt", "BOOT-INF/classes/com/xyz/App.class", "BOOT-INF/lib/a.jar",
+                "BOOT-INF/lib/b.jar", "BOOT-INF/lib-provided/c.jar");
+
+        try (var vfs = new Vfs()) {
+            final var root = vfs.open(jarFile.getPath());
+            assertThat(root.getEntries("BOOT-INF/lib/")).extracting(VfsEntry::getName)
+                    .containsExactly("BOOT-INF/lib/a.jar", "BOOT-INF/lib/b.jar");
+            // A prefix is matched against the whole entry name, so it need not end at a directory boundary. A
+            // jarfile lists its entries in the order its central directory holds them, which is the order they
+            // were written in, so "lib-provided" comes last here rather than where sorting by name would put it.
+            assertThat(root.getEntries("BOOT-INF/lib")).extracting(VfsEntry::getName)
+                    .containsExactly("BOOT-INF/lib/a.jar", "BOOT-INF/lib/b.jar", "BOOT-INF/lib-provided/c.jar");
+            assertThat(root.getEntries("BOOT-INF/classes/com/xyz/Ap")).extracting(VfsEntry::getName)
+                    .containsExactly("BOOT-INF/classes/com/xyz/App.class");
+            // The empty prefix lists the whole root, and a prefix nothing starts with lists nothing
+            assertThat(root.getEntries("")).extracting(VfsEntry::getName)
+                    .isEqualTo(root.getEntries().stream().map(VfsEntry::getName).toList());
+            assertThat(root.getEntries("nothing/")).isEmpty();
+        }
+    }
+
+    /**
+     * Only the files of a directory tree whose names start with a prefix are listed, in the order the whole root
+     * lists them in, however deeply nested they are.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the directory could not be written or read.
+     */
+    @Test
+    public void theEntriesOfADirectoryUnderAPrefixAreListed(@TempDir final File tempDir) throws IOException {
+        final var dir = new File(tempDir, "exploded");
+        writeDirWithFiles(dir, "root.txt", "BOOT-INF/classes/com/xyz/App.class", "BOOT-INF/lib/a.jar",
+                "BOOT-INF/lib/b.jar");
+
+        try (var vfs = new Vfs()) {
+            final var root = vfs.open(dir.getPath());
+            assertThat(root.getEntries("BOOT-INF/lib/")).extracting(VfsEntry::getName)
+                    .containsExactly("BOOT-INF/lib/a.jar", "BOOT-INF/lib/b.jar");
+            assertThat(root.getEntries("root")).extracting(VfsEntry::getName).containsExactly("root.txt");
+            assertThat(root.getEntries("")).extracting(VfsEntry::getName)
+                    .isEqualTo(root.getEntries().stream().map(VfsEntry::getName).toList());
+            assertThat(root.getEntries("nothing/")).isEmpty();
         }
     }
 
@@ -889,11 +1057,11 @@ public class VfsTest {
     /** A negative RAM size is rejected. */
     @Test
     public void aNegativeMaxBufferedJarRAMSizeIsRejected() {
-        new Vfs(Vfs.DEFAULT_ENABLE_NESTED_JARS, Vfs.DEFAULT_ENABLE_MULTI_RELEASE_VERSIONS,
-                /* urlSchemes = */ null, /* maxBufferedJarRAMSize = */ 1024).close();
-        assertThatThrownBy(() -> new Vfs(Vfs.DEFAULT_ENABLE_NESTED_JARS,
-                Vfs.DEFAULT_ENABLE_MULTI_RELEASE_VERSIONS, /* urlSchemes = */ null,
-                /* maxBufferedJarRAMSize = */ -1)).isInstanceOf(IllegalArgumentException.class);
+        new Vfs(Vfs.DEFAULT_ENABLE_NESTED_JARS, Vfs.DEFAULT_ENABLE_MULTI_RELEASE_VERSIONS, /* urlSchemes = */ null,
+                /* maxBufferedJarRAMSize = */ 1024).close();
+        assertThatThrownBy(() -> new Vfs(Vfs.DEFAULT_ENABLE_NESTED_JARS, Vfs.DEFAULT_ENABLE_MULTI_RELEASE_VERSIONS,
+                /* urlSchemes = */ null, /* maxBufferedJarRAMSize = */ -1))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     /** Null arguments are rejected. */
@@ -915,9 +1083,10 @@ public class VfsTest {
             assertThatThrownBy(() -> vfs.open((byte[]) null, "in-memory.jar"))
                     .isInstanceOf(NullPointerException.class);
             assertThatThrownBy(() -> vfs.open(new byte[0], null)).isInstanceOf(NullPointerException.class);
-            assertThatThrownBy(() -> new Vfs(Vfs.DEFAULT_ENABLE_NESTED_JARS,
-                    Vfs.DEFAULT_ENABLE_MULTI_RELEASE_VERSIONS, Collections.singleton(null),
-                    Vfs.DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE)).isInstanceOf(NullPointerException.class);
+            assertThatThrownBy(
+                    () -> new Vfs(Vfs.DEFAULT_ENABLE_NESTED_JARS, Vfs.DEFAULT_ENABLE_MULTI_RELEASE_VERSIONS,
+                            Collections.singleton(null), Vfs.DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE))
+                    .isInstanceOf(NullPointerException.class);
 
             final var root = vfs.open(jarFile.getPath());
             assertThatThrownBy(() -> root.getEntry(null)).isInstanceOf(NullPointerException.class);

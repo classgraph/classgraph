@@ -57,6 +57,9 @@ final class ArchiveRoot extends VfsRoot {
     /** The entries under the package root, keyed by name. */
     private final Map<String, VfsEntry> entriesByName;
 
+    /** The whole jarfile, without the package root applied, created on first use. */
+    private volatile @Nullable VfsRoot containerRoot;
+
     /**
      * Constructor.
      *
@@ -125,29 +128,51 @@ final class ArchiveRoot extends VfsRoot {
         return packageRoot;
     }
 
+    @Override
+    public VfsRoot getContainerRoot() {
+        if (packageRoot.isEmpty()) {
+            return this;
+        }
+        var root = containerRoot;
+        if (root == null) {
+            synchronized (this) {
+                root = containerRoot;
+                if (root == null) {
+                    containerRoot = root = new ArchiveRoot(getVfs(), logicalZipFile, "");
+                }
+            }
+        }
+        return root;
+    }
+
+    @Override
+    public void close() {
+        // Closing this root closes the view of the whole jarfile that getContainerRoot() may have created, so that
+        // the lifecycle of a root stays tree-shaped
+        final VfsRoot container;
+        synchronized (this) {
+            container = containerRoot;
+            containerRoot = null;
+        }
+        if (container != null) {
+            container.close();
+        }
+        super.close();
+    }
+
     /**
-     * Returns the value of the {@code Automatic-Module-Name} manifest entry.
+     * Returns the manifest of the whole jarfile, rather than of the package root this root was opened at: a Spring
+     * Boot jar's {@code Class-Path}, {@code Automatic-Module-Name} and the rest describe the jarfile, and are read
+     * from the manifest at its root rather than from anything under {@code "BOOT-INF/classes/"}.
      *
-     * @return the automatic module name, or null if the jarfile's manifest does not declare one.
+     * <p>
+     * The manifest was already parsed while the central directory was read, since the {@code Multi-Release}
+     * attribute determines the name of every entry of the jarfile, so this costs nothing to ask for.
      */
     @Override
-    public @Nullable String getModuleName() {
-        return logicalZipFile.automaticModuleNameManifestEntryValue;
-    }
-
-    @Override
-    public @Nullable String getAddExportsManifestValue() {
-        return logicalZipFile.addExportsManifestEntryValue;
-    }
-
-    @Override
-    public @Nullable String getAddOpensManifestValue() {
-        return logicalZipFile.addOpensManifestEntryValue;
-    }
-
-    @Override
-    public LogicalZipFile getLogicalZipFile() {
-        return logicalZipFile;
+    @Nullable
+    Map<String, String> readManifest() {
+        return logicalZipFile.getManifest();
     }
 
     @Override

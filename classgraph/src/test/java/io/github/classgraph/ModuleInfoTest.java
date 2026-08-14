@@ -254,7 +254,8 @@ public class ModuleInfoTest {
     private static ClasspathElement sameModuleDirClasspathElement() {
         final var workUnit = new ClasspathEntryWorkUnit(moduleDir, /* classLoader = */ null,
                 /* parentClasspathElement = */ null, /* classpathElementIdx = */ 0, /* packageRootPrefix = */ "",
-                ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES);
+                ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES,
+                ClassLoaderHandlerRegistry.NO_LIB_DIR_PREFIXES);
         return new ClasspathElementDir(workUnit, VFS, new ScanSpec());
     }
 }

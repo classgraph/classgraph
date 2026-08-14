@@ -73,4 +73,18 @@ class AntClassLoaderHandler implements ClassLoaderHandler {
     public String[] getPackageRootPrefixes() {
         return new String[] { "classes/", "test-classes/" };
     }
+
+    /**
+     * Get the automatic lib dirs for classpath elements obtained from this classloader.
+     *
+     * <p>
+     * AntClassLoader lists every path on the classpath it was given, so it has no lib dirs of its own, but one of
+     * those paths can be a Spring-Boot executable jar or a war, whose lib dir is not listed.
+     *
+     * @return the lib dir prefixes.
+     */
+    @Override
+    public String[] getLibDirPrefixes() {
+        return ClassLoaderHandlerRegistry.ARCHIVE_LIB_DIR_PREFIXES;
+    }
 }

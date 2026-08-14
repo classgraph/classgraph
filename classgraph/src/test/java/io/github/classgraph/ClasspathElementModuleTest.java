@@ -264,7 +264,7 @@ public class ClasspathElementModuleTest {
         // The classpath element is not opened, so the module is never read -- it is only asked for its identity and
         // location
         return new ClasspathElementModule(moduleReference, VFS,
-                new Scanner.ClasspathEntryWorkUnit(null, null, null, 0, "", new String[0]),
+                new Scanner.ClasspathEntryWorkUnit(null, null, null, 0, "", new String[0], new String[0]),
                 /* isLookupOnly = */ false, new ScanSpec());
     }
 
@@ -361,7 +361,7 @@ public class ClasspathElementModuleTest {
         try (var vfs = new Vfs()) {
             final var classpathElement = new ClasspathElementModule(
                     unreadableModuleReference("unreadable.module", moduleReadersOpened), vfs,
-                    new Scanner.ClasspathEntryWorkUnit(null, null, null, 0, "", new String[0]),
+                    new Scanner.ClasspathEntryWorkUnit(null, null, null, 0, "", new String[0], new String[0]),
                     /* isLookupOnly = */ true, new ScanSpec());
             classpathElement.open(/* workQueue = */ null, /* log = */ null);
 

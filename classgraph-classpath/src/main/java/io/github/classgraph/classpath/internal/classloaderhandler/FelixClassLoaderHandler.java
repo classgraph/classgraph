@@ -161,4 +161,18 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
     public String[] getPackageRootPrefixes() {
         return ClassLoaderHandlerRegistry.DEFAULT_PACKAGE_ROOT_PREFIXES;
     }
+
+    /**
+     * Get the automatic lib dirs for classpath elements obtained from this classloader.
+     *
+     * <p>
+     * An OSGi bundle jar loads from the jarfiles named in its {@code Bundle-ClassPath} manifest attribute, which by
+     * convention are in "META-INF/lib/", and which the classloader does not list as classpath elements.
+     *
+     * @return the lib dir prefixes.
+     */
+    @Override
+    public String[] getLibDirPrefixes() {
+        return ClassLoaderHandlerRegistry.OSGI_LIB_DIR_PREFIXES;
+    }
 }

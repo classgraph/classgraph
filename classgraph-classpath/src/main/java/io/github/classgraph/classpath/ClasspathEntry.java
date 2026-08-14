@@ -87,6 +87,9 @@ public abstract sealed class ClasspathEntry {
     /** The directory prefixes that should be looked for within this classpath element. */
     private final List<String> packageRootPrefixes;
 
+    /** The lib dirs whose jarfiles should be added to the classpath, within this classpath element. */
+    private final List<String> libDirPrefixes;
+
     /**
      * Constructor.
      *
@@ -96,12 +99,15 @@ public abstract sealed class ClasspathEntry {
      *            the string form of the classloader this classpath element was obtained from, or null if unknown.
      * @param packageRootPrefixes
      *            the directory prefixes that should be looked for within this classpath element.
+     * @param libDirPrefixes
+     *            the lib dirs whose jarfiles should be added to the classpath, within this classpath element.
      */
     private ClasspathEntry(final String location, final @Nullable String classLoaderName,
-            final List<String> packageRootPrefixes) {
+            final List<String> packageRootPrefixes, final List<String> libDirPrefixes) {
         this.location = location;
         this.classLoaderName = classLoaderName;
         this.packageRootPrefixes = packageRootPrefixes;
+        this.libDirPrefixes = libDirPrefixes;
     }
 
     /**
@@ -115,24 +121,28 @@ public abstract sealed class ClasspathEntry {
      *            the string form of the classloader this classpath element was obtained from, or null if unknown.
      * @param packageRootPrefixes
      *            the directory prefixes that should be looked for within this classpath element.
+     * @param libDirPrefixes
+     *            the lib dirs whose jarfiles should be added to the classpath, within this classpath element.
      * @return the classpath element.
      */
     static ClasspathEntry of(final Object classpathEntryObj, final String location,
-            final @Nullable String classLoaderName, final List<String> packageRootPrefixes) {
+            final @Nullable String classLoaderName, final List<String> packageRootPrefixes,
+            final List<String> libDirPrefixes) {
         if (classpathEntryObj instanceof File) {
-            return new OfFile(new File(location), location, classLoaderName, packageRootPrefixes);
+            return new OfFile(new File(location), location, classLoaderName, packageRootPrefixes, libDirPrefixes);
         }
         if (classpathEntryObj instanceof final Path path) {
-            return new OfPath(localPath(path, location), location, classLoaderName, packageRootPrefixes);
+            return new OfPath(localPath(path, location), location, classLoaderName, packageRootPrefixes,
+                    libDirPrefixes);
         }
         if (classpathEntryObj instanceof final URL url) {
-            return new OfURL(url, location, classLoaderName, packageRootPrefixes);
+            return new OfURL(url, location, classLoaderName, packageRootPrefixes, libDirPrefixes);
         }
         if (classpathEntryObj instanceof final URI uri) {
-            return new OfURI(uri, location, classLoaderName, packageRootPrefixes);
+            return new OfURI(uri, location, classLoaderName, packageRootPrefixes, libDirPrefixes);
         }
         // A path string, and anything else a classloader named an element with, which is read as a path
-        return new OfPathString(location, classLoaderName, packageRootPrefixes);
+        return new OfPathString(location, classLoaderName, packageRootPrefixes, libDirPrefixes);
     }
 
     /**
@@ -206,6 +216,20 @@ public abstract sealed class ClasspathEntry {
         return packageRootPrefixes;
     }
 
+    /**
+     * Returns the lib dirs whose jarfiles are added to the classpath if they are present within this classpath
+     * element, because a classloader of this type loads from them without listing them as classpath elements, for
+     * example {@code "BOOT-INF/lib/"} for a Spring Boot jar. These are the lib dirs the classloader could load
+     * from, not the ones this classpath element actually has, so a lib dir is listed whether or not the element
+     * contains a directory with that name. The list is empty for a classloader that lists every jarfile it loads
+     * from, and never contains the empty string.
+     *
+     * @return the lib dir prefixes, as an unmodifiable list.
+     */
+    public List<String> libDirPrefixes() {
+        return libDirPrefixes;
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -250,7 +274,7 @@ public abstract sealed class ClasspathEntry {
 
     /**
      * Two classpath elements are equal if they were found in the same form, at the same {@link #location()},
-     * through the same classloader, with the same {@link #packageRootPrefixes()}.
+     * through the same classloader, with the same {@link #packageRootPrefixes()} and {@link #libDirPrefixes()}.
      *
      * @param obj
      *            the object to compare with.
@@ -260,12 +284,13 @@ public abstract sealed class ClasspathEntry {
     public final boolean equals(final @Nullable Object obj) {
         return obj instanceof final ClasspathEntry other && getClass() == other.getClass()
                 && location.equals(other.location) && Objects.equals(classLoaderName, other.classLoaderName)
-                && packageRootPrefixes.equals(other.packageRootPrefixes);
+                && packageRootPrefixes.equals(other.packageRootPrefixes)
+                && libDirPrefixes.equals(other.libDirPrefixes);
     }
 
     @Override
     public final int hashCode() {
-        return Objects.hash(getClass(), location, classLoaderName, packageRootPrefixes);
+        return Objects.hash(getClass(), location, classLoaderName, packageRootPrefixes, libDirPrefixes);
     }
 
     /**
@@ -296,10 +321,12 @@ public abstract sealed class ClasspathEntry {
          *            the string form of the classloader this classpath element was obtained from, or null.
          * @param packageRootPrefixes
          *            the directory prefixes that should be looked for within this classpath element.
+         * @param libDirPrefixes
+         *            the lib dirs whose jarfiles should be added to the classpath, within this element.
          */
         OfPathString(final String location, final @Nullable String classLoaderName,
-                final List<String> packageRootPrefixes) {
-            super(location, classLoaderName, packageRootPrefixes);
+                final List<String> packageRootPrefixes, final List<String> libDirPrefixes) {
+            super(location, classLoaderName, packageRootPrefixes, libDirPrefixes);
         }
 
         @Override
@@ -326,10 +353,12 @@ public abstract sealed class ClasspathEntry {
          *            the string form of the classloader this classpath element was obtained from, or null.
          * @param packageRootPrefixes
          *            the directory prefixes that should be looked for within this classpath element.
+         * @param libDirPrefixes
+         *            the lib dirs whose jarfiles should be added to the classpath, within this element.
          */
         OfFile(final File file, final String location, final @Nullable String classLoaderName,
-                final List<String> packageRootPrefixes) {
-            super(location, classLoaderName, packageRootPrefixes);
+                final List<String> packageRootPrefixes, final List<String> libDirPrefixes) {
+            super(location, classLoaderName, packageRootPrefixes, libDirPrefixes);
             this.file = file;
         }
 
@@ -367,10 +396,12 @@ public abstract sealed class ClasspathEntry {
          *            the string form of the classloader this classpath element was obtained from, or null.
          * @param packageRootPrefixes
          *            the directory prefixes that should be looked for within this classpath element.
+         * @param libDirPrefixes
+         *            the lib dirs whose jarfiles should be added to the classpath, within this element.
          */
         OfPath(final Path path, final String location, final @Nullable String classLoaderName,
-                final List<String> packageRootPrefixes) {
-            super(location, classLoaderName, packageRootPrefixes);
+                final List<String> packageRootPrefixes, final List<String> libDirPrefixes) {
+            super(location, classLoaderName, packageRootPrefixes, libDirPrefixes);
             this.path = path;
         }
 
@@ -393,8 +424,8 @@ public abstract sealed class ClasspathEntry {
 
     /**
      * A classpath element that a classloader named with a {@link URL}, or with a {@link URI} or {@link Path} that
-     * had a URL scheme. A URL scheme other than {@code "jar:"} or {@code "file:"} has to be one the
-     * {@link Vfs} was constructed with before {@link #open(Vfs)} will read it.
+     * had a URL scheme. A URL scheme other than {@code "jar:"} or {@code "file:"} has to be one the {@link Vfs} was
+     * constructed with before {@link #open(Vfs)} will read it.
      */
     public static final class OfURL extends ClasspathEntry {
         /** The URL. */
@@ -411,10 +442,12 @@ public abstract sealed class ClasspathEntry {
          *            the string form of the classloader this classpath element was obtained from, or null.
          * @param packageRootPrefixes
          *            the directory prefixes that should be looked for within this classpath element.
+         * @param libDirPrefixes
+         *            the lib dirs whose jarfiles should be added to the classpath, within this element.
          */
         OfURL(final URL url, final String location, final @Nullable String classLoaderName,
-                final List<String> packageRootPrefixes) {
-            super(location, classLoaderName, packageRootPrefixes);
+                final List<String> packageRootPrefixes, final List<String> libDirPrefixes) {
+            super(location, classLoaderName, packageRootPrefixes, libDirPrefixes);
             this.url = url;
         }
 
@@ -435,8 +468,8 @@ public abstract sealed class ClasspathEntry {
 
     /**
      * A classpath element that a classloader named with a {@link URI} that had no URL scheme this JVM can parse. A
-     * URI scheme other than {@code "jar:"} or {@code "file:"} has to be one the {@link Vfs} was
-     * constructed with before {@link #open(Vfs)} will read it.
+     * URI scheme other than {@code "jar:"} or {@code "file:"} has to be one the {@link Vfs} was constructed with
+     * before {@link #open(Vfs)} will read it.
      */
     public static final class OfURI extends ClasspathEntry {
         /** The URI. */
@@ -453,10 +486,12 @@ public abstract sealed class ClasspathEntry {
          *            the string form of the classloader this classpath element was obtained from, or null.
          * @param packageRootPrefixes
          *            the directory prefixes that should be looked for within this classpath element.
+         * @param libDirPrefixes
+         *            the lib dirs whose jarfiles should be added to the classpath, within this element.
          */
         OfURI(final URI uri, final String location, final @Nullable String classLoaderName,
-                final List<String> packageRootPrefixes) {
-            super(location, classLoaderName, packageRootPrefixes);
+                final List<String> packageRootPrefixes, final List<String> libDirPrefixes) {
+            super(location, classLoaderName, packageRootPrefixes, libDirPrefixes);
             this.uri = uri;
         }
 

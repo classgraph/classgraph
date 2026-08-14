@@ -28,23 +28,18 @@
  */
 package io.github.classgraph.classpath;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import io.github.classgraph.base.internal.concurrency.SingletonMap.NewInstanceException;
-import io.github.classgraph.base.internal.concurrency.SingletonMap.NullSingletonException;
-import io.github.classgraph.base.internal.utils.FastPathResolver;
 import io.github.classgraph.base.internal.utils.FileUtils;
 import io.github.classgraph.base.internal.utils.JarUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.classpath.internal.ClasspathExpander;
+import io.github.classgraph.vfs.Vfs;
 import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
-import io.github.classgraph.vfs.internal.zip.LogicalZipFile;
-import io.github.classgraph.vfs.internal.zip.NestedJarHandler;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -58,11 +53,11 @@ import org.jspecify.annotations.Nullable;
  * position it is reached at, which is the position that decides which copy of a duplicated class is loaded.
  */
 final class ClasspathExpansion {
+    /** Opens the classpath elements, so that their manifests and their lib dirs can be read. */
+    private final Vfs vfs;
+
     /** The settings that govern how the jarfiles are read. */
     private final VfsScanSpec vfsScanSpec;
-
-    /** Opens the jarfiles, so that their manifests can be read. */
-    private final NestedJarHandler nestedJarHandler;
 
     /** The log node, or null to skip logging. */
     private final @Nullable LogNode log;
@@ -76,17 +71,16 @@ final class ClasspathExpansion {
     /**
      * Constructor.
      *
+     * @param vfs
+     *            opens the classpath elements, so that their manifests and their lib dirs can be read.
      * @param vfsScanSpec
      *            the settings that govern how the jarfiles are read.
-     * @param nestedJarHandler
-     *            opens the jarfiles, so that their manifests can be read.
      * @param log
      *            the log node, or null to skip logging.
      */
-    private ClasspathExpansion(final VfsScanSpec vfsScanSpec, final NestedJarHandler nestedJarHandler,
-            final @Nullable LogNode log) {
+    private ClasspathExpansion(final Vfs vfs, final VfsScanSpec vfsScanSpec, final @Nullable LogNode log) {
+        this.vfs = vfs;
         this.vfsScanSpec = vfsScanSpec;
-        this.nestedJarHandler = nestedJarHandler;
         this.log = log;
     }
 
@@ -96,19 +90,19 @@ final class ClasspathExpansion {
      *
      * @param entries
      *            the classpath elements that the classloaders declared.
+     * @param vfs
+     *            opens the classpath elements, so that their manifests and their lib dirs can be read.
      * @param vfsScanSpec
      *            the settings that govern how the jarfiles are read.
-     * @param nestedJarHandler
-     *            opens the jarfiles, so that their manifests can be read.
      * @param log
      *            the log node, or null to skip logging.
      * @return the expanded classpath.
-     * @throws InterruptedException
+     * @throws IllegalStateException
      *             if the thread was interrupted.
      */
-    static List<ClasspathEntry> expand(final List<ClasspathEntry> entries, final VfsScanSpec vfsScanSpec,
-            final NestedJarHandler nestedJarHandler, final @Nullable LogNode log) throws InterruptedException {
-        final var expansion = new ClasspathExpansion(vfsScanSpec, nestedJarHandler, log);
+    static List<ClasspathEntry> expand(final List<ClasspathEntry> entries, final Vfs vfs,
+            final VfsScanSpec vfsScanSpec, final @Nullable LogNode log) {
+        final var expansion = new ClasspathExpansion(vfs, vfsScanSpec, log);
         for (final ClasspathEntry entry : entries) {
             expansion.addRec(entry);
         }
@@ -120,79 +114,79 @@ final class ClasspathExpansion {
      *
      * @param entry
      *            the classpath element.
-     * @throws InterruptedException
-     *             if the thread was interrupted.
      */
-    private void addRec(final ClasspathEntry entry) throws InterruptedException {
+    private void addRec(final ClasspathEntry entry) {
         if (!alreadyAdded.add(entry.location())) {
             // The classpath element was already reached by a shorter route, so it keeps its earlier position
             return;
         }
         expanded.add(entry);
-        for (final String childLocation : childLocations(entry.location())) {
-            // A child classpath element is loaded by the classloader of the element that declared it, and inherits
-            // its package roots
-            addRec(new ClasspathEntry.OfPathString(childLocation, entry.classLoaderName(),
-                    entry.packageRootPrefixes()));
+        for (final ClasspathEntry child : children(entry)) {
+            addRec(child);
         }
     }
 
     /**
-     * Find the locations of the classpath elements that a classpath element declares.
+     * Find the classpath elements that a classpath element declares.
      *
-     * @param location
-     *            the location of the classpath element.
-     * @return the locations of the classpath elements it declares, in the order they must be added to the
-     *         classpath.
-     * @throws InterruptedException
-     *             if the thread was interrupted.
+     * @param entry
+     *            the classpath element.
+     * @return the classpath elements it declares, in the order they must be added to the classpath.
      */
-    private List<String> childLocations(final String location) throws InterruptedException {
+    private List<ClasspathEntry> children(final ClasspathEntry entry) {
+        final var location = entry.location();
+        final List<ClasspathExpander.ChildEntry> childEntries;
+        final String canonicalPath;
         try {
-            final var file = new File(location);
-            if (file.isDirectory()) {
-                // A directory has no manifest, so the only classpath elements it declares are the jarfiles in its
-                // automatic lib dirs
-                return ClasspathExpander.libJarsInDir(file.toPath()).stream()
-                        .map(libJarPath -> FastPathResolver.resolve(FileUtils.currDirPath(), libJarPath.toString()))
-                        .toList();
+            // The classpath element is opened in the form the classloader named it with, so that a child of it is
+            // resolved in the filesystem that it lives in. The root is not closed here, because the virtual
+            // filesystem owns it, and hands the same root back to whoever reads the classpath element next.
+            final var root = entry.open(vfs);
+            canonicalPath = root.getPath();
+            childEntries = ClasspathExpander.childEntries(root, entry.libDirPrefixes(),
+                    vfsScanSpec.enableNestedJars, log);
+        } catch (final IOException | IllegalArgumentException e) {
+            if (Thread.currentThread().isInterrupted()) {
+                throw new IllegalStateException("Interrupted while reading the jarfiles on the classpath", e);
             }
-        } catch (final SecurityException e) {
+            if (log != null) {
+                // A classpath element does not have to exist, and does not have to be a jarfile or a directory
+                log.log("Could not read " + location + " : " + (e.getCause() == null ? e : e.getCause()));
+            }
             return List.of();
         }
-        // Open the jarfile, so that its manifest can be read
-        final var logicalZipFile = openJar(location);
-        if (logicalZipFile == null) {
-            return List.of();
-        }
-        final var zipFilePathResolved = FastPathResolver.resolve(FileUtils.currDirPath(), logicalZipFile.getPath());
-        final List<String> childLocations = new ArrayList<>();
-        for (final var childEntry : ClasspathExpander.childEntries(logicalZipFile, zipFilePathResolved,
-                vfsScanSpec.enableNestedJars)) {
-            final var childLocation = spelledAsReached(childEntry.path(), zipFilePathResolved, location);
+        final List<ClasspathEntry> children = new ArrayList<>(childEntries.size());
+        for (final var childEntry : childEntries) {
+            final var childLocation = spelledAsReached(childEntry.location(), canonicalPath, location);
             if (log != null) {
                 log.log(childEntry.origin().getLogMessage() + ": " + childLocation);
             }
-            childLocations.add(childLocation);
+            // A child classpath element is loaded by the classloader of the element that declared it, and inherits
+            // its package roots and lib dirs. It is opened as a path of the filesystem that the element that
+            // declared it lives in, where it has one, so that a classpath element outside the default filesystem
+            // declares classpath elements that can be opened.
+            final var childPath = childEntry.path();
+            children.add(ClasspathEntry.of(childPath == null ? childLocation : childPath, childLocation,
+                    entry.classLoaderName(), entry.packageRootPrefixes(), entry.libDirPrefixes()));
         }
-        return childLocations;
+        return children;
     }
 
     /**
      * Spell the path of a child classpath element the way the classpath element that declared it was spelled.
      *
      * <p>
-     * A jarfile has to be opened for its manifest to be read, and opening it canonicalizes its path, so that the
-     * same jarfile reached by two different paths is only opened once. A classpath element is reported by the path
-     * it was reached at though, so without this, a jarfile reached through a symlink (or, on Windows, through an
-     * 8.3 short name) would declare classpath elements under a directory that no classpath element was reported
-     * under, and the same classpath element reached both ways would be reported twice.
+     * A classpath element has to be opened for its manifest to be read, and opening it canonicalizes its path, so
+     * that the same jarfile reached by two different paths is only opened once. A classpath element is reported by
+     * the path it was reached at though, so without this, a jarfile reached through a symlink (or, on Windows,
+     * through an 8.3 short name) would declare classpath elements under a directory that no classpath element was
+     * reported under, and the same classpath element reached both ways would be reported twice.
      *
      * @param childPath
-     *            the path of the child classpath element, as resolved against the canonical path of the jarfile
-     *            that declared it.
+     *            the path of the child classpath element, as resolved against the canonical path of the classpath
+     *            element that declared it.
      * @param canonicalPath
-     *            the canonical path of the jarfile that declared it.
+     *            the canonical path of the classpath element that declared it.
      * @param reachedPath
      *            the path the classpath element that declared it was reached at.
      * @return the path of the child classpath element, spelled the way the classpath element that declared it was
@@ -222,27 +216,5 @@ final class ClasspathExpansion {
         final var canonicalDirPath = FileUtils.getParentDirPath(canonicalJarPath);
         return canonicalDirPath.isEmpty() || !childPath.startsWith(canonicalDirPath + "/") ? childPath
                 : FileUtils.getParentDirPath(reachedJarPath) + childPath.substring(canonicalDirPath.length());
-    }
-
-    /**
-     * Open a jarfile, so that its manifest can be read.
-     *
-     * @param location
-     *            the location of the jarfile.
-     * @return the opened jarfile, or null if it could not be opened -- a classpath element does not have to exist,
-     *         and does not have to be a jarfile.
-     * @throws InterruptedException
-     *             if the thread was interrupted.
-     */
-    private @Nullable LogicalZipFile openJar(final String location) throws InterruptedException {
-        try {
-            return nestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap().get(location, log).getKey();
-        } catch (final IOException | IllegalArgumentException | NullSingletonException | NewInstanceException e) {
-            if (log != null) {
-                log.log("Could not read the manifest of " + location + " : "
-                        + (e.getCause() == null ? e : e.getCause()));
-            }
-            return null;
-        }
     }
 }

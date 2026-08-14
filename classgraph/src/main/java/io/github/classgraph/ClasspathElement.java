@@ -167,6 +167,13 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
     protected final String[] packageRootPrefixes;
 
     /**
+     * The lib dirs (e.g. {@code "BOOT-INF/lib/"}) whose jarfiles are added to the classpath if they are present
+     * within this classpath element, as declared by the {@code ClassLoaderHandler} that found it. Child classpath
+     * elements inherit these, since they come from the same classloader.
+     */
+    protected final String[] libDirPrefixes;
+
+    /**
      * The name of the module from the {@code module-info.class} module descriptor, if one is present in the root of
      * the classpath element.
      */
@@ -198,6 +205,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
     ClasspathElement(final ClasspathEntryWorkUnit workUnit, final ScanSpec scanSpec) {
         this.packageRootPrefix = workUnit.packageRootPrefix;
         this.packageRootPrefixes = workUnit.packageRootPrefixes;
+        this.libDirPrefixes = workUnit.libDirPrefixes;
         this.classLoaderStr = workUnit.classLoaderStr;
         this.scanSpec = scanSpec;
         this.vfsScanSpec = scanSpec.vfsScanSpec;

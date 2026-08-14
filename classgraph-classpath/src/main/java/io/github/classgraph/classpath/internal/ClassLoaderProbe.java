@@ -380,13 +380,16 @@ public class ClassLoaderProbe {
                                     + " is handled by " + classLoaderHandlerRegistryEntry.getHandlerName());
                     // Record the package roots that this ClassLoaderHandler's classpath elements can have, so that
                     // only the package roots that are applicable to each classpath element are looked for and
-                    // stripped when it is scanned (#929)
+                    // stripped when it is scanned (#929), and likewise the lib dirs that this ClassLoaderHandler
+                    // loads jarfiles from without listing them as classpath elements
                     classpathOrder.setPackageRootPrefixes(classLoaderHandlerRegistryEntry.getPackageRootPrefixes());
+                    classpathOrder.setLibDirPrefixes(classLoaderHandlerRegistryEntry.getLibDirPrefixes());
                     try {
                         classLoaderHandlerRegistryEntry.findClasspathOrder(classLoader, classpathOrder,
                                 classloaderHandlerLog);
                     } finally {
                         classpathOrder.setPackageRootPrefixes(null);
+                        classpathOrder.setLibDirPrefixes(null);
                     }
                     finalClassLoaderOrder.add(classLoader);
                 }

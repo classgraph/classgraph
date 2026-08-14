@@ -13,11 +13,11 @@ import org.junit.jupiter.api.Test;
  * {@link RandomAccessOrSequentialReader#readStringModifiedUtf8(int)} overloads.
  *
  * <p>
- * A {@link RandomAccessOrSequentialReader} built on an {@link java.io.InputStream} starts with an allocated but completely
- * unfilled buffer, so a read that does not first grow the buffer returns the zero bytes the array was allocated
- * with, rather than the stream contents. Every other sequential read method delegates to its random access
- * counterpart, which buffers the requested range first; the string reads used to read straight out of the buffer
- * instead.
+ * A {@link RandomAccessOrSequentialReader} built on an {@link java.io.InputStream} starts with an allocated but
+ * completely unfilled buffer, so a read that does not first grow the buffer returns the zero bytes the array was
+ * allocated with, rather than the stream contents. Every other sequential read method delegates to its random
+ * access counterpart, which buffers the requested range first; the string reads used to read straight out of the
+ * buffer instead.
  */
 public class RandomAccessOrSequentialReaderReadStringTest {
     /**

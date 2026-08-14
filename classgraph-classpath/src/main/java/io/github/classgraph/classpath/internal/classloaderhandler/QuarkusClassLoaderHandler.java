@@ -223,4 +223,19 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
     public String[] getPackageRootPrefixes() {
         return ClassLoaderHandlerRegistry.DEFAULT_PACKAGE_ROOT_PREFIXES;
     }
+
+    /**
+     * Get the automatic lib dirs for classpath elements obtained from this classloader.
+     *
+     * <p>
+     * Quarkus lists each jarfile it loads from as a separate classpath element, including the jarfiles of a
+     * fast-jar application's "quarkus-app/lib/" dir, so it has no lib dirs of its own, but one of those jarfiles
+     * can be a Spring-Boot executable jar or a war, whose lib dir is not listed.
+     *
+     * @return the lib dir prefixes.
+     */
+    @Override
+    public String[] getLibDirPrefixes() {
+        return ClassLoaderHandlerRegistry.ARCHIVE_LIB_DIR_PREFIXES;
+    }
 }
