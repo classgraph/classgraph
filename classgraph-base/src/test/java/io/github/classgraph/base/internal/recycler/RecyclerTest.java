@@ -1,6 +1,7 @@
 package io.github.classgraph.base.internal.recycler;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
@@ -78,6 +79,25 @@ public class RecyclerTest {
             // The instance was recycled when the block exited, so it is handed out again rather than reallocated
             assertThat(instance.numResets).isEqualTo(1);
             assertThat(recycler.acquire()).isSameAs(instance);
+        }
+    }
+
+    /**
+     * Closing a {@link RecycleOnClose} twice recycles the instance once, rather than throwing the second time.
+     * Closing twice is legal for any {@link AutoCloseable}, and it happens whenever a caller closes one explicitly
+     * inside the try-with-resources block that also closes it.
+     */
+    @Test
+    public void closingARecycleOnCloseTwiceRecyclesTheInstanceOnce() {
+        try (var recycler = new RecyclableRecycler()) {
+            final RecycleOnClose<Recyclable, RuntimeException> recycleOnClose = recycler.acquireRecycleOnClose();
+            final var instance = recycleOnClose.get();
+            recycleOnClose.close();
+            assertThatCode(recycleOnClose::close).doesNotThrowAnyException();
+            // The instance went back into the pool once, not twice, so it is only handed out to one caller
+            assertThat(instance.numResets).isEqualTo(1);
+            assertThat(recycler.acquire()).isSameAs(instance);
+            assertThat(recycler.acquire()).isNotSameAs(instance);
         }
     }
 

@@ -1379,11 +1379,12 @@ class Scanner implements Callable<ScanResult> {
             }
         }
 
-        if (removeTemporaryFilesAfterScan) {
-            // If removeTemporaryFilesAfterScan was set, remove any temp files. If no temp files were created (i.e.
-            // if there were no nested jars), nothing is closed, so the returned ScanResult can still be used to
-            // read resources and load classes (#916)
-            vfs.removeTemporaryFiles(topLevelLog);
+        if (removeTemporaryFilesAfterScan && vfs.getNestedJarHandler().scanResources.hasTempFiles()) {
+            // Temporary files back memory-mapped slices of the extracted nested jarfiles, so they cannot be deleted
+            // without closing those slices, which closes the Vfs. If no temp files were created (i.e. if there were
+            // no nested jars), the Vfs is left open, so the returned ScanResult can still be used to read resources
+            // and load classes (#916)
+            vfs.close(topLevelLog);
         }
         return scanResult;
     }

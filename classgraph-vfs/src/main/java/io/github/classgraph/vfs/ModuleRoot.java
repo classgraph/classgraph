@@ -41,7 +41,6 @@ import java.util.List;
 import io.github.classgraph.base.internal.concurrency.SingletonMap.NewInstanceException;
 import io.github.classgraph.base.internal.concurrency.SingletonMap.NullSingletonException;
 import io.github.classgraph.base.internal.recycler.Recycler;
-import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.vfs.internal.module.ModuleReaderUtils;
 import org.jspecify.annotations.Nullable;
@@ -150,8 +149,7 @@ final class ModuleRoot extends VfsRoot {
     }
 
     @Override
-    public void walk(final VfsVisitor visitor, final @Nullable LogNode log) throws IOException {
-        Assert.notNull(visitor, "visitor");
+    void walkImpl(final VfsVisitor visitor, final @Nullable LogNode log) throws IOException {
         // A module reader lists the whole module in one call, so there is nothing to be saved by walking it lazily.
         // The list is not put in the cache that getEntries() fills, since a walk only passes over it once, and
         // caching it would keep an object per resource in the module alive for as long as the Vfs is open
@@ -160,7 +158,7 @@ final class ModuleRoot extends VfsRoot {
     }
 
     @Override
-    public List<VfsEntry> getEntries() throws IOException {
+    List<VfsEntry> getEntriesImpl() throws IOException {
         var entriesCurr = entries;
         if (entriesCurr == null) {
             entriesCurr = listEntries(getVfs().log());
@@ -202,8 +200,8 @@ final class ModuleRoot extends VfsRoot {
     }
 
     @Override
-    public @Nullable VfsEntry getEntry(final String name) throws IOException {
-        Assert.notNull(name, "name");
+    @Nullable
+    VfsEntry getEntryImpl(final String name) throws IOException {
         if (name.isEmpty()) {
             return null;
         }

@@ -37,6 +37,7 @@ import java.net.URL;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.base.internal.utils.LogNode;
@@ -54,13 +55,18 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>
  * A root stops working once it is closed, or once the {@link Vfs} that produced it is closed.
+ *
+ * <p>
+ * Every method is safe to call from multiple threads at once, and {@link #close()} takes effect the moment it is
+ * called, so a thread that lists or reads entries after that -- even while the close is still running -- gets an
+ * {@link IOException} rather than entries of storage that is being released.
  */
 public abstract class VfsRoot implements AutoCloseable {
     /** The {@link Vfs} that opened this root. */
     private final Vfs vfs;
 
     /** True once {@link #close()} has been called. */
-    private volatile boolean closed;
+    private final AtomicBoolean closed = new AtomicBoolean();
 
     /**
      * Constructor.
@@ -236,7 +242,23 @@ public abstract class VfsRoot implements AutoCloseable {
      *             if the entries could not be listed, or if the {@link Vfs} has been closed.
      * @hidden
      */
-    public abstract void walk(VfsVisitor visitor, @Nullable LogNode log) throws IOException;
+    public final void walk(final VfsVisitor visitor, final @Nullable LogNode log) throws IOException {
+        Assert.notNull(visitor, "visitor");
+        checkNotClosed(getPath());
+        walkImpl(visitor, log);
+    }
+
+    /**
+     * Walk the entries under the package root, once it is known that this root is open.
+     *
+     * @param visitor
+     *            the visitor to hand the entries to.
+     * @param log
+     *            the log node, or null to not log.
+     * @throws IOException
+     *             if the entries could not be listed.
+     */
+    abstract void walkImpl(VfsVisitor visitor, @Nullable LogNode log) throws IOException;
 
     /**
      * Returns the entries under the package root, not including directories.
@@ -252,7 +274,19 @@ public abstract class VfsRoot implements AutoCloseable {
      * @throws IOException
      *             if the entries could not be listed, or if the {@link Vfs} has been closed.
      */
-    public abstract List<VfsEntry> getEntries() throws IOException;
+    public final List<VfsEntry> getEntries() throws IOException {
+        checkNotClosed(getPath());
+        return getEntriesImpl();
+    }
+
+    /**
+     * Returns the entries under the package root, once it is known that this root is open.
+     *
+     * @return the entries, as an unmodifiable list.
+     * @throws IOException
+     *             if the entries could not be listed.
+     */
+    abstract List<VfsEntry> getEntriesImpl() throws IOException;
 
     /**
      * Walk a list of entries that is already in hand, telling the visitor about the directory an entry is in
@@ -314,7 +348,22 @@ public abstract class VfsRoot implements AutoCloseable {
      * @throws IOException
      *             if the root could not be searched, or if the {@link Vfs} has been closed.
      */
-    public abstract @Nullable VfsEntry getEntry(String name) throws IOException;
+    public final @Nullable VfsEntry getEntry(final String name) throws IOException {
+        Assert.notNull(name, "name");
+        checkNotClosed(name);
+        return getEntryImpl(name);
+    }
+
+    /**
+     * Returns the entry with the given name, once it is known that this root is open.
+     *
+     * @param name
+     *            the name of the entry, relative to the package root.
+     * @return the entry, or null if there is no entry with that name.
+     * @throws IOException
+     *             if the root could not be searched.
+     */
+    abstract @Nullable VfsEntry getEntryImpl(String name) throws IOException;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -372,13 +421,16 @@ public abstract class VfsRoot implements AutoCloseable {
      */
     @Override
     public void close() {
-        if (!closed) {
-            closed = true;
-            // The FileSystem view is the only thing a root creates for itself. It holds no file handles, only an
-            // index of the entry names, which is dropped here rather than kept alive by a closed root.
-            fileSystem = null;
-            vfs.rootClosed(this);
+        // The flag is set atomically, so that a second call (or a concurrent one) returns rather than dropping the
+        // FileSystem view twice, and so that a thread listing or reading entries the moment a close starts is
+        // turned away
+        if (closed.getAndSet(true)) {
+            return;
         }
+        // The FileSystem view is the only thing a root creates for itself. It holds no file handles, only an index
+        // of the entry names, which is dropped here rather than kept alive by a closed root.
+        fileSystem = null;
+        vfs.rootClosed(this);
     }
 
     /**
@@ -387,7 +439,7 @@ public abstract class VfsRoot implements AutoCloseable {
      * @return true if this root has been closed.
      */
     boolean isClosed() {
-        return closed || vfs.isClosed();
+        return closed.get() || vfs.isClosed();
     }
 
     /**
@@ -399,7 +451,7 @@ public abstract class VfsRoot implements AutoCloseable {
      *             if this root, or the {@link Vfs} that opened it, has been closed.
      */
     void checkNotClosed(final String what) throws IOException {
-        if (closed) {
+        if (closed.get()) {
             throw new IOException("Cannot read " + what + " after the VfsRoot has been closed");
         }
         vfs.checkNotClosed(what);

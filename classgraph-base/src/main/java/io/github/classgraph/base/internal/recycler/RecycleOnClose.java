@@ -28,6 +28,8 @@
  */
 package io.github.classgraph.base.internal.recycler;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 /**
  * An AutoCloseable wrapper for a recyclable object instance. Obtained by calling
  * {@link Recycler#acquireRecycleOnClose()} in a try-with-resources statement, so that when the try block exits, the
@@ -44,6 +46,9 @@ public class RecycleOnClose<T, E extends Exception> implements AutoCloseable {
 
     /** The instance. */
     private final T instance;
+
+    /** True once {@link #close()} has been called. */
+    private final AtomicBoolean closed = new AtomicBoolean();
 
     /**
      * Acquire or allocate an instance.
@@ -69,9 +74,16 @@ public class RecycleOnClose<T, E extends Exception> implements AutoCloseable {
 
     /**
      * Recycle an instance. Calls {@link Resettable#reset()} if the instance implements {@link Resettable}.
+     *
+     * <p>
+     * Closing an already-closed wrapper has no effect. (Recycling the same instance twice would put it in the pool
+     * twice, so that two threads could acquire it at the same time, which is exactly what the recycler exists to
+     * prevent; {@link Recycler#recycle(Object)} therefore throws rather than allowing it.)
      */
     @Override
     public void close() {
-        recycler.recycle(instance);
+        if (!closed.getAndSet(true)) {
+            recycler.recycle(instance);
+        }
     }
 }

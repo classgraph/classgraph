@@ -34,6 +34,7 @@ import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -48,19 +49,24 @@ import org.jspecify.annotations.Nullable;
  * The settings that govern how archives are opened and read. These are the settings that apply to reading the bytes
  * of a resource, as opposed to the settings that govern which classpath elements are found, or how the classfiles
  * found within them are parsed, which are the business of the layers above this one.
+ *
+ * <p>
+ * Every field is volatile, and {@link #enableURLScheme(String)} publishes an immutable set, so that a setting
+ * changed by one thread is seen by the threads that read archives, whenever they were started.
  */
 public class VfsScanSpec {
     /** If true, open jarfiles nested within other jarfiles (jarfiles within jarfiles). */
-    public boolean scanNestedJars = true;
+    public volatile boolean scanNestedJars = true;
 
     /** If true, all multi-release versions of a resource are found. */
-    public boolean enableMultiReleaseVersions;
+    public volatile boolean enableMultiReleaseVersions;
 
     /**
      * URL schemes that jarfiles may be downloaded from (not counting the optional "jar:" prefix and/or "file:",
-     * which are automatically allowed).
+     * which are automatically allowed). Only ever assigned an unmodifiable set, so that a reader can iterate it
+     * while another thread allows a further scheme.
      */
-    public @Nullable Set<String> allowedURLSchemes;
+    public volatile @Nullable Set<String> allowedURLSchemes;
 
     /**
      * The maximum size of an inner (nested) jar that has been deflated (i.e. compressed, not stored) within an
@@ -83,7 +89,7 @@ public class VfsScanSpec {
      * Default: 64MB (i.e. writing to disk is avoided wherever possible). Setting a lower max RAM size value will
      * decrease memory usage if either of the above rare situations occurs.
      */
-    public int maxBufferedJarRAMSize = 64 * 1024 * 1024;
+    public volatile int maxBufferedJarRAMSize = 64 * 1024 * 1024;
 
     /**
      * If true, use a {@link MappedByteBuffer} rather than the {@link FileChannel} API to access file content.
@@ -95,7 +101,7 @@ public class VfsScanSpec {
      * benchmark</a>.) This field is public so that tests can override the platform's choice and exercise both paths
      * whatever platform they are running on.
      */
-    public boolean memoryMapFiles = VersionFinder.OS == OperatingSystem.Windows;
+    public volatile boolean memoryMapFiles = VersionFinder.OS == OperatingSystem.Windows;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -115,13 +121,16 @@ public class VfsScanSpec {
      *             if the scheme is shorter than two characters (a one-character scheme cannot be told apart from a
      *             Windows drive letter), or is not a valid URL scheme.
      */
-    public void enableURLScheme(final String scheme) {
+    public synchronized void enableURLScheme(final String scheme) {
         Assert.notNull(scheme, "scheme");
         final var normalizedScheme = JarUtils.normalizeURLScheme(scheme);
-        if (allowedURLSchemes == null) {
-            allowedURLSchemes = new HashSet<>();
-        }
-        allowedURLSchemes.add(normalizedScheme);
+        // Copy on write, rather than adding to the set in place, so that a thread reading the set while this one
+        // allows a further scheme sees either the old set or the new one, never a set part-way through an insert
+        final var allowedURLSchemesCurr = allowedURLSchemes;
+        final Set<String> updated = allowedURLSchemesCurr == null ? new HashSet<>()
+                : new HashSet<>(allowedURLSchemesCurr);
+        updated.add(normalizedScheme);
+        allowedURLSchemes = Collections.unmodifiableSet(updated);
     }
 
     /**

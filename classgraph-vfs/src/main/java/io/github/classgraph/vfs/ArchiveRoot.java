@@ -38,7 +38,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.base.internal.utils.URLPathEncoder;
 import io.github.classgraph.vfs.internal.zip.LogicalZipFile;
@@ -142,19 +141,18 @@ final class ArchiveRoot extends VfsRoot {
     }
 
     @Override
-    public void walk(final VfsVisitor visitor, final @Nullable LogNode logIgnored) {
-        Assert.notNull(visitor, "visitor");
+    void walkImpl(final VfsVisitor visitor, final @Nullable LogNode logIgnored) {
         walkEntryList(entries, visitor);
     }
 
     @Override
-    public List<VfsEntry> getEntries() {
+    List<VfsEntry> getEntriesImpl() {
         return entries;
     }
 
     @Override
-    public @Nullable VfsEntry getEntry(final String name) {
-        Assert.notNull(name, "name");
+    @Nullable
+    VfsEntry getEntryImpl(final String name) {
         return entriesByName.get(name);
     }
 }

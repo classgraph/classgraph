@@ -29,23 +29,29 @@
 package io.github.classgraph.vfs;
 
 import java.nio.ByteBuffer;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.jspecify.annotations.Nullable;
 
 /**
  * A wrapper for {@link ByteBuffer} that implements the {@link AutoCloseable} interface, releasing the
  * {@link ByteBuffer} when it is no longer needed.
+ *
+ * <p>
+ * Closing an already-closed wrapper has no effect, and two threads closing at once release the buffer once between
+ * them.
  */
 public class CloseableByteBuffer implements AutoCloseable {
     /**
      * The wrapped {@link ByteBuffer}, or null once this wrapper has been closed.
      */
-    private @Nullable ByteBuffer byteBuffer;
+    private volatile @Nullable ByteBuffer byteBuffer;
 
     /**
-     * The method to run on close, or null if this wrapper has already been closed.
+     * The method to run on close, or null if this wrapper has already been closed. Held in an
+     * {@link AtomicReference}, so that only the thread that takes it out runs it.
      */
-    private @Nullable Runnable onClose;
+    private final AtomicReference<@Nullable Runnable> onClose;
 
     /**
      * A wrapper for {@link ByteBuffer} that implements the {@link AutoCloseable} interface, releasing the
@@ -58,7 +64,7 @@ public class CloseableByteBuffer implements AutoCloseable {
      */
     public CloseableByteBuffer(final ByteBuffer byteBuffer, final Runnable onClose) {
         this.byteBuffer = byteBuffer;
-        this.onClose = onClose;
+        this.onClose = new AtomicReference<>(onClose);
     }
 
     /**
@@ -73,15 +79,16 @@ public class CloseableByteBuffer implements AutoCloseable {
     /** Release the wrapped {@link ByteBuffer}. */
     @Override
     public void close() {
-        final var onCloseRunnable = onClose;
+        // Take the close action out atomically, so that a second call (or a concurrent one) runs it zero times
+        // rather than twice -- releasing the same buffer twice would hand the same memory out to two readers
+        final var onCloseRunnable = onClose.getAndSet(null);
+        byteBuffer = null;
         if (onCloseRunnable != null) {
             try {
                 onCloseRunnable.run();
             } catch (final Exception e) {
                 // Ignore
             }
-            onClose = null;
         }
-        byteBuffer = null;
     }
 }

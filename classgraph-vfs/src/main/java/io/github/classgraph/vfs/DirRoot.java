@@ -41,7 +41,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.base.internal.utils.FastPathResolver;
 import io.github.classgraph.base.internal.utils.FileUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
@@ -121,8 +120,7 @@ final class DirRoot extends VfsRoot {
     }
 
     @Override
-    public void walk(final VfsVisitor visitor, final @Nullable LogNode log) throws IOException {
-        Assert.notNull(visitor, "visitor");
+    void walkImpl(final VfsVisitor visitor, final @Nullable LogNode log) throws IOException {
         // Symlinks can make a directory tree cyclic, so record which directories have already been walked, by their
         // canonical path -- otherwise a directory that contains a symlink to one of its own ancestors makes this
         // recursion run until it runs out of stack
@@ -130,7 +128,7 @@ final class DirRoot extends VfsRoot {
     }
 
     @Override
-    public List<VfsEntry> getEntries() throws IOException {
+    List<VfsEntry> getEntriesImpl() throws IOException {
         var entriesCurr = entries;
         if (entriesCurr == null) {
             final List<VfsEntry> entriesTmp = new ArrayList<>();
@@ -221,8 +219,8 @@ final class DirRoot extends VfsRoot {
     }
 
     @Override
-    public @Nullable VfsEntry getEntry(final String name) throws IOException {
-        Assert.notNull(name, "name");
+    @Nullable
+    VfsEntry getEntryImpl(final String name) {
         if (name.isEmpty()) {
             return null;
         }

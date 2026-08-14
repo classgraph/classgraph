@@ -17,6 +17,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
+import java.util.List;
 import java.util.Objects;
 import java.util.zip.CRC32;
 import java.util.zip.ZipEntry;
@@ -476,11 +477,12 @@ public class VfsTest {
         }
     }
 
-    /** Nothing can be opened after the Vfs has been closed. */
+    /** Nothing can be opened, and nothing can be configured, after the Vfs has been closed. */
     @Test
     public void aRootCannotBeOpenedAfterTheVfsIsClosed(@TempDir final File tempDir) throws IOException {
         final var jarFile = new File(tempDir, "widget.jar");
         writeJar(jarFile, "com/xyz/widget.txt");
+        final ModuleReference moduleReference = ModuleFinder.ofSystem().find("java.logging").orElseThrow();
 
         final var vfs = new Vfs();
         vfs.open(jarFile.getPath());
@@ -491,6 +493,22 @@ public class VfsTest {
                 .hasMessageContaining("closed");
         assertThatThrownBy(() -> vfs.open(new byte[0], "in-memory.jar")).isInstanceOf(IOException.class)
                 .hasMessageContaining("closed");
+        assertThatThrownBy(() -> vfs.open(new ByteArrayInputStream(new byte[0]), "in-memory.jar"))
+                .isInstanceOf(IOException.class).hasMessageContaining("closed");
+        assertThatThrownBy(() -> vfs.open(moduleReference)).isInstanceOf(IOException.class)
+                .hasMessageContaining("closed");
+
+        // A setting cannot be changed after the close either, since there is nothing left for it to affect
+        assertThatThrownBy(vfs::verbose).isInstanceOf(IllegalStateException.class).hasMessageContaining("closed");
+        assertThatThrownBy(vfs::disableNestedJars).isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("closed");
+        assertThatThrownBy(vfs::enableMultiReleaseVersions).isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("closed");
+        assertThatThrownBy(() -> vfs.enableURLScheme("https")).isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("closed");
+        assertThatThrownBy(() -> vfs.maxBufferedJarRAMSize(1024)).isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("closed");
+
         // Closing twice is harmless
         vfs.close();
     }
@@ -531,6 +549,51 @@ public class VfsTest {
             final var reopened = vfs.open(jarFile.getPath());
             assertThat(reopened).isNotSameAs(root);
             assertThat(entryContent(reopened, "com/xyz/widget.txt")).isEqualTo(RESOURCE_CONTENT);
+        }
+    }
+
+    /**
+     * A closed root stops listing entries, as well as reading them, whichever kind of root it is. (Reading an entry
+     * of a closed root was already refused, but a directory root and an archive root went on listing entries.)
+     *
+     * @param tempDir
+     *            a temporary directory to write the jarfile into.
+     * @throws IOException
+     *             if the jarfile could not be written or read.
+     */
+    @Test
+    public void aClosedRootCannotBeListed(@TempDir final File tempDir) throws IOException {
+        final var jarFile = new File(tempDir, "widget.jar");
+        writeJar(jarFile, "com/xyz/widget.txt");
+        final ModuleReference moduleReference = ModuleFinder.ofSystem().find("java.logging").orElseThrow();
+        final var visitEverything = new VfsVisitor() {
+            @Override
+            public boolean enterDirectory(final String dirName) {
+                return true;
+            }
+
+            @Override
+            public boolean visitEntry(final VfsEntry entry) {
+                return true;
+            }
+        };
+
+        try (var vfs = new Vfs()) {
+            for (final var root : List.of(vfs.open(jarFile.getPath()), vfs.open(tempDir.getPath()),
+                    vfs.open(moduleReference))) {
+                final var kind = root.getKind().toString();
+                // The root lists entries while it is open
+                assertThat(root.getEntries()).as(kind).isNotEmpty();
+
+                root.close();
+
+                assertThatThrownBy(() -> root.walk(visitEverything)).as(kind + " walk")
+                        .isInstanceOf(IOException.class).hasMessageContaining("closed");
+                assertThatThrownBy(root::getEntries).as(kind + " getEntries").isInstanceOf(IOException.class)
+                        .hasMessageContaining("closed");
+                assertThatThrownBy(() -> root.getEntry("com/xyz/widget.txt")).as(kind + " getEntry")
+                        .isInstanceOf(IOException.class).hasMessageContaining("closed");
+            }
         }
     }
 

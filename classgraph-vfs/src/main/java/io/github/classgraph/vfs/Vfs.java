@@ -41,6 +41,7 @@ import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import io.github.classgraph.base.internal.concurrency.SingletonMap.NewInstanceException;
@@ -87,9 +88,12 @@ import org.jspecify.annotations.Nullable;
  * {@link VfsEntry} it handed out, so a {@link Vfs} should be held open for as long as its entries are being read.
  *
  * <p>
- * The {@code open} methods are safe to call from multiple threads at once: two threads that ask for the same path
- * at the same time get the same {@link VfsRoot}, and only one of them does the work of reading it. The
- * configuration methods are not thread-safe, and are intended to be called before the first call to {@code open}.
+ * Every method is safe to call from multiple threads at once. Two threads that ask for the same path at the same
+ * time get back the same {@link VfsRoot}, and the jarfile behind it is only read once; a setting changed by one
+ * thread is seen by the others. {@link #close()} takes effect the moment it is called, so a thread that calls any
+ * other method after that -- even while the close is still running -- gets an {@link IOException} from an
+ * {@code open} method, or an {@link IllegalStateException} from a configuration method, rather than a root backed
+ * by storage that is being released.
  */
 public class Vfs implements AutoCloseable {
     /** Everything this virtual filesystem is configured with. */
@@ -105,10 +109,10 @@ public class Vfs implements AutoCloseable {
     private final Map<ModuleReference, VfsRoot> rootsByModule = new ConcurrentHashMap<>();
 
     /** The log node, or null if not logging. */
-    private @Nullable LogNode log;
+    private volatile @Nullable LogNode log;
 
     /** True once {@link #close()} has been called. */
-    private volatile boolean closed;
+    private final AtomicBoolean closed = new AtomicBoolean();
 
     /** Constructor. */
     public Vfs() {
@@ -160,8 +164,11 @@ public class Vfs implements AutoCloseable {
      * The log is written when this {@link Vfs} is closed.
      *
      * @return this (for method chaining).
+     * @throws IllegalStateException
+     *             if this {@link Vfs} has been closed.
      */
-    public Vfs verbose() {
+    public synchronized Vfs verbose() {
+        checkOpen();
         if (log == null) {
             log = new LogNode();
         }
@@ -173,8 +180,11 @@ public class Vfs implements AutoCloseable {
      * package root within a jarfile, not a jarfile within a jarfile.
      *
      * @return this (for method chaining).
+     * @throws IllegalStateException
+     *             if this {@link Vfs} has been closed.
      */
     public Vfs disableNestedJars() {
+        checkOpen();
         vfsScanSpec.scanNestedJars = false;
         return this;
     }
@@ -184,8 +194,11 @@ public class Vfs implements AutoCloseable {
      * that this JVM can run.
      *
      * @return this (for method chaining).
+     * @throws IllegalStateException
+     *             if this {@link Vfs} has been closed.
      */
     public Vfs enableMultiReleaseVersions() {
+        checkOpen();
         vfsScanSpec.enableMultiReleaseVersions = true;
         return this;
     }
@@ -205,8 +218,11 @@ public class Vfs implements AutoCloseable {
      * @throws IllegalArgumentException
      *             if {@code scheme} is shorter than two characters (a one-character scheme cannot be told apart
      *             from a Windows drive letter), or is not a valid URL scheme.
+     * @throws IllegalStateException
+     *             if this {@link Vfs} has been closed.
      */
     public Vfs enableURLScheme(final String scheme) {
+        checkOpen();
         vfsScanSpec.enableURLScheme(scheme);
         return this;
     }
@@ -224,8 +240,11 @@ public class Vfs implements AutoCloseable {
      * @return this (for method chaining).
      * @throws IllegalArgumentException
      *             if {@code maxBufferedJarRAMSize} is negative.
+     * @throws IllegalStateException
+     *             if this {@link Vfs} has been closed.
      */
     public Vfs maxBufferedJarRAMSize(final int maxBufferedJarRAMSize) {
+        checkOpen();
         if (maxBufferedJarRAMSize < 0) {
             throw new IllegalArgumentException("maxBufferedJarRAMSize cannot be negative");
         }
@@ -283,8 +302,58 @@ public class Vfs implements AutoCloseable {
             return alreadyOpened;
         }
         final var root = openUncached(path, logNode == null ? null : logNode.log("Opening " + path));
-        final var openedByAnotherThread = rootsByPath.putIfAbsent(path, root);
-        return openedByAnotherThread == null ? root : openedByAnotherThread;
+        return cacheRoot(rootsByPath, path, root, path);
+    }
+
+    /**
+     * Add a root that has just been opened to a cache of opened roots, unless another thread opened the same path
+     * first, in which case the root that thread cached is returned and the one passed in is discarded.
+     *
+     * @param <K>
+     *            the type of the cache key.
+     * @param cache
+     *            the cache to add the root to.
+     * @param key
+     *            the key to cache the root under.
+     * @param root
+     *            the root that was just opened.
+     * @param what
+     *            what was opened, for the exception message.
+     * @return the cached root.
+     * @throws IOException
+     *             if this {@link Vfs} was closed while the root was being opened.
+     */
+    private <K> VfsRoot cacheRoot(final Map<K, VfsRoot> cache, final K key, final VfsRoot root, final String what)
+            throws IOException {
+        final var openedByAnotherThread = cache.putIfAbsent(key, root);
+        final var cachedRoot = openedByAnotherThread == null ? root : openedByAnotherThread;
+        if (closed.get()) {
+            // close() cleared the caches while this root was being opened, so it did not see this root -- take it
+            // back out again, rather than leaving a root in the cache of a closed Vfs
+            cache.remove(key, cachedRoot);
+        }
+        return discardIfClosed(what, cachedRoot);
+    }
+
+    /**
+     * Return a root that has just been opened, unless this {@link Vfs} was closed while it was being opened, in
+     * which case close the root and throw, rather than handing back a root that is backed by storage that has
+     * already been released.
+     *
+     * @param what
+     *            what was opened, for the exception message.
+     * @param root
+     *            the root that was just opened.
+     * @return the root.
+     * @throws IOException
+     *             if this {@link Vfs} was closed while the root was being opened.
+     */
+    private VfsRoot discardIfClosed(final String what, final VfsRoot root) throws IOException {
+        if (closed.get()) {
+            root.close();
+            throw new IOException("Cannot read " + what + " after the Vfs has been closed");
+        }
+        return root;
     }
 
     /**
@@ -386,8 +455,7 @@ public class Vfs implements AutoCloseable {
                 throw new IOException("Interrupted while opening " + key);
             }
         }
-        final var openedByAnotherThread = rootsByPath.putIfAbsent(key, root);
-        return openedByAnotherThread == null ? root : openedByAnotherThread;
+        return cacheRoot(rootsByPath, key, root, key);
     }
 
     /**
@@ -432,9 +500,13 @@ public class Vfs implements AutoCloseable {
      */
     public VfsRoot open(final ModuleReference moduleReference) throws IOException {
         Assert.notNull(moduleReference, "moduleReference");
-        checkNotClosed(moduleReference.descriptor().name());
-        // Constructing a ModuleRoot does no I/O, so it is safe to build it inside the map's mapping function
-        return rootsByModule.computeIfAbsent(moduleReference, ref -> new ModuleRoot(this, ref));
+        final var moduleName = moduleReference.descriptor().name();
+        checkNotClosed(moduleName);
+        final var alreadyOpened = rootsByModule.get(moduleReference);
+        if (alreadyOpened != null) {
+            return alreadyOpened;
+        }
+        return cacheRoot(rootsByModule, moduleReference, new ModuleRoot(this, moduleReference), moduleName);
     }
 
     /**
@@ -461,8 +533,8 @@ public class Vfs implements AutoCloseable {
         checkNotClosed(name);
         final var logNode = log == null ? null : log.log("Reading " + name + " from an InputStream");
         try {
-            return new ArchiveRoot(this, nestedJarHandler.openJarFromInputStream(inputStream,
-                    /* inputStreamLengthHint = */ -1L, name, logNode), /* packageRoot = */ "");
+            return discardIfClosed(name, new ArchiveRoot(this, nestedJarHandler.openJarFromInputStream(inputStream,
+                    /* inputStreamLengthHint = */ -1L, name, logNode), /* packageRoot = */ ""));
         } catch (final InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IOException("Interrupted while reading " + name);
@@ -491,8 +563,8 @@ public class Vfs implements AutoCloseable {
         checkNotClosed(name);
         final var logNode = log == null ? null : log.log("Reading " + name + " from a byte array");
         try {
-            return new ArchiveRoot(this, nestedJarHandler.openJarFromInputStream(new ByteArrayInputStream(jarBytes),
-                    jarBytes.length, name, logNode), /* packageRoot = */ "");
+            return discardIfClosed(name, new ArchiveRoot(this, nestedJarHandler.openJarFromInputStream(
+                    new ByteArrayInputStream(jarBytes), jarBytes.length, name, logNode), /* packageRoot = */ ""));
         } catch (final InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IOException("Interrupted while reading " + name);
@@ -510,8 +582,21 @@ public class Vfs implements AutoCloseable {
      *             if this {@link Vfs} has been closed.
      */
     void checkNotClosed(final String what) throws IOException {
-        if (closed) {
+        if (closed.get()) {
             throw new IOException("Cannot read " + what + " after the Vfs has been closed");
+        }
+    }
+
+    /**
+     * Throw an {@link IllegalStateException} if this {@link Vfs} has been closed. This is for the configuration
+     * methods, which cannot throw a checked exception.
+     *
+     * @throws IllegalStateException
+     *             if this {@link Vfs} has been closed.
+     */
+    private void checkOpen() {
+        if (closed.get()) {
+            throw new IllegalStateException("Cannot configure a Vfs after it has been closed");
         }
     }
 
@@ -521,7 +606,7 @@ public class Vfs implements AutoCloseable {
      * @return true if this {@link Vfs} has been closed.
      */
     boolean isClosed() {
-        return closed;
+        return closed.get();
     }
 
     /**
@@ -551,7 +636,7 @@ public class Vfs implements AutoCloseable {
      *            the root that was closed.
      */
     void rootClosed(final VfsRoot root) {
-        if (!closed) {
+        if (!closed.get()) {
             // A root can be cached under more than one key, e.g. under both the path it was opened from and the
             // canonical path of the file that turned out to back it
             rootsByPath.values().removeIf(cachedRoot -> cachedRoot == root);
@@ -571,9 +656,10 @@ public class Vfs implements AutoCloseable {
      */
     @Override
     public void close() {
-        close(log);
         final var logCurr = log;
-        if (logCurr != null) {
+        // Only the thread that performs the close flushes the log, so that a second thread cannot print a
+        // half-written log while the first is still adding entries to it
+        if (doClose(logCurr) && logCurr != null) {
             logCurr.flush();
         }
     }
@@ -588,9 +674,25 @@ public class Vfs implements AutoCloseable {
      * @hidden
      */
     public void close(final @Nullable LogNode logNode) {
+        doClose(logNode);
+    }
+
+    /**
+     * Close this {@link Vfs}, if it is not already closed.
+     *
+     * @param logNode
+     *            the log node, or null to not log.
+     * @return true if this call closed the {@link Vfs}, or false if it was already closed by an earlier or
+     *         concurrent call.
+     */
+    private boolean doClose(final @Nullable LogNode logNode) {
         // Mark this Vfs as closed before closing the roots, so that each root knows the caches are about to be
-        // cleared wholesale and does not remove itself from them one at a time
-        closed = true;
+        // cleared wholesale and does not remove itself from them one at a time. The flag is set atomically, so that
+        // a second call (or a concurrent one) returns rather than closing the same roots twice, and so that a
+        // thread calling any other method the moment a close starts is turned away.
+        if (closed.getAndSet(true)) {
+            return false;
+        }
         for (final var root : rootsByPath.values()) {
             root.close();
         }
@@ -600,29 +702,6 @@ public class Vfs implements AutoCloseable {
         rootsByPath.clear();
         rootsByModule.clear();
         nestedJarHandler.close(logNode);
-    }
-
-    /**
-     * Delete any temporary files that nested jarfiles were spilled to. This is for the other ClassGraph modules,
-     * which offer this as a scan option, and is not part of the API.
-     *
-     * <p>
-     * If no temporary files were created -- which is the case whenever no nested jarfiles were encountered, i.e.
-     * for an ordinary jarfile or directory classpath -- this does nothing, and this {@link Vfs} is left open and
-     * fully usable. If temporary files <i>were</i> created, they back memory-mapped slices of the extracted nested
-     * jarfiles, so they cannot be deleted without closing those slices first, and this {@link Vfs} is closed.
-     *
-     * @param logNode
-     *            the log node, or null to not log.
-     * @return true if there were temporary files to delete, in which case this {@link Vfs} is now closed.
-     * @hidden
-     */
-    public boolean removeTemporaryFiles(final @Nullable LogNode logNode) {
-        // #916
-        if (!nestedJarHandler.scanResources.hasTempFiles()) {
-            return false;
-        }
-        close(logNode);
         return true;
     }
 }

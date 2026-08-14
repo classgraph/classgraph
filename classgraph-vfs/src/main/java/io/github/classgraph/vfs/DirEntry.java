@@ -57,8 +57,12 @@ final class DirEntry extends VfsEntry {
      */
     private final @Nullable BasicFileAttributes attributes;
 
-    /** The length of the file, or -1 if it has not been read yet. */
-    private long length = -1L;
+    /**
+     * The length of the file, or -1 if it has not been read yet. Volatile, so that a thread that asks a second time
+     * sees the length another thread read, rather than reading the file's attributes again -- or, worse, seeing a
+     * half-written 64-bit value on a 32-bit JVM.
+     */
+    private volatile long length = -1L;
 
     /**
      * Constructor.
