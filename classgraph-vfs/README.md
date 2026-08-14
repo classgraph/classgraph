@@ -133,17 +133,38 @@ the file handles, memory mappings and temporary files belong to the `Vfs`, and a
 * **Jarfiles nested inside other jarfiles, to any depth**, named by separating the levels with
   `!/`, e.g. `outer.jar!/lib/inner.jar!/lib/innermost.jar`. A nested jarfile that is stored
   uncompressed is read in place, with no copy; one that is stored deflated is inflated into RAM,
-  or spilled to a temporary file if it exceeds `maxBufferedJarRAMSize` (64MB by default).
+  or spilled to a temporary file if it exceeds the maximum buffered jar RAM size (64MB by default).
 * **A package root within a jarfile**, named by a trailing `!/` section that is not itself a
   jarfile, e.g. `spring-boot-app.jar!/BOOT-INF/classes`. Entry names are reported with the root
   stripped off.
 * **Multi-release jarfiles**, resolved to the newest version of each entry that the running JVM can
-  use. `enableMultiReleaseVersions()` reports every version instead.
-* **Jarfiles at a URL**, once the scheme is allowed with `enableURLScheme("https")`. The file is
-  downloaded in full first, because a zipfile's central directory is at the end.
+  use, or every version if the `Vfs` was constructed with multi-release versions enabled.
+* **Jarfiles at a URL**, if the `Vfs` was constructed with that URL scheme. The file is downloaded
+  in full first, because a zipfile's central directory is at the end.
 * **Entry names encoded in IBM Code Page 437**, which the zip specification requires when bit 11 of
   the entry's general purpose bit flag is clear. Windows Explorer and Info-ZIP both write such
   names.
+
+## Options
+
+A `Vfs` is configured once, by the constructor, and cannot be reconfigured afterwards, so that the
+threads sharing it never see a setting change under them:
+
+```java
+new Vfs(/* enableNestedJars = */ true, /* enableMultiReleaseVersions = */ false,
+        /* urlSchemes = */ Set.of("https"), /* maxBufferedJarRAMSize = */ 64 * 1024 * 1024)
+```
+
+| Option | Default | Effect |
+| --- | --- | --- |
+| `enableNestedJars` | `true` | Whether `!/` in a path may name a jarfile within a jarfile, rather than only a package root within a jarfile |
+| `enableMultiReleaseVersions` | `false` | Whether to report every version of a multi-release jarfile's entries, rather than only the newest version this JVM can run |
+| `urlSchemes` | none | The URL schemes a jarfile may be opened from, e.g. `Set.of("https")`. `file:` and `jar:` are always allowed. May be null |
+| `maxBufferedJarRAMSize` | 64MB | How many bytes of a jarfile may be held in RAM before it is spilled to a temporary file |
+
+`new Vfs()` uses the default of every option, and `Vfs.DEFAULT_ENABLE_NESTED_JARS`,
+`Vfs.DEFAULT_ENABLE_MULTI_RELEASE_VERSIONS` and `Vfs.DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE` name the
+defaults, for changing one option and leaving the rest alone.
 
 ## Concurrency
 
@@ -301,10 +322,10 @@ try (Vfs vfs = new Vfs();
 }
 ```
 
-The stream is read into RAM, or spilled to a temporary file if it is larger than
-`maxBufferedJarRAMSize`. `vfs.open(byte[], String)` does the same for a jarfile you already hold.
-Alternatively, let the library do the fetching: after `vfs.enableURLScheme("https")`, the URL can be
-opened directly with `vfs.open("https://.../library.jar")`.
+The stream is read into RAM, or spilled to a temporary file if it is larger than the maximum
+buffered jar RAM size. `vfs.open(byte[], String)` does the same for a jarfile you already hold.
+Alternatively, let the library do the fetching: a `Vfs` constructed with `Set.of("https")` as its
+URL schemes opens the URL directly, with `vfs.open("https://.../library.jar")`.
 
 ### Read a jarfile nested inside another jarfile
 
@@ -317,9 +338,9 @@ try (Vfs vfs = new Vfs();
 }
 ```
 
-Nothing is extracted to disk unless the nested jarfile is stored deflated and is larger than
-`maxBufferedJarRAMSize`. Call `disableNestedJars()` if `!/` in a path should only ever mean a
-package root.
+Nothing is extracted to disk unless the nested jarfile is stored deflated and is larger than the
+maximum buffered jar RAM size. Construct the `Vfs` with nested jars disabled if `!/` in a path
+should only ever mean a package root.
 
 A `jar:` or `jar:file:` prefix is accepted, but is not needed and changes nothing:
 `/path/outer.jar!/lib/inner.jar`, `file:/path/outer.jar!/lib/inner.jar` and

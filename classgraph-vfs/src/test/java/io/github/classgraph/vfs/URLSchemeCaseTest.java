@@ -11,6 +11,7 @@ import java.net.URLStreamHandler;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -45,8 +46,8 @@ public class URLSchemeCaseTest {
             zipOut.closeEntry();
         }
 
-        try (var vfs = new Vfs()) {
-            vfs.enableURLScheme(SCHEME);
+        try (var vfs = new Vfs(Vfs.DEFAULT_ENABLE_NESTED_JARS, Vfs.DEFAULT_ENABLE_MULTI_RELEASE_VERSIONS,
+                Set.of(SCHEME), Vfs.DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE)) {
             final var url = SCHEME.toUpperCase(Locale.ROOT) + ":" + jarFile.getPath();
             final var entry = Objects.requireNonNull(vfs.open(url).getEntry("com/xyz/widget.txt"));
             assertThat(new String(entry.load(), StandardCharsets.UTF_8)).isEqualTo(RESOURCE_CONTENT);

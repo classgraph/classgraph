@@ -30,6 +30,7 @@ package io.github.classgraph.vfs.internal.spec;
 
 import java.io.InputStream;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
@@ -55,11 +56,20 @@ import org.jspecify.annotations.Nullable;
  * changed by one thread is seen by the threads that read archives, whenever they were started.
  */
 public class VfsScanSpec {
+    /** The default value of {@link #enableNestedJars}. */
+    public static final boolean DEFAULT_ENABLE_NESTED_JARS = true;
+
+    /** The default value of {@link #enableMultiReleaseVersions}. */
+    public static final boolean DEFAULT_ENABLE_MULTI_RELEASE_VERSIONS = false;
+
+    /** The default value of {@link #maxBufferedJarRAMSize}, in bytes. */
+    public static final int DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE = 64 * 1024 * 1024;
+
     /** If true, open jarfiles nested within other jarfiles (jarfiles within jarfiles). */
-    public volatile boolean scanNestedJars = true;
+    public volatile boolean enableNestedJars = DEFAULT_ENABLE_NESTED_JARS;
 
     /** If true, all multi-release versions of a resource are found. */
-    public volatile boolean enableMultiReleaseVersions;
+    public volatile boolean enableMultiReleaseVersions = DEFAULT_ENABLE_MULTI_RELEASE_VERSIONS;
 
     /**
      * URL schemes that jarfiles may be downloaded from (not counting the optional "jar:" prefix and/or "file:",
@@ -86,10 +96,10 @@ public class VfsScanSpec {
      * classpath entries.)
      *
      * <p>
-     * Default: 64MB (i.e. writing to disk is avoided wherever possible). Setting a lower max RAM size value will
-     * decrease memory usage if either of the above rare situations occurs.
+     * Defaults to {@link #DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE} (i.e. writing to disk is avoided wherever possible).
+     * Setting a lower max RAM size value will decrease memory usage if either of the above rare situations occurs.
      */
-    public volatile int maxBufferedJarRAMSize = 64 * 1024 * 1024;
+    public volatile int maxBufferedJarRAMSize = DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE;
 
     /**
      * If true, use a {@link MappedByteBuffer} rather than the {@link FileChannel} API to access file content.
@@ -143,6 +153,10 @@ public class VfsScanSpec {
         if (log != null) {
             final var vfsScanSpecLog = log.log("VfsScanSpec:");
             for (final Field field : VfsScanSpec.class.getDeclaredFields()) {
+                // Log the settings, not the constants holding their default values
+                if (Modifier.isStatic(field.getModifiers())) {
+                    continue;
+                }
                 try {
                     vfsScanSpecLog.log(field.getName() + ": " + field.get(this));
                 } catch (final ReflectiveOperationException e) {

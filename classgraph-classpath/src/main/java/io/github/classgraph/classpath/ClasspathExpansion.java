@@ -168,7 +168,7 @@ final class ClasspathExpansion {
         final var zipFilePathResolved = FastPathResolver.resolve(FileUtils.currDirPath(), logicalZipFile.getPath());
         final List<String> childLocations = new ArrayList<>();
         for (final var childEntry : ClasspathExpander.childEntries(logicalZipFile, zipFilePathResolved,
-                vfsScanSpec.scanNestedJars)) {
+                vfsScanSpec.enableNestedJars)) {
             final var childLocation = spelledAsReached(childEntry.path(), zipFilePathResolved, location);
             if (log != null) {
                 log.log(childEntry.origin().getLogMessage() + ": " + childLocation);

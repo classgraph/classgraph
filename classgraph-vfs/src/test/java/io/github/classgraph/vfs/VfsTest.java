@@ -18,8 +18,10 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.zip.CRC32;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -33,6 +35,19 @@ import org.junit.jupiter.api.io.TempDir;
 public class VfsTest {
     /** The content of the test resource. */
     private static final String RESOURCE_CONTENT = "vfs-test";
+
+    /**
+     * Build a virtual filesystem that allows jarfiles to be opened from URLs with the given schemes, leaving every
+     * other option at its default.
+     *
+     * @param urlSchemes
+     *            the URL schemes to allow.
+     * @return the virtual filesystem.
+     */
+    private static Vfs vfsWithURLSchemes(final String... urlSchemes) {
+        return new Vfs(Vfs.DEFAULT_ENABLE_NESTED_JARS, Vfs.DEFAULT_ENABLE_MULTI_RELEASE_VERSIONS,
+                Set.of(urlSchemes), Vfs.DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE);
+    }
 
     /**
      * Write a jarfile containing a single deflated entry, plus a manifest that declares an automatic module name.
@@ -526,8 +541,8 @@ public class VfsTest {
         final var outerJarFile = new File(tempDir, "outer.jar");
         writeJarContainingJar(outerJarFile, "lib/inner.jar", readFile(innerJarFile));
 
-        try (var vfs = new Vfs()) {
-            vfs.disableNestedJars();
+        try (var vfs = new Vfs(/* enableNestedJars = */ false, Vfs.DEFAULT_ENABLE_MULTI_RELEASE_VERSIONS,
+                /* urlSchemes = */ null, Vfs.DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE)) {
             assertThatThrownBy(() -> vfs.open(outerJarFile.getPath() + "!/lib/inner.jar"))
                     .isInstanceOf(IOException.class);
         }
@@ -571,16 +586,8 @@ public class VfsTest {
         assertThatThrownBy(() -> vfs.open(moduleReference)).isInstanceOf(IOException.class)
                 .hasMessageContaining("closed");
 
-        // A setting cannot be changed after the close either, since there is nothing left for it to affect
+        // Logging cannot be turned on after the close either, since there is nothing left for it to log
         assertThatThrownBy(vfs::verbose).isInstanceOf(IllegalStateException.class).hasMessageContaining("closed");
-        assertThatThrownBy(vfs::disableNestedJars).isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("closed");
-        assertThatThrownBy(vfs::enableMultiReleaseVersions).isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("closed");
-        assertThatThrownBy(() -> vfs.enableURLScheme("https")).isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("closed");
-        assertThatThrownBy(() -> vfs.maxBufferedJarRAMSize(1024)).isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("closed");
 
         // Closing twice is harmless
         vfs.close();
@@ -723,13 +730,11 @@ public class VfsTest {
     /** A string that is not a URL scheme is rejected, rather than being stored where it can never match. */
     @Test
     public void aStringThatIsNotAURLSchemeIsRejected() {
-        try (var vfs = new Vfs()) {
-            vfs.enableURLScheme("https");
-            // A one-character scheme cannot be told apart from a Windows drive letter
-            assertThatThrownBy(() -> vfs.enableURLScheme("c")).isInstanceOf(IllegalArgumentException.class);
-            // The commonest mistake: including the scheme's trailing ':'
-            assertThatThrownBy(() -> vfs.enableURLScheme("https:")).isInstanceOf(IllegalArgumentException.class);
-        }
+        vfsWithURLSchemes("https").close();
+        // A one-character scheme cannot be told apart from a Windows drive letter
+        assertThatThrownBy(() -> vfsWithURLSchemes("c")).isInstanceOf(IllegalArgumentException.class);
+        // The commonest mistake: including the scheme's trailing ':'
+        assertThatThrownBy(() -> vfsWithURLSchemes("https:")).isInstanceOf(IllegalArgumentException.class);
     }
 
     /**
@@ -772,8 +777,8 @@ public class VfsTest {
         final var jarFile = new File(tempDir, "widget.jar");
         writeMultiReleaseJar(jarFile, "com/xyz/widget.txt");
 
-        try (var vfs = new Vfs()) {
-            vfs.enableMultiReleaseVersions();
+        try (var vfs = new Vfs(Vfs.DEFAULT_ENABLE_NESTED_JARS, /* enableMultiReleaseVersions = */ true,
+                /* urlSchemes = */ null, Vfs.DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE)) {
             final var root = vfs.open(jarFile.getPath());
             assertThat(root.getEntries()).extracting(VfsEntry::getName).containsExactlyInAnyOrder(
                     "META-INF/MANIFEST.MF", "com/xyz/widget.txt", "META-INF/versions/9/com/xyz/widget.txt",
@@ -786,10 +791,11 @@ public class VfsTest {
     /** A negative RAM size is rejected. */
     @Test
     public void aNegativeMaxBufferedJarRAMSizeIsRejected() {
-        try (var vfs = new Vfs()) {
-            vfs.maxBufferedJarRAMSize(1024);
-            assertThatThrownBy(() -> vfs.maxBufferedJarRAMSize(-1)).isInstanceOf(IllegalArgumentException.class);
-        }
+        new Vfs(Vfs.DEFAULT_ENABLE_NESTED_JARS, Vfs.DEFAULT_ENABLE_MULTI_RELEASE_VERSIONS,
+                /* urlSchemes = */ null, /* maxBufferedJarRAMSize = */ 1024).close();
+        assertThatThrownBy(() -> new Vfs(Vfs.DEFAULT_ENABLE_NESTED_JARS,
+                Vfs.DEFAULT_ENABLE_MULTI_RELEASE_VERSIONS, /* urlSchemes = */ null,
+                /* maxBufferedJarRAMSize = */ -1)).isInstanceOf(IllegalArgumentException.class);
     }
 
     /** Null arguments are rejected. */
@@ -811,7 +817,9 @@ public class VfsTest {
             assertThatThrownBy(() -> vfs.open((byte[]) null, "in-memory.jar"))
                     .isInstanceOf(NullPointerException.class);
             assertThatThrownBy(() -> vfs.open(new byte[0], null)).isInstanceOf(NullPointerException.class);
-            assertThatThrownBy(() -> vfs.enableURLScheme(null)).isInstanceOf(NullPointerException.class);
+            assertThatThrownBy(() -> new Vfs(Vfs.DEFAULT_ENABLE_NESTED_JARS,
+                    Vfs.DEFAULT_ENABLE_MULTI_RELEASE_VERSIONS, Collections.singleton(null),
+                    Vfs.DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE)).isInstanceOf(NullPointerException.class);
 
             final var root = vfs.open(jarFile.getPath());
             assertThatThrownBy(() -> root.getEntry(null)).isInstanceOf(NullPointerException.class);

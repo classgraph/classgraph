@@ -370,7 +370,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph disableNestedJarScanning() {
-        scanSpec.vfsScanSpec.scanNestedJars = false;
+        scanSpec.vfsScanSpec.enableNestedJars = false;
         return this;
     }
 

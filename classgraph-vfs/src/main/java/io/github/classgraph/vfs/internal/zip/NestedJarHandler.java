@@ -446,7 +446,7 @@ public class NestedJarHandler implements AutoCloseable {
         }
 
         // Do not extract nested jar, if nested jar scanning is disabled
-        if (!vfsScanSpec.scanNestedJars) {
+        if (!vfsScanSpec.enableNestedJars) {
             throw new IOException("Nested jar scanning is disabled -- skipping nested jar " + nestedJarPath);
         }
 

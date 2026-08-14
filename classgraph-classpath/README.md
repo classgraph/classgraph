@@ -113,8 +113,8 @@ if (entry instanceof ClasspathEntry.OfURL urlEntry) {
 
 A classpath entry can also be a URL for something that is not a local file, and `open` will
 throw `IOException` for one of those unless its scheme is allowed. Call
-`new ClasspathFinder().enableURLScheme("https")` before `find()`, rather than configuring the `Vfs`
-afterwards, so that the setting is in place while the classpath is being found.
+`new ClasspathFinder().enableURLScheme("https")` before `find()`, which allows the scheme both while
+the classpath is being found and on the `Vfs` that `Classpath.getVfs()` hands back.
 
 ### List the modules
 

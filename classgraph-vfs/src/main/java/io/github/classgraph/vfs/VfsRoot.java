@@ -273,7 +273,7 @@ public abstract class VfsRoot implements AutoCloseable, Iterable<VfsEntry> {
      * name. A directory tree's are walked from the top down, each directory's own files before its subdirectories,
      * and the children of a directory sorted by name. For a jarfile, encrypted entries and entries stored with an
      * unsupported compression method are left out, and only the newest version of each entry that this JVM can run
-     * is reported unless {@link Vfs#enableMultiReleaseVersions()} was called.
+     * is reported, unless the {@link Vfs} was constructed with multi-release versions enabled.
      *
      * @return the entries, as an unmodifiable list.
      * @throws IOException

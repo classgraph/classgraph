@@ -199,7 +199,7 @@ class ClasspathElementZip extends ClasspathElement {
         // which of two copies of the same class masks the other
         final var childScheduler = new ChildClasspathElementScheduler(workQueue);
         for (final ChildEntry childEntry : ClasspathExpander.childEntries(logicalZipFile, zipFilePath,
-                vfsScanSpec.scanNestedJars)) {
+                vfsScanSpec.enableNestedJars)) {
             if (subLog != null) {
                 subLog.log(childEntry.origin().getLogMessage() + ": " + childEntry.path());
             }

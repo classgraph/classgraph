@@ -39,6 +39,7 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
+import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -88,15 +89,23 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>
  * Every method is safe to call from multiple threads at once. Two threads that ask for the same path at the same
- * time get back the same {@link VfsRoot}, and the jarfile behind it is only read once; a setting changed by one
- * thread is seen by the others. {@link #close()} takes effect the moment it is called, so a thread that calls any
- * other method after that -- even while the close is still running -- gets an {@link IOException} from an
- * {@code open} method, or an {@link IllegalStateException} from a configuration method, rather than a root backed
- * by storage that is being released.
+ * time get back the same {@link VfsRoot}, and the jarfile behind it is only read once. Nothing can be configured
+ * after construction, so there are no settings for one thread to change while another is reading.
+ * {@link #close()} takes effect the moment it is called, so a thread that calls any other method after that --
+ * even while the close is still running -- gets an {@link IOException} from an {@code open} method, or an
+ * {@link IllegalStateException} from {@link #verbose()}, rather than a root backed by storage that is being
+ * released.
  */
 public class Vfs implements AutoCloseable {
-    /** Everything this virtual filesystem is configured with. */
-    private final VfsScanSpec vfsScanSpec;
+    /** The default value of the {@code enableNestedJars} constructor parameter. */
+    public static final boolean DEFAULT_ENABLE_NESTED_JARS = VfsScanSpec.DEFAULT_ENABLE_NESTED_JARS;
+
+    /** The default value of the {@code enableMultiReleaseVersions} constructor parameter. */
+    public static final boolean DEFAULT_ENABLE_MULTI_RELEASE_VERSIONS = //
+            VfsScanSpec.DEFAULT_ENABLE_MULTI_RELEASE_VERSIONS;
+
+    /** The default value of the {@code maxBufferedJarRAMSize} constructor parameter, in bytes. */
+    public static final int DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE = VfsScanSpec.DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE;
 
     /** The handler that opens jarfiles and owns the resources they are backed by. */
     private final NestedJarHandler nestedJarHandler;
@@ -113,9 +122,77 @@ public class Vfs implements AutoCloseable {
     /** True once {@link #close()} has been called. */
     private final AtomicBoolean closed = new AtomicBoolean();
 
-    /** Constructor. */
+    /** Constructor, using the default value of every option -- see {@link #Vfs(boolean, boolean, Collection, int)}. */
     public Vfs() {
         this(new VfsScanSpec(), new InterruptionChecker(), /* log = */ null);
+    }
+
+    /**
+     * Constructor, setting every option. The options cannot be changed afterwards, since a {@link Vfs} is meant to
+     * be shared between threads.
+     *
+     * @param enableNestedJars
+     *            whether to open jarfiles nested within other jarfiles, so that a path containing {@code "!/"} can
+     *            name a jarfile within a jarfile, and not just a package root within a jarfile. Default:
+     *            {@value #DEFAULT_ENABLE_NESTED_JARS}.
+     * @param enableMultiReleaseVersions
+     *            whether to report every version of a multi-release jarfile's entries, rather than only the newest
+     *            version of each entry that this JVM can run. Default:
+     *            {@value #DEFAULT_ENABLE_MULTI_RELEASE_VERSIONS}.
+     * @param urlSchemes
+     *            the URL schemes that jarfiles may be opened from, as well as from the local filesystem, e.g.
+     *            {@code Set.of("https")}. Scheme names only, without the trailing {@code ':'}. The {@code file:}
+     *            and {@code jar:} schemes are always allowed. A jarfile read from a URL is downloaded in full
+     *            before its entries can be read, since a zipfile's central directory is at the end of the file. May
+     *            be null or empty, which allows no scheme beyond the two that are always allowed, which is the
+     *            default.
+     * @param maxBufferedJarRAMSize
+     *            the number of bytes of a jarfile that may be held in RAM before it is spilled to a temporary file
+     *            on disk. This only applies to jarfiles that cannot be read in place: a nested jarfile that is
+     *            stored deflated rather than uncompressed, a jarfile downloaded from a URL, and a jarfile read from
+     *            an {@link InputStream}. Default: {@value #DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE} bytes (64MB), i.e.
+     *            writing to disk is avoided wherever possible.
+     * @throws IllegalArgumentException
+     *             if any of {@code urlSchemes} is shorter than two characters (a one-character scheme cannot be
+     *             told apart from a Windows drive letter) or is not a valid URL scheme, or if
+     *             {@code maxBufferedJarRAMSize} is negative.
+     */
+    public Vfs(final boolean enableNestedJars, final boolean enableMultiReleaseVersions,
+            final @Nullable Collection<String> urlSchemes, final int maxBufferedJarRAMSize) {
+        this(newVfsScanSpec(enableNestedJars, enableMultiReleaseVersions, urlSchemes, maxBufferedJarRAMSize),
+                new InterruptionChecker(), /* log = */ null);
+    }
+
+    /**
+     * Build the settings for the public constructor that sets every option, validating them before anything is
+     * constructed.
+     *
+     * @param enableNestedJars
+     *            whether to open jarfiles nested within other jarfiles.
+     * @param enableMultiReleaseVersions
+     *            whether to report every version of a multi-release jarfile's entries.
+     * @param urlSchemes
+     *            the URL schemes that jarfiles may be opened from, or null for none.
+     * @param maxBufferedJarRAMSize
+     *            the number of bytes of a jarfile that may be held in RAM before it is spilled to disk.
+     * @return the settings.
+     */
+    private static VfsScanSpec newVfsScanSpec(final boolean enableNestedJars,
+            final boolean enableMultiReleaseVersions, final @Nullable Collection<String> urlSchemes,
+            final int maxBufferedJarRAMSize) {
+        if (maxBufferedJarRAMSize < 0) {
+            throw new IllegalArgumentException("maxBufferedJarRAMSize cannot be negative");
+        }
+        final var vfsScanSpec = new VfsScanSpec();
+        vfsScanSpec.enableNestedJars = enableNestedJars;
+        vfsScanSpec.enableMultiReleaseVersions = enableMultiReleaseVersions;
+        if (urlSchemes != null) {
+            for (final var scheme : urlSchemes) {
+                vfsScanSpec.enableURLScheme(scheme);
+            }
+        }
+        vfsScanSpec.maxBufferedJarRAMSize = maxBufferedJarRAMSize;
+        return vfsScanSpec;
     }
 
     /**
@@ -137,7 +214,7 @@ public class Vfs implements AutoCloseable {
      */
     public Vfs(final VfsScanSpec vfsScanSpec, final InterruptionChecker interruptionChecker,
             final @Nullable LogNode log) {
-        this.vfsScanSpec = vfsScanSpec;
+        // The settings are held by the handler, which is what reads with them
         this.nestedJarHandler = new NestedJarHandler(vfsScanSpec, interruptionChecker);
         this.log = log;
     }
@@ -162,6 +239,12 @@ public class Vfs implements AutoCloseable {
      * <p>
      * The log is written when this {@link Vfs} is closed.
      *
+     * <p>
+     * This returns {@code void} rather than {@code this}: a method on an {@link AutoCloseable} that returns the
+     * {@link AutoCloseable} is reported as a resource leak by the resource analysis that Eclipse and VS Code run,
+     * both when it is called as a statement and when it is chained onto a constructor in a try-with-resources
+     * block, and there is no way to write the call that avoids it.
+     *
      * @throws IllegalStateException
      *             if this {@link Vfs} has been closed.
      */
@@ -172,83 +255,14 @@ public class Vfs implements AutoCloseable {
         }
     }
 
-    /**
-     * Do not open jarfiles nested within other jarfiles, so that a path containing {@code "!/"} can only name a
-     * package root within a jarfile, not a jarfile within a jarfile.
-     *
-     * @throws IllegalStateException
-     *             if this {@link Vfs} has been closed.
-     */
-    public void disableNestedJars() {
-        checkOpen();
-        vfsScanSpec.scanNestedJars = false;
-    }
-
-    /**
-     * Report every version of a multi-release jarfile's entries, rather than only the newest version of each entry
-     * that this JVM can run.
-     *
-     * @throws IllegalStateException
-     *             if this {@link Vfs} has been closed.
-     */
-    public void enableMultiReleaseVersions() {
-        checkOpen();
-        vfsScanSpec.enableMultiReleaseVersions = true;
-    }
-
-    /**
-     * Allow jarfiles to be opened from URLs with the given scheme, as well as from the local filesystem. The
-     * {@code file:} and {@code jar:} schemes are always allowed.
-     *
-     * <p>
-     * A jarfile read from a URL is downloaded in full before its entries can be read, since a zipfile's central
-     * directory is at the end of the file.
-     *
-     * @param scheme
-     *            the URL scheme to allow, e.g. {@code "https"}. The scheme name only, without the trailing
-     *            {@code ':'}.
-     * @throws IllegalArgumentException
-     *             if {@code scheme} is shorter than two characters (a one-character scheme cannot be told apart
-     *             from a Windows drive letter), or is not a valid URL scheme.
-     * @throws IllegalStateException
-     *             if this {@link Vfs} has been closed.
-     */
-    public void enableURLScheme(final String scheme) {
-        checkOpen();
-        vfsScanSpec.enableURLScheme(scheme);
-    }
-
-    /**
-     * Set the number of bytes of a jarfile that may be held in RAM before it is spilled to a temporary file on
-     * disk. This only applies to jarfiles that cannot be read in place: a nested jarfile that is stored deflated
-     * rather than uncompressed, a jarfile downloaded from a URL, and a jarfile read from an {@link InputStream}.
-     *
-     * <p>
-     * The default is 64MB, i.e. writing to disk is avoided wherever possible.
-     *
-     * @param maxBufferedJarRAMSize
-     *            the maximum number of bytes to hold in RAM.
-     * @throws IllegalArgumentException
-     *             if {@code maxBufferedJarRAMSize} is negative.
-     * @throws IllegalStateException
-     *             if this {@link Vfs} has been closed.
-     */
-    public void maxBufferedJarRAMSize(final int maxBufferedJarRAMSize) {
-        checkOpen();
-        if (maxBufferedJarRAMSize < 0) {
-            throw new IllegalArgumentException("maxBufferedJarRAMSize cannot be negative");
-        }
-        vfsScanSpec.maxBufferedJarRAMSize = maxBufferedJarRAMSize;
-    }
-
     // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Open a directory or a jarfile named by a path.
      *
      * <p>
-     * The path may name a directory or a jarfile in the local filesystem, or a URL with an allowed scheme (see
-     * {@link #enableURLScheme(String)}). A jarfile nested within another jarfile is named by separating the
+     * The path may name a directory or a jarfile in the local filesystem, or a URL with a scheme that this
+     * {@link Vfs} was constructed with. A jarfile nested within another jarfile is named by separating the
      * enclosing jarfile from the nested one with {@code "!/"}, to any depth, e.g.
      * {@code "outer.jar!/lib/inner.jar"}. A trailing {@code "!/"} section that does not name a nested jarfile names
      * a package root within the jarfile instead, e.g. {@code "spring-boot-app.jar!/BOOT-INF/classes"}, in which
@@ -486,7 +500,7 @@ public class Vfs implements AutoCloseable {
      *
      * @param uri
      *            the {@link URI} to open. A {@code "jar:"} or {@code "file:"} URI names something in the local
-     *            filesystem; any other scheme has to be enabled with {@link #enableURLScheme(String)} first.
+     *            filesystem; any other scheme has to be one this {@link Vfs} was constructed with.
      * @return the opened root.
      * @throws IOException
      *             if the {@link URI} could not be opened or read, or if this {@link Vfs} has been closed.
@@ -501,7 +515,7 @@ public class Vfs implements AutoCloseable {
      *
      * @param url
      *            the {@link URL} to open. A {@code "jar:"} or {@code "file:"} URL names something in the local
-     *            filesystem; any other scheme has to be enabled with {@link #enableURLScheme(String)} first.
+     *            filesystem; any other scheme has to be one this {@link Vfs} was constructed with.
      * @return the opened root.
      * @throws IOException
      *             if the {@link URL} could not be opened or read, or if this {@link Vfs} has been closed.
@@ -534,7 +548,7 @@ public class Vfs implements AutoCloseable {
 
     /**
      * Open a jarfile read from an {@link InputStream}. The stream is read to the end, into RAM or into a temporary
-     * file if it is longer than {@link #maxBufferedJarRAMSize(int)}, since a zipfile's central directory is at the
+     * file if it is longer than the maximum buffered jar RAM size this {@link Vfs} was constructed with, since a zipfile's central directory is at the
      * end of the file and so cannot be reached by reading forwards.
      *
      * <p>
