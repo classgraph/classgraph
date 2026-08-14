@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.charset.Charset;
 
 import io.github.classgraph.base.internal.utils.StringUtils;
 import org.jspecify.annotations.Nullable;
@@ -61,8 +62,8 @@ public class RandomAccessFileChannelReader implements RandomAccessReader {
     /** The scratch byte buf. */
     private final ByteBuffer scratchByteBuf = ByteBuffer.wrap(scratchArr);
 
-    /** The utf 8 bytes, or null until the first string read. */
-    private byte @Nullable [] utf8Bytes;
+    /** The reusable buffer that strings are read into, or null until the first string read. */
+    private byte @Nullable [] stringBytes;
 
     /**
      * Constructor.
@@ -205,22 +206,42 @@ public class RandomAccessFileChannelReader implements RandomAccessReader {
                 | (scratchArr[0] & 0xffL);
     }
 
-    @Override
-    public String readString(final long offset, final int numBytes, final boolean replaceSlashWithDot,
-            final boolean stripLSemicolon) throws IOException {
-        // Reuse UTF8 buffer array if it's non-null from a previous call, and if it's big enough
-        var utf8BytesBuf = utf8Bytes;
-        if (utf8BytesBuf == null || utf8BytesBuf.length < numBytes) {
-            utf8Bytes = utf8BytesBuf = new byte[numBytes];
+    /**
+     * Copy a range of the slice into the reusable string buffer array.
+     *
+     * @param offset
+     *            the offset to read from, relative to the start of the slice
+     * @param numBytes
+     *            the number of bytes to read
+     * @return the buffer array, which holds the bytes that were read in its first {@code numBytes} positions, and
+     *         which may be longer than that.
+     * @throws IOException
+     *             if the read would run past either end of the slice, or if the file ended early.
+     */
+    private byte[] readIntoStringBytes(final long offset, final int numBytes) throws IOException {
+        // Check the range before growing the buffer, since a length read out of corrupt content can be negative or
+        // larger than the slice, and read() would only reject it after the allocation had been attempted
+        if (offset < 0L || numBytes < 0 || numBytes > sliceLength - offset) {
+            throw new IOException("Read index out of bounds");
         }
-        if (read(offset, utf8BytesBuf, 0, numBytes) < numBytes) {
+        // Reuse the string buffer array if it's non-null from a previous call, and if it's big enough
+        var stringBytesBuf = stringBytes;
+        if (stringBytesBuf == null || stringBytesBuf.length < numBytes) {
+            stringBytes = stringBytesBuf = new byte[numBytes];
+        }
+        if (read(offset, stringBytesBuf, 0, numBytes) < numBytes) {
             throw new IOException("Premature EOF");
         }
-        return StringUtils.readString(utf8BytesBuf, 0, numBytes, replaceSlashWithDot, stripLSemicolon);
+        return stringBytesBuf;
     }
 
     @Override
-    public String readString(final long offset, final int numBytes) throws IOException {
-        return readString(offset, numBytes, false, false);
+    public String readStringModifiedUtf8(final long offset, final int numBytes) throws IOException {
+        return StringUtils.readStringModifiedUtf8(readIntoStringBytes(offset, numBytes), 0, numBytes);
+    }
+
+    @Override
+    public String readString(final long offset, final int numBytes, final Charset charset) throws IOException {
+        return new String(readIntoStringBytes(offset, numBytes), 0, numBytes, charset);
     }
 }

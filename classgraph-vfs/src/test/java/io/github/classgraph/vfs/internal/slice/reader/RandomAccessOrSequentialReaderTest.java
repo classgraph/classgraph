@@ -405,8 +405,7 @@ public class RandomAccessOrSequentialReaderTest {
     }
 
     /**
-     * A string is read in the modified UTF-8 format that the classfile format stores its strings in, optionally
-     * converting it from the internal form of a class name to the form a user would write.
+     * A string is read in the modified UTF-8 format that the classfile format stores its strings in.
      *
      * @param source
      *            the kind of classpath element to read from
@@ -421,22 +420,49 @@ public class RandomAccessOrSequentialReaderTest {
         final var numBytes = content.length - offset;
 
         try (var reader = reader(source, content)) {
-            assertThat(reader.readString(offset, numBytes)).isEqualTo("Ljava/lang/String;");
-            assertThat(reader.readString(offset, numBytes, /* replaceSlashWithDot = */ true,
-                    /* stripLSemicolon = */ true)).isEqualTo("java.lang.String");
+            assertThat(reader.readStringModifiedUtf8(offset, numBytes)).isEqualTo("Ljava/lang/String;");
+        }
+
+        // The sequential overload reads from the current position, and advances it past the string
+        try (var reader = reader(source, content)) {
+            reader.skip(offset);
+            assertThat(reader.readStringModifiedUtf8(numBytes)).isEqualTo("Ljava/lang/String;");
+            assertThat(reader.currPos()).isEqualTo(content.length);
+        }
+    }
+
+    /**
+     * A string is read in UTF-8, or in whatever character encoding the caller asks for.
+     *
+     * @param source
+     *            the kind of classpath element to read from
+     * @throws IOException
+     *             if the content could not be read
+     */
+    @ParameterizedTest
+    @EnumSource(Source.class)
+    public void aStringIsReadInAStandardCharacterEncoding(final Source source) throws IOException {
+        // 'é' takes two bytes in UTF-8 and one byte in ISO-8859-1, so the two encodings read these bytes
+        // differently
+        final var content = "xxrésumé".getBytes(StandardCharsets.UTF_8);
+        final var offset = 2;
+        final var numBytes = content.length - offset;
+
+        try (var reader = reader(source, content)) {
+            assertThat(reader.readString(offset, numBytes)).isEqualTo("résumé");
+            assertThat(reader.readString(offset, numBytes, StandardCharsets.ISO_8859_1)).isEqualTo("rÃ©sumÃ©");
         }
 
         // The sequential overloads read from the current position, and advance it past the string
         try (var reader = reader(source, content)) {
             reader.skip(offset);
-            assertThat(reader.readString(numBytes)).isEqualTo("Ljava/lang/String;");
+            assertThat(reader.readString(numBytes)).isEqualTo("résumé");
             assertThat(reader.currPos()).isEqualTo(content.length);
         }
 
         try (var reader = reader(source, content)) {
             reader.skip(offset);
-            assertThat(reader.readString(numBytes, /* replaceSlashWithDot = */ true, /* stripLSemicolon = */ true))
-                    .isEqualTo("java.lang.String");
+            assertThat(reader.readString(numBytes, StandardCharsets.ISO_8859_1)).isEqualTo("rÃ©sumÃ©");
             assertThat(reader.currPos()).isEqualTo(content.length);
         }
     }

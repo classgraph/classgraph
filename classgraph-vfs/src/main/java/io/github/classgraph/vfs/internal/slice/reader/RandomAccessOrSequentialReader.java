@@ -34,6 +34,7 @@ import java.io.InputStream;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.ReadOnlyBufferException;
+import java.nio.charset.Charset;
 import java.util.Arrays;
 
 import io.github.classgraph.base.internal.utils.FileUtils;
@@ -404,31 +405,33 @@ public class RandomAccessOrSequentialReader implements RandomAccessReader, Seque
     }
 
     @Override
-    public String readString(final long offset, final int numBytes, final boolean replaceSlashWithDot,
-            final boolean stripLSemicolon) throws IOException {
+    public String readStringModifiedUtf8(final long offset, final int numBytes) throws IOException {
         final var idx = bufferFor(offset, numBytes);
-        return StringUtils.readString(arr, idx, numBytes, replaceSlashWithDot, stripLSemicolon);
+        return StringUtils.readStringModifiedUtf8(arr, idx, numBytes);
     }
 
     @Override
-    public String readString(final int numBytes, final boolean replaceSlashWithDot, final boolean stripLSemicolon)
-            throws IOException {
+    public String readStringModifiedUtf8(final int numBytes) throws IOException {
         // Delegate to the random access overload, as the other sequential read methods do, so that the buffer is
         // grown to cover the requested bytes first. Reading straight out of arr would silently return whatever
         // happened to be in the buffer past arrUsed.
-        final var val = readString(currIdx, numBytes, replaceSlashWithDot, stripLSemicolon);
+        final var val = readStringModifiedUtf8(currIdx, numBytes);
         currIdx += numBytes;
         return val;
     }
 
     @Override
-    public String readString(final long offset, final int numBytes) throws IOException {
-        return readString(offset, numBytes, false, false);
+    public String readString(final long offset, final int numBytes, final Charset charset) throws IOException {
+        final var idx = bufferFor(offset, numBytes);
+        return new String(arr, idx, numBytes, charset);
     }
 
     @Override
-    public String readString(final int numBytes) throws IOException {
-        return readString(numBytes, false, false);
+    public String readString(final int numBytes, final Charset charset) throws IOException {
+        // Delegate to the random access overload, for the same reason as the modified UTF8 overload above
+        final var val = readString(currIdx, numBytes, charset);
+        currIdx += numBytes;
+        return val;
     }
 
     @Override

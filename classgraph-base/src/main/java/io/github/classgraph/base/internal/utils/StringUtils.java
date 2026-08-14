@@ -140,8 +140,7 @@ public final class StringUtils {
     }
 
     /**
-     * Reads the "modified UTF8" format defined in the Java classfile spec, optionally replacing '/' with '.', and
-     * optionally removing the prefix "L" and the suffix ";".
+     * Reads the "modified UTF8" format defined in the Java classfile spec.
      *
      * @param arr
      *            the array to read the string from
@@ -149,16 +148,12 @@ public final class StringUtils {
      *            The start offset of the string within the array.
      * @param numBytes
      *            The number of bytes of the UTF8 encoding of the string.
-     * @param replaceSlashWithDot
-     *            If true, replace '/' with '.'.
-     * @param stripLSemicolon
-     *            If true, string final ';' character.
      * @return The string.
      * @throws IllegalArgumentException
      *             If string could not be parsed.
      */
-    public static String readString(final byte[] arr, final int startOffset, final int numBytes,
-            final boolean replaceSlashWithDot, final boolean stripLSemicolon) throws IllegalArgumentException {
+    public static String readStringModifiedUtf8(final byte[] arr, final int startOffset, final int numBytes)
+            throws IllegalArgumentException {
         // Compare by subtraction rather than addition, so that a large startOffset plus a large numBytes cannot
         // overflow int and slip past the range check
         if (startOffset < 0 || numBytes < 0 || numBytes > arr.length - startOffset) {
@@ -172,14 +167,14 @@ public final class StringUtils {
             if (c > 127) {
                 break;
             }
-            chars[charIdx++] = (char) (replaceSlashWithDot && c == '/' ? '.' : c);
+            chars[charIdx++] = (char) c;
         }
         while (byteIdx < numBytes) {
             final var c = arr[startOffset + byteIdx] & 0xff;
             switch (c >> 4) {
             case 0, 1, 2, 3, 4, 5, 6, 7 -> {
                 byteIdx++;
-                chars[charIdx++] = (char) (replaceSlashWithDot && c == '/' ? '.' : c);
+                chars[charIdx++] = (char) c;
             }
             case 12, 13 -> {
                 byteIdx += 2;
@@ -190,8 +185,7 @@ public final class StringUtils {
                 if ((c2 & 0xc0) != 0x80) {
                     throw new IllegalArgumentException("Bad modified UTF8");
                 }
-                final var c3 = ((c & 0x1f) << 6) | (c2 & 0x3f);
-                chars[charIdx++] = (char) (replaceSlashWithDot && c3 == '/' ? '.' : c3);
+                chars[charIdx++] = (char) (((c & 0x1f) << 6) | (c2 & 0x3f));
             }
             case 14 -> {
                 byteIdx += 3;
@@ -203,25 +197,43 @@ public final class StringUtils {
                 if ((c2 & 0xc0) != 0x80 || (c3 & 0xc0) != 0x80) {
                     throw new IllegalArgumentException("Bad modified UTF8");
                 }
-                final var c4 = ((c & 0x0f) << 12) | ((c2 & 0x3f) << 6) | (c3 & 0x3f);
-                chars[charIdx++] = (char) (replaceSlashWithDot && c4 == '/' ? '.' : c4);
+                chars[charIdx++] = (char) (((c & 0x0f) << 12) | ((c2 & 0x3f) << 6) | (c3 & 0x3f));
             }
             default -> throw new IllegalArgumentException("Bad modified UTF8");
             }
         }
-        if (charIdx == numBytes && !stripLSemicolon) {
-            return new String(chars);
-        } else {
-            if (stripLSemicolon) {
-                if (charIdx < 2 || chars[0] != 'L' || chars[charIdx - 1] != ';') {
-                    throw new IllegalArgumentException("Expected string to start with 'L' and end with ';', got \""
-                            + new String(chars) + "\"");
-                }
-                return new String(chars, 1, charIdx - 2);
-            } else {
-                return new String(chars, 0, charIdx);
-            }
+        // The char array is one char per byte, so it is longer than the string whenever a multi-byte sequence was
+        // decoded
+        return charIdx == numBytes ? new String(chars) : new String(chars, 0, charIdx);
+    }
+
+    /**
+     * Turn a type descriptor read from a classfile into the form a user would write, by optionally replacing '/'
+     * with '.', and optionally removing the prefix "L" and the suffix ";".
+     *
+     * @param typeDescriptor
+     *            The type descriptor.
+     * @param replaceSlashWithDot
+     *            If true, replace '/' with '.'.
+     * @param stripLSemicolon
+     *            If true, strip the leading 'L' and the final ';' character.
+     * @return The normalized type descriptor.
+     * @throws IllegalArgumentException
+     *             If {@code stripLSemicolon} is true but the string does not start with 'L' and end with ';'.
+     */
+    public static String normalizeTypeDescriptor(final String typeDescriptor, final boolean replaceSlashWithDot,
+            final boolean stripLSemicolon) throws IllegalArgumentException {
+        // String#replace returns the string itself if it contains no '/', so a string that needs no replacement is
+        // not copied
+        final var replaced = replaceSlashWithDot ? typeDescriptor.replace('/', '.') : typeDescriptor;
+        if (!stripLSemicolon) {
+            return replaced;
         }
+        if (replaced.length() < 2 || replaced.charAt(0) != 'L' || replaced.charAt(replaced.length() - 1) != ';') {
+            throw new IllegalArgumentException(
+                    "Expected string to start with 'L' and end with ';', got \"" + replaced + "\"");
+        }
+        return replaced.substring(1, replaced.length() - 1);
     }
 
     /**

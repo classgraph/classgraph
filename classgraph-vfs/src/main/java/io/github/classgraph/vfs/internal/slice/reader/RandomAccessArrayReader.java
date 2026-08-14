@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.ReadOnlyBufferException;
+import java.nio.charset.Charset;
 
 import io.github.classgraph.base.internal.utils.StringUtils;
 
@@ -183,16 +184,18 @@ public class RandomAccessArrayReader implements RandomAccessReader {
     }
 
     @Override
-    public String readString(final long offset, final int numBytes, final boolean replaceSlashWithDot,
-            final boolean stripLSemicolon) throws IOException {
-        // (StringUtils#readString range-checks against the whole array, so the slice has to be checked here)
+    public String readStringModifiedUtf8(final long offset, final int numBytes) throws IOException {
+        // (StringUtils range-checks against the whole array, so the slice has to be checked here)
         checkInBounds(offset, numBytes);
         final var idx = sliceStartPos + (int) offset;
-        return StringUtils.readString(arr, idx, numBytes, replaceSlashWithDot, stripLSemicolon);
+        return StringUtils.readStringModifiedUtf8(arr, idx, numBytes);
     }
 
     @Override
-    public String readString(final long offset, final int numBytes) throws IOException {
-        return readString(offset, numBytes, false, false);
+    public String readString(final long offset, final int numBytes, final Charset charset) throws IOException {
+        // (String's constructor range-checks against the whole array, so the slice has to be checked here)
+        checkInBounds(offset, numBytes);
+        final var idx = sliceStartPos + (int) offset;
+        return new String(arr, idx, numBytes, charset);
     }
 }

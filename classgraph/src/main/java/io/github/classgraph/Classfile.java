@@ -781,8 +781,9 @@ class Classfile {
         if (utfLen == 0) {
             return "";
         }
-        return intern(
-                reader().readString(constantPoolStringOffset + 2L, utfLen, replaceSlashWithDot, stripLSemicolon));
+        return intern(StringUtils.normalizeTypeDescriptor(
+                reader().readStringModifiedUtf8(constantPoolStringOffset + 2L, utfLen), replaceSlashWithDot,
+                stripLSemicolon));
     }
 
     /**
@@ -809,8 +810,7 @@ class Classfile {
         if (utfLen == 0) {
             return "";
         }
-        return intern(reader().readString(constantPoolStringOffset + 2L, utfLen, /* replaceSlashWithDot = */ false,
-                /* stripLSemicolon = */ false));
+        return intern(reader().readStringModifiedUtf8(constantPoolStringOffset + 2L, utfLen));
     }
 
     /**
@@ -1365,7 +1365,7 @@ class Classfile {
             }
             final var classNameOffset = entryOffset[classNameCpIdx];
             final var classNameLen = reader.readUnsignedShort(classNameOffset);
-            return classNameLen == 0 ? null : reader.readString(classNameOffset + 2L, classNameLen);
+            return classNameLen == 0 ? null : reader.readStringModifiedUtf8(classNameOffset + 2L, classNameLen);
         } catch (final IOException | RuntimeException e) {
             // Could not read or parse the classfile
             return null;

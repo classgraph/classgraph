@@ -191,6 +191,13 @@ public class RandomAccessReaderTest {
                 .hasMessage("Read index out of bounds");
         assertThatThrownBy(() -> reader.readString(0, 8)).isInstanceOf(IOException.class)
                 .hasMessage("Read index out of bounds");
+        assertThatThrownBy(() -> reader.readStringModifiedUtf8(0, 8)).isInstanceOf(IOException.class)
+                .hasMessage("Read index out of bounds");
+        // A negative length is rejected before it is used as the size of the array the string is read into
+        assertThatThrownBy(() -> reader.readString(0, -1)).isInstanceOf(IOException.class)
+                .hasMessage("Read index out of bounds");
+        assertThatThrownBy(() -> reader.readStringModifiedUtf8(0, -1)).isInstanceOf(IOException.class)
+                .hasMessage("Read index out of bounds");
 
         // A value that straddles the end of the slice is rejected as well, rather than taking its remaining bytes
         // from whatever follows the slice
@@ -217,8 +224,7 @@ public class RandomAccessReaderTest {
     }
 
     /**
-     * A string is read in the modified UTF-8 format that the classfile format stores its strings in, optionally
-     * converting it from the internal form of a class name to the form a user would write.
+     * A string is read in the modified UTF-8 format that the classfile format stores its strings in.
      *
      * @param readerKind
      *            the kind of reader to read through
@@ -229,13 +235,41 @@ public class RandomAccessReaderTest {
     @EnumSource(ReaderKind.class)
     public void aStringIsReadInModifiedUtf8(final ReaderKind readerKind) throws IOException {
         final var content = "xxLjava/lang/String;".getBytes(StandardCharsets.UTF_8);
+        final var offset = 2;
+        final var numBytes = content.length - offset;
+        assertThat(reader(readerKind, content, 0, content.length).readStringModifiedUtf8(offset, numBytes))
+                .isEqualTo("Ljava/lang/String;");
+
+        // Modified UTF-8 writes a character outside the basic multilingual plane as a surrogate pair, each written
+        // in the three-byte form, where standard UTF-8 writes the character itself in a four-byte form
+        final var surrogatePair = new byte[] { (byte) 0xed, (byte) 0xa0, (byte) 0xbd, (byte) 0xed, (byte) 0xb8,
+                (byte) 0x80 };
+        final var surrogateReader = reader(readerKind, surrogatePair, 0, surrogatePair.length);
+        assertThat(surrogateReader.readStringModifiedUtf8(0, surrogatePair.length)).isEqualTo("😀");
+        // Standard UTF-8 does not allow surrogates to be encoded, so the same bytes read back differently
+        assertThat(surrogateReader.readString(0, surrogatePair.length)).isNotEqualTo("😀");
+    }
+
+    /**
+     * A string is read in UTF-8, or in whatever character encoding the caller asks for.
+     *
+     * @param readerKind
+     *            the kind of reader to read through
+     * @throws IOException
+     *             if the content could not be read
+     */
+    @ParameterizedTest
+    @EnumSource(ReaderKind.class)
+    public void aStringIsReadInAStandardCharacterEncoding(final ReaderKind readerKind) throws IOException {
+        // 'é' takes two bytes in UTF-8 and one byte in ISO-8859-1, so the two encodings read these bytes
+        // differently
+        final var content = "xxrésumé".getBytes(StandardCharsets.UTF_8);
         final var reader = reader(readerKind, content, 0, content.length);
         final var offset = 2;
         final var numBytes = content.length - offset;
 
-        assertThat(reader.readString(offset, numBytes)).isEqualTo("Ljava/lang/String;");
-        assertThat(
-                reader.readString(offset, numBytes, /* replaceSlashWithDot = */ true, /* stripLSemicolon = */ true))
-                .isEqualTo("java.lang.String");
+        assertThat(reader.readString(offset, numBytes)).isEqualTo("résumé");
+        assertThat(reader.readString(offset, numBytes, StandardCharsets.UTF_8)).isEqualTo("résumé");
+        assertThat(reader.readString(offset, numBytes, StandardCharsets.ISO_8859_1)).isEqualTo("rÃ©sumÃ©");
     }
 }

@@ -33,6 +33,7 @@ import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.ReadOnlyBufferException;
+import java.nio.charset.Charset;
 
 import io.github.classgraph.base.internal.utils.StringUtils;
 
@@ -191,20 +192,37 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
         return byteBuffer.getLong(idx);
     }
 
-    @Override
-    public String readString(final long offset, final int numBytes, final boolean replaceSlashWithDot,
-            final boolean stripLSemicolon) throws IOException {
+    /**
+     * Copy a range of the slice into a new byte array.
+     *
+     * @param offset
+     *            the offset to read from, relative to the start of the slice
+     * @param numBytes
+     *            the number of bytes to read
+     * @return the bytes that were read.
+     * @throws IOException
+     *             if the read would run past either end of the slice, or if the slice ended early.
+     */
+    private byte[] readBytes(final long offset, final int numBytes) throws IOException {
+        // Check the range before allocating the array, since a length read out of corrupt content can be negative
+        // or larger than the slice, and read() would only reject it after the allocation had been attempted
+        checkInBounds(offset, numBytes);
         final var arr = new byte[numBytes];
         if (read(offset, arr, 0, numBytes) < numBytes) {
             throw new IOException("Premature EOF while reading string");
         }
-        // (Read from index 0 of arr, not from the slice offset -- read() already applied the slice offset when
-        // copying into arr, and arr is only numBytes long)
-        return StringUtils.readString(arr, 0, numBytes, replaceSlashWithDot, stripLSemicolon);
+        return arr;
     }
 
     @Override
-    public String readString(final long offset, final int numBytes) throws IOException {
-        return readString(offset, numBytes, false, false);
+    public String readStringModifiedUtf8(final long offset, final int numBytes) throws IOException {
+        // (Read from index 0 of the array, not from the slice offset -- readBytes() already applied the slice
+        // offset when copying into the array, and the array is only numBytes long)
+        return StringUtils.readStringModifiedUtf8(readBytes(offset, numBytes), 0, numBytes);
+    }
+
+    @Override
+    public String readString(final long offset, final int numBytes, final Charset charset) throws IOException {
+        return new String(readBytes(offset, numBytes), 0, numBytes, charset);
     }
 }

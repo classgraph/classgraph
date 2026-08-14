@@ -30,6 +30,8 @@ package io.github.classgraph.vfs.internal.slice.reader;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 
 /** Interface for random access to values in byte order. */
 public interface RandomAccessReader {
@@ -145,34 +147,46 @@ public interface RandomAccessReader {
     long readLong(final long offset) throws IOException;
 
     /**
-     * Reads the "modified UTF8" format defined in the Java classfile spec, optionally replacing '/' with '.', and
-     * optionally removing the prefix "L" and the suffix ";".
-     *
-     * @param offset
-     *            The start offset of the string.
-     * @param numBytes
-     *            The number of bytes of the UTF8 encoding of the string.
-     * @param replaceSlashWithDot
-     *            If true, replace '/' with '.'.
-     * @param stripLSemicolon
-     *            If true, strip the leading 'L' and the final ';' character.
-     * @return The string.
-     * @throws IOException
-     *             If an I/O exception occurs.
-     */
-    String readString(final long offset, final int numBytes, final boolean replaceSlashWithDot,
-            final boolean stripLSemicolon) throws IOException;
-
-    /**
      * Reads the "modified UTF8" format defined in the Java classfile spec.
      *
      * @param offset
      *            The start offset of the string.
      * @param numBytes
-     *            The number of bytes of the UTF8 encoding of the string.
+     *            The number of bytes of the modified UTF8 encoding of the string.
      * @return The string.
      * @throws IOException
      *             If an I/O exception occurs.
      */
-    String readString(final long offset, final int numBytes) throws IOException;
+    String readStringModifiedUtf8(final long offset, final int numBytes) throws IOException;
+
+    /**
+     * Read a string in a given character encoding.
+     *
+     * @param offset
+     *            The start offset of the string.
+     * @param numBytes
+     *            The number of bytes of the encoding of the string.
+     * @param charset
+     *            The character encoding to decode the bytes with.
+     * @return The string.
+     * @throws IOException
+     *             If an I/O exception occurs.
+     */
+    String readString(final long offset, final int numBytes, final Charset charset) throws IOException;
+
+    /**
+     * Read a string in UTF-8, the standard encoding, rather than the "modified UTF8" format that the classfile
+     * format stores its strings in.
+     *
+     * @param offset
+     *            The start offset of the string.
+     * @param numBytes
+     *            The number of bytes of the UTF-8 encoding of the string.
+     * @return The string.
+     * @throws IOException
+     *             If an I/O exception occurs.
+     */
+    default String readString(final long offset, final int numBytes) throws IOException {
+        return readString(offset, numBytes, StandardCharsets.UTF_8);
+    }
 }

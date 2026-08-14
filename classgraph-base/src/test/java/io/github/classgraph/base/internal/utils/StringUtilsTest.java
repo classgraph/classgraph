@@ -34,8 +34,7 @@ public class StringUtilsTest {
      * @return The string.
      */
     private static String readString(final byte[] arr) {
-        return StringUtils.readString(arr, 0, arr.length, /* replaceSlashWithDot = */ false,
-                /* stripLSemicolon = */ false);
+        return StringUtils.readStringModifiedUtf8(arr, 0, arr.length);
     }
 
     /** A string with nothing to escape in it is returned as it is, rather than being copied. */
@@ -78,13 +77,11 @@ public class StringUtilsTest {
         assertThat(StringUtils.escapeChar('中')).isEqualTo("\\u4e2d");
     }
 
-    /** An ASCII string is read as it is, and '/' is replaced with '.' only when that is asked for. */
+    /** An ASCII string is read as it is. */
     @Test
     public void asciiStringsAreRead() {
         final var arr = "java/lang/String".getBytes(StandardCharsets.UTF_8);
         assertThat(readString(arr)).isEqualTo("java/lang/String");
-        assertThat(StringUtils.readString(arr, 0, arr.length, /* replaceSlashWithDot = */ true,
-                /* stripLSemicolon = */ false)).isEqualTo("java.lang.String");
         assertThat(readString(new byte[0])).isEmpty();
     }
 
@@ -92,9 +89,7 @@ public class StringUtilsTest {
     @Test
     public void onlyTheRequestedRangeIsRead() {
         final var arr = "xxjava/langyy".getBytes(StandardCharsets.UTF_8);
-        assertThat(
-                StringUtils.readString(arr, 2, 9, /* replaceSlashWithDot = */ true, /* stripLSemicolon = */ false))
-                .isEqualTo("java.lang");
+        assertThat(StringUtils.readStringModifiedUtf8(arr, 2, 9)).isEqualTo("java/lang");
     }
 
     /**
@@ -106,13 +101,13 @@ public class StringUtilsTest {
     @Test
     public void outOfRangeOffsetsAndLengthsAreRejected() {
         final var arr = "abc".getBytes(StandardCharsets.UTF_8);
-        assertThatThrownBy(() -> StringUtils.readString(arr, -1, 1, false, false))
+        assertThatThrownBy(() -> StringUtils.readStringModifiedUtf8(arr, -1, 1))
                 .isInstanceOf(IllegalArgumentException.class).hasMessage("offset or numBytes out of range");
-        assertThatThrownBy(() -> StringUtils.readString(arr, 0, -1, false, false))
+        assertThatThrownBy(() -> StringUtils.readStringModifiedUtf8(arr, 0, -1))
                 .isInstanceOf(IllegalArgumentException.class).hasMessage("offset or numBytes out of range");
-        assertThatThrownBy(() -> StringUtils.readString(arr, 1, 3, false, false))
+        assertThatThrownBy(() -> StringUtils.readStringModifiedUtf8(arr, 1, 3))
                 .isInstanceOf(IllegalArgumentException.class).hasMessage("offset or numBytes out of range");
-        assertThatThrownBy(() -> StringUtils.readString(arr, Integer.MAX_VALUE, Integer.MAX_VALUE, false, false))
+        assertThatThrownBy(() -> StringUtils.readStringModifiedUtf8(arr, Integer.MAX_VALUE, Integer.MAX_VALUE))
                 .isInstanceOf(IllegalArgumentException.class).hasMessage("offset or numBytes out of range");
     }
 
@@ -127,13 +122,13 @@ public class StringUtilsTest {
         assertThat(readString(bytes(0xc3, 0xa9, 'A', 0xe4, 0xb8, 0xad, 'B'))).isEqualTo("éA中B");
     }
 
-    /** A '/' is replaced with '.' however it was encoded, including in the overlong forms of the encoding. */
+    /** A '/' is decoded as a '/' however it was encoded, including in the overlong forms of the encoding. */
     @Test
-    public void slashIsReplacedInEveryFormOfTheEncoding() {
+    public void slashIsDecodedFromEveryFormOfTheEncoding() {
         // The '/' written in the one-, two- and three-byte forms of the encoding in turn
-        assertThat(StringUtils.readString(bytes(0xc3, 0xa9, '/'), 0, 3, true, false)).isEqualTo("é.");
-        assertThat(StringUtils.readString(bytes(0xc0, 0xaf), 0, 2, true, false)).isEqualTo(".");
-        assertThat(StringUtils.readString(bytes(0xe0, 0x80, 0xaf), 0, 3, true, false)).isEqualTo(".");
+        assertThat(readString(bytes(0xc3, 0xa9, '/'))).isEqualTo("é/");
+        assertThat(readString(bytes(0xc0, 0xaf))).isEqualTo("/");
+        assertThat(readString(bytes(0xe0, 0x80, 0xaf))).isEqualTo("/");
     }
 
     /** A byte sequence that is not valid modified UTF8 is rejected. */
@@ -160,27 +155,40 @@ public class StringUtilsTest {
                 .hasMessage("Bad modified UTF8");
     }
 
-    /** A type descriptor has its 'L' prefix and ';' suffix stripped when that is asked for. */
+    /** A type descriptor has '/' replaced with '.', and its 'L' prefix and ';' suffix stripped, when asked for. */
     @Test
-    public void theLPrefixAndSemicolonSuffixAreStripped() {
-        final var arr = "Ljava/lang/String;".getBytes(StandardCharsets.UTF_8);
-        assertThat(StringUtils.readString(arr, 0, arr.length, /* replaceSlashWithDot = */ true,
+    public void aTypeDescriptorIsNormalized() {
+        assertThat(StringUtils.normalizeTypeDescriptor("Ljava/lang/String;", /* replaceSlashWithDot = */ true,
                 /* stripLSemicolon = */ true)).isEqualTo("java.lang.String");
-        assertThat(StringUtils.readString(bytes('L', ';'), 0, 2, false, true)).isEmpty();
+        assertThat(StringUtils.normalizeTypeDescriptor("Ljava/lang/String;", true, false))
+                .isEqualTo("Ljava.lang.String;");
+        assertThat(StringUtils.normalizeTypeDescriptor("Ljava/lang/String;", false, true))
+                .isEqualTo("java/lang/String");
+        assertThat(StringUtils.normalizeTypeDescriptor("L;", false, true)).isEmpty();
+    }
+
+    /** A string that is not asked to be normalized is returned as it is, rather than being copied. */
+    @Test
+    public void aTypeDescriptorThatIsNotNormalizedIsReturnedUnchanged() {
+        final var plain = "Ljava/lang/String;";
+        assertThat(StringUtils.normalizeTypeDescriptor(plain, false, false)).isSameAs(plain);
     }
 
     /** A string that was expected to be a type descriptor but is not is rejected, and is quoted in the message. */
     @Test
     public void aStringThatIsNotATypeDescriptorIsRejected() {
-        final var arr = "java/lang/String".getBytes(StandardCharsets.UTF_8);
-        assertThatThrownBy(() -> StringUtils.readString(arr, 0, arr.length, false, true))
+        assertThatThrownBy(() -> StringUtils.normalizeTypeDescriptor("java/lang/String", false, true))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Expected string to start with 'L' and end with ';', got \"java/lang/String\"");
+        // The message quotes the string in the form it was rejected in, after the '/' characters were replaced
+        assertThatThrownBy(() -> StringUtils.normalizeTypeDescriptor("java/lang/String", true, true))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Expected string to start with 'L' and end with ';', got \"java.lang.String\"");
         // A string too short to have both an 'L' and a ';' in it
-        assertThatThrownBy(() -> StringUtils.readString(bytes('L'), 0, 1, false, true))
+        assertThatThrownBy(() -> StringUtils.normalizeTypeDescriptor("L", false, true))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Expected string to start with 'L' and end with ';', got \"L\"");
-        assertThatThrownBy(() -> StringUtils.readString(new byte[0], 0, 0, false, true))
+        assertThatThrownBy(() -> StringUtils.normalizeTypeDescriptor("", false, true))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Expected string to start with 'L' and end with ';', got \"\"");
     }

@@ -9,13 +9,14 @@ import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tests the sequential {@link RandomAccessOrSequentialReader#readString(int)} overload.
+ * Tests the sequential {@link RandomAccessOrSequentialReader#readString(int)} and
+ * {@link RandomAccessOrSequentialReader#readStringModifiedUtf8(int)} overloads.
  *
  * <p>
  * A {@link RandomAccessOrSequentialReader} built on an {@link java.io.InputStream} starts with an allocated but completely
  * unfilled buffer, so a read that does not first grow the buffer returns the zero bytes the array was allocated
  * with, rather than the stream contents. Every other sequential read method delegates to its random access
- * counterpart, which buffers the requested range first; {@code readString} used to read straight out of the buffer
+ * counterpart, which buffers the requested range first; the string reads used to read straight out of the buffer
  * instead.
  */
 public class RandomAccessOrSequentialReaderReadStringTest {
@@ -27,6 +28,9 @@ public class RandomAccessOrSequentialReaderReadStringTest {
         final var data = "Hello".getBytes(StandardCharsets.UTF_8);
         try (var reader = new RandomAccessOrSequentialReader(new ByteArrayInputStream(data))) {
             assertThat(reader.readString(5)).isEqualTo("Hello");
+        }
+        try (var reader = new RandomAccessOrSequentialReader(new ByteArrayInputStream(data))) {
+            assertThat(reader.readStringModifiedUtf8(5)).isEqualTo("Hello");
         }
     }
 
