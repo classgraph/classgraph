@@ -683,6 +683,19 @@ public class Vfs implements AutoCloseable {
     }
 
     /**
+     * Check whether anything read through this {@link Vfs} had to be extracted to a temporary file. A nested
+     * jarfile that is compressed, or that is too large to buffer in RAM, is extracted to a temporary file, which is
+     * deleted when this {@link Vfs} is closed.
+     *
+     * @return true if at least one temporary file was created and has not yet been deleted, or false if none was
+     *         created, or if this {@link Vfs} has been closed.
+     */
+    public boolean hasTempFiles() {
+        // The temporary files are deleted by close(), so a closed Vfs has none
+        return !closed.get() && nestedJarHandler.scanResources.hasTempFiles();
+    }
+
+    /**
      * Close every root that was opened by this {@link Vfs}, release the file handles and memory mappings that back
      * them, and delete any temporary files that were created. Every {@link VfsRoot} and {@link VfsEntry} that was
      * handed out is invalidated, and any {@link InputStream} still being read from one of them will stop returning

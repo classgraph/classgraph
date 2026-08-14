@@ -102,6 +102,29 @@ public class VfsTest {
     }
 
     /**
+     * Write a jarfile containing another jarfile, deflated rather than stored, so that the inner jarfile has to be
+     * inflated before it can be read.
+     *
+     * @param outerJarFile
+     *            the outer jarfile to write.
+     * @param innerJarEntryName
+     *            the name of the inner jarfile within the outer jarfile.
+     * @param innerJarBytes
+     *            the content of the inner jarfile.
+     * @throws IOException
+     *             if the jarfile could not be written.
+     */
+    private static void writeJarContainingDeflatedJar(final File outerJarFile, final String innerJarEntryName,
+            final byte[] innerJarBytes) throws IOException {
+        try (var fileOut = new FileOutputStream(outerJarFile); var zipOut = new ZipOutputStream(fileOut)) {
+            // ZipOutputStream deflates by default
+            zipOut.putNextEntry(new ZipEntry(innerJarEntryName));
+            zipOut.write(innerJarBytes);
+            zipOut.closeEntry();
+        }
+    }
+
+    /**
      * Write a multi-release jarfile holding the same resource path three times: once unversioned, once under a
      * version the running JVM supports, and once under a version far newer than any JVM that exists.
      *
@@ -556,6 +579,36 @@ public class VfsTest {
             final var root = vfs.open(outerJarFile.getPath() + "!/lib/inner.jar");
             assertThat(entryContent(root, "com/xyz/widget.txt")).isEqualTo(RESOURCE_CONTENT);
         }
+    }
+
+    /**
+     * A deflated nested jarfile cannot be read in place, so it is inflated, and spills to a temporary file if it is
+     * not allowed to be buffered in RAM. Closing the virtual filesystem deletes the temporary file.
+     */
+    @Test
+    public void temporaryFilesAreReportedUntilTheyAreDeleted(@TempDir final File tempDir) throws IOException {
+        final var innerJarFile = new File(tempDir, "inner.jar");
+        writeJar(innerJarFile, "com/xyz/widget.txt");
+        final var outerJarFile = new File(tempDir, "outer.jar");
+        writeJarContainingDeflatedJar(outerJarFile, "lib/inner.jar", readFile(innerJarFile));
+
+        // A jarfile on disk is read in place, so no temporary file is needed
+        try (var vfs = new Vfs()) {
+            assertThat(vfs.open(outerJarFile).getEntries()).isNotEmpty();
+            assertThat(vfs.hasTempFiles()).isFalse();
+        }
+
+        // The inner jarfile has to be inflated, and no RAM is allowed to hold it, so it spills to a temporary file
+        final Vfs closedVfs;
+        try (var vfs = new Vfs(Vfs.DEFAULT_ENABLE_NESTED_JARS, Vfs.DEFAULT_ENABLE_MULTI_RELEASE_VERSIONS,
+                /* urlSchemes = */ null, /* maxBufferedJarRAMSize = */ 0)) {
+            final var root = vfs.open(outerJarFile.getPath() + "!/lib/inner.jar");
+            assertThat(entryContent(root, "com/xyz/widget.txt")).isEqualTo(RESOURCE_CONTENT);
+            assertThat(vfs.hasTempFiles()).isTrue();
+            closedVfs = vfs;
+        }
+        // The temporary file was deleted by close()
+        assertThat(closedVfs.hasTempFiles()).isFalse();
     }
 
     /**
