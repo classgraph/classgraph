@@ -186,19 +186,88 @@ public abstract class VfsRoot {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Walk the entries under the package root, not including directories, offering each directory to the visitor
+     * before the entries in it so that unwanted ones can be skipped. This is the cheapest way to enumerate a root,
+     * since unlike {@link #getEntries()} it neither builds a list of every entry nor, for a directory tree, lists a
+     * directory whose entries the visitor does not want.
+     *
+     * <p>
+     * The entries of each directory are walked in the same order that {@link #getEntries()} reports them in. See
+     * {@link VfsVisitor#enterDirectory(String)} for how much a skipped directory skips, which differs between a
+     * directory tree and an archive.
+     *
+     * @param visitor
+     *            the visitor to hand the entries to.
+     * @throws IOException
+     *             if the entries could not be listed, or if the {@link Vfs} has been closed.
+     */
+    public abstract void walk(VfsVisitor visitor) throws IOException;
+
+    /**
      * Returns the entries under the package root, not including directories.
      *
      * <p>
-     * A jarfile's entries come back in the order they appear in its central directory; a directory's and a module's
-     * come back sorted by name. For a jarfile, encrypted entries and entries stored with an unsupported compression
-     * method are left out, and only the newest version of each entry that this JVM can run is reported unless
-     * {@link Vfs#enableMultiReleaseVersions()} was called.
+     * A jarfile's entries come back in the order they appear in its central directory, and a module's sorted by
+     * name. A directory tree's are walked from the top down, each directory's own files before its subdirectories,
+     * and the children of a directory sorted by name. For a jarfile, encrypted entries and entries stored with an
+     * unsupported compression method are left out, and only the newest version of each entry that this JVM can run
+     * is reported unless {@link Vfs#enableMultiReleaseVersions()} was called.
      *
      * @return the entries, as an unmodifiable list.
      * @throws IOException
      *             if the entries could not be listed, or if the {@link Vfs} has been closed.
      */
     public abstract List<VfsEntry> getEntries() throws IOException;
+
+    /**
+     * Walk a list of entries that is already in hand, telling the visitor about the directory an entry is in
+     * whenever it differs from the directory of the entry before it.
+     *
+     * @param entryList
+     *            the entries, in the order they should be walked in.
+     * @param visitor
+     *            the visitor to hand the entries to.
+     */
+    static void walkEntryList(final List<VfsEntry> entryList, final VfsVisitor visitor) {
+        // A one-directory memory is enough, because the entries of a jarfile or a module are almost always grouped
+        // by directory, so this asks the visitor about a directory once rather than once per entry in it
+        String prevDirName = null;
+        var prevDirWanted = false;
+        for (final var entry : entryList) {
+            final var name = entry.getName();
+            final var lastSlashIdx = name.lastIndexOf('/');
+            final var dirName = lastSlashIdx < 0 ? "/" : name.substring(0, lastSlashIdx + 1);
+            if (!dirName.equals(prevDirName)) {
+                prevDirName = dirName;
+                prevDirWanted = visitor.enterDirectory(dirName);
+            }
+            if (prevDirWanted && !visitor.visitEntry(entry)) {
+                return;
+            }
+        }
+    }
+
+    /**
+     * Collect every entry a walk reaches into a list.
+     *
+     * @param entriesOut
+     *            the list to add the entries to.
+     * @return a visitor that skips nothing.
+     */
+    static VfsVisitor collectingVisitor(final List<VfsEntry> entriesOut) {
+        return new VfsVisitor() {
+            @Override
+            public boolean enterDirectory(final String dirName) {
+                return true;
+            }
+
+            @Override
+            public boolean visitEntry(final VfsEntry entry) {
+                entriesOut.add(entry);
+                return true;
+            }
+        };
+    }
 
     /**
      * Returns the entry with the given name, or null if there is no such entry. If the root contains more than one

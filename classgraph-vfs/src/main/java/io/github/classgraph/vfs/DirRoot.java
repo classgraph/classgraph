@@ -120,14 +120,20 @@ final class DirRoot extends VfsRoot {
     }
 
     @Override
+    public void walk(final VfsVisitor visitor) throws IOException {
+        Assert.notNull(visitor, "visitor");
+        // Symlinks can make a directory tree cyclic, so record which directories have already been walked, by their
+        // canonical path -- otherwise a directory that contains a symlink to one of its own ancestors makes this
+        // recursion run until it runs out of stack
+        walkRecursively(dir, "", visitor, new HashSet<>());
+    }
+
+    @Override
     public List<VfsEntry> getEntries() throws IOException {
         var entriesCurr = entries;
         if (entriesCurr == null) {
             final List<VfsEntry> entriesTmp = new ArrayList<>();
-            // Symlinks can make a directory tree cyclic, so record which directories have already been walked, by
-            // their canonical path -- otherwise a directory that contains a symlink to one of its own ancestors
-            // makes this recursion run until it runs out of stack
-            listRecursively(dir, "", entriesTmp, new HashSet<>());
+            walk(collectingVisitor(entriesTmp));
             entriesCurr = Collections.unmodifiableList(entriesTmp);
             // Two threads racing here each list the directory, and both get an equivalent list back, which is
             // harmless -- the entries hold no resources
@@ -137,31 +143,36 @@ final class DirRoot extends VfsRoot {
     }
 
     /**
-     * List the files under a directory, recursing into its subdirectories.
+     * Walk the files under a directory, recursing into its subdirectories.
      *
      * @param currDir
-     *            the directory to list.
+     *            the directory to walk.
      * @param namePrefix
      *            the name of {@code currDir} relative to the root, with a trailing {@code '/'}, or the empty string
      *            for the root itself.
-     * @param entriesOut
-     *            the list to add the entries to.
+     * @param visitor
+     *            the visitor to hand the entries to.
      * @param visitedDirs
-     *            the canonical paths of the directories that have already been listed.
+     *            the canonical paths of the directories that have already been walked.
+     * @return true to go on walking, or false if the visitor asked for the walk to stop.
      * @throws IOException
      *             if the directory could not be listed.
      */
-    private void listRecursively(final Path currDir, final String namePrefix, final List<VfsEntry> entriesOut,
+    private boolean walkRecursively(final Path currDir, final String namePrefix, final VfsVisitor visitor,
             final Set<Path> visitedDirs) throws IOException {
+        // Ask before listing, since not listing an unwanted directory is the whole point of asking
+        if (!visitor.enterDirectory(namePrefix.isEmpty() ? "/" : namePrefix)) {
+            return true;
+        }
         final Path canonicalDir;
         try {
             canonicalDir = currDir.toRealPath();
         } catch (final IOException | SecurityException e) {
             // A directory that cannot be resolved is skipped, rather than aborting the whole listing
-            return;
+            return true;
         }
         if (!visitedDirs.add(canonicalDir)) {
-            return;
+            return true;
         }
         final List<Path> children = new ArrayList<>();
         try (var dirStream = Files.newDirectoryStream(currDir)) {
@@ -170,19 +181,28 @@ final class DirRoot extends VfsRoot {
             }
         } catch (final IOException | SecurityException e) {
             // A directory that cannot be opened is skipped, rather than aborting the whole listing
-            return;
+            return true;
         }
         // List the entries of a directory in a deterministic order, since the order a filesystem returns them in is
         // not specified
         Collections.sort(children);
+        // Visit the files of a directory before recursing into its subdirectories, so that the reads that follow
+        // the walk are grouped the same way the filesystem groups the metadata they need
+        final List<Path> subDirs = new ArrayList<>();
         for (final Path child : children) {
-            final var childName = namePrefix + child.getFileName();
             if (Files.isDirectory(child)) {
-                listRecursively(child, childName + "/", entriesOut, visitedDirs);
-            } else if (Files.isRegularFile(child)) {
-                entriesOut.add(new DirEntry(this, child, childName));
+                subDirs.add(child);
+            } else if (Files.isRegularFile(child)
+                    && !visitor.visitEntry(new DirEntry(this, child, namePrefix + child.getFileName()))) {
+                return false;
             }
         }
+        for (final Path subDir : subDirs) {
+            if (!walkRecursively(subDir, namePrefix + subDir.getFileName() + "/", visitor, visitedDirs)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     @Override

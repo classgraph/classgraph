@@ -53,6 +53,11 @@
  * byte array or a string, whichever the caller wants, whatever the entry is stored in.
  *
  * <p>
+ * {@link io.github.classgraph.vfs.VfsRoot#walk(io.github.classgraph.vfs.VfsVisitor)} enumerates a root without
+ * building a list of every entry in it, offering each directory before the entries in it so that an unwanted
+ * directory can be skipped -- and, for a directory tree, never listed at all.
+ *
+ * <p>
  * {@link io.github.classgraph.vfs.VfsRoot#asFileSystem()} presents a whole root as a read-only
  * {@link java.nio.file.FileSystem}, and {@link io.github.classgraph.vfs.VfsEntry#asPath()} presents a single entry
  * as a {@link java.nio.file.Path} within it, so that code written against {@link java.nio.file.Files} can read a

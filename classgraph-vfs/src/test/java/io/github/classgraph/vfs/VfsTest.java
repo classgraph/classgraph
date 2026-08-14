@@ -255,9 +255,10 @@ public class VfsTest {
             assertThat(root.getNioPath()).isEqualTo(dir.toPath().toAbsolutePath().normalize());
             assertThat(root.getFile()).isNotNull();
             assertThat(root.getURI().getScheme()).isEqualTo("file");
-            // A directory is listed recursively, and its subdirectories are not themselves entries
-            assertThat(root.getEntries()).extracting(VfsEntry::getName).containsExactly("com/xyz/widget.txt",
-                    "root.txt");
+            // A directory is listed recursively, and its subdirectories are not themselves entries. Each
+            // directory's own files come before its subdirectories.
+            assertThat(root.getEntries()).extracting(VfsEntry::getName).containsExactly("root.txt",
+                    "com/xyz/widget.txt");
 
             final var entry = Objects.requireNonNull(root.getEntry("com/xyz/widget.txt"));
             assertThat(entry.getPath()).isEqualTo(root.getPath() + "/com/xyz/widget.txt");

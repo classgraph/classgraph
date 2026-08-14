@@ -169,6 +169,38 @@ walks all three kinds of root. Closing the `Vfs` releases every file handle, mem
 temporary file it took, and invalidates every `VfsRoot` and `VfsEntry` it handed out, so do not let
 them escape the `try` block.
 
+### List only the part of a root you want
+
+`getEntries()` builds a list of every file in the root. When only some of them are wanted, `walk()`
+is cheaper: it offers each directory before the entries in it, so an unwanted one can be skipped,
+and for a directory tree a skipped directory is never even listed.
+
+```java
+try (Vfs vfs = new Vfs()) {
+    vfs.open("/path/to/classes").walk(new VfsVisitor() {
+        @Override
+        public boolean enterDirectory(String dirName) {
+            // Do not descend into a test tree
+            return !dirName.startsWith("com/xyz/test/");
+        }
+
+        @Override
+        public boolean visitEntry(VfsEntry entry) {
+            System.out.println(entry.getName());
+            // Return false to stop the walk early
+            return true;
+        }
+    });
+}
+```
+
+How much a skipped directory skips differs by root, and the difference matters: a directory tree
+skips the whole subtree, because not listing it is the entire saving, whereas a jarfile or a module
+already has its entry list in hand, so only that directory's own entries are skipped and the
+directories below it are still offered. That is deliberate — a caller that strips a package root
+prefix such as `BOOT-INF/classes/` from the names before judging them would otherwise prune
+`BOOT-INF/` and lose everything under it.
+
 ### Read one entry
 
 ```java

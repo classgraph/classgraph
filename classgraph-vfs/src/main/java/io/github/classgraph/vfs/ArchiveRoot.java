@@ -136,6 +136,12 @@ final class ArchiveRoot extends VfsRoot {
     }
 
     @Override
+    public void walk(final VfsVisitor visitor) {
+        Assert.notNull(visitor, "visitor");
+        walkEntryList(entries, visitor);
+    }
+
+    @Override
     public List<VfsEntry> getEntries() {
         return entries;
     }

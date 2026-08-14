@@ -149,6 +149,13 @@ final class ModuleRoot extends VfsRoot {
     }
 
     @Override
+    public void walk(final VfsVisitor visitor) throws IOException {
+        Assert.notNull(visitor, "visitor");
+        // A module reader lists the whole module in one call, so there is nothing to be saved by walking it lazily
+        walkEntryList(getEntries(), visitor);
+    }
+
+    @Override
     public List<VfsEntry> getEntries() throws IOException {
         var entriesCurr = entries;
         if (entriesCurr == null) {
