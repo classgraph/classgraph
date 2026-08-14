@@ -21,6 +21,10 @@ lib/
 hs_err_pid*
 
 *.iml
+# Eclipse project metadata, including the copies a language server generates when it imports the
+# Maven build. It is generated from the POMs, so it is not checked in
+.project
+.classpath
 .metadata
 .settings/
 .loadpath
