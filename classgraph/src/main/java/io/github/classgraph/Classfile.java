@@ -62,7 +62,8 @@ import org.jspecify.annotations.Nullable;
  */
 class Classfile {
     /**
-     * The {@link RandomAccessOrSequentialReader} for the current classfile, or null once the classfile has been read.
+     * The {@link RandomAccessOrSequentialReader} for the current classfile, or null once the classfile has been
+     * read.
      */
     private @Nullable RandomAccessOrSequentialReader reader;
 
@@ -1301,7 +1302,8 @@ class Classfile {
      * of {@link #readConstantPoolEntries(LogNode)} followed by {@link #readBasicClassInfo()}, for the case where a
      * classfile has to be read before scanning has started, so none of the scanning context needed by the
      * {@link Classfile} constructor is available yet. (Used to check whether a candidate package root really is a
-     * package root -- see {@link ClasspathElement#getClassNameDisprovingPackageRoot(RandomAccessOrSequentialReader, String)}.)
+     * package root -- see
+     * {@link ClasspathElement#getClassNameDisprovingPackageRoot(RandomAccessOrSequentialReader, String)}.)
      *
      * @param reader
      *            a reader for the classfile.

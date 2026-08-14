@@ -5,6 +5,13 @@
     // what is on, what is off, and why.
     "java.settings.url": ".vscode/org.eclipse.jdt.core.prefs",
 
+    // Format with the same Eclipse formatter profile that the Maven build uses, so that saving a file in the
+    // editor and running the build produce the same text. Without this the editor formats with the Eclipse
+    // defaults, which wrap at 120 columns where this profile wraps at 116, so the editor and the build rewrap
+    // each other's Javadoc every time either one runs.
+    "java.format.settings.url": ".eclipse/code-formatter-config.xml",
+    "java.format.settings.profile": "ClassGraph",
+
     // Leave JDT's null analysis alone. On "automatic" the extension finds the JSpecify annotations on the
     // classpath and switches JDT's own null analysis on for every project, overriding the setting in the file
     // above -- and JDT has no JSpecify mode, so it then reports around 15,600 warnings that are not defects.
