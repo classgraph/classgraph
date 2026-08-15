@@ -490,10 +490,14 @@ public class ClasspathExpanderTest {
             assertThat(locations(childEntries)).containsExactly(jarDir + "/dep.jar", tempDirPath + "/up.jar",
                     jarDir + "/deeper/other.jar");
             // Each entry is also given as a path of the filesystem that the jarfile that declared it lives in,
-            // including the one that climbs above the directory that contains that jarfile
-            assertThat(childEntries.get(0).path()).isEqualTo(tempDir.resolve("sub/dep.jar"));
-            assertThat(childEntries.get(1).path()).isEqualTo(tempDir.resolve("up.jar"));
-            assertThat(childEntries.get(2).path()).isEqualTo(tempDir.resolve("sub/deeper/other.jar"));
+            // including the one that climbs above the directory that contains that jarfile. Opening a jarfile
+            // canonicalizes its path, and the temporary directory is reached through a path that is not its
+            // canonical one on some platforms -- "/var" is a symlink to "/private/var" on macOS, and the temporary
+            // directory is named by an 8.3 short name on Windows -- so the paths are expected in canonical form.
+            final Path canonicalTempDir = tempDir.toRealPath();
+            assertThat(childEntries.get(0).path()).isEqualTo(canonicalTempDir.resolve("sub/dep.jar"));
+            assertThat(childEntries.get(1).path()).isEqualTo(canonicalTempDir.resolve("up.jar"));
+            assertThat(childEntries.get(2).path()).isEqualTo(canonicalTempDir.resolve("sub/deeper/other.jar"));
         }
     }
 
