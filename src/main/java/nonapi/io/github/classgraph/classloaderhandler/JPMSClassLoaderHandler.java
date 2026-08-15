@@ -78,12 +78,14 @@ class JPMSClassLoaderHandler implements ClassLoaderHandler {
      * Get the automatic package root prefixes for classpath elements obtained from this classloader.
      *
      * <p>
-     * Modules always have their classes at the root of the module.
+     * Modules are scanned through the JPMS API rather than as classpath elements, so the only classpath elements
+     * this handler contributes are the jarfiles a Java agent appended to the system classloader's search. Those are
+     * ordinary jarfiles, which can be in any of the layouts a general-purpose classloader can be handed.
      *
      * @return the package root prefixes.
      */
     @Override
     public String[] getPackageRootPrefixes() {
-        return ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES;
+        return ClassLoaderHandlerRegistry.DEFAULT_PACKAGE_ROOT_PREFIXES;
     }
 }

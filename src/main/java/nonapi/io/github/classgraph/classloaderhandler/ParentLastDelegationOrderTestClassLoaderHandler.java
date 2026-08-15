@@ -62,12 +62,12 @@ class ParentLastDelegationOrderTestClassLoaderHandler implements ClassLoaderHand
      * Get the automatic package root prefixes for classpath elements obtained from this classloader.
      *
      * <p>
-     * Only used for unit testing of classloader delegation order.
+     * Only used for unit testing of classloader delegation order, so this is just the default.
      *
      * @return the package root prefixes.
      */
     @Override
     public String[] getPackageRootPrefixes() {
-        return ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES;
+        return ClassLoaderHandlerRegistry.DEFAULT_PACKAGE_ROOT_PREFIXES;
     }
 }

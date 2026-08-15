@@ -160,9 +160,6 @@ public class ClassLoaderHandlerRegistry {
         /** The {@link ClassLoaderHandler} instance. */
         public final ClassLoaderHandler classLoaderHandler;
 
-        /** The package root prefixes for classpath elements found by this handler. */
-        private final String[] packageRootPrefixes;
-
         /**
          * Constructor.
          *
@@ -171,7 +168,6 @@ public class ClassLoaderHandlerRegistry {
          */
         private ClassLoaderHandlerRegistryEntry(final ClassLoaderHandler classLoaderHandler) {
             this.classLoaderHandler = classLoaderHandler;
-            this.packageRootPrefixes = classLoaderHandler.getPackageRootPrefixes();
         }
 
         /**
@@ -191,7 +187,10 @@ public class ClassLoaderHandlerRegistry {
          * @return the package root prefixes.
          */
         public String[] getPackageRootPrefixes() {
-            return packageRootPrefixes;
+            // Do not read this in the constructor and cache it: the entries are constructed by the initializer
+            // of CLASS_LOADER_HANDLERS, which runs before the prefix constants declared below it are assigned,
+            // so a handler that returns one of those constants would have null cached for it
+            return classLoaderHandler.getPackageRootPrefixes();
         }
 
         /**
