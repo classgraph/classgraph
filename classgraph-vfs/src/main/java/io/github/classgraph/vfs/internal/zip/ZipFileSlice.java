@@ -33,7 +33,6 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Objects;
 
-import io.github.classgraph.base.internal.utils.AcceptReject.AcceptRejectLeafname;
 import io.github.classgraph.vfs.internal.slice.Slice;
 import org.jspecify.annotations.Nullable;
 
@@ -111,20 +110,6 @@ public class ZipFileSlice {
         this.physicalZipFile = other.physicalZipFile;
         this.slice = other.slice;
         this.pathWithinParentZipFileSlice = other.pathWithinParentZipFileSlice;
-    }
-
-    /**
-     * Check whether this zipfile slice and all of its parent slices are accepted and not rejected in the jarfile
-     * accept/reject criteria.
-     *
-     * @param jarAcceptReject
-     *            the jar accept/reject criteria
-     * @return true if this zipfile slice and all of its parent slices are accepted and not rejected in the jarfile
-     *         accept/reject criteria.
-     */
-    public boolean isAcceptedAndNotRejected(final AcceptRejectLeafname jarAcceptReject) {
-        return jarAcceptReject.isAcceptedAndNotRejected(pathWithinParentZipFileSlice) //
-                && (parentZipFileSlice == null || parentZipFileSlice.isAcceptedAndNotRejected(jarAcceptReject));
     }
 
     /**
