@@ -400,7 +400,7 @@ class ClasspathElementZip extends ClasspathElement {
         final var firstClassfileEntry = new VfsEntry[packageRootPrefixes.size()];
         for (final VfsEntry entry : entries) {
             final var entryName = entry.getName();
-            if (!entryName.endsWith(".class")) {
+            if (!FileUtils.isClassfile(entryName)) {
                 continue;
             }
             for (var i = 0; i < packageRootPrefixes.size(); i++) {

@@ -159,7 +159,7 @@ class ClasspathElementDir extends ClasspathElement {
 
                 @Override
                 public boolean visitEntry(final VfsEntry entry) {
-                    if (!entry.getName().endsWith(".class")) {
+                    if (!FileUtils.isClassfile(entry.getName())) {
                         return true;
                     }
                     firstClassfile[0] = entry;

@@ -359,7 +359,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      * @return true if the entry is a classfile in the default package of a module, and should be ignored.
      */
     protected static boolean isIgnoredDefaultPackageClassfile(final boolean isModule, final String relativePath) {
-        return isModule && relativePath.indexOf('/') < 0 && relativePath.endsWith(".class")
+        return isModule && relativePath.indexOf('/') < 0 && FileUtils.isClassfile(relativePath)
                 && !"module-info.class".equals(relativePath);
     }
 
@@ -377,7 +377,8 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
                 || parentMatchStatus == ScanSpecPathMatch.AT_ACCEPTED_PATH
                 // A directory that only contains specifically-accepted classes accepts only those classes
                 || (parentMatchStatus == ScanSpecPathMatch.AT_ACCEPTED_CLASS_PACKAGE
-                        && scanSpec.classfileIsSpecificallyAccepted(relativePath));
+                        && FileUtils.isClassfile(relativePath) && scanSpec.classfileIsSpecificallyAccepted(
+                                FileUtils.withLowerCaseClassfileExtension(relativePath)));
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -407,7 +408,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
     static @Nullable String getClassNameDisprovingPackageRoot(final RandomAccessOrSequentialReader classfileReader,
             final String classfileRelativePath) {
         final var className = Classfile.readClassName(classfileReader);
-        return className == null || (className + ".class").equals(classfileRelativePath) ? null
+        return className == null || FileUtils.classfilePathMatchesClassName(classfileRelativePath, className) ? null
                 : className.replace('/', '.');
     }
 
@@ -591,7 +592,9 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
                 acceptedClassfileResources.size());
         var foundMasked = false;
         for (final Resource res : acceptedClassfileResources) {
-            final var pathRelativeToPackageRoot = res.getPath();
+            // Two classfiles that differ only in the case of their extension declare the same class, so they mask
+            // each other in the same way as two classfiles at the same path
+            final var pathRelativeToPackageRoot = FileUtils.withLowerCaseClassfileExtension(res.getPath());
             // Don't mask module-info.class or package-info.class, these are read for every module/package, and they
             // don't result in a ClassInfo object, so there will be no duplicate ClassInfo objects created, even if
             // they are encountered multiple times. Instead, any annotations on modules or packages are merged into
@@ -642,7 +645,8 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
         var isAccepted = false;
         if (isClassFile) {
             // Check classfile scanning is enabled, and classfile is not specifically rejected
-            if (scanSpec.enableClassInfo && !scanSpec.classfilePathAcceptReject.isRejected(path)) {
+            if (scanSpec.enableClassInfo && !scanSpec.classfilePathAcceptReject
+                    .isRejected(FileUtils.withLowerCaseClassfileExtension(path))) {
                 // ClassInfo is enabled, and found an accepted classfile
                 acceptedClassfileResources.add(resource);
                 isAccepted = true;

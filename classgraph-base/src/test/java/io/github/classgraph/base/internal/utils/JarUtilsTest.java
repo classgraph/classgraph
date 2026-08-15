@@ -225,9 +225,16 @@ public class JarUtilsTest {
         assertThat(JarUtils.classfilePathToClassName("java/lang/String.class")).isEqualTo("java.lang.String");
         assertThat(JarUtils.classfilePathToClassName("X.class")).isEqualTo("X");
         assertThat(JarUtils.classNameToClassfilePath("java.lang.String")).isEqualTo("java/lang/String.class");
+
+        // A classfile that has been through a filesystem that upper-cases filenames still names its class
+        assertThat(JarUtils.classfilePathToClassName("java/lang/String.CLASS")).isEqualTo("java.lang.String");
+
         assertThatThrownBy(() -> JarUtils.classfilePathToClassName("java/lang/String"))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Classfile path does not end with \".class\": java/lang/String");
+                .hasMessage("Not the path of a classfile: java/lang/String");
+        assertThatThrownBy(() -> JarUtils.classfilePathToClassName("java/lang/.class"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Not the path of a classfile: java/lang/.class");
     }
 
     /**

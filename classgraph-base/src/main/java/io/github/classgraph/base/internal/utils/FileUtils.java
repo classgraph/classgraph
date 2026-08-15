@@ -336,16 +336,64 @@ public final class FileUtils {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /** The filename extension of a classfile. */
+    private static final String CLASSFILE_EXTENSION = ".class";
+
+    /** The number of characters in the filename extension of a classfile. */
+    public static final int CLASSFILE_EXTENSION_LENGTH = CLASSFILE_EXTENSION.length();
+
     /**
-     * Check if the path ends with a ".class" extension, ignoring case.
+     * Check if a path is the path of a classfile, i.e. whether it ends with a {@code ".class"} extension.
+     *
+     * <p>
+     * The extension is matched ignoring case, since a classfile that has been through a filesystem or archiving
+     * tool that upper-cases filenames still declares the same class, and can still be read.
      *
      * @param path
      *            A file path.
-     * @return true if path has a ".class" extension, ignoring case.
+     * @return true if the path is the path of a classfile.
      */
     public static boolean isClassfile(final String path) {
         final var len = path.length();
-        return len > 6 && path.regionMatches(true, len - 6, ".class", 0, 6);
+        if (len <= CLASSFILE_EXTENSION_LENGTH || !path.regionMatches(true, len - CLASSFILE_EXTENSION_LENGTH,
+                CLASSFILE_EXTENSION, 0, CLASSFILE_EXTENSION_LENGTH)) {
+            return false;
+        }
+        // A file named only ".class", or ending in "..class", has an empty or trailing-dot class name
+        final var charBeforeExtension = path.charAt(len - CLASSFILE_EXTENSION_LENGTH - 1);
+        return charBeforeExtension != '/' && charBeforeExtension != '.';
+    }
+
+    /**
+     * Check if a classfile is stored at the path implied by the name of the class it declares, i.e. whether the
+     * path of the classfile is the name of the class in path form, plus a {@code ".class"} extension.
+     *
+     * @param classfilePath
+     *            the path of a classfile, with {@code '/'} as the separator.
+     * @param classNamePath
+     *            the name of the class declared by that classfile, with {@code '/'} as the separator.
+     * @return true if the classfile is stored at the path implied by its class name.
+     */
+    public static boolean classfilePathMatchesClassName(final String classfilePath, final String classNamePath) {
+        return classfilePath.length() == classNamePath.length() + CLASSFILE_EXTENSION_LENGTH
+                && classfilePath.startsWith(classNamePath) && isClassfile(classfilePath);
+    }
+
+    /**
+     * Lower-case the {@code ".class"} extension of the path of a classfile.
+     *
+     * <p>
+     * Accept and reject criteria for classfiles are built from class names, so they name a classfile with a
+     * lower-case extension, and the extension of a path has to be lower-cased before it is matched against them.
+     *
+     * @param classfilePath
+     *            the path of a classfile, as accepted by {@link #isClassfile(String)}.
+     * @return the same path, with its {@code ".class"} extension in lower case.
+     */
+    public static String withLowerCaseClassfileExtension(final String classfilePath) {
+        return classfilePath.endsWith(CLASSFILE_EXTENSION) ? classfilePath
+                : classfilePath.substring(0, classfilePath.length() - CLASSFILE_EXTENSION_LENGTH)
+                        + CLASSFILE_EXTENSION;
     }
 
     // -------------------------------------------------------------------------------------------------------------

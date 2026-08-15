@@ -21,8 +21,37 @@ public class FileUtilsPathStringTest {
         assertThat(FileUtils.isClassfile("com/xyz/class")).isFalse();
         assertThat(FileUtils.isClassfile("")).isFalse();
 
-        // A file named only ".class" has an empty class name, so it is not a classfile
+        // A file named only ".class" has an empty class name, so it is not a classfile, wherever it is found
         assertThat(FileUtils.isClassfile(".class")).isFalse();
+        assertThat(FileUtils.isClassfile("com/xyz/.class")).isFalse();
+        assertThat(FileUtils.isClassfile("com/xyz/..class")).isFalse();
+    }
+
+    /** A classfile is at the path of the class it declares if the two differ only by the extension. */
+    @Test
+    public void aClassfileIsAtThePathOfTheClassItDeclaresIfTheyDifferOnlyByTheExtension() {
+        assertThat(FileUtils.classfilePathMatchesClassName("com/xyz/Widget.class", "com/xyz/Widget")).isTrue();
+        assertThat(FileUtils.classfilePathMatchesClassName("com/xyz/Widget.CLASS", "com/xyz/Widget")).isTrue();
+
+        // The class is in a package below the root of the classpath element, so the element is not a package root
+        assertThat(FileUtils.classfilePathMatchesClassName("Widget.class", "com/xyz/Widget")).isFalse();
+        assertThat(FileUtils.classfilePathMatchesClassName("xyz/Widget.class", "com/xyz/Widget")).isFalse();
+
+        assertThat(FileUtils.classfilePathMatchesClassName("com/xyz/Widget.txt", "com/xyz/Widget")).isFalse();
+        assertThat(FileUtils.classfilePathMatchesClassName("com/xyz/Widget", "com/xyz/Widget")).isFalse();
+    }
+
+    /** The extension of a classfile path is lower-cased for matching against criteria built from class names. */
+    @Test
+    public void theExtensionOfAClassfilePathIsLowerCasedForMatching() {
+        assertThat(FileUtils.withLowerCaseClassfileExtension("com/xyz/Widget.CLASS"))
+                .isEqualTo("com/xyz/Widget.class");
+        assertThat(FileUtils.withLowerCaseClassfileExtension("com/xyz/Widget.Class"))
+                .isEqualTo("com/xyz/Widget.class");
+
+        // A path that is already in lower case is returned as it is
+        final var lowerCase = "com/xyz/Widget.class";
+        assertThat(FileUtils.withLowerCaseClassfileExtension(lowerCase)).isSameAs(lowerCase);
     }
 
     /** The parent directory of a path is everything up to its last separator. */
