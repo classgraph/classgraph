@@ -70,6 +70,23 @@ public class ClasspathExpanderTest {
     }
 
     /**
+     * The canonical form of a path. Opening a classpath element canonicalizes its path, and the temporary directory
+     * is reached through a path that is not its canonical one on some platforms -- {@code "/var"} is a symlink to
+     * {@code "/private/var"} on macOS, and the temporary directory is named by an 8.3 short name on Windows -- so a
+     * path built from the temporary directory has to be canonicalized before a reported path is compared against
+     * it.
+     *
+     * @param path
+     *            the path to canonicalize
+     * @return the canonical form of the path
+     * @throws IOException
+     *             if the path could not be canonicalized
+     */
+    private static Path canonical(final Path path) throws IOException {
+        return path.toRealPath();
+    }
+
+    /**
      * The entries of a jarfile, in the order they are given.
      *
      * @param namesAndContents
@@ -359,7 +376,7 @@ public class ClasspathExpanderTest {
             final List<ChildEntry> childEntries = ClasspathExpander.childEntries(vfs.open(tempDir),
                     LIB_DIR_PREFIXES, true, null);
             assertThat(childEntries).hasSize(1);
-            assertThat(childEntries.get(0).path()).isEqualTo(libJar);
+            assertThat(childEntries.get(0).path()).isEqualTo(canonical(libJar));
         }
     }
 
@@ -490,14 +507,10 @@ public class ClasspathExpanderTest {
             assertThat(locations(childEntries)).containsExactly(jarDir + "/dep.jar", tempDirPath + "/up.jar",
                     jarDir + "/deeper/other.jar");
             // Each entry is also given as a path of the filesystem that the jarfile that declared it lives in,
-            // including the one that climbs above the directory that contains that jarfile. Opening a jarfile
-            // canonicalizes its path, and the temporary directory is reached through a path that is not its
-            // canonical one on some platforms -- "/var" is a symlink to "/private/var" on macOS, and the temporary
-            // directory is named by an 8.3 short name on Windows -- so the paths are expected in canonical form.
-            final Path canonicalTempDir = tempDir.toRealPath();
-            assertThat(childEntries.get(0).path()).isEqualTo(canonicalTempDir.resolve("sub/dep.jar"));
-            assertThat(childEntries.get(1).path()).isEqualTo(canonicalTempDir.resolve("up.jar"));
-            assertThat(childEntries.get(2).path()).isEqualTo(canonicalTempDir.resolve("sub/deeper/other.jar"));
+            // including the one that climbs above the directory that contains that jarfile
+            assertThat(childEntries.get(0).path()).isEqualTo(canonical(tempDir).resolve("sub/dep.jar"));
+            assertThat(childEntries.get(1).path()).isEqualTo(canonical(tempDir).resolve("up.jar"));
+            assertThat(childEntries.get(2).path()).isEqualTo(canonical(tempDir).resolve("sub/deeper/other.jar"));
         }
     }
 
@@ -520,7 +533,7 @@ public class ClasspathExpanderTest {
             final List<ChildEntry> childEntries = ClasspathExpander.childEntries(root, LIB_DIR_PREFIXES, true,
                     null);
             assertThat(childEntries).hasSize(1);
-            assertThat(childEntries.get(0).path()).isEqualTo(tempDir.resolve("dep.jar"));
+            assertThat(childEntries.get(0).path()).isEqualTo(canonical(tempDir).resolve("dep.jar"));
         }
     }
 
@@ -577,7 +590,7 @@ public class ClasspathExpanderTest {
                     null);
             assertThat(relativeLocations(dirRoot, dirChildEntries)).containsExactly("/inner.jar",
                     "/deeper/other.jar");
-            assertThat(dirChildEntries.get(0).path()).isEqualTo(dir.resolve("inner.jar"));
+            assertThat(dirChildEntries.get(0).path()).isEqualTo(canonical(dir).resolve("inner.jar"));
         }
     }
 

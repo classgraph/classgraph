@@ -268,8 +268,10 @@ public class Vfs implements AutoCloseable {
      *
      * <p>
      * A directory or jarfile is opened once however it is named, so the same {@link VfsRoot} is returned for a
-     * plain path, for the {@code "file:"} or {@code "jar:"} URL of the same thing, and, on Windows, for a path
-     * written with backslashes rather than forward slashes.
+     * plain path, for the {@code "file:"} or {@code "jar:"} URL of the same thing, for a path that reaches it
+     * through a symlink, and, on Windows, for a path written with backslashes rather than forward slashes, or one
+     * that names a directory by its 8.3 short name. The root reports itself at the canonical path of the directory
+     * or jarfile that backs it, whichever of those names it was opened by.
      *
      * @param path
      *            the path to open.
@@ -312,9 +314,35 @@ public class Vfs implements AutoCloseable {
             return alreadyOpened;
         }
         final var root = openUncached(resolvedPath, logNode == null ? null : logNode.log("Opening " + path));
+        final var alreadyOpenedUnderReportedPath = openedUnderReportedPath(root, resolvedPath);
+        if (alreadyOpenedUnderReportedPath != null) {
+            // The path names something that is already open under another name, so the root just opened is a second
+            // view of it, and is dropped in favour of the one already open. (It is not closed: it was never handed
+            // out, it holds nothing that needs releasing, and closing it would evict the root it duplicates from
+            // the cache of the paths that root was opened from.)
+            return cacheRoot(rootsByPath, resolvedPath, alreadyOpenedUnderReportedPath, path);
+        }
         final var cachedRoot = cacheRoot(rootsByPath, resolvedPath, root, path);
         cacheRootUnderReportedPath(cachedRoot, resolvedPath);
         return cachedRoot;
+    }
+
+    /**
+     * Return the root that is already open at the path a root that has just been opened reports itself at, if there
+     * is one. A root is named by the canonical path of the directory or jarfile that backs it, which is not always
+     * the path it was opened from, so two paths that reach the same thing -- through a symlink, or, on Windows,
+     * through an 8.3 short name -- open one root under two names, and the second one to be opened is redundant.
+     *
+     * @param root
+     *            the root that has just been opened.
+     * @param openedFrom
+     *            the resolved path the root was opened from.
+     * @return the root already open at the path {@code root} reports itself at, or null if there is none, or if
+     *         {@code root} reports itself at the path it was opened from.
+     */
+    private @Nullable VfsRoot openedUnderReportedPath(final VfsRoot root, final String openedFrom) {
+        final var reportedPath = root.reportedPath();
+        return reportedPath.equals(openedFrom) ? null : rootsByPath.get(reportedPath);
     }
 
     /**

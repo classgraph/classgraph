@@ -51,7 +51,7 @@ import org.jspecify.annotations.Nullable;
 
 /** A directory in a filesystem. */
 final class DirRoot extends VfsRoot {
-    /** The directory, made absolute and normalized. */
+    /** The directory, canonicalized. */
     private final Path dir;
 
     /** The path of the directory, with {@code '/'} as the separator. */
@@ -72,14 +72,25 @@ final class DirRoot extends VfsRoot {
      */
     DirRoot(final Vfs vfs, final Path dir) throws IOException {
         super(vfs);
+        Path absoluteDir;
         try {
-            this.dir = dir.toAbsolutePath().normalize();
+            absoluteDir = dir.toAbsolutePath().normalize();
         } catch (final IOError | SecurityException e) {
             throw new IOException("Could not resolve directory " + dir + " : " + e, e);
         }
-        if (!FileUtils.canReadAndIsDir(this.dir)) {
-            throw new IOException("Not a readable directory: " + this.dir);
+        if (!FileUtils.canReadAndIsDir(absoluteDir)) {
+            throw new IOException("Not a readable directory: " + absoluteDir);
         }
+        try {
+            // A root is named by the canonical path of the directory that backs it, the same way a jarfile root is
+            // named by the canonical path of its jarfile, so that a directory reached through a symlink or -- on
+            // Windows -- through an 8.3 short name is recognized as the directory it really is, and read once
+            absoluteDir = FileUtils.canonicalize(absoluteDir);
+        } catch (final IOException | SecurityException e) {
+            // A directory whose canonical path cannot be found is named by the path it was reached through, rather
+            // than failing to open a directory that can be read perfectly well
+        }
+        this.dir = absoluteDir;
         this.pathStr = FastPathResolver.resolve(FileUtils.currDirPath(), this.dir.toString());
     }
 

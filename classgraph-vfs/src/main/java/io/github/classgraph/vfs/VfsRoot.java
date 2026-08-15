@@ -121,6 +121,10 @@ public abstract class VfsRoot implements AutoCloseable, Iterable<VfsEntry> {
      * each nested jarfile from the one that encloses it, or the module name. The package root is not part of the
      * path.
      *
+     * <p>
+     * A directory or jarfile is named by its canonical path, which is not always the path the root was opened from:
+     * a symlink, or, on Windows, an 8.3 short name, reaches the same directory or jarfile under another name.
+     *
      * @return the path of the root.
      */
     public abstract String getPath();

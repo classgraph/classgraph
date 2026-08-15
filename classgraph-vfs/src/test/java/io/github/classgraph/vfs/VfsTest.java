@@ -479,7 +479,10 @@ public class VfsTest {
             assertThat(root.getPath()).endsWith("/classes");
             assertThat(root.getPackageRoot()).isEmpty();
             assertThat(root.getModuleName()).isNull();
-            assertThat(root.getNioPath()).isEqualTo(dir.toPath().toAbsolutePath().normalize());
+            // The path is canonicalized, so that the same directory reached by two different paths is only opened
+            // once. On Windows that expands an 8.3 short name, and on macOS it resolves a symlink, so the path of
+            // the temp directory is not necessarily the path it is reported as.
+            assertThat(root.getNioPath()).isEqualTo(dir.toPath().toRealPath());
             assertThat(root.getFile()).isNotNull();
             assertThat(root.getURI().getScheme()).isEqualTo("file");
             // A directory is listed recursively, and its subdirectories are not themselves entries. Each
@@ -610,6 +613,62 @@ public class VfsTest {
             assertThat(vfs.open(root.getPath())).isSameAs(root);
             assertThat(vfs.open(jarFile.getCanonicalPath())).isSameAs(root);
             assertThat(entryContent(root, "com/xyz/widget.txt")).isEqualTo(RESOURCE_CONTENT);
+        }
+    }
+
+    /**
+     * A directory reached through a symlink is named by the directory it reaches, just as a jarfile is, so that
+     * naming it either way reaches the one root rather than walking the directory a second time.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the directory could not be written.
+     */
+    @Test
+    public void aDirectoryReachedThroughASymlinkIsOpenedOnce(@TempDir final File tempDir) throws IOException {
+        final var realDir = new File(tempDir, "real");
+        assertThat(realDir.mkdir()).isTrue();
+        Files.writeString(new File(realDir, "widget.txt").toPath(), RESOURCE_CONTENT);
+        final var linkedDir = createSymbolicLinkOrSkip(new File(tempDir, "link").toPath(), realDir.toPath());
+
+        try (var vfs = new Vfs()) {
+            final var root = vfs.open(linkedDir.toString());
+            // The root is named by the directory the symlink points at, rather than by the path it was opened from
+            assertThat(root.getPath()).endsWith("/real").doesNotContain("/link");
+            // So naming the directory directly reaches that same root, rather than walking it a second time. Only
+            // the canonical path is guaranteed to do so: the temporary directory is itself reached through a symlink
+            // on some platforms, and two paths that are both non-canonical are two different names for this purpose
+            assertThat(vfs.open(root.getPath())).isSameAs(root);
+            assertThat(vfs.open(realDir.getCanonicalPath())).isSameAs(root);
+            assertThat(entryContent(root, "widget.txt")).isEqualTo(RESOURCE_CONTENT);
+        }
+    }
+
+    /**
+     * A directory or jarfile opened at its own path, and then again through a symlink that reaches it, is opened
+     * once: the second name reaches the root that the first one opened, rather than a second view of the same
+     * directory or jarfile.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the directory or jarfile could not be written.
+     */
+    @Test
+    public void aSymlinkToAnAlreadyOpenedPathReachesTheSameRoot(@TempDir final File tempDir) throws IOException {
+        final var realDir = new File(tempDir, "real");
+        assertThat(realDir.mkdir()).isTrue();
+        final var jarFile = new File(realDir, "widget.jar");
+        writeJar(jarFile, "com/xyz/widget.txt");
+        final var linkedDir = createSymbolicLinkOrSkip(new File(tempDir, "link").toPath(), realDir.toPath());
+
+        try (var vfs = new Vfs()) {
+            final var dirRoot = vfs.open(realDir.getCanonicalPath());
+            assertThat(vfs.open(linkedDir.toString())).isSameAs(dirRoot);
+
+            final var jarRoot = vfs.open(jarFile.getCanonicalPath());
+            assertThat(vfs.open(linkedDir.resolve("widget.jar").toString())).isSameAs(jarRoot);
         }
     }
 

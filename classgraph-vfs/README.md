@@ -58,6 +58,12 @@ A root also names itself in every way it can: `getPath()`, `getURI()`, `getURL()
 `getNioPath()` and `getModuleReference()`, each returning null where the underlying storage has no
 such name -- a module of the running JDK has no file, and a jarfile downloaded into RAM has no path.
 
+A directory or jarfile is opened once however it is named, so the same root comes back for a plain
+path, for the `file:` or `jar:` URL of the same thing, for a path that reaches it through a symlink,
+and, on Windows, for a path written with backslashes rather than forward slashes, or one that names a
+directory by its 8.3 short name. A root names itself at the canonical path, so `getPath()` is not
+always the path you opened it by.
+
 ## What owns what
 
 The `Vfs` owns everything opened through it: the file handles, the memory mappings, and the
