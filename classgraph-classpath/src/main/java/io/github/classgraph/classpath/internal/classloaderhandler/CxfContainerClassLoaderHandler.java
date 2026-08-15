@@ -72,30 +72,4 @@ class CxfContainerClassLoaderHandler implements ClassLoaderHandler {
         // Classloader doesn't do any classloading of its own, it only delegates to other classloaders
     }
 
-    /**
-     * Get the automatic package root prefixes for classpath elements obtained from this classloader.
-     *
-     * <p>
-     * This classloader does not contribute any classpath elements of its own, so these prefixes are never applied
-     * to anything.
-     *
-     * @return the package root prefixes.
-     */
-    @Override
-    public String[] getPackageRootPrefixes() {
-        return ClassLoaderHandlerRegistry.DEFAULT_PACKAGE_ROOT_PREFIXES;
-    }
-
-    /**
-     * Get the automatic lib dirs for classpath elements obtained from this classloader.
-     *
-     * <p>
-     * OpenEJB deploys wars and ears, whose lib dirs are not listed as classpath elements.
-     *
-     * @return the lib dir prefixes.
-     */
-    @Override
-    public String[] getLibDirPrefixes() {
-        return ClassLoaderHandlerRegistry.ARCHIVE_LIB_DIR_PREFIXES;
-    }
 }

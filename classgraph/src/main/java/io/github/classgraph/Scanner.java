@@ -74,7 +74,7 @@ import io.github.classgraph.base.internal.utils.FileUtils;
 import io.github.classgraph.base.internal.utils.JarUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.classpath.internal.ClassLoaderProbe;
-import io.github.classgraph.classpath.internal.classloaderhandler.ClassLoaderHandlerRegistry;
+import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.internal.spec.ClassLoaderAndModuleLayerSpec;
 import io.github.classgraph.internal.scanspec.ScanSpec;
 import io.github.classgraph.vfs.Vfs;
@@ -268,8 +268,8 @@ class Scanner implements Callable<ScanResult> {
                 // Create a new ClasspathElementModule
                 final var classpathElementModule = new ClasspathElementModule(moduleReference, vfs,
                         new ClasspathEntryWorkUnit(null, defaultClassLoaderStr, null, moduleOrder.size(), "",
-                                ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES,
-                                ClassLoaderHandlerRegistry.NO_LIB_DIR_PREFIXES),
+                                ClassLoaderHandler.NO_PACKAGE_ROOT_PREFIXES,
+                                ClassLoaderHandler.NO_LIB_DIR_PREFIXES),
                         /* isLookupOnly = */ false, scanSpec);
                 moduleOrder.add(classpathElementModule);
                 // Open the ClasspathElementModule
@@ -403,13 +403,13 @@ class Scanner implements Callable<ScanResult> {
          * The automatic package root prefixes to look for within this classpath element, as declared by the
          * {@code ClassLoaderHandler} that found it.
          */
-        final String[] packageRootPrefixes;
+        final List<String> packageRootPrefixes;
 
         /**
          * The lib dirs (e.g. {@code "BOOT-INF/lib/"}) whose jarfiles are to be added to the classpath if they are
          * present within this classpath element, as declared by the {@code ClassLoaderHandler} that found it.
          */
-        final String[] libDirPrefixes;
+        final List<String> libDirPrefixes;
 
         /**
          * Constructor.
@@ -432,7 +432,7 @@ class Scanner implements Callable<ScanResult> {
         public ClasspathEntryWorkUnit(final @Nullable Object classpathEntryObj,
                 final @Nullable String classLoaderStr, final @Nullable ClasspathElement parentClasspathElement,
                 final int classpathElementIdxWithinParent, final String packageRootPrefix,
-                final String[] packageRootPrefixes, final String[] libDirPrefixes) {
+                final List<String> packageRootPrefixes, final List<String> libDirPrefixes) {
             this.classpathEntryObj = classpathEntryObj;
             this.classLoaderStr = classLoaderStr;
             this.parentClasspathElement = parentClasspathElement;

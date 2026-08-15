@@ -164,14 +164,14 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      * element, as declared by the {@code ClassLoaderHandler} that found it. Child classpath elements inherit these,
      * since they come from the same classloader.
      */
-    protected final String[] packageRootPrefixes;
+    protected final List<String> packageRootPrefixes;
 
     /**
      * The lib dirs (e.g. {@code "BOOT-INF/lib/"}) whose jarfiles are added to the classpath if they are present
      * within this classpath element, as declared by the {@code ClassLoaderHandler} that found it. Child classpath
      * elements inherit these, since they come from the same classloader.
      */
-    protected final String[] libDirPrefixes;
+    protected final List<String> libDirPrefixes;
 
     /**
      * The name of the module from the {@code module-info.class} module descriptor, if one is present in the root of

@@ -49,8 +49,8 @@ import io.github.classgraph.base.ClassGraphLog;
 import io.github.classgraph.base.internal.utils.FastPathResolver;
 import io.github.classgraph.base.internal.utils.FileUtils;
 import io.github.classgraph.base.internal.utils.JarUtils;
+import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.ClasspathOrder;
-import io.github.classgraph.classpath.internal.classloaderhandler.ClassLoaderHandlerRegistry;
 import io.github.classgraph.classpath.internal.spec.ClasspathSpec;
 import org.jspecify.annotations.Nullable;
 
@@ -75,14 +75,14 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
      * currently being called, or the default prefixes if classpath entries are not currently being obtained from a
      * {@code ClassLoaderHandler} (e.g. for {@code java.class.path} entries, or an overridden classpath).
      */
-    private String[] currPackageRootPrefixes = ClassLoaderHandlerRegistry.DEFAULT_PACKAGE_ROOT_PREFIXES;
+    private List<String> currPackageRootPrefixes = ClassLoaderHandler.DEFAULT_PACKAGE_ROOT_PREFIXES;
 
     /**
      * The lib dirs of the {@code ClassLoaderHandler} whose {@code findClasspathOrder} method is currently being
      * called, or the default lib dirs if classpath entries are not currently being obtained from a
      * {@code ClassLoaderHandler} (e.g. for {@code java.class.path} entries, or an overridden classpath).
      */
-    private String[] currLibDirPrefixes = ClassLoaderHandlerRegistry.ARCHIVE_LIB_DIR_PREFIXES;
+    private List<String> currLibDirPrefixes = ClassLoaderHandler.ARCHIVE_LIB_DIR_PREFIXES;
 
     /** The keys that {@link #claimOncePerScan(String)} has already been called with. */
     private final Set<String> claimedOncePerScan = new HashSet<>();
@@ -117,13 +117,13 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
          * The automatic package root prefixes to look for within this classpath element, as declared by the
          * {@code ClassLoaderHandler} that found it.
          */
-        public final String[] packageRootPrefixes;
+        public final List<String> packageRootPrefixes;
 
         /**
          * The lib dirs whose jarfiles should be added to the classpath, within this classpath element, as declared
          * by the {@code ClassLoaderHandler} that found it.
          */
-        public final String[] libDirPrefixes;
+        public final List<String> libDirPrefixes;
 
         /**
          * Constructor.
@@ -140,7 +140,7 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
          *            the lib dirs whose jarfiles should be added to the classpath, within this classpath element.
          */
         public Entry(final Object classpathEntryObj, final String location, final @Nullable ClassLoader classLoader,
-                final String[] packageRootPrefixes, final String[] libDirPrefixes) {
+                final List<String> packageRootPrefixes, final List<String> libDirPrefixes) {
             this.classpathEntryObj = classpathEntryObj;
             this.location = location;
             this.classLoaderStr = Objects.toString(classLoader, null);
@@ -220,9 +220,9 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
      * @param packageRootPrefixes
      *            the package root prefixes, or null to reset to the default prefixes.
      */
-    public void setPackageRootPrefixes(final String @Nullable [] packageRootPrefixes) {
+    public void setPackageRootPrefixes(final @Nullable List<String> packageRootPrefixes) {
         this.currPackageRootPrefixes = packageRootPrefixes == null
-                ? ClassLoaderHandlerRegistry.DEFAULT_PACKAGE_ROOT_PREFIXES
+                ? ClassLoaderHandler.DEFAULT_PACKAGE_ROOT_PREFIXES
                 : packageRootPrefixes;
     }
 
@@ -234,8 +234,8 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
      * @param libDirPrefixes
      *            the lib dir prefixes, or null to reset to the default lib dirs.
      */
-    public void setLibDirPrefixes(final String @Nullable [] libDirPrefixes) {
-        this.currLibDirPrefixes = libDirPrefixes == null ? ClassLoaderHandlerRegistry.ARCHIVE_LIB_DIR_PREFIXES
+    public void setLibDirPrefixes(final @Nullable List<String> libDirPrefixes) {
+        this.currLibDirPrefixes = libDirPrefixes == null ? ClassLoaderHandler.ARCHIVE_LIB_DIR_PREFIXES
                 : libDirPrefixes;
     }
 

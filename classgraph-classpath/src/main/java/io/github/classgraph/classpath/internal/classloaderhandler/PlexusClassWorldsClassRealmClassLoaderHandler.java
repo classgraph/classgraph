@@ -113,17 +113,4 @@ class PlexusClassWorldsClassRealmClassLoaderHandler extends URLClassLoaderHandle
 
     // findClasspathOrder() is inherited from URLClassLoaderHandler, since ClassRealm extends URLClassLoader
 
-    /**
-     * Get the automatic package root prefixes for classpath elements obtained from this classloader.
-     *
-     * <p>
-     * Classpath elements from this classloader can be in any of the common build-tool or packaged-archive layouts,
-     * so the default package root prefixes are looked for.
-     *
-     * @return the package root prefixes.
-     */
-    @Override
-    public String[] getPackageRootPrefixes() {
-        return ClassLoaderHandlerRegistry.DEFAULT_PACKAGE_ROOT_PREFIXES;
-    }
 }

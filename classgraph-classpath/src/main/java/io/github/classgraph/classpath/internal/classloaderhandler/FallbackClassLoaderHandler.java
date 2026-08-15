@@ -243,32 +243,4 @@ class FallbackClassLoaderHandler implements ClassLoaderHandler {
         return classpathEntry.isEmpty() || "/".equals(classpathEntry) ? null : classpathEntry;
     }
 
-    /**
-     * Get the automatic package root prefixes for classpath elements obtained from this classloader.
-     *
-     * <p>
-     * Nothing is known about an unrecognized classloader, so look for all the common package roots. Note that this
-     * includes {@code "classes/"} and {@code "test-classes/"}, which are legal package names, so this is a
-     * heuristic -- see {@link ClassLoaderHandlerRegistry#DEFAULT_PACKAGE_ROOT_PREFIXES}.
-     *
-     * @return the package root prefixes.
-     */
-    @Override
-    public String[] getPackageRootPrefixes() {
-        return ClassLoaderHandlerRegistry.DEFAULT_PACKAGE_ROOT_PREFIXES;
-    }
-
-    /**
-     * Get the automatic lib dirs for classpath elements obtained from this classloader.
-     *
-     * <p>
-     * Nothing is known about an unrecognized classloader, so only the lib dirs that are unambiguous in any
-     * classpath element are looked for.
-     *
-     * @return the lib dir prefixes.
-     */
-    @Override
-    public String[] getLibDirPrefixes() {
-        return ClassLoaderHandlerRegistry.ARCHIVE_LIB_DIR_PREFIXES;
-    }
 }

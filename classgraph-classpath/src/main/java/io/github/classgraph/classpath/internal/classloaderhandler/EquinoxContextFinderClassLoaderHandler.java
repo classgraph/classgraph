@@ -30,7 +30,6 @@ package io.github.classgraph.classpath.internal.classloaderhandler;
 
 import io.github.classgraph.base.ClassGraphLog;
 import io.github.classgraph.base.internal.reflection.ReflectionUtils;
-import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.ClassLoaderOrder;
 import io.github.classgraph.classpath.ClasspathOrder;
 import org.jspecify.annotations.Nullable;
@@ -38,7 +37,7 @@ import org.jspecify.annotations.Nullable;
 /**
  * Extract classpath entries from the Eclipse Equinox ContextFinder ClassLoader.
  */
-class EquinoxContextFinderClassLoaderHandler implements ClassLoaderHandler {
+class EquinoxContextFinderClassLoaderHandler implements OSGiClassLoaderHandler {
     /** Constructor. */
     EquinoxContextFinderClassLoaderHandler() {
     }
@@ -64,31 +63,4 @@ class EquinoxContextFinderClassLoaderHandler implements ClassLoaderHandler {
         // Nothing to handle -- embedded parentContextClassLoader will be used instead.
     }
 
-    /**
-     * Get the automatic package root prefixes for classpath elements obtained from this classloader.
-     *
-     * <p>
-     * This classloader does not contribute any classpath elements of its own, so these prefixes are never applied
-     * to anything.
-     *
-     * @return the package root prefixes.
-     */
-    @Override
-    public String[] getPackageRootPrefixes() {
-        return ClassLoaderHandlerRegistry.DEFAULT_PACKAGE_ROOT_PREFIXES;
-    }
-
-    /**
-     * Get the automatic lib dirs for classpath elements obtained from this classloader.
-     *
-     * <p>
-     * An OSGi bundle jar loads from the jarfiles named in its {@code Bundle-ClassPath} manifest attribute, which by
-     * convention are in "META-INF/lib/", and which the classloader does not list as classpath elements.
-     *
-     * @return the lib dir prefixes.
-     */
-    @Override
-    public String[] getLibDirPrefixes() {
-        return ClassLoaderHandlerRegistry.OSGI_LIB_DIR_PREFIXES;
-    }
 }

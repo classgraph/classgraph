@@ -28,6 +28,11 @@
  */
 package io.github.classgraph.classpath;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Stream;
+
 import io.github.classgraph.base.ClassGraphLog;
 import org.jspecify.annotations.Nullable;
 
@@ -52,6 +57,91 @@ import org.jspecify.annotations.Nullable;
  * ClassGraph project.
  */
 public interface ClassLoaderHandler {
+    /** The package root prefixes for classpath elements that have no automatic package roots at all. */
+    List<String> NO_PACKAGE_ROOT_PREFIXES = List.of();
+
+    /**
+     * The package root prefixes of the build tools, which compile to a dir within the build dir rather than to the
+     * build dir itself.
+     *
+     * <p>
+     * Unlike {@link #ARCHIVE_PACKAGE_ROOT_PREFIXES}, {@code "classes"} and {@code "test-classes"} are both legal
+     * Java package names, so treating them as automatic package roots is a heuristic, not a certainty: a real
+     * package named {@code classes} is misread as a package root, and its classes are silently dropped. The
+     * heuristic is nevertheless relied upon for general-purpose classloaders -- see {@code Issue420Test} and
+     * {@code Issue766Test} -- so it can only be removed once package roots are verified against the declared name
+     * of a classfile found beneath them, rather than assumed from the directory name.
+     */
+    List<String> BUILD_TOOL_PACKAGE_ROOT_PREFIXES = List.of(
+            // Ant, Maven, Gradle and other build tool output dirs
+            "classes/", "test-classes/");
+
+    /**
+     * The package root prefixes of the standard packaged-archive layouts: Spring-Boot executable jars, and wars.
+     *
+     * <p>
+     * These are safe to look for in any classpath element, whatever classloader it came from, because neither
+     * {@code "BOOT-INF"} nor {@code "WEB-INF"} can ever be a real package name -- a hyphen is not a legal character
+     * in a Java identifier, so a directory with one of these names is unambiguously a package root rather than a
+     * package.
+     */
+    List<String> ARCHIVE_PACKAGE_ROOT_PREFIXES = List.of(
+            // Spring-Boot
+            "BOOT-INF/classes/",
+            // War files
+            "WEB-INF/classes/");
+
+    /**
+     * The package root prefixes to look for in classpath elements from a general-purpose classloader, which could
+     * have been handed a classpath element in any of the common build-tool or packaged-archive layouts: the
+     * {@link #BUILD_TOOL_PACKAGE_ROOT_PREFIXES} followed by the {@link #ARCHIVE_PACKAGE_ROOT_PREFIXES}.
+     */
+    // #929
+    List<String> DEFAULT_PACKAGE_ROOT_PREFIXES = Stream
+            .concat(BUILD_TOOL_PACKAGE_ROOT_PREFIXES.stream(), ARCHIVE_PACKAGE_ROOT_PREFIXES.stream()).toList();
+
+    /** The lib dirs for classpath elements that have no automatic lib dirs at all. */
+    List<String> NO_LIB_DIR_PREFIXES = List.of();
+
+    /**
+     * The lib dirs of the standard packaged-archive layouts: Spring-Boot executable jars, and wars.
+     *
+     * <p>
+     * These are safe to look for in any classpath element, whatever classloader it came from, because neither
+     * {@code "BOOT-INF"} nor {@code "WEB-INF"} can ever be a real package name -- a hyphen is not a legal character
+     * in a Java identifier -- so jarfiles found in one of these dirs really are on the classpath of the archive
+     * that contains them, and are not just resources that happen to be jarfiles.
+     */
+    List<String> ARCHIVE_LIB_DIR_PREFIXES = List.of(
+            // Spring-Boot
+            // https://docs.spring.io/spring-boot/docs/current/reference/html/appendix-executable-jar-format.html
+            "BOOT-INF/lib/",
+            // War files
+            "WEB-INF/lib/", "WEB-INF/lib-provided/");
+
+    /**
+     * Extend a list of prefixes with the prefixes of a specific kind of container, for a handler that declares its
+     * own package roots or lib dirs on top of the defaults.
+     *
+     * <p>
+     * Every classloader looks in the archive package roots and lib dirs, since any classloader can be handed a
+     * Spring-Boot jarfile or a war, whatever kind of container it belongs to, and those layouts are unambiguous.
+     * Only the extra prefixes are specific to a container, because their names are ordinary directory names that
+     * could mean something else entirely in an archive built by anything else.
+     *
+     * @param prefixes
+     *            the prefixes to extend, e.g. {@link #ARCHIVE_LIB_DIR_PREFIXES}
+     * @param extraPrefixes
+     *            the container's own prefixes, each ending in a slash
+     * @return the given prefixes, followed by the container's own prefixes
+     */
+    static List<String> prefixesPlus(final List<String> prefixes, final String... extraPrefixes) {
+        final List<String> combinedPrefixes = new ArrayList<>(prefixes.size() + extraPrefixes.length);
+        combinedPrefixes.addAll(prefixes);
+        Collections.addAll(combinedPrefixes, extraPrefixes);
+        return List.copyOf(combinedPrefixes);
+    }
+
     /**
      * Check whether this {@link ClassLoaderHandler} can handle a given {@link ClassLoader}.
      *
@@ -116,35 +206,40 @@ public interface ClassLoaderHandler {
 
     /**
      * The automatic package root prefixes (e.g. {@code "BOOT-INF/classes/"}) to look for and strip within classpath
-     * elements obtained from this classloader. The default is an empty array, meaning that this classloader's
-     * classpath elements always have their classes at the root.
+     * elements obtained from this classloader. The default is {@link #DEFAULT_PACKAGE_ROOT_PREFIXES}, which suits a
+     * general-purpose classloader that can be handed a classpath element in any of the common layouts.
      *
      * <p>
-     * Package roots must only be declared here if the classloader really can produce classpath elements in that
-     * layout, since a package root prefix that is also a legal package name (e.g. {@code "classes/"}) will
-     * otherwise cause real packages of that name to be misread as package roots.
+     * Override this to narrow the list to the layouts the classloader really can produce, or to widen it with
+     * {@link #prefixesPlus(List, String...)} for a container that has package roots of its own. Package roots must
+     * only be declared here if the classloader really can produce classpath elements in that layout, since a
+     * package root prefix that is also a legal package name (e.g. {@code "classes/"}) will otherwise cause real
+     * packages of that name to be misread as package roots.
      *
-     * @return the package root prefixes.
+     * @return the package root prefixes, each ending in a slash.
      */
     // #929
-    default String[] getPackageRootPrefixes() {
-        return new String[0];
+    default List<String> getPackageRootPrefixes() {
+        return DEFAULT_PACKAGE_ROOT_PREFIXES;
     }
 
     /**
      * The lib dirs (e.g. {@code "BOOT-INF/lib/"}) whose jarfiles this classloader adds to the classpath without
      * listing them as classpath elements. The jarfiles found in these dirs within a classpath element obtained from
-     * this classloader are added to the classpath after the classpath element that contains them. The default is an
-     * empty array, meaning that this classloader lists every jarfile it loads from.
+     * this classloader are added to the classpath after the classpath element that contains them. The default is
+     * {@link #ARCHIVE_LIB_DIR_PREFIXES}, the lib dirs that any classloader can be handed in a Spring-Boot jarfile
+     * or a war.
      *
      * <p>
-     * Lib dirs must only be declared here if the classloader really does load from them, since a lib dir prefix
-     * that is also a legal package name (e.g. {@code "lib/"}) will otherwise cause the jarfiles of a package of
-     * that name to be added to the classpath of every application that has one.
+     * Override this to widen the list with {@link #prefixesPlus(List, String...)} for a container that loads from
+     * lib dirs of its own, or to narrow it to {@link #NO_LIB_DIR_PREFIXES} for a classloader that lists every
+     * jarfile it loads from. Lib dirs must only be declared here if the classloader really does load from them,
+     * since a lib dir prefix that is also a legal package name (e.g. {@code "lib/"}) will otherwise cause the
+     * jarfiles of a package of that name to be added to the classpath of every application that has one.
      *
      * @return the lib dir prefixes, each ending in a slash.
      */
-    default String[] getLibDirPrefixes() {
-        return new String[0];
+    default List<String> getLibDirPrefixes() {
+        return ARCHIVE_LIB_DIR_PREFIXES;
     }
 }

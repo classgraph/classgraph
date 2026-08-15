@@ -40,8 +40,33 @@ import org.jspecify.annotations.Nullable;
 
 /** Extract classpath entries from the Tomcat/Catalina WebappClassLoaderBase. */
 class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
+    /**
+     * The package root prefixes of a servlet container, which serves a webapp's own classes from the war layout,
+     * and the container's shared classes from a {@code "classes/"} dir of its own
+     * ({@code $CATALINA_BASE/classes/}).
+     */
+    private static final List<String> SERVLET_CONTAINER_PACKAGE_ROOT_PREFIXES = ClassLoaderHandler
+            .prefixesPlus(ARCHIVE_PACKAGE_ROOT_PREFIXES, "classes/");
+
+    /**
+     * The lib dirs of a servlet container, which serves a webapp's own jarfiles from the war layout, and the
+     * container's shared jarfiles from a {@code "lib/"} dir of its own ({@code $CATALINA_BASE/lib/}).
+     */
+    private static final List<String> SERVLET_CONTAINER_LIB_DIR_PREFIXES = ClassLoaderHandler
+            .prefixesPlus(ARCHIVE_LIB_DIR_PREFIXES, "lib/");
+
     /** Constructor. */
     TomcatWebappClassLoaderBaseHandler() {
+    }
+
+    @Override
+    public List<String> getPackageRootPrefixes() {
+        return SERVLET_CONTAINER_PACKAGE_ROOT_PREFIXES;
+    }
+
+    @Override
+    public List<String> getLibDirPrefixes() {
+        return SERVLET_CONTAINER_LIB_DIR_PREFIXES;
     }
 
     @Override
@@ -181,31 +206,4 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
         }
     }
 
-    /**
-     * Get the automatic package root prefixes for classpath elements obtained from this classloader.
-     *
-     * <p>
-     * Tomcat serves classes from "WEB-INF/classes/" within a webapp, and from a "classes/" dir within
-     * $CATALINA_BASE, and does not always list these dirs as classpath elements.
-     *
-     * @return the package root prefixes.
-     */
-    @Override
-    public String[] getPackageRootPrefixes() {
-        return new String[] { "WEB-INF/classes/", "classes/" };
-    }
-
-    /**
-     * Get the automatic lib dirs for classpath elements obtained from this classloader.
-     *
-     * <p>
-     * Tomcat serves a webapp's jarfiles from "WEB-INF/lib/" within the webapp, and its own shared jarfiles from a
-     * "lib/" dir within $CATALINA_BASE, and does not always list those jarfiles as classpath elements.
-     *
-     * @return the lib dir prefixes.
-     */
-    @Override
-    public String[] getLibDirPrefixes() {
-        return ClassLoaderHandlerRegistry.SERVLET_CONTAINER_LIB_DIR_PREFIXES;
-    }
 }

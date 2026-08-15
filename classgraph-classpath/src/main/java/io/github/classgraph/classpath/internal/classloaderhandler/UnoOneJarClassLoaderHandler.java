@@ -28,6 +28,8 @@
  */
 package io.github.classgraph.classpath.internal.classloaderhandler;
 
+import java.util.List;
+
 import io.github.classgraph.base.ClassGraphLog;
 import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.base.internal.utils.VersionFinder;
@@ -40,8 +42,20 @@ import org.jspecify.annotations.Nullable;
  * Extract classpath entries from the Uno-Jar's JarClassLoader and One-Jar's JarClassLoader.
  */
 class UnoOneJarClassLoaderHandler implements ClassLoaderHandler {
+    /**
+     * The lib dirs of an Uno-Jar or One-JAR executable jarfile, which puts the jarfile it launches in
+     * {@code "main/"}, and the jarfiles that jarfile depends upon in {@code "lib/"}.
+     */
+    private static final List<String> UNO_ONE_JAR_LIB_DIR_PREFIXES = ClassLoaderHandler
+            .prefixesPlus(ARCHIVE_LIB_DIR_PREFIXES, "lib/", "main/");
+
     /** Constructor. */
     UnoOneJarClassLoaderHandler() {
+    }
+
+    @Override
+    public List<String> getLibDirPrefixes() {
+        return UNO_ONE_JAR_LIB_DIR_PREFIXES;
     }
 
     @Override
@@ -91,31 +105,4 @@ class UnoOneJarClassLoaderHandler implements ClassLoaderHandler {
         // jars -- see getLibDirPrefixes(). ("main/" contains "main.jar".)
     }
 
-    /**
-     * Get the automatic package root prefixes for classpath elements obtained from this classloader.
-     *
-     * <p>
-     * Classpath elements from this classloader can be in any of the common build-tool or packaged-archive layouts,
-     * so the default package root prefixes are looked for.
-     *
-     * @return the package root prefixes.
-     */
-    @Override
-    public String[] getPackageRootPrefixes() {
-        return ClassLoaderHandlerRegistry.DEFAULT_PACKAGE_ROOT_PREFIXES;
-    }
-
-    /**
-     * Get the automatic lib dirs for classpath elements obtained from this classloader.
-     *
-     * <p>
-     * Uno-Jar and One-Jar package an application as a single jarfile, with the application in "main/main.jar" and
-     * its dependencies in "lib/", and neither is listed as a classpath element.
-     *
-     * @return the lib dir prefixes.
-     */
-    @Override
-    public String[] getLibDirPrefixes() {
-        return ClassLoaderHandlerRegistry.UNO_ONE_JAR_LIB_DIR_PREFIXES;
-    }
 }

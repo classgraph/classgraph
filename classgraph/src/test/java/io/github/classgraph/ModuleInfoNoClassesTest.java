@@ -8,7 +8,7 @@ import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
-import io.github.classgraph.classpath.internal.classloaderhandler.ClassLoaderHandlerRegistry;
+import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.internal.scanspec.ScanSpec;
 import io.github.classgraph.vfs.Vfs;
 
@@ -31,8 +31,7 @@ public class ModuleInfoNoClassesTest {
     public void moduleWithNoAcceptedClasses() {
         final var workUnit = new ClasspathEntryWorkUnit(Path.of("."), /* classLoader = */ null,
                 /* parentClasspathElement = */ null, /* classpathElementIdx = */ 0, /* packageRootPrefix = */ "",
-                ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES,
-                ClassLoaderHandlerRegistry.NO_LIB_DIR_PREFIXES);
+                ClassLoaderHandler.NO_PACKAGE_ROOT_PREFIXES, ClassLoaderHandler.NO_LIB_DIR_PREFIXES);
         final var classpathElement = new ClasspathElementDir(workUnit, vfs, new ScanSpec());
         final var moduleInfo = new ModuleInfo(/* moduleRef = */ null, classpathElement, "com.xyz.mymodule");
         assertThat(moduleInfo.getClassInfo()).isEmpty();

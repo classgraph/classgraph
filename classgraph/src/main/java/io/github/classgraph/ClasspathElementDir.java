@@ -90,8 +90,8 @@ class ClasspathElementDir extends ClasspathElement {
             // it was exploded from declares. The child classpath entries are added in the order they were found,
             // since the classpath order determines which of two copies of the same class masks the other.
             var childClasspathEntryIdx = 0;
-            for (final var childEntry : ClasspathExpander.childEntries(vfs.open(classpathEltPath),
-                    List.of(libDirPrefixes), vfsScanSpec.enableNestedJars, log)) {
+            for (final var childEntry : ClasspathExpander.childEntries(vfs.open(classpathEltPath), libDirPrefixes,
+                    vfsScanSpec.enableNestedJars, log)) {
                 if (log != null) {
                     log(classpathElementIdx, childEntry.origin().getLogMessage() + ": " + childEntry.location(),
                             log);

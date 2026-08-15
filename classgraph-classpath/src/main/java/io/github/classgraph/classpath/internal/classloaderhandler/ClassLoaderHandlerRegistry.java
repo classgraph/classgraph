@@ -28,7 +28,6 @@
  */
 package io.github.classgraph.classpath.internal.classloaderhandler;
 
-import java.util.Arrays;
 import java.util.List;
 
 import io.github.classgraph.base.ClassGraphLog;
@@ -77,110 +76,6 @@ public final class ClassLoaderHandlerRegistry {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * The lib dirs for classpath elements that have no automatic lib dirs at all.
-     */
-    public static final String[] NO_LIB_DIR_PREFIXES = {};
-
-    /**
-     * The lib dirs of the standard packaged-archive layouts: Spring-Boot executable jars, and wars.
-     *
-     * <p>
-     * These are safe to look for in any classpath element, whatever classloader it came from, because neither
-     * {@code "BOOT-INF"} nor {@code "WEB-INF"} can ever be a real package name -- a hyphen is not a legal character
-     * in a Java identifier -- so jarfiles found in one of these dirs really are on the classpath of the archive
-     * that contains them, and are not just resources that happen to be jarfiles.
-     */
-    public static final String[] ARCHIVE_LIB_DIR_PREFIXES = {
-            // Spring-Boot
-            // https://docs.spring.io/spring-boot/docs/current/reference/html/appendix-executable-jar-format.html
-            "BOOT-INF/lib/",
-            // War files
-            "WEB-INF/lib/", "WEB-INF/lib-provided/" };
-
-    /**
-     * The lib dirs of a servlet container, which serves a webapp's own jarfiles from the war layout, and the
-     * container's shared jarfiles from a {@code "lib/"} dir of its own.
-     */
-    public static final String[] SERVLET_CONTAINER_LIB_DIR_PREFIXES = archiveLibDirPrefixesPlus("lib/");
-
-    /**
-     * The lib dirs of an OSGi bundle. An OSGi bundle names the jarfiles it loads from in its
-     * {@code Bundle-ClassPath} manifest attribute, and by convention puts them in {@code "META-INF/lib/"}. A web
-     * application bundle is a war, so it uses the war layout.
-     */
-    public static final String[] OSGI_LIB_DIR_PREFIXES = archiveLibDirPrefixesPlus("META-INF/lib/");
-
-    /**
-     * The lib dirs of an Uno-Jar or One-JAR executable jarfile, which puts the jarfile it launches in
-     * {@code "main/"}, and the jarfiles that jarfile depends upon in {@code "lib/"}.
-     */
-    public static final String[] UNO_ONE_JAR_LIB_DIR_PREFIXES = archiveLibDirPrefixesPlus("lib/", "main/");
-
-    /**
-     * The package root prefixes for classpath elements that have no automatic package roots at all.
-     */
-    public static final String[] NO_PACKAGE_ROOT_PREFIXES = {};
-
-    /**
-     * The package root prefixes of the standard packaged-archive layouts: Spring-Boot executable jars, and wars.
-     *
-     * <p>
-     * These are safe to look for in any classpath element, whatever classloader it came from, because neither
-     * {@code "BOOT-INF"} nor {@code "WEB-INF"} can ever be a real package name -- a hyphen is not a legal character
-     * in a Java identifier, so a directory with one of these names is unambiguously a package root rather than a
-     * package.
-     */
-    public static final String[] ARCHIVE_PACKAGE_ROOT_PREFIXES = {
-            // Spring-Boot
-            "BOOT-INF/classes/",
-            // War files
-            "WEB-INF/classes/" };
-
-    /**
-     * The package root prefixes to look for in classpath elements from a general-purpose classloader, which could
-     * have been handed a classpath element in any of the common build-tool or packaged-archive layouts.
-     *
-     * <p>
-     * Note that unlike {@link #ARCHIVE_PACKAGE_ROOT_PREFIXES}, {@code "classes"} and {@code "test-classes"} are
-     * both legal Java package names, so treating them as automatic package roots is a heuristic, not a certainty: a
-     * real package named {@code classes} is misread as a package root, and its classes are silently dropped. The
-     * heuristic is nevertheless relied upon for general-purpose classloaders -- see {@code Issue420Test} and
-     * {@code Issue766Test} -- so it can only be removed once package roots are verified against the declared name
-     * of a classfile found beneath them, rather than assumed from the directory name.
-     */
-    // #929
-    public static final String[] DEFAULT_PACKAGE_ROOT_PREFIXES = {
-            // Ant, Maven, Gradle and other build tool output dirs
-            "classes/", "test-classes/",
-            // Spring-Boot
-            "BOOT-INF/classes/",
-            // War files
-            "WEB-INF/classes/" };
-
-    /**
-     * Extend {@link #ARCHIVE_LIB_DIR_PREFIXES} with the lib dirs of a specific kind of container.
-     *
-     * <p>
-     * Every classloader looks in the archive lib dirs, since any classloader can be handed a Spring-Boot jarfile or
-     * a war, whatever kind of container it belongs to, and those layouts are unambiguous. Only the extra lib dirs
-     * are specific to a container, because their names are ordinary directory names that could mean something else
-     * entirely in an archive built by anything else.
-     *
-     * @param extraLibDirPrefixes
-     *            the container's own lib dirs, each ending in a slash
-     * @return the archive lib dir prefixes, followed by the container's own lib dir prefixes
-     */
-    private static String[] archiveLibDirPrefixesPlus(final String... extraLibDirPrefixes) {
-        final String[] libDirPrefixes = Arrays.copyOf(ARCHIVE_LIB_DIR_PREFIXES,
-                ARCHIVE_LIB_DIR_PREFIXES.length + extraLibDirPrefixes.length);
-        System.arraycopy(extraLibDirPrefixes, 0, libDirPrefixes, ARCHIVE_LIB_DIR_PREFIXES.length,
-                extraLibDirPrefixes.length);
-        return libDirPrefixes;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
      * Constructor.
      */
     private ClassLoaderHandlerRegistry() {
@@ -194,12 +89,6 @@ public final class ClassLoaderHandlerRegistry {
         /** The {@link ClassLoaderHandler} instance. */
         public final ClassLoaderHandler classLoaderHandler;
 
-        /** The package root prefixes for classpath elements found by this handler. */
-        private final String[] packageRootPrefixes;
-
-        /** The lib dir prefixes for classpath elements found by this handler. */
-        private final String[] libDirPrefixes;
-
         /**
          * Constructor.
          *
@@ -208,8 +97,6 @@ public final class ClassLoaderHandlerRegistry {
          */
         public ClassLoaderHandlerRegistryEntry(final ClassLoaderHandler classLoaderHandler) {
             this.classLoaderHandler = classLoaderHandler;
-            this.packageRootPrefixes = classLoaderHandler.getPackageRootPrefixes();
-            this.libDirPrefixes = classLoaderHandler.getLibDirPrefixes();
         }
 
         /**
@@ -228,8 +115,8 @@ public final class ClassLoaderHandlerRegistry {
          *
          * @return the package root prefixes.
          */
-        public String[] getPackageRootPrefixes() {
-            return packageRootPrefixes;
+        public List<String> getPackageRootPrefixes() {
+            return classLoaderHandler.getPackageRootPrefixes();
         }
 
         /**
@@ -238,8 +125,8 @@ public final class ClassLoaderHandlerRegistry {
          *
          * @return the lib dir prefixes.
          */
-        public String[] getLibDirPrefixes() {
-            return libDirPrefixes;
+        public List<String> getLibDirPrefixes() {
+            return classLoaderHandler.getLibDirPrefixes();
         }
 
         /**

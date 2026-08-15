@@ -8,7 +8,7 @@ import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
-import io.github.classgraph.classpath.internal.classloaderhandler.ClassLoaderHandlerRegistry;
+import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.internal.scanspec.ScanSpec;
 import io.github.classgraph.vfs.Vfs;
 
@@ -39,8 +39,8 @@ class ClasspathElementReferenceTest {
             final boolean isToplevelRef, final int idx) {
         final var dir = Path.of(".");
         final var workUnit = new ClasspathEntryWorkUnit(dir, classLoaderStr, /* parentClasspathElement = */ null,
-                idx, /* packageRootPrefix = */ "", ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES,
-                ClassLoaderHandlerRegistry.NO_LIB_DIR_PREFIXES);
+                idx, /* packageRootPrefix = */ "", ClassLoaderHandler.NO_PACKAGE_ROOT_PREFIXES,
+                ClassLoaderHandler.NO_LIB_DIR_PREFIXES);
         final ClasspathElement classpathElement = new ClasspathElementDir(workUnit, VFS, new ScanSpec());
         classpathElement.addReference(isToplevelRef, idx, classLoaderStr);
         return classpathElement;

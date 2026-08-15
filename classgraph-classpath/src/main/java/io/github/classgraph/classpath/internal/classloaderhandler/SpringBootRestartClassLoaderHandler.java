@@ -88,31 +88,4 @@ class SpringBootRestartClassLoaderHandler implements ClassLoaderHandler {
         // The Restart classloader doesn't itself store any URLs
     }
 
-    /**
-     * Get the automatic package root prefixes for classpath elements obtained from this classloader.
-     *
-     * <p>
-     * Classpath elements from this classloader can be in any of the common build-tool or packaged-archive layouts,
-     * so the default package root prefixes are looked for.
-     *
-     * @return the package root prefixes.
-     */
-    @Override
-    public String[] getPackageRootPrefixes() {
-        return ClassLoaderHandlerRegistry.DEFAULT_PACKAGE_ROOT_PREFIXES;
-    }
-
-    /**
-     * Get the automatic lib dirs for classpath elements obtained from this classloader.
-     *
-     * <p>
-     * Spring-Boot packages an application as an executable jar or as a war, and neither lists the jarfiles in its
-     * lib dir as classpath elements.
-     *
-     * @return the lib dir prefixes.
-     */
-    @Override
-    public String[] getLibDirPrefixes() {
-        return ClassLoaderHandlerRegistry.ARCHIVE_LIB_DIR_PREFIXES;
-    }
 }

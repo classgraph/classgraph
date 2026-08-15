@@ -32,7 +32,6 @@ import java.io.File;
 
 import io.github.classgraph.base.ClassGraphLog;
 import io.github.classgraph.base.internal.reflection.ReflectionUtils;
-import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.ClassLoaderOrder;
 import io.github.classgraph.classpath.ClasspathOrder;
 import org.jspecify.annotations.Nullable;
@@ -42,7 +41,7 @@ import org.jspecify.annotations.Nullable;
  *
  * @author Luke Hutchison
  */
-class OSGiDefaultClassLoaderHandler implements ClassLoaderHandler {
+class OSGiDefaultClassLoaderHandler implements OSGiClassLoaderHandler {
     /** Constructor. */
     OSGiDefaultClassLoaderHandler() {
     }
@@ -76,31 +75,4 @@ class OSGiDefaultClassLoaderHandler implements ClassLoaderHandler {
         }
     }
 
-    /**
-     * Get the automatic package root prefixes for classpath elements obtained from this classloader.
-     *
-     * <p>
-     * Classpath elements from this classloader can be in any of the common build-tool or packaged-archive layouts,
-     * so the default package root prefixes are looked for.
-     *
-     * @return the package root prefixes.
-     */
-    @Override
-    public String[] getPackageRootPrefixes() {
-        return ClassLoaderHandlerRegistry.DEFAULT_PACKAGE_ROOT_PREFIXES;
-    }
-
-    /**
-     * Get the automatic lib dirs for classpath elements obtained from this classloader.
-     *
-     * <p>
-     * An OSGi bundle jar loads from the jarfiles named in its {@code Bundle-ClassPath} manifest attribute, which by
-     * convention are in "META-INF/lib/", and which the classloader does not list as classpath elements.
-     *
-     * @return the lib dir prefixes.
-     */
-    @Override
-    public String[] getLibDirPrefixes() {
-        return ClassLoaderHandlerRegistry.OSGI_LIB_DIR_PREFIXES;
-    }
 }

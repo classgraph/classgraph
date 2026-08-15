@@ -49,6 +49,7 @@ import io.github.classgraph.base.internal.utils.FileUtils;
 import io.github.classgraph.base.internal.utils.JarUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.base.internal.utils.URLPathEncoder;
+import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.internal.ClasspathExpander.ChildEntry;
 import io.github.classgraph.classpath.internal.ClasspathExpander;
 import io.github.classgraph.internal.scanspec.ScanSpec.ScanSpecPathMatch;
@@ -62,9 +63,6 @@ import org.jspecify.annotations.Nullable;
 
 /** A zip/jarfile classpath element. */
 class ClasspathElementZip extends ClasspathElement {
-    /** No automatic package root prefix is stripped from the entry names of this classpath element. */
-    private static final String[] NO_PACKAGE_ROOT_PREFIXES = {};
-
     /**
      * The {@link String} representation of the path string, {@link URL}, {@link URI}, or {@link Path} for this
      * zipfile.
@@ -193,8 +191,8 @@ class ClasspathElementZip extends ClasspathElement {
         // which of two copies of the same class masks the other
         final List<ChildEntry> childEntries;
         try {
-            childEntries = ClasspathExpander.childEntries(root, List.of(libDirPrefixes),
-                    vfsScanSpec.enableNestedJars, subLog);
+            childEntries = ClasspathExpander.childEntries(root, libDirPrefixes, vfsScanSpec.enableNestedJars,
+                    subLog);
         } catch (final IOException e) {
             if (subLog != null) {
                 subLog.log("Could not read the classpath elements declared by " + rawPath + " : " + e);
@@ -390,23 +388,23 @@ class ClasspathElementZip extends ClasspathElement {
      * @return the package root prefixes that were not disproved
      */
     // #929
-    private String[] getVerifiedPackageRootPrefixes(final VfsRoot root, final @Nullable LogNode log) {
+    private List<String> getVerifiedPackageRootPrefixes(final VfsRoot root, final @Nullable LogNode log) {
         final List<VfsEntry> entries;
         try {
             entries = root.getEntries();
         } catch (final IOException e) {
             // The walk that follows lists the same entries, and logs the reason if they cannot be listed
-            return NO_PACKAGE_ROOT_PREFIXES;
+            return ClassLoaderHandler.NO_PACKAGE_ROOT_PREFIXES;
         }
         // Find the first classfile beneath each candidate package root prefix
-        final var firstClassfileEntry = new VfsEntry[packageRootPrefixes.length];
+        final var firstClassfileEntry = new VfsEntry[packageRootPrefixes.size()];
         for (final VfsEntry entry : entries) {
             final var entryName = entry.getName();
             if (!entryName.endsWith(".class")) {
                 continue;
             }
-            for (var i = 0; i < packageRootPrefixes.length; i++) {
-                final var prefix = packageRootPrefixes[i];
+            for (var i = 0; i < packageRootPrefixes.size(); i++) {
+                final var prefix = packageRootPrefixes.get(i);
                 if (firstClassfileEntry[i] == null && entryName.startsWith(prefix)
                 // The path of a classfile below META-INF (e.g. in a multi-release jar) does not necessarily
                 // correspond to the name of the class it declares
@@ -416,9 +414,9 @@ class ClasspathElementZip extends ClasspathElement {
             }
         }
         // Check the class declared by each of those classfiles against its path
-        final List<String> verifiedPackageRootPrefixes = new ArrayList<>(packageRootPrefixes.length);
-        for (var i = 0; i < packageRootPrefixes.length; i++) {
-            final var prefix = packageRootPrefixes[i];
+        final List<String> verifiedPackageRootPrefixes = new ArrayList<>(packageRootPrefixes.size());
+        for (var i = 0; i < packageRootPrefixes.size(); i++) {
+            final var prefix = packageRootPrefixes.get(i);
             final var entry = firstClassfileEntry[i];
             String disprovingClassName = null;
             if (entry != null) {
@@ -436,7 +434,7 @@ class ClasspathElementZip extends ClasspathElement {
                         + "declares the class " + disprovingClassName);
             }
         }
-        return verifiedPackageRootPrefixes.toArray(String[]::new);
+        return verifiedPackageRootPrefixes;
     }
 
     /**
@@ -448,7 +446,7 @@ class ClasspathElementZip extends ClasspathElement {
         private final boolean isModularJar;
 
         /** The automatic package root prefixes to strip from the names of the entries. */
-        private final String[] automaticPackageRootPrefixes;
+        private final List<String> automaticPackageRootPrefixes;
 
         /** The log node, or null to skip logging. */
         private final @Nullable LogNode subLog;
@@ -469,7 +467,7 @@ class ClasspathElementZip extends ClasspathElement {
          * @param subLog
          *            the log node, or null to skip logging
          */
-        ZipScanVisitor(final boolean isModularJar, final String[] automaticPackageRootPrefixes,
+        ZipScanVisitor(final boolean isModularJar, final List<String> automaticPackageRootPrefixes,
                 final @Nullable LogNode subLog) {
             this.isModularJar = isModularJar;
             this.automaticPackageRootPrefixes = automaticPackageRootPrefixes;
@@ -561,9 +559,9 @@ class ClasspathElementZip extends ClasspathElement {
         // filesystem, and rules out stripping an automatic package root prefix as well. "classes/" and
         // "test-classes/" are legal package names, so only strip an automatic package root prefix from the relative
         // path of an entry if the prefix is not simply a package with the same name (#929)
-        final var automaticPackageRootPrefixes = packageRootPrefix.isEmpty() && packageRootPrefixes.length > 0
+        final var automaticPackageRootPrefixes = packageRootPrefix.isEmpty() && !packageRootPrefixes.isEmpty()
                 ? getVerifiedPackageRootPrefixes(root, subLog)
-                : NO_PACKAGE_ROOT_PREFIXES;
+                : ClassLoaderHandler.NO_PACKAGE_ROOT_PREFIXES;
 
         try {
             root.walk(new ZipScanVisitor(isModularJar, automaticPackageRootPrefixes, subLog), subLog);
@@ -624,8 +622,8 @@ class ClasspathElementZip extends ClasspathElement {
      *            if true, record the prefix that was stripped, for use by {@link #getAllURIs()}
      * @return the path relative to the package root
      */
-    private String stripAutomaticPackageRootPrefix(final String name, final String[] automaticPackageRootPrefixes,
-            final boolean recordStrippedPrefix) {
+    private String stripAutomaticPackageRootPrefix(final String name,
+            final List<String> automaticPackageRootPrefixes, final boolean recordStrippedPrefix) {
         for (final String packageRoot : automaticPackageRootPrefixes) {
             if (name.startsWith(packageRoot)) {
                 if (recordStrippedPrefix) {

@@ -160,7 +160,7 @@ public class ClasspathOrderTest {
      */
     @Test
     public void packageRootPrefixesAreRecordedOnEachEntry(@TempDir final Path tempDir) throws IOException {
-        final var customPrefixes = new String[] { "custom/" };
+        final var customPrefixes = List.of("custom/");
         classpathOrder.setPackageRootPrefixes(customPrefixes);
         classpathOrder.addClasspathEntry(createFile(tempDir.resolve("a.jar")), null, null);
         classpathOrder.setPackageRootPrefixes(null);
@@ -183,7 +183,7 @@ public class ClasspathOrderTest {
      */
     @Test
     public void libDirPrefixesAreRecordedOnEachEntry(@TempDir final Path tempDir) throws IOException {
-        final var customPrefixes = new String[] { "custom/lib/" };
+        final var customPrefixes = List.of("custom/lib/");
         classpathOrder.setLibDirPrefixes(customPrefixes);
         classpathOrder.addClasspathEntry(createFile(tempDir.resolve("a.jar")), null, null);
         classpathOrder.setLibDirPrefixes(null);
@@ -361,8 +361,8 @@ public class ClasspathOrderTest {
     /** Classpath entries are equal if they name the same classpath element, whatever classloader found it. */
     @Test
     public void classpathEntriesAreEqualIfTheyNameTheSameElement() {
-        final var prefixes = new String[] { "classes/" };
-        final var libDirPrefixes = new String[] { "lib/" };
+        final var prefixes = List.of("classes/");
+        final var libDirPrefixes = List.of("lib/");
         final var classLoader = getClass().getClassLoader();
         final var entry = new Entry("/a/b.jar", "/a/b.jar", classLoader, prefixes, libDirPrefixes);
         final var sameElement = new Entry("/a/b.jar", "/a/b.jar", null, prefixes, libDirPrefixes);
