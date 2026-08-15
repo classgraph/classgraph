@@ -177,8 +177,12 @@ the module path entirely.
 
 ### Teach it about a classloader it does not know
 
-Implement `ClassLoaderHandler` and register it. This is the extension point that lets ClassGraph
-support a container it has never seen:
+Check first whether you need to: a `URLClassLoader` subclass is read automatically, and only needs a
+handler of its own if it searches its classpath in a different order, as Spring Boot's restart
+classloader does.
+
+Otherwise, implement `ClassLoaderHandler` and register it. This is the extension point that lets
+ClassGraph support a container it has never seen:
 
 ```java
 public class MyClassLoaderHandler implements ClassLoaderHandler {
@@ -214,13 +218,32 @@ try (Classpath classpath = new ClasspathFinder()
 ```
 
 `addClasspathEntry` accepts a `String`, `File`, `Path`, `URL` or `URI`, and returns false if the
-entry was rejected (because it does not exist, or was already added). Override the default
-`getPackageRootPrefixes()` if classes live under a prefix within the classpath elements this
-classloader returns, as they do for Spring Boot's `BOOT-INF/classes`. The same handler can be
+entry was rejected (because it does not exist, or was already added). A handler must be stateless,
+since one instance handles every classloader in every scan, and scans can run concurrently; state
+belonging to a single scan goes in the `ClasspathOrder` that is passed in. The same handler can be
 registered with the scanner via `new ClassGraph().registerClassLoaderHandler(...)`.
 
-If a handler is useful to more than your own project, please open a pull request so it can ship
-with ClassGraph.
+Two more methods say what to look for *within* each classpath element the handler contributes, and
+both default to the layouts that any classloader can be handed: `getPackageRootPrefixes()` to
+`classes/`, `test-classes/`, `BOOT-INF/classes/` and `WEB-INF/classes/`, and `getLibDirPrefixes()`
+to `BOOT-INF/lib/`, `WEB-INF/lib/` and `WEB-INF/lib-provided/`. Override either one to add a dir
+that is specific to your container, keeping the defaults with `ClassLoaderHandler.prefixesPlus(...)`:
+
+```java
+@Override
+public List<String> getLibDirPrefixes() {
+    return ClassLoaderHandler.prefixesPlus(ARCHIVE_LIB_DIR_PREFIXES, "my-container-lib/");
+}
+```
+
+Add a prefix only if the classloader really can produce classpath elements in that layout.
+`BOOT-INF` and `WEB-INF` are unambiguous, because a hyphen is not legal in a Java identifier, so a
+directory with one of those names cannot be a package; an ordinary name like `classes/` or `lib/`
+can be, and declaring one wrongly either hides a real package or puts jarfiles that are only
+resources on the classpath.
+
+If a handler is useful to more than your own project, please open a pull request so it can ship with
+ClassGraph, registered alongside the built-in handlers in `ClassLoaderHandlerRegistry`.
 
 ### Work out why an entry is or is not on the classpath
 
