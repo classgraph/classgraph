@@ -43,6 +43,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import nonapi.io.github.classgraph.utils.CollectionUtils;
+import nonapi.io.github.classgraph.utils.FileUtils;
 
 /** An AutoCloseable list of AutoCloseable {@link Resource} objects. */
 public class ResourceList extends PotentiallyUnmodifiableList<Resource> implements AutoCloseable {
@@ -185,17 +186,11 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Returns true if a Resource has a path ending in ".class". */
+    /** Returns true if a Resource is a classfile. */
     private static final ResourceFilter CLASSFILE_FILTER = new ResourceFilter() {
         @Override
         public boolean accept(final Resource resource) {
-            final String path = resource.getPath();
-            if (!path.endsWith(".class") || path.length() < 7) {
-                return false;
-            }
-            // Check filename is not simply ".class"
-            final char c = path.charAt(path.length() - 7);
-            return c != '/' && c != '.';
+            return FileUtils.isClassfile(resource.getPath());
         }
     };
 

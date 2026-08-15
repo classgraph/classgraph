@@ -46,6 +46,7 @@ import nonapi.io.github.classgraph.fileslice.reader.ClassfileReader;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.types.ParseException;
 import nonapi.io.github.classgraph.utils.CollectionUtils;
+import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.StringUtils;
@@ -1364,19 +1365,17 @@ class Classfile {
 
         // Check class visibility modifiers
         final boolean isModule = (classModifiers & 0x8000) != 0; // Equivalently filename is "module-info.class"
-        final boolean isPackage = relativePath.regionMatches(relativePath.lastIndexOf('/') + 1,
-                "package-info.class", 0, 18);
+        final boolean isPackage = className.equals("package-info") || className.endsWith(".package-info");
         if (!scanSpec.ignoreClassVisibility && !Modifier.isPublic(classModifiers) && !isModule && !isPackage) {
             throw new SkipClassException("Class is not public, and ignoreClassVisibility() was not called");
         }
 
         // Make sure classname matches relative path
-        if (!relativePath.endsWith(".class")) {
+        if (!FileUtils.isClassfile(relativePath)) {
             // Should not happen
-            throw new SkipClassException("Classfile filename " + relativePath + " does not end in \".class\"");
+            throw new SkipClassException("Not the path of a classfile: " + relativePath);
         }
-        final int len = classNamePath.length();
-        if (relativePath.length() != len + 6 || !classNamePath.regionMatches(0, relativePath, 0, len)) {
+        if (!FileUtils.classfilePathMatchesClassName(relativePath, classNamePath)) {
             throw new SkipClassException(
                     "Relative path " + relativePath + " does not match class name " + className);
         }

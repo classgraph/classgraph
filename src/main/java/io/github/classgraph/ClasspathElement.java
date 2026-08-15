@@ -343,7 +343,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
     static String getClassNameDisprovingPackageRoot(final ClassfileReader classfileReader,
             final String classfileRelativePath) {
         final String className = Classfile.readClassName(classfileReader);
-        return className == null || (className + ".class").equals(classfileRelativePath) ? null
+        return className == null || FileUtils.classfilePathMatchesClassName(classfileRelativePath, className) ? null
                 : className.replace('/', '.');
     }
 
@@ -526,7 +526,9 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
                 acceptedClassfileResources.size());
         boolean foundMasked = false;
         for (final Resource res : acceptedClassfileResources) {
-            final String pathRelativeToPackageRoot = res.getPath();
+            // Two classfiles that differ only in the case of their extension declare the same class, so they mask
+            // each other in the same way as two classfiles at the same path
+            final String pathRelativeToPackageRoot = FileUtils.withLowerCaseClassfileExtension(res.getPath());
             // Don't mask module-info.class or package-info.class, these are read for every module/package,
             // and they don't result in a ClassInfo object, so there will be no duplicate ClassInfo objects
             // created, even if they are encountered multiple times. Instead, any annotations on modules or
@@ -577,7 +579,8 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
         boolean isAccepted = false;
         if (isClassFile) {
             // Check classfile scanning is enabled, and classfile is not specifically rejected
-            if (scanSpec.enableClassInfo && !scanSpec.classfilePathAcceptReject.isRejected(path)) {
+            if (scanSpec.enableClassInfo && !scanSpec.classfilePathAcceptReject
+                    .isRejected(FileUtils.withLowerCaseClassfileExtension(path))) {
                 // ClassInfo is enabled, and found an accepted classfile
                 acceptedClassfileResources.add(resource);
                 isAccepted = true;

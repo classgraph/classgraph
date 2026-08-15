@@ -484,7 +484,7 @@ class ClasspathElementZip extends ClasspathElement {
         final FastZipEntry[] firstClassfileEntry = new FastZipEntry[packageRootPrefixes.length];
         for (final FastZipEntry zipEntry : logicalZipFile.entries) {
             final String entryName = zipEntry.entryNameUnversioned;
-            if (!entryName.endsWith(".class")) {
+            if (!FileUtils.isClassfile(entryName)) {
                 continue;
             }
             for (int i = 0; i < packageRootPrefixes.length; i++) {
@@ -592,7 +592,7 @@ class ClasspathElementZip extends ClasspathElement {
 
             // If this is a modular jar, ignore all classfiles other than "module-info.class" in the
             // default package, since these are disallowed.
-            if (isModularJar && relativePath.indexOf('/') < 0 && relativePath.endsWith(".class")
+            if (isModularJar && relativePath.indexOf('/') < 0 && FileUtils.isClassfile(relativePath)
                     && !relativePath.equals("module-info.class")) {
                 continue;
             }
@@ -680,7 +680,9 @@ class ClasspathElementZip extends ClasspathElement {
                 if (parentMatchStatus == ScanSpecPathMatch.HAS_ACCEPTED_PATH_PREFIX
                         || parentMatchStatus == ScanSpecPathMatch.AT_ACCEPTED_PATH
                         || (parentMatchStatus == ScanSpecPathMatch.AT_ACCEPTED_CLASS_PACKAGE
-                                && scanSpec.classfileIsSpecificallyAccepted(relativePath))) {
+                                && FileUtils.isClassfile(relativePath)
+                                && scanSpec.classfileIsSpecificallyAccepted(
+                                        FileUtils.withLowerCaseClassfileExtension(relativePath)))) {
                     // Resource is accepted
                     addAcceptedResource(resource, parentMatchStatus, /* isClassfileOnly = */ false, subLog);
                 } else if (scanSpec.enableClassInfo && relativePath.equals("module-info.class")) {

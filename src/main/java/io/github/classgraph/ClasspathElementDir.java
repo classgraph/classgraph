@@ -220,7 +220,7 @@ class ClasspathElementDir extends ClasspathElement {
 
                 @Override
                 public FileVisitResult visitFile(final Path file, final BasicFileAttributes attrs) {
-                    if (file.getFileName().toString().endsWith(".class")) {
+                    if (FileUtils.isClassfile(file.getFileName().toString())) {
                         firstClassfile[0] = file;
                         return FileVisitResult.TERMINATE;
                     }
@@ -558,7 +558,7 @@ class ClasspathElementDir extends ClasspathElement {
                     final String subPathRelativeStr = FastPathResolver.resolve(subPathRelative.toString());
                     // If this is a modular jar, ignore all classfiles other than "module-info.class" in the
                     // default package, since these are disallowed.
-                    if (isModularJar && isDefaultPackage && subPathRelativeStr.endsWith(".class")
+                    if (isModularJar && isDefaultPackage && FileUtils.isClassfile(subPathRelativeStr)
                             && !subPathRelativeStr.equals("module-info.class")) {
                         continue;
                     }
@@ -572,7 +572,9 @@ class ClasspathElementDir extends ClasspathElement {
                     if (parentMatchStatus == ScanSpecPathMatch.HAS_ACCEPTED_PATH_PREFIX
                             || parentMatchStatus == ScanSpecPathMatch.AT_ACCEPTED_PATH
                             || (parentMatchStatus == ScanSpecPathMatch.AT_ACCEPTED_CLASS_PACKAGE
-                                    && scanSpec.classfileIsSpecificallyAccepted(subPathRelativeStr))) {
+                                    && FileUtils.isClassfile(subPathRelativeStr)
+                                    && scanSpec.classfileIsSpecificallyAccepted(
+                                            FileUtils.withLowerCaseClassfileExtension(subPathRelativeStr)))) {
                         // Resource is accepted
                         final Resource resource = newResource(subPath, subPathRelativeStr, fileAttributes);
                         addAcceptedResource(resource, parentMatchStatus, /* isClassfileOnly = */ false, subLog);

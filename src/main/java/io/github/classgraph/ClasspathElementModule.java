@@ -52,6 +52,7 @@ import nonapi.io.github.classgraph.recycler.Recycler;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.scanspec.ScanSpec.ScanSpecPathMatch;
 import nonapi.io.github.classgraph.utils.CollectionUtils;
+import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.ProxyingInputStream;
 import nonapi.io.github.classgraph.utils.VersionFinder;
@@ -372,7 +373,7 @@ class ClasspathElementModule extends ClasspathElement {
 
                 // If this is a modular jar, ignore all classfiles other than "module-info.class" in the
                 // default package, since these are disallowed.
-                if (isModularJar && relativePath.indexOf('/') < 0 && relativePath.endsWith(".class")
+                if (isModularJar && relativePath.indexOf('/') < 0 && FileUtils.isClassfile(relativePath)
                         && !relativePath.equals("module-info.class")) {
                     continue;
                 }
@@ -410,7 +411,9 @@ class ClasspathElementModule extends ClasspathElement {
                     if (parentMatchStatus == ScanSpecPathMatch.HAS_ACCEPTED_PATH_PREFIX
                             || parentMatchStatus == ScanSpecPathMatch.AT_ACCEPTED_PATH
                             || (parentMatchStatus == ScanSpecPathMatch.AT_ACCEPTED_CLASS_PACKAGE
-                                    && scanSpec.classfileIsSpecificallyAccepted(relativePath))) {
+                                    && FileUtils.isClassfile(relativePath)
+                                    && scanSpec.classfileIsSpecificallyAccepted(
+                                            FileUtils.withLowerCaseClassfileExtension(relativePath)))) {
                         // Add accepted resource
                         addAcceptedResource(newResource(relativePath), parentMatchStatus,
                                 /* isClassfileOnly = */ false, subLog);

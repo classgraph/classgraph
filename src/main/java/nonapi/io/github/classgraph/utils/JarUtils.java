@@ -413,10 +413,11 @@ public final class JarUtils {
      * @return the class name
      */
     public static String classfilePathToClassName(final String classfilePath) {
-        if (!classfilePath.endsWith(".class")) {
-            throw new IllegalArgumentException("Classfile path does not end with \".class\": " + classfilePath);
+        if (!FileUtils.isClassfile(classfilePath)) {
+            throw new IllegalArgumentException("Not the path of a classfile: " + classfilePath);
         }
-        return classfilePath.substring(0, classfilePath.length() - 6).replace('/', '.');
+        return classfilePath.substring(0, classfilePath.length() - FileUtils.CLASSFILE_EXTENSION_LENGTH)
+                .replace('/', '.');
     }
 
     /**

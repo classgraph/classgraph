@@ -1,6 +1,7 @@
 package nonapi.io.github.classgraph.utils;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.File;
@@ -153,5 +154,23 @@ public class JarUtilsTest {
         final String jarWithPlingPath = Files.write(tempDir.resolve("y!z.jar"), new byte[] { 'P', 'K' }).toString()
                 .replace(File.separatorChar, '/');
         assertThat(JarUtils.leafName(jarWithPlingPath)).isEqualTo("y!z.jar");
+    }
+
+    /** Classfile paths and class names convert to each other. */
+    @Test
+    public void classfilePathsAndClassNamesConvertToEachOther() {
+        assertThat(JarUtils.classfilePathToClassName("java/lang/String.class")).isEqualTo("java.lang.String");
+        assertThat(JarUtils.classfilePathToClassName("X.class")).isEqualTo("X");
+        assertThat(JarUtils.classNameToClassfilePath("java.lang.String")).isEqualTo("java/lang/String.class");
+
+        // A classfile that has been through a filesystem that upper-cases filenames still names its class
+        assertThat(JarUtils.classfilePathToClassName("java/lang/String.CLASS")).isEqualTo("java.lang.String");
+
+        assertThatThrownBy(() -> JarUtils.classfilePathToClassName("java/lang/String"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Not the path of a classfile: java/lang/String");
+        assertThatThrownBy(() -> JarUtils.classfilePathToClassName("java/lang/.class"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Not the path of a classfile: java/lang/.class");
     }
 }
