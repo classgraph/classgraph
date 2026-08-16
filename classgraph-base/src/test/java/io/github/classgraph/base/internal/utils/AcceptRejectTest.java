@@ -282,6 +282,16 @@ public class AcceptRejectTest {
             assertThat(acceptReject.isAccepted("com.a")).isFalse();
         }
 
+        /** Class names and resource paths are case-sensitive, so a whole-string criterion is matched by case. */
+        @Test
+        public void aWholeStringIsMatchedByCase() {
+            final var acceptReject = new AcceptRejectWholeString('.');
+            acceptReject.addToAccept("com.a.B");
+            acceptReject.addToAccept("com.a.C*");
+            assertThat(acceptReject.isAccepted("com.a.b")).isFalse();
+            assertThat(acceptReject.isAccepted("com.a.cD")).isFalse();
+        }
+
         /** A glob accept matches the whole string, rather than anything below it. */
         @Test
         public void aGlobMatchesTheWholeString() {
@@ -368,6 +378,45 @@ public class AcceptRejectTest {
             assertThat(acceptReject.isRejected("/another/dir/rejected.jar")).isTrue();
             assertThat(acceptReject.isRejected("/some/dir/kept.jar")).isFalse();
             assertThat(acceptReject.isAcceptedAndNotRejected("/another/dir/rejected.jar")).isFalse();
+        }
+
+        /**
+         * A leafname is a filename, and two filenames differing only in case name the same file on a filesystem
+         * that ignores case, so a leafname criterion is matched ignoring case.
+         */
+        @Test
+        public void aLeafnameIsMatchedIgnoringCase() {
+            final var acceptReject = new AcceptRejectLeafname('/');
+            acceptReject.addToAccept("MyLib.jar");
+            acceptReject.addToReject("BadLib.jar");
+            assertThat(acceptReject.isAccepted("mylib.jar")).isTrue();
+            assertThat(acceptReject.isAccepted("MYLIB.JAR")).isTrue();
+            assertThat(acceptReject.isAccepted("/path/to/mylib.jar")).isTrue();
+            assertThat(acceptReject.isAccepted("otherlib.jar")).isFalse();
+            assertThat(acceptReject.isRejected("badlib.jar")).isTrue();
+            assertThat(acceptReject.isAcceptedAndNotRejected("MYLIB.JAR")).isTrue();
+        }
+
+        /** A leafname glob is matched ignoring case too, so that globs and literals agree. */
+        @Test
+        public void aLeafnameGlobIsMatchedIgnoringCase() {
+            final var acceptReject = new AcceptRejectLeafname('/');
+            acceptReject.addToAccept("MyLib-*.jar");
+            acceptReject.addToReject("BadLib-?.jar");
+            assertThat(acceptReject.isAccepted("mylib-1.0.jar")).isTrue();
+            assertThat(acceptReject.isAccepted("MYLIB-1.0.JAR")).isTrue();
+            assertThat(acceptReject.isAccepted("otherlib-1.0.jar")).isFalse();
+            assertThat(acceptReject.isRejected("badlib-2.jar")).isTrue();
+        }
+
+        /** A leafname criterion is printed with the spelling it was given, not the spelling it matched. */
+        @Test
+        public void aLeafnameCriterionIsPrintedAsGiven() {
+            final var acceptReject = new AcceptRejectLeafname('/');
+            acceptReject.addToAccept("MyLib.jar");
+            acceptReject.addToReject("BadLib-*.jar");
+            assertThat(acceptReject.isAccepted("mylib.jar")).isTrue();
+            assertThat(acceptReject).hasToString("accept: [\"MyLib.jar\"]; rejectGlobs: [\"BadLib-*.jar\"]");
         }
 
         /** Asking whether a string is a prefix of an accepted leafname is meaningless. */

@@ -33,6 +33,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.regex.Pattern;
 
 import org.jspecify.annotations.Nullable;
@@ -103,6 +104,28 @@ public abstract class AcceptReject {
      */
     // #643, #870, #940
     public static Pattern globToPattern(final String glob, final char separatorChar, final boolean prefixMatch) {
+        return globToPattern(glob, separatorChar, prefixMatch, /* ignoreCase = */ false);
+    }
+
+    /**
+     * Convert a glob to a regexp {@link Pattern}, as {@link #globToPattern(String, char, boolean)} does, optionally
+     * ignoring case.
+     *
+     * @param glob
+     *            the glob
+     * @param separatorChar
+     *            the package or path separator character
+     * @param prefixMatch
+     *            if true, the pattern matches any string <i>starting with</i> a string matching the glob, rather
+     *            than requiring a whole-string match
+     * @param ignoreCase
+     *            if true, the pattern matches ignoring case
+     * @return the pattern
+     * @throws IllegalArgumentException
+     *             if {@code "**"} is used without forming a complete package or path segment
+     */
+    protected static Pattern globToPattern(final String glob, final char separatorChar, final boolean prefixMatch,
+            final boolean ignoreCase) {
         final var segmentRegex = "[^" + separatorChar + "]+";
         final var separatorRegex = ("\\^$.|?*+()[]{}".indexOf(separatorChar) >= 0 ? "\\" : "") + separatorChar;
         final StringBuilder buf = new StringBuilder("^");
@@ -149,7 +172,8 @@ public abstract class AcceptReject {
         if (prefixMatch) {
             buf.append(".*");
         }
-        return Pattern.compile(buf.append('$').toString());
+        return Pattern.compile(buf.append('$').toString(),
+                ignoreCase ? Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE : 0);
     }
 
     /**
@@ -359,14 +383,41 @@ public abstract class AcceptReject {
 
     /** Accept/reject for whole-strings matches. */
     public static class AcceptRejectWholeString extends AcceptReject {
+        /** If true, criteria are matched ignoring case. */
+        private final boolean ignoreCase;
+
         /**
-         * Instantiate a new accept/reject for whole-string matches.
+         * Instantiate a new accept/reject for whole-string matches, matching case-sensitively.
          *
          * @param separatorChar
          *            the separator char
          */
         public AcceptRejectWholeString(final char separatorChar) {
+            this(separatorChar, /* ignoreCase = */ false);
+        }
+
+        /**
+         * Instantiate a new accept/reject for whole-string matches.
+         *
+         * @param separatorChar
+         *            the separator char
+         * @param ignoreCase
+         *            if true, criteria are matched ignoring case
+         */
+        protected AcceptRejectWholeString(final char separatorChar, final boolean ignoreCase) {
             super(separatorChar);
+            this.ignoreCase = ignoreCase;
+        }
+
+        /**
+         * Create a set to store literal (non-glob) accept or reject criteria in, which ignores case if this
+         * criterion does. The criteria are stored with the spelling they were given, so that {@link #toString()}
+         * reports back what the caller asked for.
+         *
+         * @return a new empty set
+         */
+        private Set<String> newLiteralSet() {
+            return ignoreCase ? new TreeSet<>(String.CASE_INSENSITIVE_ORDER) : new HashSet<>();
         }
 
         /**
@@ -383,10 +434,10 @@ public abstract class AcceptReject {
                     this.acceptPatterns = new ArrayList<>();
                 }
                 this.acceptGlobs.add(str);
-                this.acceptPatterns.add(globToPattern(str, separatorChar, /* prefixMatch = */ false));
+                this.acceptPatterns.add(globToPattern(str, separatorChar, /* prefixMatch = */ false, ignoreCase));
             } else {
                 if (this.accept == null) {
-                    this.accept = new HashSet<>();
+                    this.accept = newLiteralSet();
                 }
                 this.accept.add(str);
             }
@@ -396,7 +447,7 @@ public abstract class AcceptReject {
             // operate efficiently on very large accepts (#338), in particular where the size of the accept is much
             // larger than the maximum path depth.
             if (this.acceptPrefixesSet == null) {
-                this.acceptPrefixesSet = new HashSet<>();
+                this.acceptPrefixesSet = newLiteralSet();
                 acceptPrefixesSet.add("");
                 acceptPrefixesSet.add("/");
             }
@@ -435,8 +486,8 @@ public abstract class AcceptReject {
                         if (this.acceptPrefixPatterns == null) {
                             this.acceptPrefixPatterns = new ArrayList<>();
                         }
-                        this.acceptPrefixPatterns
-                                .add(globToPattern(pathPrefix, separatorChar, /* prefixMatch = */ false));
+                        this.acceptPrefixPatterns.add(
+                                globToPattern(pathPrefix, separatorChar, /* prefixMatch = */ false, ignoreCase));
                     }
                 }
             }
@@ -456,10 +507,10 @@ public abstract class AcceptReject {
                     this.rejectPatterns = new ArrayList<>();
                 }
                 this.rejectGlobs.add(str);
-                this.rejectPatterns.add(globToPattern(str, separatorChar, /* prefixMatch = */ false));
+                this.rejectPatterns.add(globToPattern(str, separatorChar, /* prefixMatch = */ false, ignoreCase));
             } else {
                 if (this.reject == null) {
-                    this.reject = new HashSet<>();
+                    this.reject = newLiteralSet();
                 }
                 this.reject.add(str);
             }
@@ -520,7 +571,11 @@ public abstract class AcceptReject {
         }
     }
 
-    /** Accept/reject for leaf matches. */
+    /**
+     * Accept/reject for leaf matches, i.e. filenames. Criteria are matched ignoring case, since two filenames
+     * differing only in case name the same file on a filesystem that ignores case, and a criterion should not mean
+     * something different depending on the filesystem the classpath happens to be stored on.
+     */
     public static class AcceptRejectLeafname extends AcceptRejectWholeString {
         /**
          * Instantiates a new accept/reject for leaf matches.
@@ -529,7 +584,7 @@ public abstract class AcceptReject {
          *            the separator char
          */
         public AcceptRejectLeafname(final char separatorChar) {
-            super(separatorChar);
+            super(separatorChar, /* ignoreCase = */ true);
         }
 
         /**

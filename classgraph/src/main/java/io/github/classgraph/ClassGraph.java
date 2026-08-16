@@ -984,9 +984,9 @@ public class ClassGraph {
      * Accept one or more jars. This will cause only the accepted jars to be scanned.
      *
      * @param jarLeafNames
-     *            The leafnames of the jars that should be scanned (e.g. {@code "mylib.jar"}). May contain glob
-     *            wildcards, where {@code '*'} matches zero or more characters ({@code "mylib-*.jar"}) and
-     *            {@code '?'} matches one character.
+     *            The leafnames of the jars that should be scanned (e.g. {@code "mylib.jar"}), matched ignoring
+     *            case. May contain glob wildcards, where {@code '*'} matches zero or more characters
+     *            ({@code "mylib-*.jar"}) and {@code '?'} matches one character.
      * @return this (for method chaining).
      * @throws IllegalArgumentException
      *             if any name includes a directory component rather than being a bare leafname.
@@ -1007,9 +1007,9 @@ public class ClassGraph {
      * Reject one or more jars, preventing them from being scanned.
      *
      * @param jarLeafNames
-     *            The leafnames of the jars that should not be scanned (e.g. {@code "badlib.jar"}). May contain glob
-     *            wildcards, where {@code '*'} matches zero or more characters ({@code "badlib-*.jar"}) and
-     *            {@code '?'} matches one character.
+     *            The leafnames of the jars that should not be scanned (e.g. {@code "badlib.jar"}), matched ignoring
+     *            case. May contain glob wildcards, where {@code '*'} matches zero or more characters
+     *            ({@code "badlib-*.jar"}) and {@code '?'} matches one character.
      * @return this (for method chaining).
      * @throws IllegalArgumentException
      *             if any name includes a directory component rather than being a bare leafname.
