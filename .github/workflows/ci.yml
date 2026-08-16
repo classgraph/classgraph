@@ -107,3 +107,37 @@ jobs:
         javac -Xlint:all -Werror -d "$(mktemp -d)" \
             -cp classgraph/target/classes:classgraph-base/target/classes:classgraph-vfs/target/classes:classgraph-classpath/target/classes \
             benchmark/*.java
+
+  # Every unit test runs on the classpath (surefire sets useModulePath=false), so the module descriptors
+  # are only ever checked by the compiler: a wrong "requires" or a missing "exports" would not be found
+  # until someone put the published jars on a module path. This job compiles and runs a consumer against
+  # the packaged jars on the module path, so the modules are exercised as modules. It is run on the oldest
+  # and newest supported JDKs, since module resolution is where the two differ most.
+  jpms-consumer:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        java: [ '17', '26' ]
+    steps:
+    - uses: actions/checkout@v7
+    - name: Set up JDK
+      uses: actions/setup-java@v5
+      with:
+        distribution: 'zulu'
+        java-version: ${{ matrix.java }}
+        cache: 'maven'
+    - name: Package the jars
+      run: ./mvnw --no-transfer-progress -B -q clean package -DskipTests
+    - name: Run a consumer on the module path
+      run: |
+        set -eu
+        module_path="$(mktemp -d)"
+        classes="$(mktemp -d)"
+        # Only the main jars go on the module path; the sources and Javadoc jars are not modules.
+        find classgraph-base/target classgraph-vfs/target classgraph-classpath/target classgraph/target \
+             classgraph-viz/target -maxdepth 1 -name '*.jar' \
+             -not -name '*-sources.jar' -not -name '*-javadoc.jar' -exec cp {} "$module_path/" \;
+        javac -Xlint:all -Werror -d "$classes" --module-path "$module_path" \
+            .github/jpms-consumer/module-info.java .github/jpms-consumer/jpmsconsumer/Main.java
+        java --module-path "$module_path:$classes" -m jpmsconsumer/jpmsconsumer.Main
