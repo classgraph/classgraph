@@ -235,7 +235,7 @@ final class DirRoot extends VfsRoot {
 
     @Override
     @Nullable
-    VfsEntry getEntryImpl(final String name) {
+    VfsEntry getEntryImpl(final String name) throws IOException {
         if (name.isEmpty()) {
             return null;
         }
@@ -249,6 +249,11 @@ final class DirRoot extends VfsRoot {
         // A name containing ".." must not be able to reach outside the root, and an absolute name must not be able
         // to replace it -- Path#resolve returns the argument unchanged if it is absolute
         if (!resolved.startsWith(dir) || !FileUtils.canReadAndIsFile(resolved)) {
+            return null;
+        }
+        // The filesystems of Windows and macOS answer a lookup for a name whose case does not match the name the
+        // file is stored under, and this method matches names exactly, so such a match is not one
+        if (isCaseFoldedMatch(dir, resolved)) {
             return null;
         }
         return new DirEntry(this, resolved, name, /* attributes = */ null);

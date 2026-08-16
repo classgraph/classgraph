@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.lang.module.ModuleReader;
 import java.lang.module.ModuleReference;
 import java.net.URI;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -208,9 +209,21 @@ final class ModuleRoot extends VfsRoot {
         final var recycler = moduleReaderRecycler();
         // Ask the module reader whether it has the resource, rather than listing the whole module to find out
         try (var moduleReader = recycler.acquireRecycleOnClose()) {
-            return ModuleReaderUtils.contains(moduleReader.get(), name) ? new ModuleEntry(this, name) : null;
+            if (!ModuleReaderUtils.contains(moduleReader.get(), name)) {
+                return null;
+            }
         } catch (final SecurityException e) {
             throw new IOException("Could not search module " + getPath() + " : " + e, e);
         }
+        // An exploded module is a directory, and a module reader reads one through the filesystem, so on Windows and
+        // macOS it answers a lookup for a name whose case does not match the name the file is stored under. This
+        // method matches names exactly, so such a match is not one. A module packaged as a modular jarfile carries
+        // its own exact namespace, whatever filesystem it is read from, as does a module of the running JDK
+        final var moduleDir = getNioPath();
+        if (moduleDir != null && Files.isDirectory(moduleDir)
+                && isCaseFoldedMatch(moduleDir, moduleDir.resolve(name))) {
+            return null;
+        }
+        return new ModuleEntry(this, name);
     }
 }

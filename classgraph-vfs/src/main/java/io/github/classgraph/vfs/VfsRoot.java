@@ -409,6 +409,17 @@ public abstract class VfsRoot implements AutoCloseable, Iterable<VfsEntry> {
      * already reads and does not spend a second syscall per file on a permission check. Reading such an entry then
      * throws an {@link IOException}. So a name that a walk reports can still come back null from this method.
      *
+     * <p>
+     * The name is matched exactly, including the case of every character, on every operating system and for every
+     * kind of root, so that one jarfile answers the same question the same way wherever it is read, and so that a
+     * name this method finds is a name a classloader will also find. Windows and macOS have case-insensitive
+     * filesystems, and a lookup that such a filesystem answered by folding the case of the name is rejected here,
+     * rather than returning an entry under a name that is not the one it is stored under. Use
+     * {@link #getEntryCaseInsensitive(String)} to match the name case-insensitively instead. A name that reaches a
+     * file through a symbolic link is the one exception: following the link changes the path by more than the case
+     * of its characters, which is the only thing that tells a folded name from a followed link, so on a
+     * case-insensitive filesystem such a name can still be found in a case it is not stored in.
+     *
      * @param name
      *            the name of the entry, relative to the package root, e.g. {@code "com/xyz/Widget.class"}.
      * @return the entry, or null if there is no readable entry with that name.
@@ -431,6 +442,121 @@ public abstract class VfsRoot implements AutoCloseable, Iterable<VfsEntry> {
      *             if the root could not be searched.
      */
     abstract @Nullable VfsEntry getEntryImpl(String name) throws IOException;
+
+    /**
+     * Returns whether a filesystem found a file under a path that differs from the path it was looked up by only in
+     * the case of its characters, which is how a case-insensitive filesystem answers a lookup for a name whose case
+     * does not match the name the file is stored under.
+     *
+     * @param dir
+     *            the directory the lookup was made within.
+     * @param path
+     *            the path the file was looked up by, which the filesystem found a file at.
+     * @return true if the file is stored under a path that differs from the one it was looked up by only in case.
+     * @throws IOException
+     *             if the real path of the file could not be read.
+     */
+    static boolean isCaseFoldedMatch(final Path dir, final Path path) throws IOException {
+        final var realPath = path.toRealPath();
+        if (!realPath.startsWith(dir)) {
+            // A symbolic link led out of the directory, so the real path is nothing like the path it was reached
+            // through, rather than that same path with the case of its characters normalized
+            return false;
+        }
+        // The real path also has symbolic links resolved and, on Windows, 8.3 short names expanded, and either of
+        // those can make it differ from the path it was reached through by more than the case of its characters, so
+        // a difference of case alone is what tells a case-folded match from a link that was followed. The two names
+        // are compared as strings, since Path#equals ignores the case of a path on Windows, which is the very
+        // difference being looked for. The directory is left out of the comparison, since it is spelled the way
+        // this root was opened at it, which is not always the way it is spelled on disk
+        final var realName = dir.relativize(realPath).toString();
+        final var name = dir.relativize(path).toString();
+        return !realName.equals(name) && realName.equalsIgnoreCase(name);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Returns the first entry whose name matches the given name when the case of both is ignored, or null if there
+     * is no such entry, or it cannot be read. This is the entry that a case-insensitive filesystem would find the
+     * name at, on every operating system and for every kind of root.
+     *
+     * <p>
+     * A root can hold more than one entry whose names differ only in case: a zipfile is free to store both
+     * {@code "META-INF/MANIFEST.MF"} and {@code "meta-inf/manifest.mf"}, and a case-sensitive filesystem is free to
+     * hold both as files. The first of them in the order that {@link #getEntries()} reports is the one returned
+     * here, whether or not one of them matches the name exactly; use {@link #getEntry(String)} first if an exactly
+     * named entry should win over an earlier one that only matches when case is ignored, and
+     * {@link #getEntriesCaseInsensitive(String)} to see all of them.
+     *
+     * <p>
+     * Null covers the same cases here as it does for {@link #getEntry(String)}.
+     *
+     * @param name
+     *            the name of the entry, relative to the package root, e.g. {@code "com/xyz/Widget.class"}.
+     * @return the entry, or null if no readable entry has that name when the case of both is ignored.
+     * @throws IOException
+     *             if the root could not be searched, or if the {@link Vfs} has been closed.
+     */
+    public final @Nullable VfsEntry getEntryCaseInsensitive(final String name) throws IOException {
+        Assert.notNull(name, "name");
+        final var matchingEntries = findEntriesCaseInsensitive(name, /* firstMatchOnly = */ true);
+        return matchingEntries.isEmpty() ? null : matchingEntries.get(0);
+    }
+
+    /**
+     * Returns every entry whose name matches the given name when the case of both is ignored, in the order that
+     * {@link #getEntries()} reports them in. A root can hold more than one such entry: a zipfile is free to store
+     * both {@code "META-INF/MANIFEST.MF"} and {@code "meta-inf/manifest.mf"}, and a case-sensitive filesystem is
+     * free to hold both as files.
+     *
+     * @param name
+     *            the name of the entry, relative to the package root, e.g. {@code "com/xyz/Widget.class"}.
+     * @return the matching entries, as an unmodifiable list.
+     * @throws IOException
+     *             if the root could not be searched, or if the {@link Vfs} has been closed.
+     */
+    public final List<VfsEntry> getEntriesCaseInsensitive(final String name) throws IOException {
+        Assert.notNull(name, "name");
+        return Collections.unmodifiableList(findEntriesCaseInsensitive(name, /* firstMatchOnly = */ false));
+    }
+
+    /**
+     * Find the entries whose name matches the given name when the case of both is ignored.
+     *
+     * @param name
+     *            the name of the entry, relative to the package root.
+     * @param firstMatchOnly
+     *            true to stop the search at the first match.
+     * @return the matching entries.
+     * @throws IOException
+     *             if the root could not be searched, or if the {@link Vfs} has been closed.
+     */
+    private List<VfsEntry> findEntriesCaseInsensitive(final String name, final boolean firstMatchOnly)
+            throws IOException {
+        // Only the directories on the way to the directory that holds the name can hold a matching entry, so this
+        // costs no more than a lookup of an exactly-named entry does, beyond listing those directories
+        final var dirPrefix = name.substring(0, name.lastIndexOf('/') + 1);
+        final List<VfsEntry> matchingEntries = new ArrayList<>();
+        walk(new VfsVisitor() {
+            @Override
+            public boolean enterDirectory(final String dirName) {
+                // The root directory is reported as "/", which is the empty prefix
+                final var dir = dirName.equals("/") ? "" : dirName;
+                return dirPrefix.regionMatches(/* ignoreCase = */ true, 0, dir, 0, dir.length());
+            }
+
+            @Override
+            public boolean visitEntry(final VfsEntry entry) {
+                if (entry.getName().equalsIgnoreCase(name)) {
+                    matchingEntries.add(entry);
+                    return !firstMatchOnly;
+                }
+                return true;
+            }
+        });
+        return matchingEntries;
+    }
 
     /**
      * Returns the entries under the package root whose name starts with the given prefix, not including
