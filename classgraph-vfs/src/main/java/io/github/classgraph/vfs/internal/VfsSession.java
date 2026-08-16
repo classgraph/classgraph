@@ -53,18 +53,18 @@ import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
 import org.jspecify.annotations.Nullable;
 
 /**
- * The resources that a single reading session opens and owns, and that have to be released again when the session
- * is closed: the {@link Slice} instances that hold open file handles or memory mappings, the temporary files that
- * extracted nested jars were spilled to, the pool of {@link Inflater} instances used to inflate deflated zip
- * entries, and the pool of {@link ModuleReader} instances used to read modules. Also carries the
- * {@link VfsScanSpec} that every part of the reader needs.
+ * One session of reading through a virtual filesystem: everything the session opens and owns, and that has to be
+ * released again when the session is closed -- the {@link Slice} instances that hold open file handles or memory
+ * mappings, the temporary files that extracted nested jars were spilled to, the pool of {@link Inflater} instances
+ * used to inflate deflated zip entries, and the pool of {@link ModuleReader} instances used to read modules. Also
+ * carries the {@link VfsScanSpec} that every part of the reader needs.
  *
  * <p>
  * Once {@link #close(LogNode)} has been called, the methods that register a new resource throw
  * {@link NullPointerException} rather than silently handing out a resource that nothing will ever close. The
  * methods that release a resource stay callable, since releasing something twice has to be harmless.
  */
-public class ScanResources implements AutoCloseable {
+public class VfsSession implements AutoCloseable {
     /** The settings that govern how archives are read. */
     public final VfsScanSpec vfsScanSpec;
 
@@ -74,7 +74,7 @@ public class ScanResources implements AutoCloseable {
     /** {@link Slice} instances that are currently open. Set to null by {@link #close(LogNode)}. */
     private @Nullable Set<Slice> openSlices = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
-    /** Any temporary files created while scanning. Set to null by {@link #close(LogNode)}. */
+    /** Any temporary files created during the session. Set to null by {@link #close(LogNode)}. */
     private @Nullable Set<File> tempFiles = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /** A recycler for {@link Inflater} instances. */
@@ -114,7 +114,7 @@ public class ScanResources implements AutoCloseable {
      * @param interruptionChecker
      *            the interruption checker
      */
-    public ScanResources(final VfsScanSpec vfsScanSpec, final InterruptionChecker interruptionChecker) {
+    public VfsSession(final VfsScanSpec vfsScanSpec, final InterruptionChecker interruptionChecker) {
         this.vfsScanSpec = vfsScanSpec;
         this.interruptionChecker = interruptionChecker;
     }
@@ -136,7 +136,7 @@ public class ScanResources implements AutoCloseable {
     // ---------------------------------------------------------------------------------------------------------
 
     /**
-     * Mark a {@link Slice} as open, so that it is closed when these resources are closed.
+     * Mark a {@link Slice} as open, so that it is closed when the session is closed.
      *
      * @param slice
      *            the {@link Slice} that was just opened.
@@ -149,9 +149,9 @@ public class ScanResources implements AutoCloseable {
 
     /**
      * Mark a {@link Slice} as closed. Unlike {@link #markSliceAsOpen(Slice)}, this does nothing rather than
-     * throwing once {@link #close(LogNode)} has been called: a slice can be closed after these resources have been
-     * torn down (for example when something that was still reading from the slice is closed afterwards), and
-     * closing something twice has to be harmless.
+     * throwing once {@link #close(LogNode)} has been called: a slice can be closed after the session has been torn
+     * down (for example when something that was still reading from the slice is closed afterwards), and closing
+     * something twice has to be harmless.
      *
      * @param slice
      *            the {@link Slice} that was just closed.
@@ -240,7 +240,7 @@ public class ScanResources implements AutoCloseable {
     }
 
     /**
-     * Check whether any temporary files were created during the scan.
+     * Check whether any temporary files were created during the session.
      *
      * @return true if at least one temporary file was created and has not yet been removed.
      */
@@ -259,11 +259,11 @@ public class ScanResources implements AutoCloseable {
      *            the stream of deflated bytes
      * @return the inflating input stream
      * @throws IOException
-     *             if these resources have already been closed.
+     *             if the session has already been closed.
      */
     public InputStream openInflaterInputStream(final InputStream rawInputStream) throws IOException {
         if (closed.get()) {
-            throw new IOException("Cannot read from a jarfile after the resources backing it have been closed. "
+            throw new IOException("Cannot read from a jarfile after the session backing it has been closed. "
                     + "This happens if the object that owns the jarfile was closed (e.g. by leaving the "
                     + "try-with-resources block it was opened in) before the entry was read or the class was "
                     + "loaded, or if removal of temporary files was requested and the nested jarfile was "
@@ -276,16 +276,15 @@ public class ScanResources implements AutoCloseable {
     // ---------------------------------------------------------------------------------------------------------
 
     /**
-     * Mark these resources as closed, so that nothing new can be opened from them while they are being torn down.
+     * Mark the session as closed, so that nothing new can be opened from it while it is being torn down.
      *
      * <p>
-     * The owner of these resources ({@code NestedJarHandler}) has its own work to do before {@link #close(LogNode)}
-     * can run -- the zipfile caches have to be dropped first, so that nothing can hand out a {@link Slice} of a
-     * zipfile that is about to be closed. It calls this method first, and only proceeds if it is the caller that
-     * won the race to close.
+     * The owner of the session ({@code NestedJarHandler}) has its own work to do before {@link #close(LogNode)} can
+     * run -- the zipfile caches have to be dropped first, so that nothing can hand out a {@link Slice} of a zipfile
+     * that is about to be closed. It calls this method first, and only proceeds if it is the caller that won the
+     * race to close.
      *
-     * @return true if this call was the one that marked the resources as closed, i.e. false if they were already
-     *         closed.
+     * @return true if this call was the one that marked the session as closed, i.e. false if it was already closed.
      */
     public boolean beginClose() {
         return !closed.getAndSet(true);

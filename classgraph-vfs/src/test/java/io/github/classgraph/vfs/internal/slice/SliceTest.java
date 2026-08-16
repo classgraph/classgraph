@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
-import io.github.classgraph.vfs.internal.ScanResources;
+import io.github.classgraph.vfs.internal.VfsSession;
 import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
 
 /**
@@ -28,10 +28,10 @@ public class SliceTest {
     /**
      * Create the resources owned by a scan.
      *
-     * @return the scan resources
+     * @return the session
      */
-    private static ScanResources scanResources() {
-        return scanResources(new VfsScanSpec().maxBufferedJarRAMSize);
+    private static VfsSession session() {
+        return session(new VfsScanSpec().maxBufferedJarRAMSize);
     }
 
     /**
@@ -39,30 +39,30 @@ public class SliceTest {
      *
      * @param maxBufferedJarRAMSize
      *            the maximum number of bytes of a jar to buffer in RAM before spilling it to disk
-     * @return the scan resources
+     * @return the session
      */
-    private static ScanResources scanResources(final int maxBufferedJarRAMSize) {
+    private static VfsSession session(final int maxBufferedJarRAMSize) {
         final var vfsScanSpec = new VfsScanSpec();
         vfsScanSpec.maxBufferedJarRAMSize = maxBufferedJarRAMSize;
-        return new ScanResources(vfsScanSpec, new InterruptionChecker());
+        return new VfsSession(vfsScanSpec, new InterruptionChecker());
     }
 
     /**
      * Read an {@link InputStream} over {@link #CONTENT} into a slice, and check that the slice holds the whole
      * content, in order.
      *
-     * @param scanResources
-     *            the resources owned by the scan
+     * @param session
+     *            the session that owns what is opened
      * @param inputStreamLengthHint
      *            the length of the stream to claim, which may be wrong
      * @return the slice
      * @throws IOException
      *             if the stream could not be read
      */
-    private static Slice sliceOfContent(final ScanResources scanResources, final long inputStreamLengthHint)
+    private static Slice sliceOfContent(final VfsSession session, final long inputStreamLengthHint)
             throws IOException {
         final var slice = Slice.fromInputStream(new ByteArrayInputStream(CONTENT), "content.bin",
-                inputStreamLengthHint, scanResources, /* log = */ null);
+                inputStreamLengthHint, session, /* log = */ null);
         assertThat(slice.sliceLength).isEqualTo(CONTENT.length);
         assertThat(slice.load()).containsExactly(CONTENT);
         return slice;
@@ -95,9 +95,9 @@ public class SliceTest {
     @Test
     public void slicesOfDifferentFilesOfTheSameLengthAreDifferentSlices(@TempDir final Path tempDir)
             throws IOException {
-        final var scanResources = scanResources();
-        try (var first = new PathSlice(writeFile(tempDir, "first.bin"), scanResources, /* log = */ null);
-                var second = new PathSlice(writeFile(tempDir, "second.bin"), scanResources, /* log = */ null)) {
+        final var session = session();
+        try (var first = new PathSlice(writeFile(tempDir, "first.bin"), session, /* log = */ null);
+                var second = new PathSlice(writeFile(tempDir, "second.bin"), session, /* log = */ null)) {
             assertThat(first).isNotEqualTo(second);
             // A slice is equal to itself, and to a slice of the same range of the same file
             assertThat(first).isEqualTo(first);
@@ -117,9 +117,9 @@ public class SliceTest {
      */
     @Test
     public void subSlicesOfDifferentFilesAreDifferentSlices(@TempDir final Path tempDir) throws IOException {
-        final var scanResources = scanResources();
-        try (var first = new PathSlice(writeFile(tempDir, "first.bin"), scanResources, /* log = */ null);
-                var second = new PathSlice(writeFile(tempDir, "second.bin"), scanResources, /* log = */ null)) {
+        final var session = session();
+        try (var first = new PathSlice(writeFile(tempDir, "first.bin"), session, /* log = */ null);
+                var second = new PathSlice(writeFile(tempDir, "second.bin"), session, /* log = */ null)) {
             assertThat(first.slice(2, 4, /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L))
                     .isNotEqualTo(
                             second.slice(2, 4, /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L));
@@ -135,15 +135,15 @@ public class SliceTest {
      */
     @Test
     public void anInputStreamThatFitsInRamIsReadIntoAnArraySlice() throws IOException {
-        final var scanResources = scanResources();
-        assertThat(sliceOfContent(scanResources, /* inputStreamLengthHint = */ -1L)).isInstanceOf(ArraySlice.class);
-        assertThat(sliceOfContent(scanResources, CONTENT.length)).isInstanceOf(ArraySlice.class);
-        assertThat(sliceOfContent(scanResources, CONTENT.length * 2L)).isInstanceOf(ArraySlice.class);
-        assertThat(sliceOfContent(scanResources, /* inputStreamLengthHint = */ 0L)).isInstanceOf(ArraySlice.class);
+        final var session = session();
+        assertThat(sliceOfContent(session, /* inputStreamLengthHint = */ -1L)).isInstanceOf(ArraySlice.class);
+        assertThat(sliceOfContent(session, CONTENT.length)).isInstanceOf(ArraySlice.class);
+        assertThat(sliceOfContent(session, CONTENT.length * 2L)).isInstanceOf(ArraySlice.class);
+        assertThat(sliceOfContent(session, /* inputStreamLengthHint = */ 0L)).isInstanceOf(ArraySlice.class);
 
         // An empty stream produces an empty slice, rather than failing
         final var empty = Slice.fromInputStream(new ByteArrayInputStream(new byte[0]), "empty.bin",
-                /* inputStreamLengthHint = */ -1L, scanResources, /* log = */ null);
+                /* inputStreamLengthHint = */ -1L, session, /* log = */ null);
         assertThat(empty.sliceLength).isZero();
         assertThat(empty.load()).isEmpty();
     }
@@ -158,22 +158,22 @@ public class SliceTest {
     @Test
     public void anInputStreamThatIsTooLongToBufferIsSpilledToATemporaryFile() throws IOException {
         // A length hint that is longer than the maximum RAM buffer size spills to disk without buffering
-        final var scanResources = scanResources(/* maxBufferedJarRAMSize = */ CONTENT.length / 2);
+        final var session = session(/* maxBufferedJarRAMSize = */ CONTENT.length / 2);
         try {
-            assertThat(sliceOfContent(scanResources, CONTENT.length)).isInstanceOf(FileSlice.class);
-            assertThat(scanResources.hasTempFiles()).isTrue();
+            assertThat(sliceOfContent(session, CONTENT.length)).isInstanceOf(FileSlice.class);
+            assertThat(session.hasTempFiles()).isTrue();
         } finally {
-            scanResources.close(/* log = */ null);
+            session.close(/* log = */ null);
         }
 
         // A length hint that understates the length of the stream fills the buffer, and only then turns out to be
         // wrong, so the buffered bytes have to be written to the temporary file ahead of the rest of the stream
-        final var understatedScanResources = scanResources();
+        final var understatedSession = session();
         try {
-            assertThat(sliceOfContent(understatedScanResources, /* inputStreamLengthHint = */ CONTENT.length / 2))
+            assertThat(sliceOfContent(understatedSession, /* inputStreamLengthHint = */ CONTENT.length / 2))
                     .isInstanceOf(FileSlice.class);
         } finally {
-            understatedScanResources.close(/* log = */ null);
+            understatedSession.close(/* log = */ null);
         }
     }
 
@@ -214,14 +214,14 @@ public class SliceTest {
                 return wrapped.read(buf, off, len);
             }
         };
-        final var scanResources = scanResources();
+        final var session = session();
         try {
             final var slice = Slice.fromInputStream(stream, "zeroreads.bin", /* inputStreamLengthHint = */ -1L,
-                    scanResources, /* log = */ null);
+                    session, /* log = */ null);
             assertThat(slice.sliceLength).isEqualTo(CONTENT.length);
             assertThat(slice.load()).containsExactly(CONTENT);
         } finally {
-            scanResources.close(/* log = */ null);
+            session.close(/* log = */ null);
         }
     }
 
@@ -236,14 +236,12 @@ public class SliceTest {
      *             if a file could not be written or opened
      */
     @Test
-    public void closingTheScanResourcesClosesEverySliceThatWasLeftOpen(@TempDir final Path tempDir)
-            throws IOException {
-        final var scanResources = scanResources();
-        final var first = new FileSlice(writeFile(tempDir, "first.bin").toFile(), scanResources, /* log = */ null);
-        final var second = new FileSlice(writeFile(tempDir, "second.bin").toFile(), scanResources,
-                /* log = */ null);
+    public void closingTheSessionClosesEverySliceThatWasLeftOpen(@TempDir final Path tempDir) throws IOException {
+        final var session = session();
+        final var first = new FileSlice(writeFile(tempDir, "first.bin").toFile(), session, /* log = */ null);
+        final var second = new FileSlice(writeFile(tempDir, "second.bin").toFile(), session, /* log = */ null);
 
-        scanResources.close(/* log = */ null);
+        session.close(/* log = */ null);
 
         // A closed slice has released the file it was reading, so it can no longer be read
         assertThatThrownBy(first::load).isInstanceOf(NullPointerException.class);

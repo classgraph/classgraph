@@ -41,7 +41,7 @@ import java.nio.file.FileSystemNotFoundException;
 import java.nio.file.Path;
 
 import io.github.classgraph.base.internal.log.LogNode;
-import io.github.classgraph.vfs.internal.ScanResources;
+import io.github.classgraph.vfs.internal.VfsSession;
 import org.jspecify.annotations.Nullable;
 
 /** Fetch a jarfile named by a URL, so that it can be scanned. */
@@ -105,8 +105,8 @@ final class JarURLDownloader {
      *
      * @param jarURL
      *            the jar URL
-     * @param scanResources
-     *            the resources owned by the scan
+     * @param session
+     *            the session that owns what is opened
      * @param log
      *            the log node, or null to skip logging
      * @return the temporary file or {@link ByteBuffer} the jar was downloaded to, wrapped in a
@@ -118,7 +118,7 @@ final class JarURLDownloader {
      *             as a separate exception from IOException, so that the case of an unwriteable temp dir can be
      *             handled separately, by downloading the jar to a ByteBuffer in RAM.)
      */
-    static PhysicalZipFile downloadJarFromURL(final String jarURL, final ScanResources scanResources,
+    static PhysicalZipFile downloadJarFromURL(final String jarURL, final VfsSession session,
             final @Nullable LogNode log) throws IOException {
         URL url = null;
         try {
@@ -143,7 +143,7 @@ final class JarURLDownloader {
                     log.log("URL " + jarURL + " is backed by filesystem " + fs.getClass().getName());
                 }
                 // Wrap Path in PhysicalZipFile and return it
-                return new PhysicalZipFile(path, scanResources, log);
+                return new PhysicalZipFile(path, session, log);
             } catch (final IllegalArgumentException | SecurityException | URISyntaxException e) {
                 throw new IOException("Could not convert URL to URI (" + e + "): " + url);
             } catch (final FileSystemNotFoundException e) {
@@ -165,7 +165,7 @@ final class JarURLDownloader {
                     // If this is a "file:" URL, get the file from the URL and return it as a new PhysicalZipFile
                     // (this avoids going through an InputStream). Throws IOException if the file cannot be read.
                     final var file = Path.of(url.toURI()).toFile();
-                    return new PhysicalZipFile(file, scanResources, log);
+                    return new PhysicalZipFile(file, session, log);
 
                 } catch (final Exception e) {
                     // Fall through -- unknown URL type
@@ -181,7 +181,7 @@ final class JarURLDownloader {
             try (var inputStream = urlConn.conn.getInputStream()) {
                 // Fetch the jar contents from the URL's InputStream. If it doesn't fit in RAM, spill over to disk.
                 final PhysicalZipFile physicalZipFile = new PhysicalZipFile(inputStream, contentLengthHint, jarURL,
-                        scanResources, subLog);
+                        session, subLog);
                 if (subLog != null) {
                     subLog.addElapsedTime();
                     subLog.log("***** Note that it is time-consuming to scan jars at non-\"file:\" URLs, "

@@ -39,7 +39,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.github.classgraph.base.internal.log.LogNode;
 import io.github.classgraph.base.internal.path.FileUtils;
-import io.github.classgraph.vfs.internal.ScanResources;
+import io.github.classgraph.vfs.internal.VfsSession;
 import io.github.classgraph.vfs.internal.slice.reader.RandomAccessByteBufferReader;
 import io.github.classgraph.vfs.internal.slice.reader.RandomAccessFileChannelReader;
 import io.github.classgraph.vfs.internal.slice.reader.RandomAccessReader;
@@ -98,12 +98,12 @@ public final class PathSlice extends Slice {
      * @param inflatedLengthHint
      *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
      *            zip entry.
-     * @param scanResources
-     *            the resources owned by the scan
+     * @param session
+     *            the session that owns what is opened
      */
     private PathSlice(final PathSlice parentSlice, final long offset, final long length,
-            final boolean isDeflatedZipEntry, final long inflatedLengthHint, final ScanResources scanResources) {
-        super(parentSlice, offset, length, isDeflatedZipEntry, inflatedLengthHint, scanResources);
+            final boolean isDeflatedZipEntry, final long inflatedLengthHint, final VfsSession session) {
+        super(parentSlice, offset, length, isDeflatedZipEntry, inflatedLengthHint, session);
 
         this.path = parentSlice.path;
         this.fileChannel = parentSlice.fileChannel;
@@ -126,8 +126,8 @@ public final class PathSlice extends Slice {
      *
      * @param path
      *            the path
-     * @param scanResources
-     *            the resources owned by the scan
+     * @param session
+     *            the session that owns what is opened
      * @param checkAccess
      *            whether it is needed to check read access and if it is a file
      * @param memoryMapWholeFile
@@ -139,9 +139,9 @@ public final class PathSlice extends Slice {
      * @throws IOException
      *             if the file cannot be opened.
      */
-    public PathSlice(final Path path, final ScanResources scanResources, final boolean checkAccess,
+    public PathSlice(final Path path, final VfsSession session, final boolean checkAccess,
             final boolean memoryMapWholeFile, final @Nullable LogNode log) throws IOException {
-        super(0L, /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L, scanResources);
+        super(0L, /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L, session);
 
         if (checkAccess) {
             // Make sure the File is readable and is a regular file
@@ -157,7 +157,7 @@ public final class PathSlice extends Slice {
         // Had to use 0L for sliceLength in call to super, since FileChannel wasn't open yet => update sliceLength
         this.sliceLength = fileLength;
 
-        if (memoryMapWholeFile && scanResources.vfsScanSpec.memoryMapFiles) {
+        if (memoryMapWholeFile && session.vfsScanSpec.memoryMapFiles) {
             // Memory-map the whole file, if it can be mapped -- otherwise fall through and read through the
             // FileChannel API instead
             final var mapping = FileMapping.map(fileChannelOpened, fileLength, path, log);
@@ -166,7 +166,7 @@ public final class PathSlice extends Slice {
         }
 
         // Mark toplevel slice as open
-        scanResources.markSliceAsOpen(this);
+        session.markSliceAsOpen(this);
     }
 
     /**
@@ -174,16 +174,15 @@ public final class PathSlice extends Slice {
      *
      * @param path
      *            the path
-     * @param scanResources
-     *            the resources owned by the scan
+     * @param session
+     *            the session that owns what is opened
      * @param log
      *            the log node, or null to skip logging
      * @throws IOException
      *             if the file cannot be opened.
      */
-    public PathSlice(final Path path, final ScanResources scanResources, final @Nullable LogNode log)
-            throws IOException {
-        this(path, scanResources, /* checkAccess = */ true, /* memoryMapWholeFile = */ true, log);
+    public PathSlice(final Path path, final VfsSession session, final @Nullable LogNode log) throws IOException {
+        this(path, session, /* checkAccess = */ true, /* memoryMapWholeFile = */ true, log);
     }
 
     /**
@@ -206,7 +205,7 @@ public final class PathSlice extends Slice {
         if (this.isDeflatedZipEntry) {
             throw new IllegalArgumentException("Cannot slice a deflated zip entry");
         }
-        return new PathSlice(this, offset, length, isDeflatedZipEntry, inflatedLengthHint, scanResources);
+        return new PathSlice(this, offset, length, isDeflatedZipEntry, inflatedLengthHint, session);
     }
 
     /**
@@ -317,7 +316,7 @@ public final class PathSlice extends Slice {
                 }
             }
             fileChannel = null;
-            scanResources.markSliceAsClosed(this);
+            session.markSliceAsClosed(this);
         }
     }
 }

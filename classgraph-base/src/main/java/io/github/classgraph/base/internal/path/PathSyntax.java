@@ -354,7 +354,7 @@ public final class PathSyntax {
         var leafStartIdx = 1 + (File.separatorChar == '/' ? path.lastIndexOf('/', endIdx)
                 : Math.max(path.lastIndexOf('/', endIdx), path.lastIndexOf(File.separatorChar, endIdx)));
         // In case of temp files (for jars extracted from within jars), remove the temp filename prefix -- see
-        // ScanResources.makeTempFile()
+        // VfsSession.makeTempFile()
         var tempSepIdx = path.indexOf(TEMP_FILENAME_LEAF_SEPARATOR);
         if (tempSepIdx >= 0) {
             tempSepIdx += TEMP_FILENAME_LEAF_SEPARATOR.length();

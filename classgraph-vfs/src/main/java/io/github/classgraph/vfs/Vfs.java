@@ -52,7 +52,7 @@ import io.github.classgraph.base.internal.path.FastPathResolver;
 import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.base.internal.utils.Assert;
-import io.github.classgraph.vfs.internal.ScanResources;
+import io.github.classgraph.vfs.internal.VfsSession;
 import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
 import io.github.classgraph.vfs.internal.zip.NestedJarHandler;
 import org.jspecify.annotations.Nullable;
@@ -663,12 +663,12 @@ public class Vfs implements AutoCloseable {
     }
 
     /**
-     * Returns the resources that the roots opened by this {@link Vfs} are backed by.
+     * Returns the session that the roots opened by this {@link Vfs} are backed by.
      *
-     * @return the resources.
+     * @return the session.
      */
-    ScanResources scanResources() {
-        return nestedJarHandler.scanResources;
+    VfsSession session() {
+        return nestedJarHandler.session;
     }
 
     /**
@@ -708,7 +708,7 @@ public class Vfs implements AutoCloseable {
      */
     public boolean hasTempFiles() {
         // The temporary files are deleted by close(), so a closed Vfs has none
-        return !closed.get() && nestedJarHandler.scanResources.hasTempFiles();
+        return !closed.get() && nestedJarHandler.session.hasTempFiles();
     }
 
     /**

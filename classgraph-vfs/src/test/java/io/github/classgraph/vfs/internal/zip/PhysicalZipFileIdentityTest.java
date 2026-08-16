@@ -53,11 +53,9 @@ public class PhysicalZipFileIdentityTest {
 
         final var nestedJarHandler = new NestedJarHandler(new VfsScanSpec(), new InterruptionChecker());
         try {
-            final var fromFile = new PhysicalZipFile(jarFile, nestedJarHandler.scanResources, /* log = */ null);
-            final var fromPath = new PhysicalZipFile(jarFile.toPath(), nestedJarHandler.scanResources,
-                    /* log = */ null);
-            final var fromOtherFile = new PhysicalZipFile(otherJarFile, nestedJarHandler.scanResources,
-                    /* log = */ null);
+            final var fromFile = new PhysicalZipFile(jarFile, nestedJarHandler.session, /* log = */ null);
+            final var fromPath = new PhysicalZipFile(jarFile.toPath(), nestedJarHandler.session, /* log = */ null);
+            final var fromOtherFile = new PhysicalZipFile(otherJarFile, nestedJarHandler.session, /* log = */ null);
 
             assertThat(fromFile).isEqualTo(fromFile).isEqualTo(fromPath).hasSameHashCodeAs(fromPath)
                     .isNotEqualTo(fromOtherFile).isNotEqualTo(jarFile.getPath());

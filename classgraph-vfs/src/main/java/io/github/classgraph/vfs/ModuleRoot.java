@@ -139,7 +139,7 @@ final class ModuleRoot extends VfsRoot {
         checkNotClosed(getPath());
         final var vfs = getVfs();
         try {
-            return vfs.scanResources().moduleReaderRecyclerMap().get(moduleReference, /* log = */ null);
+            return vfs.session().moduleReaderRecyclerMap().get(moduleReference, /* log = */ null);
         } catch (final NullSingletonException | NewInstanceException e) {
             final var cause = e.getCause() == null ? e : e.getCause();
             throw new IOException("Could not open module " + getPath() + " : " + cause, cause);

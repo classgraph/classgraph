@@ -48,7 +48,7 @@ import io.github.classgraph.base.internal.path.FastPathResolver;
 import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.path.URLPaths;
-import io.github.classgraph.vfs.internal.ScanResources;
+import io.github.classgraph.vfs.internal.VfsSession;
 import io.github.classgraph.vfs.internal.slice.Slice;
 import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
 import org.jspecify.annotations.Nullable;
@@ -56,12 +56,12 @@ import org.jspecify.annotations.Nullable;
 /**
  * Resolve a classpath element path, which may name a jarfile nested within one or more enclosing jarfiles, to the
  * {@link LogicalZipFile} for the innermost jarfile and the package root within it, opening and caching each zipfile
- * along the way. Also owns the {@link ScanResources} that the opened zipfiles are backed by, and closes them when
+ * along the way. Also owns the {@link VfsSession} that the opened zipfiles are backed by, and closes it when
  * {@link #close(LogNode)} is called.
  */
 public class NestedJarHandler implements AutoCloseable {
     /** The resources opened by this handler. */
-    public final ScanResources scanResources;
+    public final VfsSession session;
 
     /** The settings that govern how archives are read. */
     private final VfsScanSpec vfsScanSpec;
@@ -76,7 +76,7 @@ public class NestedJarHandler implements AutoCloseable {
      */
     public NestedJarHandler(final VfsScanSpec vfsScanSpec, final InterruptionChecker interruptionChecker) {
         this.vfsScanSpec = vfsScanSpec;
-        this.scanResources = new ScanResources(vfsScanSpec, interruptionChecker);
+        this.session = new VfsSession(vfsScanSpec, interruptionChecker);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -91,7 +91,7 @@ public class NestedJarHandler implements AutoCloseable {
         @Override
         public PhysicalZipFile newInstance(final File canonicalFile, final @Nullable LogNode log)
                 throws IOException {
-            return new PhysicalZipFile(canonicalFile, scanResources, log);
+            return new PhysicalZipFile(canonicalFile, session, log);
         }
     };
 
@@ -115,7 +115,7 @@ public class NestedJarHandler implements AutoCloseable {
     pathToPhysicalZipFileMap = new SingletonMap<>() {
         @Override
         public PhysicalZipFile newInstance(final Path path, final @Nullable LogNode log) throws IOException {
-            return new PhysicalZipFile(path, scanResources, log);
+            return new PhysicalZipFile(path, session, log);
         }
     };
 
@@ -161,7 +161,7 @@ public class NestedJarHandler implements AutoCloseable {
                                 && childZipEntry.uncompressedSize <= Slice.MAX_BUFFER_SIZE
                                         ? (int) childZipEntry.uncompressedSize
                                         : -1,
-                        childZipEntry.entryName, scanResources, log);
+                        childZipEntry.entryName, session, log);
 
                 // Create a new logical slice of the extracted inner zipfile
                 childZipEntrySlice = new ZipFileSlice(physicalZipFile, childZipEntry);
@@ -191,7 +191,7 @@ public class NestedJarHandler implements AutoCloseable {
         public LogicalZipFile newInstance(final ZipFileSlice zipFileSlice, final @Nullable LogNode log)
                 throws IOException, InterruptedException {
             // Read the central directory for the zipfile
-            return new LogicalZipFile(zipFileSlice, scanResources, log, vfsScanSpec.enableMultiReleaseVersions);
+            return new LogicalZipFile(zipFileSlice, session, log, vfsScanSpec.enableMultiReleaseVersions);
         }
     };
 
@@ -290,11 +290,10 @@ public class NestedJarHandler implements AutoCloseable {
      */
     public LogicalZipFile openJarFromInputStream(final InputStream inputStream, final long inputStreamLengthHint,
             final String name, final @Nullable LogNode log) throws IOException, InterruptedException {
-        final var physicalZipFile = new PhysicalZipFile(inputStream, inputStreamLengthHint, name, scanResources,
-                log);
+        final var physicalZipFile = new PhysicalZipFile(inputStream, inputStreamLengthHint, name, session, log);
         // The zipfile slice cache cannot be used here: two PhysicalZipFile instances compare equal if they have the
         // same path, so two different streams read under the same name would be treated as the same jarfile
-        return new LogicalZipFile(new ZipFileSlice(physicalZipFile), scanResources, log,
+        return new LogicalZipFile(new ZipFileSlice(physicalZipFile), session, log,
                 vfsScanSpec.enableMultiReleaseVersions);
     }
 
@@ -333,7 +332,7 @@ public class NestedJarHandler implements AutoCloseable {
             }
 
             // Download jar from URL to a ByteBuffer in RAM, or to a temp file on disk
-            physicalZipFile = JarURLDownloader.downloadJarFromURL(nestedJarPath, scanResources, log);
+            physicalZipFile = JarURLDownloader.downloadJarFromURL(nestedJarPath, session, log);
 
         } else {
             // Jarfile should be a local file -- wrap in a PhysicalZipFile instance
@@ -560,7 +559,7 @@ public class NestedJarHandler implements AutoCloseable {
      *            The log.
      */
     public void close(final @Nullable LogNode log) {
-        if (scanResources.beginClose()) {
+        if (session.beginClose()) {
             // Drop the zipfile caches first, so that nothing can hand out a slice of a zipfile that is about to be
             // closed, then close the resources the caches were backed by
             final var logicalZipFileMap = zipFileSliceToLogicalZipFileMap;
@@ -589,7 +588,7 @@ public class NestedJarHandler implements AutoCloseable {
                 fastZipEntryToZipFileSliceMap = null;
             }
             // Close the module readers, the open slices and the inflater recycler, then delete the temporary files
-            scanResources.close(log);
+            session.close(log);
         }
     }
 }

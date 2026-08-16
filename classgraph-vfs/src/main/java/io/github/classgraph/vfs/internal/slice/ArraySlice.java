@@ -31,7 +31,7 @@ package io.github.classgraph.vfs.internal.slice;
 import java.io.IOException;
 import java.util.Arrays;
 
-import io.github.classgraph.vfs.internal.ScanResources;
+import io.github.classgraph.vfs.internal.VfsSession;
 import io.github.classgraph.vfs.internal.slice.reader.RandomAccessArrayReader;
 import io.github.classgraph.vfs.internal.slice.reader.RandomAccessReader;
 
@@ -54,12 +54,12 @@ public final class ArraySlice extends Slice {
      * @param inflatedLengthHint
      *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
      *            zip entry.
-     * @param scanResources
-     *            the resources owned by the scan
+     * @param session
+     *            the session that owns what is opened
      */
     private ArraySlice(final ArraySlice parentSlice, final long offset, final long length,
-            final boolean isDeflatedZipEntry, final long inflatedLengthHint, final ScanResources scanResources) {
-        super(parentSlice, offset, length, isDeflatedZipEntry, inflatedLengthHint, scanResources);
+            final boolean isDeflatedZipEntry, final long inflatedLengthHint, final VfsSession session) {
+        super(parentSlice, offset, length, isDeflatedZipEntry, inflatedLengthHint, session);
         this.arr = parentSlice.arr;
     }
 
@@ -73,12 +73,12 @@ public final class ArraySlice extends Slice {
      * @param inflatedLengthHint
      *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
      *            zip entry.
-     * @param scanResources
-     *            the resources owned by the scan
+     * @param session
+     *            the session that owns what is opened
      */
     public ArraySlice(final byte[] arr, final boolean isDeflatedZipEntry, final long inflatedLengthHint,
-            final ScanResources scanResources) {
-        super(arr.length, isDeflatedZipEntry, inflatedLengthHint, scanResources);
+            final VfsSession session) {
+        super(arr.length, isDeflatedZipEntry, inflatedLengthHint, session);
         this.arr = arr;
     }
 
@@ -102,7 +102,7 @@ public final class ArraySlice extends Slice {
         if (this.isDeflatedZipEntry) {
             throw new IllegalArgumentException("Cannot slice a deflated zip entry");
         }
-        return new ArraySlice(this, offset, length, isDeflatedZipEntry, inflatedLengthHint, scanResources);
+        return new ArraySlice(this, offset, length, isDeflatedZipEntry, inflatedLengthHint, session);
     }
 
     /**

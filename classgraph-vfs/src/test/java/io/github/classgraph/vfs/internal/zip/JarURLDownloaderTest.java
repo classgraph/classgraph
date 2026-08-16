@@ -20,7 +20,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import io.github.classgraph.base.internal.log.LogNode;
-import io.github.classgraph.vfs.internal.ScanResources;
+import io.github.classgraph.vfs.internal.VfsSession;
 import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
 import org.jspecify.annotations.Nullable;
 
@@ -32,12 +32,12 @@ public class JarURLDownloaderTest {
     private static final String ENTRY_PATH = "testpkg/entry.txt";
 
     /** The resources owned by the scan, closed when the test ends. */
-    private final ScanResources scanResources = new ScanResources(new VfsScanSpec(), new InterruptionChecker());
+    private final VfsSession session = new VfsSession(new VfsScanSpec(), new InterruptionChecker());
 
     /** Close the slices that the test opened. */
     @AfterEach
-    public void closeScanResources() {
-        scanResources.close(/* log = */ null);
+    public void closeSession() {
+        session.close(/* log = */ null);
     }
 
     /**
@@ -173,7 +173,7 @@ public class JarURLDownloaderTest {
         final var jarBytes = buildJar(tempDir.resolve("http.jar"), "Downloaded over http");
         final var log = new LogNode();
         try (var server = new CannedResponseHttpServer("200 OK", String.valueOf(jarBytes.length), jarBytes)) {
-            final var physicalZipFile = JarURLDownloader.downloadJarFromURL(server.jarURL(), scanResources, log);
+            final var physicalZipFile = JarURLDownloader.downloadJarFromURL(server.jarURL(), session, log);
 
             assertThat(physicalZipFile.slice.load()).isEqualTo(jarBytes);
             assertThat(physicalZipFile.length()).isEqualTo(jarBytes.length);
@@ -200,7 +200,7 @@ public class JarURLDownloaderTest {
     public void aJarIsDownloadedWhenTheServerSendsNoContentLength(@TempDir final Path tempDir) throws IOException {
         final var jarBytes = buildJar(tempDir.resolve("nolength.jar"), "Downloaded with no content length");
         try (var server = new CannedResponseHttpServer("200 OK", /* contentLength = */ null, jarBytes)) {
-            final var physicalZipFile = JarURLDownloader.downloadJarFromURL(server.jarURL(), scanResources,
+            final var physicalZipFile = JarURLDownloader.downloadJarFromURL(server.jarURL(), session,
                     /* log = */ null);
 
             assertThat(physicalZipFile.slice.load()).isEqualTo(jarBytes);
@@ -222,7 +222,7 @@ public class JarURLDownloaderTest {
         final var jarBytes = buildJar(tempDir.resolve("badlength.jar"),
                 "Downloaded with a negative content length");
         try (var server = new CannedResponseHttpServer("200 OK", "-2", jarBytes)) {
-            final var physicalZipFile = JarURLDownloader.downloadJarFromURL(server.jarURL(), scanResources,
+            final var physicalZipFile = JarURLDownloader.downloadJarFromURL(server.jarURL(), session,
                     /* log = */ null);
 
             assertThat(physicalZipFile.slice.load()).isEqualTo(jarBytes);
@@ -240,7 +240,7 @@ public class JarURLDownloaderTest {
     public void aResponseOtherThanOkIsReported() throws IOException {
         try (var server = new CannedResponseHttpServer("404 Not Found", "0", new byte[0])) {
             assertThatThrownBy(
-                    () -> JarURLDownloader.downloadJarFromURL(server.jarURL(), scanResources, /* log = */ null))
+                    () -> JarURLDownloader.downloadJarFromURL(server.jarURL(), session, /* log = */ null))
                     .isInstanceOf(IOException.class).hasMessage("Got response code 404 for URL " + server.jarURL());
         }
     }
@@ -260,7 +260,7 @@ public class JarURLDownloaderTest {
         final var jar = tempDir.resolve("local.jar");
         final var jarBytes = buildJar(jar, "Read from the local filesystem");
         final var log = new LogNode();
-        final var physicalZipFile = JarURLDownloader.downloadJarFromURL(jar.toUri().toString(), scanResources, log);
+        final var physicalZipFile = JarURLDownloader.downloadJarFromURL(jar.toUri().toString(), session, log);
 
         assertThat(physicalZipFile.slice.load()).isEqualTo(jarBytes);
         assertThat(physicalZipFile.getPath()).isEqualTo(jar);
@@ -287,7 +287,7 @@ public class JarURLDownloaderTest {
         }
         final var jarURL = "jar:" + outerJar.toUri() + "!/lib/inner.jar";
 
-        final var physicalZipFile = JarURLDownloader.downloadJarFromURL(jarURL, scanResources, /* log = */ null);
+        final var physicalZipFile = JarURLDownloader.downloadJarFromURL(jarURL, session, /* log = */ null);
 
         assertThat(physicalZipFile.slice.load()).isEqualTo(innerJarBytes);
         assertThat(physicalZipFile.getPathString()).isEqualTo(jarURL);
@@ -296,7 +296,7 @@ public class JarURLDownloaderTest {
     /** A URL that is not a URL at all is reported, rather than being opened. */
     @Test
     public void aUrlThatCannotBeParsedIsReported() {
-        assertThatThrownBy(() -> JarURLDownloader.downloadJarFromURL("not a url", scanResources, /* log = */ null))
+        assertThatThrownBy(() -> JarURLDownloader.downloadJarFromURL("not a url", session, /* log = */ null))
                 .isInstanceOf(IOException.class).hasMessage("Could not parse URL: not a url");
     }
 
@@ -308,7 +308,7 @@ public class JarURLDownloaderTest {
     @Test
     public void aUrlThatIsNotAValidUriIsReported() {
         final var jarURL = "file:/jars/a jar with spaces.jar";
-        assertThatThrownBy(() -> JarURLDownloader.downloadJarFromURL(jarURL, scanResources, /* log = */ null))
+        assertThatThrownBy(() -> JarURLDownloader.downloadJarFromURL(jarURL, session, /* log = */ null))
                 .isInstanceOf(IOException.class).hasMessageStartingWith("Could not convert URL to URI (")
                 .hasMessageEndingWith(jarURL);
     }

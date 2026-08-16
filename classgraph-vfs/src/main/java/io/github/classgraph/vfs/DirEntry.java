@@ -181,7 +181,7 @@ final class DirEntry extends VfsEntry {
         final var root = getRoot();
         root.checkNotClosed(getPath());
         final var vfs = root.getVfs();
-        return new PathSlice(path, vfs.scanResources(), /* checkAccess = */ false, /* memoryMapWholeFile = */ false,
+        return new PathSlice(path, vfs.session(), /* checkAccess = */ false, /* memoryMapWholeFile = */ false,
                 /* log = */ null);
     }
 

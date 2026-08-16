@@ -40,7 +40,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 import io.github.classgraph.base.internal.log.LogNode;
-import io.github.classgraph.vfs.internal.ScanResources;
+import io.github.classgraph.vfs.internal.VfsSession;
 import io.github.classgraph.vfs.internal.slice.reader.RandomAccessReader;
 import org.jspecify.annotations.Nullable;
 
@@ -67,7 +67,7 @@ public abstract class Slice implements AutoCloseable {
     private static final int MAX_INITIAL_BUFFER_SIZE = 16 * 1024 * 1024;
 
     /** The resources owned by the scan that opened this slice. */
-    protected final ScanResources scanResources;
+    protected final VfsSession session;
 
     /** The parent slice, or null if this is a toplevel slice. */
     protected final @Nullable Slice parentSlice;
@@ -105,18 +105,18 @@ public abstract class Slice implements AutoCloseable {
      * @param inflatedLengthHint
      *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
      *            zip entry.
-     * @param scanResources
-     *            the resources owned by the scan
+     * @param session
+     *            the session that owns what is opened
      */
     protected Slice(final @Nullable Slice parentSlice, final long offset, final long length,
-            final boolean isDeflatedZipEntry, final long inflatedLengthHint, final ScanResources scanResources) {
+            final boolean isDeflatedZipEntry, final long inflatedLengthHint, final VfsSession session) {
         this.parentSlice = parentSlice;
         final var parentSliceStartPos = parentSlice == null ? 0L : parentSlice.sliceStartPos;
         this.sliceStartPos = parentSliceStartPos + offset;
         this.sliceLength = length;
         this.isDeflatedZipEntry = isDeflatedZipEntry;
         this.inflatedLengthHint = inflatedLengthHint;
-        this.scanResources = scanResources;
+        this.session = session;
 
         if (offset < 0L || sliceStartPos < 0L) {
             throw new IllegalArgumentException("Invalid startPos");
@@ -144,12 +144,12 @@ public abstract class Slice implements AutoCloseable {
      * @param inflatedLengthHint
      *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
      *            zip entry.
-     * @param scanResources
-     *            the resources owned by the scan
+     * @param session
+     *            the session that owns what is opened
      */
     protected Slice(final long length, final boolean isDeflatedZipEntry, final long inflatedLengthHint,
-            final ScanResources scanResources) {
-        this(/* parentSlice = */ null, 0L, length, isDeflatedZipEntry, inflatedLengthHint, scanResources);
+            final VfsSession session) {
+        this(/* parentSlice = */ null, 0L, length, isDeflatedZipEntry, inflatedLengthHint, session);
     }
 
     // ---------------------------------------------------------------------------------------------------------
@@ -165,8 +165,8 @@ public abstract class Slice implements AutoCloseable {
      *            one is needed).
      * @param inputStreamLengthHint
      *            the length of inputStream if known, else -1L.
-     * @param scanResources
-     *            the resources owned by the scan
+     * @param session
+     *            the session that owns what is opened
      * @param log
      *            the log node, or null to skip logging
      * @return an {@link ArraySlice}, if the {@link InputStream} could be read into a byte array, otherwise a
@@ -175,9 +175,9 @@ public abstract class Slice implements AutoCloseable {
      *             If the contents could not be read.
      */
     public static Slice fromInputStream(final InputStream inputStream, final String tempFileBaseName,
-            final long inputStreamLengthHint, final ScanResources scanResources, final @Nullable LogNode log)
+            final long inputStreamLengthHint, final VfsSession session, final @Nullable LogNode log)
             throws IOException {
-        final var maxBufferedJarRAMSize = scanResources.vfsScanSpec.maxBufferedJarRAMSize;
+        final var maxBufferedJarRAMSize = session.vfsScanSpec.maxBufferedJarRAMSize;
         try (inputStream) {
             if (inputStreamLengthHint <= maxBufferedJarRAMSize) {
                 // inputStreamLengthHint is unknown (-1) or shorter than vfsScanSpec.maxBufferedJarRAMSize, so try
@@ -208,7 +208,7 @@ public abstract class Slice implements AutoCloseable {
                         // We were able to read one more byte, so we're still not at the end of the stream, and we
                         // need to spill to disk, because buf is full
                         return spillToDisk(inputStream, tempFileBaseName, buf, bufBytesUsed,
-                                new byte[] { (byte) overflowByte }, scanResources, log);
+                                new byte[] { (byte) overflowByte }, session, log);
                     }
                     // else reached the end of the stream => don't spill to disk
                 }
@@ -219,13 +219,12 @@ public abstract class Slice implements AutoCloseable {
                     buf = Arrays.copyOf(buf, bufBytesUsed);
                 }
                 // Return buf as new ArraySlice
-                return new ArraySlice(buf, /* isDeflatedZipEntry = */ false, /* inflatedSizeHint = */ 0L,
-                        scanResources);
+                return new ArraySlice(buf, /* isDeflatedZipEntry = */ false, /* inflatedSizeHint = */ 0L, session);
 
             }
             // inputStreamLengthHint is longer than vfsScanSpec.maxBufferedJarRAMSize, so immediately spill to disk
             return spillToDisk(inputStream, tempFileBaseName, /* buf = */ null, /* bufBytesUsed = */ 0,
-                    /* overflowBuf = */ null, scanResources, log);
+                    /* overflowBuf = */ null, session, log);
         }
     }
 
@@ -243,8 +242,8 @@ public abstract class Slice implements AutoCloseable {
      * @param overflowBuf
      *            The second buffer to write to the beginning of the file, or null if none. (Should have same
      *            nullity as buf.)
-     * @param scanResources
-     *            the resources owned by the scan
+     * @param session
+     *            the session that owns what is opened
      * @param log
      *            The log.
      * @return the file slice
@@ -253,11 +252,11 @@ public abstract class Slice implements AutoCloseable {
      */
     private static FileSlice spillToDisk(final InputStream inputStream, final String tempFileBaseName,
             final byte @Nullable [] buf, final int bufBytesUsed, final byte @Nullable [] overflowBuf,
-            final ScanResources scanResources, final @Nullable LogNode log) throws IOException {
+            final VfsSession session, final @Nullable LogNode log) throws IOException {
         // Create temp file
         File tempFile;
         try {
-            tempFile = scanResources.makeTempFile(tempFileBaseName, /* onlyUseLeafname = */ true);
+            tempFile = session.makeTempFile(tempFileBaseName, /* onlyUseLeafname = */ true);
         } catch (final IOException e) {
             // Chain the cause, so that the reason the temporary file could not be created is reachable from the
             // stack trace
@@ -284,7 +283,7 @@ public abstract class Slice implements AutoCloseable {
         }
 
         // Return a new FileSlice for the temporary file
-        return new FileSlice(tempFile, scanResources, log);
+        return new FileSlice(tempFile, session, log);
     }
 
     // ---------------------------------------------------------------------------------------------------------
@@ -330,7 +329,7 @@ public abstract class Slice implements AutoCloseable {
      */
     public InputStream open(final @Nullable AutoCloseable resourceToClose) throws IOException {
         final InputStream rawInputStream = new SliceInputStream(this, resourceToClose);
-        return isDeflatedZipEntry ? scanResources.openInflaterInputStream(rawInputStream) : rawInputStream;
+        return isDeflatedZipEntry ? session.openInflaterInputStream(rawInputStream) : rawInputStream;
     }
 
     /**

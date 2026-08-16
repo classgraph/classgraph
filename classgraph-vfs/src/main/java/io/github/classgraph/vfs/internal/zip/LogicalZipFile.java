@@ -43,7 +43,7 @@ import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
 import io.github.classgraph.base.internal.utils.StringUtils;
 import io.github.classgraph.vfs.internal.ManifestParser;
-import io.github.classgraph.vfs.internal.ScanResources;
+import io.github.classgraph.vfs.internal.VfsSession;
 import io.github.classgraph.vfs.internal.slice.ArraySlice;
 import io.github.classgraph.vfs.internal.slice.Slice;
 import io.github.classgraph.vfs.internal.slice.reader.RandomAccessReader;
@@ -107,8 +107,8 @@ public class LogicalZipFile extends ZipFileSlice {
      *
      * @param zipFileSlice
      *            the zipfile slice
-     * @param scanResources
-     *            the resources owned by the scan
+     * @param session
+     *            the session that owns what is opened
      * @param log
      *            the log node, or null to skip logging
      * @param enableMultiReleaseVersions
@@ -118,11 +118,11 @@ public class LogicalZipFile extends ZipFileSlice {
      * @throws InterruptedException
      *             if the thread was interrupted.
      */
-    LogicalZipFile(final ZipFileSlice zipFileSlice, final ScanResources scanResources, final @Nullable LogNode log,
+    LogicalZipFile(final ZipFileSlice zipFileSlice, final VfsSession session, final @Nullable LogNode log,
             final boolean enableMultiReleaseVersions) throws IOException, InterruptedException {
         super(zipFileSlice);
         this.enableMultiReleaseVersions = enableMultiReleaseVersions;
-        readCentralDirectory(scanResources, log);
+        readCentralDirectory(session, log);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -264,8 +264,8 @@ public class LogicalZipFile extends ZipFileSlice {
      *
      * @param reader
      *            a reader for the whole zipfile slice
-     * @param scanResources
-     *            the resources owned by the scan
+     * @param session
+     *            the session that owns what is opened
      * @return the position of the End Of Central Directory record within the zipfile slice
      * @throws IOException
      *             If an I/O exception occurs, or the record could not be found.
@@ -273,7 +273,7 @@ public class LogicalZipFile extends ZipFileSlice {
      *             if the thread was interrupted.
      */
     @SuppressWarnings("resource")
-    private long findEndOfCentralDirectoryPos(final RandomAccessReader reader, final ScanResources scanResources)
+    private long findEndOfCentralDirectoryPos(final RandomAccessReader reader, final VfsSession session)
             throws IOException, InterruptedException {
         // Scan for End Of Central Directory (EOCD) signature. Final comment can be up to 64kB in length, so need to
         // scan back that far to determine if this is a valid zipfile. However for speed, initially just try reading
@@ -296,7 +296,7 @@ public class LogicalZipFile extends ZipFileSlice {
                 throw new IOException("Zipfile is truncated");
             }
             try (final ArraySlice arraySlice = new ArraySlice(eocdBytes, /* isDeflatedZipEntry = */ false,
-                    /* inflatedLengthHint = */ 0L, scanResources)) {
+                    /* inflatedLengthHint = */ 0L, session)) {
                 final var eocdReader = arraySlice.randomAccessReader();
                 for (var i = eocdBytes.length - 22L; i >= 0L; --i) {
                     if (eocdReader.readUnsignedInt(i) == 0x06054b50L) {
@@ -424,15 +424,15 @@ public class LogicalZipFile extends ZipFileSlice {
      *            a reader for the whole zipfile slice
      * @param cen
      *            the central directory
-     * @param scanResources
-     *            the resources owned by the scan
+     * @param session
+     *            the session that owns what is opened
      * @return the reader
      * @throws IOException
      *             If an I/O exception occurs.
      */
     @SuppressWarnings("resource")
     private RandomAccessReader openCentralDirectoryReader(final RandomAccessReader reader,
-            final CentralDirectory cen, final ScanResources scanResources) throws IOException {
+            final CentralDirectory cen, final VfsSession session) throws IOException {
         // Read entries into a byte array, if central directory is smaller than 2GB. If central directory is larger
         // than 2GB, need to read each entry field from the file directly using ZipFileSliceReader.
         if (cen.cenSize() > Slice.MAX_BUFFER_SIZE) {
@@ -451,8 +451,8 @@ public class LogicalZipFile extends ZipFileSlice {
             // Should not happen
             throw new IOException("Zipfile is truncated");
         }
-        return new ArraySlice(entryBytes, /* isDeflatedZipEntry = */ false, /* inflatedSizeHint = */ 0L,
-                scanResources).randomAccessReader();
+        return new ArraySlice(entryBytes, /* isDeflatedZipEntry = */ false, /* inflatedSizeHint = */ 0L, session)
+                .randomAccessReader();
     }
 
     /**
@@ -888,8 +888,8 @@ public class LogicalZipFile extends ZipFileSlice {
     /**
      * Read the central directory of the zipfile.
      *
-     * @param scanResources
-     *            the resources owned by the scan
+     * @param session
+     *            the session that owns what is opened
      * @param log
      *            the log node, or null to skip logging
      * @throws IOException
@@ -898,7 +898,7 @@ public class LogicalZipFile extends ZipFileSlice {
      *             if the thread was interrupted.
      */
     @SuppressWarnings("resource")
-    private void readCentralDirectory(final ScanResources scanResources, final @Nullable LogNode log)
+    private void readCentralDirectory(final VfsSession session, final @Nullable LogNode log)
             throws IOException, InterruptedException {
         if (slice.sliceLength < 22) {
             throw new IOException("Zipfile too short to have a central directory");
@@ -906,9 +906,9 @@ public class LogicalZipFile extends ZipFileSlice {
         final var reader = slice.randomAccessReader();
 
         // Locate the central directory
-        final var eocdPos = findEndOfCentralDirectoryPos(reader, scanResources);
+        final var eocdPos = findEndOfCentralDirectoryPos(reader, session);
         final var cen = readEndOfCentralDirectory(reader, eocdPos);
-        final var cenReader = openCentralDirectoryReader(reader, cen, scanResources);
+        final var cenReader = openCentralDirectoryReader(reader, cen, session);
 
         // numEnt is -1 if the End Of Central Directory record and its Zip64 counterpart were inconsistent
         final var numEnt = cen.numEnt() == -1L ? countCentralDirectoryEntries(cenReader, cen.cenSize())

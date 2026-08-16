@@ -39,7 +39,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.github.classgraph.base.internal.log.LogNode;
 import io.github.classgraph.base.internal.path.FileUtils;
-import io.github.classgraph.vfs.internal.ScanResources;
+import io.github.classgraph.vfs.internal.VfsSession;
 import io.github.classgraph.vfs.internal.slice.reader.RandomAccessByteBufferReader;
 import io.github.classgraph.vfs.internal.slice.reader.RandomAccessFileChannelReader;
 import io.github.classgraph.vfs.internal.slice.reader.RandomAccessReader;
@@ -92,12 +92,12 @@ public final class FileSlice extends Slice {
      * @param inflatedLengthHint
      *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
      *            zip entry.
-     * @param scanResources
-     *            the resources owned by the scan
+     * @param session
+     *            the session that owns what is opened
      */
     private FileSlice(final FileSlice parentSlice, final long offset, final long length,
-            final boolean isDeflatedZipEntry, final long inflatedLengthHint, final ScanResources scanResources) {
-        super(parentSlice, offset, length, isDeflatedZipEntry, inflatedLengthHint, scanResources);
+            final boolean isDeflatedZipEntry, final long inflatedLengthHint, final VfsSession session) {
+        super(parentSlice, offset, length, isDeflatedZipEntry, inflatedLengthHint, session);
         this.file = parentSlice.file;
         this.raf = parentSlice.raf;
         this.fileChannel = parentSlice.fileChannel;
@@ -125,16 +125,16 @@ public final class FileSlice extends Slice {
      * @param inflatedLengthHint
      *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
      *            zip entry.
-     * @param scanResources
-     *            the resources owned by the scan
+     * @param session
+     *            the session that owns what is opened
      * @param log
      *            the log node, or null to skip logging
      * @throws IOException
      *             if the file cannot be opened.
      */
     public FileSlice(final File file, final boolean isDeflatedZipEntry, final long inflatedLengthHint,
-            final ScanResources scanResources, final @Nullable LogNode log) throws IOException {
-        super(file.length(), isDeflatedZipEntry, inflatedLengthHint, scanResources);
+            final VfsSession session, final @Nullable LogNode log) throws IOException {
+        super(file.length(), isDeflatedZipEntry, inflatedLengthHint, session);
         // Make sure the File is readable and is a regular file
         FileUtils.checkCanReadAndIsFile(file);
         this.file = file;
@@ -145,7 +145,7 @@ public final class FileSlice extends Slice {
         this.fileLength = sliceLength;
         this.isTopLevelFileSlice = true;
 
-        if (scanResources.vfsScanSpec.memoryMapFiles) {
+        if (session.vfsScanSpec.memoryMapFiles) {
             // Memory-map the whole file, if it can be mapped -- otherwise fall through and use the
             // RandomAccessFile API instead
             final var mapping = FileMapping.map(Objects.requireNonNull(fileChannel), fileLength, file, log);
@@ -154,7 +154,7 @@ public final class FileSlice extends Slice {
         }
 
         // Mark toplevel slice as open
-        scanResources.markSliceAsOpen(this);
+        session.markSliceAsOpen(this);
     }
 
     /**
@@ -162,16 +162,15 @@ public final class FileSlice extends Slice {
      *
      * @param file
      *            the file
-     * @param scanResources
-     *            the resources owned by the scan
+     * @param session
+     *            the session that owns what is opened
      * @param log
      *            the log node, or null to skip logging
      * @throws IOException
      *             if the file cannot be opened.
      */
-    public FileSlice(final File file, final ScanResources scanResources, final @Nullable LogNode log)
-            throws IOException {
-        this(file, /* isDeflatedZipEntry = */ false, /* inflatedSizeHint = */ 0L, scanResources, log);
+    public FileSlice(final File file, final VfsSession session, final @Nullable LogNode log) throws IOException {
+        this(file, /* isDeflatedZipEntry = */ false, /* inflatedSizeHint = */ 0L, session, log);
     }
 
     /**
@@ -194,7 +193,7 @@ public final class FileSlice extends Slice {
         if (this.isDeflatedZipEntry) {
             throw new IllegalArgumentException("Cannot slice a deflated zip entry");
         }
-        return new FileSlice(this, offset, length, isDeflatedZipEntry, inflatedLengthHint, scanResources);
+        return new FileSlice(this, offset, length, isDeflatedZipEntry, inflatedLengthHint, session);
     }
 
     /**
@@ -303,7 +302,7 @@ public final class FileSlice extends Slice {
                 }
             }
             raf = null;
-            scanResources.markSliceAsClosed(this);
+            session.markSliceAsClosed(this);
         }
     }
 }

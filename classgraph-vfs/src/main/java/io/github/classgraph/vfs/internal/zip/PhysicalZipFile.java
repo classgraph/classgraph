@@ -38,7 +38,7 @@ import java.util.Objects;
 import io.github.classgraph.base.internal.log.LogNode;
 import io.github.classgraph.base.internal.path.FastPathResolver;
 import io.github.classgraph.base.internal.path.FileUtils;
-import io.github.classgraph.vfs.internal.ScanResources;
+import io.github.classgraph.vfs.internal.VfsSession;
 import io.github.classgraph.vfs.internal.slice.FileSlice;
 import io.github.classgraph.vfs.internal.slice.PathSlice;
 import io.github.classgraph.vfs.internal.slice.Slice;
@@ -66,18 +66,17 @@ class PhysicalZipFile {
      *
      * @param file
      *            the file
-     * @param scanResources
-     *            the resources owned by the scan
+     * @param session
+     *            the session that owns what is opened
      * @param log
      *            the log node, or null to skip logging
      * @throws IOException
      *             if an I/O exception occurs.
      */
-    PhysicalZipFile(final File file, final ScanResources scanResources, final @Nullable LogNode log)
-            throws IOException {
+    PhysicalZipFile(final File file, final VfsSession session, final @Nullable LogNode log) throws IOException {
         this.file = file;
         this.pathStr = FastPathResolver.resolve(FileUtils.currDirPath(), file.getPath());
-        this.slice = new FileSlice(file, scanResources, log);
+        this.slice = new FileSlice(file, session, log);
     }
 
     /**
@@ -85,18 +84,17 @@ class PhysicalZipFile {
      *
      * @param path
      *            the path
-     * @param scanResources
-     *            the resources owned by the scan
+     * @param session
+     *            the session that owns what is opened
      * @param log
      *            the log node, or null to skip logging
      * @throws IOException
      *             if an I/O exception occurs.
      */
-    PhysicalZipFile(final Path path, final ScanResources scanResources, final @Nullable LogNode log)
-            throws IOException {
+    PhysicalZipFile(final Path path, final VfsSession session, final @Nullable LogNode log) throws IOException {
         this.path = path;
         this.pathStr = FastPathResolver.resolve(FileUtils.currDirPath(), path.toString());
-        this.slice = new PathSlice(path, scanResources, log);
+        this.slice = new PathSlice(path, session, log);
     }
 
     /**
@@ -110,20 +108,20 @@ class PhysicalZipFile {
      * @param pathStr
      *            the source URL the InputStream was opened from, or the zip entry path of this entry in the parent
      *            zipfile
-     * @param scanResources
-     *            the resources owned by the scan
+     * @param session
+     *            the session that owns what is opened
      * @param log
      *            the log node, or null to skip logging
      * @throws IOException
      *             if an I/O exception occurs.
      */
     PhysicalZipFile(final InputStream inputStream, final long inputStreamLengthHint, final String pathStr,
-            final ScanResources scanResources, final @Nullable LogNode log) throws IOException {
+            final VfsSession session, final @Nullable LogNode log) throws IOException {
         this.pathStr = pathStr;
         // Try downloading the InputStream to a byte array. If this succeeds, this will result in an ArraySlice. If
         // it fails, the InputStream will be spilled to disk, resulting in a FileSlice.
         this.slice = Slice.fromInputStream(inputStream, /* tempFileBaseName = */ pathStr, inputStreamLengthHint,
-                scanResources, log);
+                session, log);
         this.file = this.slice instanceof final FileSlice fileSlice ? fileSlice.file : null;
     }
 
