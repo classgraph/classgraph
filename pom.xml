@@ -507,13 +507,26 @@
 						<configFile>${rootDir}/.eclipse/code-formatter-config.xml</configFile>
 						<encoding>UTF-8</encoding>
 						<lineEnding>LF</lineEnding>
+						<!-- Only the Java sources are formatted. The plugin also formats XML, JSON, HTML, CSS -->
+						<!-- and JavaScript by default, which would rewrite any pom.xml it found in one of the -->
+						<!-- directories below. -->
+						<skipXmlFormatting>true</skipXmlFormatting>
+						<skipJsonFormatting>true</skipJsonFormatting>
+						<skipHtmlFormatting>true</skipHtmlFormatting>
+						<skipCssFormatting>true</skipCssFormatting>
+						<skipJsFormatting>true</skipJsFormatting>
 						<!-- Setting <directories> replaces the default source and test source directories, -->
 						<!-- so both have to be listed again here, along with the extra test source root -->
 						<!-- that build-helper-maven-plugin adds. Directories that do not exist are skipped. -->
+						<!-- The last two only exist in the parent, and hold sources that are built by CI -->
+						<!-- rather than by Maven; the source files under src/test/resources are deliberately -->
+						<!-- not listed, since they are the provenance of committed classfiles. -->
 						<directories>
 							<directory>${project.build.sourceDirectory}</directory>
 							<directory>${project.build.testSourceDirectory}</directory>
 							<directory>${project.basedir}/src/test/perf</directory>
+							<directory>${project.basedir}/benchmark</directory>
+							<directory>${project.basedir}/.github/jpms-consumer</directory>
 						</directories>
 						<!-- The formatter parses the sources itself, so it needs to be told the language level -->
 						<compilerSource>${maven.compiler.release}</compilerSource>

@@ -12,8 +12,8 @@ import java.util.stream.Collectors;
 /**
  * Measures how much difference memory-mapping jarfiles makes to scan time.
  *
- * Both arms run in the same JVM, alternating, and the order within each pair is swapped every other pair, so
- * that JIT warmup and machine drift affect the two arms equally.
+ * Both arms run in the same JVM, alternating, and the order within each pair is swapped every other pair, so that
+ * JIT warmup and machine drift affect the two arms equally.
  *
  * Run with: java -cp <classgraph-classes> Bench.java <jar-dir> <warm|cold> <numPairs> <evict-command|none>
  */
@@ -31,8 +31,8 @@ public class Bench {
      * Run the benchmark.
      *
      * @param args
-     *            the jar directory, "warm" or "cold", the number of pairs of runs, and the eviction command
-     *            (which may be several arguments, or the single argument "none")
+     *            the jar directory, "warm" or "cold", the number of pairs of runs, and the eviction command (which
+     *            may be several arguments, or the single argument "none")
      * @throws Exception
      *             if the benchmark could not be run
      */
@@ -65,8 +65,8 @@ public class Bench {
         }
         // In warm mode the first third of the runs are JIT warmup, so discard them
         final int firstSteadyPair = cold ? 0 : numPairs / 3;
-        System.out.printf("corpus: %d jars, %.0f MB, %d classes; %s page cache%n", jars.size(),
-                corpusBytes / 1e6, numClasses, cold ? "cold" : "warm");
+        System.out.printf("corpus: %d jars, %.0f MB, %d classes; %s page cache%n", jars.size(), corpusBytes / 1e6,
+                numClasses, cold ? "cold" : "warm");
         report("mmap=false", unmapped.subList(firstSteadyPair, numPairs));
         report("mmap=true ", mapped.subList(firstSteadyPair, numPairs));
     }

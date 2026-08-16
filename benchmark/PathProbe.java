@@ -57,8 +57,8 @@ public class PathProbe {
      */
     private static void jdkGroundTruth() {
         section("jdk: Path.of(x).toString()");
-        for (final String path : new String[] { "/", "//", "///", "\\", "\\\\", "/tmp", "/tmp/", "/tmp//a",
-                "C:", "C:/", "C:\\", "C:/a/b", "C:\\a\\b", "C:a", "//server/share", "//server/share/a",
+        for (final String path : new String[] { "/", "//", "///", "\\", "\\\\", "/tmp", "/tmp/", "/tmp//a", "C:",
+                "C:/", "C:\\", "C:/a/b", "C:\\a\\b", "C:a", "//server/share", "//server/share/a",
                 "\\\\server\\share\\a", "a/b", "./a", "../a", "/a/../b", "x:/a/b" }) {
             show("Path.of(" + path + ")", tryGet(() -> Path.of(path).toString()));
         }
@@ -81,17 +81,16 @@ public class PathProbe {
 
         section("jdk: Path.of(URI)");
         for (final String uri : new String[] { "file:/tmp/a", "file:///tmp/a", "file://localhost/tmp/a",
-                "file:///tmp/a%20b", "file:///", "file:/", "file:///C:/a/b", "file:/C:/a/b", "file://server/share/a",
-                "file:////server/share/a" }) {
+                "file:///tmp/a%20b", "file:///", "file:/", "file:///C:/a/b", "file:/C:/a/b",
+                "file://server/share/a", "file:////server/share/a" }) {
             show("Path.of(URI(" + uri + "))", tryGet(() -> Path.of(URI.create(uri)).toString()));
         }
 
         section("jdk: URI parsing of single-letter and custom schemes");
         for (final String uri : new String[] { "C:/a/b", "C:\\a\\b", "x:/a/b", "s3://bucket/key", "vfs:/a/b",
                 "jar:file:/a.jar!/b", "war:file:/a.war*/WEB-INF/classes/" }) {
-            show("URI.create(" + uri + ").getScheme()",
-                    tryGet(() -> String.valueOf(URI.create(uri).getScheme()) + "  opaque="
-                            + URI.create(uri).isOpaque() + "  path=" + URI.create(uri).getPath()));
+            show("URI.create(" + uri + ").getScheme()", tryGet(() -> String.valueOf(URI.create(uri).getScheme())
+                    + "  opaque=" + URI.create(uri).isOpaque() + "  path=" + URI.create(uri).getPath()));
         }
         for (final String url : new String[] { "file:/a/b", "x:/a/b", "s3://bucket/key", "jar:file:/a.jar!/b" }) {
             show("new URL(" + url + ")", tryGet(() -> {
@@ -125,15 +124,15 @@ public class PathProbe {
                 "file:/", "file://", "file:///", "file:/tmp/a", "file:///tmp/a", "file://localhost/tmp/a",
                 "file:/C:/a/b", "file:///C:/a/b", "file:C:/a/b", "file://server/share/a", "file:////server/share/a",
                 // Percent encoding
-                "file:///tmp/a%20b", "file:///tmp/a%2Bb", "file:///tmp/%C3%A9", "file:///tmp/a%2Fb",
-                "/tmp/a%20b", "http://host/a%20b.jar", "jar:http://host/a%20b.jar!/c", "s3://bucket/a%20b",
+                "file:///tmp/a%20b", "file:///tmp/a%2Bb", "file:///tmp/%C3%A9", "file:///tmp/a%2Fb", "/tmp/a%20b",
+                "http://host/a%20b.jar", "jar:http://host/a%20b.jar!/c", "s3://bucket/a%20b",
                 // "jar:" URLs, including nested and trailing separators
                 "jar:file:/a.jar!/", "jar:file:/a.jar!/b", "jar:file:/a.war!/WEB-INF/lib/b.jar!/",
                 "jar:jar:file:/a.war!/WEB-INF/lib/b.jar!/", "/a/b!", "/a/b.jar!/",
                 // Other schemes
                 "jrt:/modules/java.base", "JRT:/modules/java.base", "http://host/a.jar", "https://host/a.jar",
-                "s3://bucket/key", "vfs:/a/b", "vfs2:/a/b", "x:/a/b", "c:/a/b",
-                "bundleresource://4.fwk1/a/b", "war:file:/a.war*/WEB-INF/classes/",
+                "s3://bucket/key", "vfs:/a/b", "vfs2:/a/b", "x:/a/b", "c:/a/b", "bundleresource://4.fwk1/a/b",
+                "war:file:/a.war*/WEB-INF/classes/",
                 // Relative paths
                 "a/b", "./a", "../a", "/a/../b", "" }) {
             show("resolve(" + path + ")", tryGet(() -> FastPathResolver.resolve(path)));
@@ -220,7 +219,8 @@ public class PathProbe {
      * @return "yes", or "no" plus what was found instead
      */
     private static String scanFinds(final String classpathElement) {
-        try (ScanResult scanResult = new ClassGraph().overrideClasspath(classpathElement).enableClassInfo().scan()) {
+        try (ScanResult scanResult = new ClassGraph().overrideClasspath(classpathElement).enableClassInfo()
+                .scan()) {
             return scanResult.getClassInfo("probepkg.Probe") != null ? "yes"
                     : "no: found " + scanResult.getAllClasses().getNames();
         }

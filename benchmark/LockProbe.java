@@ -19,8 +19,7 @@ public class LockProbe {
             final ClassGraph classGraph = new ClassGraph().overrideClasspath(jar.toString()).enableClassInfo();
             setMemoryMapping(classGraph, memoryMapping);
             final ScanResult scanResult = classGraph.scan();
-            System.out.printf("memoryMapping=%-5s  classes=%d%n", memoryMapping,
-                    scanResult.getAllClasses().size());
+            System.out.printf("memoryMapping=%-5s  classes=%d%n", memoryMapping, scanResult.getAllClasses().size());
             System.out.println("  delete while the ScanResult is open:   " + tryDelete(jar, Path.of(args[0])));
             scanResult.close();
             System.out.println("  delete after the ScanResult is closed: " + tryDelete(jar, Path.of(args[0])));

@@ -39,7 +39,8 @@ public class ThreadScaling {
             // Discard the first third of each arm as JIT warm-up
             final int warmUp = numPairs / 3;
             System.out.printf("threads=%-3d  mmap=false median=%4d ms   mmap=true median=%4d ms%n", numThreads,
-                    median(withoutMapping.subList(warmUp, numPairs)), median(withMapping.subList(warmUp, numPairs)));
+                    median(withoutMapping.subList(warmUp, numPairs)),
+                    median(withMapping.subList(warmUp, numPairs)));
         }
     }
 
