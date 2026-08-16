@@ -1,9 +1,9 @@
 package io.github.classgraph.classpath;
 
+import static io.github.classgraph.classpath.Locations.location;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
@@ -43,19 +43,6 @@ public class ClasspathEntryTest {
     }
 
     /**
-     * The location a file is reported at. A classpath element's location separates path segments with {@code /} on
-     * every platform, so that the same jarfile is named the same way whichever OS it is read on, whereas
-     * {@link Path#toString()} uses the platform's own separator.
-     *
-     * @param path
-     *            the path of the file.
-     * @return the location the file is reported at.
-     */
-    private static String locationOf(final Path path) {
-        return path.toString().replace(File.separatorChar, '/');
-    }
-
-    /**
      * Find a classpath consisting of a single classpath element, named by the given object.
      *
      * @param classpathElement
@@ -74,7 +61,7 @@ public class ClasspathEntryTest {
     public void eachFormOfClasspathElementIsWrappedInItsOwnSubclass(@TempDir final Path tempDir)
             throws IOException {
         final var jar = writeJar(tempDir.resolve("lib.jar"));
-        final var location = locationOf(jar);
+        final var location = location(jar);
 
         try (var classpath = findClasspath(location)) {
             assertThat(classpath.getEntries()).singleElement().isInstanceOf(ClasspathEntry.OfPathString.class)
@@ -197,7 +184,7 @@ public class ClasspathEntryTest {
         final var second = writeJar(tempDir.resolve("second.jar"));
         try (var classpath = new ClasspathFinder().overrideClasspath(first, second).find()) {
             assertThat(classpath).containsExactlyElementsOf(classpath.getEntries())
-                    .extracting(ClasspathEntry::location).containsExactly(locationOf(first), locationOf(second));
+                    .extracting(ClasspathEntry::location).containsExactly(location(first), location(second));
         }
     }
 }

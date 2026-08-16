@@ -1,9 +1,9 @@
 package io.github.classgraph.classpath.internal.classloaderhandler;
 
+import static io.github.classgraph.classpath.Locations.location;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -46,21 +46,6 @@ public class EquinoxClassLoaderTest {
         try (var classpath = new ClasspathFinder().overrideClassLoaders(classLoader).find()) {
             return classpath.getLocations();
         }
-    }
-
-    /**
-     * The location that a file or directory is reported as: its canonical path, with {@code '/'} as the separator.
-     * The canonical form matters because a temporary directory is reached through a symlink on macOS, and through
-     * an 8.3 short name on Windows.
-     *
-     * @param path
-     *            the file or directory.
-     * @return the location.
-     * @throws IOException
-     *             if the canonical path could not be found.
-     */
-    private static String location(final Path path) throws IOException {
-        return path.toRealPath().toString().replace(File.separatorChar, '/');
     }
 
     /**

@@ -28,6 +28,7 @@
  */
 package io.github.classgraph.classpath;
 
+import static io.github.classgraph.classpath.Locations.location;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
@@ -67,14 +68,4 @@ public class ClassLoaderDelegationOrderTest {
         }
     }
 
-    /**
-     * The location that a directory is reported as.
-     *
-     * @param dir
-     *            the directory
-     * @return the location
-     */
-    private static String location(final Path dir) {
-        return dir.toFile().getPath().replace(java.io.File.separatorChar, '/');
-    }
 }

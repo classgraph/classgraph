@@ -1,9 +1,9 @@
 package io.github.classgraph.classpath.internal.classloaderhandler;
 
+import static io.github.classgraph.classpath.Locations.location;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -34,17 +34,6 @@ public class OSGiDefaultClassLoaderTest {
         try (var classpath = new ClasspathFinder().overrideClassLoaders(classLoader).find()) {
             return classpath.getLocations();
         }
-    }
-
-    /**
-     * The location that a file or directory is reported as.
-     *
-     * @param path
-     *            the file or directory.
-     * @return the location.
-     */
-    private static String location(final Path path) {
-        return path.toFile().getPath().replace(File.separatorChar, '/');
     }
 
     /**

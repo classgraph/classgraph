@@ -1,8 +1,8 @@
 package io.github.classgraph.classpath.internal.classloaderhandler;
 
+import static io.github.classgraph.classpath.Locations.location;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -35,17 +35,6 @@ public class PlexusClassRealmTest {
         try (var classpath = new ClasspathFinder().overrideClassLoaders(classLoader).find()) {
             return classpath.getLocations();
         }
-    }
-
-    /**
-     * The location that a file or directory is reported as.
-     *
-     * @param path
-     *            the file or directory.
-     * @return the location.
-     */
-    private static String location(final Path path) {
-        return path.toFile().getPath().replace(File.separatorChar, '/');
     }
 
     /**

@@ -1,9 +1,9 @@
 package io.github.classgraph.classpath.internal.spec;
 
+import static io.github.classgraph.classpath.Locations.location;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -77,17 +77,6 @@ public class ClassLoaderAndModuleLayerSpecTest {
                 Set.of(moduleName));
         return ModuleLayer.defineModulesWithOneLoader(configuration, List.of(bootLayer),
                 ClassLoaderAndModuleLayerSpecTest.class.getClassLoader()).layer();
-    }
-
-    /**
-     * The location that a file is reported as.
-     *
-     * @param path
-     *            the file.
-     * @return the location.
-     */
-    private static String location(final Path path) {
-        return path.toFile().getPath().replace(File.separatorChar, '/');
     }
 
     /**
