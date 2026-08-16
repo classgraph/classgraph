@@ -51,7 +51,7 @@ import org.jspecify.annotations.Nullable;
  * elements it declares, depth first. A classpath element that is reached more than once is listed only at the first
  * position it is reached at, which is the position that decides which copy of a duplicated class is loaded.
  */
-final class ClasspathExpansion {
+final class TransitiveClasspath {
     /** Opens the classpath elements, so that their manifests and their lib dirs can be read. */
     private final Vfs vfs;
 
@@ -77,7 +77,7 @@ final class ClasspathExpansion {
      * @param log
      *            the log node, or null to skip logging.
      */
-    private ClasspathExpansion(final Vfs vfs, final VfsSpec vfsSpec, final @Nullable LogNode log) {
+    private TransitiveClasspath(final Vfs vfs, final VfsSpec vfsSpec, final @Nullable LogNode log) {
         this.vfs = vfs;
         this.vfsSpec = vfsSpec;
         this.log = log;
@@ -101,11 +101,11 @@ final class ClasspathExpansion {
      */
     static List<ClasspathEntry> expand(final List<ClasspathEntry> entries, final Vfs vfs, final VfsSpec vfsSpec,
             final @Nullable LogNode log) {
-        final var expansion = new ClasspathExpansion(vfs, vfsSpec, log);
+        final var classpath = new TransitiveClasspath(vfs, vfsSpec, log);
         for (final ClasspathEntry entry : entries) {
-            expansion.addRec(entry);
+            classpath.addRec(entry);
         }
-        return expansion.expanded;
+        return classpath.expanded;
     }
 
     /**

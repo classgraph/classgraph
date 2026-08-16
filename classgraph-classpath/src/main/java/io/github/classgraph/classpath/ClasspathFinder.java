@@ -344,7 +344,7 @@ public class ClasspathFinder {
             final var vfs = new Vfs(vfsSpec, new InterruptionChecker(), /* log = */ null);
             var classpath = (Classpath) null;
             try {
-                final var expandedEntries = ClasspathExpansion.expand(classLoaderEntries, vfs, vfsSpec, log);
+                final var expandedEntries = TransitiveClasspath.expand(classLoaderEntries, vfs, vfsSpec, log);
                 classpath = new Classpath(expandedEntries, classLoaderProbe, classpathSpec.modulePathInfo, vfs);
                 return classpath;
             } finally {
