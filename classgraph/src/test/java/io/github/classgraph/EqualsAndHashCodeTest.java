@@ -6,7 +6,10 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -184,8 +187,9 @@ public class EqualsAndHashCodeTest {
         assertThat(direct.getNames()).containsExactly(Direct.class.getName());
         assertThat(reachable).isNotEqualTo(direct);
 
-        // A plain copy of the reachable list holds the same entries, but has lost which of them are direct
-        assertThat(reachable).isNotEqualTo(new AnnotationInfoList(reachable));
+        // A plain copy of the reachable list holds the same entries, but treats every one of them as direct
+        assertThat(new AnnotationInfoList(reachable).directOnly().getNames())
+                .containsExactlyElementsOf(reachable.getNames());
     }
 
     /** Annotation lists holding the same entries are equal, whichever scan they came from. */
@@ -201,17 +205,19 @@ public class EqualsAndHashCodeTest {
                 .isNotEqualTo(reachable.getNames());
     }
 
-    /** A list of all subclasses is not equal to a plain list of the same classes, which are all direct. */
+    /** A list of all subclasses reports only the direct ones from {@code directOnly()}. */
     @Test
     public void aClassListKnowsWhichOfItsEntriesAreDirectlyRelated() {
         final var subclasses = classInfo(scanResult, Annotated.class).getAllSubclasses();
         assertThat(subclasses.getNames()).containsExactly(Sub.class.getName(), SubSub.class.getName());
-        assertThat(subclasses).isNotEqualTo(new ClassInfoList(List.copyOf(subclasses)));
 
-        // Only Sub extends Annotated directly, so the direct-only list is a plain list of that one class
+        // Only Sub extends Annotated directly
         final var direct = subclasses.directOnly();
         assertThat(direct.getNames()).containsExactly(Sub.class.getName());
-        assertThat(direct).isEqualTo(new ClassInfoList(List.copyOf(direct))).isNotEqualTo(subclasses);
+
+        // A plain copy holds the same classes, but treats every one of them as directly related
+        assertThat(new ClassInfoList(List.copyOf(subclasses)).directOnly().getNames())
+                .containsExactly(Sub.class.getName(), SubSub.class.getName());
     }
 
     /** Class lists holding the same classes are equal, whichever scan they came from. */
@@ -223,6 +229,50 @@ public class EqualsAndHashCodeTest {
 
         assertThat(subclasses).isNotEqualTo(classInfo(scanResult, Sub.class).getAllSubclasses())
                 .isNotEqualTo(subclasses.getNames());
+    }
+
+    /**
+     * A result list obeys the {@link List#equals(Object)} contract, so it compares equal to a plain list holding
+     * the same elements whichever of the two is the receiver, and the two are interchangeable in a hash set. Which
+     * of the entries are directly related is reported by {@code directOnly()}, and is not part of the comparison.
+     */
+    @Test
+    public void resultListsObeyTheListEqualsContract() {
+        final var subclasses = classInfo(scanResult, Annotated.class).getAllSubclasses();
+        final List<ClassInfo> plainClasses = new ArrayList<>(subclasses);
+        assertThat(subclasses).isEqualTo(plainClasses).hasSameHashCodeAs(plainClasses);
+        assertThat(plainClasses).isEqualTo(subclasses);
+        // Looked up through the set's own contains(), so that this needs equals() and hashCode() to agree, rather
+        // than through an assertion that walks the set and compares each element in turn
+        assertThat(hashSetOf(plainClasses).contains(subclasses)).as("plain list set contains ClassInfoList")
+                .isTrue();
+        assertThat(hashSetOf(subclasses).contains(plainClasses)).as("ClassInfoList set contains plain list")
+                .isTrue();
+
+        final var annotations = classInfo(scanResult, Annotated.class).getAllAnnotationInfo();
+        final List<AnnotationInfo> plainAnnotations = new ArrayList<>(annotations);
+        assertThat(annotations).isEqualTo(plainAnnotations).hasSameHashCodeAs(plainAnnotations);
+        assertThat(plainAnnotations).isEqualTo(annotations);
+        assertThat(hashSetOf(plainAnnotations).contains(annotations))
+                .as("plain list set contains AnnotationInfoList").isTrue();
+        assertThat(hashSetOf(annotations).contains(plainAnnotations))
+                .as("AnnotationInfoList set contains plain list").isTrue();
+    }
+
+    /**
+     * A {@link HashSet} holding a single list, so that a lookup in it goes through the list's {@code hashCode()}
+     * and {@code equals()}.
+     *
+     * @param <T>
+     *            the element type of the list.
+     * @param list
+     *            the list to put in the set.
+     * @return the set.
+     */
+    private static <T> Set<List<T>> hashSetOf(final List<T> list) {
+        final Set<List<T>> set = new HashSet<>();
+        set.add(list);
+        return set;
     }
 
     /** A field is identified by the class that declares it and its name. */

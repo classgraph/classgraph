@@ -54,6 +54,11 @@ import org.jspecify.annotations.Nullable;
  * a superclass or interface that was annotated with {@link java.lang.annotation.Inherited @Inherited}), and the
  * directly present annotations. (By default, accessing an {@link AnnotationInfoList} as a {@link List} returns the
  * reachable annotations; by calling {@link #directOnly()}, you can get only the directly present annotations.)
+ *
+ * <p>
+ * Equality is {@link List} equality: two lists are equal if they hold equal annotations in the same order. Which of
+ * the annotations are directly present is reported by {@link #directOnly()}, and is not part of the comparison, so
+ * two lists that hold the same annotations are equal even when they were reached in different ways.
  */
 public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     /**
@@ -445,27 +450,5 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
             }
         }
         return unmodifiable(matchingAnnotations);
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    @Override
-    public boolean equals(final @Nullable Object obj) {
-        if (this == obj) {
-            return true;
-        }
-        if (!(obj instanceof final AnnotationInfoList other)
-                || ((directlyRelatedAnnotations == null) != (other.directlyRelatedAnnotations == null))) {
-            return false;
-        }
-        if (directlyRelatedAnnotations == null) {
-            return super.equals(other);
-        }
-        return super.equals(other) && directlyRelatedAnnotations.equals(other.directlyRelatedAnnotations);
-    }
-
-    @Override
-    public int hashCode() {
-        return super.hashCode() ^ (directlyRelatedAnnotations == null ? 0 : directlyRelatedAnnotations.hashCode());
     }
 }

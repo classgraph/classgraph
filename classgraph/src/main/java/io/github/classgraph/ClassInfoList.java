@@ -54,6 +54,11 @@ import org.jspecify.annotations.Nullable;
  * Most {@link ClassInfoList} objects returned by ClassGraph are sorted into lexicographical order by the value of
  * {@link ClassInfo#getName()}. One exception to this is the classes returned by
  * {@link ClassInfo#getAllSuperclasses()}, which are in ascending order of the class hierarchy.
+ *
+ * <p>
+ * Equality is {@link List} equality: two lists are equal if they hold equal classes in the same order. Which of the
+ * classes are directly related is reported by {@link #directOnly()}, and is not part of the comparison, so two
+ * lists that hold the same classes are equal even when they were reached by different relationships.
  */
 public class ClassInfoList extends MappableInfoList<ClassInfo> {
     /** Directly related classes. */
@@ -437,22 +442,5 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
     public ClassInfoList getAssignableTo(final Class<?> superclassOrInterface) {
         Assert.notNull(superclassOrInterface, "superclassOrInterface");
         return getAssignableTo(superclassOrInterface.getName());
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    @Override
-    public boolean equals(final @Nullable Object obj) {
-        if (this == obj) {
-            return true;
-        }
-        // directlyRelatedClasses is final, and every constructor assigns it a non-null value
-        return obj instanceof final ClassInfoList other && super.equals(other)
-                && directlyRelatedClasses.equals(other.directlyRelatedClasses);
-    }
-
-    @Override
-    public int hashCode() {
-        return super.hashCode() ^ directlyRelatedClasses.hashCode();
     }
 }
