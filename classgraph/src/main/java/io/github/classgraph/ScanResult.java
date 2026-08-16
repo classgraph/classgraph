@@ -689,6 +689,10 @@ public final class ScanResult implements AutoCloseable {
      * terminates once there are no possible accepted resources below a given directory. However, resources in
      * ancestral directories of accepted directories can be found using this method.
      *
+     * <p>
+     * The path is matched exactly, including the case of every character, on every operating system and for every
+     * kind of classpath element, so a path this method finds is a path a classloader will also find.
+     *
      * @param resourcePath
      *            A complete resource path, relative to the classpath entry package root.
      * @return A list of all resources found in any classpath element, <i>whether in accepted packages or not (as

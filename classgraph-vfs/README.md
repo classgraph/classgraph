@@ -307,8 +307,29 @@ not exist, may name a directory rather than a file, may name a file the process 
 read, or may point outside the root once `..` sections are resolved; for a jarfile or a module it may
 not exist, or may be an entry this root does not report — an encrypted entry, an entry stored with an
 unsupported compression method, or an entry hidden by a newer multi-release version of itself. Null
-does not say which, so test for the file directly if the difference matters. There are four ways to
-read an entry, differing only in what you get back and who has to release it.
+does not say which, so test for the file directly if the difference matters.
+
+`getEntry` matches the name exactly, including the case of every character, on every operating system
+and for every kind of root, so a name it finds is a name a classloader will also find. Windows and
+macOS have case-insensitive filesystems, and a lookup that such a filesystem answered by folding the
+case of the name is rejected here rather than handing back an entry under a name that is not the one
+it is stored under. A name that reaches a file through a symbolic link is the one exception:
+following the link changes the path by more than the case of its characters, which is the only thing
+that tells a folded name from a followed link.
+
+When the case should be ignored instead, `getEntryCaseInsensitive` returns the first entry whose name
+matches with the case of both ignored, and `getEntriesCaseInsensitive` returns all of them — a root
+can hold several, since a zipfile is free to store both `META-INF/MANIFEST.MF` and
+`meta-inf/manifest.mf`, and a case-sensitive filesystem is free to hold both as files. Both behave
+the same way on every operating system and for every kind of root, and the entries they return carry
+the name they are stored under, not the name they were asked for:
+
+```java
+// Finds "Com/Xyz/Widget.txt" too
+VfsEntry entry = root.getEntryCaseInsensitive("com/xyz/widget.txt");
+```
+
+There are four ways to read an entry, differing only in what you get back and who has to release it.
 
 `entry.open()` streams the content, so a large entry never has to be held in memory. The stream is
 yours to close:
@@ -427,6 +448,12 @@ no manifest, and the manifest is read once and then cached.
 
 A directory and a module have a manifest read from the same place, so an exploded jarfile is
 described by its manifest just as the jarfile it was exploded from is.
+
+A jarfile written by a tool that lower-cased its entry names still has a manifest, and it is found:
+the canonical name is looked for first, since that is the name it is stored under in all but a
+handful of jarfiles, and then the same name with the case of both ignored. A module is the one
+exception, because searching one that way means listing the whole module, and a module of the running
+JDK carries no manifest at all.
 
 ### Find a root's module name
 
