@@ -785,6 +785,7 @@ public class LogicalZipFile extends ZipFileSlice {
     private @Nullable FastZipEntry readEntries(final RandomAccessReader cenReader, final CentralDirectory cen,
             final @Nullable LogNode log) throws IOException {
         FastZipEntry manifestZipEntry = null;
+        FastZipEntry caseFoldedManifestZipEntry = null;
         var entSize = 0;
         for (var entOff = 0L; entOff + 46 <= cen.cenSize(); entOff += entSize) {
             final var sig = cenReader.readUnsignedInt(entOff);
@@ -819,13 +820,25 @@ public class LogicalZipFile extends ZipFileSlice {
             if (entry != null) {
                 entries.add(entry);
 
-                // Record manifest entry
-                if (MANIFEST_PATH.equals(entry.entryName)) {
-                    manifestZipEntry = entry;
+                // Record the manifest entry. The manifest is looked for under its canonical name first, since that
+                // is the name it is stored under in all but a handful of zipfiles. A zipfile written by a tool that
+                // lower-cased its entry names still has a manifest, and java.util.zip.ZipFile finds that one too
+                // (it matches both "META-INF/" and "MANIFEST.MF" a character at a time with the case bit masked
+                // off), so a differently-cased name is remembered as a fallback rather than the zipfile being
+                // reported as having no manifest at all. The first entry with either name wins, the same way the
+                // first of two entries with the same name is the one a classloader reads
+                if (MANIFEST_PATH.equalsIgnoreCase(entry.entryName)) {
+                    if (MANIFEST_PATH.equals(entry.entryName)) {
+                        if (manifestZipEntry == null) {
+                            manifestZipEntry = entry;
+                        }
+                    } else if (caseFoldedManifestZipEntry == null) {
+                        caseFoldedManifestZipEntry = entry;
+                    }
                 }
             }
         }
-        return manifestZipEntry;
+        return manifestZipEntry != null ? manifestZipEntry : caseFoldedManifestZipEntry;
     }
 
     /**

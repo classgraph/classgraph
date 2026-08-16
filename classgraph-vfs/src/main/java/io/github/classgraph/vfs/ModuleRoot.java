@@ -201,6 +201,15 @@ final class ModuleRoot extends VfsRoot {
     }
 
     @Override
+    boolean searchesForACaseFoldedManifest() {
+        // The only way to search a module for a manifest stored under a differently-cased name is to list the whole
+        // module, and a module of the running JDK -- which is where nearly every module a scan reads comes from --
+        // is read from the image that jlink built, whose entry names are exact, and which carries no manifest at
+        // all, so that listing would be spent to find nothing
+        return false;
+    }
+
+    @Override
     @Nullable
     VfsEntry getEntryImpl(final String name) throws IOException {
         if (name.isEmpty()) {

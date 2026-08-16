@@ -152,6 +152,56 @@ public class VfsEntryLookupCaseTest {
     }
 
     /**
+     * A jarfile that stores its manifest under a lower-cased name still has a manifest, the same way
+     * {@link java.util.jar.JarFile#getManifest()} still finds one.
+     *
+     * @param tempDir
+     *            a temporary directory to build in.
+     * @throws IOException
+     *             if the jarfile could not be built or read.
+     */
+    @Test
+    public void aManifestStoredUnderALowerCasedNameIsStillTheManifest(@TempDir final Path tempDir)
+            throws IOException {
+        final var jar = tempDir.resolve("widget.jar");
+        try (var zipOut = new ZipOutputStream(Files.newOutputStream(jar))) {
+            zipOut.putNextEntry(new ZipEntry("meta-inf/manifest.mf"));
+            zipOut.write(
+                    "Manifest-Version: 1.0\r\nClass-Path: lib/dep.jar\r\n\r\n".getBytes(StandardCharsets.UTF_8));
+            zipOut.closeEntry();
+        }
+        try (var vfs = new Vfs()) {
+            assertThat(vfs.open(jar.toString()).getManifestEntry("Class-Path")).isEqualTo("lib/dep.jar");
+        }
+    }
+
+    /**
+     * A jarfile that stores a manifest under both names is described by the one under the name a manifest is
+     * supposed to be stored under.
+     *
+     * @param tempDir
+     *            a temporary directory to build in.
+     * @throws IOException
+     *             if the jarfile could not be built or read.
+     */
+    @Test
+    public void theManifestUnderTheCanonicalNameIsThePreferredOne(@TempDir final Path tempDir) throws IOException {
+        final var jar = tempDir.resolve("widget.jar");
+        try (var zipOut = new ZipOutputStream(Files.newOutputStream(jar))) {
+            // The lower-cased name is written first, so that entry order cannot be what decides this
+            zipOut.putNextEntry(new ZipEntry("meta-inf/manifest.mf"));
+            zipOut.write("Manifest-Version: 1.0\r\nClass-Path: lower.jar\r\n\r\n".getBytes(StandardCharsets.UTF_8));
+            zipOut.closeEntry();
+            zipOut.putNextEntry(new ZipEntry("META-INF/MANIFEST.MF"));
+            zipOut.write("Manifest-Version: 1.0\r\nClass-Path: upper.jar\r\n\r\n".getBytes(StandardCharsets.UTF_8));
+            zipOut.closeEntry();
+        }
+        try (var vfs = new Vfs()) {
+            assertThat(vfs.open(jar.toString()).getManifestEntry("Class-Path")).isEqualTo("upper.jar");
+        }
+    }
+
+    /**
      * A file reached through a symbolic link is found by the name it was reached through: the name of the file the
      * link points at is nothing like the name of the link, rather than the same name in a different case.
      *

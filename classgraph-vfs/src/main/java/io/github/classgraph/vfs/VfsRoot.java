@@ -665,8 +665,26 @@ public abstract class VfsRoot implements AutoCloseable, Iterable<VfsEntry> {
      */
     @Nullable
     Map<String, String> readManifest() throws IOException {
-        final var manifestEntry = getEntry(MANIFEST_PATH);
+        // The manifest is looked for under its canonical name first, since that is the name it is stored under in
+        // all but a handful of jarfiles, and finding it there costs a single lookup. A jarfile written by a tool
+        // that lower-cased its entry names, or exploded onto a filesystem that did, still has a manifest, and
+        // java.util.jar.JarFile finds that one too, so the search widens to ignore case rather than reporting that
+        // the jarfile has no manifest at all
+        var manifestEntry = getEntry(MANIFEST_PATH);
+        if (manifestEntry == null && searchesForACaseFoldedManifest()) {
+            manifestEntry = getEntryCaseInsensitive(MANIFEST_PATH);
+        }
         return manifestEntry == null ? null : ManifestParser.parse(manifestEntry.load());
+    }
+
+    /**
+     * Returns whether this root is searched for a manifest stored under a differently-cased name, when it holds no
+     * manifest under the canonical name.
+     *
+     * @return true to widen the search to ignore case.
+     */
+    boolean searchesForACaseFoldedManifest() {
+        return true;
     }
 
     // -------------------------------------------------------------------------------------------------------------
