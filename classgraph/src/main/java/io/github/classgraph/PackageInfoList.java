@@ -40,37 +40,47 @@ public class PackageInfoList extends MappableInfoList<PackageInfo> {
     @Serial
     private static final long serialVersionUID = 1L;
 
-    /**
-     * Constructor.
-     */
-    PackageInfoList() {
-        super();
-    }
-
-    /**
-     * Constructor.
-     *
-     * @param sizeHint
-     *            the expected number of elements
-     */
-    PackageInfoList(final int sizeHint) {
-        super(sizeHint);
-    }
-
-    /**
-     * Constructor.
-     *
-     * @param packageInfoCollection
-     *            the package info collection
-     */
-    PackageInfoList(final Collection<PackageInfo> packageInfoCollection) {
-        super(packageInfoCollection);
-    }
-
     /** An unmodifiable empty {@link PackageInfoList}. */
     static final PackageInfoList EMPTY_LIST = new PackageInfoList();
     static {
         EMPTY_LIST.makeUnmodifiable();
+    }
+
+    /**
+     * Return an unmodifiable empty {@link PackageInfoList}.
+     *
+     * @return the unmodifiable empty {@link PackageInfoList}.
+     */
+    public static PackageInfoList emptyList() {
+        return EMPTY_LIST;
+    }
+
+    /**
+     * Construct a new modifiable empty list of {@link PackageInfo} objects.
+     */
+    public PackageInfoList() {
+        super();
+    }
+
+    /**
+     * Construct a new modifiable empty list of {@link PackageInfo} objects, given a size hint.
+     *
+     * @param sizeHint
+     *            the expected number of elements
+     */
+    public PackageInfoList(final int sizeHint) {
+        super(sizeHint);
+    }
+
+    /**
+     * Construct a new modifiable {@link PackageInfoList}, given an initial collection of {@link PackageInfo}
+     * objects.
+     *
+     * @param packageInfoCollection
+     *            the package info collection
+     */
+    public PackageInfoList(final Collection<PackageInfo> packageInfoCollection) {
+        super(packageInfoCollection);
     }
 
     // -------------------------------------------------------------------------------------------------------------

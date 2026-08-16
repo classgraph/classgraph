@@ -185,7 +185,7 @@ public class ExtendedTimestampExtraFieldTest {
                     .get(jarFile.getPath(), /* log = */ null);
             final var entries = logicalZipFileAndPackageRoot.getKey().entries;
             assertThat(entries).hasSize(1);
-            return entries.get(0).getLastModifiedTimeMillis();
+            return entries.get(0).getLastModifiedMillis();
         } finally {
             // The jarfile must not be left open, otherwise the temporary directory cannot be deleted on Windows
             nestedJarHandler.close(/* log = */ null);

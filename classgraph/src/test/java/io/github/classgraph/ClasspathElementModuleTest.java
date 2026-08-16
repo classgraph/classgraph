@@ -219,7 +219,7 @@ public class ClasspathElementModuleTest {
         try (var scanResult = new ClassGraph().overrideModuleLayers(moduleLayerFor(jar)).ignoreParentModuleLayers()
                 .acceptPaths("modulescan").scan()) {
             final var resource = resource(scanResult, resourcePath);
-            assertThat(resource.getContentAsString()).isEqualTo(content);
+            assertThat(resource.loadAsString()).isEqualTo(content);
             assertThat(resource.load()).isEqualTo(content.getBytes(StandardCharsets.UTF_8));
             assertThat(resource.getLength()).isEqualTo(content.length());
             assertThat(resource.getClasspathElementFile()).isEqualTo(jar.toFile());

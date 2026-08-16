@@ -195,7 +195,7 @@ public abstract class VfsEntry {
      * @return the last modified time in milliseconds since the epoch, or 0 if the root does not record it, which is
      *         the case for a module resource.
      */
-    public abstract long getLastModifiedTimeMillis();
+    public abstract long getLastModifiedMillis();
 
     /**
      * Returns the POSIX file permissions of this entry.

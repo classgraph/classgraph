@@ -137,7 +137,7 @@ final class DirEntry extends VfsEntry {
     }
 
     @Override
-    public long getLastModifiedTimeMillis() {
+    public long getLastModifiedMillis() {
         final var attributesCurr = attributes;
         if (attributesCurr != null) {
             try {

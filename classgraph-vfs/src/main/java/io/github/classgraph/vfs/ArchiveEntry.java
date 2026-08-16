@@ -112,8 +112,8 @@ final class ArchiveEntry extends VfsEntry {
     }
 
     @Override
-    public long getLastModifiedTimeMillis() {
-        return zipEntry.getLastModifiedTimeMillis();
+    public long getLastModifiedMillis() {
+        return zipEntry.getLastModifiedMillis();
     }
 
     @Override

@@ -54,7 +54,7 @@ public class FastZipEntryMSDOSTimeTest {
             final var entries = logicalZipFileAndPackageRoot.getKey().entries;
             assertThat(entries).hasSize(1);
             assertThat(entries.get(0).entryName).isEqualTo(ENTRY_NAME);
-            lastModifiedTimeMillis = entries.get(0).getLastModifiedTimeMillis();
+            lastModifiedTimeMillis = entries.get(0).getLastModifiedMillis();
         } finally {
             // The jarfile must not be left open, otherwise the temporary directory cannot be deleted on Windows
             nestedJarHandler.close(/* log = */ null);

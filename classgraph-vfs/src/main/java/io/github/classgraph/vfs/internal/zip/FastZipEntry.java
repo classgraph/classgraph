@@ -247,7 +247,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
      *
      * @return the last modified time in Epoch millis.
      */
-    public long getLastModifiedTimeMillis() {
+    public long getLastModifiedMillis() {
         // If lastModifiedTimeMillis is zero, but there is an MSDOS date and time available
         if (lastModifiedTimeMillis == 0L && (lastModifiedDateMSDOS != 0 || lastModifiedTimeMSDOS != 0)) {
             // Convert from MS-DOS Date & Time Format to Epoch millis

@@ -66,7 +66,7 @@ public class ResourceTest {
             assertThat(resource.getPath()).isEqualTo(TEXT_FILE);
             // Only jars have a package root, so the two paths are the same for a directory
             assertThat(resource.getPathRelativeToClasspathElement()).isEqualTo(TEXT_FILE);
-            assertThat(resource.getContentAsString()).isEqualTo(TEXT_FILE_CONTENT);
+            assertThat(resource.loadAsString()).isEqualTo(TEXT_FILE_CONTENT);
             assertThat(resource.getLength()).isEqualTo(TEXT_FILE_CONTENT.length());
             assertThat(resource.getLastModifiedMillis()).isPositive();
         }
@@ -101,6 +101,18 @@ public class ResourceTest {
             }
 
             assertThat(resource(scanResult, TEXT_FILE).load()).isEqualTo(expected);
+        }
+    }
+
+    /** The content can be decoded in a charset other than the UTF-8 default. */
+    @Test
+    public void theContentCanBeReadInAGivenCharset() throws IOException {
+        try (var scanResult = scanTestResourcesDir()) {
+            assertThat(resource(scanResult, TEXT_FILE).loadAsString(StandardCharsets.ISO_8859_1))
+                    .isEqualTo(TEXT_FILE_CONTENT);
+            // UTF-16 decodes the same ASCII bytes into different characters, so the charset is really applied
+            assertThat(resource(scanResult, TEXT_FILE).loadAsString(StandardCharsets.UTF_16))
+                    .isNotEqualTo(TEXT_FILE_CONTENT);
         }
     }
 
@@ -193,7 +205,7 @@ public class ResourceTest {
                 }
 
                 assertThat(resource(scanResult, entryName).load()).as(entryName).isEqualTo(content);
-                assertThat(resource(scanResult, entryName).getContentAsString()).as(entryName)
+                assertThat(resource(scanResult, entryName).loadAsString()).as(entryName)
                         .isEqualTo(TEXT_FILE_CONTENT);
                 assertThat(resource(scanResult, entryName).getLength()).as(entryName).isEqualTo(content.length);
             }

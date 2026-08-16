@@ -40,30 +40,45 @@ public class ModuleInfoList extends MappableInfoList<ModuleInfo> {
     @Serial
     private static final long serialVersionUID = 1L;
 
+    /** An unmodifiable empty {@link ModuleInfoList}. */
+    static final ModuleInfoList EMPTY_LIST = new ModuleInfoList();
+    static {
+        EMPTY_LIST.makeUnmodifiable();
+    }
+
     /**
-     * Constructor.
+     * Return an unmodifiable empty {@link ModuleInfoList}.
+     *
+     * @return the unmodifiable empty {@link ModuleInfoList}.
      */
-    ModuleInfoList() {
+    public static ModuleInfoList emptyList() {
+        return EMPTY_LIST;
+    }
+
+    /**
+     * Construct a new modifiable empty list of {@link ModuleInfo} objects.
+     */
+    public ModuleInfoList() {
         super();
     }
 
     /**
-     * Constructor.
+     * Construct a new modifiable empty list of {@link ModuleInfo} objects, given a size hint.
      *
      * @param sizeHint
      *            the expected number of elements
      */
-    ModuleInfoList(final int sizeHint) {
+    public ModuleInfoList(final int sizeHint) {
         super(sizeHint);
     }
 
     /**
-     * Constructor.
+     * Construct a new modifiable {@link ModuleInfoList}, given an initial collection of {@link ModuleInfo} objects.
      *
      * @param moduleInfoCollection
      *            the module info collection
      */
-    ModuleInfoList(final Collection<ModuleInfo> moduleInfoCollection) {
+    public ModuleInfoList(final Collection<ModuleInfo> moduleInfoCollection) {
         super(moduleInfoCollection);
     }
 

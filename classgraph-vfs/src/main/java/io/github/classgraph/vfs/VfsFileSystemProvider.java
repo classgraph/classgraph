@@ -391,7 +391,7 @@ final class VfsFileSystemProvider extends FileSystemProvider {
         public FileTime lastModifiedTime() {
             // A directory of a virtual filesystem has no modification time of its own, and neither does a module
             // entry, both of which report the epoch
-            return FileTime.fromMillis(entry == null ? 0L : Math.max(0L, entry.getLastModifiedTimeMillis()));
+            return FileTime.fromMillis(entry == null ? 0L : Math.max(0L, entry.getLastModifiedMillis()));
         }
 
         @Override

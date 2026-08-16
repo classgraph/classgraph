@@ -274,7 +274,7 @@ public class VfsTest {
             assertThat(entry.getURI().toString()).startsWith("jar:file:").endsWith("!/com/xyz/widget.txt");
             assertThat(entry.getLength()).isEqualTo(RESOURCE_CONTENT.length());
             assertThat(entry.getCompressedSize()).isPositive();
-            assertThat(entry.getLastModifiedTimeMillis()).isPositive();
+            assertThat(entry.getLastModifiedMillis()).isPositive();
 
             // Every way of reading an entry gives the same content
             assertThat(entry.load()).asString(StandardCharsets.UTF_8).isEqualTo(RESOURCE_CONTENT);
@@ -551,7 +551,7 @@ public class VfsTest {
             assertThat(entry.getPath()).isEqualTo(root.getPath() + "/com/xyz/widget.txt");
             assertThat(entry.getNioPath()).isNotNull();
             assertThat(entry.getLength()).isEqualTo(RESOURCE_CONTENT.length());
-            assertThat(entry.getLastModifiedTimeMillis()).isPositive();
+            assertThat(entry.getLastModifiedMillis()).isPositive();
             assertThat(entry.loadAsString()).isEqualTo(RESOURCE_CONTENT);
             try (var inputStream = entry.open()) {
                 assertThat(new String(inputStream.readAllBytes(), StandardCharsets.UTF_8))
@@ -833,7 +833,7 @@ public class VfsTest {
             assertThat(entry.getURI().getScheme()).isEqualTo("jrt");
             // A module reader reports neither a length nor a modification time
             assertThat(entry.getLength()).isEqualTo(-1L);
-            assertThat(entry.getLastModifiedTimeMillis()).isZero();
+            assertThat(entry.getLastModifiedMillis()).isZero();
             assertThat(entry.getPosixFilePermissions()).isNull();
 
             // Every way of reading a module resource gives back a classfile

@@ -37,6 +37,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.Objects;
@@ -267,15 +268,29 @@ public abstract class Resource implements AutoCloseable, Comparable<Resource> {
     }
 
     /**
-     * Convenience method to get the content of this {@link Resource} as a String. Assumes UTF8 encoding. (Calls
-     * {@link #close()} after completion.)
+     * Read this resource's whole content and decode it as UTF-8. (Calls {@link #close()} after completion.)
      *
-     * @return the content of this {@link Resource} as a String.
+     * @return the content of this {@link Resource}, as a string.
      * @throws IOException
      *             If an I/O exception occurred.
      */
-    public String getContentAsString() throws IOException {
-        final String content = new String(load(), StandardCharsets.UTF_8);
+    public String loadAsString() throws IOException {
+        return loadAsString(StandardCharsets.UTF_8);
+    }
+
+    /**
+     * Read this resource's whole content and decode it in the given charset. Bytes that the charset cannot decode
+     * are replaced rather than throwing, as {@link String#String(byte[], Charset)} specifies. (Calls
+     * {@link #close()} after completion.)
+     *
+     * @param charset
+     *            the charset to decode the content in.
+     * @return the content of this {@link Resource}, as a string.
+     * @throws IOException
+     *             If an I/O exception occurred.
+     */
+    public String loadAsString(final Charset charset) throws IOException {
+        final String content = new String(load(), charset);
         close();
         return content;
     }
@@ -427,7 +442,7 @@ public abstract class Resource implements AutoCloseable, Comparable<Resource> {
      *         Returns 0L if the last modified date is unknown.
      */
     public long getLastModifiedMillis() {
-        return entry.getLastModifiedTimeMillis();
+        return entry.getLastModifiedMillis();
     }
 
     /**

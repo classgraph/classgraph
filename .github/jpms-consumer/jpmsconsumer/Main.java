@@ -85,7 +85,7 @@ public final class Main {
                     .orElse(null);
             check("a manifest is found on the module path", manifest != null);
             check("the manifest can be read",
-                    manifest != null && manifest.getContentAsString().startsWith("Manifest-Version"));
+                    manifest != null && manifest.loadAsString().startsWith("Manifest-Version"));
         }
 
         // System modules are read out of the jrt filesystem, which is a different VFS root kind again.

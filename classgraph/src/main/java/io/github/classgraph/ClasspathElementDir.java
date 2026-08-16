@@ -344,7 +344,7 @@ class ClasspathElementDir extends ClasspathElement {
             return;
         }
         try {
-            fileToLastModified.put(path.toFile(), entry.getLastModifiedTimeMillis());
+            fileToLastModified.put(path.toFile(), entry.getLastModifiedMillis());
         } catch (final UnsupportedOperationException | SecurityException e) {
             // Ignore
         }

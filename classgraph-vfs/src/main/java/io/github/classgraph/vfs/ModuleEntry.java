@@ -97,7 +97,7 @@ final class ModuleEntry extends VfsEntry {
     }
 
     @Override
-    public long getLastModifiedTimeMillis() {
+    public long getLastModifiedMillis() {
         // A ModuleReader cannot report the modification time of a resource
         return 0L;
     }

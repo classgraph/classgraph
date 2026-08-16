@@ -175,7 +175,7 @@ public class ResourceListTest {
             resources.close();
 
             // Closing a resource releases its InputStream, but the resource can still be read again afterwards
-            assertThat(resources.get("a.txt").get(0).getContentAsString()).isEqualTo(contentOf("a.txt"));
+            assertThat(resources.get("a.txt").get(0).loadAsString()).isEqualTo(contentOf("a.txt"));
             resources.close();
         }
     }

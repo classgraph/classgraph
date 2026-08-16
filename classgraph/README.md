@@ -121,14 +121,14 @@ wasteful in production.
 try (ScanResult scanResult = new ClassGraph().acceptPaths("templates").scan()) {
     for (Resource resource : scanResult.getResourcesWithExtension("html")) {
         System.out.println(resource.getPath() + " in " + resource.getClasspathElementURI());
-        System.out.println(resource.getContentAsString());
+        System.out.println(resource.loadAsString());
     }
 }
 ```
 
 No `enableClassInfo()` here: resource scanning needs no classfile parsing at all, so leaving it off
 makes the scan much faster. Sibling methods are `getAllResources()`, `getResourcesWithPath(path)`,
-and `getResourcesMatchingWildcard(pattern)`. A `Resource` can be read with `getContentAsString()`,
+and `getResourcesMatchingWildcard(pattern)`. A `Resource` can be read with `loadAsString()`,
 `load()` (byte array), `open()` (stream), or `read()` (a `ByteBuffer` wrapped in a
 `CloseableByteBuffer` -- a memory mapping with no copy, where the resource can be mapped). It also
 has `getVfsEntry()`, which hands back the [`classgraph-vfs`](../classgraph-vfs) entry the resource is
