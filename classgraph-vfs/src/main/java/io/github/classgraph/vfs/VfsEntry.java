@@ -42,6 +42,7 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.util.Objects;
 import java.util.Set;
 
+import io.github.classgraph.base.internal.utils.Assert;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -283,6 +284,7 @@ public abstract class VfsEntry {
      *             if the entry is larger than the largest possible array.
      */
     public String loadAsString(final Charset charset) throws IOException {
+        Assert.notNull(charset, "charset");
         return new String(load(), charset);
     }
 

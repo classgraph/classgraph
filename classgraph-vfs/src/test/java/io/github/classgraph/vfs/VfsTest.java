@@ -1200,6 +1200,9 @@ public class VfsTest {
             final var root = vfs.open(jarFile.getPath());
             assertThatThrownBy(() -> root.getEntry(null)).isInstanceOf(NullPointerException.class);
             assertThatThrownBy(() -> vfs.open(tempDir).getEntry(null)).isInstanceOf(NullPointerException.class);
+
+            final var entry = Objects.requireNonNull(root.getEntry("com/xyz/widget.txt"));
+            assertThatThrownBy(() -> entry.loadAsString(null)).isInstanceOf(NullPointerException.class);
         }
     }
 }
