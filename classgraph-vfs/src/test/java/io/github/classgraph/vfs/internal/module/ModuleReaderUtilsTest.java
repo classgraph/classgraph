@@ -13,6 +13,7 @@ import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 
 import io.github.classgraph.base.LogNode;
@@ -216,5 +217,37 @@ public class ModuleReaderUtilsTest {
                 .isInstanceOf(IOException.class)
                 .hasMessage("Could not call ModuleReader#find(String) for path some/Resource.class")
                 .hasRootCauseMessage("Simulated failure");
+    }
+
+    /**
+     * The stream returned by {@link ModuleReader#list()} is closed once it has been read. For an exploded module,
+     * that stream walks a directory tree, and it is closing the stream that closes the directories it opened, so
+     * leaving it unclosed leaks a file handle per module.
+     *
+     * @throws IOException
+     *             if the module could not be listed
+     */
+    @Test
+    public void theStreamOfResourcePathsIsClosed() throws IOException {
+        final var streamClosed = new AtomicBoolean();
+        final var moduleReader = new ModuleReader() {
+            @Override
+            public Optional<URI> find(final String name) {
+                return Optional.empty();
+            }
+
+            @Override
+            public Stream<String> list() {
+                return Stream.of("some/Resource.class").onClose(() -> streamClosed.set(true));
+            }
+
+            @Override
+            public void close() {
+                // Nothing to close
+            }
+        };
+        assertThat(ModuleReaderUtils.list(moduleReader, "test.module", /* log = */ null))
+                .containsExactly("some/Resource.class");
+        assertThat(streamClosed).isTrue();
     }
 }

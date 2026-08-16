@@ -129,9 +129,13 @@ public final class ModuleReaderUtils {
             }
             return List.of();
         }
-        // N.B. the returned list must be mutable, since ClasspathElementModule sorts it in place (so
-        // Stream#toList() cannot be used here)
-        return resourcesStream.collect(Collectors.toCollection(ArrayList::new));
+        // The stream may hold an open directory of an exploded module, and it is closing the stream that closes
+        // the directory, so the stream has to be closed even though nothing is read from it afterwards
+        try (resourcesStream) {
+            // N.B. the returned list must be mutable, since ClasspathElementModule sorts it in place (so
+            // Stream#toList() cannot be used here)
+            return resourcesStream.collect(Collectors.toCollection(ArrayList::new));
+        }
     }
 
     /**
