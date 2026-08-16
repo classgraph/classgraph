@@ -1,7 +1,7 @@
 # classgraph-base
 
-The code shared by the other four ClassGraph libraries: path and URL handling, logging, reflection,
-classfile and manifest parsing, concurrency, memory management, and accept/reject matching.
+The code shared by the other four ClassGraph libraries: path and URL handling, the verbose log,
+accept/reject matching, reflection, interruption checking, and a few string and collection helpers.
 
 **There is almost nothing here to call.** This library is a dependency of
 [`classgraph-vfs`](../classgraph-vfs), [`classgraph-classpath`](../classgraph-classpath),
@@ -62,11 +62,12 @@ public API of whichever library it belongs to.
 
 | Package | Contents |
 | --- | --- |
-| `internal.concurrency` | The work queue that drives the parallel scan, and interruption handling |
-| `internal.parser` | Classfile constant pool, type signature and manifest parsing |
-| `internal.recycler` | Pooling of objects that are expensive to create and not thread safe, such as `Inflater` |
+| `internal.concurrency` | Interruption checking shared by the threads of a scan, and a map that builds each value exactly once however many threads ask for it at once |
+| `internal.filter` | The accept/reject criteria behind ClassGraph's package, class and jarfile filters |
+| `internal.log` | The implementation behind `ClassGraphLog` |
+| `internal.path` | Path and URL parsing, resolution and canonicalization, and the file checks that go with them |
 | `internal.reflection` | Reflection that degrades gracefully when the module system blocks it |
-| `internal.utils` | Path and URL resolution, file utilities, the log implementation, version lookup |
+| `internal.utils` | Argument checks, string and collection helpers, an `InputStream` wrapper, and version lookup for the JDK and for ClassGraph itself |
 
 ## License
 
