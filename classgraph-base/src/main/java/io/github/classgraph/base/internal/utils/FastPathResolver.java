@@ -29,6 +29,7 @@
 package io.github.classgraph.base.internal.utils;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 import java.util.regex.Pattern;
 
 import io.github.classgraph.base.internal.utils.VersionFinder.OperatingSystem;
@@ -352,7 +353,10 @@ public final class FastPathResolver {
                     matchedPrefix = true;
                     final var match = matcher.group();
                     parsed.startIdx += match.length();
-                    parsed.prefix += match;
+                    // A scheme is case-insensitive, and its canonical form is lowercase (RFC 3986 section 3.1), so
+                    // lowercase it, as the schemes that are recognized by name above are. The match is a scheme
+                    // followed by ':' and one or two slashes, so this changes nothing but the scheme
+                    parsed.prefix += match.toLowerCase(Locale.ROOT);
                     // Treat the part after the protocol as an absolute path, so the rest of the URL is not treated
                     // as a directory relative to the current directory.
                     parsed.isAbsolutePath = true;
