@@ -12,6 +12,15 @@
     "java.format.settings.url": ".eclipse/code-formatter-config.xml",
     "java.format.settings.profile": "ClassGraph",
 
+    // Stop the language server compiling in the background. The Maven importer takes the output directory
+    // straight from the POM, so the language server writes its class files into the same target/classes that
+    // Maven writes, and there is no setting that moves them elsewhere (java.project.outputPath has no effect
+    // on a Maven project). Maven puts a module's own target/classes first on its compile classpath, so a
+    // language server build that lands part-way through a Maven build makes javac read half-written classes
+    // and report errors that are not in the sources -- and could equally hide errors that are. The editor
+    // still reports problems in the files that are open, which is analysed in memory rather than built.
+    "java.autobuild.enabled": false,
+
     // Leave JDT's null analysis alone. On "automatic" the extension finds the JSpecify annotations on the
     // classpath and switches JDT's own null analysis on for every project, overriding the setting in the file
     // above -- and JDT has no JSpecify mode, so it then reports around 15,600 warnings that are not defects.
