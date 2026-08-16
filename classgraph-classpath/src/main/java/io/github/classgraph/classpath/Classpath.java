@@ -102,7 +102,7 @@ public class Classpath implements AutoCloseable, Iterable<ClasspathEntry> {
      */
     @Override
     public void close() {
-        vfs.close(/* logNode = */ null);
+        vfs.close();
     }
 
     /**

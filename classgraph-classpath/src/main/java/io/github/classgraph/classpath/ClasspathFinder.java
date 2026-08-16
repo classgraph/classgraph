@@ -341,7 +341,7 @@ public class ClasspathFinder {
             // The virtual filesystem owns the classpath elements that are opened to do that, and outlives this
             // method: the returned Classpath hands it to the caller, so that a classpath element that was opened
             // here is not opened a second time when the caller reads it.
-            final var vfs = new Vfs(vfsSpec, new InterruptionChecker(), /* log = */ null);
+            final var vfs = new Vfs(vfsSpec, new InterruptionChecker());
             var classpath = (Classpath) null;
             try {
                 final var expandedEntries = TransitiveClasspath.expand(classLoaderEntries, vfs, vfsSpec, log);

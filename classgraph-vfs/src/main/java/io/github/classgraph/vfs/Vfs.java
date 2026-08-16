@@ -117,7 +117,7 @@ public class Vfs implements AutoCloseable {
     /** The roots that have been opened from a {@link ModuleReference}, keyed by that module. */
     private final Map<ModuleReference, VfsRoot> rootsByModule = new ConcurrentHashMap<>();
 
-    /** The log node, or null if not logging. */
+    /** The log node that {@link #verbose()} turns on, or null if not logging. */
     private volatile @Nullable LogNode log;
 
     /** True once {@link #close()} has been called. */
@@ -127,7 +127,7 @@ public class Vfs implements AutoCloseable {
      * Constructor, using the default value of every option -- see {@link #Vfs(boolean, boolean, Collection, int)}.
      */
     public Vfs() {
-        this(new VfsSpec(), new InterruptionChecker(), /* log = */ null);
+        this(new VfsSpec(), new InterruptionChecker());
     }
 
     /**
@@ -163,7 +163,7 @@ public class Vfs implements AutoCloseable {
     public Vfs(final boolean enableNestedJars, final boolean enableMultiReleaseVersions,
             final @Nullable Collection<String> urlSchemes, final int maxBufferedJarRAMSize) {
         this(newVfsSpec(enableNestedJars, enableMultiReleaseVersions, urlSchemes, maxBufferedJarRAMSize),
-                new InterruptionChecker(), /* log = */ null);
+                new InterruptionChecker());
     }
 
     /**
@@ -200,24 +200,21 @@ public class Vfs implements AutoCloseable {
     /**
      * Constructor for the other ClassGraph modules, which configure the virtual filesystem through a
      * {@link VfsSpec} built from their own API rather than through the methods of this class, and which share an
-     * {@link InterruptionChecker} and a {@link LogNode} with the rest of a scan.
+     * {@link InterruptionChecker} with the rest of a scan.
      *
      * <p>
-     * The parameter types are in packages that are only exported to those modules, so this constructor cannot be
-     * called from anywhere else, and it is not part of the API.
+     * The parameter types are in packages that are only exported to those modules, so no other module can call this
+     * constructor, and it is not part of the API.
      *
      * @param vfsSpec
      *            everything the virtual filesystem is configured with.
      * @param interruptionChecker
      *            the interruption checker to share with the rest of the scan.
-     * @param log
-     *            the log node, or null to not log.
      * @hidden
      */
-    public Vfs(final VfsSpec vfsSpec, final InterruptionChecker interruptionChecker, final @Nullable LogNode log) {
+    public Vfs(final VfsSpec vfsSpec, final InterruptionChecker interruptionChecker) {
         // The settings are held by the handler, which is what reads with them
         this.nestedJarHandler = new NestedJarHandler(vfsSpec, interruptionChecker);
-        this.log = log;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -729,9 +726,13 @@ public class Vfs implements AutoCloseable {
     }
 
     /**
-     * Close this {@link Vfs}, logging to the given log node rather than to the one it was given. This is for the
-     * other ClassGraph modules, which nest what the virtual filesystem logs under the part of the scan log that it
-     * belongs to, and is not part of the API.
+     * Close this {@link Vfs}, logging to the given log node rather than to the one {@link #verbose()} turned on.
+     * This is for the other ClassGraph modules, which nest what the virtual filesystem logs under the part of the
+     * scan log that it belongs to, and is not part of the API.
+     *
+     * <p>
+     * Unlike {@link #close()}, this does not flush the log node afterwards, since the caller owns the log tree that
+     * it belongs to and flushes it when the whole of it has been written.
      *
      * @param logNode
      *            the log node, or null to not log.
