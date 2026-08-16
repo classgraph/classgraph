@@ -29,6 +29,7 @@
 package io.github.classgraph.vfs.internal.zip;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -138,7 +139,10 @@ public class LogicalZipFile extends ZipFileSlice {
      *             If the thread was interrupted.
      */
     private void parseManifest(final FastZipEntry manifestZipEntry) throws IOException, InterruptedException {
-        final var manifestMap = ManifestParser.parse(manifestZipEntry.getSlice().load());
+        final Map<String, String> manifestMap;
+        try (final InputStream manifestInputStream = manifestZipEntry.getSlice().open()) {
+            manifestMap = ManifestParser.parse(manifestInputStream);
+        }
         manifest = manifestMap;
 
         // A multi-release jar holds version-specific entries under "META-INF/versions/<version>/", and those
@@ -275,12 +279,23 @@ public class LogicalZipFile extends ZipFileSlice {
     @SuppressWarnings("resource")
     private long findEndOfCentralDirectoryPos(final RandomAccessReader reader, final VfsSession session)
             throws IOException, InterruptedException {
+        // The zipfile comment is arbitrary bytes, and the entry data before it is arbitrary bytes too, so a
+        // position that merely holds the EOCD signature is not necessarily the EOCD record. The real record is the
+        // one whose 22-byte header plus its declared comment length reaches exactly the end of the slice, so
+        // require that, and only fall back to the last signature in the slice if no record satisfies it
+        var fallbackEocdPos = -1L;
+
         // Scan for End Of Central Directory (EOCD) signature. Final comment can be up to 64kB in length, so need to
         // scan back that far to determine if this is a valid zipfile. However for speed, initially just try reading
         // back a maximum of 32 characters.
         for (long i = slice.sliceLength - 22, iMin = slice.sliceLength - 22 - 32; i >= iMin && i >= 0L; --i) {
             if (reader.readUnsignedInt(i) == 0x06054b50L) {
-                return i;
+                if (i + 22 + reader.readUnsignedShort(i + 20) == slice.sliceLength) {
+                    return i;
+                }
+                if (fallbackEocdPos < 0L) {
+                    fallbackEocdPos = i;
+                }
             }
         }
         if (slice.sliceLength > 22 + 32) {
@@ -300,10 +315,22 @@ public class LogicalZipFile extends ZipFileSlice {
                 final var eocdReader = arraySlice.randomAccessReader();
                 for (var i = eocdBytes.length - 22L; i >= 0L; --i) {
                     if (eocdReader.readUnsignedInt(i) == 0x06054b50L) {
-                        return i + readStartOff;
+                        final var eocdPos = i + readStartOff;
+                        if (eocdPos + 22 + eocdReader.readUnsignedShort(i + 20) == slice.sliceLength) {
+                            return eocdPos;
+                        }
+                        if (fallbackEocdPos < 0L) {
+                            fallbackEocdPos = eocdPos;
+                        }
                     }
                 }
             }
+        }
+        if (fallbackEocdPos >= 0L) {
+            // No record's comment length reached the end of the slice. Zipfiles do exist with data appended after
+            // the comment (a self-extracting archive, say), or with the wrong comment length recorded, and those
+            // still have to be readable, so fall back to the last EOCD signature in the slice
+            return fallbackEocdPos;
         }
         throw new IOException("Jarfile central directory signature not found: " + getPath());
     }

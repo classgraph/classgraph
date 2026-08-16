@@ -37,7 +37,6 @@ import java.nio.file.Path;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.Locale;
 import java.util.Map.Entry;
-import java.util.Objects;
 
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
@@ -82,11 +81,24 @@ public class NestedJarHandler implements AutoCloseable {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * A singleton map from a zipfile's {@link File} to the {@link PhysicalZipFile} for that file, used to ensure
-     * that the {@link RandomAccessFile} and {@link FileChannel} for any given zipfile is opened only once. Set to
-     * null by {@link #close(LogNode)}.
+     * Check that this handler is still open. The caches below are emptied by {@link #close(LogNode)}, so a lookup
+     * made after that would build and cache a fresh zipfile that nothing would ever close again.
+     *
+     * @throws IOException
+     *             if {@link #close(LogNode)} has been called.
      */
-    private @Nullable SingletonMap<File, PhysicalZipFile, IOException> //
+    private void checkNotClosed() throws IOException {
+        if (session.isClosed()) {
+            throw new IOException("The Vfs has been closed");
+        }
+    }
+
+    /**
+     * A singleton map from a zipfile's {@link File} to the {@link PhysicalZipFile} for that file, used to ensure
+     * that the {@link RandomAccessFile} and {@link FileChannel} for any given zipfile is opened only once. Emptied
+     * by {@link #close(LogNode)}.
+     */
+    private final SingletonMap<File, PhysicalZipFile, IOException> //
     canonicalFileToPhysicalZipFileMap = new SingletonMap<>() {
         @Override
         public PhysicalZipFile newInstance(final File canonicalFile, final @Nullable LogNode log)
@@ -99,19 +111,21 @@ public class NestedJarHandler implements AutoCloseable {
      * Get the map from canonical {@link File} to {@link PhysicalZipFile}.
      *
      * @return the map
-     * @throws NullPointerException
+     * @throws IOException
      *             if {@link #close(LogNode)} has been called
      */
-    private SingletonMap<File, PhysicalZipFile, IOException> canonicalFileToPhysicalZipFileMap() {
-        return Objects.requireNonNull(canonicalFileToPhysicalZipFileMap);
+    private SingletonMap<File, PhysicalZipFile, IOException> canonicalFileToPhysicalZipFileMap()
+            throws IOException {
+        checkNotClosed();
+        return canonicalFileToPhysicalZipFileMap;
     }
 
     /**
      * A singleton map from a zipfile's {@link Path} to the {@link PhysicalZipFile} for that path, used to ensure
      * that a zipfile in a filesystem that has no {@link File} representation, such as a zipfile within a zipfile
-     * mounted as a filesystem, is opened only once. Set to null by {@link #close(LogNode)}.
+     * mounted as a filesystem, is opened only once. Emptied by {@link #close(LogNode)}.
      */
-    private @Nullable SingletonMap<Path, PhysicalZipFile, IOException> //
+    private final SingletonMap<Path, PhysicalZipFile, IOException> //
     pathToPhysicalZipFileMap = new SingletonMap<>() {
         @Override
         public PhysicalZipFile newInstance(final Path path, final @Nullable LogNode log) throws IOException {
@@ -123,19 +137,20 @@ public class NestedJarHandler implements AutoCloseable {
      * Get the map from {@link Path} to {@link PhysicalZipFile}.
      *
      * @return the map
-     * @throws NullPointerException
+     * @throws IOException
      *             if {@link #close(LogNode)} has been called
      */
-    private SingletonMap<Path, PhysicalZipFile, IOException> pathToPhysicalZipFileMap() {
-        return Objects.requireNonNull(pathToPhysicalZipFileMap);
+    private SingletonMap<Path, PhysicalZipFile, IOException> pathToPhysicalZipFileMap() throws IOException {
+        checkNotClosed();
+        return pathToPhysicalZipFileMap;
     }
 
     /**
      * A singleton map from a {@link FastZipEntry} to the {@link ZipFileSlice} wrapping either the zip entry data,
      * if the entry is stored, or a ByteBuffer, if the zip entry was inflated to memory, or a physical file on disk
-     * if the zip entry was inflated to a temporary file. Set to null by {@link #close(LogNode)}.
+     * if the zip entry was inflated to a temporary file. Emptied by {@link #close(LogNode)}.
      */
-    private @Nullable SingletonMap<FastZipEntry, ZipFileSlice, IOException> //
+    private final SingletonMap<FastZipEntry, ZipFileSlice, IOException> //
     fastZipEntryToZipFileSliceMap = new SingletonMap<>() {
         @Override
         public ZipFileSlice newInstance(final FastZipEntry childZipEntry, final @Nullable LogNode log)
@@ -155,13 +170,17 @@ public class NestedJarHandler implements AutoCloseable {
                             + childZipEntry.uncompressedSize);
                 }
 
-                // Read the InputStream for the child zip entry to a RAM buffer, or spill to disk if it's too large
-                final PhysicalZipFile physicalZipFile = new PhysicalZipFile(childZipEntry.getSlice().open(),
-                        childZipEntry.uncompressedSize >= 0L
-                                && childZipEntry.uncompressedSize <= Slice.MAX_BUFFER_SIZE
-                                        ? (int) childZipEntry.uncompressedSize
-                                        : -1,
-                        childZipEntry.entryName, session, log);
+                // Read the InputStream for the child zip entry to a RAM buffer, or spill to disk if it's too large.
+                // (The stream is opened here, so it is closed here -- PhysicalZipFile does not close what it reads.)
+                final PhysicalZipFile physicalZipFile;
+                try (InputStream childZipEntryInputStream = childZipEntry.getSlice().open()) {
+                    physicalZipFile = new PhysicalZipFile(childZipEntryInputStream,
+                            childZipEntry.uncompressedSize >= 0L
+                                    && childZipEntry.uncompressedSize <= Slice.MAX_BUFFER_SIZE
+                                            ? (int) childZipEntry.uncompressedSize
+                                            : -1,
+                            childZipEntry.entryName, session, log);
+                }
 
                 // Create a new logical slice of the extracted inner zipfile
                 childZipEntrySlice = new ZipFileSlice(physicalZipFile, childZipEntry);
@@ -174,18 +193,20 @@ public class NestedJarHandler implements AutoCloseable {
      * Get the map from {@link FastZipEntry} to {@link ZipFileSlice}.
      *
      * @return the map
-     * @throws NullPointerException
+     * @throws IOException
      *             if {@link #close(LogNode)} has been called
      */
-    private SingletonMap<FastZipEntry, ZipFileSlice, IOException> fastZipEntryToZipFileSliceMap() {
-        return Objects.requireNonNull(fastZipEntryToZipFileSliceMap);
+    private SingletonMap<FastZipEntry, ZipFileSlice, IOException> fastZipEntryToZipFileSliceMap()
+            throws IOException {
+        checkNotClosed();
+        return fastZipEntryToZipFileSliceMap;
     }
 
     /**
-     * A singleton map from a {@link ZipFileSlice} to the {@link LogicalZipFile} for that slice. Set to null by
+     * A singleton map from a {@link ZipFileSlice} to the {@link LogicalZipFile} for that slice. Emptied by
      * {@link #close(LogNode)}.
      */
-    private @Nullable SingletonMap<ZipFileSlice, LogicalZipFile, IOException> //
+    private final SingletonMap<ZipFileSlice, LogicalZipFile, IOException> //
     zipFileSliceToLogicalZipFileMap = new SingletonMap<>() {
         @Override
         public LogicalZipFile newInstance(final ZipFileSlice zipFileSlice, final @Nullable LogNode log)
@@ -199,18 +220,20 @@ public class NestedJarHandler implements AutoCloseable {
      * Get the map from {@link ZipFileSlice} to {@link LogicalZipFile}.
      *
      * @return the map
-     * @throws NullPointerException
+     * @throws IOException
      *             if {@link #close(LogNode)} has been called
      */
-    private SingletonMap<ZipFileSlice, LogicalZipFile, IOException> zipFileSliceToLogicalZipFileMap() {
-        return Objects.requireNonNull(zipFileSliceToLogicalZipFileMap);
+    private SingletonMap<ZipFileSlice, LogicalZipFile, IOException> zipFileSliceToLogicalZipFileMap()
+            throws IOException {
+        checkNotClosed();
+        return zipFileSliceToLogicalZipFileMap;
     }
 
     /**
      * A singleton map from nested jarfile path to a tuple of the logical zipfile for the path, and the package root
-     * within the logical zipfile. Set to null by {@link #close(LogNode)}.
+     * within the logical zipfile. Emptied by {@link #close(LogNode)}.
      */
-    private @Nullable SingletonMap<String, Entry<LogicalZipFile, String>, IOException> //
+    private final SingletonMap<String, Entry<LogicalZipFile, String>, IOException> //
     nestedPathToLogicalZipFileAndPackageRootMap = new SingletonMap<>() {
         @Override
         public Entry<LogicalZipFile, String> newInstance(final String nestedJarPathRaw, final @Nullable LogNode log)
@@ -229,12 +252,13 @@ public class NestedJarHandler implements AutoCloseable {
      * zipfile.
      *
      * @return the map
-     * @throws NullPointerException
+     * @throws IOException
      *             if {@link #close(LogNode)} has been called
      */
     public SingletonMap<String, Entry<LogicalZipFile, String>, IOException> //
-            nestedPathToLogicalZipFileAndPackageRootMap() {
-        return Objects.requireNonNull(nestedPathToLogicalZipFileAndPackageRootMap);
+            nestedPathToLogicalZipFileAndPackageRootMap() throws IOException {
+        checkNotClosed();
+        return nestedPathToLogicalZipFileAndPackageRootMap;
     }
 
     /**
@@ -560,33 +584,13 @@ public class NestedJarHandler implements AutoCloseable {
      */
     public void close(final @Nullable LogNode log) {
         if (session.beginClose()) {
-            // Drop the zipfile caches first, so that nothing can hand out a slice of a zipfile that is about to be
-            // closed, then close the resources the caches were backed by
-            final var logicalZipFileMap = zipFileSliceToLogicalZipFileMap;
-            if (logicalZipFileMap != null) {
-                logicalZipFileMap.clear();
-                zipFileSliceToLogicalZipFileMap = null;
-            }
-            final var nestedPathMap = nestedPathToLogicalZipFileAndPackageRootMap;
-            if (nestedPathMap != null) {
-                nestedPathMap.clear();
-                nestedPathToLogicalZipFileAndPackageRootMap = null;
-            }
-            final var physicalZipFileMap = canonicalFileToPhysicalZipFileMap;
-            if (physicalZipFileMap != null) {
-                physicalZipFileMap.clear();
-                canonicalFileToPhysicalZipFileMap = null;
-            }
-            final var pathPhysicalZipFileMap = pathToPhysicalZipFileMap;
-            if (pathPhysicalZipFileMap != null) {
-                pathPhysicalZipFileMap.clear();
-                pathToPhysicalZipFileMap = null;
-            }
-            final var zipFileSliceMap = fastZipEntryToZipFileSliceMap;
-            if (zipFileSliceMap != null) {
-                zipFileSliceMap.clear();
-                fastZipEntryToZipFileSliceMap = null;
-            }
+            // beginClose() already made checkNotClosed() throw, so nothing can hand out a slice of a zipfile that
+            // is about to be closed. Drop the zipfile caches, then close the resources they were backed by
+            zipFileSliceToLogicalZipFileMap.clear();
+            nestedPathToLogicalZipFileAndPackageRootMap.clear();
+            canonicalFileToPhysicalZipFileMap.clear();
+            pathToPhysicalZipFileMap.clear();
+            fastZipEntryToZipFileSliceMap.clear();
             // Close the module readers, the open slices and the inflater recycler, then delete the temporary files
             session.close(log);
         }

@@ -29,7 +29,10 @@
 package io.github.classgraph.vfs.internal;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
 import java.util.TreeMap;
@@ -44,9 +47,96 @@ import java.util.TreeMap;
  * that is read for every jarfile on the classpath.
  */
 public final class ManifestParser {
+    /**
+     * The largest main section {@link #parse(InputStream)} will read, in bytes.
+     *
+     * <p>
+     * The main section describes the jarfile as a whole, so it is short: across the 6857 jarfiles of a large local
+     * Maven repository plus a JDK installation, the median is 371 bytes and the largest is 91kB. This limit is
+     * therefore more than an order of magnitude above anything a build tool produces, while still bounding the
+     * amount of memory a jarfile can cause to be allocated simply by being opened -- a manifest is deflated, so
+     * without a limit a small jarfile can inflate to an arbitrarily large one.
+     */
+    private static final int MAX_MAIN_SECTION_SIZE = 2 * 1024 * 1024;
+
+    /** The initial size of the buffer the main section is read into. */
+    private static final int INITIAL_BUFFER_SIZE = 1024;
+
     /** Not instantiable. */
     private ManifestParser() {
         // Cannot be constructed
+    }
+
+    /**
+     * Parses the main section of a manifest, reading only as far into the manifest as the main section extends.
+     *
+     * <p>
+     * The per-entry sections that follow the main section are not read at all. They are not parsed in any case (see
+     * {@link #parse(byte[])}), and in a signed jarfile they hold a digest of every entry, which makes them orders
+     * of magnitude larger than the main section.
+     *
+     * @param manifestInputStream
+     *            the manifest file. Not closed by this method.
+     * @return an immutable map from attribute name to attribute value. Manifest attribute names are case
+     *         insensitive, so the returned map is too.
+     * @throws IOException
+     *             if the manifest could not be read, or if its main section is larger than
+     *             {@value #MAX_MAIN_SECTION_SIZE} bytes.
+     */
+    public static Map<String, String> parse(final InputStream manifestInputStream) throws IOException {
+        return parse(readMainSection(manifestInputStream));
+    }
+
+    /**
+     * Reads the bytes of the main section of a manifest, i.e. everything up to the first blank line, stopping as
+     * soon as that line is reached.
+     *
+     * @param manifestInputStream
+     *            the manifest file. Not closed by this method.
+     * @return the bytes of the main section, without the blank line that ends it.
+     * @throws IOException
+     *             if the manifest could not be read, or if its main section is larger than
+     *             {@value #MAX_MAIN_SECTION_SIZE} bytes.
+     */
+    private static byte[] readMainSection(final InputStream manifestInputStream) throws IOException {
+        var buf = new byte[INITIAL_BUFFER_SIZE];
+        var numBytesRead = 0;
+        // The index of the start of the line the scan below has reached, and the index the scan has reached
+        var lineStartIdx = 0;
+        var scanIdx = 0;
+        for (;;) {
+            if (numBytesRead == buf.length) {
+                if (buf.length == MAX_MAIN_SECTION_SIZE) {
+                    throw new IOException(
+                            "Manifest main section is larger than " + MAX_MAIN_SECTION_SIZE + " bytes");
+                }
+                buf = Arrays.copyOf(buf, (int) Math.min(buf.length * 2L, MAX_MAIN_SECTION_SIZE));
+            }
+            final var numBytes = manifestInputStream.read(buf, numBytesRead, buf.length - numBytesRead);
+            final var atEndOfStream = numBytes < 0;
+            if (!atEndOfStream) {
+                numBytesRead += numBytes;
+            }
+            // A CR at the end of what has been read so far may turn out to be the first byte of a CRLF, so leave it
+            // to the next read rather than scanning it as a line terminator in its own right
+            final var scanEndIdx = !atEndOfStream && numBytesRead > 0 && buf[numBytesRead - 1] == (byte) '\r'
+                    ? numBytesRead - 1
+                    : numBytesRead;
+            while (scanIdx < scanEndIdx) {
+                if (!isLineTerminator(buf[scanIdx])) {
+                    scanIdx++;
+                } else if (scanIdx == lineStartIdx) {
+                    // A blank line ends the main section
+                    return Arrays.copyOf(buf, scanIdx);
+                } else {
+                    scanIdx = lineStartIdx = skipLineTerminator(buf, scanIdx, numBytesRead);
+                }
+            }
+            if (atEndOfStream) {
+                // The manifest has no blank line, so the whole of it is the main section
+                return numBytesRead == buf.length ? buf : Arrays.copyOf(buf, numBytesRead);
+            }
+        }
     }
 
     /**
@@ -172,9 +262,24 @@ public final class ManifestParser {
      * @return the index of the start of the next line.
      */
     private static int skipLineTerminator(final byte[] manifest, final int idx) {
-        if (idx >= manifest.length) {
-            return manifest.length;
-        } else if (manifest[idx] == (byte) '\r' && idx + 1 < manifest.length && manifest[idx + 1] == (byte) '\n') {
+        return skipLineTerminator(manifest, idx, manifest.length);
+    }
+
+    /**
+     * Skips the line terminator at an index, if there is one, within the first {@code len} bytes of an array.
+     *
+     * @param manifest
+     *            the bytes of the manifest file, which may be longer than the manifest itself.
+     * @param idx
+     *            the index of the line terminator, or {@code len} if the last line was not terminated.
+     * @param len
+     *            the number of bytes of the array that hold the manifest.
+     * @return the index of the start of the next line.
+     */
+    private static int skipLineTerminator(final byte[] manifest, final int idx, final int len) {
+        if (idx >= len) {
+            return len;
+        } else if (manifest[idx] == (byte) '\r' && idx + 1 < len && manifest[idx + 1] == (byte) '\n') {
             return idx + 2;
         } else {
             return idx + 1;

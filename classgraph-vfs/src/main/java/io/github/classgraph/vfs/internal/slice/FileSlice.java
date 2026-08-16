@@ -154,7 +154,7 @@ public final class FileSlice extends Slice {
         }
 
         // Mark toplevel slice as open
-        session.markSliceAsOpen(this);
+        registerAsOpen();
     }
 
     /**

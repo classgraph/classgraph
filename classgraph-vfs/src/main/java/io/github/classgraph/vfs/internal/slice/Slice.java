@@ -159,7 +159,8 @@ public abstract class Slice implements AutoCloseable {
      * if the content is too large to buffer in RAM.
      *
      * @param inputStream
-     *            the {@link InputStream} to read from.
+     *            the {@link InputStream} to read from. Read to its end, but not closed: whoever opened the stream
+     *            owns it, and one of the callers of this method is handed its stream by the user of the API.
      * @param tempFileBaseName
      *            the source URL or zip entry that inputStream was opened from (used to name the temporary file, if
      *            one is needed).
@@ -178,54 +179,52 @@ public abstract class Slice implements AutoCloseable {
             final long inputStreamLengthHint, final VfsSession session, final @Nullable LogNode log)
             throws IOException {
         final var maxBufferedJarRAMSize = session.vfsSpec.getMaxBufferedJarRAMSize();
-        try (inputStream) {
-            if (inputStreamLengthHint <= maxBufferedJarRAMSize) {
-                // inputStreamLengthHint is unknown (-1) or shorter than maxBufferedJarRAMSize, so try
-                // reading from the InputStream into an array of size maxBufferedJarRAMSize or
-                // inputStreamLengthHint respectively. Also if inputStreamLengthHint == 0, which may or may not be
-                // valid, use a buffer size of 16kB to avoid spilling to disk in case this is wrong but the file is
-                // still small.
-                final var bufSize = inputStreamLengthHint == -1L ? maxBufferedJarRAMSize
-                        : inputStreamLengthHint == 0L ? 16384
-                                : Math.min((int) inputStreamLengthHint, maxBufferedJarRAMSize);
-                var buf = new byte[bufSize];
-                final var bufLength = buf.length;
+        if (inputStreamLengthHint <= maxBufferedJarRAMSize) {
+            // inputStreamLengthHint is unknown (-1) or shorter than maxBufferedJarRAMSize, so try
+            // reading from the InputStream into an array of size maxBufferedJarRAMSize or
+            // inputStreamLengthHint respectively. Also if inputStreamLengthHint == 0, which may or may not be
+            // valid, use a buffer size of 16kB to avoid spilling to disk in case this is wrong but the file is
+            // still small.
+            final var bufSize = inputStreamLengthHint == -1L ? maxBufferedJarRAMSize
+                    : inputStreamLengthHint == 0L ? 16384
+                            : Math.min((int) inputStreamLengthHint, maxBufferedJarRAMSize);
+            var buf = new byte[bufSize];
+            final var bufLength = buf.length;
 
-                var bufBytesUsed = 0;
-                var bytesRead = 0;
-                while ((bytesRead = inputStream.read(buf, bufBytesUsed, bufLength - bufBytesUsed)) > 0) {
-                    // Fill buffer until nothing more can be read
-                    bufBytesUsed += bytesRead;
-                }
-                if (bytesRead == 0) {
-                    // If bytesRead was zero rather than -1, we need to probe the InputStream (by reading one more
-                    // byte) to see if inputStreamHint underestimated the actual length of the stream. (The probe is
-                    // the single-byte InputStream#read, which returns either a byte value or -1 for the end of the
-                    // stream -- a probe through InputStream#read(byte[], int, int) could return zero, which is what
-                    // made the probe necessary in the first place, and the stream would be truncated here.)
-                    final var overflowByte = inputStream.read();
-                    if (overflowByte != -1) {
-                        // We were able to read one more byte, so we're still not at the end of the stream, and we
-                        // need to spill to disk, because buf is full
-                        return spillToDisk(inputStream, tempFileBaseName, buf, bufBytesUsed,
-                                new byte[] { (byte) overflowByte }, session, log);
-                    }
-                    // else reached the end of the stream => don't spill to disk
-                }
-                // Successfully reached end of stream
-                if (bufBytesUsed < buf.length) {
-                    // Trim array if needed (this is needed if inputStreamLengthHint was -1, or overestimated the
-                    // length of the InputStream)
-                    buf = Arrays.copyOf(buf, bufBytesUsed);
-                }
-                // Return buf as new ArraySlice
-                return new ArraySlice(buf, /* isDeflatedZipEntry = */ false, /* inflatedSizeHint = */ 0L, session);
-
+            var bufBytesUsed = 0;
+            var bytesRead = 0;
+            while ((bytesRead = inputStream.read(buf, bufBytesUsed, bufLength - bufBytesUsed)) > 0) {
+                // Fill buffer until nothing more can be read
+                bufBytesUsed += bytesRead;
             }
-            // inputStreamLengthHint is longer than maxBufferedJarRAMSize, so immediately spill to disk
-            return spillToDisk(inputStream, tempFileBaseName, /* buf = */ null, /* bufBytesUsed = */ 0,
-                    /* overflowBuf = */ null, session, log);
+            if (bytesRead == 0) {
+                // If bytesRead was zero rather than -1, we need to probe the InputStream (by reading one more
+                // byte) to see if inputStreamHint underestimated the actual length of the stream. (The probe is
+                // the single-byte InputStream#read, which returns either a byte value or -1 for the end of the
+                // stream -- a probe through InputStream#read(byte[], int, int) could return zero, which is what
+                // made the probe necessary in the first place, and the stream would be truncated here.)
+                final var overflowByte = inputStream.read();
+                if (overflowByte != -1) {
+                    // We were able to read one more byte, so we're still not at the end of the stream, and we
+                    // need to spill to disk, because buf is full
+                    return spillToDisk(inputStream, tempFileBaseName, buf, bufBytesUsed,
+                            new byte[] { (byte) overflowByte }, session, log);
+                }
+                // else reached the end of the stream => don't spill to disk
+            }
+            // Successfully reached end of stream
+            if (bufBytesUsed < buf.length) {
+                // Trim array if needed (this is needed if inputStreamLengthHint was -1, or overestimated the
+                // length of the InputStream)
+                buf = Arrays.copyOf(buf, bufBytesUsed);
+            }
+            // Return buf as new ArraySlice
+            return new ArraySlice(buf, /* isDeflatedZipEntry = */ false, /* inflatedSizeHint = */ 0L, session);
+
         }
+        // inputStreamLengthHint is longer than maxBufferedJarRAMSize, so immediately spill to disk
+        return spillToDisk(inputStream, tempFileBaseName, /* buf = */ null, /* bufBytesUsed = */ 0,
+                /* overflowBuf = */ null, session, log);
     }
 
     /**
@@ -430,6 +429,29 @@ public abstract class Slice implements AutoCloseable {
      */
     public ByteBuffer read() throws IOException {
         return ByteBuffer.wrap(load()).asReadOnlyBuffer();
+    }
+
+    /**
+     * Register this slice with its session, so that the session closes it when the session is closed. Call this as
+     * the last statement of the constructor of a toplevel slice, once every field it needs to close itself has been
+     * assigned. If the session has already been closed, this slice is closed again immediately and the session's
+     * {@link IOException} is propagated, since the session teardown has already passed this slice by, so nothing
+     * else would ever release the file handle or memory mapping that the constructor just took.
+     *
+     * @throws IOException
+     *             if the session has already been closed.
+     */
+    protected final void registerAsOpen() throws IOException {
+        try {
+            session.markSliceAsOpen(this);
+        } catch (final IOException e) {
+            try {
+                close();
+            } catch (final IOException e2) {
+                e.addSuppressed(e2);
+            }
+            throw e;
+        }
     }
 
     @Override

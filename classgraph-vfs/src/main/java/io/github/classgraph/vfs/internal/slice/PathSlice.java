@@ -166,7 +166,7 @@ public final class PathSlice extends Slice {
         }
 
         // Mark toplevel slice as open
-        session.markSliceAsOpen(this);
+        registerAsOpen();
     }
 
     /**

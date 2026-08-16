@@ -30,6 +30,7 @@ package io.github.classgraph.vfs;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.lang.module.ModuleReference;
 import java.net.MalformedURLException;
@@ -673,7 +674,12 @@ public abstract class VfsRoot implements AutoCloseable, Iterable<VfsEntry> {
         if (manifestEntry == null && searchesForACaseFoldedManifest()) {
             manifestEntry = getEntryCaseInsensitive(MANIFEST_PATH);
         }
-        return manifestEntry == null ? null : ManifestParser.parse(manifestEntry.load());
+        if (manifestEntry == null) {
+            return null;
+        }
+        try (final InputStream manifestInputStream = manifestEntry.open()) {
+            return ManifestParser.parse(manifestInputStream);
+        }
     }
 
     /**

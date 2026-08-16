@@ -3,6 +3,7 @@ package io.github.classgraph.vfs.internal;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -180,5 +181,117 @@ public class ManifestParserTest {
         final var attributes = parse("Manifest-Version: 1.0\r\n\r\n");
         assertThatExceptionOfType(UnsupportedOperationException.class)
                 .isThrownBy(() -> attributes.put("Main-Class", "com.xyz.Main"));
+    }
+
+    // -----------------------------------------------------------------------------------------------------------
+    // Reading a manifest from an InputStream
+
+    /**
+     * An {@link InputStream} over a byte array that hands out at most a fixed number of bytes per read, and counts
+     * how many bytes were read from it in total.
+     */
+    private static final class ChunkedInputStream extends ByteArrayInputStream {
+        /** The maximum number of bytes to return from a single call to {@link #read(byte[], int, int)}. */
+        private final int chunkSize;
+
+        /** The number of bytes read from this stream so far. */
+        int numBytesRead;
+
+        ChunkedInputStream(final byte[] bytes, final int chunkSize) {
+            super(bytes);
+            this.chunkSize = chunkSize;
+        }
+
+        @Override
+        public synchronized int read(final byte[] dstBuf, final int off, final int len) {
+            final var numBytes = super.read(dstBuf, off, Math.min(len, chunkSize));
+            if (numBytes > 0) {
+                numBytesRead += numBytes;
+            }
+            return numBytes;
+        }
+    }
+
+    /**
+     * Parse a manifest written as text, reading it from an {@link InputStream} that hands out at most
+     * {@code chunkSize} bytes per read.
+     *
+     * @param manifest
+     *            the text of the manifest.
+     * @param chunkSize
+     *            the maximum number of bytes to return from a single read.
+     * @return the attributes of its main section.
+     * @throws IOException
+     *             if the manifest could not be read.
+     */
+    private static Map<String, String> parseStream(final String manifest, final int chunkSize) throws IOException {
+        return ManifestParser.parse(new ChunkedInputStream(manifest.getBytes(StandardCharsets.UTF_8), chunkSize));
+    }
+
+    /**
+     * Reading a manifest from a stream gives the same attributes as reading it from a byte array, whatever line
+     * terminator it uses, and however few bytes each read of the stream returns. Reading a byte at a time splits
+     * every CRLF across two reads, so a CR that arrives at the end of one read must not be taken for a line
+     * terminator in its own right.
+     */
+    @Test
+    public void aStreamIsParsedTheSameWayAsAByteArray() throws IOException {
+        for (final String eol : new String[] { "\r\n", "\n", "\r" }) {
+            final var manifest = "Manifest-Version: 1.0" + eol //
+                    + "Multi-Release: true" + eol //
+                    + "Main-Class: com.xyz.Main" + eol //
+                    + eol //
+                    + "Name: com/xyz/Widget.class" + eol //
+                    + "SHA-256-Digest: 0000" + eol;
+            final var expected = Map.of("Manifest-Version", "1.0", "Multi-Release", "true", "Main-Class",
+                    "com.xyz.Main");
+            assertThat(parse(manifest)).containsExactlyInAnyOrderEntriesOf(expected);
+            for (final int chunkSize : new int[] { 1, 2, 3, 7, 64, 8192 }) {
+                assertThat(parseStream(manifest, chunkSize)).as("eol %s, chunk size %d", eol.length(), chunkSize)
+                        .containsExactlyInAnyOrderEntriesOf(expected);
+            }
+        }
+    }
+
+    /**
+     * Only the main section is read from the stream. The per-entry sections of a signed jarfile hold a digest of
+     * every entry, so they are orders of magnitude larger than the main section, and reading them would mean
+     * inflating the whole manifest just to throw it away.
+     */
+    @Test
+    public void thePerEntrySectionsAreNotRead() throws IOException {
+        final var mainSection = "Manifest-Version: 1.0\r\nMulti-Release: true\r\n\r\n";
+        final var perEntrySections = "Name: com/xyz/Widget.class\r\nSHA-256-Digest: 0000\r\n\r\n".repeat(10_000);
+        final var manifestBytes = (mainSection + perEntrySections).getBytes(StandardCharsets.UTF_8);
+        final var inputStream = new ChunkedInputStream(manifestBytes, 8192);
+        assertThat(ManifestParser.parse(inputStream)).containsEntry("Multi-Release", "true");
+        // The blank line that ends the main section lands in the first read, so nothing beyond that read is needed
+        assertThat(inputStream.numBytesRead).isLessThanOrEqualTo(8192);
+        assertThat(manifestBytes.length).isGreaterThan(500_000);
+    }
+
+    /**
+     * A manifest whose main section is larger than the limit is rejected, rather than inflated into the heap. A
+     * manifest is a deflated zipfile entry, so without a limit a small jarfile could allocate an arbitrarily large
+     * amount of memory simply by being opened.
+     */
+    @Test
+    public void anOversizedMainSectionIsRejected() {
+        final var hugeMainSection = "Manifest-Version: 1.0\r\n"
+                + "Bloat: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\r\n".repeat(50_000);
+        assertThat(hugeMainSection.length()).isGreaterThan(2 * 1024 * 1024);
+        assertThatExceptionOfType(IOException.class).isThrownBy(() -> parseStream(hugeMainSection, 8192))
+                .withMessageContaining("main section is larger than");
+    }
+
+    /** A main section that reaches the end of the stream without a blank line after it is still read in full. */
+    @Test
+    public void aStreamThatEndsWithoutABlankLineIsRead() throws IOException {
+        for (final int chunkSize : new int[] { 1, 2, 8192 }) {
+            assertThat(parseStream("Manifest-Version: 1.0\r\nMain-Class: com.xyz.Main", chunkSize))
+                    .containsEntry("Main-Class", "com.xyz.Main");
+            assertThat(parseStream("", chunkSize)).isEmpty();
+            assertThat(parseStream("\r\nName: com/xyz/Widget.class\r\n", chunkSize)).isEmpty();
+        }
     }
 }

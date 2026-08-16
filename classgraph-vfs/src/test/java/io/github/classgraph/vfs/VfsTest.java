@@ -21,6 +21,7 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.CRC32;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -805,6 +806,63 @@ public class VfsTest {
                 assertThat(fromStream).isNotSameAs(vfs.open(jarBytes, "streamed.jar"));
             }
         }
+    }
+
+    /**
+     * The caller keeps ownership of a stream it hands to {@link Vfs#open(InputStream, String)}. The stream is read
+     * to its end, but closing it is the caller's business: the caller may have opened it from something it still
+     * needs, and closing another object's stream out from under it is not the {@link Vfs}'s decision to make.
+     */
+    @Test
+    public void readingAJarfileFromAStreamDoesNotCloseTheStream(@TempDir final File tempDir) throws IOException {
+        final var jarFile = new File(tempDir, "widget.jar");
+        writeJar(jarFile, "com/xyz/widget.txt");
+        final var jarBytes = readFile(jarFile);
+
+        // A stream that records whether it was closed
+        final var closed = new AtomicBoolean();
+        final var inputStream = new ByteArrayInputStream(jarBytes) {
+            @Override
+            public void close() throws IOException {
+                closed.set(true);
+                super.close();
+            }
+        };
+        try (var vfs = new Vfs()) {
+            final var root = vfs.open(inputStream, "streamed.jar");
+            assertThat(entryContent(root, "com/xyz/widget.txt")).isEqualTo(RESOURCE_CONTENT);
+            assertThat(closed).isFalse();
+        }
+        // Closing the Vfs does not close it either -- the Vfs never owned it
+        assertThat(closed).isFalse();
+    }
+
+    /**
+     * A jarfile read from a stream that is larger than the maximum buffered jar RAM size is spilled to a temporary
+     * file, which is a second path through the stream reader, and it must not close the stream either.
+     */
+    @Test
+    public void readingALargeJarfileFromAStreamDoesNotCloseTheStream(@TempDir final File tempDir)
+            throws IOException {
+        final var jarFile = new File(tempDir, "widget.jar");
+        writeJar(jarFile, "com/xyz/widget.txt");
+        final var jarBytes = readFile(jarFile);
+
+        final var closed = new AtomicBoolean();
+        final var inputStream = new ByteArrayInputStream(jarBytes) {
+            @Override
+            public void close() throws IOException {
+                closed.set(true);
+                super.close();
+            }
+        };
+        // A maximum buffered jar RAM size of zero forces the stream to spill to a temporary file
+        try (var vfs = new Vfs(new VfsSpec().setMaxBufferedJarRAMSize(0))) {
+            final var root = vfs.open(inputStream, "streamed.jar");
+            assertThat(entryContent(root, "com/xyz/widget.txt")).isEqualTo(RESOURCE_CONTENT);
+            assertThat(closed).isFalse();
+        }
+        assertThat(closed).isFalse();
     }
 
     /** A module of the running JDK is read through its ModuleReference. */

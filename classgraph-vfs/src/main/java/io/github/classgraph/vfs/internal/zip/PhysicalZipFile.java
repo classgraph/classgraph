@@ -102,7 +102,7 @@ class PhysicalZipFile {
      * disk if the {@link InputStream} is too long.
      *
      * @param inputStream
-     *            the input stream
+     *            the input stream. Read to its end, but not closed -- the caller retains ownership of it.
      * @param inputStreamLengthHint
      *            The number of bytes to read in inputStream, or -1 if unknown.
      * @param pathStr

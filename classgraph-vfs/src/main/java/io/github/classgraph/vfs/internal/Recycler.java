@@ -51,6 +51,12 @@ public abstract class Recycler<T, E extends Exception> implements AutoCloseable 
     /** Instances that have been allocated but are unused. */
     private final Queue<T> unusedInstances = new ConcurrentLinkedQueue<>();
 
+    /**
+     * True once {@link #forceClose()} has been called. Unlike {@link #close()}, a force-close is terminal: the pool
+     * is gone for good, so an instance handed back afterwards is closed rather than pooled.
+     */
+    private volatile boolean forceClosed;
+
     /** Constructor. */
     public Recycler() {
     }
@@ -109,6 +115,11 @@ public abstract class Recycler<T, E extends Exception> implements AutoCloseable 
      * Recycle an object for reuse by a subsequent call to {@link #acquire()}. If the object is an instance of
      * {@link Resettable}, then {@link Resettable#reset()} will be called on the instance before recycling it.
      *
+     * <p>
+     * After {@link #forceClose()} has been called, this method closes the instance instead of pooling it, and never
+     * throws: an instance is normally handed back by the {@code close()} method of whatever borrowed it, and a
+     * {@code close()} method must not fail just because the pool it came from was closed first.
+     *
      * @param instance
      *            the instance to recycle.
      * @throws IllegalArgumentException
@@ -116,15 +127,40 @@ public abstract class Recycler<T, E extends Exception> implements AutoCloseable 
      */
     public final void recycle(final T instance) {
         if (instance != null) {
-            if (!usedInstances.remove(instance)) {
+            // (The usedInstances.remove() check is what catches an instance being recycled twice -- unusedInstances
+            // is unbounded, so add() always returns true)
+            final var wasInUse = usedInstances.remove(instance);
+            if (forceClosed) {
+                if (wasInUse) {
+                    // The force-close did not see this instance, either because it was acquired afterwards, or
+                    // because this call won the race to remove it, so nothing else is going to close it
+                    closeInstance(instance);
+                }
+                return;
+            }
+            if (!wasInUse) {
                 throw new IllegalArgumentException("Tried to recycle an instance that was not in use");
             }
             if (instance instanceof final Resettable resettable) {
                 resettable.reset();
             }
-            // (The usedInstances.remove() check above is what catches an instance being recycled twice --
-            // unusedInstances is unbounded, so add() always returns true)
             unusedInstances.add(instance);
+        }
+    }
+
+    /**
+     * Close an instance, if it is {@link AutoCloseable}, ignoring any exception thrown while closing it.
+     *
+     * @param instance
+     *            the instance to close.
+     */
+    private void closeInstance(final T instance) {
+        if (instance instanceof final AutoCloseable closeable) {
+            try {
+                closeable.close();
+            } catch (final Exception e) {
+                // Ignore
+            }
         }
     }
 
@@ -140,13 +176,7 @@ public abstract class Recycler<T, E extends Exception> implements AutoCloseable 
     @Override
     public void close() {
         for (T unusedInstance; (unusedInstance = unusedInstances.poll()) != null;) {
-            if (unusedInstance instanceof final AutoCloseable closeable) {
-                try {
-                    closeable.close();
-                } catch (final Exception e) {
-                    // Ignore
-                }
-            }
+            closeInstance(unusedInstance);
         }
     }
 
@@ -154,8 +184,17 @@ public abstract class Recycler<T, E extends Exception> implements AutoCloseable 
      * Force-close this {@link Recycler}, by forcibly moving any instances that have been acquired but not yet
      * recycled into the unused instances list, then calling {@link #close()} to close any {@link AutoCloseable}
      * instances and discard all instances.
+     *
+     * <p>
+     * Unlike {@link #close()}, this is terminal: an instance handed back to {@link #recycle(Object)} afterwards is
+     * closed rather than pooled, since nothing would ever drain the pool again. Whatever owns the recycler is
+     * responsible for making sure that nothing calls {@link #acquire()} after this point, since an instance
+     * acquired afterwards is only closed if it is handed back.
      */
     public void forceClose() {
+        // Set this before draining, so that anything racing to recycle an instance closes it rather than adding it
+        // back to a pool that this method has already passed over
+        forceClosed = true;
         // Move all elements from usedInstances to unusedInstances in a threadsafe way
         for (final T usedInstance : new ArrayList<>(usedInstances)) {
             if (usedInstances.remove(usedInstance)) {

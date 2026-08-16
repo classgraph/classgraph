@@ -37,7 +37,7 @@ import java.lang.module.ModuleReference;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Objects;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -60,22 +60,38 @@ import org.jspecify.annotations.Nullable;
  * carries the {@link VfsSpec} that every part of the reader needs.
  *
  * <p>
- * Once {@link #close(LogNode)} has been called, the methods that register a new resource throw
- * {@link NullPointerException} rather than silently handing out a resource that nothing will ever close. The
- * methods that release a resource stay callable, since releasing something twice has to be harmless.
+ * Once {@link #beginClose()} has been called, the methods that register a new resource throw {@link IOException}
+ * rather than silently handing out a resource that nothing will ever close, and they release whatever they had
+ * already opened before they threw. The methods that release a resource stay callable, since releasing something
+ * twice has to be harmless.
+ *
+ * <p>
+ * Registering a resource and tearing the session down are linearized against each other by {@link #closeLock}: a
+ * registration either completes before the teardown takes its snapshot, in which case the teardown releases the
+ * resource, or it sees the session already closed and is rejected. There is no window in which a resource can be
+ * registered into a collection that will never be drained again.
  */
 public class VfsSession implements AutoCloseable {
+    /** The message of the {@link IOException} thrown by anything that needs a session that is still open. */
+    private static final String SESSION_CLOSED = "The session has been closed";
+
     /** The settings that govern how archives are read. */
     public final VfsSpec vfsSpec;
 
     /** The interruption checker. */
     private final InterruptionChecker interruptionChecker;
 
-    /** {@link Slice} instances that are currently open. Set to null by {@link #close(LogNode)}. */
-    private @Nullable Set<Slice> openSlices = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    /**
+     * Guards the transition to closed: {@link #closed} is only ever set to true, and {@link #openSlices} and
+     * {@link #tempFiles} are only ever drained, while this lock is held.
+     */
+    private final Object closeLock = new Object();
 
-    /** Any temporary files created during the session. Set to null by {@link #close(LogNode)}. */
-    private @Nullable Set<File> tempFiles = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    /** {@link Slice} instances that are currently open. Drained by {@link #close(LogNode)}. */
+    private final Set<Slice> openSlices = Collections.newSetFromMap(new ConcurrentHashMap<>());
+
+    /** Any temporary files created during the session. Drained by {@link #close(LogNode)}. */
+    private final Set<File> tempFiles = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /** A recycler for {@link Inflater} instances. */
     private final Recycler<RecyclableInflater, RuntimeException> inflaterRecycler = new Recycler<>() {
@@ -86,10 +102,10 @@ public class VfsSession implements AutoCloseable {
     };
 
     /**
-     * A singleton map from a {@link ModuleReference} to a {@link ModuleReader} recycler for the module. Set to null
-     * by {@link #close(LogNode)}.
+     * A singleton map from a {@link ModuleReference} to a {@link ModuleReader} recycler for the module. Emptied by
+     * {@link #close(LogNode)}.
      */
-    private @Nullable SingletonMap<ModuleReference, Recycler<ModuleReader, IOException>, IOException> //
+    private final SingletonMap<ModuleReference, Recycler<ModuleReader, IOException>, IOException> //
     moduleReaderRecyclerMap = new SingletonMap<>() {
         @Override
         public Recycler<ModuleReader, IOException> newInstance(final ModuleReference moduleReference,
@@ -103,7 +119,9 @@ public class VfsSession implements AutoCloseable {
         }
     };
 
-    /** True once {@link #beginClose()} has been called. */
+    /**
+     * True once {@link #beginClose()} or {@link #close(LogNode)} has been called. Written under {@link #closeLock}.
+     */
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
     /**
@@ -122,15 +140,28 @@ public class VfsSession implements AutoCloseable {
     // ---------------------------------------------------------------------------------------------------------
 
     /**
+     * Check whether the session has been closed, or is being torn down.
+     *
+     * @return true if {@link #beginClose()} or {@link #close(LogNode)} has been called.
+     */
+    public boolean isClosed() {
+        return closed.get();
+    }
+
+    /**
      * Get the map from {@link ModuleReference} to {@link ModuleReader} recycler.
      *
      * @return the map
-     * @throws NullPointerException
-     *             if {@link #close(LogNode)} has been called
+     * @throws IOException
+     *             if the session has already been closed, since a recycler created after the teardown drained the
+     *             map would hand out {@link ModuleReader} instances that nothing would ever close.
      */
     public SingletonMap<ModuleReference, Recycler<ModuleReader, IOException>, IOException> //
-            moduleReaderRecyclerMap() {
-        return Objects.requireNonNull(moduleReaderRecyclerMap);
+            moduleReaderRecyclerMap() throws IOException {
+        if (closed.get()) {
+            throw new IOException(SESSION_CLOSED);
+        }
+        return moduleReaderRecyclerMap;
     }
 
     // ---------------------------------------------------------------------------------------------------------
@@ -140,27 +171,29 @@ public class VfsSession implements AutoCloseable {
      *
      * @param slice
      *            the {@link Slice} that was just opened.
-     * @throws NullPointerException
-     *             if {@link #close(LogNode)} has been called
+     * @throws IOException
+     *             if the session has already been closed, in which case the slice was not registered, and the
+     *             caller has to close it itself, since the teardown has already passed it by.
      */
-    public void markSliceAsOpen(final Slice slice) {
-        Objects.requireNonNull(openSlices).add(slice);
+    public void markSliceAsOpen(final Slice slice) throws IOException {
+        synchronized (closeLock) {
+            if (closed.get()) {
+                throw new IOException(SESSION_CLOSED);
+            }
+            openSlices.add(slice);
+        }
     }
 
     /**
-     * Mark a {@link Slice} as closed. Unlike {@link #markSliceAsOpen(Slice)}, this does nothing rather than
-     * throwing once {@link #close(LogNode)} has been called: a slice can be closed after the session has been torn
-     * down (for example when something that was still reading from the slice is closed afterwards), and closing
-     * something twice has to be harmless.
+     * Mark a {@link Slice} as closed. Unlike {@link #markSliceAsOpen(Slice)}, this always succeeds: a slice can be
+     * closed after the session has been torn down (for example when something that was still reading from the slice
+     * is closed afterwards), and closing something twice has to be harmless.
      *
      * @param slice
      *            the {@link Slice} that was just closed.
      */
     public void markSliceAsClosed(final Slice slice) {
-        final var openSlicesCurr = openSlices;
-        if (openSlicesCurr != null) {
-            openSlicesCurr.remove(slice);
-        }
+        openSlices.remove(slice);
     }
 
     // ---------------------------------------------------------------------------------------------------------
@@ -207,35 +240,42 @@ public class VfsSession implements AutoCloseable {
      *            If true, only use the leafname of filePathBase to derive the temporary filename.
      * @return The temporary {@link File}.
      * @throws IOException
-     *             If the temporary file could not be created.
-     * @throws NullPointerException
-     *             if {@link #close(LogNode)} has been called
+     *             If the temporary file could not be created, or if the session has already been closed, in which
+     *             case the temporary file is deleted again before this method throws.
      */
     public File makeTempFile(final String filePathBase, final boolean onlyUseLeafname) throws IOException {
         final var tempFile = File.createTempFile("ClassGraph--", PathSyntax.TEMP_FILENAME_LEAF_SEPARATOR
                 + sanitizeFilename(onlyUseLeafname ? leafname(filePathBase) : filePathBase));
         tempFile.deleteOnExit();
-        Objects.requireNonNull(tempFiles).add(tempFile);
+        final boolean registered;
+        synchronized (closeLock) {
+            registered = !closed.get();
+            if (registered) {
+                tempFiles.add(tempFile);
+            }
+        }
+        if (!registered) {
+            // The session was closed while the file was being created, so the teardown will not delete it
+            deleteTempFile(tempFile);
+            throw new IOException(SESSION_CLOSED);
+        }
         return tempFile;
     }
 
     /**
-     * Attempt to remove a temporary file.
+     * Delete a temporary file, ignoring any failure. The file was created with {@link File#deleteOnExit()}, so a
+     * file that cannot be deleted now is deleted when the JVM exits.
      *
      * @param tempFile
      *            the temp file
-     * @throws IOException
-     *             If the temporary file could not be removed.
-     * @throws SecurityException
-     *             If the temporary file is inaccessible.
-     * @throws NullPointerException
-     *             if {@link #close(LogNode)} has been called
+     * @return true if the file was deleted.
      */
-    private void removeTempFile(final File tempFile) throws IOException, SecurityException {
-        if (Objects.requireNonNull(tempFiles).remove(tempFile)) {
+    private static boolean deleteTempFile(final File tempFile) {
+        try {
             Files.delete(tempFile.toPath());
-        } else {
-            throw new IOException("Not a temp file: " + tempFile);
+            return true;
+        } catch (IOException | SecurityException e) {
+            return false;
         }
     }
 
@@ -245,8 +285,7 @@ public class VfsSession implements AutoCloseable {
      * @return true if at least one temporary file was created and has not yet been removed.
      */
     public boolean hasTempFiles() {
-        final var tempFilesCurr = tempFiles;
-        return tempFilesCurr != null && !tempFilesCurr.isEmpty();
+        return !tempFiles.isEmpty();
     }
 
     // ---------------------------------------------------------------------------------------------------------
@@ -287,7 +326,9 @@ public class VfsSession implements AutoCloseable {
      * @return true if this call was the one that marked the session as closed, i.e. false if it was already closed.
      */
     public boolean beginClose() {
-        return !closed.getAndSet(true);
+        synchronized (closeLock) {
+            return !closed.getAndSet(true);
+        }
     }
 
     /**
@@ -304,63 +345,59 @@ public class VfsSession implements AutoCloseable {
 
     /**
      * Close all open {@link Slice} instances, discard the pooled {@link ModuleReader} and {@link Inflater}
-     * instances, and delete any temporary files. Must be preceded by a call to {@link #beginClose()} that returned
-     * true.
+     * instances, and delete any temporary files. Marks the session as closed if it was not already, so that nothing
+     * can register a resource that this teardown has already passed by. Calling this more than once has no further
+     * effect.
      *
      * @param log
      *            the log node, or null to skip logging
      */
     public void close(final @Nullable LogNode log) {
+        closed.set(true);
+
         var interrupted = false;
-        final var recyclerMap = moduleReaderRecyclerMap;
-        if (recyclerMap != null) {
-            var completedWithoutInterruption = false;
-            while (!completedWithoutInterruption) {
-                try {
-                    for (final Recycler<ModuleReader, IOException> recycler : recyclerMap.values()) {
-                        recycler.forceClose();
-                    }
-                    completedWithoutInterruption = true;
-                } catch (final InterruptedException e) {
-                    // Try again if interrupted
-                    interrupted = true;
+        var completedWithoutInterruption = false;
+        while (!completedWithoutInterruption) {
+            try {
+                for (final Recycler<ModuleReader, IOException> recycler : moduleReaderRecyclerMap.values()) {
+                    recycler.forceClose();
                 }
+                completedWithoutInterruption = true;
+            } catch (final InterruptedException e) {
+                // Try again if interrupted
+                interrupted = true;
             }
-            recyclerMap.clear();
-            moduleReaderRecyclerMap = null;
         }
-        final var openSlicesCurr = openSlices;
-        if (openSlicesCurr != null) {
-            while (!openSlicesCurr.isEmpty()) {
-                for (final Slice slice : new ArrayList<>(openSlicesCurr)) {
-                    try {
-                        slice.close();
-                    } catch (final IOException e) {
-                        // Ignore
-                    }
-                    openSlicesCurr.remove(slice);
-                }
+        moduleReaderRecyclerMap.clear();
+
+        // Take the open resources away from anything that might still be registering: after the lock is released,
+        // registration is rejected, since closed is true, so these snapshots are complete
+        final List<Slice> slicesToClose;
+        final List<File> tempFilesToDelete;
+        synchronized (closeLock) {
+            slicesToClose = new ArrayList<>(openSlices);
+            openSlices.clear();
+            tempFilesToDelete = new ArrayList<>(tempFiles);
+            tempFiles.clear();
+        }
+
+        for (final Slice slice : slicesToClose) {
+            try {
+                slice.close();
+            } catch (final IOException e) {
+                // Ignore
             }
-            openSlices = null;
         }
         inflaterRecycler.forceClose();
+
         // Temp files have to be deleted last, after all PhysicalZipFiles are closed and files are unmapped
-        final var tempFilesCurr = tempFiles;
-        if (tempFilesCurr != null) {
-            final var rmLog = tempFilesCurr.isEmpty() || log == null ? null : log.log("Removing temporary files");
-            while (!tempFilesCurr.isEmpty()) {
-                for (final File tempFile : new ArrayList<>(tempFilesCurr)) {
-                    try {
-                        removeTempFile(tempFile);
-                    } catch (IOException | SecurityException e) {
-                        if (rmLog != null) {
-                            rmLog.log("Removing temporary file failed: " + tempFile);
-                        }
-                    }
-                }
+        final var rmLog = tempFilesToDelete.isEmpty() || log == null ? null : log.log("Removing temporary files");
+        for (final File tempFile : tempFilesToDelete) {
+            if (!deleteTempFile(tempFile) && rmLog != null) {
+                rmLog.log("Removing temporary file failed: " + tempFile);
             }
-            tempFiles = null;
         }
+
         if (interrupted) {
             interruptionChecker.interrupt();
         }
