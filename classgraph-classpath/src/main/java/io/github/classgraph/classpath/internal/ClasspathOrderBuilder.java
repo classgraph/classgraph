@@ -30,12 +30,15 @@ package io.github.classgraph.classpath.internal;
 
 import java.io.File;
 import java.io.IOError;
+import java.io.IOException;
 import java.lang.reflect.Array;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -59,8 +62,8 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
     /** The scan spec. */
     private final ClasspathSpec classpathSpec;
 
-    /** Unique classpath entries. */
-    private final Set<String> classpathEntryUniqueResolvedPaths = new HashSet<>();
+    /** The {@link Entry#location} of every classpath element found so far, which is what deduplicates them. */
+    private final Set<String> classpathEntryUniqueLocations = new HashSet<>();
 
     /** The classpath order. Keys are instances of {@link String} or {@link URL}. */
     private final List<Entry> order = new ArrayList<>();
@@ -97,12 +100,13 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
         public final Object classpathEntryObj;
 
         /**
-         * The location of the classpath element: the resolved path of a local directory or jarfile, with
-         * {@code '/'} as the separator on every platform, or the URL or URI of anything that is not a local file.
-         * This is the form the classpath element is reported in, and the form it is deduplicated by. It is kept
-         * alongside the classpath entry object because the object's {@link Object#toString()} is not in that form:
-         * the {@link Path} of a local file spells the path with the platform's separator, so on Windows it uses
-         * backslashes, and a {@link URI} keeps its scheme.
+         * The location of the classpath element: the canonical path of a directory or jarfile of a filesystem, with
+         * {@code '/'} as the separator on every platform, or the URL or URI of anything that is not reached through
+         * a filesystem. This is the form the classpath element is reported in, and the form it is deduplicated by,
+         * so a file reached through two different paths is reported once, under the name it is stored under. It is
+         * kept alongside the classpath entry object because the object's {@link Object#toString()} is not in that
+         * form: the {@link Path} of a local file spells the path with the platform's separator, so on Windows it
+         * uses backslashes, and a {@link URI} keeps its scheme.
          */
         public final String location;
 
@@ -204,12 +208,12 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
     }
 
     /**
-     * Get the unique classpath entry strings.
+     * Get the location of every classpath element found so far. See {@link Entry#location}.
      *
-     * @return the classpath entry strings.
+     * @return the classpath element locations.
      */
-    public Set<String> getClasspathEntryUniqueResolvedPaths() {
-        return classpathEntryUniqueResolvedPaths;
+    public Set<String> getClasspathEntryUniqueLocations() {
+        return classpathEntryUniqueLocations;
     }
 
     /**
@@ -295,74 +299,78 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
     }
 
     /**
-     * Add a classpath entry.
+     * Get the location of a classpath element: the form it is reported in, and the form it is deduplicated by.
+     *
+     * <p>
+     * A classpath element that names a file or directory of a filesystem is located by the canonical path of that
+     * file, so that the same file reached through two different paths -- through a symbolic link, through a Windows
+     * junction or 8.3 short name, or spelled with a different case on a filesystem that ignores case -- is reported
+     * once, under the name it is stored under. A classpath element stored inside an archive is located by the
+     * canonical path of the archive, followed by the path within it. Anything that is reached through a URL handler
+     * rather than through a filesystem is located by its URL or URI, which has no canonical form.
      *
      * @param pathElement
      *            the {@link String} path, {@link File}, {@link Path}, {@link URL} or {@link URI} of the classpath
      *            element.
      * @param pathElementStr
-     *            the path element in string format
-     * @param classLoader
-     *            the classloader
-     * @return true, if added and unique
+     *            the resolved path of the classpath element.
+     * @param log
+     *            the log node, or null to skip logging
+     * @return the location of the classpath element, or null if the filesystem says it is not there or that it
+     *         cannot be read, in which case the reason has been logged.
      */
-    private boolean addClasspathEntry(final Object pathElement, final String pathElementStr,
-            final @Nullable ClassLoader classLoader) {
-        // Check if classpath element path ends with an automatic package root. If so, strip it off to eliminate
-        // duplication, since automatic package roots are detected automatically (#435)
-        var pathElementStrWithoutSuffix = pathElementStr;
-        var hasSuffix = false;
-        for (final String packageRootPrefix : currPackageRootPrefixes) {
-            // Convert package root prefix to a suffix, e.g. "BOOT-INF/classes/" -> "!/BOOT-INF/classes"
-            final var suffix = "!/" + packageRootPrefix.substring(0, packageRootPrefix.length() - 1);
-            if (pathElementStr.endsWith(suffix)) {
-                // Strip off automatic package root suffix
-                pathElementStrWithoutSuffix = pathElementStr.substring(0,
-                        pathElementStr.length() - suffix.length());
-                hasSuffix = true;
-                break;
-            }
-        }
-        if (pathElement instanceof URL || pathElement instanceof URI || pathElement instanceof Path
-                || pathElement instanceof File) {
-            var pathElementWithoutSuffix = pathElement;
-            if (hasSuffix) {
-                try {
-                    pathElementWithoutSuffix = pathElement instanceof URL ? new URL(pathElementStrWithoutSuffix)
-                            : pathElement instanceof URI ? new URI(pathElementStrWithoutSuffix)
-                                    : pathElement instanceof Path ? Path.of(pathElementStrWithoutSuffix)
-                                            // For File, just use path string
-                                            : pathElementStrWithoutSuffix;
-                } catch (MalformedURLException | URISyntaxException | InvalidPathException e) {
-                    try {
-                        pathElementWithoutSuffix = pathElement instanceof URL
-                                ? new URL("file:" + pathElementStrWithoutSuffix)
-                                : pathElement instanceof URI ? new URI("file:" + pathElementStrWithoutSuffix)
-                                        : pathElementStrWithoutSuffix;
-                    } catch (MalformedURLException | URISyntaxException e2) {
-                        // (Path.of() is not retried, since prefixing an invalid path with "file:" cannot fix it --
-                        // the Path degrades to a path string, as a File does)
-                        return false;
-                    }
-                }
-            }
-            // Deduplicate classpath elements
-            if (classpathEntryUniqueResolvedPaths.add(pathElementStrWithoutSuffix)) {
-                // Record classpath element in classpath order
-                order.add(new Entry(pathElementWithoutSuffix, pathElementStrWithoutSuffix, classLoader,
-                        currPackageRootPrefixes, currLibDirPrefixes));
-                return true;
-            }
+    private static @Nullable String toLocation(final Object pathElement, final String pathElementStr,
+            final @Nullable ClassGraphLog log) {
+        final Path path;
+        final String nestedSuffix;
+        if (pathElement instanceof final Path pathElementPath) {
+            // A Path names a file or directory of its own filesystem, which need not be the default filesystem
+            path = pathElementPath;
+            nestedSuffix = "";
         } else {
-            final var pathElementStrResolved = FastPathResolver.resolveFilePath(FileUtils.currDirPath(),
-                    pathElementStrWithoutSuffix);
-            if (classpathEntryUniqueResolvedPaths.add(pathElementStrResolved)) {
-                order.add(new Entry(pathElementStrResolved, pathElementStrResolved, classLoader,
-                        currPackageRootPrefixes, currLibDirPrefixes));
-                return true;
+            // A classpath element that still has a URL scheme is reached through a URL handler rather than through
+            // a filesystem, since FastPathResolver strips the "file:" and "jar:file:" schemes, leaving a local file
+            // with no scheme at all
+            if (schemeMatcher.matcher(pathElementStr).find()) {
+                return pathElementStr;
+            }
+            // A classpath element stored inside an archive is reached through the archive, so it is the archive
+            // whose path is canonicalized, and the path within the archive is appended to it unchanged
+            final var nestedIdx = JarUtils.indexOfNestedJarSeparator(pathElementStr);
+            final var archivePathStr = nestedIdx < 0 ? pathElementStr : pathElementStr.substring(0, nestedIdx);
+            nestedSuffix = nestedIdx < 0 ? "" : pathElementStr.substring(nestedIdx);
+            try {
+                path = Path.of(archivePathStr);
+            } catch (final InvalidPathException e) {
+                // The path is not valid for the default filesystem (on Windows, for example, it may contain a
+                // character that is not allowed in a filename), so there is no file to canonicalize or to test
+                return pathElementStr;
             }
         }
-        return false;
+        final Path canonicalPath;
+        try {
+            canonicalPath = path.toRealPath();
+        } catch (final NoSuchFileException e) {
+            // The filesystem says the classpath element is not there
+            if (log != null) {
+                log.log("Classpath element does not exist, skipping: " + pathElementStr);
+            }
+            return null;
+        } catch (final IOException | RuntimeException e) {
+            // The filesystem cannot say whether the classpath element is there, which is a different answer from
+            // saying that it is not there: an unreachable network share answers this way, and so does a path whose
+            // parent directory cannot be listed. Keep the classpath element in the form it was found in, and let
+            // the scan be the one to find out
+            return pathElementStr;
+        }
+        if (!Files.isReadable(canonicalPath)) {
+            if (log != null) {
+                log.log("Classpath element cannot be read, skipping: " + pathElementStr);
+            }
+            return null;
+        }
+        return FastPathResolver.resolveFilePath(FileUtils.currDirPath(), toPathElementStr(canonicalPath))
+                + nestedSuffix;
     }
 
     /**
@@ -409,7 +417,8 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
     }
 
     /**
-     * Add a classpath entry, and log whether it was added or was a duplicate of an entry already found.
+     * Add a classpath entry, and log whether it was added, was a duplicate of an entry already found, or was
+     * skipped because it does not exist or cannot be read.
      *
      * @param pathElement
      *            the {@link String} path, {@link File}, {@link Path}, {@link URL} or {@link URI} of the classpath
@@ -427,12 +436,68 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
     private boolean addClasspathEntryAndLog(final Object pathElement, final String pathElementStr,
             final String pathElementStrResolved, final @Nullable ClassLoader classLoader,
             final @Nullable ClassGraphLog log) {
-        final var added = addClasspathEntry(pathElement, pathElementStrResolved, classLoader);
-        if (log != null) {
-            log.log((added ? "Found classpath element: " : "Ignoring duplicate classpath element: ")
-                    + describe(pathElementStr, pathElementStrResolved));
+        // Check if classpath element path ends with an automatic package root. If so, strip it off to eliminate
+        // duplication, since automatic package roots are detected automatically (#435)
+        var pathElementStrWithoutSuffix = pathElementStrResolved;
+        var hasSuffix = false;
+        for (final String packageRootPrefix : currPackageRootPrefixes) {
+            // Convert package root prefix to a suffix, e.g. "BOOT-INF/classes/" -> "!/BOOT-INF/classes"
+            final var suffix = "!/" + packageRootPrefix.substring(0, packageRootPrefix.length() - 1);
+            if (pathElementStrResolved.endsWith(suffix)) {
+                // Strip off automatic package root suffix
+                pathElementStrWithoutSuffix = pathElementStrResolved.substring(0,
+                        pathElementStrResolved.length() - suffix.length());
+                hasSuffix = true;
+                break;
+            }
         }
-        return added;
+        final var isPathObject = pathElement instanceof URL || pathElement instanceof URI
+                || pathElement instanceof Path || pathElement instanceof File;
+        var pathElementWithoutSuffix = pathElement;
+        if (isPathObject && hasSuffix) {
+            try {
+                pathElementWithoutSuffix = pathElement instanceof URL ? new URL(pathElementStrWithoutSuffix)
+                        : pathElement instanceof URI ? new URI(pathElementStrWithoutSuffix)
+                                : pathElement instanceof Path ? Path.of(pathElementStrWithoutSuffix)
+                                        // For File, just use path string
+                                        : pathElementStrWithoutSuffix;
+            } catch (MalformedURLException | URISyntaxException | InvalidPathException e) {
+                try {
+                    pathElementWithoutSuffix = pathElement instanceof URL
+                            ? new URL("file:" + pathElementStrWithoutSuffix)
+                            : pathElement instanceof URI ? new URI("file:" + pathElementStrWithoutSuffix)
+                                    : pathElementStrWithoutSuffix;
+                } catch (MalformedURLException | URISyntaxException e2) {
+                    // (Path.of() is not retried, since prefixing an invalid path with "file:" cannot fix it --
+                    // the Path degrades to a path string, as a File does)
+                    return false;
+                }
+            }
+        }
+
+        // Find the location of the classpath element, which is the form it is reported in and the form it is
+        // deduplicated by. A classpath element that names a file or directory of a filesystem is located by the
+        // canonical path of that file, and is skipped if the filesystem says it is not there or cannot be read
+        final var location = toLocation(pathElementWithoutSuffix, pathElementStrWithoutSuffix, log);
+        if (location == null) {
+            return false;
+        }
+
+        // Deduplicate classpath elements
+        if (!classpathEntryUniqueLocations.add(location)) {
+            if (log != null) {
+                log.log("Ignoring duplicate classpath element: " + describe(pathElementStr, location));
+            }
+            return false;
+        }
+        // Record the classpath element in the classpath order, keeping the object in the form it was found in, so
+        // that the filesystem of a Path, and the form a File or URI was found in, are not lost
+        order.add(new Entry(isPathObject ? pathElementWithoutSuffix : location, location, classLoader,
+                currPackageRootPrefixes, currLibDirPrefixes));
+        if (log != null) {
+            log.log("Found classpath element: " + describe(pathElementStr, location));
+        }
+        return true;
     }
 
     /**
@@ -579,8 +644,10 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
      *            the ClassLoader that this classpath element was obtained from.
      * @param log
      *            the log node, or null to skip logging
-     * @return true (and add the classpath element) if pathElement is not null, empty, nonexistent, or filtered out
-     *         by user-specified criteria, otherwise return false.
+     * @return true if the classpath element was added. A classpath element is not added if it is null or empty, if
+     *         it names a file or directory that the filesystem says is not there or cannot be read, if it is
+     *         filtered out by the user's classpath element filters, or if it is a duplicate of a classpath element
+     *         that has already been added.
      */
     @Override
     public boolean addClasspathEntry(final @Nullable Object pathElement, final @Nullable ClassLoader classLoader,

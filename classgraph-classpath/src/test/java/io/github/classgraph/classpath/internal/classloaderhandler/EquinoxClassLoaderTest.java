@@ -49,14 +49,18 @@ public class EquinoxClassLoaderTest {
     }
 
     /**
-     * The location that a file or directory is reported as.
+     * The location that a file or directory is reported as: its canonical path, with {@code '/'} as the separator.
+     * The canonical form matters because a temporary directory is reached through a symlink on macOS, and through
+     * an 8.3 short name on Windows.
      *
      * @param path
      *            the file or directory.
      * @return the location.
+     * @throws IOException
+     *             if the canonical path could not be found.
      */
-    private static String location(final Path path) {
-        return path.toFile().getPath().replace(File.separatorChar, '/');
+    private static String location(final Path path) throws IOException {
+        return path.toRealPath().toString().replace(File.separatorChar, '/');
     }
 
     /**
@@ -126,9 +130,10 @@ public class EquinoxClassLoaderTest {
     public void aDirectoryNestedInsideABundleDirectoryIsOnTheClasspathAsAnOrdinaryPath(@TempDir final Path tempDir)
             throws IOException {
         final var bundleDir = Files.createDirectory(tempDir.resolve("bundle"));
+        final var nestedDir = Files.createDirectory(bundleDir.resolve("bin"));
         final var classLoader = new EquinoxClassLoader(new ClasspathManager(new ClasspathEntry(
                 new NestedDirBundleFile(bundleDir.toFile(), new DirBundleFile(bundleDir.toFile()), "bin"))));
-        assertThat(locations(classLoader)).containsExactly(location(bundleDir) + "/bin");
+        assertThat(locations(classLoader)).containsExactly(location(nestedDir));
     }
 
     /**

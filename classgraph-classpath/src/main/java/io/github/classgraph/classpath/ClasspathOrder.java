@@ -43,7 +43,14 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>
  * Entries are added in resolution order, and a duplicate entry is ignored, so the first classloader to contribute a
- * given classpath element is the one it is attributed to.
+ * given classpath element is the one it is attributed to. A classpath element that names a file or directory is
+ * deduplicated by the canonical path of that file, so the same file added twice under two different paths --
+ * through a symbolic link, or spelled with a different case on a filesystem that ignores case -- is added only
+ * once.
+ *
+ * <p>
+ * A classpath element that names a file or directory the filesystem says is not there, or that cannot be read, is
+ * logged and skipped rather than added, since it cannot contribute any class to the scan.
  *
  * <p>
  * This is not implemented outside ClassGraph.
@@ -59,8 +66,9 @@ public interface ClasspathOrder {
      *            the {@link ClassLoader} that this classpath element was obtained from.
      * @param log
      *            the log node, or null to skip logging
-     * @return true if the classpath element was added, or false if it was null, empty, nonexistent, or filtered out
-     *         by the scan spec.
+     * @return true if the classpath element was added, or false if it was null or empty, if it names a file or
+     *         directory that the filesystem says is not there or cannot be read, if it was filtered out by the
+     *         user's classpath element filters, or if it duplicates a classpath element already added.
      */
     boolean addClasspathEntry(@Nullable Object pathElement, @Nullable ClassLoader classLoader,
             @Nullable ClassGraphLog log);

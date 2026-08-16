@@ -1,6 +1,7 @@
 package io.github.classgraph.classpath.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assumptions.abort;
 
 import java.io.File;
 import java.io.IOException;
@@ -44,16 +45,18 @@ public class ClasspathOrderTest {
     }
 
     /**
-     * Create an empty file, and return its path in the form {@link ClasspathOrderBuilder} would resolve it to.
+     * Create an empty file, and return its path in the form {@link ClasspathOrderBuilder} reports it in, which is
+     * the canonical path. The canonical form matters because a temporary directory is reached through a symlink on
+     * macOS, and through an 8.3 short name on Windows.
      *
      * @param path
      *            the path of the file to create.
-     * @return the resolved path of the created file.
+     * @return the location of the created file.
      * @throws IOException
      *             if the file could not be created.
      */
     private static String createFile(final Path path) throws IOException {
-        return resolve(Files.write(path, new byte[] { 'P', 'K' }).toString());
+        return resolve(Files.write(path, new byte[] { 'P', 'K' }).toRealPath().toString());
     }
 
     /**
@@ -118,7 +121,7 @@ public class ClasspathOrderTest {
         assertThat(classpathOrder.addClasspathEntry(jar, null, null)).isTrue();
         assertThat(classpathOrder.addClasspathEntry(jar, null, null)).isFalse();
         assertThat(entryObjects()).containsExactly(jar);
-        assertThat(classpathOrder.getClasspathEntryUniqueResolvedPaths()).containsExactly(jar);
+        assertThat(classpathOrder.getClasspathEntryUniqueLocations()).containsExactly(jar);
     }
 
     /**
@@ -134,7 +137,7 @@ public class ClasspathOrderTest {
         final var jarPath = tempDir.resolve("x y.jar");
         final var jar = createFile(jarPath);
         assertThat(classpathOrder.addClasspathEntry(jarPath, null, null)).isTrue();
-        assertThat(classpathOrder.getClasspathEntryUniqueResolvedPaths()).containsExactly(jar);
+        assertThat(classpathOrder.getClasspathEntryUniqueLocations()).containsExactly(jar);
         // The String and File spellings of the same path are now duplicates
         assertThat(classpathOrder.addClasspathEntry(jar, null, null)).isFalse();
         assertThat(classpathOrder.addClasspathEntry(jarPath.toFile(), null, null)).isFalse();
@@ -233,9 +236,10 @@ public class ClasspathOrderTest {
      */
     @Test
     @DisabledOnOs(OS.WINDOWS)
-    public void uncPathsAreOrdinaryPathsOutsideWindows() {
-        assertThat(classpathOrder.addClasspathEntry("//server/share/a.jar", null, null)).isTrue();
-        assertThat(entryObjects()).containsExactly("/server/share/a.jar");
+    public void uncPathsAreOrdinaryPathsOutsideWindows(@TempDir final Path tempDir) throws IOException {
+        final var jar = createFile(tempDir.resolve("a.jar"));
+        assertThat(classpathOrder.addClasspathEntry("/" + jar, null, null)).isTrue();
+        assertThat(entryObjects()).containsExactly(jar);
     }
 
     /** A classpath element rejected by a user-supplied path filter is not added. */
@@ -344,15 +348,25 @@ public class ClasspathOrderTest {
     @Test
     public void classpathElementLocationsAreResolvedPaths(@TempDir final Path tempDir) throws IOException {
         final var jarA = createFile(tempDir.resolve("a.jar"));
+        final var jarB = createFile(tempDir.resolve("b.jar"));
         final var jarC = createFile(tempDir.resolve("c.jar"));
         final var absolutePath = Path.of(jarA);
-        final var relativePath = Path.of("b.jar");
+        final Path relativePath;
+        try {
+            relativePath = Path.of("").toAbsolutePath().relativize(Path.of(jarB));
+        } catch (final IllegalArgumentException e) {
+            // On Windows there is no relative path from one drive to another, so the temporary directory has to be
+            // on the same drive as the current directory for there to be one
+            abort("There is no relative path to the temporary directory: " + e);
+            return;
+        }
+        assertThat(relativePath.isAbsolute()).isFalse();
         final var uri = Path.of(jarC).toUri();
         assertThat(classpathOrder.addClasspathEntry(absolutePath, null, null)).isTrue();
         assertThat(classpathOrder.addClasspathEntry(relativePath, null, null)).isTrue();
         assertThat(classpathOrder.addClasspathEntry(uri, null, null)).isTrue();
 
-        assertThat(locations()).containsExactly(jarA, resolve("b.jar"), jarC);
+        assertThat(locations()).containsExactly(jarA, jarB, jarC);
         // The objects the classpath elements arrived as are kept as they were, since the scanner needs the
         // filesystem of a Path and the scheme of a URI
         assertThat(entryObjects()).containsExactly(absolutePath, relativePath, uri);

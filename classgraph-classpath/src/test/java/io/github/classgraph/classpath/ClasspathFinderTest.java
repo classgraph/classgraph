@@ -11,6 +11,7 @@ import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Set;
 import java.util.jar.Attributes;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
@@ -51,25 +52,31 @@ public class ClasspathFinderTest {
 
     /** An overridden classpath is reported verbatim, and nothing from the environment is added to it. */
     @Test
-    public void anOverriddenClasspathIsUsedInsteadOfTheEnvironment() {
-        final var first = new File("first.jar").getAbsoluteFile();
-        final var second = new File("second.jar").getAbsoluteFile();
-        final var classpath = new ClasspathFinder().overrideClasspath(first + File.pathSeparator + second).find();
-        assertThat(classpath.getLocations()).containsExactly(first.getPath().replace(File.separatorChar, '/'),
-                second.getPath().replace(File.separatorChar, '/'));
-        // Modules are not scanned when the classpath is overridden
-        assertThat(classpath.getModules()).isEmpty();
+    public void anOverriddenClasspathIsUsedInsteadOfTheEnvironment(@TempDir final Path tempDir) throws IOException {
+        final var first = writeJarWithManifest(tempDir.resolve("first.jar"));
+        final var second = writeJarWithManifest(tempDir.resolve("second.jar"));
+        try (var classpath = new ClasspathFinder().overrideClasspath(first + File.pathSeparator + second).find()) {
+            assertThat(classpath.getLocations()).containsExactly(locationOf(first), locationOf(second));
+            // Modules are not scanned when the classpath is overridden
+            assertThat(classpath.getModules()).isEmpty();
+        }
     }
 
     /** Each classpath element of an overridden classpath is passed through unsplit by the non-String overloads. */
     @Test
-    public void theClasspathCanBeOverriddenWithIndividualElements() {
-        final var jar = new File("only.jar").getAbsoluteFile();
-        final var expected = List.of(jar.getPath().replace(File.separatorChar, '/'));
-        assertThat(new ClasspathFinder().overrideClasspath((Object) jar).find().getLocations()).isEqualTo(expected);
-        assertThat(new ClasspathFinder().overrideClasspath(List.of(jar)).find().getLocations()).isEqualTo(expected);
+    public void theClasspathCanBeOverriddenWithIndividualElements(@TempDir final Path tempDir) throws IOException {
+        final var jar = writeJarWithManifest(tempDir.resolve("only.jar"));
+        final var expected = List.of(locationOf(jar));
+        try (var classpath = new ClasspathFinder().overrideClasspath((Object) jar).find()) {
+            assertThat(classpath.getLocations()).isEqualTo(expected);
+        }
+        try (var classpath = new ClasspathFinder().overrideClasspath(List.of(jar)).find()) {
+            assertThat(classpath.getLocations()).isEqualTo(expected);
+        }
         // A single Path is one classpath entry, not a sequence of its name elements
-        assertThat(new ClasspathFinder().overrideClasspath(jar.toPath()).find().getLocations()).isEqualTo(expected);
+        try (var classpath = new ClasspathFinder().overrideClasspath(jar.toPath()).find()) {
+            assertThat(classpath.getLocations()).isEqualTo(expected);
+        }
     }
 
     /** An empty classpath override is a caller error, rather than a silent scan of nothing. */
@@ -142,10 +149,11 @@ public class ClasspathFinderTest {
 
     /** The result prints one classpath element or module per line. */
     @Test
-    public void theClassPathPrintsOneEntryPerLine() {
-        final var jar = new File("only.jar").getAbsoluteFile();
-        assertThat(new ClasspathFinder().overrideClasspath((Object) jar).find())
-                .hasToString(jar.getPath().replace(File.separatorChar, '/') + "\n");
+    public void theClassPathPrintsOneEntryPerLine(@TempDir final Path tempDir) throws IOException {
+        final var jar = writeJarWithManifest(tempDir.resolve("only.jar"));
+        try (var classpath = new ClasspathFinder().overrideClasspath((Object) jar).find()) {
+            assertThat(classpath).hasToString(locationOf(jar) + "\n");
+        }
     }
 
     /**
@@ -197,14 +205,21 @@ public class ClasspathFinderTest {
     }
 
     /**
-     * The location of a file, in the form the classpath finder reports it.
+     * The location of a file, in the form the classpath finder reports it: the canonical path of the file, with
+     * {@code '/'} as the separator. The canonical form matters because a temporary directory is reached through a
+     * symlink on macOS, and through an 8.3 short name on Windows.
      *
      * @param file
      *            the file.
      * @return the location.
      */
     private static String locationOf(final File file) {
-        return file.getPath().replace(File.separatorChar, '/');
+        try {
+            return file.toPath().toRealPath().toString().replace(File.separatorChar, '/');
+        } catch (final IOException e) {
+            // The file is not there, so there is no canonical form of its path
+            return file.getPath().replace(File.separatorChar, '/');
+        }
     }
 
     /**
@@ -225,16 +240,16 @@ public class ClasspathFinderTest {
     }
 
     /**
-     * The classpath elements that a jarfile names are reported relative to the path the jarfile was reached at, not
-     * relative to the path the jarfile has once symlinks have been resolved. Otherwise the same jarfile reached
-     * through a symlink and directly would be reported as two different classpath elements.
+     * A classpath element is reported under the path it is stored at, with any symbolic link in the path resolved,
+     * and so are the classpath elements its manifest names. This is what makes the same jarfile reached directly
+     * and through a symbolic link one classpath element rather than two.
      */
     @Test
-    public void manifestClassPathEntriesAreResolvedRelativeToThePathTheJarWasReachedAt(@TempDir final Path tempDir)
+    public void aJarReachedThroughASymlinkIsReportedUnderThePathItIsStoredAt(@TempDir final Path tempDir)
             throws IOException {
         final var dir = Files.createDirectory(tempDir.resolve("real"));
-        writeJarWithManifest(dir.resolve("named.jar"));
-        writeJarWithManifest(dir.resolve("names-another.jar"), "Class-Path", "named.jar");
+        final var named = writeJarWithManifest(dir.resolve("named.jar"));
+        final var namesAnother = writeJarWithManifest(dir.resolve("names-another.jar"), "Class-Path", "named.jar");
         final Path linkedDir;
         try {
             linkedDir = Files.createSymbolicLink(tempDir.resolve("link"), dir);
@@ -244,9 +259,10 @@ public class ClasspathFinderTest {
             return;
         }
         final var namesAnotherViaLink = linkedDir.resolve("names-another.jar").toFile();
-        try (var classpath = new ClasspathFinder().overrideClasspath((Object) namesAnotherViaLink).find()) {
-            assertThat(classpath.getLocations()).containsExactly(locationOf(namesAnotherViaLink),
-                    locationOf(linkedDir.resolve("named.jar").toFile()));
+        try (var classpath = new ClasspathFinder().overrideClasspath(namesAnotherViaLink, namesAnother).find()) {
+            // The jarfile reached through the symlink and the same jarfile reached directly are one element, and the
+            // jarfile named by its manifest is reported the same way
+            assertThat(classpath.getLocations()).containsExactly(locationOf(namesAnother), locationOf(named));
         }
     }
 
@@ -306,13 +322,52 @@ public class ClasspathFinderTest {
         }
     }
 
-    /** A classpath element that does not exist, or is not a jarfile, is still reported. */
+    /**
+     * A classpath element that is there but is not a jarfile is still reported, since whether it can be opened is
+     * only found out when the scan tries to open it.
+     */
     @Test
     public void aClasspathElementThatCannotBeOpenedIsStillReported(@TempDir final Path tempDir) throws IOException {
-        final var notAJar = Files.writeString(tempDir.resolve("not-a-jar.jar"), "this is not a zipfile");
+        final var notAJar = Files.writeString(tempDir.resolve("not-a-jar.jar"), "this is not a zipfile").toFile();
+        try (var classpath = new ClasspathFinder().overrideClasspath((Object) notAJar).find()) {
+            assertThat(classpath.getLocations()).containsExactly(locationOf(notAJar));
+        }
+    }
+
+    /**
+     * A classpath element that the filesystem says is not there is skipped when it is found, rather than added and
+     * then failed on during the scan, since it can contribute no class.
+     */
+    @Test
+    public void aClasspathElementThatIsNotThereIsSkipped(@TempDir final Path tempDir) throws IOException {
+        final var present = writeJarWithManifest(tempDir.resolve("present.jar"));
         final var missing = tempDir.resolve("missing.jar").toFile();
-        try (var classpath = new ClasspathFinder().overrideClasspath(notAJar.toFile(), missing).find()) {
-            assertThat(classpath.getLocations()).containsExactly(locationOf(notAJar.toFile()), locationOf(missing));
+        try (var classpath = new ClasspathFinder().overrideClasspath(present, missing).find()) {
+            assertThat(classpath.getLocations()).containsExactly(locationOf(present));
+        }
+    }
+
+    /**
+     * A classpath element that cannot be read is skipped when it is found, since it too can contribute no class.
+     */
+    @Test
+    public void aClasspathElementThatCannotBeReadIsSkipped(@TempDir final Path tempDir) throws IOException {
+        final var present = writeJarWithManifest(tempDir.resolve("present.jar"));
+        final var unreadable = writeJarWithManifest(tempDir.resolve("unreadable.jar"));
+        try {
+            Files.setPosixFilePermissions(unreadable.toPath(), Set.of());
+        } catch (IOException | UnsupportedOperationException | SecurityException e) {
+            // Windows filesystems have no POSIX permissions
+            abort("Permissions cannot be cleared: " + e);
+            return;
+        }
+        if (unreadable.canRead()) {
+            // The superuser can read a file whatever its permissions say
+            abort("A file with no permissions can still be read");
+            return;
+        }
+        try (var classpath = new ClasspathFinder().overrideClasspath(present, unreadable).find()) {
+            assertThat(classpath.getLocations()).containsExactly(locationOf(present));
         }
     }
 

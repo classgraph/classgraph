@@ -69,8 +69,15 @@ try (Classpath classpath = new ClasspathFinder().find()) {
 Iterating the `Classpath` iterates its entries, in classpath order; `getEntries()` returns the same
 list. `location()` is an absolute path, or a nested path of the form `outer.jar!/inner.jar`, or a
 URL for anything that is not a local file -- so do not assume `Path.of(entry.location())` will
-succeed. `packageRootPrefixes()` lists the prefixes to strip from entry names within that element,
-e.g. `BOOT-INF/classes` for a Spring Boot jarfile; it is empty for an ordinary jarfile.
+succeed. A path is given in canonical form, spelled the way the file is stored: symbolic links are
+resolved, and on a filesystem that ignores case, so is the case of each name. That is also what
+decides whether two entries are the same, so a file that two classloaders reach by different paths
+is listed once, at the first position it is reached at. `packageRootPrefixes()` lists the prefixes
+to strip from entry names within that element, e.g. `BOOT-INF/classes` for a Spring Boot jarfile; it
+is empty for an ordinary jarfile.
+
+An entry that names a file or directory the filesystem says is not there, or that cannot be read, is
+left out of the classpath rather than listed and then failed on, since it can contribute no class.
 
 ### Read every classfile on the classpath, without the scanner
 
@@ -218,7 +225,10 @@ try (Classpath classpath = new ClasspathFinder()
 ```
 
 `addClasspathEntry` accepts a `String`, `File`, `Path`, `URL` or `URI`, and returns false if the
-entry was rejected (because it does not exist, or was already added). A handler must be stateless,
+entry was rejected -- because it is empty, because the filesystem says it is not there or that it
+cannot be read, because a classpath element filter rejected it, or because it was already added.
+There is no need to check any of that before calling: hand it everything the classloader offers, in
+the order the classloader would search it. A handler must be stateless,
 since one instance handles every classloader in every scan, and scans can run concurrently; state
 belonging to a single scan goes in the `ClasspathOrder` that is passed in. The same handler can be
 registered with the scanner via `new ClassGraph().registerClassLoaderHandler(...)`.

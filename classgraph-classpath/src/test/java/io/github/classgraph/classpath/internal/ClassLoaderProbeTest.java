@@ -48,7 +48,7 @@ public class ClassLoaderProbeTest {
                 "ModuleFinder should have found system modules");
 
         final Set<Path> paths = new TreeSet<>();
-        for (final String path : classLoaderProbe.getClasspathOrder().getClasspathEntryUniqueResolvedPaths()) {
+        for (final String path : classLoaderProbe.getClasspathOrder().getClasspathEntryUniqueLocations()) {
             paths.add(Path.of(path));
         }
         assertTrue(paths.remove(classesDir), "Classpath should have contained " + classesDir + ": " + paths);
@@ -83,7 +83,7 @@ public class ClassLoaderProbeTest {
                 "ModuleFinder should have found system modules");
 
         final Set<Path> paths = new TreeSet<>();
-        for (final String path : classLoaderProbe.getClasspathOrder().getClasspathEntryUniqueResolvedPaths()) {
+        for (final String path : classLoaderProbe.getClasspathOrder().getClasspathEntryUniqueLocations()) {
             paths.add(Path.of(path));
         }
         assertTrue(paths.remove(classesDir), "Classpath should have contained " + classesDir + ": " + paths);
@@ -112,7 +112,7 @@ public class ClassLoaderProbeTest {
      */
     private static Set<Path> resolvedPaths(final ClassLoaderProbe classLoaderProbe) {
         final Set<Path> paths = new TreeSet<>();
-        for (final String path : classLoaderProbe.getClasspathOrder().getClasspathEntryUniqueResolvedPaths()) {
+        for (final String path : classLoaderProbe.getClasspathOrder().getClasspathEntryUniqueLocations()) {
             paths.add(Path.of(path));
         }
         return paths;
