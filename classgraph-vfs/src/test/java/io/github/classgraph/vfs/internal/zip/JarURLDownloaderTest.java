@@ -18,10 +18,10 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
-import io.github.classgraph.base.internal.log.LogNode;
+import io.github.classgraph.vfs.VfsSpec;
 import io.github.classgraph.vfs.internal.VfsSession;
-import io.github.classgraph.vfs.internal.VfsSpec;
 import org.jspecify.annotations.Nullable;
 
 /**

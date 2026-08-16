@@ -37,7 +37,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
-import io.github.classgraph.base.internal.log.LogNode;
+import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.path.FastPathResolver;
 import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.base.internal.path.PathSyntax;

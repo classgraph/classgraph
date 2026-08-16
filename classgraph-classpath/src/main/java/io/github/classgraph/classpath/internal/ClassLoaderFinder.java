@@ -30,7 +30,7 @@ package io.github.classgraph.classpath.internal;
 
 import java.util.LinkedHashSet;
 
-import io.github.classgraph.base.internal.log.LogNode;
+import io.github.classgraph.base.LogNode;
 import org.jspecify.annotations.Nullable;
 
 /** A class to find the unique ordered classpath elements. */

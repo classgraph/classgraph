@@ -45,7 +45,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.ZipEntry;
 
-import io.github.classgraph.base.internal.log.LogNode;
+import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.base.internal.utils.ProxyingInputStream;
 import io.github.classgraph.vfs.CloseableByteBuffer;

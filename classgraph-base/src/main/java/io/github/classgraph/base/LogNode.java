@@ -26,9 +26,8 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.classgraph.base.internal.log;
+package io.github.classgraph.base;
 
-import io.github.classgraph.base.internal.utils.VersionFinder;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.text.DecimalFormat;
@@ -42,12 +41,23 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 
-import io.github.classgraph.base.ClassGraphLog;
+import io.github.classgraph.base.internal.utils.VersionFinder;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A tree-structured threadsafe log that allows you to add log entries in arbitrary order, and have the output
- * retain a sane order. The order may also be made deterministic by specifying a sort key for log entries.
+ * The verbose log that ClassGraph writes what it is doing to: a tree of log entries that may be added in any order,
+ * from any thread, and that reads back in a sane order, since each entry is nested under the entry it belongs to.
+ *
+ * <p>
+ * A log entry is added by calling one of the {@code log} methods, each of which returns the node that was added, so
+ * that the entries belonging to it can be nested under it in turn. The order of the children of a node is the order
+ * they were added in, unless a sort key is given, in which case they are ordered by sort key, so that a log written
+ * by several threads at once still reads the same way every time.
+ *
+ * <p>
+ * The whole tree is written to the {@code io.github.classgraph.ClassGraph} logger at {@code INFO} level by
+ * {@link #flush()}, which ClassGraph calls at the end of a scan. The output is meant to be read by a person working
+ * out why something was or was not found, and is not a stable format to parse.
  */
 public final class LogNode implements ClassGraphLog {
     // Mitigate log4j2 vulnerability (CVE-2021-44228), in case log4j is added to the classpath as the logger

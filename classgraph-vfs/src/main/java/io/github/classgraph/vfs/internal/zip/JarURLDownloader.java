@@ -40,7 +40,7 @@ import java.nio.ByteBuffer;
 import java.nio.file.FileSystemNotFoundException;
 import java.nio.file.Path;
 
-import io.github.classgraph.base.internal.log.LogNode;
+import io.github.classgraph.base.LogNode;
 import io.github.classgraph.vfs.internal.VfsSession;
 import org.jspecify.annotations.Nullable;
 

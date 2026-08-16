@@ -47,9 +47,9 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
+import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import io.github.classgraph.base.internal.filter.AcceptReject;
-import io.github.classgraph.base.internal.log.LogNode;
 import io.github.classgraph.base.internal.path.PathList;
 import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.utils.Assert;
@@ -196,7 +196,7 @@ public class ClassGraph {
      */
     public ClassGraph enableClassInfo() {
         scanSpec.enableClassInfo = true;
-        scanSpec.vfsSpec.enableMultiReleaseVersions = false;
+        scanSpec.vfsSpec.disableMultiReleaseVersions();
         return this;
     }
 
@@ -369,7 +369,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph disableNestedJarScanning() {
-        scanSpec.vfsSpec.enableNestedJars = false;
+        scanSpec.vfsSpec.disableNestedJars();
         return this;
     }
 
@@ -1202,7 +1202,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph setMaxBufferedJarRAMSize(final int maxBufferedJarRAMSize) {
-        scanSpec.vfsSpec.maxBufferedJarRAMSize = maxBufferedJarRAMSize;
+        scanSpec.vfsSpec.setMaxBufferedJarRAMSize(maxBufferedJarRAMSize);
         return this;
     }
 
@@ -1214,7 +1214,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph enableMultiReleaseVersions() {
-        scanSpec.vfsSpec.enableMultiReleaseVersions = true;
+        scanSpec.vfsSpec.enableMultiReleaseVersions();
 
         scanSpec.enableClassInfo = false;
         scanSpec.ignoreClassVisibility = false;

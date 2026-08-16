@@ -38,7 +38,7 @@ import java.util.Objects;
 
 import io.github.classgraph.ScanSpec.ScanSpecPathMatch;
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
-import io.github.classgraph.base.internal.log.LogNode;
+import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.classpath.internal.ClasspathExpander;
@@ -89,7 +89,7 @@ class ClasspathElementDir extends ClasspathElement {
             // since the classpath order determines which of two copies of the same class masks the other.
             var childClasspathEntryIdx = 0;
             for (final var childEntry : ClasspathExpander.childEntries(vfs.open(classpathEltPath), libDirPrefixes,
-                    vfsSpec.enableNestedJars, log)) {
+                    vfsSpec.isNestedJarsEnabled(), log)) {
                 if (log != null) {
                     log(classpathElementIdx, childEntry.origin().getLogMessage() + ": " + childEntry.location(),
                             log);

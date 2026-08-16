@@ -31,8 +31,9 @@
  * The types that every ClassGraph library shares with the code that calls it.
  *
  * <p>
- * There is currently one: {@link io.github.classgraph.base.ClassGraphLog}, the verbose log that ClassGraph hands to
- * code it calls out to, such as a {@code io.github.classgraph.classpath.ClassLoaderHandler}.
+ * There are currently two: {@link io.github.classgraph.base.LogNode}, the verbose log that ClassGraph writes what
+ * it is doing to, and {@link io.github.classgraph.base.ClassGraphLog}, the narrower view of that log which is
+ * handed to code ClassGraph calls out to, such as a {@code io.github.classgraph.classpath.ClassLoaderHandler}.
  *
  * <p>
  * This package is {@link org.jspecify.annotations.NullMarked}: unless a type is annotated

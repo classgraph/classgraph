@@ -37,7 +37,7 @@ import java.nio.channels.FileChannel;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import io.github.classgraph.base.internal.log.LogNode;
+import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.vfs.internal.VfsSession;
 import io.github.classgraph.vfs.internal.slice.reader.RandomAccessByteBufferReader;
@@ -145,7 +145,7 @@ public final class FileSlice extends Slice {
         this.fileLength = sliceLength;
         this.isTopLevelFileSlice = true;
 
-        if (session.vfsSpec.memoryMapFiles) {
+        if (session.vfsSpec.isMemoryMappingFiles()) {
             // Memory-map the whole file, if it can be mapped -- otherwise fall through and use the
             // RandomAccessFile API instead
             final var mapping = FileMapping.map(Objects.requireNonNull(fileChannel), fileLength, file, log);

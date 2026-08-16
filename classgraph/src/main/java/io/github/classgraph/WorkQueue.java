@@ -39,8 +39,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
-import io.github.classgraph.base.internal.log.LogNode;
 import org.jspecify.annotations.Nullable;
 
 /**

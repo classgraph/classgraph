@@ -44,7 +44,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import io.github.classgraph.base.internal.log.LogNode;
+import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.vfs.internal.ManifestParser;
 import org.jspecify.annotations.Nullable;
@@ -248,8 +248,8 @@ public abstract class VfsRoot implements AutoCloseable, Iterable<VfsEntry> {
 
     /**
      * Walk the entries under the package root, logging to the given log node rather than to the one the {@link Vfs}
-     * was given. This is for the other ClassGraph modules, which nest what the virtual filesystem logs under the
-     * part of the scan log that it belongs to, and is not part of the API.
+     * was given. This is for callers that write a log of their own, and want what the virtual filesystem logs
+     * nested under the part of it that it belongs to.
      *
      * @param visitor
      *            the visitor to hand the entries to.
@@ -257,7 +257,6 @@ public abstract class VfsRoot implements AutoCloseable, Iterable<VfsEntry> {
      *            the log node, or null to not log.
      * @throws IOException
      *             if the entries could not be listed, or if the {@link Vfs} has been closed.
-     * @hidden
      */
     public final void walk(final VfsVisitor visitor, final @Nullable LogNode log) throws IOException {
         Assert.notNull(visitor, "visitor");

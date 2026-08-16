@@ -32,15 +32,15 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
+import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
-import io.github.classgraph.base.internal.log.LogNode;
 import io.github.classgraph.base.internal.path.PathList;
 import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.classpath.internal.ClassLoaderAndModuleLayerSpec;
 import io.github.classgraph.classpath.internal.ClassLoaderProbe;
 import io.github.classgraph.classpath.internal.ClasspathSpec;
 import io.github.classgraph.vfs.Vfs;
-import io.github.classgraph.vfs.internal.VfsSpec;
+import io.github.classgraph.vfs.VfsSpec;
 
 /**
  * Finds the classpath and the module path of the running JVM: where its classes and resources would be loaded from,

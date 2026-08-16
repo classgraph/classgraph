@@ -39,17 +39,17 @@ import java.util.Locale;
 import java.util.Map.Entry;
 import java.util.Objects;
 
+import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
-import io.github.classgraph.base.internal.concurrency.SingletonMap;
 import io.github.classgraph.base.internal.concurrency.SingletonMap.NewInstanceException;
 import io.github.classgraph.base.internal.concurrency.SingletonMap.NullSingletonException;
-import io.github.classgraph.base.internal.log.LogNode;
+import io.github.classgraph.base.internal.concurrency.SingletonMap;
 import io.github.classgraph.base.internal.path.FastPathResolver;
 import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.path.URLPaths;
+import io.github.classgraph.vfs.VfsSpec;
 import io.github.classgraph.vfs.internal.VfsSession;
-import io.github.classgraph.vfs.internal.VfsSpec;
 import io.github.classgraph.vfs.internal.slice.Slice;
 import org.jspecify.annotations.Nullable;
 
@@ -191,7 +191,7 @@ public class NestedJarHandler implements AutoCloseable {
         public LogicalZipFile newInstance(final ZipFileSlice zipFileSlice, final @Nullable LogNode log)
                 throws IOException, InterruptedException {
             // Read the central directory for the zipfile
-            return new LogicalZipFile(zipFileSlice, session, log, vfsSpec.enableMultiReleaseVersions);
+            return new LogicalZipFile(zipFileSlice, session, log, vfsSpec.isMultiReleaseVersionsEnabled());
         }
     };
 
@@ -294,7 +294,7 @@ public class NestedJarHandler implements AutoCloseable {
         // The zipfile slice cache cannot be used here: two PhysicalZipFile instances compare equal if they have the
         // same path, so two different streams read under the same name would be treated as the same jarfile
         return new LogicalZipFile(new ZipFileSlice(physicalZipFile), session, log,
-                vfsSpec.enableMultiReleaseVersions);
+                vfsSpec.isMultiReleaseVersionsEnabled());
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -324,7 +324,7 @@ public class NestedJarHandler implements AutoCloseable {
             // lowercased before it is looked up -- otherwise "S3://bucket/x.jar" is rejected as not enabled
             // even though the "s3" scheme was enabled
             final var scheme = nestedJarPath.substring(0, nestedJarPath.indexOf(':')).toLowerCase(Locale.ROOT);
-            if (vfsSpec.allowedURLSchemes == null || !vfsSpec.allowedURLSchemes.contains(scheme)) {
+            if (vfsSpec.getAllowedURLSchemes() == null || !vfsSpec.getAllowedURLSchemes().contains(scheme)) {
                 // No URL schemes other than "file:" (with optional "jar:" prefix) allowed (these schemes were
                 // already stripped by FastPathResolver.resolve(nestedJarPathRaw))
                 throw new IOException("Scanning of URL scheme \"" + scheme
@@ -447,7 +447,7 @@ public class NestedJarHandler implements AutoCloseable {
         }
 
         // Do not extract nested jar, if nested jar scanning is disabled
-        if (!vfsSpec.enableNestedJars) {
+        if (!vfsSpec.isNestedJarsEnabled()) {
             throw new IOException("Nested jar scanning is disabled -- skipping nested jar " + nestedJarPath);
         }
 

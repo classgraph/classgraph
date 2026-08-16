@@ -30,6 +30,7 @@ package io.github.classgraph.vfs.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.github.classgraph.vfs.VfsSpec;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;

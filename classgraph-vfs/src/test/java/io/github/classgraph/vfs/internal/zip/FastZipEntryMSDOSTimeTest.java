@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
-import io.github.classgraph.vfs.internal.VfsSpec;
+import io.github.classgraph.vfs.VfsSpec;
 
 /**
  * Tests that the month of an MS-DOS timestamp is read from all four of its bits.

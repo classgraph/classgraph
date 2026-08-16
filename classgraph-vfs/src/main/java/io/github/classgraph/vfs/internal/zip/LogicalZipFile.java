@@ -38,7 +38,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-import io.github.classgraph.base.internal.log.LogNode;
+import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
 import io.github.classgraph.base.internal.utils.StringUtils;

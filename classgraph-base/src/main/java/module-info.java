@@ -36,9 +36,10 @@ import org.jspecify.annotations.NullMarked;
  *
  * <p>
  * This module is not useful on its own. Its only public API is
- * {@link io.github.classgraph.base.ClassGraphLog}, the verbose log that
- * ClassGraph hands to code it calls out to; every other package is exported
- * only to the other ClassGraph modules.
+ * {@link io.github.classgraph.base.LogNode}, the verbose log that ClassGraph
+ * writes what it is doing to, and {@link io.github.classgraph.base.ClassGraphLog},
+ * the narrower view of that log which is handed to code ClassGraph calls out
+ * to; every other package is exported only to the other ClassGraph modules.
  *
  * <p>
  * This module is {@link org.jspecify.annotations.NullMarked}: unless a type is
@@ -55,8 +56,6 @@ module io.github.classgraph.base {
     exports io.github.classgraph.base.internal.concurrency to io.github.classgraph, io.github.classgraph.classpath,
             io.github.classgraph.vfs;
     exports io.github.classgraph.base.internal.filter to io.github.classgraph, io.github.classgraph.classpath;
-    exports io.github.classgraph.base.internal.log to io.github.classgraph, io.github.classgraph.classpath,
-            io.github.classgraph.vfs;
     exports io.github.classgraph.base.internal.path to io.github.classgraph, io.github.classgraph.classpath,
             io.github.classgraph.vfs;
     exports io.github.classgraph.base.internal.reflection to io.github.classgraph.classpath, io.github.classgraph.vfs;

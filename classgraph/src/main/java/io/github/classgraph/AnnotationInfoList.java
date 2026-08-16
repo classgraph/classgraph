@@ -43,7 +43,7 @@ import java.util.Set;
 import java.util.function.Predicate;
 
 import io.github.classgraph.ClassInfo.RelType;
-import io.github.classgraph.base.internal.log.LogNode;
+import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
 import org.jspecify.annotations.Nullable;

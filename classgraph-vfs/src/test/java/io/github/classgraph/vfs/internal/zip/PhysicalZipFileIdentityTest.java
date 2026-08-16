@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
-import io.github.classgraph.vfs.internal.VfsSpec;
+import io.github.classgraph.vfs.VfsSpec;
 
 /**
  * A zipfile on disk can be opened through either the {@link File} API or the {@link java.nio.file.Path} API, and

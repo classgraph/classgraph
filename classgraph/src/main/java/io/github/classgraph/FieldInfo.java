@@ -38,7 +38,7 @@ import java.util.Set;
 import io.github.classgraph.ClassInfo.RelType;
 import io.github.classgraph.Classfile.TypeAnnotationDecorator;
 import io.github.classgraph.TypeUtils.ModifierType;
-import io.github.classgraph.base.internal.log.LogNode;
+import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.utils.StringUtils;
 import org.jspecify.annotations.Nullable;
 

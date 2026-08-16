@@ -34,11 +34,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import io.github.classgraph.base.internal.log.LogNode;
+import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.classpath.internal.ClasspathExpander;
 import io.github.classgraph.vfs.Vfs;
-import io.github.classgraph.vfs.internal.VfsSpec;
+import io.github.classgraph.vfs.VfsSpec;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -142,8 +142,8 @@ final class TransitiveClasspath {
             // filesystem owns it, and hands the same root back to whoever reads the classpath element next.
             final var root = entry.open(vfs);
             canonicalPath = root.getPath();
-            childEntries = ClasspathExpander.childEntries(root, entry.libDirPrefixes(), vfsSpec.enableNestedJars,
-                    log);
+            childEntries = ClasspathExpander.childEntries(root, entry.libDirPrefixes(),
+                    vfsSpec.isNestedJarsEnabled(), log);
         } catch (final IOException | IllegalArgumentException e) {
             if (Thread.currentThread().isInterrupted()) {
                 throw new IllegalStateException("Interrupted while reading the jarfiles on the classpath", e);

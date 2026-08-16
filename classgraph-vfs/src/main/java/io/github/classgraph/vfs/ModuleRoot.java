@@ -39,9 +39,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.concurrency.SingletonMap.NewInstanceException;
 import io.github.classgraph.base.internal.concurrency.SingletonMap.NullSingletonException;
-import io.github.classgraph.base.internal.log.LogNode;
 import io.github.classgraph.vfs.internal.Recycler;
 import io.github.classgraph.vfs.internal.module.ModuleReaderUtils;
 import org.jspecify.annotations.Nullable;

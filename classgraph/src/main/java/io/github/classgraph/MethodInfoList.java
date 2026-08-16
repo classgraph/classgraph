@@ -37,7 +37,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Predicate;
 
-import io.github.classgraph.base.internal.log.LogNode;
+import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.utils.Assert;
 import org.jspecify.annotations.Nullable;
 

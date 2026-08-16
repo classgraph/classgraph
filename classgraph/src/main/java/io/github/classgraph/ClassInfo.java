@@ -47,8 +47,8 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
@@ -56,7 +56,7 @@ import java.util.function.Function;
 import io.github.classgraph.Classfile.ClassContainment;
 import io.github.classgraph.Classfile.ClassTypeAnnotationDecorator;
 import io.github.classgraph.TypeUtils.ModifierType;
-import io.github.classgraph.base.internal.log.LogNode;
+import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.utils.Assert;
 import org.jspecify.annotations.Nullable;
 

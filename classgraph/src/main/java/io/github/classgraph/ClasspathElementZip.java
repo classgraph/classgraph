@@ -44,14 +44,14 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import io.github.classgraph.ScanSpec.ScanSpecPathMatch;
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
-import io.github.classgraph.base.internal.log.LogNode;
+import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.path.FastPathResolver;
 import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.classpath.ClassLoaderHandler;
-import io.github.classgraph.classpath.internal.ClasspathExpander;
 import io.github.classgraph.classpath.internal.ClasspathExpander.ChildEntry;
+import io.github.classgraph.classpath.internal.ClasspathExpander;
 import io.github.classgraph.vfs.Vfs;
 import io.github.classgraph.vfs.VfsEntry;
 import io.github.classgraph.vfs.VfsRoot;
@@ -189,7 +189,8 @@ class ClasspathElementZip extends ClasspathElement {
         // which of two copies of the same class masks the other
         final List<ChildEntry> childEntries;
         try {
-            childEntries = ClasspathExpander.childEntries(root, libDirPrefixes, vfsSpec.enableNestedJars, subLog);
+            childEntries = ClasspathExpander.childEntries(root, libDirPrefixes, vfsSpec.isNestedJarsEnabled(),
+                    subLog);
         } catch (final IOException e) {
             if (subLog != null) {
                 subLog.log("Could not read the classpath elements declared by " + rawPath + " : " + e);

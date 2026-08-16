@@ -32,11 +32,11 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
-import java.nio.channels.FileChannel;
 import java.nio.channels.FileChannel.MapMode;
+import java.nio.channels.FileChannel;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import io.github.classgraph.base.internal.log.LogNode;
+import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.base.internal.utils.VersionFinder;
 import org.jspecify.annotations.Nullable;

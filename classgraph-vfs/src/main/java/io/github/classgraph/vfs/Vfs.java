@@ -40,7 +40,6 @@ import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.IdentityHashMap;
@@ -50,16 +49,15 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import io.github.classgraph.base.internal.concurrency.SingletonMap.NewInstanceException;
 import io.github.classgraph.base.internal.concurrency.SingletonMap.NullSingletonException;
-import io.github.classgraph.base.internal.log.LogNode;
 import io.github.classgraph.base.internal.path.FastPathResolver;
 import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.vfs.internal.VfsSession;
-import io.github.classgraph.vfs.internal.VfsSpec;
 import io.github.classgraph.vfs.internal.zip.NestedJarHandler;
 import org.jspecify.annotations.Nullable;
 
@@ -97,24 +95,15 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>
  * Every method is safe to call from multiple threads at once. Two threads that ask for the same path at the same
- * time get back the same {@link VfsRoot}, and the jarfile behind it is only read once. How storage is read is fixed
- * at construction, so there are no settings for one thread to change while another is reading, and
- * {@link #verbose()}, which only turns on logging, is synchronized like every other method. {@link #close()} takes
- * effect the moment it is called, so a thread that calls any other method after that -- even while the close is
- * still running -- gets an {@link IOException} from an {@code open} method, or an {@link IllegalStateException}
- * from {@link #verbose()}, rather than a root backed by storage that is being released.
+ * time get back the same {@link VfsRoot}, and the jarfile behind it is only read once. How storage is read is set
+ * by the {@link VfsSpec} this {@link Vfs} was constructed with, whose settings are meant to be chosen before
+ * anything is opened but are safe to change from any thread, and {@link #verbose()}, which only turns on logging,
+ * is synchronized like every other method. {@link #close()} takes effect the moment it is called, so a thread that
+ * calls any other method after that -- even while the close is still running -- gets an {@link IOException} from an
+ * {@code open} method, or an {@link IllegalStateException} from {@link #verbose()}, rather than a root backed by
+ * storage that is being released.
  */
 public class Vfs implements AutoCloseable, Iterable<VfsRoot> {
-    /** The default value of the {@code enableNestedJars} constructor parameter. */
-    public static final boolean DEFAULT_ENABLE_NESTED_JARS = VfsSpec.DEFAULT_ENABLE_NESTED_JARS;
-
-    /** The default value of the {@code enableMultiReleaseVersions} constructor parameter. */
-    public static final boolean DEFAULT_ENABLE_MULTI_RELEASE_VERSIONS = //
-            VfsSpec.DEFAULT_ENABLE_MULTI_RELEASE_VERSIONS;
-
-    /** The default value of the {@code maxBufferedJarRAMSize} constructor parameter, in bytes. */
-    public static final int DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE = VfsSpec.DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE;
-
     /** The handler that opens jarfiles and owns the resources they are backed by. */
     private final NestedJarHandler nestedJarHandler;
 
@@ -130,91 +119,40 @@ public class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     /** True once {@link #close()} has been called. */
     private final AtomicBoolean closed = new AtomicBoolean();
 
-    /**
-     * Constructor, using the default value of every option -- see {@link #Vfs(boolean, boolean, Collection, int)}.
-     */
+    /** Constructor, using the default value of every setting -- see {@link VfsSpec}. */
     public Vfs() {
         this(new VfsSpec(), new InterruptionChecker());
     }
 
     /**
-     * Constructor, setting every option. The options cannot be changed afterwards, since a {@link Vfs} is meant to
-     * be shared between threads.
-     *
-     * @param enableNestedJars
-     *            whether to open jarfiles nested within other jarfiles, so that a path containing {@code "!/"} can
-     *            name a jarfile within a jarfile, and not just a package root within a jarfile. Default:
-     *            {@value #DEFAULT_ENABLE_NESTED_JARS}.
-     * @param enableMultiReleaseVersions
-     *            whether to report every version of a multi-release jarfile's entries, rather than only the newest
-     *            version of each entry that this JVM can run. Default:
-     *            {@value #DEFAULT_ENABLE_MULTI_RELEASE_VERSIONS}.
-     * @param urlSchemes
-     *            the URL schemes that jarfiles may be opened from, as well as from the local filesystem, e.g.
-     *            {@code Set.of("https")}. Scheme names only, without the trailing {@code ':'}. The {@code file:}
-     *            and {@code jar:} schemes are always allowed. A jarfile read from a URL is downloaded in full
-     *            before its entries can be read, since a zipfile's central directory is at the end of the file. May
-     *            be null or empty, which allows no scheme beyond the two that are always allowed, which is the
-     *            default.
-     * @param maxBufferedJarRAMSize
-     *            the number of bytes of a jarfile that may be held in RAM before it is spilled to a temporary file
-     *            on disk. This only applies to jarfiles that cannot be read in place: a nested jarfile that is
-     *            stored deflated rather than uncompressed, a jarfile downloaded from a URL, and a jarfile read from
-     *            an {@link InputStream}. Default: {@value #DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE} bytes (64MB), i.e.
-     *            writing to disk is avoided wherever possible.
-     * @throws IllegalArgumentException
-     *             if any of {@code urlSchemes} is shorter than two characters (a one-character scheme cannot be
-     *             told apart from a Windows drive letter) or is not a valid URL scheme, or if
-     *             {@code maxBufferedJarRAMSize} is negative.
-     */
-    public Vfs(final boolean enableNestedJars, final boolean enableMultiReleaseVersions,
-            final @Nullable Collection<String> urlSchemes, final int maxBufferedJarRAMSize) {
-        this(newVfsSpec(enableNestedJars, enableMultiReleaseVersions, urlSchemes, maxBufferedJarRAMSize),
-                new InterruptionChecker());
-    }
-
-    /**
-     * Build the settings for the public constructor that sets every option, validating them before anything is
-     * constructed.
-     *
-     * @param enableNestedJars
-     *            whether to open jarfiles nested within other jarfiles.
-     * @param enableMultiReleaseVersions
-     *            whether to report every version of a multi-release jarfile's entries.
-     * @param urlSchemes
-     *            the URL schemes that jarfiles may be opened from, or null for none.
-     * @param maxBufferedJarRAMSize
-     *            the number of bytes of a jarfile that may be held in RAM before it is spilled to disk.
-     * @return the settings.
-     */
-    private static VfsSpec newVfsSpec(final boolean enableNestedJars, final boolean enableMultiReleaseVersions,
-            final @Nullable Collection<String> urlSchemes, final int maxBufferedJarRAMSize) {
-        if (maxBufferedJarRAMSize < 0) {
-            throw new IllegalArgumentException("maxBufferedJarRAMSize cannot be negative");
-        }
-        final var vfsSpec = new VfsSpec();
-        vfsSpec.enableNestedJars = enableNestedJars;
-        vfsSpec.enableMultiReleaseVersions = enableMultiReleaseVersions;
-        if (urlSchemes != null) {
-            for (final var scheme : urlSchemes) {
-                vfsSpec.enableURLScheme(scheme);
-            }
-        }
-        vfsSpec.maxBufferedJarRAMSize = maxBufferedJarRAMSize;
-        return vfsSpec;
-    }
-
-    /**
-     * Constructor for the other ClassGraph modules, which configure the virtual filesystem through a
-     * {@link VfsSpec} built from their own API rather than through the methods of this class, and which share an
-     * {@link InterruptionChecker} with the rest of a scan.
+     * Constructor, taking the settings to read storage with.
      *
      * <p>
-     * The parameter types are in packages that are only exported to those modules, so no other module can call this
-     * constructor, and it is not part of the API.
+     * The {@link VfsSpec} is held, not copied, and each setting is read where it is needed, so a setting should be
+     * changed before this {@link Vfs} opens anything -- a setting changed while entries are being read takes effect
+     * for some of them and not others. Changing one is safe from any thread, since every setting is held in a
+     * volatile field.
+     *
+     * <pre>
+     * try (Vfs vfs = new Vfs(new VfsSpec().enableMultiReleaseVersions().setMaxBufferedJarRAMSize(65536))) {
+     *     // ...
+     * }
+     * </pre>
      *
      * @param vfsSpec
-     *            everything the virtual filesystem is configured with.
+     *            the settings to read storage with.
+     */
+    public Vfs(final VfsSpec vfsSpec) {
+        this(vfsSpec, new InterruptionChecker());
+    }
+
+    /**
+     * Constructor for the other ClassGraph modules, which share an {@link InterruptionChecker} with the rest of a
+     * scan. {@link InterruptionChecker} is in a package that is only exported to those modules, so no other module
+     * can call this constructor, and it is not part of the API.
+     *
+     * @param vfsSpec
+     *            the settings to read storage with.
      * @param interruptionChecker
      *            the interruption checker to share with the rest of the scan.
      * @hidden
@@ -276,9 +214,9 @@ public class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     }
 
     /**
-     * Open a directory or a jarfile named by a path, logging to the given log node rather than to the one this
-     * {@link Vfs} was given. This is for the other ClassGraph modules, which nest what the virtual filesystem logs
-     * under the part of the scan log that it belongs to, and is not part of the API.
+     * Open a directory or a jarfile named by a path, logging to the given log node rather than to the one
+     * {@link #verbose()} turned on. This is for callers that write a log of their own, and want what the virtual
+     * filesystem logs nested under the part of it that it belongs to.
      *
      * <p>
      * A path is only opened once, so only the first call for a given path logs anything.
@@ -290,7 +228,6 @@ public class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * @return the opened root.
      * @throws IOException
      *             if the path could not be opened or read, or if this {@link Vfs} has been closed.
-     * @hidden
      */
     public VfsRoot open(final String path, final @Nullable LogNode logNode) throws IOException {
         Assert.notNull(path, "path");
@@ -770,8 +707,8 @@ public class Vfs implements AutoCloseable, Iterable<VfsRoot> {
 
     /**
      * Close this {@link Vfs}, logging to the given log node rather than to the one {@link #verbose()} turned on.
-     * This is for the other ClassGraph modules, which nest what the virtual filesystem logs under the part of the
-     * scan log that it belongs to, and is not part of the API.
+     * This is for callers that write a log of their own, and want what the virtual filesystem logs nested under the
+     * part of it that it belongs to.
      *
      * <p>
      * Unlike {@link #close()}, this does not flush the log node afterwards, since the caller owns the log tree that
@@ -779,7 +716,6 @@ public class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      *
      * @param logNode
      *            the log node, or null to not log.
-     * @hidden
      */
     public void close(final @Nullable LogNode logNode) {
         doClose(logNode);

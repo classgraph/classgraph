@@ -15,7 +15,7 @@ import java.util.Collections;
 import java.util.Optional;
 import java.util.stream.Stream;
 
-import io.github.classgraph.base.internal.log.LogNode;
+import io.github.classgraph.base.LogNode;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 

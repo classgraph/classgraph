@@ -149,8 +149,8 @@ the file handles, memory mappings and temporary files belong to the `Vfs`, and a
   jarfile, e.g. `spring-boot-app.jar!/BOOT-INF/classes`. Entry names are reported with the root
   stripped off.
 * **Multi-release jarfiles**, resolved to the newest version of each entry that the running JVM can
-  use, or every version if the `Vfs` was constructed with multi-release versions enabled.
-* **Jarfiles at a URL**, if the `Vfs` was constructed with that URL scheme. The file is downloaded
+  use, or every version if multi-release versions were enabled on the `Vfs`.
+* **Jarfiles at a URL**, if that URL scheme was enabled on the `Vfs`. The file is downloaded
   in full first, because a zipfile's central directory is at the end.
 * **Entry names encoded in IBM Code Page 437**, which the zip specification requires when bit 11 of
   the entry's general purpose bit flag is clear. Windows Explorer and Info-ZIP both write such
@@ -158,24 +158,31 @@ the file handles, memory mappings and temporary files belong to the `Vfs`, and a
 
 ## Options
 
-A `Vfs` is configured once, by the constructor, and cannot be reconfigured afterwards, so that the
-threads sharing it never see a setting change under them:
+How storage is read is set by a `VfsSpec`, which the `Vfs` constructor takes. Each setting is
+changed by a method that returns the same `VfsSpec`, so the ones that differ from the default can be
+chained onto the constructor call and the rest left alone:
 
 ```java
-new Vfs(/* enableNestedJars = */ true, /* enableMultiReleaseVersions = */ false,
-        /* urlSchemes = */ Set.of("https"), /* maxBufferedJarRAMSize = */ 64 * 1024 * 1024)
+new Vfs(new VfsSpec().enableURLScheme("https").setMaxBufferedJarRAMSize(65536))
 ```
 
-| Option | Default | Effect |
+| Setting | Default | Effect |
 | --- | --- | --- |
-| `enableNestedJars` | `true` | Whether `!/` in a path may name a jarfile within a jarfile, rather than only a package root within a jarfile |
-| `enableMultiReleaseVersions` | `false` | Whether to report every version of a multi-release jarfile's entries, rather than only the newest version this JVM can run |
-| `urlSchemes` | none | The URL schemes a jarfile may be opened from, e.g. `Set.of("https")`. `file:` and `jar:` are always allowed. May be null |
-| `maxBufferedJarRAMSize` | 64MB | How many bytes of a jarfile may be held in RAM before it is spilled to a temporary file |
+| `enableNestedJars()` / `disableNestedJars()` | enabled | Whether `!/` in a path may name a jarfile within a jarfile, rather than only a package root within a jarfile |
+| `enableMultiReleaseVersions()` / `disableMultiReleaseVersions()` | disabled | Whether to report every version of a multi-release jarfile's entries, rather than only the newest version this JVM can run |
+| `enableURLScheme(String)` | none | A URL scheme a jarfile may be opened from, e.g. `"https"`. `file:` and `jar:` are always allowed. Call once per scheme |
+| `setMaxBufferedJarRAMSize(int)` | 64MB | How many bytes of a jarfile may be held in RAM before it is spilled to a temporary file |
 
-`new Vfs()` uses the default of every option, and `Vfs.DEFAULT_ENABLE_NESTED_JARS`,
-`Vfs.DEFAULT_ENABLE_MULTI_RELEASE_VERSIONS` and `Vfs.DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE` name the
-defaults, for changing one option and leaving the rest alone.
+`new Vfs()` uses the default of every setting. Each setting has a matching getter --
+`isNestedJarsEnabled()`, `isMultiReleaseVersionsEnabled()`, `getAllowedURLSchemes()` and
+`getMaxBufferedJarRAMSize()` -- and `VfsSpec.DEFAULT_ENABLE_NESTED_JARS`,
+`VfsSpec.DEFAULT_ENABLE_MULTI_RELEASE_VERSIONS` and `VfsSpec.DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE` name
+the defaults.
+
+The `VfsSpec` is held by the `Vfs`, not copied, and each setting is read where it is needed, so a
+setting should be chosen before the `Vfs` opens anything -- a setting changed while entries are
+being read takes effect for some of them and not others. Changing one is safe from any thread: every
+setting is held in a volatile field.
 
 ## Concurrency
 
@@ -382,8 +389,9 @@ try (Vfs vfs = new Vfs();
 
 The stream is read into RAM, or spilled to a temporary file if it is larger than the maximum
 buffered jar RAM size. `vfs.open(byte[], String)` does the same for a jarfile you already hold.
-Alternatively, let the library do the fetching: a `Vfs` constructed with `Set.of("https")` as its
-URL schemes opens the URL directly, with `vfs.open("https://.../library.jar")`.
+Alternatively, let the library do the fetching: a `Vfs` constructed with
+`new VfsSpec().enableURLScheme("https")` opens the URL directly, with
+`vfs.open("https://.../library.jar")`.
 
 ### Read a jarfile nested inside another jarfile
 

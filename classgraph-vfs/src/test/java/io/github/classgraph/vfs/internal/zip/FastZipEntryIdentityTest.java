@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
-import io.github.classgraph.vfs.internal.VfsSpec;
+import io.github.classgraph.vfs.VfsSpec;
 
 /**
  * Zip entries are used as map keys, so two of them stand for the same entry only if they name the same entry of the

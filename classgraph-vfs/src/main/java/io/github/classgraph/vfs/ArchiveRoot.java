@@ -38,7 +38,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import io.github.classgraph.base.internal.log.LogNode;
+import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.vfs.internal.zip.LogicalZipFile;
 import org.jspecify.annotations.Nullable;

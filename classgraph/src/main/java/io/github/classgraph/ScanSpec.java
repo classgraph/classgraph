@@ -32,13 +32,13 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 
-import io.github.classgraph.base.internal.filter.AcceptReject;
+import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.filter.AcceptReject.AcceptRejectLeafname;
 import io.github.classgraph.base.internal.filter.AcceptReject.AcceptRejectPrefix;
 import io.github.classgraph.base.internal.filter.AcceptReject.AcceptRejectWholeString;
-import io.github.classgraph.base.internal.log.LogNode;
+import io.github.classgraph.base.internal.filter.AcceptReject;
 import io.github.classgraph.classpath.internal.ClasspathSpec;
-import io.github.classgraph.vfs.internal.VfsSpec;
+import io.github.classgraph.vfs.VfsSpec;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -411,8 +411,8 @@ class ScanSpec {
         if (log != null) {
             final var scanSpecLog = log.log("ScanSpec:");
             for (final Field field : ScanSpec.class.getDeclaredFields()) {
-                if (field.getType() == ClasspathSpec.class || field.getType() == VfsSpec.class) {
-                    // The composed specs log their own fields, below
+                if (field.getType() == ClasspathSpec.class) {
+                    // ClasspathSpec logs its own fields, below
                     continue;
                 }
                 try {
@@ -422,7 +422,6 @@ class ScanSpec {
                 }
             }
             classpathSpec.log(log);
-            vfsSpec.log(log);
         }
     }
 }

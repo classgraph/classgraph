@@ -37,7 +37,7 @@ import java.nio.file.StandardOpenOption;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import io.github.classgraph.base.internal.log.LogNode;
+import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.vfs.internal.VfsSession;
 import io.github.classgraph.vfs.internal.slice.reader.RandomAccessByteBufferReader;
@@ -157,7 +157,7 @@ public final class PathSlice extends Slice {
         // Had to use 0L for sliceLength in call to super, since FileChannel wasn't open yet => update sliceLength
         this.sliceLength = fileLength;
 
-        if (memoryMapWholeFile && session.vfsSpec.memoryMapFiles) {
+        if (memoryMapWholeFile && session.vfsSpec.isMemoryMappingFiles()) {
             // Memory-map the whole file, if it can be mapped -- otherwise fall through and read through the
             // FileChannel API instead
             final var mapping = FileMapping.map(fileChannelOpened, fileLength, path, log);

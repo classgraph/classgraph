@@ -246,7 +246,7 @@ public class ResourceTest {
         final var classGraph = new ClassGraph().acceptPathsNonRecursive("").overrideClasspath(jarPath);
         // Files are memory-mapped on Windows only, so the platform's choice is overridden here to exercise the
         // mapping path whatever platform this test runs on
-        VfsSpecAccess.vfsSpecOf(classGraph).memoryMapFiles = true;
+        VfsSpecAccess.vfsSpecOf(classGraph).setMemoryMapFiles(true);
         try (var scanResult = classGraph.scan()) {
             final var resource = resource(scanResult, "stored.txt");
             final var byteBuffer = resource.read().getByteBuffer();

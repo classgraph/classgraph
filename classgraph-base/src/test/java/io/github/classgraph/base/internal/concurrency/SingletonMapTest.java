@@ -7,9 +7,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Test;
 
+import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.concurrency.SingletonMap.NewInstanceException;
 import io.github.classgraph.base.internal.concurrency.SingletonMap.NullSingletonException;
-import io.github.classgraph.base.internal.log.LogNode;
 import org.jspecify.annotations.Nullable;
 
 /**

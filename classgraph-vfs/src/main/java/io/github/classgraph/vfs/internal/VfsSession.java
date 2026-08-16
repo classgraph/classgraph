@@ -28,6 +28,7 @@
  */
 package io.github.classgraph.vfs.internal;
 
+import io.github.classgraph.vfs.VfsSpec;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -43,9 +44,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
 import java.util.zip.Inflater;
 
+import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import io.github.classgraph.base.internal.concurrency.SingletonMap;
-import io.github.classgraph.base.internal.log.LogNode;
 import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.vfs.internal.module.ModuleReaderUtils;
 import io.github.classgraph.vfs.internal.slice.Slice;

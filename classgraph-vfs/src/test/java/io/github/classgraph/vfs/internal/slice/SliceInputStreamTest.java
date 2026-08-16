@@ -12,8 +12,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
+import io.github.classgraph.vfs.VfsSpec;
 import io.github.classgraph.vfs.internal.VfsSession;
-import io.github.classgraph.vfs.internal.VfsSpec;
 
 /**
  * Tests for the {@link InputStream} that {@link Slice#open()} returns, which is what a resource's content is read

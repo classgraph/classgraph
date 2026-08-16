@@ -32,13 +32,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map.Entry;
 
-import io.github.classgraph.base.internal.log.LogNode;
+import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.path.FastPathResolver;
 import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.base.internal.path.PathList;
 import io.github.classgraph.base.internal.utils.VersionFinder;
-import io.github.classgraph.classpath.internal.classloaderhandler.ClassLoaderHandlerRegistry;
 import io.github.classgraph.classpath.internal.classloaderhandler.ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry;
+import io.github.classgraph.classpath.internal.classloaderhandler.ClassLoaderHandlerRegistry;
 import org.jspecify.annotations.Nullable;
 
 /** A class to find the unique ordered classpath elements. */

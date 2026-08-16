@@ -30,10 +30,10 @@ package io.github.classgraph.vfs.internal.slice;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
 import java.nio.channels.FileChannel.MapMode;
+import java.nio.channels.FileChannel;
 
-import io.github.classgraph.base.internal.log.LogNode;
+import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.utils.VersionFinder;
 import org.jspecify.annotations.Nullable;
 

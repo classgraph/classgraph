@@ -39,7 +39,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
-import io.github.classgraph.base.internal.log.LogNode;
+import io.github.classgraph.base.LogNode;
 import io.github.classgraph.vfs.internal.VfsSession;
 import io.github.classgraph.vfs.internal.slice.reader.RandomAccessReader;
 import org.jspecify.annotations.Nullable;
@@ -177,11 +177,11 @@ public abstract class Slice implements AutoCloseable {
     public static Slice fromInputStream(final InputStream inputStream, final String tempFileBaseName,
             final long inputStreamLengthHint, final VfsSession session, final @Nullable LogNode log)
             throws IOException {
-        final var maxBufferedJarRAMSize = session.vfsSpec.maxBufferedJarRAMSize;
+        final var maxBufferedJarRAMSize = session.vfsSpec.getMaxBufferedJarRAMSize();
         try (inputStream) {
             if (inputStreamLengthHint <= maxBufferedJarRAMSize) {
-                // inputStreamLengthHint is unknown (-1) or shorter than vfsSpec.maxBufferedJarRAMSize, so try
-                // reading from the InputStream into an array of size vfsSpec.maxBufferedJarRAMSize or
+                // inputStreamLengthHint is unknown (-1) or shorter than maxBufferedJarRAMSize, so try
+                // reading from the InputStream into an array of size maxBufferedJarRAMSize or
                 // inputStreamLengthHint respectively. Also if inputStreamLengthHint == 0, which may or may not be
                 // valid, use a buffer size of 16kB to avoid spilling to disk in case this is wrong but the file is
                 // still small.
@@ -222,7 +222,7 @@ public abstract class Slice implements AutoCloseable {
                 return new ArraySlice(buf, /* isDeflatedZipEntry = */ false, /* inflatedSizeHint = */ 0L, session);
 
             }
-            // inputStreamLengthHint is longer than vfsSpec.maxBufferedJarRAMSize, so immediately spill to disk
+            // inputStreamLengthHint is longer than maxBufferedJarRAMSize, so immediately spill to disk
             return spillToDisk(inputStream, tempFileBaseName, /* buf = */ null, /* bufBytesUsed = */ 0,
                     /* overflowBuf = */ null, session, log);
         }

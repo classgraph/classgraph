@@ -26,7 +26,7 @@
 		     packages are exported because OSGi has no equivalent of a qualified export, and the modules
 		     above this one need them. They are marked x-internal so that tooling does not offer them for
 		     import, and they are not covered by the project's API compatibility guarantees. -->
-		<osgiExportPackage>io.github.classgraph.base;version="${project.version}",io.github.classgraph.base.internal.concurrency;x-internal:=true,io.github.classgraph.base.internal.filter;x-internal:=true,io.github.classgraph.base.internal.log;x-internal:=true,io.github.classgraph.base.internal.path;x-internal:=true,io.github.classgraph.base.internal.reflection;x-internal:=true,io.github.classgraph.base.internal.utils;x-internal:=true</osgiExportPackage>
+		<osgiExportPackage>io.github.classgraph.base;version="${project.version}",io.github.classgraph.base.internal.concurrency;x-internal:=true,io.github.classgraph.base.internal.filter;x-internal:=true,io.github.classgraph.base.internal.path;x-internal:=true,io.github.classgraph.base.internal.reflection;x-internal:=true,io.github.classgraph.base.internal.utils;x-internal:=true</osgiExportPackage>
 		<!-- Narcissus is imported optionally because ReflectionUtils looks it up by name, and an OSGi bundle can
 		     only load a class from a package it imports. -->
 		<osgiImportPackage>javax.xml,javax.xml.namespace,javax.xml.parsers,javax.xml.xpath,org.w3c.dom,io.github.toolfactory.narcissus;resolution:="optional",org.jspecify.annotations;resolution:="optional"</osgiImportPackage>

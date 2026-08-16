@@ -45,10 +45,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.github.classgraph.ScanSpec.ScanSpecPathMatch;
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
-import io.github.classgraph.base.internal.log.LogNode;
+import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.base.internal.path.PathSyntax;
-import io.github.classgraph.vfs.internal.VfsSpec;
+import io.github.classgraph.vfs.VfsSpec;
 import io.github.classgraph.vfs.internal.slice.reader.RandomAccessOrSequentialReader;
 import org.jspecify.annotations.Nullable;
 

@@ -26,10 +26,10 @@
 		     packages are exported because OSGi has no equivalent of a qualified export, and the modules
 		     above this one need them. They are marked x-internal so that tooling does not offer them for
 		     import, and they are not covered by the project's API compatibility guarantees. -->
-		<osgiExportPackage>io.github.classgraph.vfs;version="${project.version}",io.github.classgraph.vfs.internal;x-internal:=true,io.github.classgraph.vfs.internal.slice.reader;x-internal:=true</osgiExportPackage>
+		<osgiExportPackage>io.github.classgraph.vfs;version="${project.version}",io.github.classgraph.vfs.internal.slice.reader;x-internal:=true</osgiExportPackage>
 		<!-- sun.misc is imported optionally because OffHeapMemory looks up Unsafe by name on JDK 17-21, and an
 		     OSGi bundle can only load a class from a package it imports. -->
-		<osgiImportPackage>io.github.classgraph.base.internal.concurrency,io.github.classgraph.base.internal.log,io.github.classgraph.base.internal.path,io.github.classgraph.base.internal.reflection,io.github.classgraph.base.internal.utils,sun.misc;resolution:="optional",org.jspecify.annotations;resolution:="optional"</osgiImportPackage>
+		<osgiImportPackage>io.github.classgraph.base,io.github.classgraph.base.internal.concurrency,io.github.classgraph.base.internal.path,io.github.classgraph.base.internal.reflection,io.github.classgraph.base.internal.utils,sun.misc;resolution:="optional",org.jspecify.annotations;resolution:="optional"</osgiImportPackage>
 		<osgiDependencies>io.github.classgraph.base export,jdk.unsupported</osgiDependencies>
 
 		<!-- This module has sources and produces a jar, so it needs the ecj checks and the license copies -->

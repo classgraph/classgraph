@@ -18,11 +18,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.zip.CRC32;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -46,8 +44,11 @@ public class VfsTest {
      * @return the virtual filesystem.
      */
     private static Vfs vfsWithURLSchemes(final String... urlSchemes) {
-        return new Vfs(Vfs.DEFAULT_ENABLE_NESTED_JARS, Vfs.DEFAULT_ENABLE_MULTI_RELEASE_VERSIONS,
-                Set.of(urlSchemes), Vfs.DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE);
+        final var vfsSpec = new VfsSpec();
+        for (final var urlScheme : urlSchemes) {
+            vfsSpec.enableURLScheme(urlScheme);
+        }
+        return new Vfs(vfsSpec);
     }
 
     /**
@@ -884,8 +885,7 @@ public class VfsTest {
 
         // The inner jarfile has to be inflated, and no RAM is allowed to hold it, so it spills to a temporary file
         final Vfs closedVfs;
-        try (var vfs = new Vfs(Vfs.DEFAULT_ENABLE_NESTED_JARS, Vfs.DEFAULT_ENABLE_MULTI_RELEASE_VERSIONS,
-                /* urlSchemes = */ null, /* maxBufferedJarRAMSize = */ 0)) {
+        try (var vfs = new Vfs(new VfsSpec().setMaxBufferedJarRAMSize(0))) {
             final var root = vfs.open(outerJarFile.getPath() + "!/lib/inner.jar");
             assertThat(entryContent(root, "com/xyz/widget.txt")).isEqualTo(RESOURCE_CONTENT);
             assertThat(vfs.hasTempFiles()).isTrue();
@@ -923,8 +923,7 @@ public class VfsTest {
         final var outerJarFile = new File(tempDir, "outer.jar");
         writeJarContainingJar(outerJarFile, "lib/inner.jar", readFile(innerJarFile));
 
-        try (var vfs = new Vfs(/* enableNestedJars = */ false, Vfs.DEFAULT_ENABLE_MULTI_RELEASE_VERSIONS,
-                /* urlSchemes = */ null, Vfs.DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE)) {
+        try (var vfs = new Vfs(new VfsSpec().disableNestedJars())) {
             assertThatThrownBy(() -> vfs.open(outerJarFile.getPath() + "!/lib/inner.jar"))
                     .isInstanceOf(IOException.class);
         }
@@ -1159,8 +1158,7 @@ public class VfsTest {
         final var jarFile = new File(tempDir, "widget.jar");
         writeMultiReleaseJar(jarFile, "com/xyz/widget.txt");
 
-        try (var vfs = new Vfs(Vfs.DEFAULT_ENABLE_NESTED_JARS, /* enableMultiReleaseVersions = */ true,
-                /* urlSchemes = */ null, Vfs.DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE)) {
+        try (var vfs = new Vfs(new VfsSpec().enableMultiReleaseVersions())) {
             final var root = vfs.open(jarFile.getPath());
             assertThat(root.getEntries()).extracting(VfsEntry::getName).containsExactlyInAnyOrder(
                     "META-INF/MANIFEST.MF", "com/xyz/widget.txt", "META-INF/versions/9/com/xyz/widget.txt",
@@ -1173,10 +1171,8 @@ public class VfsTest {
     /** A negative RAM size is rejected. */
     @Test
     public void aNegativeMaxBufferedJarRAMSizeIsRejected() {
-        new Vfs(Vfs.DEFAULT_ENABLE_NESTED_JARS, Vfs.DEFAULT_ENABLE_MULTI_RELEASE_VERSIONS, /* urlSchemes = */ null,
-                /* maxBufferedJarRAMSize = */ 1024).close();
-        assertThatThrownBy(() -> new Vfs(Vfs.DEFAULT_ENABLE_NESTED_JARS, Vfs.DEFAULT_ENABLE_MULTI_RELEASE_VERSIONS,
-                /* urlSchemes = */ null, /* maxBufferedJarRAMSize = */ -1))
+        new Vfs(new VfsSpec().setMaxBufferedJarRAMSize(1024)).close();
+        assertThatThrownBy(() -> new VfsSpec().setMaxBufferedJarRAMSize(-1))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -1199,10 +1195,7 @@ public class VfsTest {
             assertThatThrownBy(() -> vfs.open((byte[]) null, "in-memory.jar"))
                     .isInstanceOf(NullPointerException.class);
             assertThatThrownBy(() -> vfs.open(new byte[0], null)).isInstanceOf(NullPointerException.class);
-            assertThatThrownBy(
-                    () -> new Vfs(Vfs.DEFAULT_ENABLE_NESTED_JARS, Vfs.DEFAULT_ENABLE_MULTI_RELEASE_VERSIONS,
-                            Collections.singleton(null), Vfs.DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE))
-                    .isInstanceOf(NullPointerException.class);
+            assertThatThrownBy(() -> new VfsSpec().enableURLScheme(null)).isInstanceOf(NullPointerException.class);
 
             final var root = vfs.open(jarFile.getPath());
             assertThatThrownBy(() -> root.getEntry(null)).isInstanceOf(NullPointerException.class);

@@ -27,7 +27,7 @@
 		     above this one need them. They are marked x-internal so that tooling does not offer them for
 		     import, and they are not covered by the project's API compatibility guarantees. -->
 		<osgiExportPackage>io.github.classgraph.classpath;version="${project.version}",io.github.classgraph.classpath.internal;x-internal:=true</osgiExportPackage>
-		<osgiImportPackage>io.github.classgraph.base,io.github.classgraph.base.internal.concurrency,io.github.classgraph.base.internal.filter,io.github.classgraph.base.internal.log,io.github.classgraph.base.internal.path,io.github.classgraph.base.internal.reflection,io.github.classgraph.base.internal.utils,io.github.classgraph.vfs,io.github.classgraph.vfs.internal,org.jspecify.annotations;resolution:="optional"</osgiImportPackage>
+		<osgiImportPackage>io.github.classgraph.base,io.github.classgraph.base.internal.concurrency,io.github.classgraph.base.internal.filter,io.github.classgraph.base.internal.path,io.github.classgraph.base.internal.reflection,io.github.classgraph.base.internal.utils,io.github.classgraph.vfs,org.jspecify.annotations;resolution:="optional"</osgiImportPackage>
 		<osgiDependencies>io.github.classgraph.vfs export,java.management</osgiDependencies>
 
 		<!-- This module has sources and produces a jar, so it needs the ecj checks and the license copies -->
