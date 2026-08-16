@@ -235,6 +235,24 @@ public class FastPathResolverTest {
     }
 
     /**
+     * A URL scheme is case-insensitive, and its canonical form is lowercase (RFC 3986 section 3.1), so a scheme
+     * that is kept must be lowercased whatever case it was written in -- otherwise the same resource named
+     * {@code "s3://bucket/key"} and {@code "S3://bucket/key"} is two different resources.
+     */
+    @Test
+    public void aCustomSchemeIsNormalizedToLowercase() {
+        assertThat(FastPathResolver.resolve("S3://bucket/key")).isEqualTo("s3://bucket/key");
+        assertThat(FastPathResolver.resolve("S3:/bucket/key")).isEqualTo("s3:/bucket/key");
+        assertThat(FastPathResolver.resolve("VFS2://a/b")).isEqualTo("vfs2://a/b");
+        // Only the scheme is lowercased -- the rest of the URL is case-sensitive, and a server may well serve
+        // different content for two paths that differ only in case
+        assertThat(FastPathResolver.resolve("S3://Bucket/Key")).isEqualTo("s3://Bucket/Key");
+        // A scheme with mixed case, and one wrapped in a "jar:" URL, are lowercased too
+        assertThat(FastPathResolver.resolve("Vfs2://a/b")).isEqualTo("vfs2://a/b");
+        assertThat(FastPathResolver.resolve("jar:S3://bucket/x.jar!/y")).isEqualTo("s3://bucket/x.jar!/y");
+    }
+
+    /**
      * A {@code "file:"} URL with an empty authority ({@code "file:///path"}) is the spelling that
      * {@link java.nio.file.Path#toUri()} produces. On Windows the two slashes of the empty authority must not be
      * read as the start of a UNC path, since {@code "///C:/a/b"} names neither a drive nor a network share.
