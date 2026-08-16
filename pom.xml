@@ -664,7 +664,12 @@
 								<!-- Make sure "requires" entries in the module descriptor match these imports: -->
 								<!-- src/main/java/module-info.java -->
 								<Import-Package>${osgiImportPackage}</Import-Package>
-								<!-- Add the same module dependencies that are specified in module-info.java -->
+								<!-- The JBoss Modules equivalent of the "requires" clauses in -->
+								<!-- src/main/java/module-info.java. A JBoss Modules dependency is not visible to -->
+								<!-- modules that depend on this one unless it is marked "export", so every -->
+								<!-- "requires transitive" clause must be listed here with that modifier, and every -->
+								<!-- plain "requires" clause without it. "requires static" clauses are left out, -->
+								<!-- since the modules they name may not be installed in the container at all. -->
 								<Dependencies>${osgiDependencies}</Dependencies>
 							</manifestEntries>
 						</archive>

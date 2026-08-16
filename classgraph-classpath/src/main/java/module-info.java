@@ -47,7 +47,6 @@ module io.github.classgraph.classpath {
 
     // The internal packages are the internals of ClassGraph. They are only exported to the modules that are built on
     // top of this one, and they are not covered by the project's API compatibility guarantees.
-    exports io.github.classgraph.classpath.internal.classloaderhandler to io.github.classgraph;
     exports io.github.classgraph.classpath.internal to io.github.classgraph;
 
     // N.B. make sure the "Import-Package" entries in the manifest (in pom.xml) match these "requires" statements.

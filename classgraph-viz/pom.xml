@@ -21,7 +21,7 @@
 		<osgiBundleName>ClassGraph visualization</osgiBundleName>
 		<osgiExportPackage>io.github.classgraph.viz;version="${project.version}"</osgiExportPackage>
 		<osgiImportPackage>io.github.classgraph,org.jspecify.annotations;resolution:="optional"</osgiImportPackage>
-		<osgiDependencies>io.github.classgraph</osgiDependencies>
+		<osgiDependencies>io.github.classgraph export</osgiDependencies>
 
 		<!-- This module produces a jar, so it needs its resources and the modular copy of its Javadoc -->
 		<maven.antrun.skip>false</maven.antrun.skip>
