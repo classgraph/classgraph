@@ -971,10 +971,10 @@ class Scanner implements Callable<ScanResult> {
         }
         if (!collidingRelativePaths.isEmpty()) {
             final Set<String> fileIdentityKeysFound = new HashSet<>();
-            final Map<String, String> canonicalDirPathCache = new HashMap<>();
+            final Map<String, String> canonicalPathCache = new HashMap<>();
             for (int classpathIdx = 0; classpathIdx < classpathElementOrder.size(); classpathIdx++) {
                 classpathElementOrder.get(classpathIdx).maskDuplicateResources(classpathIdx,
-                        collidingRelativePaths, fileIdentityKeysFound, canonicalDirPathCache, maskLog);
+                        collidingRelativePaths, fileIdentityKeysFound, canonicalPathCache, maskLog);
             }
         }
         if (maskLog != null) {
@@ -1170,10 +1170,10 @@ class Scanner implements Callable<ScanResult> {
         final List<ClasspathElement> finalClasspathEltOrder = new ArrayList<>(numElts);
         final List<String> finalClasspathEltOrderStrs = new ArrayList<>(numElts);
         final Set<String> fileIdentityKeys = new HashSet<>();
-        final Map<String, String> canonicalDirPathCache = new HashMap<>();
+        final Map<String, String> canonicalPathCache = new HashMap<>();
         int classpathOrderIdx = 0;
         for (final ClasspathElementModule classpathElt : moduleOrder) {
-            final String fileIdentityKey = classpathElt.getFileIdentityKey(canonicalDirPathCache);
+            final String fileIdentityKey = classpathElt.getFileIdentityKey(canonicalPathCache);
             if (fileIdentityKey != null) {
                 fileIdentityKeys.add(fileIdentityKey);
             }
@@ -1186,7 +1186,7 @@ class Scanner implements Callable<ScanResult> {
             }
         }
         for (final ClasspathElement classpathElt : classpathEltOrder) {
-            final String fileIdentityKey = classpathElt.getFileIdentityKey(canonicalDirPathCache);
+            final String fileIdentityKey = classpathElt.getFileIdentityKey(canonicalPathCache);
             if (fileIdentityKey != null && !fileIdentityKeys.add(fileIdentityKey)) {
                 if (classpathOrderLog != null) {
                     classpathOrderLog.log("Ignoring duplicate classpath element, which is the same file or "

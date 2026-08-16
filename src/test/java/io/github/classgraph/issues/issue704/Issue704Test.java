@@ -12,10 +12,12 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -221,6 +223,78 @@ public class Issue704Test {
                         .scan()) {
             assertThat(scanResult.getAllResources().getURIs()).hasSize(1);
             assertThat(classpathURIsMatching(scanResult, "issue704d.jar")).hasSize(1);
+        }
+    }
+
+    /**
+     * A symlink to a jar is not a jar in its own right, it is another way to reach the same jar, so a jar reached
+     * both directly and through a symlink to it should still be returned once.
+     *
+     * @param tempDir
+     *            the temp dir.
+     * @throws Exception
+     *             if the test jar or module layer could not be created.
+     */
+    @Test
+    @EnabledForJreRange(min = JRE.JAVA_9)
+    public void sameFileReachedThroughASymlinkToItIsReturnedOnce(@TempDir final File tempDir) throws Exception {
+        final File jarFile = buildJar(tempDir, "issue704f.jar", "MATCH (n) RETURN n;");
+        final Path symlinkedJarFile = tempDir.toPath().resolve("issue704f-link.jar");
+        try {
+            Files.createSymbolicLink(symlinkedJarFile, jarFile.toPath());
+        } catch (IOException | UnsupportedOperationException | SecurityException e) {
+            // Symlinks are not supported (e.g. on Windows without developer mode enabled)
+            assumeTrue(false, "Could not create a symlink");
+        }
+        final Object moduleLayer = defineModuleLayer(symlinkedJarFile.toFile());
+        assertThat(moduleLayer).isNotNull();
+
+        try (URLClassLoader classLoader = new URLClassLoader(new URL[] { jarFile.toURI().toURL() },
+                /* parent = */ null);
+                ScanResult scanResult = new ClassGraph() //
+                        .addModuleLayer(moduleLayer) //
+                        .addClassLoader(classLoader) //
+                        .acceptPaths("stuff") //
+                        .scan()) {
+            assertThat(scanResult.getAllResources().getURIs()).hasSize(1);
+            assertThat(classpathURIsMatching(scanResult, "issue704f")).hasSize(1);
+        }
+    }
+
+    /**
+     * On a filesystem that ignores case, the same file named with a different case is still the same file, so it
+     * should still be returned once. (This is the default on both macOS and Windows, so there too the module path
+     * and the classpath can disagree on the path of the same jar.)
+     *
+     * @param tempDir
+     *            the temp dir.
+     * @throws Exception
+     *             if the test jar or module layer could not be created.
+     */
+    @Test
+    @EnabledForJreRange(min = JRE.JAVA_9)
+    public void sameFileNamedWithADifferentCaseIsReturnedOnce(@TempDir final File tempDir) throws Exception {
+        final File jarFile = buildJar(tempDir, "Issue704E.jar", "MATCH (n) RETURN n;");
+        final File lowercasedJarFile = new File(tempDir, "issue704e.jar");
+        assumeTrue(lowercasedJarFile.exists(), "The filesystem does not ignore case");
+        final Object moduleLayer = defineModuleLayer(lowercasedJarFile);
+        assertThat(moduleLayer).isNotNull();
+
+        try (URLClassLoader classLoader = new URLClassLoader(new URL[] { jarFile.toURI().toURL() },
+                /* parent = */ null);
+                ScanResult scanResult = new ClassGraph() //
+                        .addModuleLayer(moduleLayer) //
+                        .addClassLoader(classLoader) //
+                        .acceptPaths("stuff") //
+                        .scan()) {
+            assertThat(scanResult.getAllResources().getURIs()).hasSize(1);
+            final List<URI> jarURIs = new ArrayList<>();
+            for (final URI uri : scanResult.getClasspathURIs()) {
+                if (uri.toString().toLowerCase(Locale.ROOT).contains("issue704e.jar")) {
+                    jarURIs.add(uri);
+                }
+            }
+            assertThat(jarURIs).hasSize(1);
         }
     }
 
