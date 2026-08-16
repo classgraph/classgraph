@@ -419,22 +419,23 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      * see if they are the same file.
      *
      * <p>
-     * The same file can be reachable through more than one path, e.g. through a symlinked parent directory (on
-     * macOS, the temp directory {@code /var/folders/...} is reached through the symlink {@code /var ->
-     * /private/var}, so the same file has both a {@code /var/...} URI and a {@code /private/var/...} URI).
-     * Therefore the parent directory of the file is canonicalized. (The file itself is not canonicalized, both to
-     * halve the number of filesystem calls -- the canonical path of a directory is cached, whereas each file is
-     * seen only once -- and because a symlink to a file elsewhere is a file in its own right.)
+     * The same file can be reached through more than one path -- through a symbolic link, through a Windows
+     * junction or 8.3 short name, or spelled with a different case on a filesystem that ignores case -- so the path
+     * is canonicalized. (On macOS neither of the first two is a corner case: the temp directory
+     * {@code /var/folders/...} is reached through the symlink {@code /var -> /private/var}, and the filesystem
+     * ignores case by default, so the module path and the classpath can disagree on the path of the same jar in
+     * both ways at once.) This is the same rule that decides whether two classpath elements found by
+     * {@code classgraph-classpath} are the same file, so the two agree.
      *
      * @param uri
      *            the URI of a resource.
-     * @param canonicalDirPathCache
-     *            a cache of canonical directory paths.
+     * @param canonicalPathCache
+     *            a cache of canonical paths.
      * @return a key that is equal for two URIs that refer to the same file. This is not a valid URI -- it is only
      *         useful for equality comparison. If the URI does not refer to a file (e.g. a {@code jrt:/} URI), or
      *         the file could not be canonicalized, the string representation of the URI is returned unchanged.
      */
-    private static String getFileIdentityKey(final URI uri, final Map<String, String> canonicalDirPathCache) {
+    private static String getFileIdentityKey(final URI uri, final Map<String, String> canonicalPathCache) {
         final var uriStr = uri.toString();
         // Find the file part of the URI: "file:<path>", or "jar:file:<path>!/<entry>" (for a jar within a jar,
         // <path> is the path of the outermost jar, and everything from the first "!/" is part of the entry)
@@ -449,17 +450,13 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
         final var nestedPath = nestedPathStartIdx < 0 ? "" : uriStr.substring(nestedPathStartIdx);
         try {
             final var file = new File(URI.create("file:" + filePart));
-            final var parentDir = file.getParentFile();
-            if (parentDir == null) {
-                return uriStr;
+            final var filePath = file.getPath();
+            var canonicalPath = canonicalPathCache.get(filePath);
+            if (canonicalPath == null) {
+                canonicalPath = FileUtils.canonicalize(file).getPath();
+                canonicalPathCache.put(filePath, canonicalPath);
             }
-            final var parentDirPath = parentDir.getPath();
-            var canonicalParentDirPath = canonicalDirPathCache.get(parentDirPath);
-            if (canonicalParentDirPath == null) {
-                canonicalParentDirPath = FileUtils.canonicalize(parentDir).getPath();
-                canonicalDirPathCache.put(parentDirPath, canonicalParentDirPath);
-            }
-            return canonicalParentDirPath + File.separatorChar + file.getName() + nestedPath;
+            return canonicalPath + nestedPath;
         } catch (final IOException | IllegalArgumentException | SecurityException e) {
             // The file could not be canonicalized -- fall back to comparing the URI itself
             return uriStr;
@@ -470,14 +467,14 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      * Get a key that identifies the file or directory that this classpath element refers to, for comparing two
      * classpath elements to see if they are the same file or directory.
      *
-     * @param canonicalDirPathCache
-     *            a cache of canonical directory paths.
+     * @param canonicalPathCache
+     *            a cache of canonical paths.
      * @return a key that is equal for two classpath elements that refer to the same file or directory (see
      *         {@link #getFileIdentityKey(URI, Map)}), or null if this classpath element has no location URI, so
      *         cannot be compared to any other classpath element.
      */
     @Nullable
-    String getFileIdentityKey(final Map<String, String> canonicalDirPathCache) {
+    String getFileIdentityKey(final Map<String, String> canonicalPathCache) {
         URI uri;
         try {
             uri = getURI();
@@ -485,7 +482,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
             // A module can have a null location
             return null;
         }
-        return getFileIdentityKey(uri, canonicalDirPathCache);
+        return getFileIdentityKey(uri, canonicalPathCache);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -510,14 +507,14 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      *            can be duplicates, so only for these does the {@link URI} need to be computed)
      * @param fileIdentityKeysFound
      *            the file identity keys of the resources found so far (see {@link #getFileIdentityKey(URI, Map)})
-     * @param canonicalDirPathCache
-     *            a cache of canonical directory paths, shared between classpath elements
+     * @param canonicalPathCache
+     *            a cache of canonical paths, shared between classpath elements
      * @param log
      *            the log node, or null to skip logging
      */
     // #704
     void maskDuplicateResources(final int classpathIdx, final Set<String> collidingPaths,
-            final Set<String> fileIdentityKeysFound, final Map<String, String> canonicalDirPathCache,
+            final Set<String> fileIdentityKeysFound, final Map<String, String> canonicalPathCache,
             final @Nullable LogNode log) {
         final List<Resource> acceptedResourcesFiltered = new ArrayList<>(acceptedResources.size());
         Set<Resource> maskedResources = null;
@@ -532,8 +529,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
                     // URI, so keep the resource rather than masking it
                     uri = null;
                 }
-                isMasked = uri != null
-                        && !fileIdentityKeysFound.add(getFileIdentityKey(uri, canonicalDirPathCache));
+                isMasked = uri != null && !fileIdentityKeysFound.add(getFileIdentityKey(uri, canonicalPathCache));
                 if (isMasked) {
                     if (maskedResources == null) {
                         // Compare by identity, since Resource#equals compares string representations, and the

@@ -250,6 +250,26 @@ public class ClasspathFinderTest {
     }
 
     /**
+     * On a filesystem that ignores case, a classpath element named with a different case is the same file, so it is
+     * one classpath element rather than two, and it is reported with the case it is stored with rather than the
+     * case it was asked for.
+     */
+    @Test
+    public void aJarNamedWithADifferentCaseIsOneElementOnACaseFoldingFilesystem(@TempDir final Path tempDir)
+            throws IOException {
+        final var jar = writeJarWithManifest(tempDir.resolve("MixedCase.jar"));
+        final var lowercased = tempDir.resolve("mixedcase.jar").toFile();
+        if (!lowercased.exists()) {
+            abort("The filesystem does not ignore case");
+        }
+        try (var classpath = new ClasspathFinder().overrideClasspath(lowercased, jar).find()) {
+            assertThat(classpath.getLocations()).containsExactly(location(jar));
+            // The name the file is stored with is reported, not the name it was asked for
+            assertThat(classpath.getLocations().get(0)).endsWith("/MixedCase.jar");
+        }
+    }
+
+    /**
      * A classpath element that is reached more than once is listed only at the first position it is reached at,
      * which is the position that decides which copy of a duplicated class is loaded. Here the jarfile that names it
      * comes first, so it is reached through that jarfile's manifest before it is reached directly.
