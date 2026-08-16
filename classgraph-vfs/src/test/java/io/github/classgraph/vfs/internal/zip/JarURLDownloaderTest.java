@@ -21,7 +21,7 @@ import org.junit.jupiter.api.io.TempDir;
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import io.github.classgraph.base.internal.log.LogNode;
 import io.github.classgraph.vfs.internal.VfsSession;
-import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
+import io.github.classgraph.vfs.internal.VfsSpec;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -32,7 +32,7 @@ public class JarURLDownloaderTest {
     private static final String ENTRY_PATH = "testpkg/entry.txt";
 
     /** The resources owned by the scan, closed when the test ends. */
-    private final VfsSession session = new VfsSession(new VfsScanSpec(), new InterruptionChecker());
+    private final VfsSession session = new VfsSession(new VfsSpec(), new InterruptionChecker());
 
     /** Close the slices that the test opened. */
     @AfterEach

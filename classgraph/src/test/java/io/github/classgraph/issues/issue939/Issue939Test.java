@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.VfsScanSpecAccess;
+import io.github.classgraph.VfsSpecAccess;
 
 /**
  * {@code Unsafe::invokeCleaner}, which was used to unmap {@code MappedByteBuffer}s, is terminally deprecated (JDK
@@ -26,7 +26,7 @@ public class Issue939Test {
                 .overrideClasspath(Issue939Test.class.getClassLoader().getResource("issue209.jar"));
         // Files are memory-mapped on Windows only, so the platform's choice is overridden here to exercise the
         // mapping path whatever platform this test runs on
-        VfsScanSpecAccess.vfsScanSpecOf(classGraph).memoryMapFiles = true;
+        VfsSpecAccess.vfsSpecOf(classGraph).memoryMapFiles = true;
         try (var scanResult = classGraph.scan()) {
             assertThat(scanResult.getAllClasses().getNames())
                     .contains("org.springframework.boot.loader.util.SystemPropertyUtils");

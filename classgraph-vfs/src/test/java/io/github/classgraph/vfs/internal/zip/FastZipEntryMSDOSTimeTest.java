@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
-import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
+import io.github.classgraph.vfs.internal.VfsSpec;
 
 /**
  * Tests that the month of an MS-DOS timestamp is read from all four of its bits.
@@ -46,7 +46,7 @@ public class FastZipEntryMSDOSTimeTest {
             zipOut.closeEntry();
         }
 
-        final var nestedJarHandler = new NestedJarHandler(new VfsScanSpec(), new InterruptionChecker());
+        final var nestedJarHandler = new NestedJarHandler(new VfsSpec(), new InterruptionChecker());
         final long lastModifiedTimeMillis;
         try {
             final var logicalZipFileAndPackageRoot = nestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap()

@@ -1,4 +1,4 @@
-package io.github.classgraph.classpath.internal.spec;
+package io.github.classgraph.classpath.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;

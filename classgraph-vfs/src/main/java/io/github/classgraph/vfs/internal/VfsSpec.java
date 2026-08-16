@@ -26,7 +26,7 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.classgraph.vfs.internal.spec;
+package io.github.classgraph.vfs.internal;
 
 import java.io.InputStream;
 import java.lang.reflect.Field;
@@ -56,7 +56,7 @@ import org.jspecify.annotations.Nullable;
  * Every field is volatile, and {@link #enableURLScheme(String)} publishes an immutable set, so that a setting
  * changed by one thread is seen by the threads that read archives, whenever they were started.
  */
-public class VfsScanSpec {
+public class VfsSpec {
     /** The default value of {@link #enableNestedJars}. */
     public static final boolean DEFAULT_ENABLE_NESTED_JARS = true;
 
@@ -117,7 +117,7 @@ public class VfsScanSpec {
     // -------------------------------------------------------------------------------------------------------------
 
     /** Constructor. */
-    public VfsScanSpec() {
+    public VfsSpec() {
         // Intentionally empty
     }
 
@@ -163,14 +163,14 @@ public class VfsScanSpec {
      */
     public void log(final @Nullable LogNode log) {
         if (log != null) {
-            final var vfsScanSpecLog = log.log("VfsScanSpec:");
-            for (final Field field : VfsScanSpec.class.getDeclaredFields()) {
+            final var vfsSpecLog = log.log("VfsSpec:");
+            for (final Field field : VfsSpec.class.getDeclaredFields()) {
                 // Log the settings, not the constants holding their default values
                 if (Modifier.isStatic(field.getModifiers())) {
                     continue;
                 }
                 try {
-                    vfsScanSpecLog.log(field.getName() + ": " + field.get(this));
+                    vfsSpecLog.log(field.getName() + ": " + field.get(this));
                 } catch (final ReflectiveOperationException e) {
                     // Ignore
                 }

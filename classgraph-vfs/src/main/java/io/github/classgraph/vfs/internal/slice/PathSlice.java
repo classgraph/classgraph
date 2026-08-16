@@ -157,7 +157,7 @@ public final class PathSlice extends Slice {
         // Had to use 0L for sliceLength in call to super, since FileChannel wasn't open yet => update sliceLength
         this.sliceLength = fileLength;
 
-        if (memoryMapWholeFile && session.vfsScanSpec.memoryMapFiles) {
+        if (memoryMapWholeFile && session.vfsSpec.memoryMapFiles) {
             // Memory-map the whole file, if it can be mapped -- otherwise fall through and read through the
             // FileChannel API instead
             final var mapping = FileMapping.map(fileChannelOpened, fileLength, path, log);

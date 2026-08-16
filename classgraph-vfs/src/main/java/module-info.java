@@ -56,7 +56,6 @@ module io.github.classgraph.vfs {
     exports io.github.classgraph.vfs.internal.module to io.github.classgraph, io.github.classgraph.classpath;
     exports io.github.classgraph.vfs.internal.slice to io.github.classgraph, io.github.classgraph.classpath;
     exports io.github.classgraph.vfs.internal.slice.reader to io.github.classgraph, io.github.classgraph.classpath;
-    exports io.github.classgraph.vfs.internal.spec to io.github.classgraph, io.github.classgraph.classpath;
 
     // N.B. make sure the "Import-Package" entries in the manifest (in pom.xml) match these "requires" statements.
 

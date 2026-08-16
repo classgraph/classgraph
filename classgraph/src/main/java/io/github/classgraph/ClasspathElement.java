@@ -48,8 +48,8 @@ import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import io.github.classgraph.base.internal.log.LogNode;
 import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.base.internal.path.PathSyntax;
+import io.github.classgraph.vfs.internal.VfsSpec;
 import io.github.classgraph.vfs.internal.slice.reader.RandomAccessOrSequentialReader;
-import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
 import org.jspecify.annotations.Nullable;
 
 /** A classpath element (a directory or jarfile on the classpath). */
@@ -181,7 +181,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
     final ScanSpec scanSpec;
 
     /** The settings that govern how archives are read. */
-    final VfsScanSpec vfsScanSpec;
+    final VfsSpec vfsSpec;
 
     /**
      * The ScanResult that the classpath element came from, or null until {@link #setScanResult(ScanResult)} is
@@ -205,7 +205,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
         this.libDirPrefixes = workUnit.libDirPrefixes;
         this.classLoaderStr = workUnit.classLoaderStr;
         this.scanSpec = scanSpec;
-        this.vfsScanSpec = scanSpec.vfsScanSpec;
+        this.vfsSpec = scanSpec.vfsSpec;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -338,7 +338,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      * @return true if the path is within a versioned section that should be ignored.
      */
     protected boolean isIgnoredVersionedPath(final String relativePath) {
-        return vfsScanSpec.isIgnoredVersionedPath(relativePath);
+        return vfsSpec.isIgnoredVersionedPath(relativePath);
     }
 
     /**

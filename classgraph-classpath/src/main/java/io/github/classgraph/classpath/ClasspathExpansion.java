@@ -38,7 +38,7 @@ import io.github.classgraph.base.internal.log.LogNode;
 import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.classpath.internal.ClasspathExpander;
 import io.github.classgraph.vfs.Vfs;
-import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
+import io.github.classgraph.vfs.internal.VfsSpec;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -56,7 +56,7 @@ final class ClasspathExpansion {
     private final Vfs vfs;
 
     /** The settings that govern how the jarfiles are read. */
-    private final VfsScanSpec vfsScanSpec;
+    private final VfsSpec vfsSpec;
 
     /** The log node, or null to skip logging. */
     private final @Nullable LogNode log;
@@ -72,14 +72,14 @@ final class ClasspathExpansion {
      *
      * @param vfs
      *            opens the classpath elements, so that their manifests and their lib dirs can be read.
-     * @param vfsScanSpec
+     * @param vfsSpec
      *            the settings that govern how the jarfiles are read.
      * @param log
      *            the log node, or null to skip logging.
      */
-    private ClasspathExpansion(final Vfs vfs, final VfsScanSpec vfsScanSpec, final @Nullable LogNode log) {
+    private ClasspathExpansion(final Vfs vfs, final VfsSpec vfsSpec, final @Nullable LogNode log) {
         this.vfs = vfs;
-        this.vfsScanSpec = vfsScanSpec;
+        this.vfsSpec = vfsSpec;
         this.log = log;
     }
 
@@ -91,7 +91,7 @@ final class ClasspathExpansion {
      *            the classpath elements that the classloaders declared.
      * @param vfs
      *            opens the classpath elements, so that their manifests and their lib dirs can be read.
-     * @param vfsScanSpec
+     * @param vfsSpec
      *            the settings that govern how the jarfiles are read.
      * @param log
      *            the log node, or null to skip logging.
@@ -99,9 +99,9 @@ final class ClasspathExpansion {
      * @throws IllegalStateException
      *             if the thread was interrupted.
      */
-    static List<ClasspathEntry> expand(final List<ClasspathEntry> entries, final Vfs vfs,
-            final VfsScanSpec vfsScanSpec, final @Nullable LogNode log) {
-        final var expansion = new ClasspathExpansion(vfs, vfsScanSpec, log);
+    static List<ClasspathEntry> expand(final List<ClasspathEntry> entries, final Vfs vfs, final VfsSpec vfsSpec,
+            final @Nullable LogNode log) {
+        final var expansion = new ClasspathExpansion(vfs, vfsSpec, log);
         for (final ClasspathEntry entry : entries) {
             expansion.addRec(entry);
         }
@@ -142,8 +142,8 @@ final class ClasspathExpansion {
             // filesystem owns it, and hands the same root back to whoever reads the classpath element next.
             final var root = entry.open(vfs);
             canonicalPath = root.getPath();
-            childEntries = ClasspathExpander.childEntries(root, entry.libDirPrefixes(),
-                    vfsScanSpec.enableNestedJars, log);
+            childEntries = ClasspathExpander.childEntries(root, entry.libDirPrefixes(), vfsSpec.enableNestedJars,
+                    log);
         } catch (final IOException | IllegalArgumentException e) {
             if (Thread.currentThread().isInterrupted()) {
                 throw new IllegalStateException("Interrupted while reading the jarfiles on the classpath", e);

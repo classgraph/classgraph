@@ -15,7 +15,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import io.github.classgraph.vfs.internal.VfsSession;
-import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
+import io.github.classgraph.vfs.internal.VfsSpec;
 
 /**
  * Tests for the identity of a {@link Slice}, for the reading of an {@link InputStream} into a {@link Slice}, and
@@ -31,7 +31,7 @@ public class SliceTest {
      * @return the session
      */
     private static VfsSession session() {
-        return session(new VfsScanSpec().maxBufferedJarRAMSize);
+        return session(new VfsSpec().maxBufferedJarRAMSize);
     }
 
     /**
@@ -42,9 +42,9 @@ public class SliceTest {
      * @return the session
      */
     private static VfsSession session(final int maxBufferedJarRAMSize) {
-        final var vfsScanSpec = new VfsScanSpec();
-        vfsScanSpec.maxBufferedJarRAMSize = maxBufferedJarRAMSize;
-        return new VfsSession(vfsScanSpec, new InterruptionChecker());
+        final var vfsSpec = new VfsSpec();
+        vfsSpec.maxBufferedJarRAMSize = maxBufferedJarRAMSize;
+        return new VfsSession(vfsSpec, new InterruptionChecker());
     }
 
     /**

@@ -55,7 +55,6 @@ import io.github.classgraph.base.internal.path.PathList;
 import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.ClasspathOrder;
-import io.github.classgraph.classpath.internal.spec.ClasspathSpec;
 import org.jspecify.annotations.Nullable;
 
 /** A class to find the unique ordered classpath elements. */

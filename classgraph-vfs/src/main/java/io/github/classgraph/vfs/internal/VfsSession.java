@@ -49,7 +49,6 @@ import io.github.classgraph.base.internal.log.LogNode;
 import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.vfs.internal.module.ModuleReaderUtils;
 import io.github.classgraph.vfs.internal.slice.Slice;
-import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -57,7 +56,7 @@ import org.jspecify.annotations.Nullable;
  * released again when the session is closed -- the {@link Slice} instances that hold open file handles or memory
  * mappings, the temporary files that extracted nested jars were spilled to, the pool of {@link Inflater} instances
  * used to inflate deflated zip entries, and the pool of {@link ModuleReader} instances used to read modules. Also
- * carries the {@link VfsScanSpec} that every part of the reader needs.
+ * carries the {@link VfsSpec} that every part of the reader needs.
  *
  * <p>
  * Once {@link #close(LogNode)} has been called, the methods that register a new resource throw
@@ -66,7 +65,7 @@ import org.jspecify.annotations.Nullable;
  */
 public class VfsSession implements AutoCloseable {
     /** The settings that govern how archives are read. */
-    public final VfsScanSpec vfsScanSpec;
+    public final VfsSpec vfsSpec;
 
     /** The interruption checker. */
     private final InterruptionChecker interruptionChecker;
@@ -109,13 +108,13 @@ public class VfsSession implements AutoCloseable {
     /**
      * Constructor.
      *
-     * @param vfsScanSpec
+     * @param vfsSpec
      *            the settings that govern how archives are read
      * @param interruptionChecker
      *            the interruption checker
      */
-    public VfsSession(final VfsScanSpec vfsScanSpec, final InterruptionChecker interruptionChecker) {
-        this.vfsScanSpec = vfsScanSpec;
+    public VfsSession(final VfsSpec vfsSpec, final InterruptionChecker interruptionChecker) {
+        this.vfsSpec = vfsSpec;
         this.interruptionChecker = interruptionChecker;
     }
 

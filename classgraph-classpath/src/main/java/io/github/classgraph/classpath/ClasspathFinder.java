@@ -36,11 +36,11 @@ import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import io.github.classgraph.base.internal.log.LogNode;
 import io.github.classgraph.base.internal.path.PathList;
 import io.github.classgraph.base.internal.utils.Assert;
+import io.github.classgraph.classpath.internal.ClassLoaderAndModuleLayerSpec;
 import io.github.classgraph.classpath.internal.ClassLoaderProbe;
-import io.github.classgraph.classpath.internal.spec.ClassLoaderAndModuleLayerSpec;
-import io.github.classgraph.classpath.internal.spec.ClasspathSpec;
+import io.github.classgraph.classpath.internal.ClasspathSpec;
 import io.github.classgraph.vfs.Vfs;
-import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
+import io.github.classgraph.vfs.internal.VfsSpec;
 
 /**
  * Finds the classpath and the module path of the running JVM: where its classes and resources would be loaded from,
@@ -64,7 +64,7 @@ public class ClasspathFinder {
     private final ClasspathSpec classpathSpec = new ClasspathSpec();
 
     /** How the jarfiles on the classpath are read, in order to find the classpath elements they declare. */
-    private final VfsScanSpec vfsScanSpec = new VfsScanSpec();
+    private final VfsSpec vfsSpec = new VfsSpec();
 
     /**
      * The classloaders and module layers the caller named. These are held separately from the {@link ClasspathSpec}
@@ -108,7 +108,7 @@ public class ClasspathFinder {
      */
     public ClasspathFinder enableURLScheme(final String scheme) {
         classpathSpec.enableURLScheme(scheme);
-        vfsScanSpec.enableURLScheme(scheme);
+        vfsSpec.enableURLScheme(scheme);
         return this;
     }
 
@@ -341,10 +341,10 @@ public class ClasspathFinder {
             // The virtual filesystem owns the classpath elements that are opened to do that, and outlives this
             // method: the returned Classpath hands it to the caller, so that a classpath element that was opened
             // here is not opened a second time when the caller reads it.
-            final var vfs = new Vfs(vfsScanSpec, new InterruptionChecker(), /* log = */ null);
+            final var vfs = new Vfs(vfsSpec, new InterruptionChecker(), /* log = */ null);
             var classpath = (Classpath) null;
             try {
-                final var expandedEntries = ClasspathExpansion.expand(classLoaderEntries, vfs, vfsScanSpec, log);
+                final var expandedEntries = ClasspathExpansion.expand(classLoaderEntries, vfs, vfsSpec, log);
                 classpath = new Classpath(expandedEntries, classLoaderProbe, classpathSpec.modulePathInfo, vfs);
                 return classpath;
             } finally {

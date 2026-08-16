@@ -189,8 +189,7 @@ class ClasspathElementZip extends ClasspathElement {
         // which of two copies of the same class masks the other
         final List<ChildEntry> childEntries;
         try {
-            childEntries = ClasspathExpander.childEntries(root, libDirPrefixes, vfsScanSpec.enableNestedJars,
-                    subLog);
+            childEntries = ClasspathExpander.childEntries(root, libDirPrefixes, vfsSpec.enableNestedJars, subLog);
         } catch (final IOException e) {
             if (subLog != null) {
                 subLog.log("Could not read the classpath elements declared by " + rawPath + " : " + e);

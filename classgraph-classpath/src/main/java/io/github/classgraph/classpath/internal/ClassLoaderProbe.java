@@ -39,8 +39,6 @@ import io.github.classgraph.base.internal.path.PathList;
 import io.github.classgraph.base.internal.utils.VersionFinder;
 import io.github.classgraph.classpath.internal.classloaderhandler.ClassLoaderHandlerRegistry;
 import io.github.classgraph.classpath.internal.classloaderhandler.ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry;
-import io.github.classgraph.classpath.internal.spec.ClassLoaderAndModuleLayerSpec;
-import io.github.classgraph.classpath.internal.spec.ClasspathSpec;
 import org.jspecify.annotations.Nullable;
 
 /** A class to find the unique ordered classpath elements. */

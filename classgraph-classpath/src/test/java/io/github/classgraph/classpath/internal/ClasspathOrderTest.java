@@ -22,7 +22,6 @@ import org.junit.jupiter.api.io.TempDir;
 import io.github.classgraph.base.internal.path.FastPathResolver;
 import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.classpath.internal.ClasspathOrderBuilder.Entry;
-import io.github.classgraph.classpath.internal.spec.ClasspathSpec;
 
 /** Tests for {@link ClasspathOrderBuilder}. */
 public class ClasspathOrderTest {

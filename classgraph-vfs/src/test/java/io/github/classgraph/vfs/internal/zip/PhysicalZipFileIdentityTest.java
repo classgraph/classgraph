@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
-import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
+import io.github.classgraph.vfs.internal.VfsSpec;
 
 /**
  * A zipfile on disk can be opened through either the {@link File} API or the {@link java.nio.file.Path} API, and
@@ -51,7 +51,7 @@ public class PhysicalZipFileIdentityTest {
         final var otherJarFile = new File(tempDir, "other-physical-zipfile.jar");
         writeJar(otherJarFile);
 
-        final var nestedJarHandler = new NestedJarHandler(new VfsScanSpec(), new InterruptionChecker());
+        final var nestedJarHandler = new NestedJarHandler(new VfsSpec(), new InterruptionChecker());
         try {
             final var fromFile = new PhysicalZipFile(jarFile, nestedJarHandler.session, /* log = */ null);
             final var fromPath = new PhysicalZipFile(jarFile.toPath(), nestedJarHandler.session, /* log = */ null);
@@ -92,8 +92,8 @@ public class PhysicalZipFileIdentityTest {
         final var jarFile = new File(tempDir, "opened-twice.jar");
         writeJar(jarFile);
 
-        final var nestedJarHandler = new NestedJarHandler(new VfsScanSpec(), new InterruptionChecker());
-        final var otherNestedJarHandler = new NestedJarHandler(new VfsScanSpec(), new InterruptionChecker());
+        final var nestedJarHandler = new NestedJarHandler(new VfsSpec(), new InterruptionChecker());
+        final var otherNestedJarHandler = new NestedJarHandler(new VfsSpec(), new InterruptionChecker());
         try {
             final var logicalZipFile = nestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap()
                     .get(jarFile.getPath(), /* log = */ null).getKey();

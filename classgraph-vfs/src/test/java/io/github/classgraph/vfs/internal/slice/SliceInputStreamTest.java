@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import io.github.classgraph.vfs.internal.VfsSession;
-import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
+import io.github.classgraph.vfs.internal.VfsSpec;
 
 /**
  * Tests for the {@link InputStream} that {@link Slice#open()} returns, which is what a resource's content is read
@@ -30,7 +30,7 @@ public class SliceInputStreamTest {
      * @return the slice
      */
     private static Slice slice() {
-        final var session = new VfsSession(new VfsScanSpec(), new InterruptionChecker());
+        final var session = new VfsSession(new VfsSpec(), new InterruptionChecker());
         return new ArraySlice(CONTENT, /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L, session);
     }
 

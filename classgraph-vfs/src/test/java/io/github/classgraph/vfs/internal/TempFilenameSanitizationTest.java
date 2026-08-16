@@ -33,7 +33,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
-import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
 
 /**
  * Tests that a temporary file can be created for a nested jar whose entry name contains characters that are legal
@@ -51,7 +50,7 @@ class TempFilenameSanitizationTest {
     /** A nested jar whose entry name is not a valid filename must still get a temporary file. */
     @Test
     void unsafeCharactersInEntryNameAreReplaced() throws Exception {
-        final var session = new VfsSession(new VfsScanSpec(), new InterruptionChecker());
+        final var session = new VfsSession(new VfsSpec(), new InterruptionChecker());
         try {
             final var tempFile = session.makeTempFile("BOOT-INF/lib/na" + UNSAFE_CHARS + "me.jar",
                     /* onlyUseLeafname = */ false);

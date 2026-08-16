@@ -27,7 +27,7 @@
 		<!-- The internal packages are exported because OSGi has no equivalent of a qualified export, and the
 		     modules above this one need them. They are marked x-internal so that tooling does not offer them
 		     for import, and they are not covered by the project's API compatibility guarantees. -->
-		<osgiExportPackage>io.github.classgraph.vfs;version="${project.version}",io.github.classgraph.vfs.internal;x-internal:=true,io.github.classgraph.vfs.internal.slice;x-internal:=true,io.github.classgraph.vfs.internal.slice.reader;x-internal:=true,io.github.classgraph.vfs.internal.zip;x-internal:=true,io.github.classgraph.vfs.internal.module;x-internal:=true,io.github.classgraph.vfs.internal.spec;x-internal:=true</osgiExportPackage>
+		<osgiExportPackage>io.github.classgraph.vfs;version="${project.version}",io.github.classgraph.vfs.internal;x-internal:=true,io.github.classgraph.vfs.internal.slice;x-internal:=true,io.github.classgraph.vfs.internal.slice.reader;x-internal:=true,io.github.classgraph.vfs.internal.zip;x-internal:=true,io.github.classgraph.vfs.internal.module;x-internal:=true</osgiExportPackage>
 		<osgiImportPackage>io.github.classgraph.base.internal.concurrency,io.github.classgraph.base.internal.recycler,io.github.classgraph.base.internal.utils,org.jspecify.annotations;resolution:="optional"</osgiImportPackage>
 		<osgiDependencies>io.github.classgraph.base</osgiDependencies>
 

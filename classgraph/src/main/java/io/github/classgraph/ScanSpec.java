@@ -37,8 +37,8 @@ import io.github.classgraph.base.internal.filter.AcceptReject.AcceptRejectLeafna
 import io.github.classgraph.base.internal.filter.AcceptReject.AcceptRejectPrefix;
 import io.github.classgraph.base.internal.filter.AcceptReject.AcceptRejectWholeString;
 import io.github.classgraph.base.internal.log.LogNode;
-import io.github.classgraph.classpath.internal.spec.ClasspathSpec;
-import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
+import io.github.classgraph.classpath.internal.ClasspathSpec;
+import io.github.classgraph.vfs.internal.VfsSpec;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -48,7 +48,7 @@ import org.jspecify.annotations.Nullable;
  * This holds the settings that the scanner itself reads. The settings that are read by the libraries the scanner is
  * built on are held in the specs of those libraries, which are composed into this one: the classpath and module
  * path to search is described by {@link #classpathSpec}, and how archives are read is described by
- * {@link #vfsScanSpec}.
+ * {@link #vfsSpec}.
  */
 class ScanSpec {
     /**
@@ -62,7 +62,7 @@ class ScanSpec {
     public final ClasspathSpec classpathSpec = new ClasspathSpec();
 
     /** How jarfiles are read. */
-    public final VfsScanSpec vfsScanSpec = new VfsScanSpec();
+    public final VfsSpec vfsSpec = new VfsSpec();
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -411,7 +411,7 @@ class ScanSpec {
         if (log != null) {
             final var scanSpecLog = log.log("ScanSpec:");
             for (final Field field : ScanSpec.class.getDeclaredFields()) {
-                if (field.getType() == ClasspathSpec.class || field.getType() == VfsScanSpec.class) {
+                if (field.getType() == ClasspathSpec.class || field.getType() == VfsSpec.class) {
                     // The composed specs log their own fields, below
                     continue;
                 }
@@ -422,7 +422,7 @@ class ScanSpec {
                 }
             }
             classpathSpec.log(log);
-            vfsScanSpec.log(log);
+            vfsSpec.log(log);
         }
     }
 }

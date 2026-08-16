@@ -1,4 +1,4 @@
-package io.github.classgraph.classpath.internal.spec;
+package io.github.classgraph.classpath.internal;
 
 import static io.github.classgraph.classpath.Locations.location;
 import static org.assertj.core.api.Assertions.assertThat;

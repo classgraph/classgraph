@@ -145,7 +145,7 @@ public final class FileSlice extends Slice {
         this.fileLength = sliceLength;
         this.isTopLevelFileSlice = true;
 
-        if (session.vfsScanSpec.memoryMapFiles) {
+        if (session.vfsSpec.memoryMapFiles) {
             // Memory-map the whole file, if it can be mapped -- otherwise fall through and use the
             // RandomAccessFile API instead
             final var mapping = FileMapping.map(Objects.requireNonNull(fileChannel), fileLength, file, log);

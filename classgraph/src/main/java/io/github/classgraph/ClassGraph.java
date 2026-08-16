@@ -56,7 +56,7 @@ import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.base.internal.utils.VersionFinder;
 import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.ModulePathInfo;
-import io.github.classgraph.classpath.internal.spec.ClassLoaderAndModuleLayerSpec;
+import io.github.classgraph.classpath.internal.ClassLoaderAndModuleLayerSpec;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -196,7 +196,7 @@ public class ClassGraph {
      */
     public ClassGraph enableClassInfo() {
         scanSpec.enableClassInfo = true;
-        scanSpec.vfsScanSpec.enableMultiReleaseVersions = false;
+        scanSpec.vfsSpec.enableMultiReleaseVersions = false;
         return this;
     }
 
@@ -369,7 +369,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph disableNestedJarScanning() {
-        scanSpec.vfsScanSpec.enableNestedJars = false;
+        scanSpec.vfsSpec.enableNestedJars = false;
         return this;
     }
 
@@ -1128,9 +1128,9 @@ public class ClassGraph {
      */
     public ClassGraph enableRemoteJarScanning() {
         scanSpec.classpathSpec.enableURLScheme("http");
-        scanSpec.vfsScanSpec.enableURLScheme("http");
+        scanSpec.vfsSpec.enableURLScheme("http");
         scanSpec.classpathSpec.enableURLScheme("https");
-        scanSpec.vfsScanSpec.enableURLScheme("https");
+        scanSpec.vfsSpec.enableURLScheme("https");
         return this;
     }
 
@@ -1150,7 +1150,7 @@ public class ClassGraph {
     public ClassGraph enableURLScheme(final String scheme) {
         Assert.notNull(scheme, "scheme");
         scanSpec.classpathSpec.enableURLScheme(scheme);
-        scanSpec.vfsScanSpec.enableURLScheme(scheme);
+        scanSpec.vfsSpec.enableURLScheme(scheme);
         return this;
     }
 
@@ -1202,7 +1202,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph setMaxBufferedJarRAMSize(final int maxBufferedJarRAMSize) {
-        scanSpec.vfsScanSpec.maxBufferedJarRAMSize = maxBufferedJarRAMSize;
+        scanSpec.vfsSpec.maxBufferedJarRAMSize = maxBufferedJarRAMSize;
         return this;
     }
 
@@ -1214,7 +1214,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph enableMultiReleaseVersions() {
-        scanSpec.vfsScanSpec.enableMultiReleaseVersions = true;
+        scanSpec.vfsSpec.enableMultiReleaseVersions = true;
 
         scanSpec.enableClassInfo = false;
         scanSpec.ignoreClassVisibility = false;

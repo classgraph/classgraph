@@ -74,8 +74,8 @@ import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
 import io.github.classgraph.classpath.ClassLoaderHandler;
+import io.github.classgraph.classpath.internal.ClassLoaderAndModuleLayerSpec;
 import io.github.classgraph.classpath.internal.ClassLoaderProbe;
-import io.github.classgraph.classpath.internal.spec.ClassLoaderAndModuleLayerSpec;
 import io.github.classgraph.vfs.Vfs;
 import org.jspecify.annotations.Nullable;
 
@@ -177,7 +177,7 @@ class Scanner implements Callable<ScanResult> {
         // The virtual filesystem owns the file handles, memory mappings and temporary files that everything read
         // during the scan is backed by. It is given no log node of its own, since each part of the scan passes the
         // log node that what it reads should be logged under.
-        this.vfs = new Vfs(scanSpec.vfsScanSpec, interruptionChecker, /* log = */ null);
+        this.vfs = new Vfs(scanSpec.vfsSpec, interruptionChecker, /* log = */ null);
         this.numParallelTasks = numParallelTasks;
         this.scanResultProcessor = scanResultProcessor;
         this.failureHandler = failureHandler;

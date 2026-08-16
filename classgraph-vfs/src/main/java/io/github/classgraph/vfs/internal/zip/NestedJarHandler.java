@@ -49,8 +49,8 @@ import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.vfs.internal.VfsSession;
+import io.github.classgraph.vfs.internal.VfsSpec;
 import io.github.classgraph.vfs.internal.slice.Slice;
-import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -64,19 +64,19 @@ public class NestedJarHandler implements AutoCloseable {
     public final VfsSession session;
 
     /** The settings that govern how archives are read. */
-    private final VfsScanSpec vfsScanSpec;
+    private final VfsSpec vfsSpec;
 
     /**
      * A handler for nested jars.
      *
-     * @param vfsScanSpec
+     * @param vfsSpec
      *            The settings that govern how archives are read.
      * @param interruptionChecker
      *            the interruption checker
      */
-    public NestedJarHandler(final VfsScanSpec vfsScanSpec, final InterruptionChecker interruptionChecker) {
-        this.vfsScanSpec = vfsScanSpec;
-        this.session = new VfsSession(vfsScanSpec, interruptionChecker);
+    public NestedJarHandler(final VfsSpec vfsSpec, final InterruptionChecker interruptionChecker) {
+        this.vfsSpec = vfsSpec;
+        this.session = new VfsSession(vfsSpec, interruptionChecker);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -191,7 +191,7 @@ public class NestedJarHandler implements AutoCloseable {
         public LogicalZipFile newInstance(final ZipFileSlice zipFileSlice, final @Nullable LogNode log)
                 throws IOException, InterruptedException {
             // Read the central directory for the zipfile
-            return new LogicalZipFile(zipFileSlice, session, log, vfsScanSpec.enableMultiReleaseVersions);
+            return new LogicalZipFile(zipFileSlice, session, log, vfsSpec.enableMultiReleaseVersions);
         }
     };
 
@@ -294,7 +294,7 @@ public class NestedJarHandler implements AutoCloseable {
         // The zipfile slice cache cannot be used here: two PhysicalZipFile instances compare equal if they have the
         // same path, so two different streams read under the same name would be treated as the same jarfile
         return new LogicalZipFile(new ZipFileSlice(physicalZipFile), session, log,
-                vfsScanSpec.enableMultiReleaseVersions);
+                vfsSpec.enableMultiReleaseVersions);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -324,7 +324,7 @@ public class NestedJarHandler implements AutoCloseable {
             // lowercased before it is looked up -- otherwise "S3://bucket/x.jar" is rejected as not enabled
             // even though the "s3" scheme was enabled
             final var scheme = nestedJarPath.substring(0, nestedJarPath.indexOf(':')).toLowerCase(Locale.ROOT);
-            if (vfsScanSpec.allowedURLSchemes == null || !vfsScanSpec.allowedURLSchemes.contains(scheme)) {
+            if (vfsSpec.allowedURLSchemes == null || !vfsSpec.allowedURLSchemes.contains(scheme)) {
                 // No URL schemes other than "file:" (with optional "jar:" prefix) allowed (these schemes were
                 // already stripped by FastPathResolver.resolve(nestedJarPathRaw))
                 throw new IOException("Scanning of URL scheme \"" + scheme
@@ -447,7 +447,7 @@ public class NestedJarHandler implements AutoCloseable {
         }
 
         // Do not extract nested jar, if nested jar scanning is disabled
-        if (!vfsScanSpec.enableNestedJars) {
+        if (!vfsSpec.enableNestedJars) {
             throw new IOException("Nested jar scanning is disabled -- skipping nested jar " + nestedJarPath);
         }
 

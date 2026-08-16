@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
-import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
+import io.github.classgraph.vfs.internal.VfsSpec;
 
 /**
  * Tests for the entry name held in an Info-ZIP Unicode path extra field (tag 0x7075), which replaces the entry's
@@ -90,7 +90,7 @@ public class UnicodePathExtraFieldTest {
             }
         }
 
-        final var nestedJarHandler = new NestedJarHandler(new VfsScanSpec(), new InterruptionChecker());
+        final var nestedJarHandler = new NestedJarHandler(new VfsSpec(), new InterruptionChecker());
         final List<String> entryNames = new ArrayList<>();
         try {
             final var logicalZipFileAndPackageRoot = nestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap()

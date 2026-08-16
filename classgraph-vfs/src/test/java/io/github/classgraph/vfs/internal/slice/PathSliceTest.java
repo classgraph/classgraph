@@ -12,7 +12,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import io.github.classgraph.vfs.internal.VfsSession;
-import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
+import io.github.classgraph.vfs.internal.VfsSpec;
 
 /**
  * Tests that a {@link PathSlice} for a whole file is memory-mapped when the vfs scan spec says files are
@@ -26,14 +26,14 @@ public class PathSliceTest {
      * Create the resources owned by a scan.
      *
      * @param memoryMapFiles
-     *            the value to override {@code VfsScanSpec#memoryMapFiles} with, so that both paths are tested
-     *            whatever the platform's own choice is
+     *            the value to override {@code VfsSpec#memoryMapFiles} with, so that both paths are tested whatever
+     *            the platform's own choice is
      * @return the session
      */
     private static VfsSession session(final boolean memoryMapFiles) {
-        final var vfsScanSpec = new VfsScanSpec();
-        vfsScanSpec.memoryMapFiles = memoryMapFiles;
-        return new VfsSession(vfsScanSpec, new InterruptionChecker());
+        final var vfsSpec = new VfsSpec();
+        vfsSpec.memoryMapFiles = memoryMapFiles;
+        return new VfsSession(vfsSpec, new InterruptionChecker());
     }
 
     /**

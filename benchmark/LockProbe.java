@@ -88,8 +88,8 @@ public class LockProbe {
             final java.lang.reflect.Field scanSpecField = ClassGraph.class.getDeclaredField("scanSpec");
             scanSpecField.setAccessible(true);
             final Object scanSpec = scanSpecField.get(classGraph);
-            final Object vfsScanSpec = scanSpec.getClass().getField("vfsScanSpec").get(scanSpec);
-            vfsScanSpec.getClass().getField("memoryMapFiles").setBoolean(vfsScanSpec, memoryMapping);
+            final Object vfsSpec = scanSpec.getClass().getField("vfsSpec").get(scanSpec);
+            vfsSpec.getClass().getField("memoryMapFiles").setBoolean(vfsSpec, memoryMapping);
         } catch (final ReflectiveOperationException e) {
             throw new RuntimeException("Could not set memory mapping", e);
         }

@@ -53,7 +53,7 @@ import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.vfs.internal.VfsSession;
-import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
+import io.github.classgraph.vfs.internal.VfsSpec;
 import io.github.classgraph.vfs.internal.zip.NestedJarHandler;
 import org.jspecify.annotations.Nullable;
 
@@ -99,14 +99,14 @@ import org.jspecify.annotations.Nullable;
  */
 public class Vfs implements AutoCloseable {
     /** The default value of the {@code enableNestedJars} constructor parameter. */
-    public static final boolean DEFAULT_ENABLE_NESTED_JARS = VfsScanSpec.DEFAULT_ENABLE_NESTED_JARS;
+    public static final boolean DEFAULT_ENABLE_NESTED_JARS = VfsSpec.DEFAULT_ENABLE_NESTED_JARS;
 
     /** The default value of the {@code enableMultiReleaseVersions} constructor parameter. */
     public static final boolean DEFAULT_ENABLE_MULTI_RELEASE_VERSIONS = //
-            VfsScanSpec.DEFAULT_ENABLE_MULTI_RELEASE_VERSIONS;
+            VfsSpec.DEFAULT_ENABLE_MULTI_RELEASE_VERSIONS;
 
     /** The default value of the {@code maxBufferedJarRAMSize} constructor parameter, in bytes. */
-    public static final int DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE = VfsScanSpec.DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE;
+    public static final int DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE = VfsSpec.DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE;
 
     /** The handler that opens jarfiles and owns the resources they are backed by. */
     private final NestedJarHandler nestedJarHandler;
@@ -127,7 +127,7 @@ public class Vfs implements AutoCloseable {
      * Constructor, using the default value of every option -- see {@link #Vfs(boolean, boolean, Collection, int)}.
      */
     public Vfs() {
-        this(new VfsScanSpec(), new InterruptionChecker(), /* log = */ null);
+        this(new VfsSpec(), new InterruptionChecker(), /* log = */ null);
     }
 
     /**
@@ -162,7 +162,7 @@ public class Vfs implements AutoCloseable {
      */
     public Vfs(final boolean enableNestedJars, final boolean enableMultiReleaseVersions,
             final @Nullable Collection<String> urlSchemes, final int maxBufferedJarRAMSize) {
-        this(newVfsScanSpec(enableNestedJars, enableMultiReleaseVersions, urlSchemes, maxBufferedJarRAMSize),
+        this(newVfsSpec(enableNestedJars, enableMultiReleaseVersions, urlSchemes, maxBufferedJarRAMSize),
                 new InterruptionChecker(), /* log = */ null);
     }
 
@@ -180,34 +180,33 @@ public class Vfs implements AutoCloseable {
      *            the number of bytes of a jarfile that may be held in RAM before it is spilled to disk.
      * @return the settings.
      */
-    private static VfsScanSpec newVfsScanSpec(final boolean enableNestedJars,
-            final boolean enableMultiReleaseVersions, final @Nullable Collection<String> urlSchemes,
-            final int maxBufferedJarRAMSize) {
+    private static VfsSpec newVfsSpec(final boolean enableNestedJars, final boolean enableMultiReleaseVersions,
+            final @Nullable Collection<String> urlSchemes, final int maxBufferedJarRAMSize) {
         if (maxBufferedJarRAMSize < 0) {
             throw new IllegalArgumentException("maxBufferedJarRAMSize cannot be negative");
         }
-        final var vfsScanSpec = new VfsScanSpec();
-        vfsScanSpec.enableNestedJars = enableNestedJars;
-        vfsScanSpec.enableMultiReleaseVersions = enableMultiReleaseVersions;
+        final var vfsSpec = new VfsSpec();
+        vfsSpec.enableNestedJars = enableNestedJars;
+        vfsSpec.enableMultiReleaseVersions = enableMultiReleaseVersions;
         if (urlSchemes != null) {
             for (final var scheme : urlSchemes) {
-                vfsScanSpec.enableURLScheme(scheme);
+                vfsSpec.enableURLScheme(scheme);
             }
         }
-        vfsScanSpec.maxBufferedJarRAMSize = maxBufferedJarRAMSize;
-        return vfsScanSpec;
+        vfsSpec.maxBufferedJarRAMSize = maxBufferedJarRAMSize;
+        return vfsSpec;
     }
 
     /**
      * Constructor for the other ClassGraph modules, which configure the virtual filesystem through a
-     * {@link VfsScanSpec} built from their own API rather than through the methods of this class, and which share
-     * an {@link InterruptionChecker} and a {@link LogNode} with the rest of a scan.
+     * {@link VfsSpec} built from their own API rather than through the methods of this class, and which share an
+     * {@link InterruptionChecker} and a {@link LogNode} with the rest of a scan.
      *
      * <p>
      * The parameter types are in packages that are only exported to those modules, so this constructor cannot be
      * called from anywhere else, and it is not part of the API.
      *
-     * @param vfsScanSpec
+     * @param vfsSpec
      *            everything the virtual filesystem is configured with.
      * @param interruptionChecker
      *            the interruption checker to share with the rest of the scan.
@@ -215,10 +214,9 @@ public class Vfs implements AutoCloseable {
      *            the log node, or null to not log.
      * @hidden
      */
-    public Vfs(final VfsScanSpec vfsScanSpec, final InterruptionChecker interruptionChecker,
-            final @Nullable LogNode log) {
+    public Vfs(final VfsSpec vfsSpec, final InterruptionChecker interruptionChecker, final @Nullable LogNode log) {
         // The settings are held by the handler, which is what reads with them
-        this.nestedJarHandler = new NestedJarHandler(vfsScanSpec, interruptionChecker);
+        this.nestedJarHandler = new NestedJarHandler(vfsSpec, interruptionChecker);
         this.log = log;
     }
 

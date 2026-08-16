@@ -1,4 +1,4 @@
-package io.github.classgraph.classpath.internal.spec;
+package io.github.classgraph.classpath.internal;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
