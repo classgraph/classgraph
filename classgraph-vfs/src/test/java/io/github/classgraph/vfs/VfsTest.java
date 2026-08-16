@@ -465,6 +465,63 @@ public class VfsTest {
         }
     }
 
+    /** The roots that are currently open can be iterated, sorted by path. */
+    @Test
+    public void theOpenRootsCanBeIterated(@TempDir final File tempDir) throws IOException {
+        final var jarFile = new File(tempDir, "widget.jar");
+        writeJar(jarFile, "com/xyz/widget.txt");
+        final var dir = new File(tempDir, "classes");
+        writeDirWithFiles(dir, "com/xyz/gadget.txt");
+
+        try (var vfs = new Vfs()) {
+            // A Vfs that has not opened anything has no roots
+            assertThat(vfs).isEmpty();
+
+            // The roots come back sorted by path, so the directory comes before the jarfile beside it, whichever
+            // order they were opened in
+            final var jarRoot = vfs.open(jarFile.getPath());
+            final var dirRoot = vfs.open(dir.getPath());
+            assertThat(vfs).containsExactly(dirRoot, jarRoot);
+
+            // A root opened from a byte array is not named by any path, so it is not cached, and not iterated
+            try (var inMemoryRoot = vfs.open(readFile(jarFile), "in-memory.jar")) {
+                assertThat(inMemoryRoot.getEntry("com/xyz/widget.txt")).isNotNull();
+                assertThat(vfs).containsExactly(dirRoot, jarRoot);
+            }
+
+            // Closing a root takes it out of the Vfs it was opened by
+            jarRoot.close();
+            assertThat(vfs).containsExactly(dirRoot);
+        }
+    }
+
+    /**
+     * A root that is cached under more than one path -- under both the path it was opened from and the canonical
+     * path of the jarfile that turned out to back it -- is still only iterated once.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the jarfile could not be written.
+     */
+    @Test
+    public void aRootCachedUnderTwoPathsIsIteratedOnce(@TempDir final File tempDir) throws IOException {
+        final var realDir = new File(tempDir, "real");
+        assertThat(realDir.mkdir()).isTrue();
+        final var jarFile = new File(realDir, "widget.jar");
+        writeJar(jarFile, "com/xyz/widget.txt");
+        final var linkedDir = createSymbolicLinkOrSkip(new File(tempDir, "link").toPath(), realDir.toPath());
+
+        try (var vfs = new Vfs()) {
+            final var root = vfs.open(linkedDir.resolve("widget.jar").toString());
+            // The root is cached under the path it was opened from, through the symlink, and under the canonical
+            // path of the jarfile that backs it, so that either path reaches it without reading the jarfile again
+            assertThat(root.getPath()).contains("/real/").doesNotContain("/link/");
+            assertThat(vfs.open(jarFile.getCanonicalPath())).isSameAs(root);
+            assertThat(vfs).containsExactly(root);
+        }
+    }
+
     /** A directory is opened as a root of its own, and its entries are named relative to it. */
     @Test
     public void aDirectoryCanBeOpenedAsARoot(@TempDir final File tempDir) throws IOException {

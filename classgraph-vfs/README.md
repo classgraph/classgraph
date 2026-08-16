@@ -71,6 +71,11 @@ temporary files that a nested jarfile has to be spilled to when it cannot be rea
 the `Vfs` releases all of them and closes every root it handed out, so a `Vfs` belongs in a
 try-with-resources block, as it is in every example below.
 
+It can also list what it has open: a `Vfs` is `Iterable<VfsRoot>`, just as a `VfsRoot` is
+`Iterable<VfsEntry>`, and iterating it visits the roots that are currently open, sorted by path.
+Each root is reported once, however many paths it was opened by, and a root that has been closed, or
+that was read from a stream or a byte array rather than opened from a path, is not among them.
+
 A `VfsRoot` is `AutoCloseable` too, but closing one only drops that root: its entries and its
 `FileSystem` view stop working, and opening the same path again builds a fresh root. The jarfile
 behind it stays open, because other roots may be reading the same jarfile. Only the `Vfs` releases
@@ -236,7 +241,9 @@ try (Vfs vfs = new Vfs();
 
 A root is `Iterable<VfsEntry>`, and iterating it lists files, not directories, and names them
 relative to the root, so the same loop walks all three kinds of root. `getEntries()` returns the
-same entries as a `List`. Closing the `Vfs` releases every file handle, memory mapping and
+same entries as a `List`. The three roots are named here rather than iterating the `Vfs` itself,
+which would visit the same three, so that the outer loop reports them in the order they were opened
+rather than in path order. Closing the `Vfs` releases every file handle, memory mapping and
 temporary file it took, and invalidates every `VfsRoot` and `VfsEntry` it handed out, so do not let
 them escape the `try` block.
 

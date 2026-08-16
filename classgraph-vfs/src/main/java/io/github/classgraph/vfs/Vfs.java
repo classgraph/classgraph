@@ -39,8 +39,14 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.IdentityHashMap;
+import java.util.Iterator;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -84,9 +90,10 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>
  * A {@link Vfs} caches every root it opens, so opening the same path twice returns the same {@link VfsRoot}, and a
- * jarfile that encloses several nested jarfiles is only read once. The cache, the open file handles and the
- * temporary files are all released by {@link #close()}, which invalidates every {@link VfsRoot} and
- * {@link VfsEntry} it handed out, so a {@link Vfs} should be held open for as long as its entries are being read.
+ * jarfile that encloses several nested jarfiles is only read once. Iterating the {@link Vfs} gives back the roots
+ * that are currently open. The cache, the open file handles and the temporary files are all released by
+ * {@link #close()}, which invalidates every {@link VfsRoot} and {@link VfsEntry} it handed out, so a {@link Vfs}
+ * should be held open for as long as its entries are being read.
  *
  * <p>
  * Every method is safe to call from multiple threads at once. Two threads that ask for the same path at the same
@@ -97,7 +104,7 @@ import org.jspecify.annotations.Nullable;
  * still running -- gets an {@link IOException} from an {@code open} method, or an {@link IllegalStateException}
  * from {@link #verbose()}, rather than a root backed by storage that is being released.
  */
-public class Vfs implements AutoCloseable {
+public class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     /** The default value of the {@code enableNestedJars} constructor parameter. */
     public static final boolean DEFAULT_ENABLE_NESTED_JARS = VfsSpec.DEFAULT_ENABLE_NESTED_JARS;
 
@@ -617,6 +624,42 @@ public class Vfs implements AutoCloseable {
             Thread.currentThread().interrupt();
             throw new IOException("Interrupted while reading " + name);
         }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Returns an iterator over the roots that are currently open in this {@link Vfs}, so that the roots can be
+     * iterated directly, just as the entries of a root can:
+     *
+     * <pre>
+     * for (VfsRoot root : vfs) {
+     *     System.out.println(root.getPath());
+     * }
+     * </pre>
+     *
+     * <p>
+     * The roots come back sorted by the path they report themselves at, and each root is reported once, however
+     * many paths it was opened by. A root read from an {@link InputStream} or from a byte array is not included,
+     * since there is no path that names it, so it is not cached: reading the same bytes again builds a new root.
+     *
+     * <p>
+     * The iterator is a snapshot taken when this method is called, so a root opened or closed by another thread
+     * afterwards does not change what it reports. A closed {@link Vfs} has no open roots, so iterating one reports
+     * nothing.
+     *
+     * @return an iterator over the roots that are currently open.
+     */
+    @Override
+    public Iterator<VfsRoot> iterator() {
+        // A root can be cached under more than one path, e.g. under both the path it was opened from and the
+        // canonical path of the directory or jarfile that turned out to back it, so it can be reached twice here
+        final Set<VfsRoot> distinctRoots = Collections.newSetFromMap(new IdentityHashMap<>());
+        distinctRoots.addAll(rootsByPath.values());
+        distinctRoots.addAll(rootsByModule.values());
+        final var roots = new ArrayList<>(distinctRoots);
+        roots.sort(Comparator.comparing(VfsRoot::reportedPath));
+        return Collections.unmodifiableList(roots).iterator();
     }
 
     // -------------------------------------------------------------------------------------------------------------
