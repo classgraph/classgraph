@@ -62,9 +62,9 @@ import org.jspecify.annotations.Nullable;
  */
 public class ClassInfoList extends MappableInfoList<ClassInfo> {
     /** Directly related classes. */
-    // N.B. this is marked transient because this class extends ArrayList, which is Serializable, so every
-    // field has to be serializable, and Set is an interface, so it is not. Direct relationships are therefore
-    // lost if a ClassInfoList is serialized.
+    // Marked transient because this class extends ArrayList, which is Serializable, so javac requires every field
+    // to be of a serializable type, and Set is not one. Nothing is lost by that: a non-empty list of this type
+    // cannot be serialized anyway, since ClassInfo is not serializable either.
     private final transient Set<ClassInfo> directlyRelatedClasses;
 
     /** Whether to sort by name. */

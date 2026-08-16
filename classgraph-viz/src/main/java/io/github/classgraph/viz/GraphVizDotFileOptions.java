@@ -35,19 +35,22 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Options for the GraphViz .dot file generators in {@link GraphVizDotFile}. A freshly constructed instance holds
- * the defaults; each method switches one option away from its default and returns {@code this}, so options can be
- * chained:
+ * the defaults; each method sets one option and returns {@code this}, so options can be chained:
  *
  * <pre>
  * GraphVizDotFile.generate(scanResult, scanResult.getAllClasses(),
- *         new GraphVizDotFileOptions().layoutSize(12, 8).hideFields().hideMethods());
+ *         new GraphVizDotFileOptions().setLayoutSize(12, 8).hideFields().hideMethods());
  * </pre>
  *
  * <p>
+ * Every option can be set either way round, so an instance handed on from elsewhere can be moved to whichever
+ * setting is wanted, rather than only away from the default.
+ *
+ * <p>
  * {@link GraphVizDotFile#generateFromInterClassDependencies(ScanResult, ClassInfoList, GraphVizDotFileOptions)}
- * draws a different graph, and reads only {@link #layoutSize(float, float)}, {@link #includeExternalClasses()} and
- * {@link #excludeExternalClasses()} — the options that show or hide the contents of a class node have no effect on
- * it.
+ * draws a different graph, and reads only {@link #setLayoutSize(float, float)}, {@link #includeExternalClasses()}
+ * and {@link #excludeExternalClasses()} — the options that show or hide the contents of a class node have no effect
+ * on it.
  */
 public class GraphVizDotFileOptions {
     /** The GraphViz layout width, in inches. */
@@ -101,9 +104,20 @@ public class GraphVizDotFileOptions {
      *            The GraphViz layout height in inches.
      * @return this {@link GraphVizDotFileOptions}, for method chaining.
      */
-    public GraphVizDotFileOptions layoutSize(final float sizeX, final float sizeY) {
+    public GraphVizDotFileOptions setLayoutSize(final float sizeX, final float sizeY) {
         this.sizeX = sizeX;
         this.sizeY = sizeY;
+        return this;
+    }
+
+    /**
+     * Show fields within class nodes, if {@link ClassGraph#enableFieldInfo()} was called before scanning. (This is
+     * the default.)
+     *
+     * @return this {@link GraphVizDotFileOptions}, for method chaining.
+     */
+    public GraphVizDotFileOptions showFields() {
+        showFields = true;
         return this;
     }
 
@@ -119,12 +133,33 @@ public class GraphVizDotFileOptions {
     }
 
     /**
+     * Show edges between classes and the types of their fields. (This is the default.)
+     *
+     * @return this {@link GraphVizDotFileOptions}, for method chaining.
+     */
+    public GraphVizDotFileOptions showFieldTypeDependencyEdges() {
+        showFieldTypeDependencyEdges = true;
+        return this;
+    }
+
+    /**
      * Do not show edges between classes and the types of their fields. (These edges are shown by default.)
      *
      * @return this {@link GraphVizDotFileOptions}, for method chaining.
      */
     public GraphVizDotFileOptions hideFieldTypeDependencyEdges() {
         showFieldTypeDependencyEdges = false;
+        return this;
+    }
+
+    /**
+     * Show methods within class nodes, if {@link ClassGraph#enableMethodInfo()} was called before scanning. (This
+     * is the default.)
+     *
+     * @return this {@link GraphVizDotFileOptions}, for method chaining.
+     */
+    public GraphVizDotFileOptions showMethods() {
+        showMethods = true;
         return this;
     }
 
@@ -140,6 +175,16 @@ public class GraphVizDotFileOptions {
     }
 
     /**
+     * Show edges between classes and the return types and parameter types of their methods. (This is the default.)
+     *
+     * @return this {@link GraphVizDotFileOptions}, for method chaining.
+     */
+    public GraphVizDotFileOptions showMethodTypeDependencyEdges() {
+        showMethodTypeDependencyEdges = true;
+        return this;
+    }
+
+    /**
      * Do not show edges between classes and the return types and parameter types of their methods. (These edges are
      * shown by default.)
      *
@@ -147,6 +192,17 @@ public class GraphVizDotFileOptions {
      */
     public GraphVizDotFileOptions hideMethodTypeDependencyEdges() {
         showMethodTypeDependencyEdges = false;
+        return this;
+    }
+
+    /**
+     * Show annotations within class nodes, if {@link ClassGraph#enableAnnotationInfo()} was called before scanning.
+     * (This is the default.)
+     *
+     * @return this {@link GraphVizDotFileOptions}, for method chaining.
+     */
+    public GraphVizDotFileOptions showAnnotations() {
+        showAnnotations = true;
         return this;
     }
 
@@ -162,12 +218,33 @@ public class GraphVizDotFileOptions {
     }
 
     /**
+     * Show edges between classes and the annotations on them. (This is the default.)
+     *
+     * @return this {@link GraphVizDotFileOptions}, for method chaining.
+     */
+    public GraphVizDotFileOptions showAnnotationDependencyEdges() {
+        showAnnotationDependencyEdges = true;
+        return this;
+    }
+
+    /**
      * Do not show edges between classes and the annotations on them. (These edges are shown by default.)
      *
      * @return this {@link GraphVizDotFileOptions}, for method chaining.
      */
     public GraphVizDotFileOptions hideAnnotationDependencyEdges() {
         showAnnotationDependencyEdges = false;
+        return this;
+    }
+
+    /**
+     * Strip the package name from class names in method and field type signatures, leaving the simple name. (This
+     * is the default.)
+     *
+     * @return this {@link GraphVizDotFileOptions}, for method chaining.
+     */
+    public GraphVizDotFileOptions useSimpleNames() {
+        useSimpleNames = true;
         return this;
     }
 

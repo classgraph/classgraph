@@ -230,6 +230,43 @@ public class VfsFileSystemTest {
     }
 
     /**
+     * An archive can hold a name that is both a file and a directory: an entry {@code "a/b"} alongside an entry
+     * {@code "a/b/c"}. The file wins, as it does in the JDK's own zipfile filesystem, so listing the name as a
+     * directory fails -- otherwise one name would be a regular file and a listable directory at the same time.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the jarfile could not be written or read.
+     */
+    @Test
+    public void aNameThatIsBothAFileAndADirectoryIsAFile(@TempDir final Path tempDir) throws IOException {
+        final var jarFile = tempDir.resolve("dual-name.jar").toFile();
+        try (var fileOut = new FileOutputStream(jarFile); var zipOut = new ZipOutputStream(fileOut)) {
+            for (final var entryName : List.of("a/b", "a/b/c", "a/d")) {
+                zipOut.putNextEntry(new ZipEntry(entryName));
+                zipOut.write(entryName.getBytes(StandardCharsets.UTF_8));
+                zipOut.closeEntry();
+            }
+        }
+
+        try (var vfs = new Vfs()) {
+            final var fileSystem = vfs.open(jarFile).asFileSystem();
+            final var dualName = fileSystem.getPath("/a/b");
+
+            assertThat(Files.isRegularFile(dualName)).isTrue();
+            assertThat(Files.isDirectory(dualName)).isFalse();
+            assertThatThrownBy(() -> Files.newDirectoryStream(dualName)).isInstanceOf(NotDirectoryException.class);
+
+            // The directory above it still lists both of its children, and the entry hidden below it is still
+            // reachable by name
+            assertThat(list(Files.newDirectoryStream(fileSystem.getPath("/a")))).containsExactly("/a/b", "/a/d");
+            assertThat(Files.readAllBytes(fileSystem.getPath("/a/b/c")))
+                    .isEqualTo("a/b/c".getBytes(StandardCharsets.UTF_8));
+        }
+    }
+
+    /**
      * Read a directory stream into a sorted list of path strings.
      *
      * @param stream

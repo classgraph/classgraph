@@ -180,20 +180,24 @@ public class ModulePathInfo {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Add an {@code Add-Exports} entry found in a jarfile manifest during scanning.
+     * Add an {@code Add-Exports} entry found in a jarfile manifest during scanning. This is for the scanner, which
+     * reads the manifests, and is not part of the API.
      *
      * @param addExportsEntry
      *            the entry, in the format {@code <source-module>/<package>=ALL-UNNAMED}.
+     * @hidden
      */
     public synchronized void addExportsEntry(final String addExportsEntry) {
         addExports.add(addExportsEntry);
     }
 
     /**
-     * Add an {@code Add-Opens} entry found in a jarfile manifest during scanning.
+     * Add an {@code Add-Opens} entry found in a jarfile manifest during scanning. This is for the scanner, which
+     * reads the manifests, and is not part of the API.
      *
      * @param addOpensEntry
      *            the entry, in the format {@code <source-module>/<package>=ALL-UNNAMED}.
+     * @hidden
      */
     public synchronized void addOpensEntry(final String addOpensEntry) {
         addOpens.add(addOpensEntry);

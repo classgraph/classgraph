@@ -130,20 +130,20 @@ public class Classpath implements AutoCloseable, Iterable<ClasspathEntry> {
     }
 
     /**
-     * Returns the {@link ClasspathEntry#location()} of each classpath element, in the same order as
+     * Returns the {@link ClasspathEntry#getLocation()} of each classpath element, in the same order as
      * {@link #getEntries()}.
      *
      * @return the classpath element locations, as an unmodifiable list.
      */
     public List<String> getLocations() {
-        return entries.stream().map(ClasspathEntry::location).toList();
+        return entries.stream().map(ClasspathEntry::getLocation).toList();
     }
 
     /**
      * Returns the modules that this JVM can see, system modules first, each group in name order. Modules are listed
      * whether or not they are on the module path -- the system modules and the automatic modules created for jars
-     * on the classpath are included. The list is empty if {@link ClasspathFinder#ignoreModules()} was called, or if
-     * the classpath was overridden.
+     * on the classpath are included. The list is empty if {@link ClasspathFinder#disableModuleScanning()} was
+     * called, or if the classpath was overridden.
      *
      * @return the modules, as an unmodifiable list.
      */

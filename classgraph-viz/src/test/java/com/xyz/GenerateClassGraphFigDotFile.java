@@ -24,7 +24,7 @@ public class GenerateClassGraphFigDotFile {
                 .enableAnnotationInfo() //
                 .scan()) {
             System.out.println(GraphVizDotFile.generate(scanResult, scanResult.getAllClasses(),
-                    new GraphVizDotFileOptions().layoutSize(9.2f, 8.0f)));
+                    new GraphVizDotFileOptions().setLayoutSize(9.2f, 8.0f)));
         }
     }
 }

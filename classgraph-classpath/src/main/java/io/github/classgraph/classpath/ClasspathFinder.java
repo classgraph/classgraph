@@ -301,7 +301,7 @@ public class ClasspathFinder {
      *
      * @return this (for method chaining).
      */
-    public ClasspathFinder ignoreModules() {
+    public ClasspathFinder disableModuleScanning() {
         classpathSpec.scanModules = false;
         return this;
     }

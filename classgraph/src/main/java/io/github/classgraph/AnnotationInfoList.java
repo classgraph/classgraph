@@ -33,6 +33,7 @@ import java.lang.annotation.Annotation;
 import java.lang.annotation.Inherited;
 import java.lang.annotation.Repeatable;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
@@ -105,17 +106,17 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     }
 
     /**
-     * Construct a new modifiable empty {@link AnnotationInfoList}, given an initial list of {@link AnnotationInfo}
+     * Construct a new modifiable {@link AnnotationInfoList}, given an initial collection of {@link AnnotationInfo}
      * objects.
      *
-     * @param reachableAnnotations
+     * @param annotationInfoCollection
      *            the annotations to add to the list. All of them are treated as directly present on the annotated
      *            item, rather than as meta-annotations.
      */
-    public AnnotationInfoList(final AnnotationInfoList reachableAnnotations) {
+    public AnnotationInfoList(final Collection<AnnotationInfo> annotationInfoCollection) {
+        super(Objects.requireNonNull(annotationInfoCollection, "annotationInfoCollection must not be null"));
         // If only reachable annotations are given, treat all of them as direct
-        this(Objects.requireNonNull(reachableAnnotations, "reachableAnnotations must not be null"),
-                reachableAnnotations);
+        directlyRelatedAnnotations = this;
     }
 
     /**

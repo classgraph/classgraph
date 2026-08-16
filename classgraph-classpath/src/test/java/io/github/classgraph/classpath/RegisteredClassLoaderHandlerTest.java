@@ -1,11 +1,13 @@
 package io.github.classgraph.classpath;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -106,7 +108,7 @@ public class RegisteredClassLoaderHandlerTest {
      * @return the classpath entry paths, in classpath order.
      */
     private static List<Path> find(final ClasspathFinder classpathFinder) {
-        try (var classpath = classpathFinder.ignoreModules().find()) {
+        try (var classpath = classpathFinder.disableModuleScanning().find()) {
             return classpath.getLocations().stream().map(Path::of).toList();
         }
     }
@@ -125,6 +127,43 @@ public class RegisteredClassLoaderHandlerTest {
 
         assertThat(find(new ClasspathFinder().overrideClassLoaders(classLoader)
                 .registerClassLoaderHandler(new UnknownClassLoaderHandler()))).containsExactly(classesDir);
+    }
+
+    /**
+     * A handler builds its prefix lists itself, so the lists it hands over are copied rather than kept. Otherwise a
+     * handler that refilled one list per classloader would silently change the prefixes of every classpath entry
+     * already found, including the values their {@link ClasspathEntry#equals(Object)} and
+     * {@link ClasspathEntry#hashCode()} are computed from.
+     */
+    @Test
+    public void thePrefixListsAHandlerHandsOverAreCopied(@TempDir final Path tempDir) throws Exception {
+        final var classesDir = classesDir(tempDir, "classes");
+        final List<String> packageRootPrefixes = new ArrayList<>(List.of("BOOT-INF/classes/"));
+        final List<String> libDirPrefixes = new ArrayList<>(List.of("BOOT-INF/lib/"));
+        final var handler = new UnknownClassLoaderHandler() {
+            @Override
+            public List<String> getPackageRootPrefixes() {
+                return packageRootPrefixes;
+            }
+
+            @Override
+            public List<String> getLibDirPrefixes() {
+                return libDirPrefixes;
+            }
+        };
+
+        try (var classpath = new ClasspathFinder()
+                .overrideClassLoaders(new UnknownClassLoader(classesDir.toString()))
+                .registerClassLoaderHandler(handler).disableModuleScanning().find()) {
+            final var entry = classpath.getEntries().get(0);
+            packageRootPrefixes.add("surprise/classes/");
+            libDirPrefixes.clear();
+
+            assertThat(entry.getPackageRootPrefixes()).containsExactly("BOOT-INF/classes/");
+            assertThat(entry.getLibDirPrefixes()).containsExactly("BOOT-INF/lib/");
+            assertThatThrownBy(() -> entry.getPackageRootPrefixes().add("surprise/classes/"))
+                    .isInstanceOf(UnsupportedOperationException.class);
+        }
     }
 
     /**

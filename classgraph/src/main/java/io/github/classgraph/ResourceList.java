@@ -57,6 +57,12 @@ import io.github.classgraph.base.internal.utils.CollectionUtils;
  * Lists returned by the ClassGraph API are unmodifiable: any attempt to add, remove, replace or sort their elements
  * throws {@link UnsupportedOperationException}. Copy the list if you need a modifiable version of it, e.g.
  * {@code new ArrayList<>(list)}.
+ *
+ * <p>
+ * A {@link ResourceList} cannot be serialized, even though it extends {@link ArrayList}: {@link Resource} does not
+ * implement {@link java.io.Serializable Serializable}, so writing a non-empty list to an
+ * {@link java.io.ObjectOutputStream ObjectOutputStream} throws {@link java.io.NotSerializableException
+ * NotSerializableException}.
  */
 public class ResourceList extends PotentiallyUnmodifiableList<Resource> implements AutoCloseable {
     /** serialVersionUID. */

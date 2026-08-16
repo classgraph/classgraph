@@ -209,8 +209,11 @@ public abstract class VfsRoot implements AutoCloseable, Iterable<VfsEntry> {
      *
      * @return the container this root was opened within, or this root itself if it was not opened at a package
      *         root, which is always the case for a directory and for a module.
+     * @throws IOException
+     *             if this root or the {@link Vfs} has been closed.
      */
-    public VfsRoot getContainerRoot() {
+    public VfsRoot getContainerRoot() throws IOException {
+        checkNotClosed(getPath());
         return this;
     }
 
@@ -625,9 +628,12 @@ public abstract class VfsRoot implements AutoCloseable, Iterable<VfsEntry> {
      * @return the manifest attributes, keyed case-insensitively by attribute name, as an unmodifiable map, or null
      *         if this root has no manifest file.
      * @throws IOException
-     *             if the manifest file could not be read, or if the {@link Vfs} has been closed.
+     *             if the manifest file could not be read, or if this root or the {@link Vfs} has been closed.
      */
     public synchronized @Nullable Map<String, String> getManifest() throws IOException {
+        // Checked even when the manifest has already been read, so that a closed root reports itself as closed
+        // rather than answering out of a cache that was warmed while it was open
+        checkNotClosed(getPath());
         // This is synchronized rather than double-checked, so that a second thread asking for the manifest while
         // the first is still reading it waits for that read rather than starting a second one
         if (!manifestRead) {

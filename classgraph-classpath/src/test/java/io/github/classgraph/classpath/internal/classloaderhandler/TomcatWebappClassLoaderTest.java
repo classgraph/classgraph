@@ -49,7 +49,7 @@ public class TomcatWebappClassLoaderTest {
      * @return the classpath element locations.
      */
     private static List<String> locations(final ClassLoader classLoader) {
-        return entries(classLoader).stream().map(ClasspathEntry::location).toList();
+        return entries(classLoader).stream().map(ClasspathEntry::getLocation).toList();
     }
 
     /**
@@ -104,7 +104,7 @@ public class TomcatWebappClassLoaderTest {
         final var webappDir = Files.createDirectories(tempDir.resolve("webapp"));
         final var root = new StandardRoot().addResourceSets(new DirResourceSet(webappDir.toFile(), "/"));
         assertThat(entries(new WebappClassLoaderBase(root, /* parent = */ null)))
-                .allSatisfy(entry -> assertThat(entry.packageRootPrefixes()).containsExactly("BOOT-INF/classes/",
+                .allSatisfy(entry -> assertThat(entry.getPackageRootPrefixes()).containsExactly("BOOT-INF/classes/",
                         "WEB-INF/classes/", "classes/"));
     }
 

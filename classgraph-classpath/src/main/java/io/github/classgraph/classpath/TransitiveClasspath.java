@@ -115,7 +115,7 @@ final class TransitiveClasspath {
      *            the classpath element.
      */
     private void addRec(final ClasspathEntry entry) {
-        if (!alreadyAdded.add(entry.location())) {
+        if (!alreadyAdded.add(entry.getLocation())) {
             // The classpath element was already reached by a shorter route, so it keeps its earlier position
             return;
         }
@@ -133,7 +133,7 @@ final class TransitiveClasspath {
      * @return the classpath elements it declares, in the order they must be added to the classpath.
      */
     private List<ClasspathEntry> children(final ClasspathEntry entry) {
-        final var location = entry.location();
+        final var location = entry.getLocation();
         final List<ClasspathExpander.ChildEntry> childEntries;
         final String canonicalPath;
         try {
@@ -142,7 +142,7 @@ final class TransitiveClasspath {
             // filesystem owns it, and hands the same root back to whoever reads the classpath element next.
             final var root = entry.open(vfs);
             canonicalPath = root.getPath();
-            childEntries = ClasspathExpander.childEntries(root, entry.libDirPrefixes(),
+            childEntries = ClasspathExpander.childEntries(root, entry.getLibDirPrefixes(),
                     vfsSpec.isNestedJarsEnabled(), log);
         } catch (final IOException | IllegalArgumentException e) {
             if (Thread.currentThread().isInterrupted()) {
@@ -166,7 +166,7 @@ final class TransitiveClasspath {
             // declares classpath elements that can be opened.
             final var childPath = childEntry.path();
             children.add(ClasspathEntry.of(childPath == null ? childLocation : childPath, childLocation,
-                    entry.classLoaderName(), entry.packageRootPrefixes(), entry.libDirPrefixes()));
+                    entry.getClassLoaderName(), entry.getPackageRootPrefixes(), entry.getLibDirPrefixes()));
         }
         return children;
     }

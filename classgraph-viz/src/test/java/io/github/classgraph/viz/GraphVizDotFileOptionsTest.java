@@ -107,8 +107,8 @@ public class GraphVizDotFileOptionsTest {
     @Test
     public void theLayoutSizeIsWrittenIntoTheGraph() {
         assertThat(classGraph(new GraphVizDotFileOptions())).contains("size=\"10.5,8.0\";");
-        assertThat(classGraph(new GraphVizDotFileOptions().layoutSize(20, 15))).contains("size=\"20.0,15.0\";");
-        assertThat(dependencyGraph(new GraphVizDotFileOptions().layoutSize(20, 15)))
+        assertThat(classGraph(new GraphVizDotFileOptions().setLayoutSize(20, 15))).contains("size=\"20.0,15.0\";");
+        assertThat(dependencyGraph(new GraphVizDotFileOptions().setLayoutSize(20, 15)))
                 .contains("size=\"20.0,15.0\";");
     }
 
@@ -194,6 +194,24 @@ public class GraphVizDotFileOptionsTest {
                 .doesNotContain("$GraphType</td>");
         assertThat(classGraph(new GraphVizDotFileOptions().useFullyQualifiedNames()))
                 .contains(FIXTURE + "GraphType</td>");
+    }
+
+    /**
+     * Every option can be set either way round, so an options object handed on with options already switched off
+     * can be switched back on, rather than only away from its default.
+     */
+    @Test
+    public void everyOptionCanBeSetEitherWayRound() {
+        final var defaults = classGraph(new GraphVizDotFileOptions());
+
+        final var options = new GraphVizDotFileOptions().setLayoutSize(20, 15).hideFields()
+                .hideFieldTypeDependencyEdges().hideMethods().hideMethodTypeDependencyEdges().hideAnnotations()
+                .hideAnnotationDependencyEdges().useFullyQualifiedNames();
+        assertThat(classGraph(options)).isNotEqualTo(defaults);
+
+        assertThat(classGraph(options.setLayoutSize(10.5f, 8.0f).showFields().showFieldTypeDependencyEdges()
+                .showMethods().showMethodTypeDependencyEdges().showAnnotations().showAnnotationDependencyEdges()
+                .useSimpleNames())).isEqualTo(defaults);
     }
 
     /**

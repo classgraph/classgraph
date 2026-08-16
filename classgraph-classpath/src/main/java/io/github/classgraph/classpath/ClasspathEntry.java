@@ -73,7 +73,7 @@ import org.jspecify.annotations.Nullable;
  *
  * <pre>
  * if (entry instanceof ClasspathEntry.OfURL urlEntry) {
- *     System.out.println("Served over " + urlEntry.url().getProtocol());
+ *     System.out.println("Served over " + urlEntry.getURL().getProtocol());
  * }
  * </pre>
  */
@@ -106,8 +106,11 @@ public abstract sealed class ClasspathEntry {
             final List<String> packageRootPrefixes, final List<String> libDirPrefixes) {
         this.location = location;
         this.classLoaderName = classLoaderName;
-        this.packageRootPrefixes = packageRootPrefixes;
-        this.libDirPrefixes = libDirPrefixes;
+        // Copied, since these come from a ClassLoaderHandler, which is public API, and are handed straight back out
+        // as unmodifiable lists and read by equals and hashCode. (Copying an immutable list returns it unchanged,
+        // so a handler that hands over a List#of costs nothing here.)
+        this.packageRootPrefixes = List.copyOf(packageRootPrefixes);
+        this.libDirPrefixes = List.copyOf(libDirPrefixes);
     }
 
     /**
@@ -186,7 +189,7 @@ public abstract sealed class ClasspathEntry {
      *
      * @return the location of the classpath element.
      */
-    public String location() {
+    public String getLocation() {
         return location;
     }
 
@@ -198,7 +201,7 @@ public abstract sealed class ClasspathEntry {
      *
      * @return the string form of the classloader, or null if this element did not come from one.
      */
-    public @Nullable String classLoaderName() {
+    public @Nullable String getClassLoaderName() {
         return classLoaderName;
     }
 
@@ -212,7 +215,7 @@ public abstract sealed class ClasspathEntry {
      *
      * @return the package root prefixes, as an unmodifiable list.
      */
-    public List<String> packageRootPrefixes() {
+    public List<String> getPackageRootPrefixes() {
         return packageRootPrefixes;
     }
 
@@ -226,7 +229,7 @@ public abstract sealed class ClasspathEntry {
      *
      * @return the lib dir prefixes, as an unmodifiable list.
      */
-    public List<String> libDirPrefixes() {
+    public List<String> getLibDirPrefixes() {
         return libDirPrefixes;
     }
 
@@ -273,8 +276,9 @@ public abstract sealed class ClasspathEntry {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Two classpath elements are equal if they were found in the same form, at the same {@link #location()},
-     * through the same classloader, with the same {@link #packageRootPrefixes()} and {@link #libDirPrefixes()}.
+     * Two classpath elements are equal if they were found in the same form, at the same {@link #getLocation()},
+     * through the same classloader, with the same {@link #getPackageRootPrefixes()} and
+     * {@link #getLibDirPrefixes()}.
      *
      * @param obj
      *            the object to compare with.
@@ -294,7 +298,7 @@ public abstract sealed class ClasspathEntry {
     }
 
     /**
-     * Returns the {@link #location()}, followed by the classloader it was obtained from in square brackets if it
+     * Returns the {@link #getLocation()}, followed by the classloader it was obtained from in square brackets if it
      * came from one.
      *
      * @return the classpath element, as a string.
@@ -309,7 +313,7 @@ public abstract sealed class ClasspathEntry {
     /**
      * A classpath element that a classloader named with a path string. This is the usual case: the entries of the
      * {@code java.class.path} system property, and of a jarfile manifest's {@code Class-Path} attribute, are path
-     * strings. The path is the {@link #location()}, so there is no separate accessor for it.
+     * strings. The path is the {@link #getLocation()}, so there is no separate accessor for it.
      */
     public static final class OfPathString extends ClasspathEntry {
         /**
@@ -331,7 +335,7 @@ public abstract sealed class ClasspathEntry {
 
         @Override
         VfsRoot openImpl(final Vfs vfs) throws IOException {
-            return vfs.open(location());
+            return vfs.open(getLocation());
         }
     }
 
@@ -363,12 +367,12 @@ public abstract sealed class ClasspathEntry {
         }
 
         /**
-         * Returns this classpath element as a {@link File}, spelled with its {@link #location()}, which on Windows
-         * means {@link File#getPath()} comes back with backslashes.
+         * Returns this classpath element as a {@link File}, spelled with its {@link #getLocation()}, which on
+         * Windows means {@link File#getPath()} comes back with backslashes.
          *
          * @return the file.
          */
-        public File file() {
+        public File getFile() {
             return file;
         }
 
@@ -407,12 +411,12 @@ public abstract sealed class ClasspathEntry {
 
         /**
          * Returns this classpath element as a {@link Path}. It may be in a filesystem other than the default one,
-         * in which case only opening the {@link Path} itself reaches it -- its {@link #location()} is the
+         * in which case only opening the {@link Path} itself reaches it -- its {@link #getLocation()} is the
          * {@link Path#toUri()} form, which names it but does not open it.
          *
          * @return the path.
          */
-        public Path path() {
+        public Path getPath() {
             return path;
         }
 
@@ -456,7 +460,7 @@ public abstract sealed class ClasspathEntry {
          *
          * @return the URL.
          */
-        public URL url() {
+        public URL getURL() {
             return url;
         }
 
@@ -500,7 +504,7 @@ public abstract sealed class ClasspathEntry {
          *
          * @return the URI.
          */
-        public URI uri() {
+        public URI getURI() {
             return uri;
         }
 

@@ -325,15 +325,22 @@ public class MalformedZipEntryTest {
      *
      * @param version
      *            the version of the extra field, of which only version 1 is defined
+     * @param legacyName
+     *            the entry's own name, whose CRC-32 is stored in the extra field so that the reader can tell that
+     *            the field still describes the entry it is attached to
      * @param unicodeName
      *            the name of the entry in UTF-8
      * @return the extra field bytes
      */
-    private static byte[] unicodePathExtraField(final int version, final String unicodeName) {
+    private static byte[] unicodePathExtraField(final int version, final String legacyName,
+            final String unicodeName) {
         final var nameBytes = unicodeName.getBytes(StandardCharsets.UTF_8);
         final var data = new ByteArrayOutputStream();
         data.write(version);
-        write32(data, 0); // CRC-32 of the name this one replaces (not checked)
+        // CRC-32 of the name this one replaces
+        final var nameCRC32 = new CRC32();
+        nameCRC32.update(legacyName.getBytes(StandardCharsets.UTF_8));
+        write32(data, nameCRC32.getValue());
         data.writeBytes(nameBytes);
         return extraField(0x7075, data.toByteArray());
     }
@@ -632,7 +639,8 @@ public class MalformedZipEntryTest {
     @Test
     public void aUnicodePathExtraFieldRenamesItsEntry(@TempDir final File tempDir) throws Exception {
         assertThat(entryNamesReadBack(writeZip(tempDir, "unicode-path.jar",
-                entry("testpkg/name.txt").extraField(unicodePathExtraField(1, "testpkg/über.txt")))))
+                entry("testpkg/name.txt")
+                        .extraField(unicodePathExtraField(1, "testpkg/name.txt", "testpkg/über.txt")))))
                 .containsExactly("testpkg/über.txt");
     }
 
@@ -640,7 +648,8 @@ public class MalformedZipEntryTest {
     @Test
     public void aUnicodePathExtraFieldCanRenameAnEntryIntoADirectory(@TempDir final File tempDir) throws Exception {
         assertThat(entryNamesReadBack(writeZip(tempDir, "unicode-path-directory.jar",
-                entry("testpkg/name.txt").extraField(unicodePathExtraField(1, "testpkg/renamed/")),
+                entry("testpkg/name.txt").extraField(
+                        unicodePathExtraField(1, "testpkg/name.txt", "testpkg/renamed/")),
                 entry(GOOD_NAME)))).containsExactly(GOOD_NAME);
     }
 
@@ -652,7 +661,8 @@ public class MalformedZipEntryTest {
     public void aUnicodePathExtraFieldCannotNameAPathOutsideTheZipfile(@TempDir final File tempDir)
             throws Exception {
         assertThat(entryNamesReadBack(writeZip(tempDir, "unicode-path-escape.jar",
-                entry("testpkg/name.txt").extraField(unicodePathExtraField(1, "/../../etc/passwd")))))
+                entry("testpkg/name.txt")
+                        .extraField(unicodePathExtraField(1, "testpkg/name.txt", "/../../etc/passwd")))))
                 .containsExactly("etc/passwd");
     }
 
@@ -671,8 +681,8 @@ public class MalformedZipEntryTest {
     /** Only version 1 of the Unicode path extra field is defined, so any other version cannot be read. */
     @Test
     public void aUnicodePathExtraFieldOfAnUnknownVersionIsRejected(@TempDir final File tempDir) throws Exception {
-        final var jarFile = writeZip(tempDir, "unicode-path-version.jar",
-                entry("testpkg/name.txt").extraField(unicodePathExtraField(2, "testpkg/other.txt")));
+        final var jarFile = writeZip(tempDir, "unicode-path-version.jar", entry("testpkg/name.txt")
+                .extraField(unicodePathExtraField(2, "testpkg/name.txt", "testpkg/other.txt")));
         assertThatThrownBy(() -> entryNamesReadBack(jarFile)).rootCause()
                 .hasMessageContaining("Unknown Unicode entry name format 2 in extra field: testpkg/name.txt");
     }

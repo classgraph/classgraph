@@ -39,7 +39,6 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
-import java.util.Objects;
 import java.util.Set;
 
 import io.github.classgraph.base.internal.utils.Assert;
@@ -323,6 +322,6 @@ public abstract class VfsEntry {
             return true;
         }
         return obj instanceof final VfsEntry other && root.getVfs() == other.root.getVfs()
-                && Objects.equals(getPath(), other.getPath());
+                && getPath().equals(other.getPath());
     }
 }

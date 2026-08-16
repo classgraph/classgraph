@@ -29,6 +29,7 @@
 package io.github.classgraph.vfs;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
@@ -129,7 +130,10 @@ final class ArchiveRoot extends VfsRoot {
     }
 
     @Override
-    public VfsRoot getContainerRoot() {
+    public VfsRoot getContainerRoot() throws IOException {
+        // Checked before the container is created, so that a closed root cannot manufacture a working view of the
+        // whole jarfile that nothing would ever close
+        checkNotClosed(getPath());
         if (packageRoot.isEmpty()) {
             return this;
         }

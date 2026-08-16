@@ -191,7 +191,7 @@ public class GraphVizDotFileTest {
     @Test
     public void classesAreJoinedToTheirSupertypes() {
         final var dotFile = GraphVizDotFile.generate(scanResult, scanResult.getAllClasses(),
-                new GraphVizDotFileOptions().layoutSize(20, 20));
+                new GraphVizDotFileOptions().setLayoutSize(20, 20));
         assertThat(dotFile).contains("\"" + FIXTURE + "Derived\" -> \"" + FIXTURE + "Base\" [arrowsize=2.5]",
                 "\"" + FIXTURE + "Derived\" -> \"" + FIXTURE + "Marker\" [arrowhead=diamond, arrowsize=2.5]");
     }

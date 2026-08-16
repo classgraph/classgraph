@@ -191,8 +191,11 @@ public class ClasspathExpanderTest {
      * @param childEntries
      *            the child classpath entries
      * @return the location of each child classpath entry, in the order they were declared
+     * @throws IOException
+     *             if the classpath element could not be read
      */
-    private static List<String> relativeLocations(final VfsRoot root, final List<ChildEntry> childEntries) {
+    private static List<String> relativeLocations(final VfsRoot root, final List<ChildEntry> childEntries)
+            throws IOException {
         final String containerPath = root.getContainerRoot().getPath();
         final List<String> locations = new ArrayList<>();
         for (final ChildEntry childEntry : childEntries) {

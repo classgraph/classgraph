@@ -38,7 +38,7 @@
  * <pre>
  * try (Classpath classpath = new ClasspathFinder().find()) {
  *     for (ClasspathEntry entry : classpath) {
- *         System.out.println(entry.location());
+ *         System.out.println(entry.getLocation());
  *     }
  * }
  * </pre>

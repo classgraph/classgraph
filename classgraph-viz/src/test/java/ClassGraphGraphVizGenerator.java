@@ -29,7 +29,7 @@ public class ClassGraphGraphVizGenerator {
                 .scan()) {
             final var file = Path.of("/tmp/graph.dot");
             GraphVizDotFile.write(scanResult, scanResult.getAllClasses(), file,
-                    new GraphVizDotFileOptions().layoutSize(12, 8).hideFields().hideMethods());
+                    new GraphVizDotFileOptions().setLayoutSize(12, 8).hideFields().hideMethods());
             System.out.println("Wrote " + file);
         }
     }

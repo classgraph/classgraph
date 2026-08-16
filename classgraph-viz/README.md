@@ -90,11 +90,11 @@ about leaving things out:
 
 ```java
 GraphVizDotFileOptions options = new GraphVizDotFileOptions()
-        .layoutSize(12.0f, 8.0f)          // in inches, as GraphViz measures it
-        .hideFields()                     // no field rows in the class boxes
-        .hideMethods()                    // no method rows either
-        .hideAnnotations()                // no annotation nodes
-        .useFullyQualifiedNames();        // com.xyz.Widget rather than Widget
+        .setLayoutSize(12.0f, 8.0f)   // in inches, as GraphViz measures it
+        .hideFields()                 // no field rows in the class boxes
+        .hideMethods()                // no method rows either
+        .hideAnnotations()            // no annotation nodes
+        .useFullyQualifiedNames();    // com.xyz.Widget rather than Widget
 
 try (ScanResult scanResult = new ClassGraph().enableAllInfo().acceptPackages("com.xyz").scan()) {
     GraphVizDotFile.write(scanResult, scanResult.getAllClasses(), Path.of("overview.dot"), options);
@@ -105,6 +105,10 @@ The `hide...DependencyEdges()` options are the finer-grained version: `hideField
 `hideMethodTypeDependencyEdges()` and `hideAnnotationDependencyEdges()` keep the fields, methods or
 annotations visible in the boxes but drop the edges they would otherwise draw, which is usually
 where the clutter comes from.
+
+Every option can be set either way round, so an options object handed on from elsewhere can be moved
+to whichever setting is wanted: each `hide...()` has a matching `show...()`, and
+`useFullyQualifiedNames()` has `useSimpleNames()`.
 
 ### Get the .dot source instead of a file
 

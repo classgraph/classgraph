@@ -44,9 +44,9 @@ public class ClasspathFinderTest {
             final var entries = classpath.getEntries();
             assertThat(entries).isNotEmpty();
             for (final ClasspathEntry entry : entries) {
-                assertThat(entry.location()).isNotEmpty();
-                assertThat(entry.packageRootPrefixes()).isNotEmpty();
-                assertThat(entry.toString()).startsWith(entry.location());
+                assertThat(entry.getLocation()).isNotEmpty();
+                assertThat(entry.getPackageRootPrefixes()).isNotEmpty();
+                assertThat(entry.toString()).startsWith(entry.getLocation());
             }
         }
     }
@@ -117,7 +117,7 @@ public class ClasspathFinderTest {
     /** Module finding can be switched off altogether. */
     @Test
     public void moduleFindingCanBeDisabled() {
-        assertThat(new ClasspathFinder().ignoreModules().find().getModules()).isEmpty();
+        assertThat(new ClasspathFinder().disableModuleScanning().find().getModules()).isEmpty();
     }
 
     /** The module path switches the JVM was launched with are reachable from the result. */

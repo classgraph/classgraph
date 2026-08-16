@@ -206,10 +206,15 @@ final class VfsFileSystemProvider extends FileSystemProvider {
         final var dirPath = check(dir);
         final var fileSystem = dirPath.getFileSystem();
         final var name = dirPath.entryName();
+        // A name can be a file and a directory at the same time, if the archive holds both "a/b" and "a/b/c". The
+        // file wins, so that a name is never reported as a file by Files#isDirectory and listed as a directory
+        // here at the same time
+        if (fileSystem.entry(name) != null) {
+            throw new NotDirectoryException(dir.toString());
+        }
         final var childNames = fileSystem.childNames(name);
         if (childNames == null) {
-            throw fileSystem.entry(name) != null ? new NotDirectoryException(dir.toString())
-                    : new NoSuchFileException(dir.toString());
+            throw new NoSuchFileException(dir.toString());
         }
         final List<Path> children = new ArrayList<>(childNames.size());
         for (final var childName : childNames) {

@@ -42,6 +42,12 @@ import java.util.List;
  * throws {@link UnsupportedOperationException}. Copy the list if you need a modifiable version of it, e.g.
  * {@code new ArrayList<>(list)}.
  *
+ * <p>
+ * A list of this type cannot be serialized, even though it extends {@link ArrayList}: the objects it holds do not
+ * implement {@link java.io.Serializable Serializable}, so writing a non-empty list to an
+ * {@link java.io.ObjectOutputStream ObjectOutputStream} throws {@link java.io.NotSerializableException
+ * NotSerializableException}.
+ *
  * @param <T>
  *            the element type
  */

@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.zip.CRC32;
 
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.path.PathSyntax;
@@ -241,6 +242,12 @@ public class LogicalZipFile extends ZipFileSlice {
         /** True if the Info-ZIP Unicode path extra field renamed the entry to a directory, or to nothing. */
         boolean renamedToDirectoryEntry;
 
+        /** The offset of the entry's name within the central directory, before it was decoded or sanitized. */
+        final long filenameStartOff;
+
+        /** The length in bytes of the entry's name as stored in the central directory. */
+        final int filenameLen;
+
         /**
          * Constructor.
          *
@@ -252,13 +259,19 @@ public class LogicalZipFile extends ZipFileSlice {
          *            the uncompressed size of the entry
          * @param pos
          *            the offset of the entry's local file header
+         * @param filenameStartOff
+         *            the offset of the entry's name within the central directory
+         * @param filenameLen
+         *            the length in bytes of the entry's name as stored in the central directory
          */
         EntryFields(final String entryNameSanitized, final long compressedSize, final long uncompressedSize,
-                final long pos) {
+                final long pos, final long filenameStartOff, final int filenameLen) {
             this.entryNameSanitized = entryNameSanitized;
             this.compressedSize = compressedSize;
             this.uncompressedSize = uncompressedSize;
             this.pos = pos;
+            this.filenameStartOff = filenameStartOff;
+            this.filenameLen = filenameLen;
         }
     }
 
@@ -578,7 +591,7 @@ public class LogicalZipFile extends ZipFileSlice {
             } else if (tag == 0x7075 && size >= 1) {
                 // (The size test is what stops the version byte from being read out of the next extra field, or out
                 // of the next central directory record, when this extra field has an empty data area)
-                readUnicodePathExtraField(cenReader, tagOff, size, entryFields);
+                readUnicodePathExtraField(cenReader, tagOff, size, entryFields, log);
             }
             extraFieldOff += 4 + size;
         }
@@ -649,20 +662,36 @@ public class LogicalZipFile extends ZipFileSlice {
      *            the size of the extra field's data area
      * @param entryFields
      *            the fields of the entry, which are overridden in place
+     * @param log
+     *            the log node, or null to skip logging
      * @throws IOException
      *             If an I/O exception occurs, or the extra field is of an unknown version, or its entry name is
      *             malformed.
      */
     private static void readUnicodePathExtraField(final RandomAccessReader cenReader, final long tagOff,
-            final int size, final EntryFields entryFields) throws IOException {
+            final int size, final EntryFields entryFields, final @Nullable LogNode log) throws IOException {
         final var version = cenReader.readUnsignedByte(tagOff + 4 + 0);
         if (version != 1) {
             throw new IOException("Unknown Unicode entry name format " + version + " in extra field: "
                     + entryFields.entryNameSanitized);
         } else if (size > 5) {
-            // Replace non-Unicode entry name with Unicode version. The data area of this extra field is
-            // version(1) + nameCRC32(4) + name, so the name starts 5 bytes into the data area (i.e. 9
-            // bytes after the tag), and is (size - 5) bytes long.
+            // The data area of this extra field is version(1) + nameCRC32(4) + name, so the CRC starts 1 byte into
+            // the data area (i.e. 5 bytes after the tag), and the name starts 5 bytes into the data area (i.e. 9
+            // bytes after the tag) and is (size - 5) bytes long.
+            // The CRC is of the entry name as stored in the central directory record. A mismatch means some tool
+            // renamed the entry and left this extra field behind, so it now describes a name the entry no longer
+            // has -- APPNOTE says to ignore the field in that case, and keep the name in the central directory
+            // record, rather than rename the entry back to a name its writer moved it away from
+            final var storedNameCRC32 = cenReader.readUnsignedInt(tagOff + 5);
+            final var actualNameCRC32 = crc32(cenReader, entryFields.filenameStartOff, entryFields.filenameLen);
+            if (storedNameCRC32 != actualNameCRC32) {
+                if (log != null) {
+                    log.log("Ignoring the Unicode entry name of zip entry, since the name CRC in its Unicode path "
+                            + "extra field does not match the entry name: " + entryFields.entryNameSanitized);
+                }
+                return;
+            }
+            // Replace non-Unicode entry name with Unicode version.
             // This extra field's name is always UTF-8, whatever the entry's language encoding flag says
             final var unicodeEntryName = ZipEntryNameCodec.readEntryName(cenReader, tagOff + 9, size - 5,
                     /* isUtf8 = */ true);
@@ -674,6 +703,30 @@ public class LogicalZipFile extends ZipFileSlice {
             entryFields.renamedToDirectoryEntry = entryFields.entryNameSanitized.isEmpty()
                     || unicodeEntryName.endsWith("/");
         }
+    }
+
+    /**
+     * Compute the CRC-32 of a range of bytes of the central directory.
+     *
+     * @param cenReader
+     *            a reader for the central directory
+     * @param offset
+     *            the offset of the range within the central directory
+     * @param numBytes
+     *            the length of the range in bytes
+     * @return the CRC-32 of the range, as an unsigned 32-bit value
+     * @throws IOException
+     *             If an I/O exception occurs, or the range extends beyond the end of the central directory.
+     */
+    private static long crc32(final RandomAccessReader cenReader, final long offset, final int numBytes)
+            throws IOException {
+        final var bytes = new byte[numBytes];
+        if (cenReader.read(offset, bytes, 0, numBytes) < numBytes) {
+            throw new IOException("Zip entry name extends beyond the end of the central directory");
+        }
+        final var crc32 = new CRC32();
+        crc32.update(bytes);
+        return crc32.getValue();
     }
 
     /**
@@ -736,7 +789,8 @@ public class LogicalZipFile extends ZipFileSlice {
         // Read the compressed and uncompressed size, and the offset of the local file header, any of which the
         // extra fields can override
         final var entryFields = new EntryFields(entryNameSanitized, cenReader.readUnsignedInt(entOff + 20),
-                cenReader.readUnsignedInt(entOff + 24), cenReader.readUnsignedInt(entOff + 42));
+                cenReader.readUnsignedInt(entOff + 24), cenReader.readUnsignedInt(entOff + 42), filenameStartOff,
+                filenameLen);
         if (extraFieldLen > 0) {
             readExtraFields(cenReader, filenameStartOff + filenameLen, extraFieldLen, entryFields, log);
         }

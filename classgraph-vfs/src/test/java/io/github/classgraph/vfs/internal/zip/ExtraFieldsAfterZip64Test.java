@@ -108,8 +108,10 @@ public class ExtraFieldsAfterZip64Test {
         // Data size = version(1) + nameCRC32(4) + name
         write16(buf, 5 + nameBytes.length);
         buf.write(1);
-        // CRC32 of the legacy name (not checked by the reader)
-        write32(buf, 0);
+        // CRC-32 of the legacy name, which the reader checks to make sure this field still describes its entry
+        final var nameCRC32 = new CRC32();
+        nameCRC32.update(LEGACY_NAME.getBytes(StandardCharsets.UTF_8));
+        write32(buf, nameCRC32.getValue());
         buf.writeBytes(nameBytes);
         return buf.toByteArray();
     }

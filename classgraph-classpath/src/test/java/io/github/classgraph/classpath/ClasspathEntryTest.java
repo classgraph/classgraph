@@ -65,23 +65,23 @@ public class ClasspathEntryTest {
 
         try (var classpath = findClasspath(location)) {
             assertThat(classpath.getEntries()).singleElement().isInstanceOf(ClasspathEntry.OfPathString.class)
-                    .returns(location, ClasspathEntry::location);
+                    .returns(location, ClasspathEntry::getLocation);
         }
         try (var classpath = findClasspath(jar.toFile())) {
             assertThat(classpath.getEntries()).singleElement().isInstanceOf(ClasspathEntry.OfFile.class)
-                    .returns(location, ClasspathEntry::location);
+                    .returns(location, ClasspathEntry::getLocation);
         }
         try (var classpath = findClasspath(jar)) {
             assertThat(classpath.getEntries()).singleElement().isInstanceOf(ClasspathEntry.OfPath.class)
-                    .returns(location, ClasspathEntry::location);
+                    .returns(location, ClasspathEntry::getLocation);
         }
         try (var classpath = findClasspath(jar.toUri())) {
             assertThat(classpath.getEntries()).singleElement().isInstanceOf(ClasspathEntry.OfURI.class)
-                    .returns(location, ClasspathEntry::location);
+                    .returns(location, ClasspathEntry::getLocation);
         }
         try (var classpath = findClasspath(jar.toUri().toURL())) {
             assertThat(classpath.getEntries()).singleElement().isInstanceOf(ClasspathEntry.OfURL.class)
-                    .returns(location, ClasspathEntry::location);
+                    .returns(location, ClasspathEntry::getLocation);
         }
     }
 
@@ -119,9 +119,9 @@ public class ClasspathEntryTest {
             for (final Object classpathElement : new Object[] { relativeJar, relativeJar.toFile() }) {
                 try (var classpath = findClasspath(classpathElement)) {
                     final var entry = classpath.getEntries().get(0);
-                    assertThat(Path.of(entry.location()).toRealPath()).isEqualTo(jar.toRealPath());
+                    assertThat(Path.of(entry.getLocation()).toRealPath()).isEqualTo(jar.toRealPath());
                     try (var root = entry.open(classpath.getVfs())) {
-                        assertThat(root).isSameAs(classpath.getVfs().open(entry.location()));
+                        assertThat(root).isSameAs(classpath.getVfs().open(entry.getLocation()));
                     }
                 }
             }
@@ -144,11 +144,12 @@ public class ClasspathEntryTest {
             try (var classpath = findClasspath(jar)) {
                 final var entry = classpath.getEntries().get(0);
                 assertThat(entry).isInstanceOf(ClasspathEntry.OfPath.class);
-                assertThat(entry.location()).isEqualTo(jar.toUri().toString()).startsWith("jimfs://");
+                assertThat(entry.getLocation()).isEqualTo(jar.toUri().toString()).startsWith("jimfs://");
                 try (var root = entry.open(classpath.getVfs())) {
                     assertThat(root).extracting(VfsEntry::getName).containsExactly(ENTRY_PATH);
                 }
-                assertThatThrownBy(() -> classpath.getVfs().open(entry.location())).isInstanceOf(IOException.class);
+                assertThatThrownBy(() -> classpath.getVfs().open(entry.getLocation()))
+                        .isInstanceOf(IOException.class);
             }
         }
     }
@@ -163,7 +164,7 @@ public class ClasspathEntryTest {
             final var entry = asPath.getEntries().get(0);
             assertThat(entry).isEqualTo(asPathAgain.getEntries().get(0))
                     .hasSameHashCodeAs(asPathAgain.getEntries().get(0)).isNotEqualTo(asFile.getEntries().get(0));
-            assertThat(entry).hasToString(entry.location());
+            assertThat(entry).hasToString(entry.getLocation());
         }
     }
 
@@ -184,7 +185,7 @@ public class ClasspathEntryTest {
         final var second = writeJar(tempDir.resolve("second.jar"));
         try (var classpath = new ClasspathFinder().overrideClasspath(first, second).find()) {
             assertThat(classpath).containsExactlyElementsOf(classpath.getEntries())
-                    .extracting(ClasspathEntry::location).containsExactly(location(first), location(second));
+                    .extracting(ClasspathEntry::getLocation).containsExactly(location(first), location(second));
         }
     }
 }

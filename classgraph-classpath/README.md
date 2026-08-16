@@ -58,23 +58,23 @@ nested jarfiles.
 ```java
 try (Classpath classpath = new ClasspathFinder().find()) {
     for (ClasspathEntry entry : classpath) {
-        System.out.println(entry.location()
-                + "  [classloader: " + entry.classLoaderName() + "]"
-                + (entry.packageRootPrefixes().isEmpty() ? ""
-                        : "  [package roots: " + entry.packageRootPrefixes() + "]"));
+        System.out.println(entry.getLocation()
+                + "  [classloader: " + entry.getClassLoaderName() + "]"
+                + (entry.getPackageRootPrefixes().isEmpty() ? ""
+                        : "  [package roots: " + entry.getPackageRootPrefixes() + "]"));
     }
 }
 ```
 
 Iterating the `Classpath` iterates its entries, in classpath order; `getEntries()` returns the same
-list. `location()` is an absolute path, or a nested path of the form `outer.jar!/inner.jar`, or a
-URL for anything that is not a local file -- so do not assume `Path.of(entry.location())` will
+list. `getLocation()` is an absolute path, or a nested path of the form `outer.jar!/inner.jar`, or a
+URL for anything that is not a local file -- so do not assume `Path.of(entry.getLocation())` will
 succeed. A path is given in canonical form, spelled the way the file is stored: symbolic links are
 resolved, and on a filesystem that ignores case, so is the case of each name. That is also what
 decides whether two entries are the same, so a file that two classloaders reach by different paths
-is listed once, at the first position it is reached at. `packageRootPrefixes()` lists the prefixes
-to strip from entry names within that element, e.g. `BOOT-INF/classes` for a Spring Boot jarfile; it
-is empty for an ordinary jarfile.
+is listed once, at the first position it is reached at. `getPackageRootPrefixes()` lists the
+prefixes to strip from entry names within that element, e.g. `BOOT-INF/classes` for a Spring Boot
+jarfile; it is empty for an ordinary jarfile.
 
 An entry that names a file or directory the filesystem says is not there, or that cannot be read, is
 left out of the classpath rather than listed and then failed on, since it can contribute no class.
@@ -106,15 +106,15 @@ closed by `classpath.close()`, along with every root and entry it handed out, so
 escape the `try` block.
 
 `entry.open(vfs)` opens the classpath element in whichever form the classloader named it in -- a
-path string, a `File`, a `Path`, a `URL` or a `URI` -- rather than flattening it to `location()` and
-parsing that back. That matters for the forms a location cannot round-trip: a `Path` in a filesystem
-other than the default one is reached only through its own filesystem, and a `URL` keeps the scheme
-it was found with. `ClasspathEntry` is a sealed type with one subclass per form, so code that needs
-the original object can ask for it:
+path string, a `File`, a `Path`, a `URL` or a `URI` -- rather than flattening it to `getLocation()`
+and parsing that back. That matters for the forms a location cannot round-trip: a `Path` in a
+filesystem other than the default one is reached only through its own filesystem, and a `URL` keeps
+the scheme it was found with. `ClasspathEntry` is a sealed type with one subclass per form, so code
+that needs the original object can ask for it:
 
 ```java
 if (entry instanceof ClasspathEntry.OfURL urlEntry) {
-    System.out.println("Served over " + urlEntry.url().getProtocol());
+    System.out.println("Served over " + urlEntry.getURL().getProtocol());
 }
 ```
 
@@ -179,8 +179,8 @@ else is read by its `toString()`. The `String` overload instead takes a whole pa
 the platform's path separator. Related switches:
 `overrideClassLoaders(...)` and `addClassLoader(...)` to control which
 classloaders are consulted, `ignoreParentClassLoaders()` to stop at the given one,
-`overrideModuleLayers(...)` and `addModuleLayer(...)` for JPMS layers, and `ignoreModules()` to skip
-the module path entirely.
+`overrideModuleLayers(...)` and `addModuleLayer(...)` for JPMS layers, and `disableModuleScanning()`
+to skip the module path entirely.
 
 ### Teach it about a classloader it does not know
 

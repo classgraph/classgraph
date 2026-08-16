@@ -8,6 +8,7 @@ import java.io.FileOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.zip.CRC32;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -37,11 +38,14 @@ public class UnicodePathExtraFieldTest {
     /**
      * Build an Info-ZIP Unicode path extra field (tag 0x7075) holding the given entry name.
      *
+     * @param legacyName
+     *            the entry's own name, whose CRC-32 is stored in the extra field so that the reader can tell that
+     *            the field still describes the entry it is attached to
      * @param unicodeName
      *            the entry name to store in the extra field
      * @return the extra field bytes
      */
-    private static byte[] makeUnicodePathExtraField(final String unicodeName) {
+    private static byte[] makeUnicodePathExtraField(final String legacyName, final String unicodeName) {
         final var nameBytes = unicodeName.getBytes(StandardCharsets.UTF_8);
         final var buf = new ByteArrayOutputStream();
         // Header ID 0x7075, little-endian
@@ -53,9 +57,12 @@ public class UnicodePathExtraFieldTest {
         buf.write((dataSize >> 8) & 0xff);
         // Version
         buf.write(1);
-        // CRC32 of the legacy name (not checked by the reader)
+        // CRC-32 of the legacy name, little-endian
+        final var crc32 = new CRC32();
+        crc32.update(legacyName.getBytes(StandardCharsets.UTF_8));
+        final var nameCRC32 = crc32.getValue();
         for (var i = 0; i < 4; i++) {
-            buf.write(0);
+            buf.write((int) ((nameCRC32 >> (i * 8)) & 0xff));
         }
         for (final byte nameByte : nameBytes) {
             buf.write(nameByte);
@@ -72,7 +79,9 @@ public class UnicodePathExtraFieldTest {
      * @param jarName
      *            the name of the jar to write
      * @param legacyAndUnicodeNames
-     *            for each entry, the name stored in the entry name field, then the name stored in the extra field
+     *            for each entry, the name stored in the entry name field, then the name stored in the extra field,
+     *            then optionally the name whose CRC-32 the extra field stores, which defaults to the entry's own
+     *            name and is only given to write an extra field that no longer matches its entry
      * @return the entry names read back from the jar
      * @throws Exception
      *             if the jar could not be written or read
@@ -83,7 +92,7 @@ public class UnicodePathExtraFieldTest {
         try (var fileOut = new FileOutputStream(jarFile); var zipOut = new ZipOutputStream(fileOut)) {
             for (final String[] names : legacyAndUnicodeNames) {
                 final var entry = new ZipEntry(names[0]);
-                entry.setExtra(makeUnicodePathExtraField(names[1]));
+                entry.setExtra(makeUnicodePathExtraField(names.length > 2 ? names[2] : names[0], names[1]));
                 zipOut.putNextEntry(entry);
                 zipOut.write("contents".getBytes(StandardCharsets.UTF_8));
                 zipOut.closeEntry();
@@ -137,5 +146,20 @@ public class UnicodePathExtraFieldTest {
         assertThat(entryNamesReadBack(tempDir, "directory-unicode-path.jar", new String[][] {
                 { "pkg/dir.txt", "pkg/dir/" }, { "pkg/root.txt", "/" }, { "pkg/kept.txt", "pkg/kept.txt" } }))
                 .containsExactly("pkg/kept.txt");
+    }
+
+    /**
+     * The extra field stores the CRC-32 of the entry name it was written against, so that a tool that renames an
+     * entry without updating or dropping the extra field can be detected. When the CRC does not match, the extra
+     * field describes a name the entry no longer has, and the specification says to ignore it and keep the name in
+     * the central directory record -- otherwise every such entry is silently renamed back to the name its writer
+     * moved it away from.
+     */
+    @Test
+    public void aUnicodePathExtraFieldWhoseNameCRCDoesNotMatchIsIgnored(@TempDir final File tempDir)
+            throws Exception {
+        assertThat(entryNamesReadBack(tempDir, "stale-unicode-path.jar",
+                new String[][] { { LEGACY_NAME, UNICODE_NAME, "testpkg/some-other-name.txt" } }))
+                .containsExactly(LEGACY_NAME);
     }
 }

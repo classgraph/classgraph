@@ -1072,6 +1072,39 @@ public class VfsTest {
     }
 
     /**
+     * A closed root hands out nothing that still reads from storage. Its container root is built on demand, so a
+     * closed root would otherwise manufacture a fresh working view of the whole jarfile that nothing would ever
+     * close, and its manifest is cached the first time it is read, so a root closed afterwards would keep answering
+     * out of a cache warmed while it was open.
+     *
+     * @param tempDir
+     *            a temporary directory to write the jarfile into.
+     * @throws IOException
+     *             if the jarfile could not be written or read.
+     */
+    @Test
+    public void aClosedRootHandsOutNothingLive(@TempDir final File tempDir) throws IOException {
+        final var jarFile = new File(tempDir, "app.jar");
+        writeJar(jarFile, "BOOT-INF/classes/com/xyz/widget.txt");
+
+        try (var vfs = new Vfs()) {
+            final var root = vfs.open(jarFile.getPath() + "!/BOOT-INF/classes");
+            // Warm both caches while the root is still open
+            assertThat(root.getContainerRoot().getPackageRoot()).isEmpty();
+            assertThat(root.getManifest()).containsEntry("Automatic-Module-Name", "com.xyz.widget");
+
+            root.close();
+
+            assertThatThrownBy(root::getContainerRoot).as("getContainerRoot").isInstanceOf(IOException.class)
+                    .hasMessageContaining("closed");
+            assertThatThrownBy(root::getManifest).as("getManifest").isInstanceOf(IOException.class)
+                    .hasMessageContaining("closed");
+            assertThatThrownBy(root::getModuleName).as("getModuleName").isInstanceOf(IOException.class)
+                    .hasMessageContaining("closed");
+        }
+    }
+
+    /**
      * A closed root stops listing entries, as well as reading them, whichever kind of root it is. (Reading an entry
      * of a closed root was already refused, but a directory root and an archive root went on listing entries.)
      *
