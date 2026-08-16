@@ -132,15 +132,6 @@ public class RandomAccessOrSequentialReader implements RandomAccessReader, Seque
     }
 
     /**
-     * Buf.
-     *
-     * @return the buffer.
-     */
-    public byte[] buf() {
-        return arr;
-    }
-
-    /**
      * Called when there is a buffer underrun to ensure there are sufficient bytes available in the array to read
      * the given number of bytes at the given start index.
      *
@@ -197,20 +188,6 @@ public class RandomAccessOrSequentialReader implements RandomAccessReader, Seque
         // Check the buffer was able to be filled to the requested position
         if (arrUsed < targetArrUsed) {
             throw new IOException("Buffer underflow");
-        }
-    }
-
-    /**
-     * Ensure that the given number of bytes have been read into the buffer from the beginning of the content.
-     *
-     * @param numBytes
-     *            the number of bytes to ensure have been buffered
-     * @throws IOException
-     *             on EOF or if the bytes could not be read.
-     */
-    public void bufferTo(final int numBytes) throws IOException {
-        if (numBytes > arrUsed) {
-            readTo(numBytes);
         }
     }
 
@@ -432,6 +409,38 @@ public class RandomAccessOrSequentialReader implements RandomAccessReader, Seque
         final var val = readString(currIdx, numBytes, charset);
         currIdx += numBytes;
         return val;
+    }
+
+    /**
+     * Compare the bytes at the given offset with the given ASCII string, without building a {@link String} out of
+     * them to compare it with. Each byte is compared as an unsigned value, so a byte outside the ASCII range
+     * differs from every character of an ASCII string.
+     *
+     * @param srcOffset
+     *            the offset the bytes start at.
+     * @param numBytes
+     *            the number of bytes to compare.
+     * @param asciiStr
+     *            the ASCII string to compare the bytes with.
+     * @return true if the bytes at the offset are the given string.
+     * @throws IOException
+     *             on EOF, or if the range is out of bounds, or if the bytes could not be read.
+     */
+    public boolean contentEqualsAscii(final long srcOffset, final int numBytes, final String asciiStr)
+            throws IOException {
+        if (numBytes != asciiStr.length()) {
+            // Nothing has to be read to know that a different number of bytes cannot be the string. This also means
+            // that a string holding any character that is not one byte long, whatever the encoding, is never equal
+            // to an ASCII string of the same length.
+            return false;
+        }
+        final var idx = bufferFor(srcOffset, numBytes);
+        for (var i = 0; i < numBytes; i++) {
+            if ((char) (arr[idx + i] & 0xff) != asciiStr.charAt(i)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     @Override

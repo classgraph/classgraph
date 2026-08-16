@@ -328,7 +328,6 @@ public class RandomAccessOrSequentialReaderTest {
             // Every byte that was read is still in the buffer, and can be read again at random
             assertThat(reader.readByte(0)).isEqualTo(content[0]);
             assertThat(reader.readByte(content.length - 1)).isEqualTo(content[content.length - 1]);
-            assertThat(reader.buf()).hasSizeGreaterThanOrEqualTo(content.length);
         }
 
         // A read at an offset past the end of the buffer grows the buffer to cover it in one step
@@ -338,11 +337,10 @@ public class RandomAccessOrSequentialReaderTest {
                             | ((content[content.length - 2] & 0xff) << 8) | (content[content.length - 1] & 0xff));
         }
 
-        // Buffering ahead reads the requested number of bytes without moving the read position
+        // A read at an offset does not move the position that a sequential read starts from
         try (var reader = reader(source, content)) {
-            reader.bufferTo(content.length);
-            assertThat(reader.currPos()).isZero();
             assertThat(reader.readByte(content.length - 1)).isEqualTo(content[content.length - 1]);
+            assertThat(reader.currPos()).isZero();
         }
     }
 
@@ -364,7 +362,6 @@ public class RandomAccessOrSequentialReaderTest {
             assertThatThrownBy(() -> reader.readLong(1)).isInstanceOf(IOException.class);
             assertThatThrownBy(() -> reader.read(0, new byte[16], 0, 16)).isInstanceOf(IOException.class);
             assertThatThrownBy(() -> reader.readString(0, 16)).isInstanceOf(IOException.class);
-            assertThatThrownBy(() -> reader.bufferTo(PATTERN.length + 1)).isInstanceOf(IOException.class);
 
             // The reads that stay within the classfile still succeed
             assertThat(reader.readInt(0)).isEqualTo(0x01234567);
@@ -465,6 +462,54 @@ public class RandomAccessOrSequentialReaderTest {
             reader.skip(offset);
             assertThat(reader.readString(numBytes, StandardCharsets.ISO_8859_1)).isEqualTo("rÃ©sumÃ©");
             assertThat(reader.currPos()).isEqualTo(content.length);
+        }
+    }
+
+    /**
+     * The bytes at an offset are compared with an ASCII string without a {@link String} being built out of them,
+     * which is how the classfile parser tells one attribute name from another.
+     *
+     * @param source
+     *            the kind of classpath element to read from
+     * @throws IOException
+     *             if the content could not be read
+     */
+    @ParameterizedTest
+    @EnumSource(Source.class)
+    public void bytesAreComparedWithAnAsciiString(final Source source) throws IOException {
+        // The two bytes at the front stand for the length that precedes a string in the constant pool
+        final var content = "xxConstantValue".getBytes(StandardCharsets.US_ASCII);
+        final var offset = 2;
+        final var numBytes = content.length - offset;
+
+        try (var reader = reader(source, content)) {
+            assertThat(reader.contentEqualsAscii(offset, numBytes, "ConstantValue")).isTrue();
+
+            // Only the requested bytes are compared, not the whole of the rest of the content
+            assertThat(reader.contentEqualsAscii(offset, 8, "Constant")).isTrue();
+
+            // The same number of bytes, but not the same bytes
+            assertThat(reader.contentEqualsAscii(offset, numBytes, "ConstantValuf")).isFalse();
+            assertThat(reader.contentEqualsAscii(offset, numBytes, "constantValue")).isFalse();
+        }
+
+        // A number of bytes that is not the length of the string is answered without anything being read, so a
+        // length read out of corrupt content is reported as "not this string" rather than as an IO error
+        try (var reader = reader(source, content)) {
+            assertThat(reader.contentEqualsAscii(offset, Integer.MAX_VALUE, "ConstantValue")).isFalse();
+        }
+
+        // A byte outside the ASCII range is not equal to any character of an ASCII string
+        final var nonAscii = new byte[] { (byte) 0xC3 };
+        try (var reader = reader(source, nonAscii)) {
+            assertThat(reader.contentEqualsAscii(0, nonAscii.length, "C")).isFalse();
+        }
+
+        // A range outside the content is rejected, as it is for the other reads at an offset
+        try (var reader = reader(source, content)) {
+            assertThatThrownBy(() -> reader.contentEqualsAscii(offset, numBytes + 1, "ConstantValueX"))
+                    .isInstanceOf(IOException.class);
+            assertThatThrownBy(() -> reader.contentEqualsAscii(-1, 1, "C")).isInstanceOf(IOException.class);
         }
     }
 }

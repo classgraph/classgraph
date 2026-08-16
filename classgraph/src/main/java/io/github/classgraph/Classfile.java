@@ -927,19 +927,8 @@ class Classfile {
             return false;
         }
         final var cpStrLen = reader().readUnsignedShort(cpStrOffset);
-        final var asciiStrLen = asciiStr.length();
-        if (cpStrLen != asciiStrLen) {
-            return false;
-        }
-        final var cpStrStart = cpStrOffset + 2;
-        reader().bufferTo(cpStrStart + cpStrLen);
-        final var buf = reader().buf();
-        for (var i = 0; i < cpStrLen; i++) {
-            if ((char) (buf[cpStrStart + i] & 0xff) != asciiStr.charAt(i)) {
-                return false;
-            }
-        }
-        return true;
+        // The string starts after the two bytes holding its length
+        return reader().contentEqualsAscii(cpStrOffset + 2L, cpStrLen, asciiStr);
     }
 
     // -------------------------------------------------------------------------------------------------------------
