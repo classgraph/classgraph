@@ -29,6 +29,8 @@
 package io.github.classgraph.issues.issue128;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
+import static org.junit.jupiter.api.Assumptions.abort;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
@@ -58,6 +60,9 @@ public class Issue128Test {
     private static final String NESTED_JAR_URL = //
             JAR_URL + "!level2.jar!level3.jar!classpath1/classpath2";
 
+    /** How long to wait for the availability check to connect, and then to answer, in milliseconds. */
+    private static final int TIMEOUT_MILLIS = 5000;
+
     /**
      * Issue 128 test.
      *
@@ -72,30 +77,45 @@ public class Issue128Test {
                 .overrideClassLoaders(new URLClassLoader(new URL[] { jarURL }, null)).enableRemoteJarScanning()
                 .scan()) {
             final List<String> filesInsideLevel3 = scanResult.getAllResources().getPaths();
-            if (filesInsideLevel3.isEmpty()) {
-                // If there were no files inside jar, it is possible that remote jar could not be downloaded
-                try {
-                    final HttpURLConnection connection = (HttpURLConnection) jarURL.openConnection();
-                    connection.setRequestMethod("GET");
-                    connection.setConnectTimeout(2000);
-                    connection.connect();
-                    final int code = connection.getResponseCode();
-                    if (code != 200) {
-                        throw new Exception(
-                                "Got bad response code " + code + " when trying to fetch URL " + jarURL);
-                    } else {
-                        throw new Exception("Able to download remote jar, but could not find files within jar");
-                    }
-                } catch (final java.net.SocketTimeoutException e) {
-                    System.err.println("Timeout while trying to download remote jar, skipping test "
-                            + Issue128Test.class.getName() + ": " + e);
-                } catch (final IOException | SecurityException e) {
-                    System.err.println("Could not download remote jar, skipping test "
-                            + Issue128Test.class.getName() + ": " + e);
-                }
-            } else {
+            if (!filesInsideLevel3.isEmpty()) {
                 assertThat(filesInsideLevel3).containsOnly("com/test/Test.java", "com/test/Test.class");
+                return;
             }
+        }
+        // Nothing was found inside the jar. Either the jar could not be fetched, which says nothing about
+        // ClassGraph and must not fail the build, or it was fetched and the scan is at fault. Ask the server
+        // which it was. Only JAR_URL names something the server has: NESTED_JAR_URL addresses a path inside the
+        // jar, so fetching that always gives a 404, whatever state the jar itself is in.
+        int responseCode;
+        try {
+            final HttpURLConnection connection = (HttpURLConnection) new URL(JAR_URL).openConnection();
+            connection.setRequestMethod("HEAD");
+            connection.setConnectTimeout(TIMEOUT_MILLIS);
+            connection.setReadTimeout(TIMEOUT_MILLIS);
+            try {
+                responseCode = connection.getResponseCode();
+            } finally {
+                connection.disconnect();
+            }
+        } catch (final IOException | SecurityException e) {
+            abort("The remote jar could not be reached, so the scan had nothing to find: " + e);
+            return;
+        }
+        switch (responseCode) {
+        case HttpURLConnection.HTTP_OK:
+            fail("The remote jar can be fetched, but scanning it found no files inside " + NESTED_JAR_URL);
+            break;
+        case HttpURLConnection.HTTP_NOT_FOUND:
+        case HttpURLConnection.HTTP_GONE:
+            // The commit is pinned, so the jar can only have gone if the repository history was rewritten
+            fail("The pinned jar has gone from " + JAR_URL + " (HTTP " + responseCode
+                    + "), so this test needs a new one");
+            break;
+        default:
+            // Anything else (a redirect, a rate limit, a server error) is the server having a bad day
+            abort("The remote jar could not be fetched (HTTP " + responseCode
+                    + "), so the scan had nothing to find");
+            break;
         }
     }
 }
