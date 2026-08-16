@@ -26,7 +26,7 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.classgraph.internal.scanspec;
+package io.github.classgraph;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -50,7 +50,7 @@ import org.jspecify.annotations.Nullable;
  * path to search is described by {@link #classpathSpec}, and how archives are read is described by
  * {@link #vfsScanSpec}.
  */
-public class ScanSpec {
+class ScanSpec {
     /**
      * The accept/reject criteria of this spec. Each of them adds itself to this list as it is created, so that
      * {@link #sortPrefixes()} cannot miss one. N.B. this has to be declared before them, so that it exists by the

@@ -26,13 +26,29 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.classgraph.base.internal.recycler;
+package io.github.classgraph;
+
+import java.io.Serial;
+import org.jspecify.annotations.Nullable;
 
 /**
- * An interface for recycleable objects that need to be reset when {@link RecycleOnClose#close()} is called to
- * recycle the object.
+ * Thrown when a JVM type signature cannot be parsed. The message names the position within the signature at which
+ * parsing failed, and shows the characters around it.
  */
-public interface Resettable {
-    /** Reset a recycleable object (called when the object is recycled). */
-    void reset();
+class TypeSignatureParseException extends Exception {
+    /** serialVersionUID. */
+    @Serial
+    private static final long serialVersionUID = 1L;
+
+    /**
+     * A parsing exception.
+     *
+     * @param parser
+     *            The parser, or null if there is no parsing context to report.
+     * @param msg
+     *            The exception message.
+     */
+    public TypeSignatureParseException(final @Nullable TypeSignatureParser parser, final String msg) {
+        super(parser == null ? msg : msg + " (" + parser.getPositionInfo() + ")");
+    }
 }

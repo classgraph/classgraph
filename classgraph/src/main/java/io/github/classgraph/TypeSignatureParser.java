@@ -26,15 +26,17 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.classgraph.base.internal.parser;
+package io.github.classgraph;
 
 import io.github.classgraph.base.internal.utils.StringUtils;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A generic PEG parser.
+ * The recursive descent parser that the type signature classes read JVM type signatures with. It holds the string
+ * being parsed and the position within it, and provides the primitive operations the grammar rules are written in
+ * terms of: peeking at, consuming and accumulating characters, and reporting where parsing failed.
  */
-public class Parser {
+class TypeSignatureParser {
     /** The string being parsed. */
     private final String string;
 
@@ -58,12 +60,12 @@ public class Parser {
      *
      * @param string
      *            The string to parse.
-     * @throws ParseException
+     * @throws TypeSignatureParseException
      *             If the string was null.
      */
-    public Parser(final String string) throws ParseException {
+    public TypeSignatureParser(final String string) throws TypeSignatureParseException {
         if (string == null) {
-            throw new ParseException(null, "Cannot parse null string");
+            throw new TypeSignatureParseException(null, "Cannot parse null string");
         }
         this.string = string;
     }
@@ -107,12 +109,12 @@ public class Parser {
      * Get the next character.
      *
      * @return The next character.
-     * @throws ParseException
+     * @throws TypeSignatureParseException
      *             If there were no more characters in the string.
      */
-    public char getc() throws ParseException {
+    public char getc() throws TypeSignatureParseException {
         if (position >= string.length()) {
-            throw new ParseException(this, "Ran out of input while parsing");
+            throw new TypeSignatureParseException(this, "Ran out of input while parsing");
         }
         return string.charAt(position++);
     }
@@ -122,13 +124,14 @@ public class Parser {
      *
      * @param expectedChar
      *            The expected character.
-     * @throws ParseException
+     * @throws TypeSignatureParseException
      *             If the next character was not the expected character.
      */
-    public void expect(final char expectedChar) throws ParseException {
+    public void expect(final char expectedChar) throws TypeSignatureParseException {
         final int next = getc();
         if (next != expectedChar) {
-            throw new ParseException(this, "Expected '" + expectedChar + "'; got '" + (char) next + "'");
+            throw new TypeSignatureParseException(this,
+                    "Expected '" + expectedChar + "'; got '" + (char) next + "'");
         }
     }
 
@@ -142,21 +145,21 @@ public class Parser {
     }
 
     /**
-     * Get the next character, throwing a {@link ParseException} if the next character is not the expected
-     * character.
+     * Get the next character, throwing a {@link TypeSignatureParseException} if the next character is not the
+     * expected character.
      *
      * @param expectedChar
      *            The expected next character.
-     * @throws ParseException
+     * @throws TypeSignatureParseException
      *             If the next character is not the expected next character.
      */
-    public void peekExpect(final char expectedChar) throws ParseException {
+    public void peekExpect(final char expectedChar) throws TypeSignatureParseException {
         if (position == string.length()) {
-            throw new ParseException(this, "Expected '" + expectedChar + "'; reached end of string");
+            throw new TypeSignatureParseException(this, "Expected '" + expectedChar + "'; reached end of string");
         }
         final var next = string.charAt(position);
         if (next != expectedChar) {
-            throw new ParseException(this, "Expected '" + expectedChar + "'; got '" + next + "'");
+            throw new TypeSignatureParseException(this, "Expected '" + expectedChar + "'; got '" + next + "'");
         }
     }
 

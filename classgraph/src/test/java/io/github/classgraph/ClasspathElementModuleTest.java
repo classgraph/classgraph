@@ -26,7 +26,6 @@ import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import io.github.classgraph.internal.scanspec.ScanSpec;
 import io.github.classgraph.vfs.Vfs;
 
 /**

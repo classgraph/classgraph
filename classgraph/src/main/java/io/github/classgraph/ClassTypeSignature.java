@@ -36,12 +36,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import io.github.classgraph.TypeUtils.ModifierType;
 import io.github.classgraph.Classfile.TypePathNode;
-import io.github.classgraph.base.internal.parser.ParseException;
-import io.github.classgraph.base.internal.parser.Parser;
 import io.github.classgraph.base.internal.utils.LogNode;
-import io.github.classgraph.internal.types.TypeUtils.ModifierType;
-import io.github.classgraph.internal.types.TypeUtils;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -120,7 +117,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
             superclassSignature = superclass == null ? null
                     : (ClassRefTypeSignature) TypeSignature
                             .parse("L" + superclass.getName().replace('.', '/') + ";", classInfo.getName());
-        } catch (final ParseException e) {
+        } catch (final TypeSignatureParseException e) {
             // Silently fail (should not happen)
         }
         this.superclassSignature = superclassSignature;
@@ -130,7 +127,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
                 final var ifaceSignature = (ClassRefTypeSignature) TypeSignature
                         .parse("L" + iface.getName().replace('.', '/') + ";", classInfo.getName());
                 this.superinterfaceSignatures.add(ifaceSignature);
-            } catch (final ParseException e) {
+            } catch (final TypeSignatureParseException e) {
                 // Silently fail (should not happen)
             }
         }
@@ -381,11 +378,12 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
      * @param classInfo
      *            the class info
      * @return The parsed class type signature or class type descriptor.
-     * @throws ParseException
+     * @throws TypeSignatureParseException
      *             If the class type signature could not be parsed.
      */
-    static ClassTypeSignature parse(final String typeDescriptor, final ClassInfo classInfo) throws ParseException {
-        final Parser parser = new Parser(typeDescriptor);
+    static ClassTypeSignature parse(final String typeDescriptor, final ClassInfo classInfo)
+            throws TypeSignatureParseException {
+        final TypeSignatureParser parser = new TypeSignatureParser(typeDescriptor);
         // A class type signature can refer to the class' own type variables, both in the bounds of its type
         // parameters (e.g. "class C<T extends Number, U extends T>") and in the type arguments of its superclass
         // and superinterfaces (e.g. "class C<T> extends ArrayList<T>"), so the class itself is the defining class
@@ -403,7 +401,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
                 }
                 final var superinterfaceSignature = ClassRefTypeSignature.parse(parser, definingClassName);
                 if (superinterfaceSignature == null) {
-                    throw new ParseException(parser, "Could not parse superinterface signature");
+                    throw new TypeSignatureParseException(parser, "Could not parse superinterface signature");
                 }
                 superinterfaceSignatures.add(superinterfaceSignature);
             }
@@ -430,7 +428,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
                     if (typeVariableSignature != null) {
                         throwsSignatures.add(typeVariableSignature);
                     } else {
-                        throw new ParseException(parser, "Missing type variable signature");
+                        throw new TypeSignatureParseException(parser, "Missing type variable signature");
                     }
                 }
             }
@@ -438,7 +436,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
             throwsSignatures = null;
         }
         if (parser.hasMore()) {
-            throw new ParseException(parser, "Extra characters at end of type descriptor");
+            throw new TypeSignatureParseException(parser, "Extra characters at end of type descriptor");
         }
         return new ClassTypeSignature(classInfo, typeParameters, superclassSignature, superinterfaceSignatures,
                 throwsSignatures);

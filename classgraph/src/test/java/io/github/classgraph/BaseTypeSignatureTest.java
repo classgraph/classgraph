@@ -11,9 +11,6 @@ import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
-import io.github.classgraph.base.internal.parser.ParseException;
-import io.github.classgraph.base.internal.parser.Parser;
-
 /** Tests for {@link BaseTypeSignature}, the type signature of the primitive types and void. */
 public class BaseTypeSignatureTest {
     /** An annotation that can be written on a use of a type. */
@@ -80,15 +77,15 @@ public class BaseTypeSignatureTest {
 
     /** Parsing reads exactly one base type character, and leaves anything else for the caller to parse. */
     @Test
-    public void parsingReadsOneBaseTypeCharacter() throws ParseException {
-        final var parser = new Parser("IJ");
+    public void parsingReadsOneBaseTypeCharacter() throws TypeSignatureParseException {
+        final var parser = new TypeSignatureParser("IJ");
         assertThat(BaseTypeSignature.parse(parser).getTypeName()).isEqualTo("int");
         assertThat(BaseTypeSignature.parse(parser).getTypeName()).isEqualTo("long");
         assertThat(parser.hasMore()).isFalse();
         // Parsing at the end of the string yields null rather than throwing
         assertThat(BaseTypeSignature.parse(parser)).isNull();
 
-        final var classTypeParser = new Parser("Ljava/lang/String;");
+        final var classTypeParser = new TypeSignatureParser("Ljava/lang/String;");
         assertThat(BaseTypeSignature.parse(classTypeParser)).isNull();
         // A failed parse does not consume anything
         assertThat(classTypeParser.getPosition()).isZero();

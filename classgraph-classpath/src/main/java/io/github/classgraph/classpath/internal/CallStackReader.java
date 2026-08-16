@@ -26,7 +26,7 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.classgraph.base.internal.reflection;
+package io.github.classgraph.classpath.internal;
 
 /** A class to read the classes in the current call stack. */
 public final class CallStackReader {

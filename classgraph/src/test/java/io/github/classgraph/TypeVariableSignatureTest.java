@@ -9,9 +9,6 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import io.github.classgraph.base.internal.parser.ParseException;
-import io.github.classgraph.base.internal.parser.Parser;
-
 /**
  * Tests for {@link TypeVariableSignature}, the reference to a type variable such as the {@code T} in {@code T[]}.
  */
@@ -200,8 +197,10 @@ public class TypeVariableSignatureTest {
     /** A type variable that is used outside any class resolves to an unbounded type parameter of its own name. */
     // #706
     @Test
-    public void aTypeVariableWithNoEnclosingClassResolvesToAnUnboundedTypeParameter() throws ParseException {
-        final var typeVariable = TypeVariableSignature.parse(new Parser("TQ;"), /* definingClassName = */ null);
+    public void aTypeVariableWithNoEnclosingClassResolvesToAnUnboundedTypeParameter()
+            throws TypeSignatureParseException {
+        final var typeVariable = TypeVariableSignature.parse(new TypeSignatureParser("TQ;"),
+                /* definingClassName = */ null);
         assertThat(typeVariable.getName()).isEqualTo("Q");
         assertThat(typeVariable.resolve().toString()).isEqualTo("Q");
         assertThat(typeVariable.toStringWithTypeBound()).isEqualTo("Q");
@@ -209,8 +208,9 @@ public class TypeVariableSignatureTest {
 
     /** A type variable of a class that was not scanned cannot be resolved. */
     @Test
-    public void aTypeVariableOfAClassThatWasNotScannedCannotBeResolved() throws ParseException {
-        final var typeVariable = TypeVariableSignature.parse(new Parser("TT;"), "com.example.NotScanned");
+    public void aTypeVariableOfAClassThatWasNotScannedCannotBeResolved() throws TypeSignatureParseException {
+        final var typeVariable = TypeVariableSignature.parse(new TypeSignatureParser("TT;"),
+                "com.example.NotScanned");
         assertThatThrownBy(typeVariable::resolve).isInstanceOf(IllegalStateException.class)
                 .hasMessage("Could not find ClassInfo object for com.example.NotScanned");
         // The unresolvable bound is left out of the string representation, rather than the call throwing
@@ -219,8 +219,8 @@ public class TypeVariableSignatureTest {
 
     /** Parsing reads one type variable, and records it in the parser state so that signatures can link to it. */
     @Test
-    public void parsingReadsOneTypeVariableAndRecordsItInTheParserState() throws ParseException {
-        final var parser = new Parser("TT;TU;");
+    public void parsingReadsOneTypeVariableAndRecordsItInTheParserState() throws TypeSignatureParseException {
+        final var parser = new TypeSignatureParser("TT;TU;");
         final var first = TypeVariableSignature.parse(parser, GENERIC);
         final var second = TypeVariableSignature.parse(parser, GENERIC);
         assertThat(first.getName()).isEqualTo("T");
@@ -228,7 +228,7 @@ public class TypeVariableSignatureTest {
         assertThat(new ArrayList<Object>((List<?>) parser.getState())).containsExactly(first, second);
 
         // Anything that is not a type variable is left for the caller to parse
-        final var classTypeParser = new Parser("Ljava/lang/String;");
+        final var classTypeParser = new TypeSignatureParser("Ljava/lang/String;");
         assertThat(TypeVariableSignature.parse(classTypeParser, GENERIC)).isNull();
         assertThat(classTypeParser.getPosition()).isZero();
     }
@@ -236,18 +236,20 @@ public class TypeVariableSignatureTest {
     /** A type variable with no name, or with no terminating semicolon, is a parse error. */
     @Test
     public void aMalformedTypeVariableIsAParseError() {
-        assertThatThrownBy(() -> TypeVariableSignature.parse(new Parser("T;"), GENERIC))
-                .isInstanceOf(ParseException.class).hasMessageContaining("Could not parse type variable signature");
-        assertThatThrownBy(() -> TypeVariableSignature.parse(new Parser("TT"), GENERIC))
-                .isInstanceOf(ParseException.class);
+        assertThatThrownBy(() -> TypeVariableSignature.parse(new TypeSignatureParser("T;"), GENERIC))
+                .isInstanceOf(TypeSignatureParseException.class)
+                .hasMessageContaining("Could not parse type variable signature");
+        assertThatThrownBy(() -> TypeVariableSignature.parse(new TypeSignatureParser("TT"), GENERIC))
+                .isInstanceOf(TypeSignatureParseException.class);
     }
 
     /** Two type variables are equal if they have the same name and the same type annotations. */
     @Test
-    public void equalityIsByNameAndTypeAnnotations() throws ParseException {
-        final var typeVariable = TypeVariableSignature.parse(new Parser("TT;"), GENERIC);
-        final var sameName = TypeVariableSignature.parse(new Parser("TT;"), "com.example.SomeOtherClass");
-        final var differentName = TypeVariableSignature.parse(new Parser("TU;"), GENERIC);
+    public void equalityIsByNameAndTypeAnnotations() throws TypeSignatureParseException {
+        final var typeVariable = TypeVariableSignature.parse(new TypeSignatureParser("TT;"), GENERIC);
+        final var sameName = TypeVariableSignature.parse(new TypeSignatureParser("TT;"),
+                "com.example.SomeOtherClass");
+        final var differentName = TypeVariableSignature.parse(new TypeSignatureParser("TU;"), GENERIC);
 
         // The defining class is not part of the identity of a type variable
         assertThat(typeVariable).isEqualTo(typeVariable).isEqualTo(sameName).isNotEqualTo(differentName)
@@ -333,9 +335,10 @@ public class TypeVariableSignatureTest {
 
     /** A type variable that could not be resolved can be reconciled with any class. */
     @Test
-    public void anUnresolvableTypeVariableCanBeReconciledWithAnyClass() throws ParseException {
+    public void anUnresolvableTypeVariableCanBeReconciledWithAnyClass() throws TypeSignatureParseException {
         try (var scanResult = scan()) {
-            final var typeVariable = TypeVariableSignature.parse(new Parser("TT;"), "com.example.NotScanned");
+            final var typeVariable = TypeVariableSignature.parse(new TypeSignatureParser("TT;"),
+                    "com.example.NotScanned");
             typeVariable.setScanResult(scanResult);
             assertThat(typeVariable.equalsIgnoringTypeParams(fieldType(scanResult, "stringField"))).isTrue();
         }

@@ -36,8 +36,6 @@ import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
 import java.util.zip.ZipException;
 
-import io.github.classgraph.base.internal.recycler.Recycler;
-
 /**
  * An {@link InputStream} that inflates a stream of deflated zip entry data, using an {@link Inflater} borrowed from
  * a {@link Recycler} and handed back to it when this stream is closed.

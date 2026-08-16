@@ -30,9 +30,6 @@ package io.github.classgraph.vfs.internal;
 
 import java.util.zip.Inflater;
 
-import io.github.classgraph.base.internal.recycler.Recycler;
-import io.github.classgraph.base.internal.recycler.Resettable;
-
 /**
  * Wrapper class that allows an {@link Inflater} instance to be reset for reuse and then recycled by a
  * {@link Recycler}.

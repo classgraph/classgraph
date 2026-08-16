@@ -42,8 +42,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import io.github.classgraph.ScanSpec.ScanSpecPathMatch;
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
-import io.github.classgraph.base.internal.concurrency.WorkQueue;
 import io.github.classgraph.base.internal.utils.FastPathResolver;
 import io.github.classgraph.base.internal.utils.FileUtils;
 import io.github.classgraph.base.internal.utils.JarUtils;
@@ -52,8 +52,6 @@ import io.github.classgraph.base.internal.utils.URLPathEncoder;
 import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.internal.ClasspathExpander.ChildEntry;
 import io.github.classgraph.classpath.internal.ClasspathExpander;
-import io.github.classgraph.internal.scanspec.ScanSpec.ScanSpecPathMatch;
-import io.github.classgraph.internal.scanspec.ScanSpec;
 import io.github.classgraph.vfs.internal.slice.reader.RandomAccessOrSequentialReader;
 import io.github.classgraph.vfs.Vfs;
 import io.github.classgraph.vfs.VfsEntry;

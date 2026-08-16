@@ -36,8 +36,6 @@ import java.util.Objects;
 import java.util.Set;
 
 import io.github.classgraph.Classfile.TypePathNode;
-import io.github.classgraph.base.internal.parser.ParseException;
-import io.github.classgraph.base.internal.parser.Parser;
 import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.base.internal.utils.LogNode;
 import org.jspecify.annotations.Nullable;
@@ -387,11 +385,11 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
      * @param definingClass
      *            The class containing the type descriptor.
      * @return The parsed type descriptor or type signature.
-     * @throws ParseException
+     * @throws TypeSignatureParseException
      *             If the type signature could not be parsed.
      */
-    static @Nullable TypeSignature parse(final Parser parser, final @Nullable String definingClass)
-            throws ParseException {
+    static @Nullable TypeSignature parse(final TypeSignatureParser parser, final @Nullable String definingClass)
+            throws TypeSignatureParseException {
         final var referenceTypeSignature = ReferenceTypeSignature.parseReferenceTypeSignature(parser,
                 definingClass);
         if (referenceTypeSignature != null) {
@@ -412,18 +410,18 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
      * @param definingClass
      *            The class containing the type descriptor.
      * @return The parsed type descriptor or type signature.
-     * @throws ParseException
+     * @throws TypeSignatureParseException
      *             If the type signature could not be parsed.
      */
     static TypeSignature parse(final String typeDescriptor, final @Nullable String definingClass)
-            throws ParseException {
-        final Parser parser = new Parser(typeDescriptor);
+            throws TypeSignatureParseException {
+        final TypeSignatureParser parser = new TypeSignatureParser(typeDescriptor);
         final var typeSignature = parse(parser, definingClass);
         if (typeSignature == null) {
-            throw new ParseException(parser, "Could not parse type signature");
+            throw new TypeSignatureParseException(parser, "Could not parse type signature");
         }
         if (parser.hasMore()) {
-            throw new ParseException(parser, "Extra characters at end of type descriptor");
+            throw new TypeSignatureParseException(parser, "Extra characters at end of type descriptor");
         }
         return typeSignature;
     }

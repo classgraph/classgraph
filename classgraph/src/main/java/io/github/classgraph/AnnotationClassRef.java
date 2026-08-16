@@ -28,7 +28,6 @@
  */
 package io.github.classgraph;
 
-import io.github.classgraph.base.internal.parser.ParseException;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -80,7 +79,7 @@ public class AnnotationClassRef extends ScanResultObject {
                 // ArrayTypeSignature, so just set definingClassName to null
                 typeSignature = typeSig = TypeSignature.parse(typeDescriptorStr, /* definingClassName = */ null);
                 typeSig.setScanResult(scanResult);
-            } catch (final ParseException e) {
+            } catch (final TypeSignatureParseException e) {
                 throw new IllegalArgumentException(e);
             }
         }

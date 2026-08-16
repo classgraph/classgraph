@@ -16,7 +16,6 @@ import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import io.github.classgraph.classpath.ClassLoaderHandler;
-import io.github.classgraph.internal.scanspec.ScanSpec;
 import io.github.classgraph.vfs.Vfs;
 
 /**

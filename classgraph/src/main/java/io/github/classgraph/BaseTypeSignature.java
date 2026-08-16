@@ -33,7 +33,6 @@ import java.util.Objects;
 import java.util.Set;
 
 import io.github.classgraph.Classfile.TypePathNode;
-import io.github.classgraph.base.internal.parser.Parser;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -175,7 +174,7 @@ public class BaseTypeSignature extends TypeSignature {
      *            the parser
      * @return the base type signature
      */
-    static @Nullable BaseTypeSignature parse(final Parser parser) {
+    static @Nullable BaseTypeSignature parse(final TypeSignatureParser parser) {
         final var typeSignatureChar = parser.peek();
         return switch (typeSignatureChar) {
         case 'B', 'C', 'D', 'F', 'I', 'J', 'S', 'Z', 'V' -> {

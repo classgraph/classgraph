@@ -34,8 +34,6 @@ import java.util.Objects;
 import java.util.Set;
 
 import io.github.classgraph.Classfile.TypePathNode;
-import io.github.classgraph.base.internal.parser.ParseException;
-import io.github.classgraph.base.internal.parser.Parser;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -335,11 +333,11 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
      * @param definingClassName
      *            the defining class name
      * @return the array type signature
-     * @throws ParseException
+     * @throws TypeSignatureParseException
      *             if parsing fails
      */
-    static @Nullable ArrayTypeSignature parse(final Parser parser, final @Nullable String definingClassName)
-            throws ParseException {
+    static @Nullable ArrayTypeSignature parse(final TypeSignatureParser parser,
+            final @Nullable String definingClassName) throws TypeSignatureParseException {
         var numArrayDims = 0;
         final var begin = parser.getPosition();
         while (parser.peek() == '[') {
@@ -349,7 +347,7 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
         if (numArrayDims > 0) {
             final var elementTypeSignature = TypeSignature.parse(parser, definingClassName);
             if (elementTypeSignature == null) {
-                throw new ParseException(parser, "elementTypeSignature == null");
+                throw new TypeSignatureParseException(parser, "elementTypeSignature == null");
             }
             final var typeSignatureStr = parser.getSubsequence(begin, parser.getPosition()).toString();
             return new ArrayTypeSignature(elementTypeSignature, numArrayDims, typeSignatureStr);

@@ -26,18 +26,16 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.classgraph.internal.types;
+package io.github.classgraph;
 
 import java.lang.reflect.Modifier;
-
-import io.github.classgraph.base.internal.parser.Parser;
 
 /**
  * Utilities for parsing Java type descriptors and type signatures.
  *
  * @author Luke Hutchison
  */
-public final class TypeUtils {
+final class TypeUtils {
 
     /**
      * Constructor.
@@ -57,7 +55,7 @@ public final class TypeUtils {
      *            If true, stop parsing when the first '.' is hit.
      * @return true if at least one identifier character was parsed.
      */
-    public static boolean getIdentifierToken(final Parser parser, final boolean stopAtDollarSign,
+    public static boolean getIdentifierToken(final TypeSignatureParser parser, final boolean stopAtDollarSign,
             final boolean stopAtDot) {
         var consumedChar = false;
         while (parser.hasMore()) {

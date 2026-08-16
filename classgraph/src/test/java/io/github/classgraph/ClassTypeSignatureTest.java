@@ -11,8 +11,6 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import io.github.classgraph.base.internal.parser.ParseException;
-
 /**
  * {@link ClassTypeSignature} is the generic type signature of a class declaration: its type parameters, its
  * superclass and its superinterfaces. A class that has no {@code Signature} attribute gets a synthetic type
@@ -182,24 +180,24 @@ public class ClassTypeSignatureTest {
         }
     }
 
-    /** A class type signature that cannot be parsed is rejected with a {@link ParseException}. */
+    /** A class type signature that cannot be parsed is rejected with a {@link TypeSignatureParseException}. */
     @Test
     public void aMalformedClassTypeSignatureIsRejected() {
         try (var scanResult = scanFixture()) {
             final var classInfo = classInfo(scanResult, Sub.class);
 
             // "X" is not a superinterface signature
-            assertThatExceptionOfType(ParseException.class)
+            assertThatExceptionOfType(TypeSignatureParseException.class)
                     .isThrownBy(() -> ClassTypeSignature.parse("Ljava/lang/Object;X", classInfo))
                     .withMessageContaining("Could not parse superinterface signature");
 
             // "X" is neither a class reference nor a type variable, so it cannot follow "^"
-            assertThatExceptionOfType(ParseException.class)
+            assertThatExceptionOfType(TypeSignatureParseException.class)
                     .isThrownBy(() -> ClassTypeSignature.parse("Ljava/lang/Object;^X", classInfo))
                     .withMessageContaining("Missing type variable signature");
 
             // The throws suffix is the last thing in a signature, so nothing may follow it
-            assertThatExceptionOfType(ParseException.class)
+            assertThatExceptionOfType(TypeSignatureParseException.class)
                     .isThrownBy(() -> ClassTypeSignature.parse("Ljava/lang/Object;^Ljava/lang/Error;X", classInfo))
                     .withMessageContaining("Extra characters at end of type descriptor");
         }
@@ -208,7 +206,7 @@ public class ClassTypeSignatureTest {
     /** A type variable may be thrown, as well as a class reference. */
     // #495
     @Test
-    public void aThrowsSuffixMayNameATypeVariable() throws ParseException {
+    public void aThrowsSuffixMayNameATypeVariable() throws TypeSignatureParseException {
         try (var scanResult = scanFixture()) {
             final var typeSig = ClassTypeSignature.parse("<T:Ljava/lang/Throwable;>Ljava/lang/Object;^TT;",
                     classInfo(scanResult, Sub.class));

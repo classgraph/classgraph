@@ -26,7 +26,7 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.classgraph.base.internal.concurrency;
+package io.github.classgraph;
 
 import java.util.Collection;
 import java.util.concurrent.BlockingQueue;
@@ -39,6 +39,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import io.github.classgraph.base.internal.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
@@ -48,7 +49,7 @@ import org.jspecify.annotations.Nullable;
  * @param <T>
  *            The work unit type.
  */
-public final class WorkQueue<T> implements AutoCloseable {
+final class WorkQueue<T> implements AutoCloseable {
     /** The work unit processor. */
     private final WorkUnitProcessor<T> workUnitProcessor;
 

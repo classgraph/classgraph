@@ -53,15 +53,11 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 
+import io.github.classgraph.TypeUtils.ModifierType;
 import io.github.classgraph.Classfile.ClassContainment;
 import io.github.classgraph.Classfile.ClassTypeAnnotationDecorator;
-import io.github.classgraph.base.internal.parser.ParseException;
-import io.github.classgraph.base.internal.parser.Parser;
 import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.base.internal.utils.LogNode;
-import io.github.classgraph.internal.scanspec.ScanSpec;
-import io.github.classgraph.internal.types.TypeUtils.ModifierType;
-import io.github.classgraph.internal.types.TypeUtils;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -430,14 +426,14 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                     final var eltTypeSigStr = "L" + baseClassName.replace('.', '/') + ";";
                     arrayTypeSigStrBuf.append(eltTypeSigStr);
                     try {
-                        elementTypeSignature = ClassRefTypeSignature.parse(new Parser(eltTypeSigStr),
+                        elementTypeSignature = ClassRefTypeSignature.parse(new TypeSignatureParser(eltTypeSigStr),
                                 // No type variables to resolve for generic types
                                 /* definingClassName = */ null);
                         if (elementTypeSignature == null) {
                             throw new IllegalArgumentException(
                                     "Could not form array base type signature for class " + baseClassName);
                         }
-                    } catch (final ParseException e) {
+                    } catch (final TypeSignatureParseException e) {
                         throw new IllegalArgumentException(
                                 "Could not form array base type signature for class " + baseClassName);
                     }
@@ -3436,7 +3432,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                             decorator.decorate(typeSignature);
                         }
                     }
-                } catch (final ParseException e) {
+                } catch (final TypeSignatureParseException e) {
                     throw new IllegalArgumentException("Invalid type signature for class " + getName()
                             + " in classpath element " + getClasspathElementURI() + " : " + typeSignatureStr, e);
                 }

@@ -1,4 +1,4 @@
-package io.github.classgraph.base.internal.concurrency;
+package io.github.classgraph;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -7,6 +7,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 

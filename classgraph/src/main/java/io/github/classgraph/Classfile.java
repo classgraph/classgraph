@@ -42,14 +42,11 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import io.github.classgraph.Scanner.ClassfileScanWorkUnit;
-import io.github.classgraph.base.internal.concurrency.WorkQueue;
-import io.github.classgraph.base.internal.parser.ParseException;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
 import io.github.classgraph.base.internal.utils.FileUtils;
 import io.github.classgraph.base.internal.utils.JarUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.base.internal.utils.StringUtils;
-import io.github.classgraph.internal.scanspec.ScanSpec;
 import io.github.classgraph.vfs.internal.slice.reader.RandomAccessOrSequentialReader;
 import org.jspecify.annotations.Nullable;
 
@@ -1536,7 +1533,7 @@ class Classfile {
                         final var typeSig = TypeSignature.parse(refdClassName.replace('.', '/'),
                                 /* definingClass = */ null);
                         typeSig.findReferencedClassNames(refdClassNames);
-                    } catch (final ParseException e) {
+                    } catch (final TypeSignatureParseException e) {
                         // Should not happen
                         throw new ClassfileFormatException("Could not parse class name: " + refdClassName, e);
                     }
@@ -1582,7 +1579,7 @@ class Classfile {
                                     + typeSigStr);
                         }
                     }
-                } catch (final ParseException e) {
+                } catch (final TypeSignatureParseException e) {
                     if (log != null) {
                         log.log("Could not extract referenced class names from constant pool string: " + typeSigStr
                                 + " : " + e);

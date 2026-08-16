@@ -26,7 +26,7 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.classgraph.base.internal.concurrency;
+package io.github.classgraph;
 
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -36,7 +36,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  * @author Johno Crawford (johno@sulake.com)
  */
-public class SimpleThreadFactory implements ThreadFactory {
+class SimpleThreadFactory implements ThreadFactory {
     /** The thread name prefix. */
     private final String threadNamePrefix;
 

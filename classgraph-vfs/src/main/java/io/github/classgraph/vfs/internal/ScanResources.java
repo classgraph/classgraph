@@ -45,7 +45,6 @@ import java.util.zip.Inflater;
 
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import io.github.classgraph.base.internal.concurrency.SingletonMap;
-import io.github.classgraph.base.internal.recycler.Recycler;
 import io.github.classgraph.base.internal.utils.FileUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.vfs.internal.module.ModuleReaderUtils;

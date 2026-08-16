@@ -1,4 +1,4 @@
-package io.github.classgraph.base.internal.parser;
+package io.github.classgraph;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
@@ -7,19 +7,20 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tests for {@link Parser}.
+ * Tests for {@link TypeSignatureParser}.
  *
  * <p>
- * The end-of-string position is a valid parser position -- it is what {@link Parser#getPosition()} returns once the
- * whole input has been consumed, and {@link Parser#peek()} and {@link Parser#hasMore()} both handle it. Rejecting
- * it in {@link Parser#advance(int)} made a truncated type signature throw {@link IllegalArgumentException} out of
- * the signature parser, rather than the {@link ParseException} that its callers catch.
+ * The end-of-string position is a valid parser position -- it is what {@link TypeSignatureParser#getPosition()}
+ * returns once the whole input has been consumed, and {@link TypeSignatureParser#peek()} and
+ * {@link TypeSignatureParser#hasMore()} both handle it. Rejecting it in {@link TypeSignatureParser#advance(int)}
+ * made a truncated type signature throw {@link IllegalArgumentException} out of the signature parser, rather than
+ * the {@link TypeSignatureParseException} that its callers catch.
  */
-public class ParserTest {
+public class TypeSignatureParserTest {
     /** Advancing to exactly the end of the input is valid. */
     @Test
-    public void canAdvanceToEndOfString() throws ParseException {
-        final var parser = new Parser("abc");
+    public void canAdvanceToEndOfString() throws TypeSignatureParseException {
+        final var parser = new TypeSignatureParser("abc");
         parser.advance(3);
         assertThat(parser.getPosition()).isEqualTo(3);
         assertThat(parser.hasMore()).isFalse();
@@ -28,8 +29,8 @@ public class ParserTest {
 
     /** Advancing past the end of the input is still rejected. */
     @Test
-    public void cannotAdvancePastEndOfString() throws ParseException {
-        final var parser = new Parser("abc");
+    public void cannotAdvancePastEndOfString() throws TypeSignatureParseException {
+        final var parser = new TypeSignatureParser("abc");
         assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> parser.advance(4));
     }
 
@@ -37,8 +38,8 @@ public class ParserTest {
      * A negative skip distance, and one large enough to overflow int when added to the position, are rejected.
      */
     @Test
-    public void invalidSkipDistancesAreRejected() throws ParseException {
-        final var parser = new Parser("abc");
+    public void invalidSkipDistancesAreRejected() throws TypeSignatureParseException {
+        final var parser = new TypeSignatureParser("abc");
         parser.advance(2);
         assertThatThrownBy(() -> parser.advance(-1)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> parser.advance(Integer.MAX_VALUE)).isInstanceOf(IllegalArgumentException.class);
@@ -48,8 +49,8 @@ public class ParserTest {
 
     /** A saved end-of-string position can be restored. */
     @Test
-    public void canRestoreEndOfStringPosition() throws ParseException {
-        final var parser = new Parser("abc");
+    public void canRestoreEndOfStringPosition() throws TypeSignatureParseException {
+        final var parser = new TypeSignatureParser("abc");
         parser.advance(3);
         final var endPosition = parser.getPosition();
         parser.setPosition(0);
@@ -61,8 +62,8 @@ public class ParserTest {
      * A position past the end of the input, or a negative one, is still rejected.
      */
     @Test
-    public void invalidPositionsAreRejected() throws ParseException {
-        final var parser = new Parser("abc");
+    public void invalidPositionsAreRejected() throws TypeSignatureParseException {
+        final var parser = new TypeSignatureParser("abc");
         assertThatThrownBy(() -> parser.setPosition(4)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> parser.setPosition(-1)).isInstanceOf(IllegalArgumentException.class);
     }
@@ -72,24 +73,25 @@ public class ParserTest {
     /** There is nothing to parse in a null string, and that is a parse error rather than a null dereference. */
     @Test
     public void aNullStringCannotBeParsed() {
-        assertThatExceptionOfType(ParseException.class).isThrownBy(() -> new Parser(null));
+        assertThatExceptionOfType(TypeSignatureParseException.class)
+                .isThrownBy(() -> new TypeSignatureParser(null));
     }
 
     /** Reading consumes the input one character at a time, until it runs out. */
     @Test
-    public void readingConsumesTheInputOneCharacterAtATime() throws ParseException {
-        final var parser = new Parser("ab");
+    public void readingConsumesTheInputOneCharacterAtATime() throws TypeSignatureParseException {
+        final var parser = new TypeSignatureParser("ab");
         assertThat(parser.hasMore()).isTrue();
         assertThat(parser.getc()).isEqualTo('a');
         assertThat(parser.getc()).isEqualTo('b');
         assertThat(parser.hasMore()).isFalse();
-        assertThatExceptionOfType(ParseException.class).isThrownBy(parser::getc);
+        assertThatExceptionOfType(TypeSignatureParseException.class).isThrownBy(parser::getc);
     }
 
     /** Peeking looks at the next character without consuming it, and reports the end of the input as a nul. */
     @Test
-    public void peekingDoesNotConsumeTheInput() throws ParseException {
-        final var parser = new Parser("ab");
+    public void peekingDoesNotConsumeTheInput() throws TypeSignatureParseException {
+        final var parser = new TypeSignatureParser("ab");
         assertThat(parser.peek()).isEqualTo('a');
         assertThat(parser.peek()).isEqualTo('a');
         assertThat(parser.getPosition()).isZero();
@@ -99,8 +101,8 @@ public class ParserTest {
 
     /** The next character can be checked against several characters at once, without consuming any of them. */
     @Test
-    public void severalCharactersCanBeCheckedAtOnceWithoutConsumingThem() throws ParseException {
-        final var parser = new Parser("abcd");
+    public void severalCharactersCanBeCheckedAtOnceWithoutConsumingThem() throws TypeSignatureParseException {
+        final var parser = new TypeSignatureParser("abcd");
         assertThat(parser.peekMatches("abc")).isTrue();
         assertThat(parser.peekMatches("abd")).isFalse();
         assertThat(parser.getPosition()).isZero();
@@ -112,41 +114,41 @@ public class ParserTest {
 
     /** A character that was expected is consumed, and one that was not is a parse error. */
     @Test
-    public void expectingACharacterConsumesItOnlyIfItIsThere() throws ParseException {
-        final var parser = new Parser("ab");
+    public void expectingACharacterConsumesItOnlyIfItIsThere() throws TypeSignatureParseException {
+        final var parser = new TypeSignatureParser("ab");
         parser.expect('a');
         assertThat(parser.getPosition()).isEqualTo(1);
-        assertThatExceptionOfType(ParseException.class).isThrownBy(() -> parser.expect('c'));
+        assertThatExceptionOfType(TypeSignatureParseException.class).isThrownBy(() -> parser.expect('c'));
         // Expecting a character when the input has run out is a parse error, not an out-of-bounds read
-        final var emptyParser = new Parser("");
-        assertThatExceptionOfType(ParseException.class).isThrownBy(() -> emptyParser.expect('a'));
+        final var emptyParser = new TypeSignatureParser("");
+        assertThatExceptionOfType(TypeSignatureParseException.class).isThrownBy(() -> emptyParser.expect('a'));
     }
 
     /** An expected character can be checked for without consuming it, whether or not it is there. */
     @Test
-    public void expectingACharacterWithoutConsumingItLeavesThePositionAlone() throws ParseException {
-        final var parser = new Parser("ab");
+    public void expectingACharacterWithoutConsumingItLeavesThePositionAlone() throws TypeSignatureParseException {
+        final var parser = new TypeSignatureParser("ab");
         parser.peekExpect('a');
         assertThat(parser.getPosition()).isZero();
-        assertThatExceptionOfType(ParseException.class).isThrownBy(() -> parser.peekExpect('b'));
+        assertThatExceptionOfType(TypeSignatureParseException.class).isThrownBy(() -> parser.peekExpect('b'));
         assertThat(parser.getPosition()).isZero();
         // Expecting a character when the input has run out is a parse error, not an out-of-bounds read
-        final var emptyParser = new Parser("");
-        assertThatExceptionOfType(ParseException.class).isThrownBy(() -> emptyParser.peekExpect('a'));
+        final var emptyParser = new TypeSignatureParser("");
+        assertThatExceptionOfType(TypeSignatureParseException.class).isThrownBy(() -> emptyParser.peekExpect('a'));
     }
 
     /** A character can be skipped without reading it. */
     @Test
-    public void aCharacterCanBeSkippedWithoutReadingIt() throws ParseException {
-        final var parser = new Parser("ab");
+    public void aCharacterCanBeSkippedWithoutReadingIt() throws TypeSignatureParseException {
+        final var parser = new TypeSignatureParser("ab");
         parser.next();
         assertThat(parser.peek()).isEqualTo('b');
     }
 
     /** Whitespace of every kind is skipped, up to the next character that is not whitespace. */
     @Test
-    public void whitespaceIsSkipped() throws ParseException {
-        final var parser = new Parser(" \t\r\n x y");
+    public void whitespaceIsSkipped() throws TypeSignatureParseException {
+        final var parser = new TypeSignatureParser(" \t\r\n x y");
         parser.skipWhitespace();
         assertThat(parser.getc()).isEqualTo('x');
         parser.skipWhitespace();
@@ -158,8 +160,8 @@ public class ParserTest {
 
     /** Characters and strings are accumulated into the token buffer, which is emptied when the token is read. */
     @Test
-    public void theTokenBufferAccumulatesUntilItIsRead() throws ParseException {
-        final var parser = new Parser("");
+    public void theTokenBufferAccumulatesUntilItIsRead() throws TypeSignatureParseException {
+        final var parser = new TypeSignatureParser("");
         assertThat(parser.currToken()).isEmpty();
         parser.appendToToken('a');
         parser.appendToToken("bc");
@@ -171,8 +173,8 @@ public class ParserTest {
 
     /** Part of the input can be read back without moving the parser position. */
     @Test
-    public void partOfTheInputCanBeReadBackWithoutMovingThePosition() throws ParseException {
-        final var parser = new Parser("abcdef");
+    public void partOfTheInputCanBeReadBackWithoutMovingThePosition() throws TypeSignatureParseException {
+        final var parser = new TypeSignatureParser("abcdef");
         parser.advance(4);
         assertThat(parser.getSubstring(1, 3)).isEqualTo("bc");
         assertThat(parser.getSubsequence(1, 3).toString()).isEqualTo("bc");
@@ -181,8 +183,8 @@ public class ParserTest {
 
     /** The state object handed to the parser is handed back when it is replaced, so that it can be restored. */
     @Test
-    public void theStateObjectIsHandedBackWhenItIsReplaced() throws ParseException {
-        final var parser = new Parser("abc");
+    public void theStateObjectIsHandedBackWhenItIsReplaced() throws TypeSignatureParseException {
+        final var parser = new TypeSignatureParser("abc");
         assertThat(parser.getState()).isNull();
         assertThat(parser.setState("first")).isNull();
         assertThat(parser.getState()).isEqualTo("first");
@@ -196,8 +198,8 @@ public class ParserTest {
      * escaped so that the context is readable on one line, and shows the current token and position.
      */
     @Test
-    public void theParsingContextShowsTheInputOnEitherSideOfThePosition() throws ParseException {
-        final var parser = new Parser("ab\ncd");
+    public void theParsingContextShowsTheInputOnEitherSideOfThePosition() throws TypeSignatureParseException {
+        final var parser = new TypeSignatureParser("ab\ncd");
         parser.advance(3);
         parser.appendToToken("tok");
         assertThat(parser.getPositionInfo()).contains("before: \"ab\\n\"").contains("after: \"cd\"")
@@ -208,8 +210,8 @@ public class ParserTest {
 
     /** Only a window of the input around the current position is shown, so that the context stays readable. */
     @Test
-    public void onlyAWindowOfTheInputAroundThePositionIsShown() throws ParseException {
-        final var parser = new Parser("x".repeat(500));
+    public void onlyAWindowOfTheInputAroundThePositionIsShown() throws TypeSignatureParseException {
+        final var parser = new TypeSignatureParser("x".repeat(500));
         parser.advance(250);
         final var positionInfo = parser.getPositionInfo();
         assertThat(positionInfo).contains("position: 250");

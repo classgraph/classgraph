@@ -11,8 +11,6 @@ import java.nio.file.attribute.FileTime;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import io.github.classgraph.base.internal.concurrency.AutoCloseableExecutorService;
-
 /**
  * Tests {@link ScanResult#isClasspathContentsModifiedSinceScan()} and
  * {@link ScanResult#getClasspathContentsLastModifiedMillis()}, which compare the timestamps recorded during a scan

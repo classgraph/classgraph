@@ -32,7 +32,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map.Entry;
 
-import io.github.classgraph.base.internal.reflection.CallStackReader;
 import io.github.classgraph.base.internal.utils.FastPathResolver;
 import io.github.classgraph.base.internal.utils.FileUtils;
 import io.github.classgraph.base.internal.utils.JarUtils;

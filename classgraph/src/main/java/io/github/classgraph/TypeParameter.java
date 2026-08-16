@@ -35,9 +35,6 @@ import java.util.Objects;
 import java.util.Set;
 
 import io.github.classgraph.Classfile.TypePathNode;
-import io.github.classgraph.base.internal.parser.ParseException;
-import io.github.classgraph.base.internal.parser.Parser;
-import io.github.classgraph.internal.types.TypeUtils;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -122,11 +119,11 @@ public final class TypeParameter extends HierarchicalTypeSignature {
      * @param definingClassName
      *            the defining class name
      * @return the list of {@link TypeParameter} objects.
-     * @throws ParseException
+     * @throws TypeSignatureParseException
      *             if parsing fails
      */
-    static List<TypeParameter> parseList(final Parser parser, final @Nullable String definingClassName)
-            throws ParseException {
+    static List<TypeParameter> parseList(final TypeSignatureParser parser, final @Nullable String definingClassName)
+            throws TypeSignatureParseException {
         if (parser.peek() != '<') {
             return List.of();
         }
@@ -134,11 +131,11 @@ public final class TypeParameter extends HierarchicalTypeSignature {
         final List<TypeParameter> typeParams = new ArrayList<>(1);
         while (parser.peek() != '>') {
             if (!parser.hasMore()) {
-                throw new ParseException(parser, "Missing '>'");
+                throw new TypeSignatureParseException(parser, "Missing '>'");
             }
             // Scala can contain '$' in type parameter names (#495)
             if (!TypeUtils.getIdentifierToken(parser, /* stopAtDollarSign = */ false, /* stopAtDot = */ true)) {
-                throw new ParseException(parser, "Could not parse identifier token");
+                throw new TypeSignatureParseException(parser, "Could not parse identifier token");
             }
             final var identifier = parser.currToken();
             // classBound may be null
@@ -151,7 +148,7 @@ public final class TypeParameter extends HierarchicalTypeSignature {
                     final var interfaceTypeSignature = ReferenceTypeSignature.parseReferenceTypeSignature(parser,
                             definingClassName);
                     if (interfaceTypeSignature == null) {
-                        throw new ParseException(parser, "Missing interface type signature");
+                        throw new TypeSignatureParseException(parser, "Missing interface type signature");
                     }
                     interfaceBounds.add(interfaceTypeSignature);
                 }

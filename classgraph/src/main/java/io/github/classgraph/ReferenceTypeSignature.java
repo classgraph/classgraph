@@ -28,8 +28,6 @@
  */
 package io.github.classgraph;
 
-import io.github.classgraph.base.internal.parser.ParseException;
-import io.github.classgraph.base.internal.parser.Parser;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -52,11 +50,11 @@ public abstract class ReferenceTypeSignature extends TypeSignature {
      * @param definingClassName
      *            The class containing the type descriptor.
      * @return The parsed type reference type signature.
-     * @throws ParseException
+     * @throws TypeSignatureParseException
      *             If the type signature could not be parsed.
      */
-    static @Nullable ReferenceTypeSignature parseReferenceTypeSignature(final Parser parser,
-            final @Nullable String definingClassName) throws ParseException {
+    static @Nullable ReferenceTypeSignature parseReferenceTypeSignature(final TypeSignatureParser parser,
+            final @Nullable String definingClassName) throws TypeSignatureParseException {
         final var classTypeSignature = ClassRefTypeSignature.parse(parser, definingClassName);
         if (classTypeSignature != null) {
             return classTypeSignature;
@@ -80,11 +78,11 @@ public abstract class ReferenceTypeSignature extends TypeSignature {
      * @param definingClassName
      *            The class containing the type descriptor.
      * @return The parsed class bound.
-     * @throws ParseException
+     * @throws TypeSignatureParseException
      *             If the type signature could not be parsed.
      */
-    static @Nullable ReferenceTypeSignature parseClassBound(final Parser parser,
-            final @Nullable String definingClassName) throws ParseException {
+    static @Nullable ReferenceTypeSignature parseClassBound(final TypeSignatureParser parser,
+            final @Nullable String definingClassName) throws TypeSignatureParseException {
         parser.expect(':');
         // May return null if there is no signature after ':' (class bound signature may be empty)
         return parseReferenceTypeSignature(parser, definingClassName);

@@ -39,13 +39,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import io.github.classgraph.TypeUtils.ModifierType;
 import io.github.classgraph.ClassInfo.RelType;
 import io.github.classgraph.Classfile.MethodTypeAnnotationDecorator;
-import io.github.classgraph.base.internal.parser.ParseException;
 import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.base.internal.utils.LogNode;
-import io.github.classgraph.internal.types.TypeUtils.ModifierType;
-import io.github.classgraph.internal.types.TypeUtils;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -221,7 +219,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
                         }
                         decorateMethodType(typeDescriptor, typeAnnotationDecorators, numImplicitPrefixParams);
                     }
-                } catch (final ParseException e) {
+                } catch (final TypeSignatureParseException e) {
                     throw new IllegalArgumentException(e);
                 }
             }
@@ -320,7 +318,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
                         // formal_parameter_index lines up with it directly (strip 0). (#897)
                         decorateMethodType(typeSignature, typeAnnotationDecorators, 0);
                     }
-                } catch (final ParseException e) {
+                } catch (final TypeSignatureParseException e) {
                     throw new IllegalArgumentException(
                             "Invalid type signature for method " + getClassName() + "." + getName()
                                     + (getClassInfo() != null

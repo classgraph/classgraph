@@ -1,4 +1,4 @@
-package io.github.classgraph.base.internal.concurrency;
+package io.github.classgraph;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -15,12 +15,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
 
+import io.github.classgraph.WorkQueue.WorkUnitProcessor;
+import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-
-import io.github.classgraph.base.internal.concurrency.WorkQueue.WorkUnitProcessor;
 
 /** Tests for {@link WorkQueue}. */
 public class WorkQueueTest {

@@ -42,8 +42,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.Timeout.ThreadMode;
 
-import io.github.classgraph.base.internal.recycler.Recycler;
-
 /** Tests for {@link RecycledInflaterInputStream}. */
 class RecycledInflaterInputStreamTest {
     /** Some compressible test data. */

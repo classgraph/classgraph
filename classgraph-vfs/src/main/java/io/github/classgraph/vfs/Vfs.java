@@ -221,17 +221,6 @@ public class Vfs implements AutoCloseable {
         this.log = log;
     }
 
-    /**
-     * Returns the handler that opens jarfiles and owns the resources that everything opened by this {@link Vfs} is
-     * backed by. This is for the other ClassGraph modules, and is not part of the API.
-     *
-     * @return the handler.
-     * @hidden
-     */
-    public NestedJarHandler getNestedJarHandler() {
-        return nestedJarHandler;
-    }
-
     // -------------------------------------------------------------------------------------------------------------
 
     /**

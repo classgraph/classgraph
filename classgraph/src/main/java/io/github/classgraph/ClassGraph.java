@@ -47,7 +47,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
-import io.github.classgraph.base.internal.concurrency.AutoCloseableExecutorService;
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import io.github.classgraph.base.internal.utils.AcceptReject;
 import io.github.classgraph.base.internal.utils.Assert;
@@ -57,7 +56,6 @@ import io.github.classgraph.base.internal.utils.VersionFinder;
 import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.ModulePathInfo;
 import io.github.classgraph.classpath.internal.spec.ClassLoaderAndModuleLayerSpec;
-import io.github.classgraph.internal.scanspec.ScanSpec;
 import org.jspecify.annotations.Nullable;
 
 /**

@@ -36,9 +36,6 @@ import java.util.Objects;
 import java.util.Set;
 
 import io.github.classgraph.Classfile.TypePathNode;
-import io.github.classgraph.base.internal.parser.ParseException;
-import io.github.classgraph.base.internal.parser.Parser;
-import io.github.classgraph.internal.types.TypeUtils;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -202,17 +199,17 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
      * @param definingClassName
      *            the defining class name
      * @return the type variable signature
-     * @throws ParseException
+     * @throws TypeSignatureParseException
      *             if parsing fails
      */
-    static @Nullable TypeVariableSignature parse(final Parser parser, final @Nullable String definingClassName)
-            throws ParseException {
+    static @Nullable TypeVariableSignature parse(final TypeSignatureParser parser,
+            final @Nullable String definingClassName) throws TypeSignatureParseException {
         final var peek = parser.peek();
         if (peek == 'T') {
             parser.next();
             // Scala can contain '$' in type variable names (#495)
             if (!TypeUtils.getIdentifierToken(parser, /* stopAtDollarSign = */ false, /* stopAtDot = */ true)) {
-                throw new ParseException(parser, "Could not parse type variable signature");
+                throw new TypeSignatureParseException(parser, "Could not parse type variable signature");
             }
             parser.expect(';');
             final TypeVariableSignature typeVariableSignature = new TypeVariableSignature(parser.currToken(),

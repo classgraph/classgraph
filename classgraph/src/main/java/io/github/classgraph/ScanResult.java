@@ -57,7 +57,6 @@ import io.github.classgraph.base.internal.utils.FileUtils;
 import io.github.classgraph.base.internal.utils.JarUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.classpath.ModulePathInfo;
-import io.github.classgraph.internal.scanspec.ScanSpec;
 import io.github.classgraph.vfs.Vfs;
 import org.jspecify.annotations.Nullable;
 

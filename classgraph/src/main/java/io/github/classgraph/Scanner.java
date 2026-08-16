@@ -61,13 +61,11 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 
+import io.github.classgraph.WorkQueue.WorkUnitProcessor;
 import io.github.classgraph.Classfile.ClassfileFormatException;
 import io.github.classgraph.Classfile.SkipClassException;
-import io.github.classgraph.base.internal.concurrency.AutoCloseableExecutorService;
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import io.github.classgraph.base.internal.concurrency.SingletonMap;
-import io.github.classgraph.base.internal.concurrency.WorkQueue;
-import io.github.classgraph.base.internal.concurrency.WorkQueue.WorkUnitProcessor;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
 import io.github.classgraph.base.internal.utils.FastPathResolver;
 import io.github.classgraph.base.internal.utils.FileUtils;
@@ -76,7 +74,6 @@ import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.classpath.internal.ClassLoaderProbe;
 import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.internal.spec.ClassLoaderAndModuleLayerSpec;
-import io.github.classgraph.internal.scanspec.ScanSpec;
 import io.github.classgraph.vfs.Vfs;
 import org.jspecify.annotations.Nullable;
 

@@ -36,9 +36,6 @@ import java.util.Objects;
 import java.util.Set;
 
 import io.github.classgraph.Classfile.TypePathNode;
-import io.github.classgraph.base.internal.parser.ParseException;
-import io.github.classgraph.base.internal.parser.Parser;
-import io.github.classgraph.internal.types.TypeUtils;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -470,16 +467,16 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
      * @param definingClassName
      *            The name of the defining class (for resolving type variables).
      * @return The class type signature.
-     * @throws ParseException
+     * @throws TypeSignatureParseException
      *             If the type signature could not be parsed.
      */
-    static @Nullable ClassRefTypeSignature parse(final Parser parser, final @Nullable String definingClassName)
-            throws ParseException {
+    static @Nullable ClassRefTypeSignature parse(final TypeSignatureParser parser,
+            final @Nullable String definingClassName) throws TypeSignatureParseException {
         if (parser.peek() == 'L') {
             parser.next();
             final var startParserPosition = parser.getPosition();
             if (!TypeUtils.getIdentifierToken(parser, /* stopAtDollarSign = */ true, /* stopAtDot = */ true)) {
-                throw new ParseException(parser, "Could not parse identifier token");
+                throw new TypeSignatureParseException(parser, "Could not parse identifier token");
             }
             var className = parser.currToken();
             final var typeArguments = TypeArgument.parseList(parser, definingClassName);

@@ -38,7 +38,6 @@ import io.github.classgraph.Scanner.ClassfileScanWorkUnit;
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.classpath.ClassLoaderHandler;
-import io.github.classgraph.internal.scanspec.ScanSpec;
 import io.github.classgraph.vfs.Vfs;
 import org.jspecify.annotations.Nullable;
 

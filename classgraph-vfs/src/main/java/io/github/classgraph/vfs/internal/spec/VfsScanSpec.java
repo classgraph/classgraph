@@ -44,6 +44,7 @@ import io.github.classgraph.base.internal.utils.JarUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.base.internal.utils.VersionFinder;
 import io.github.classgraph.base.internal.utils.VersionFinder.OperatingSystem;
+import io.github.classgraph.vfs.internal.zip.LogicalZipFile;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -141,6 +142,17 @@ public class VfsScanSpec {
                 : new HashSet<>(allowedURLSchemesCurr);
         updated.add(normalizedScheme);
         allowedURLSchemes = Collections.unmodifiableSet(updated);
+    }
+
+    /**
+     * Check whether an entry path names a multi-release versioned section that these settings say to ignore.
+     *
+     * @param relativePath
+     *            the path of an entry, relative to the root it was read from.
+     * @return true if the path is within a versioned section, and versioned sections are not being reported.
+     */
+    public boolean isIgnoredVersionedPath(final String relativePath) {
+        return !enableMultiReleaseVersions && relativePath.startsWith(LogicalZipFile.MULTI_RELEASE_PATH_PREFIX);
     }
 
     /**

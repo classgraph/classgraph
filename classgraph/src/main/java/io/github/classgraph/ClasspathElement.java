@@ -43,16 +43,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import io.github.classgraph.ScanSpec.ScanSpecPathMatch;
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
-import io.github.classgraph.base.internal.concurrency.WorkQueue;
 import io.github.classgraph.base.internal.utils.FileUtils;
 import io.github.classgraph.base.internal.utils.JarUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
-import io.github.classgraph.internal.scanspec.ScanSpec;
-import io.github.classgraph.internal.scanspec.ScanSpec.ScanSpecPathMatch;
 import io.github.classgraph.vfs.internal.slice.reader.RandomAccessOrSequentialReader;
 import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
-import io.github.classgraph.vfs.internal.zip.LogicalZipFile;
 import org.jspecify.annotations.Nullable;
 
 /** A classpath element (a directory or jarfile on the classpath). */
@@ -341,8 +338,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      * @return true if the path is within a versioned section that should be ignored.
      */
     protected boolean isIgnoredVersionedPath(final String relativePath) {
-        return !vfsScanSpec.enableMultiReleaseVersions
-                && relativePath.startsWith(LogicalZipFile.MULTI_RELEASE_PATH_PREFIX);
+        return vfsScanSpec.isIgnoredVersionedPath(relativePath);
     }
 
     /**

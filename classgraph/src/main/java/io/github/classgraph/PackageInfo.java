@@ -40,7 +40,6 @@ import java.util.Set;
 
 import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
-import io.github.classgraph.internal.scanspec.ScanSpec;
 import org.jspecify.annotations.Nullable;
 
 /** Holds metadata about a package encountered during a scan. */

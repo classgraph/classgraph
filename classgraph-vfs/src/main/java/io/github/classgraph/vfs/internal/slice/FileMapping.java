@@ -35,7 +35,6 @@ import java.nio.channels.FileChannel.MapMode;
 
 import io.github.classgraph.base.internal.utils.FileUtils;
 import io.github.classgraph.base.internal.utils.LogNode;
-import io.github.classgraph.base.internal.utils.OffHeapMemory;
 import io.github.classgraph.base.internal.utils.VersionFinder;
 import org.jspecify.annotations.Nullable;
 

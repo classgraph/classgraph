@@ -55,10 +55,7 @@ module io.github.classgraph.base {
     // top of this one, and they are not covered by the project's API compatibility guarantees.
     exports io.github.classgraph.base.internal.concurrency to io.github.classgraph, io.github.classgraph.classpath,
             io.github.classgraph.vfs;
-    exports io.github.classgraph.base.internal.parser to io.github.classgraph;
-    exports io.github.classgraph.base.internal.recycler to io.github.classgraph, io.github.classgraph.vfs;
-    exports io.github.classgraph.base.internal.reflection to io.github.classgraph, io.github.classgraph.classpath,
-            io.github.classgraph.vfs;
+    exports io.github.classgraph.base.internal.reflection to io.github.classgraph.classpath, io.github.classgraph.vfs;
     exports io.github.classgraph.base.internal.utils to io.github.classgraph, io.github.classgraph.classpath,
             io.github.classgraph.vfs;
 
@@ -66,8 +63,6 @@ module io.github.classgraph.base {
 
     // VersionFinder requires java.xml
     requires java.xml;
-    // OffHeapMemory requires jdk.unsupported (for usage of Unsafe on JDK 17-21)
-    requires jdk.unsupported;
     // LogNode requires java.logging
     requires java.logging;
 

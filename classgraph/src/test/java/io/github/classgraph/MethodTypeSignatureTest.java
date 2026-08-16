@@ -11,8 +11,6 @@ import java.util.RandomAccess;
 
 import org.junit.jupiter.api.Test;
 
-import io.github.classgraph.base.internal.parser.ParseException;
-
 /**
  * {@link MethodTypeSignature} is the generic type signature of a method: its type parameters, parameter types,
  * result type and thrown exception types. A method that has no {@code Signature} attribute gets a type descriptor
@@ -232,11 +230,12 @@ public class MethodTypeSignatureTest {
      * the string {@code "<init>"} rather than a signature, and is read as a method that takes no parameters and
      * returns void.
      *
-     * @throws ParseException
+     * @throws TypeSignatureParseException
      *             if the signature could not be parsed.
      */
     @Test
-    public void theSignatureOfAConstructorIsAMethodThatTakesNoParametersAndReturnsVoid() throws ParseException {
+    public void theSignatureOfAConstructorIsAMethodThatTakesNoParametersAndReturnsVoid()
+            throws TypeSignatureParseException {
         final var typeSig = MethodTypeSignature.parse("<init>", /* definingClassName = */ null);
         assertThat(typeSig.getTypeParameters()).isEmpty();
         assertThat(typeSig.getParameterTypeSignatures()).isEmpty();
@@ -282,31 +281,31 @@ public class MethodTypeSignatureTest {
         }
     }
 
-    /** A method type signature that cannot be parsed is rejected with a {@link ParseException}. */
+    /** A method type signature that cannot be parsed is rejected with a {@link TypeSignatureParseException}. */
     @Test
     public void aMalformedMethodTypeSignatureIsRejected() {
         // The parameter list is not terminated
-        assertThatExceptionOfType(ParseException.class)
+        assertThatExceptionOfType(TypeSignatureParseException.class)
                 .isThrownBy(() -> MethodTypeSignature.parse("(Ljava/lang/String;", /* definingClassName = */ null))
                 .withMessageContaining("Ran out of input while parsing method signature");
 
         // "Q" is not a type signature, so it is not a parameter type
-        assertThatExceptionOfType(ParseException.class)
+        assertThatExceptionOfType(TypeSignatureParseException.class)
                 .isThrownBy(() -> MethodTypeSignature.parse("(Q)V", /* definingClassName = */ null))
                 .withMessageContaining("Missing method parameter type signature");
 
         // "Q" is not a type signature, so it is not a result type
-        assertThatExceptionOfType(ParseException.class)
+        assertThatExceptionOfType(TypeSignatureParseException.class)
                 .isThrownBy(() -> MethodTypeSignature.parse("()Q", /* definingClassName = */ null))
                 .withMessageContaining("Missing method result type signature");
 
         // "Q" is neither a class reference nor a type variable, so it cannot follow "^"
-        assertThatExceptionOfType(ParseException.class)
+        assertThatExceptionOfType(TypeSignatureParseException.class)
                 .isThrownBy(() -> MethodTypeSignature.parse("()V^Q", /* definingClassName = */ null))
                 .withMessageContaining("Missing type variable signature");
 
         // The throws clause is the last thing in a signature, so nothing may follow it
-        assertThatExceptionOfType(ParseException.class)
+        assertThatExceptionOfType(TypeSignatureParseException.class)
                 .isThrownBy(
                         () -> MethodTypeSignature.parse("()V^Ljava/lang/Error;X", /* definingClassName = */ null))
                 .withMessageContaining("Extra characters at end of type descriptor");

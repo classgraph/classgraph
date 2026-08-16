@@ -29,7 +29,7 @@
 package io.github.classgraph.base.internal.utils;
 
 /**
- * File utilities.
+ * String utilities.
  */
 public final class StringUtils {
     /**

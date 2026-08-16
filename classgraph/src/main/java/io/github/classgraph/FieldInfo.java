@@ -35,13 +35,11 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import io.github.classgraph.TypeUtils.ModifierType;
 import io.github.classgraph.ClassInfo.RelType;
 import io.github.classgraph.Classfile.TypeAnnotationDecorator;
-import io.github.classgraph.base.internal.parser.ParseException;
 import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.base.internal.utils.StringUtils;
-import io.github.classgraph.internal.types.TypeUtils.ModifierType;
-import io.github.classgraph.internal.types.TypeUtils;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -143,7 +141,7 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
                     typeDescriptor = TypeSignature.parse(typeDescriptorStr, declaringClassName);
                     typeDescriptor.setScanResult(this.scanResult);
                     decorateType(typeDescriptor);
-                } catch (final ParseException e) {
+                } catch (final TypeSignatureParseException e) {
                     throw new IllegalArgumentException(e);
                 }
             }
@@ -195,7 +193,7 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
                     typeSignature = TypeSignature.parse(typeSignatureStr, declaringClassName);
                     typeSignature.setScanResult(this.scanResult);
                     decorateType(typeSignature);
-                } catch (final ParseException e) {
+                } catch (final TypeSignatureParseException e) {
                     throw new IllegalArgumentException(
                             "Invalid type signature for field " + getClassName() + "." + getName()
                                     + (getClassInfo() != null

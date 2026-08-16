@@ -4,8 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
 
-import io.github.classgraph.base.internal.parser.ParseException;
-
 /**
  * {@code MethodTypeSignature#toStringInternal} passes {@code useSimpleNames} down to the type parameters, the
  * parameter types and the throws signatures, but it used to render the result type with a bare
@@ -15,7 +13,7 @@ import io.github.classgraph.base.internal.parser.ParseException;
 public class MethodTypeSignatureSimpleNamesTest {
     /** The result type uses a simple name, like the parameter and throws types. */
     @Test
-    public void resultTypeUsesSimpleName() throws ParseException {
+    public void resultTypeUsesSimpleName() throws TypeSignatureParseException {
         final var sig = MethodTypeSignature.parse("(Ljava/lang/String;)Ljava/util/Map;^Ljava/io/IOException;",
                 /* definingClassName = */ null);
         assertThat(sig.toStringWithSimpleNames()).isEqualTo("Map (String) throws IOException");
