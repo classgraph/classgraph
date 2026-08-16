@@ -610,6 +610,7 @@ public class LogicalZipFile extends ZipFileSlice {
         // Enumerate entries
         entries = new ArrayList<>((int) numEnt);
         FastZipEntry manifestZipEntry = null;
+        FastZipEntry caseFoldedManifestZipEntry = null;
         try {
             int entSize = 0;
             for (long entOff = 0; entOff + 46 <= cenSize; entOff += entSize) {
@@ -846,9 +847,15 @@ public class LogicalZipFile extends ZipFileSlice {
                         lastModifiedDateMSDOS, fileAttributes, enableMultiReleaseVersions);
                 entries.add(entry);
 
-                // Record manifest entry
+                // Record manifest entry. A zipfile written by a tool that lower-cased its entry names still has a
+                // manifest, and java.util.zip.ZipFile finds that one too (it matches both "META-INF/" and
+                // "MANIFEST.MF" a character at a time with the case bit masked off), so an entry whose name differs
+                // from the canonical name only in case is recorded as a fallback, rather than the zipfile being
+                // read as having no manifest at all
                 if (entry.entryName.equals(MANIFEST_PATH)) {
                     manifestZipEntry = entry;
+                } else if (entry.entryName.equalsIgnoreCase(MANIFEST_PATH)) {
+                    caseFoldedManifestZipEntry = entry;
                 }
             }
         } catch (EOFException | IndexOutOfBoundsException e) {
@@ -859,9 +866,11 @@ public class LogicalZipFile extends ZipFileSlice {
             }
         }
 
-        // Parse manifest file, if present
-        if (manifestZipEntry != null) {
-            parseManifest(manifestZipEntry, log);
+        // Parse manifest file, if present. The manifest is looked for under its canonical name first, since that is
+        // the name it is stored under in all but a handful of zipfiles, and only then under a differently-cased name
+        final FastZipEntry manifestEntry = manifestZipEntry != null ? manifestZipEntry : caseFoldedManifestZipEntry;
+        if (manifestEntry != null) {
+            parseManifest(manifestEntry, log);
         }
 
         // For multi-release jars, drop any older or non-versioned entries that are masked by the most recent
