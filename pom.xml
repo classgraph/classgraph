@@ -77,10 +77,6 @@
 		<!-- this with ${project.basedir}/.. accordingly. -->
 		<rootDir>${project.basedir}</rootDir>
 
-		<!-- The name of the module's JPMS module, used as the directory prefix of the extra copy of -->
-		<!-- the Javadoc that add-modular-javadoc adds to the Javadoc jar. Set by each module. -->
-		<jpmsModuleName />
-
 		<!-- The javac lint categories that are switched off. "exports" fires for every JSpecify -->
 		<!-- @Nullable in an exported signature, and can only be silenced by "requires transitive -->
 		<!-- org.jspecify". That would force every modular downstream project to put JSpecify on its -->
@@ -96,10 +92,10 @@
 		<osgiImportPackage />
 		<osgiDependencies />
 
-		<!-- The aggregator pom produces no artifact, so the two steps below have nothing to do for -->
-		<!-- it: add-modular-javadoc would fail outright, and the license copies would just leave a -->
-		<!-- stray target directory at the repository root. Both are skipped by default, and each -->
-		<!-- module that produces a jar re-enables them. -->
+		<!-- The aggregator pom has no sources and produces no artifact, so the two steps below have -->
+		<!-- nothing to do for it: the ecj checks would have nothing to compile, and the license -->
+		<!-- copies would just leave a stray target directory at the repository root. Both are -->
+		<!-- skipped by default, and each module re-enables them. -->
 		<maven.antrun.skip>true</maven.antrun.skip>
 		<maven.resources.skip>true</maven.resources.skip>
 	</properties>
@@ -497,24 +493,6 @@
 								</target>
 							</configuration>
 						</execution>
-						<execution>
-							<!-- Make duplicate copy of Javadoc into a subdirectory with the name of the module, -->
-							<!-- since Eclipse (and possibly other tools) detects the presence of the module -->
-							<!-- descriptor, and expects the Javadoc files to use modular paths (#583). -->
-							<!-- Needs to happen before maven-gpg-plugin runs, otherwise signature will be invalid. -->
-							<id>add-modular-javadoc</id>
-							<phase>verify</phase>
-							<goals>
-								<goal>run</goal>
-							</goals>
-							<configuration>
-								<target>
-									<jar update="true" destfile="${project.build.directory}/${project.build.finalName}-javadoc.jar">
-										<zipfileset prefix="${jpmsModuleName}" dir="${project.build.directory}/apidocs" includes="**/*" />
-									</jar>
-								</target>
-							</configuration>
-						</execution>
 					</executions>
 				</plugin>
 
@@ -725,9 +703,9 @@
 								<!-- Pin the Javadoc output dir to ${project.build.directory}/apidocs. Do not rely -->
 								<!-- on the plugin default: it changed in maven-javadoc-plugin 3.12.0 from -->
 								<!-- ${project.build.directory} to ${project.build.directory}/reports, which -->
-								<!-- silently broke copy-license-to-javadocs and add-modular-javadoc above (both -->
-								<!-- hardcode ${project.build.directory}/apidocs) WITHOUT failing the build. -->
-								<!-- If this is ever changed, update those two executions to match. -->
+								<!-- silently broke copy-license-to-javadocs above (which hardcodes -->
+								<!-- ${project.build.directory}/apidocs) WITHOUT failing the build. If this -->
+								<!-- is ever changed, update that execution to match. -->
 								<outputDirectory>${project.build.directory}</outputDirectory>
 							</configuration>
 						</execution>

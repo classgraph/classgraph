@@ -16,14 +16,13 @@
 		<!-- The shared files (the code formatter profile and the license) are one directory up -->
 		<rootDir>${project.basedir}/..</rootDir>
 
-		<!-- Must agree with src/main/java/module-info.java -->
-		<jpmsModuleName>io.github.classgraph</jpmsModuleName>
 		<osgiBundleName>ClassGraph</osgiBundleName>
+		<!-- Must list the same packages as the exports in src/main/java/module-info.java -->
 		<osgiExportPackage>io.github.classgraph;version="${project.version}"</osgiExportPackage>
 		<osgiImportPackage>io.github.classgraph.base.internal.concurrency,io.github.classgraph.base.internal.filter,io.github.classgraph.base.internal.log,io.github.classgraph.base.internal.path,io.github.classgraph.base.internal.utils,io.github.classgraph.classpath,io.github.classgraph.classpath.internal,io.github.classgraph.vfs,io.github.classgraph.vfs.internal,io.github.classgraph.vfs.internal.slice.reader,org.jspecify.annotations;resolution:="optional"</osgiImportPackage>
 		<osgiDependencies>io.github.classgraph.classpath export</osgiDependencies>
 
-		<!-- This module produces a jar, so it needs its resources and the modular copy of its Javadoc -->
+		<!-- This module has sources and produces a jar, so it needs the ecj checks and the license copies -->
 		<maven.antrun.skip>false</maven.antrun.skip>
 		<maven.resources.skip>false</maven.resources.skip>
 	</properties>

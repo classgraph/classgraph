@@ -52,6 +52,37 @@ jobs:
         cache: 'maven'
     - name: Check Javadoc
       run: ./mvnw --no-transfer-progress -B clean package -DskipTests javadoc:aggregate
+    # Nothing else looks inside the jars that get published. The Javadoc jar in particular has to use
+    # modular paths, or Eclipse will not find the Javadoc for a module (#583): maven-javadoc-plugin
+    # generates those by itself, because every module has a module-info.java in src/main/java. An
+    # antrun step used to add a second copy under the module name, which was needed when the module
+    # descriptor lived outside the source tree, but with modular Javadoc it nested the whole tree
+    # under a duplicate directory instead, and roughly doubled the jar. The last check below is what
+    # catches that if anything reintroduces it.
+    - name: Check the published jars are laid out correctly
+      run: |
+        set -eu
+        for module in classgraph-base classgraph-vfs classgraph-classpath classgraph classgraph-viz; do
+            # Take the name from the module declaration itself, so this cannot drift from the source.
+            jpms_module="$(sed -n 's/^ *\(open  *\)\?module  *\([A-Za-z0-9_.]*\).*/\2/p' \
+                "$module/src/main/java/module-info.java")"
+            test -n "$jpms_module"
+            # The version may or may not end in -SNAPSHOT, so pick the main jar by ruling out the other two
+            # rather than by matching the version.
+            main_jar="$(find "$module/target" -maxdepth 1 -name '*.jar' \
+                -not -name '*-sources.jar' -not -name '*-javadoc.jar')"
+            javadoc_jar="$module/target/$(basename "$main_jar" .jar)-javadoc.jar"
+            # -F throughout: a module name is full of dots, and as a regex each one would match the
+            # "/" of the ordinary package path, so "io.github.classgraph.base/io.github.classgraph.base/"
+            # would match the perfectly good "io.github.classgraph.base/io/github/classgraph/base/".
+            unzip -l "$main_jar" | grep -q ' module-info\.class$'
+            unzip -l "$javadoc_jar" | grep -qF " $jpms_module/"
+            if unzip -l "$javadoc_jar" | grep -qF " $jpms_module/$jpms_module/"; then
+                echo "FAIL : $module Javadoc is nested under $jpms_module/$jpms_module/"
+                exit 1
+            fi
+            echo "ok   : $module -> $jpms_module"
+        done
 
   # The benchmark drivers under benchmark/ are single-file source programs, run by hand from the two
   # workflow files kept beside them, so nothing in the ordinary build compiles them and they rot

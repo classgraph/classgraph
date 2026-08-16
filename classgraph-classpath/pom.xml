@@ -21,17 +21,16 @@
 		     export, and warns that the module was not found, which -Werror would turn into a build failure. -->
 		<javacLintSuppressions>-Xlint:-exports,-module</javacLintSuppressions>
 
-		<!-- Must agree with src/main/java/module-info.java -->
-		<jpmsModuleName>io.github.classgraph.classpath</jpmsModuleName>
 		<osgiBundleName>ClassGraph classpath finder</osgiBundleName>
-		<!-- The internal packages are exported because OSGi has no equivalent of a qualified export, and the
-		     modules above this one need them. They are marked x-internal so that tooling does not offer them
-		     for import, and they are not covered by the project's API compatibility guarantees. -->
+		<!-- Must list the same packages as the exports in src/main/java/module-info.java. The internal
+		     packages are exported because OSGi has no equivalent of a qualified export, and the modules
+		     above this one need them. They are marked x-internal so that tooling does not offer them for
+		     import, and they are not covered by the project's API compatibility guarantees. -->
 		<osgiExportPackage>io.github.classgraph.classpath;version="${project.version}",io.github.classgraph.classpath.internal;x-internal:=true</osgiExportPackage>
 		<osgiImportPackage>io.github.classgraph.base,io.github.classgraph.base.internal.concurrency,io.github.classgraph.base.internal.filter,io.github.classgraph.base.internal.log,io.github.classgraph.base.internal.path,io.github.classgraph.base.internal.reflection,io.github.classgraph.base.internal.utils,io.github.classgraph.vfs,io.github.classgraph.vfs.internal,org.jspecify.annotations;resolution:="optional"</osgiImportPackage>
 		<osgiDependencies>io.github.classgraph.vfs export,java.management</osgiDependencies>
 
-		<!-- This module produces a jar, so it needs its resources and the modular copy of its Javadoc -->
+		<!-- This module has sources and produces a jar, so it needs the ecj checks and the license copies -->
 		<maven.antrun.skip>false</maven.antrun.skip>
 		<maven.resources.skip>false</maven.resources.skip>
 	</properties>
