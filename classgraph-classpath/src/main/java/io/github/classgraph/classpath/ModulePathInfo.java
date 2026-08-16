@@ -35,8 +35,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
+import io.github.classgraph.base.internal.path.PathList;
 import io.github.classgraph.base.internal.reflection.ReflectionUtils;
-import io.github.classgraph.base.internal.utils.JarUtils;
 import io.github.classgraph.base.internal.utils.StringUtils;
 
 /**
@@ -257,8 +257,8 @@ public class ModulePathInfo {
                                 argField.add(argParam);
                             } else {
                                 // Split arg param into parts
-                                argField.addAll(Arrays.asList(
-                                        JarUtils.smartPathSplit(argParam, sepChar, /* classpathSpec = */ null)));
+                                argField.addAll(Arrays
+                                        .asList(PathList.split(argParam, sepChar, /* classpathSpec = */ null)));
                             }
                         }
                     }

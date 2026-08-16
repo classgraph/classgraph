@@ -48,10 +48,11 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
-import io.github.classgraph.base.internal.utils.AcceptReject;
+import io.github.classgraph.base.internal.filter.AcceptReject;
+import io.github.classgraph.base.internal.log.LogNode;
+import io.github.classgraph.base.internal.path.PathList;
+import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.utils.Assert;
-import io.github.classgraph.base.internal.utils.JarUtils;
-import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.base.internal.utils.VersionFinder;
 import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.ModulePathInfo;
@@ -450,7 +451,7 @@ public class ClassGraph {
         if (overrideClasspath.isEmpty()) {
             throw new IllegalArgumentException("Can't override classpath with an empty path");
         }
-        for (final String classpathElement : JarUtils.smartPathSplit(overrideClasspath,
+        for (final String classpathElement : PathList.split(overrideClasspath,
                 scanSpec.classpathSpec.allowedURLSchemes)) {
             scanSpec.classpathSpec.addClasspathOverride(classpathElement);
         }
@@ -722,7 +723,7 @@ public class ClassGraph {
                     .stripTrailingDoubleGlob(AcceptReject.normalizePackageOrClassName(packageName), '.');
             // Accept package
             scanSpec.packageAcceptReject.addToAccept(packageNameNormalized);
-            final var path = JarUtils.packageNameToPath(packageNameNormalized);
+            final var path = ClassNames.packageNameToPath(packageNameNormalized);
             scanSpec.pathAcceptReject.addToAccept(path + "/");
             if (packageNameNormalized.isEmpty()) {
                 scanSpec.pathAcceptReject.addToAccept("");
@@ -805,7 +806,7 @@ public class ClassGraph {
             }
             // Accept package, but not sub-packages
             scanSpec.packageAcceptReject.addToAccept(packageNameNormalized);
-            scanSpec.pathAcceptReject.addToAccept(JarUtils.packageNameToPath(packageNameNormalized) + "/");
+            scanSpec.pathAcceptReject.addToAccept(ClassNames.packageNameToPath(packageNameNormalized) + "/");
             if (packageNameNormalized.isEmpty()) {
                 scanSpec.pathAcceptReject.addToAccept("");
             }
@@ -879,7 +880,7 @@ public class ClassGraph {
             }
             // Rejecting always prevents further recursion, no need to reject sub-packages
             scanSpec.packageAcceptReject.addToReject(packageNameNormalized);
-            final var path = JarUtils.packageNameToPath(packageNameNormalized);
+            final var path = ClassNames.packageNameToPath(packageNameNormalized);
             scanSpec.pathAcceptReject.addToReject(path + "/");
             // Reject sub-packages (zipfile entries can occur in any order)
             scanSpec.packagePrefixAcceptReject.addToReject(packageNameNormalized + ".");
@@ -942,13 +943,14 @@ public class ClassGraph {
             final var classNameNormalized = AcceptReject.normalizePackageOrClassName(className);
             // Accept the class itself
             scanSpec.classAcceptReject.addToAccept(classNameNormalized);
-            scanSpec.classfilePathAcceptReject.addToAccept(JarUtils.classNameToClassfilePath(classNameNormalized));
+            scanSpec.classfilePathAcceptReject
+                    .addToAccept(ClassNames.classNameToClassfilePath(classNameNormalized));
             // A class name is never empty, so getParentPackageName cannot return null
             final var packageName = Objects.requireNonNull(PackageInfo.getParentPackageName(classNameNormalized));
             // Record the package containing the class, so we can recurse to this point even if the package is not
             // itself accepted
             scanSpec.classPackageAcceptReject.addToAccept(packageName);
-            scanSpec.classPackagePathAcceptReject.addToAccept(JarUtils.packageNameToPath(packageName) + "/");
+            scanSpec.classPackagePathAcceptReject.addToAccept(ClassNames.packageNameToPath(packageName) + "/");
         }
         return this;
     }
@@ -973,7 +975,8 @@ public class ClassGraph {
         for (final String className : classNames) {
             final var classNameNormalized = AcceptReject.normalizePackageOrClassName(className);
             scanSpec.classAcceptReject.addToReject(classNameNormalized);
-            scanSpec.classfilePathAcceptReject.addToReject(JarUtils.classNameToClassfilePath(classNameNormalized));
+            scanSpec.classfilePathAcceptReject
+                    .addToReject(ClassNames.classNameToClassfilePath(classNameNormalized));
         }
         return this;
     }
@@ -992,7 +995,7 @@ public class ClassGraph {
     public ClassGraph acceptJars(final String... jarLeafNames) {
         Assert.notNullElements(jarLeafNames, "jarLeafNames");
         for (final String jarLeafName : jarLeafNames) {
-            final var leafName = JarUtils.leafName(jarLeafName);
+            final var leafName = PathSyntax.leafName(jarLeafName);
             if (!leafName.equals(jarLeafName)) {
                 throw new IllegalArgumentException("Can only accept jars by leafname: " + jarLeafName);
             }
@@ -1015,7 +1018,7 @@ public class ClassGraph {
     public ClassGraph rejectJars(final String... jarLeafNames) {
         Assert.notNullElements(jarLeafNames, "jarLeafNames");
         for (final String jarLeafName : jarLeafNames) {
-            final var leafName = JarUtils.leafName(jarLeafName);
+            final var leafName = PathSyntax.leafName(jarLeafName);
             if (!leafName.equals(jarLeafName)) {
                 throw new IllegalArgumentException("Can only reject jars by leafname: " + jarLeafName);
             }
@@ -1459,7 +1462,7 @@ public class ClassGraph {
      *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      */
     public String getClasspath() {
-        return JarUtils.pathElementsToPathStr(getClasspathFiles());
+        return PathList.join(getClasspathFiles());
     }
 
     /**

@@ -26,8 +26,11 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.classgraph.base.internal.utils;
+package io.github.classgraph.base.internal.filter;
 
+import io.github.classgraph.base.internal.path.FastPathResolver;
+import io.github.classgraph.base.internal.path.PathSyntax;
+import io.github.classgraph.base.internal.utils.CollectionUtils;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -468,7 +471,7 @@ public abstract class AcceptReject {
             }
             // Record the accepted path itself and each of its parent directories as a prefix, so that
             // acceptHasPrefix() can tell whether a directory may still lead to an accepted path
-            for (; !prefix.isEmpty(); prefix = FileUtils.getParentDirPath(prefix, separatorChar)) {
+            for (; !prefix.isEmpty(); prefix = PathSyntax.getParentDirPath(prefix, separatorChar)) {
                 acceptPrefixesSet.add(prefix + separatorChar);
             }
 
@@ -595,7 +598,7 @@ public abstract class AcceptReject {
          */
         @Override
         public void addToAccept(final String str) {
-            super.addToAccept(JarUtils.leafName(str));
+            super.addToAccept(PathSyntax.leafName(str));
         }
 
         /**
@@ -606,7 +609,7 @@ public abstract class AcceptReject {
          */
         @Override
         public void addToReject(final String str) {
-            super.addToReject(JarUtils.leafName(str));
+            super.addToReject(PathSyntax.leafName(str));
         }
 
         /**
@@ -618,7 +621,7 @@ public abstract class AcceptReject {
          */
         @Override
         public boolean isAcceptedAndNotRejected(final String str) {
-            return super.isAcceptedAndNotRejected(JarUtils.leafName(str));
+            return super.isAcceptedAndNotRejected(PathSyntax.leafName(str));
         }
 
         /**
@@ -630,7 +633,7 @@ public abstract class AcceptReject {
          */
         @Override
         public boolean isAccepted(final String str) {
-            return super.isAccepted(JarUtils.leafName(str));
+            return super.isAccepted(PathSyntax.leafName(str));
         }
 
         /**
@@ -656,7 +659,7 @@ public abstract class AcceptReject {
          */
         @Override
         public boolean isRejected(final String str) {
-            return super.isRejected(JarUtils.leafName(str));
+            return super.isRejected(PathSyntax.leafName(str));
         }
     }
 

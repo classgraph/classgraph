@@ -36,8 +36,8 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.FileChannel.MapMode;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import io.github.classgraph.base.internal.log.LogNode;
 import io.github.classgraph.base.internal.reflection.ReflectionUtils;
-import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.base.internal.utils.VersionFinder;
 import org.jspecify.annotations.Nullable;
 
@@ -249,8 +249,8 @@ public final class OffHeapMemory {
      * @param position
      *            the position within the file at which the mapped region is to start.
      * @param size
-     *            the size of the region to map (must not be larger than {@link FileUtils#MAX_BUFFER_SIZE}, since
-     *            the mapped memory segment has to be projected to a single {@link ByteBuffer}).
+     *            the size of the region to map (must not be larger than {@link Slice#MAX_BUFFER_SIZE}, since the
+     *            mapped memory segment has to be projected to a single {@link ByteBuffer}).
      * @return the mapped {@link ByteBuffer}, or null if the arena-based mapping API could not be invoked
      *         reflectively.
      * @throws IOException

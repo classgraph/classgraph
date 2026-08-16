@@ -26,17 +26,31 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.classgraph.base.internal.utils;
+package io.github.classgraph.base.internal.path;
 
+import io.github.classgraph.base.internal.utils.VersionFinder;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
+import java.util.regex.Pattern;
 
 import io.github.classgraph.base.internal.utils.VersionFinder.OperatingSystem;
 
-/** A simple URL path encoder. */
-public final class URLPathEncoder {
+/**
+ * The URL end of a path: percent-encoding and decoding the path part of a URL, normalizing it, and reading and
+ * normalizing the scheme that a path may begin with.
+ */
+public final class URLPaths {
+    /**
+     * Check if a path has a URL scheme at the beginning. Require at least 2 chars in a URL scheme, so that Windows
+     * drive designations don't get treated as URL schemes.
+     */
+    public static final Pattern URL_SCHEME_PATTERN = Pattern.compile("[a-zA-Z][a-zA-Z0-9+\\-.]+[:].*");
+
+    /** A URL scheme on its own, without the trailing {@code ':'}. */
+    private static final Pattern URL_SCHEME_NAME_PATTERN = Pattern.compile("[a-zA-Z][a-zA-Z0-9+\\-.]+");
 
     /** Whether an ASCII character is URL-safe. */
     private static final boolean[] safe = new boolean[256];
@@ -69,8 +83,31 @@ public final class URLPathEncoder {
     /**
      * Constructor.
      */
-    private URLPathEncoder() {
+    private URLPaths() {
         // Cannot be constructed
+    }
+
+    /**
+     * Check that a string is a URL scheme name, and lowercase it, since URL schemes are case-insensitive but are
+     * matched in lowercase.
+     *
+     * @param scheme
+     *            the scheme, e.g. "http", without the trailing ':'.
+     * @return the scheme, lowercased.
+     * @throws IllegalArgumentException
+     *             if the scheme is shorter than two characters, or is not a valid URL scheme.
+     */
+    public static String normalizeURLScheme(final String scheme) {
+        // The scheme is validated, rather than simply lowercased, because a scheme registered in a form that can
+        // never match, e.g. with a trailing ':', would otherwise silently fail to enable anything
+        if (scheme.length() < 2) {
+            // A one-character scheme cannot be told apart from a Windows drive letter
+            throw new IllegalArgumentException("URL schemes must contain at least two characters");
+        }
+        if (!URL_SCHEME_NAME_PATTERN.matcher(scheme).matches()) {
+            throw new IllegalArgumentException("Not a valid URL scheme: \"" + scheme + "\"");
+        }
+        return scheme.toLowerCase(Locale.ROOT);
     }
 
     /**
@@ -244,7 +281,7 @@ public final class URLPathEncoder {
         // separator is left exactly as it is; from the separator onwards, every '!' is a separator, and each needs
         // the '/' after it that the "jar:" URL scheme requires
         // #903
-        final var nestedJarSepIdx = JarUtils.indexOfNestedJarSeparator(urlPathNormalized);
+        final var nestedJarSepIdx = PathSyntax.indexOfNestedJarSeparator(urlPathNormalized);
         final var hasNestedJarSeparator = nestedJarSepIdx >= 0;
         if (hasNestedJarSeparator) {
             urlPathNormalized = urlPathNormalized.substring(0, nestedJarSepIdx) + urlPathNormalized

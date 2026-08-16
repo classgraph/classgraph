@@ -44,9 +44,9 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.ZipEntry;
 
-import io.github.classgraph.base.internal.utils.LogNode;
+import io.github.classgraph.base.internal.log.LogNode;
+import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.base.internal.utils.ProxyingInputStream;
-import io.github.classgraph.base.internal.utils.URLPathEncoder;
 import io.github.classgraph.vfs.CloseableByteBuffer;
 import io.github.classgraph.vfs.Vfs;
 import io.github.classgraph.vfs.VfsEntry;
@@ -184,7 +184,7 @@ public abstract class Resource implements AutoCloseable, Comparable<Resource> {
             return new URI(
                     (isDir || locationURIStr.startsWith("jar:") || locationURIStr.startsWith("jrt:") ? "" : "jar:")
                             + locationURIStr + (isDir ? "" : locationURIStr.startsWith("jrt:") ? "/" : "!/")
-                            + URLPathEncoder.encodePath(resourcePath));
+                            + URLPaths.encodePath(resourcePath));
         } catch (final URISyntaxException e) {
             throw new IllegalStateException("Could not form URL for classpath element: " + locationURIStr
                     + " ; path: " + resourcePath + " : " + e);

@@ -1,4 +1,4 @@
-package io.github.classgraph.base.internal.utils;
+package io.github.classgraph.vfs.internal.slice;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Test;
  * read from the zipfile itself, so it can be wrong in either direction, and it can be a lie told by a zipfile that
  * is trying to make the reader allocate more memory than it has.
  */
-public class FileUtilsReadAllBytesTest {
+public class SliceReadAllBytesTest {
     /** An {@link InputStream} that records whether it was closed. */
     private static class ClosedRecordingInputStream extends ByteArrayInputStream {
         /** True once this stream has been closed. */
@@ -67,7 +67,7 @@ public class FileUtilsReadAllBytesTest {
 
         for (final long lengthHint : new long[] { -1L, 0L, 1L, content.length / 2, content.length,
                 content.length * 2L }) {
-            assertThat(FileUtils.readAllBytesAsArray(new ByteArrayInputStream(content), lengthHint))
+            assertThat(Slice.readAllBytesAsArray(new ByteArrayInputStream(content), lengthHint))
                     .as("length hint %d", lengthHint).containsExactly(content);
         }
     }
@@ -80,8 +80,8 @@ public class FileUtilsReadAllBytesTest {
      */
     @Test
     public void anEmptyStreamIsReadAsAnEmptyArray() throws IOException {
-        assertThat(FileUtils.readAllBytesAsArray(new ByteArrayInputStream(new byte[0]), -1L)).isEmpty();
-        assertThat(FileUtils.readAllBytesAsArray(new ByteArrayInputStream(new byte[0]), 0L)).isEmpty();
+        assertThat(Slice.readAllBytesAsArray(new ByteArrayInputStream(new byte[0]), -1L)).isEmpty();
+        assertThat(Slice.readAllBytesAsArray(new ByteArrayInputStream(new byte[0]), 0L)).isEmpty();
     }
 
     /**
@@ -94,7 +94,7 @@ public class FileUtilsReadAllBytesTest {
     @Test
     public void theStreamIsClosedOnceItHasBeenRead() throws IOException {
         final var inputStream = new ClosedRecordingInputStream(content(16));
-        assertThat(FileUtils.readAllBytesAsArray(inputStream, 16L)).hasSize(16);
+        assertThat(Slice.readAllBytesAsArray(inputStream, 16L)).hasSize(16);
         assertThat(inputStream.closed).isTrue();
     }
 
@@ -104,8 +104,8 @@ public class FileUtilsReadAllBytesTest {
      */
     @Test
     public void aLengthThatIsTooLargeToFitInAnArrayIsRejected() {
-        assertThatThrownBy(() -> FileUtils.readAllBytesAsArray(new ByteArrayInputStream(content(16)),
-                FileUtils.MAX_BUFFER_SIZE + 1L)).isInstanceOf(IOException.class)
-                .hasMessage("InputStream is too large to read");
+        assertThatThrownBy(
+                () -> Slice.readAllBytesAsArray(new ByteArrayInputStream(content(16)), Slice.MAX_BUFFER_SIZE + 1L))
+                .isInstanceOf(IOException.class).hasMessage("InputStream is too large to read");
     }
 }

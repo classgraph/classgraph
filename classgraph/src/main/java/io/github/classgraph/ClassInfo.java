@@ -53,11 +53,11 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 
-import io.github.classgraph.TypeUtils.ModifierType;
 import io.github.classgraph.Classfile.ClassContainment;
 import io.github.classgraph.Classfile.ClassTypeAnnotationDecorator;
+import io.github.classgraph.TypeUtils.ModifierType;
+import io.github.classgraph.base.internal.log.LogNode;
 import io.github.classgraph.base.internal.utils.Assert;
-import io.github.classgraph.base.internal.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
 /**

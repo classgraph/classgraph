@@ -37,8 +37,8 @@ import java.nio.file.StandardOpenOption;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import io.github.classgraph.base.internal.utils.FileUtils;
-import io.github.classgraph.base.internal.utils.LogNode;
+import io.github.classgraph.base.internal.log.LogNode;
+import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.vfs.internal.ScanResources;
 import io.github.classgraph.vfs.internal.slice.reader.RandomAccessByteBufferReader;
 import io.github.classgraph.vfs.internal.slice.reader.RandomAccessFileChannelReader;
@@ -237,15 +237,15 @@ public final class PathSlice extends Slice {
     public byte[] load() throws IOException {
         if (isDeflatedZipEntry) {
             // Inflate into RAM if deflated
-            if (inflatedLengthHint > FileUtils.MAX_BUFFER_SIZE) {
+            if (inflatedLengthHint > Slice.MAX_BUFFER_SIZE) {
                 throw new IOException("Uncompressed size is larger than 2GB");
             }
             try (var inputStream = open()) {
-                return FileUtils.readAllBytesAsArray(inputStream, inflatedLengthHint);
+                return Slice.readAllBytesAsArray(inputStream, inflatedLengthHint);
             }
         } else {
             // Copy from FileChannel to byte array
-            if (sliceLength > FileUtils.MAX_BUFFER_SIZE) {
+            if (sliceLength > Slice.MAX_BUFFER_SIZE) {
                 throw new IOException("File is larger than 2GB");
             }
             final var reader = randomAccessReader();
@@ -272,13 +272,13 @@ public final class PathSlice extends Slice {
         if (isDeflatedZipEntry) {
             // Inflate to RAM if deflated (unfortunately there is no lazy-loading ByteBuffer that will decompress
             // partial streams on demand, so we have to decompress the whole zip entry)
-            if (inflatedLengthHint > FileUtils.MAX_BUFFER_SIZE) {
+            if (inflatedLengthHint > Slice.MAX_BUFFER_SIZE) {
                 throw new IOException("Uncompressed size is larger than 2GB");
             }
             return ByteBuffer.wrap(load()).asReadOnlyBuffer();
         } else if (mappedByteBuffer == null) {
             // Copy from FileChannel to byte array, then wrap in a ByteBuffer
-            if (sliceLength > FileUtils.MAX_BUFFER_SIZE) {
+            if (sliceLength > Slice.MAX_BUFFER_SIZE) {
                 throw new IOException("File is larger than 2GB");
             }
             return ByteBuffer.wrap(load()).asReadOnlyBuffer();

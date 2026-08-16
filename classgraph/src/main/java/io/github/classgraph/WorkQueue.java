@@ -40,7 +40,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
-import io.github.classgraph.base.internal.utils.LogNode;
+import io.github.classgraph.base.internal.log.LogNode;
 import org.jspecify.annotations.Nullable;
 
 /**

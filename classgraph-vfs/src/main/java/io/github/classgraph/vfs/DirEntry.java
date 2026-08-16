@@ -39,7 +39,7 @@ import java.nio.file.attribute.PosixFileAttributes;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.Set;
 
-import io.github.classgraph.base.internal.utils.URLPathEncoder;
+import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.vfs.internal.slice.PathSlice;
 import org.jspecify.annotations.Nullable;
 
@@ -102,7 +102,7 @@ final class DirEntry extends VfsEntry {
         try {
             // On Windows, Path#toUri() puts the server of a UNC path in the URI authority, where java.net.URL does
             // not find it again
-            return URLPathEncoder.moveUNCServerIntoPath(path.toUri());
+            return URLPaths.moveUNCServerIntoPath(path.toUri());
         } catch (final IOError | SecurityException e) {
             throw new IllegalStateException("Could not form URI for " + path + " : " + e, e);
         }

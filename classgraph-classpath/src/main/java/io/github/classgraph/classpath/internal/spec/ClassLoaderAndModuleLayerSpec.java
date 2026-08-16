@@ -32,8 +32,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import io.github.classgraph.base.internal.log.LogNode;
 import io.github.classgraph.base.internal.utils.Assert;
-import io.github.classgraph.base.internal.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
 /**

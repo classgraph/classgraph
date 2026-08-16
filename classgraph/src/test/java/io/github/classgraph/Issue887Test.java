@@ -12,7 +12,7 @@ import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 
-import io.github.classgraph.base.internal.utils.LogNode;
+import io.github.classgraph.base.internal.log.LogNode;
 import io.github.classgraph.vfs.internal.module.ModuleReaderUtils;
 
 /**

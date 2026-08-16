@@ -38,9 +38,9 @@ import java.util.Objects;
 
 import io.github.classgraph.ScanSpec.ScanSpecPathMatch;
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
-import io.github.classgraph.base.internal.utils.FileUtils;
-import io.github.classgraph.base.internal.utils.LogNode;
-import io.github.classgraph.base.internal.utils.URLPathEncoder;
+import io.github.classgraph.base.internal.log.LogNode;
+import io.github.classgraph.base.internal.path.FileUtils;
+import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.classpath.internal.ClasspathExpander;
 import io.github.classgraph.vfs.Vfs;
 import io.github.classgraph.vfs.VfsEntry;
@@ -157,7 +157,7 @@ class ClasspathElementDir extends ClasspathElement {
 
                 @Override
                 public boolean visitEntry(final VfsEntry entry) {
-                    if (!FileUtils.isClassfile(entry.getName())) {
+                    if (!ClassNames.isClassfilePath(entry.getName())) {
                         return true;
                     }
                     firstClassfile[0] = entry;
@@ -492,7 +492,7 @@ class ClasspathElementDir extends ClasspathElement {
         try {
             // On Windows, Path#toUri() puts the server of a UNC path in the URI authority, where java.net.URL
             // does not find it again
-            return URLPathEncoder.moveUNCServerIntoPath(classpathEltPath.toUri());
+            return URLPaths.moveUNCServerIntoPath(classpathEltPath.toUri());
         } catch (IOError | SecurityException e) {
             throw new IllegalStateException("Could not convert to URI: " + classpathEltPath);
         }

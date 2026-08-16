@@ -50,12 +50,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 
-import io.github.classgraph.base.internal.utils.AcceptReject;
+import io.github.classgraph.base.internal.filter.AcceptReject;
+import io.github.classgraph.base.internal.log.LogNode;
+import io.github.classgraph.base.internal.path.PathList;
+import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
-import io.github.classgraph.base.internal.utils.FileUtils;
-import io.github.classgraph.base.internal.utils.JarUtils;
-import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.classpath.ModulePathInfo;
 import io.github.classgraph.vfs.Vfs;
 import org.jspecify.annotations.Nullable;
@@ -507,7 +507,7 @@ public final class ScanResult implements AutoCloseable {
      */
     public String getClasspath() {
         checkNotClosed();
-        return JarUtils.pathElementsToPathStr(getClasspathFiles());
+        return PathList.join(getClasspathFiles());
     }
 
     /**
@@ -658,7 +658,7 @@ public final class ScanResult implements AutoCloseable {
     public ResourceList getResourcesWithPath(final String resourcePath) {
         checkNotClosed();
         Assert.notNull(resourcePath, "resourcePath");
-        final var path = FileUtils.sanitizeEntryPath(resourcePath, /* removeInitialSlash = */ true,
+        final var path = PathSyntax.sanitizeEntryPath(resourcePath, /* removeInitialSlash = */ true,
                 /* removeFinalSlash = */ true);
         ResourceList matchingResources = null;
         if (getResourcesWithPathCallCount.incrementAndGet() > 3) {
@@ -703,7 +703,7 @@ public final class ScanResult implements AutoCloseable {
     public ResourceList getResourcesWithPathIgnoringAccept(final String resourcePath) {
         checkNotClosed();
         Assert.notNull(resourcePath, "resourcePath");
-        final var path = FileUtils.sanitizeEntryPath(resourcePath, /* removeInitialSlash = */ true,
+        final var path = PathSyntax.sanitizeEntryPath(resourcePath, /* removeInitialSlash = */ true,
                 /* removeFinalSlash = */ true);
         final var matchingResources = new ResourceList();
         for (final ClasspathElement classpathElt : classpathOrder()) {

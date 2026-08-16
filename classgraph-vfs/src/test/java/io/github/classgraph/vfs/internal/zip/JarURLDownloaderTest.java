@@ -19,9 +19,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
-import io.github.classgraph.base.internal.utils.LogNode;
-import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
+import io.github.classgraph.base.internal.log.LogNode;
 import io.github.classgraph.vfs.internal.ScanResources;
+import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
 import org.jspecify.annotations.Nullable;
 
 /**

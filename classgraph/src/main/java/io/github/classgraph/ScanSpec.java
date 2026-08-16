@@ -32,11 +32,11 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 
-import io.github.classgraph.base.internal.utils.AcceptReject;
-import io.github.classgraph.base.internal.utils.AcceptReject.AcceptRejectLeafname;
-import io.github.classgraph.base.internal.utils.AcceptReject.AcceptRejectPrefix;
-import io.github.classgraph.base.internal.utils.AcceptReject.AcceptRejectWholeString;
-import io.github.classgraph.base.internal.utils.LogNode;
+import io.github.classgraph.base.internal.filter.AcceptReject;
+import io.github.classgraph.base.internal.filter.AcceptReject.AcceptRejectLeafname;
+import io.github.classgraph.base.internal.filter.AcceptReject.AcceptRejectPrefix;
+import io.github.classgraph.base.internal.filter.AcceptReject.AcceptRejectWholeString;
+import io.github.classgraph.base.internal.log.LogNode;
 import io.github.classgraph.classpath.internal.spec.ClasspathSpec;
 import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
 import org.jspecify.annotations.Nullable;

@@ -42,11 +42,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import io.github.classgraph.base.internal.log.LogNode;
+import io.github.classgraph.base.internal.path.FastPathResolver;
+import io.github.classgraph.base.internal.path.FileUtils;
+import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
-import io.github.classgraph.base.internal.utils.FastPathResolver;
-import io.github.classgraph.base.internal.utils.FileUtils;
-import io.github.classgraph.base.internal.utils.LogNode;
-import io.github.classgraph.base.internal.utils.URLPathEncoder;
 import org.jspecify.annotations.Nullable;
 
 /** A directory in a filesystem. */
@@ -111,7 +111,7 @@ final class DirRoot extends VfsRoot {
         try {
             // On Windows, Path#toUri() puts the server of a UNC path in the URI authority, where java.net.URL does
             // not find it again
-            return URLPathEncoder.moveUNCServerIntoPath(dir.toUri());
+            return URLPaths.moveUNCServerIntoPath(dir.toUri());
         } catch (final IOError | SecurityException e) {
             throw new IllegalStateException("Could not form URI for " + dir + " : " + e, e);
         }

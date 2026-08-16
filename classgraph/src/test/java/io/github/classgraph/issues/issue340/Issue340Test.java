@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.Resource;
-import io.github.classgraph.base.internal.utils.FastPathResolver;
+import io.github.classgraph.base.internal.path.FastPathResolver;
 import io.github.classgraph.base.internal.utils.VersionFinder;
 import io.github.classgraph.base.internal.utils.VersionFinder.OperatingSystem;
 

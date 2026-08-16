@@ -32,10 +32,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map.Entry;
 
-import io.github.classgraph.base.internal.utils.FastPathResolver;
-import io.github.classgraph.base.internal.utils.FileUtils;
-import io.github.classgraph.base.internal.utils.JarUtils;
-import io.github.classgraph.base.internal.utils.LogNode;
+import io.github.classgraph.base.internal.log.LogNode;
+import io.github.classgraph.base.internal.path.FastPathResolver;
+import io.github.classgraph.base.internal.path.FileUtils;
+import io.github.classgraph.base.internal.path.PathList;
 import io.github.classgraph.base.internal.utils.VersionFinder;
 import io.github.classgraph.classpath.internal.classloaderhandler.ClassLoaderHandlerRegistry;
 import io.github.classgraph.classpath.internal.classloaderhandler.ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry;
@@ -409,7 +409,7 @@ public class ClassLoaderProbe {
      */
     private void addJavaClassPathEntries(final ClasspathSpec classpathSpec,
             final @Nullable ClassLoader defaultClassLoader, final @Nullable LogNode log) {
-        final var pathElements = JarUtils.smartPathSplit(VersionFinder.getProperty("java.class.path"),
+        final var pathElements = PathList.split(VersionFinder.getProperty("java.class.path"),
                 classpathSpec.allowedURLSchemes);
         if (pathElements.length > 0) {
             final var sysPropLog = log == null ? null : log.log("Getting classpath entries from java.class.path");

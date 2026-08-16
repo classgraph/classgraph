@@ -38,8 +38,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import io.github.classgraph.base.internal.utils.LogNode;
-import io.github.classgraph.base.internal.utils.URLPathEncoder;
+import io.github.classgraph.base.internal.log.LogNode;
+import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.vfs.internal.zip.LogicalZipFile;
 import org.jspecify.annotations.Nullable;
 
@@ -107,7 +107,7 @@ final class ArchiveRoot extends VfsRoot {
     public URI getURI() {
         final var path = getPath();
         try {
-            return new URI(URLPathEncoder.normalizeURLPath(path));
+            return new URI(URLPaths.normalizeURLPath(path));
         } catch (final URISyntaxException e) {
             throw new IllegalStateException("Could not form URI for " + path + " : " + e, e);
         }

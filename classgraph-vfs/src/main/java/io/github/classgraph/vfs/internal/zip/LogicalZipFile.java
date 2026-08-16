@@ -38,13 +38,14 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import io.github.classgraph.base.internal.log.LogNode;
+import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
-import io.github.classgraph.base.internal.utils.FileUtils;
-import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.base.internal.utils.StringUtils;
 import io.github.classgraph.vfs.internal.ManifestParser;
 import io.github.classgraph.vfs.internal.ScanResources;
 import io.github.classgraph.vfs.internal.slice.ArraySlice;
+import io.github.classgraph.vfs.internal.slice.Slice;
 import io.github.classgraph.vfs.internal.slice.reader.RandomAccessReader;
 import org.jspecify.annotations.Nullable;
 
@@ -434,7 +435,7 @@ public class LogicalZipFile extends ZipFileSlice {
             final CentralDirectory cen, final ScanResources scanResources) throws IOException {
         // Read entries into a byte array, if central directory is smaller than 2GB. If central directory is larger
         // than 2GB, need to read each entry field from the file directly using ZipFileSliceReader.
-        if (cen.cenSize() > FileUtils.MAX_BUFFER_SIZE) {
+        if (cen.cenSize() > Slice.MAX_BUFFER_SIZE) {
             // Create a slice that covers the central directory (this allows a central directory larger than 2GB to
             // be accessed using the slower FileSlice API, which reads the file directly, but also the slice can be
             // accessed without adding cenPos to each read offset, so that this slice or the slice in the "else"
@@ -641,7 +642,7 @@ public class LogicalZipFile extends ZipFileSlice {
             // The replacement name has to be sanitized, and tested for naming a directory, exactly as the
             // name it replaces was -- otherwise an entry can carry a path such as "pkg/../../x" or
             // "/abs/x" simply by declaring it here
-            entryFields.entryNameSanitized = FileUtils.sanitizeEntryPath(unicodeEntryName,
+            entryFields.entryNameSanitized = PathSyntax.sanitizeEntryPath(unicodeEntryName,
                     /* removeInitialSlash = */ true, /* removeFinalSlash = */ false);
             entryFields.renamedToDirectoryEntry = entryFields.entryNameSanitized.isEmpty()
                     || unicodeEntryName.endsWith("/");
@@ -677,7 +678,7 @@ public class LogicalZipFile extends ZipFileSlice {
         final var filenameStartOff = entOff + 46;
         final var entryName = ZipEntryNameCodec.readEntryName(cenReader, filenameStartOff, filenameLen,
                 /* isUtf8 = */ (flags & UTF8_NAME_FLAG_BIT) != 0);
-        final var entryNameSanitized = FileUtils.sanitizeEntryPath(entryName, /* removeInitialSlash = */ true,
+        final var entryNameSanitized = PathSyntax.sanitizeEntryPath(entryName, /* removeInitialSlash = */ true,
                 /* removeFinalSlash = */ false);
         if (entryNameSanitized.isEmpty() || entryName.endsWith("/")) {
             // Skip directory entries
@@ -914,7 +915,7 @@ public class LogicalZipFile extends ZipFileSlice {
                 : cen.numEnt();
 
         // Can't have more than (Integer.MAX_VALUE - 8) entries, since they are stored in an ArrayList
-        if (numEnt > FileUtils.MAX_BUFFER_SIZE) {
+        if (numEnt > Slice.MAX_BUFFER_SIZE) {
             // One alternative in this (impossibly rare) situation would be to return only the first 2B entries
             throw new IOException("Too many zipfile entries: " + numEnt);
         }

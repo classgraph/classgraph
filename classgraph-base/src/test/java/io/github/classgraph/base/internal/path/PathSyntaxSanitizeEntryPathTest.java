@@ -1,15 +1,15 @@
-package io.github.classgraph.base.internal.utils;
+package io.github.classgraph.base.internal.path;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
 
 /**
- * Tests for {@link FileUtils#sanitizeEntryPath(String, boolean, boolean)}: {@code "."} and {@code ".."} segments
+ * Tests for {@link PathSyntax#sanitizeEntryPath(String, boolean, boolean)}: {@code "."} and {@code ".."} segments
  * and empty segments must be normalized away, wherever they appear in the path -- including as the final segment,
  * where they are not followed by a separator.
  */
-public class FileUtilsSanitizeEntryPathTest {
+public class PathSyntaxSanitizeEntryPathTest {
     /**
      * Sanitize a path, without stripping leading or trailing slashes, so that the normalization itself is what is
      * under test.
@@ -19,7 +19,7 @@ public class FileUtilsSanitizeEntryPathTest {
      * @return the sanitized path
      */
     private static String sanitize(final String path) {
-        return FileUtils.sanitizeEntryPath(path, /* removeInitialSlash = */ false, /* removeFinalSlash = */ false);
+        return PathSyntax.sanitizeEntryPath(path, /* removeInitialSlash = */ false, /* removeFinalSlash = */ false);
     }
 
     /**
@@ -82,11 +82,11 @@ public class FileUtilsSanitizeEntryPathTest {
      */
     @Test
     public void pathNormalizingToRootDoesNotThrowWhenStrippingBothSlashes() {
-        assertThat(FileUtils.sanitizeEntryPath("/..", true, true)).isEmpty();
-        assertThat(FileUtils.sanitizeEntryPath("/.", true, true)).isEmpty();
-        assertThat(FileUtils.sanitizeEntryPath("/../..", true, true)).isEmpty();
-        assertThat(FileUtils.sanitizeEntryPath("//..", true, true)).isEmpty();
-        assertThat(FileUtils.sanitizeEntryPath("/a/..", true, true)).isEmpty();
+        assertThat(PathSyntax.sanitizeEntryPath("/..", true, true)).isEmpty();
+        assertThat(PathSyntax.sanitizeEntryPath("/.", true, true)).isEmpty();
+        assertThat(PathSyntax.sanitizeEntryPath("/../..", true, true)).isEmpty();
+        assertThat(PathSyntax.sanitizeEntryPath("//..", true, true)).isEmpty();
+        assertThat(PathSyntax.sanitizeEntryPath("/a/..", true, true)).isEmpty();
     }
 
     /** Empty segments ({@code "//"}) are collapsed. */

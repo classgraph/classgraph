@@ -19,8 +19,8 @@ import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 
-import io.github.classgraph.base.internal.utils.FastPathResolver;
-import io.github.classgraph.base.internal.utils.FileUtils;
+import io.github.classgraph.base.internal.path.FastPathResolver;
+import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.classpath.internal.ClasspathOrderBuilder.Entry;
 import io.github.classgraph.classpath.internal.spec.ClasspathSpec;
 

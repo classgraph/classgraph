@@ -42,10 +42,8 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import io.github.classgraph.Scanner.ClassfileScanWorkUnit;
+import io.github.classgraph.base.internal.log.LogNode;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
-import io.github.classgraph.base.internal.utils.FileUtils;
-import io.github.classgraph.base.internal.utils.JarUtils;
-import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.base.internal.utils.StringUtils;
 import io.github.classgraph.vfs.internal.slice.reader.RandomAccessOrSequentialReader;
 import org.jspecify.annotations.Nullable;
@@ -358,7 +356,7 @@ class Classfile {
             throws InterruptedException {
         // Search for the named class' classfile among classpath elements, in classpath order (this is O(N) for each
         // class, but there shouldn't be too many cases of extending scanning upwards)
-        final var classfilePath = JarUtils.classNameToClassfilePath(className);
+        final var classfilePath = ClassNames.classNameToClassfilePath(className);
         // First check current classpath element, to avoid iterating through other classpath elements
         final var classResource = classpathElement.getResource(classfilePath);
         if (classResource != null) {
@@ -1624,11 +1622,11 @@ class Classfile {
         }
 
         // Make sure classname matches relative path
-        if (!FileUtils.isClassfile(relativePath)) {
+        if (!ClassNames.isClassfilePath(relativePath)) {
             // Should not happen
             throw new SkipClassException("Not the path of a classfile: " + relativePath);
         }
-        if (!FileUtils.classfilePathMatchesClassName(relativePath, classNamePath)) {
+        if (!ClassNames.classfilePathMatchesClassName(relativePath, classNamePath)) {
             throw new SkipClassException(
                     "Relative path " + relativePath + " does not match class name " + className);
         }

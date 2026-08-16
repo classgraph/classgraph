@@ -33,7 +33,6 @@ import java.io.InputStream;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import io.github.classgraph.base.internal.utils.FileUtils;
 import io.github.classgraph.vfs.internal.slice.reader.RandomAccessReader;
 import org.jspecify.annotations.Nullable;
 
@@ -127,7 +126,7 @@ class SliceInputStream extends InputStream {
 
     @Override
     public int available() {
-        return (int) Math.min(Math.max(slice.sliceLength - currOff, 0L), FileUtils.MAX_BUFFER_SIZE);
+        return (int) Math.min(Math.max(slice.sliceLength - currOff, 0L), Slice.MAX_BUFFER_SIZE);
     }
 
     @Override

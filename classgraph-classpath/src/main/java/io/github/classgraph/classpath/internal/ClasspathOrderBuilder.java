@@ -49,9 +49,10 @@ import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
 import io.github.classgraph.base.ClassGraphLog;
-import io.github.classgraph.base.internal.utils.FastPathResolver;
-import io.github.classgraph.base.internal.utils.FileUtils;
-import io.github.classgraph.base.internal.utils.JarUtils;
+import io.github.classgraph.base.internal.path.FastPathResolver;
+import io.github.classgraph.base.internal.path.FileUtils;
+import io.github.classgraph.base.internal.path.PathList;
+import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.ClasspathOrder;
 import io.github.classgraph.classpath.internal.spec.ClasspathSpec;
@@ -336,7 +337,7 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
             }
             // A classpath element stored inside an archive is reached through the archive, so it is the archive
             // whose path is canonicalized, and the path within the archive is appended to it unchanged
-            final var nestedIdx = JarUtils.indexOfNestedJarSeparator(pathElementStr);
+            final var nestedIdx = PathSyntax.indexOfNestedJarSeparator(pathElementStr);
             final var archivePathStr = nestedIdx < 0 ? pathElementStr : pathElementStr.substring(0, nestedIdx);
             nestedSuffix = nestedIdx < 0 ? "" : pathElementStr.substring(nestedIdx);
             try {
@@ -763,7 +764,7 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
         if (pathStr == null || pathStr.isEmpty()) {
             return false;
         } else {
-            final var parts = JarUtils.smartPathSplit(pathStr, classpathSpec.allowedURLSchemes);
+            final var parts = PathList.split(pathStr, classpathSpec.allowedURLSchemes);
             if (parts.length == 0) {
                 return false;
             } else {

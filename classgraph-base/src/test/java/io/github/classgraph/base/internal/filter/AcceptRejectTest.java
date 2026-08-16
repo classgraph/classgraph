@@ -1,4 +1,4 @@
-package io.github.classgraph.base.internal.utils;
+package io.github.classgraph.base.internal.filter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -6,9 +6,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import io.github.classgraph.base.internal.utils.AcceptReject.AcceptRejectLeafname;
-import io.github.classgraph.base.internal.utils.AcceptReject.AcceptRejectPrefix;
-import io.github.classgraph.base.internal.utils.AcceptReject.AcceptRejectWholeString;
+import io.github.classgraph.base.internal.filter.AcceptReject.AcceptRejectLeafname;
+import io.github.classgraph.base.internal.filter.AcceptReject.AcceptRejectPrefix;
+import io.github.classgraph.base.internal.filter.AcceptReject.AcceptRejectWholeString;
 
 /** Tests for {@link AcceptReject} and its three subclasses. */
 public class AcceptRejectTest {

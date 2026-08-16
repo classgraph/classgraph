@@ -32,8 +32,7 @@ import org.jspecify.annotations.NullMarked;
 /**
  * The classes shared by the libraries of
  * <a href="https://github.com/classgraph/classgraph">ClassGraph</a>: path and
- * URL handling, logging, reflection, parsing, concurrency, memory management,
- * and accept/reject matching.
+ * URL handling, logging, accept/reject matching, reflection, and concurrency.
  *
  * <p>
  * This module is not useful on its own. Its only public API is
@@ -54,6 +53,11 @@ module io.github.classgraph.base {
     // The internal packages are the internals of ClassGraph. They are only exported to the modules that are built on
     // top of this one, and they are not covered by the project's API compatibility guarantees.
     exports io.github.classgraph.base.internal.concurrency to io.github.classgraph, io.github.classgraph.classpath,
+            io.github.classgraph.vfs;
+    exports io.github.classgraph.base.internal.filter to io.github.classgraph, io.github.classgraph.classpath;
+    exports io.github.classgraph.base.internal.log to io.github.classgraph, io.github.classgraph.classpath,
+            io.github.classgraph.vfs;
+    exports io.github.classgraph.base.internal.path to io.github.classgraph, io.github.classgraph.classpath,
             io.github.classgraph.vfs;
     exports io.github.classgraph.base.internal.reflection to io.github.classgraph.classpath, io.github.classgraph.vfs;
     exports io.github.classgraph.base.internal.utils to io.github.classgraph, io.github.classgraph.classpath,

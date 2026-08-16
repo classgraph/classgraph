@@ -38,8 +38,8 @@ import java.util.Map.Entry;
 import java.util.Set;
 
 import io.github.classgraph.base.ClassGraphLog;
+import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.base.internal.reflection.ReflectionUtils;
-import io.github.classgraph.base.internal.utils.FileUtils;
 import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.ClassLoaderOrder;
 import io.github.classgraph.classpath.ClasspathOrder;

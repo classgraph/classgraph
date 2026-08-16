@@ -37,9 +37,9 @@ import java.nio.ReadOnlyBufferException;
 import java.nio.charset.Charset;
 import java.util.Arrays;
 
-import io.github.classgraph.base.internal.utils.FileUtils;
 import io.github.classgraph.base.internal.utils.StringUtils;
 import io.github.classgraph.vfs.VfsEntry;
+import io.github.classgraph.vfs.internal.slice.Slice;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -106,7 +106,7 @@ public class RandomAccessOrSequentialReader implements RandomAccessReader, Seque
         arr = new byte[INITIAL_BUF_SIZE];
         // Telling the reader how long the entry is saves it from growing the buffer to find out
         final var length = entry.getLength();
-        lengthHint = length < 0L ? -1 : (int) Math.min(length, FileUtils.MAX_BUFFER_SIZE);
+        lengthHint = length < 0L ? -1 : (int) Math.min(length, Slice.MAX_BUFFER_SIZE);
     }
 
     /**
@@ -154,13 +154,13 @@ public class RandomAccessOrSequentialReader implements RandomAccessReader, Seque
     private void readTo(final long targetArrUsed) throws IOException {
         // Array does not need to grow larger than the length hint (if the uncompressed size of the zip entry is an
         // underestimate, the content will be truncated). If -1, assume 2GB is the max size.
-        final var maxArrLen = lengthHint == -1 ? FileUtils.MAX_BUFFER_SIZE : lengthHint;
+        final var maxArrLen = lengthHint == -1 ? Slice.MAX_BUFFER_SIZE : lengthHint;
         final var inputStream = this.inputStream;
         if (inputStream == null) {
             // The stream is only cleared by close(), so the buffer cannot be filled any further than it already is
             throw new IOException("Tried to read past the buffered part of a closed reader");
         }
-        if (targetArrUsed > FileUtils.MAX_BUFFER_SIZE || targetArrUsed < 0 || arrUsed == maxArrLen) {
+        if (targetArrUsed > Slice.MAX_BUFFER_SIZE || targetArrUsed < 0 || arrUsed == maxArrLen) {
             throw new IOException("Hit 2GB limit while trying to grow buffer array");
         }
 
@@ -175,7 +175,7 @@ public class RandomAccessOrSequentialReader implements RandomAccessReader, Seque
         while (newArrLength < maxNewArrUsed) {
             newArrLength = Math.min(maxNewArrUsed, newArrLength * 2L);
         }
-        if (newArrLength > FileUtils.MAX_BUFFER_SIZE) {
+        if (newArrLength > Slice.MAX_BUFFER_SIZE) {
             throw new IOException("Hit 2GB limit while trying to grow buffer array");
         }
         arr = Arrays.copyOf(arr, (int) Math.min(newArrLength, maxArrLen));
@@ -229,7 +229,7 @@ public class RandomAccessOrSequentialReader implements RandomAccessReader, Seque
     private int bufferFor(final long srcOffset, final int numBytes) throws IOException {
         // The offset is range-checked before it is narrowed to an int, since narrowing it silently would turn a
         // read from outside the content into a read from within it
-        if (srcOffset < 0L || srcOffset > FileUtils.MAX_BUFFER_SIZE) {
+        if (srcOffset < 0L || srcOffset > Slice.MAX_BUFFER_SIZE) {
             throw new IOException("Read offset out of range: " + srcOffset);
         }
         final var idx = (int) srcOffset;
@@ -396,7 +396,7 @@ public class RandomAccessOrSequentialReader implements RandomAccessReader, Seque
         // buffer rather than being rejected here
         final var targetIdx = currIdx + (long) bytesToSkip;
         if (targetIdx > arrUsed) {
-            if (targetIdx > FileUtils.MAX_BUFFER_SIZE) {
+            if (targetIdx > Slice.MAX_BUFFER_SIZE) {
                 throw new IOException("Tried to skip past the 2GB limit");
             }
             readTo(targetIdx);

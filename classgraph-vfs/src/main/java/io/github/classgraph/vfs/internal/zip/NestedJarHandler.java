@@ -43,11 +43,13 @@ import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import io.github.classgraph.base.internal.concurrency.SingletonMap;
 import io.github.classgraph.base.internal.concurrency.SingletonMap.NewInstanceException;
 import io.github.classgraph.base.internal.concurrency.SingletonMap.NullSingletonException;
-import io.github.classgraph.base.internal.utils.FastPathResolver;
-import io.github.classgraph.base.internal.utils.FileUtils;
-import io.github.classgraph.base.internal.utils.JarUtils;
-import io.github.classgraph.base.internal.utils.LogNode;
+import io.github.classgraph.base.internal.log.LogNode;
+import io.github.classgraph.base.internal.path.FastPathResolver;
+import io.github.classgraph.base.internal.path.FileUtils;
+import io.github.classgraph.base.internal.path.PathSyntax;
+import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.vfs.internal.ScanResources;
+import io.github.classgraph.vfs.internal.slice.Slice;
 import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
 import org.jspecify.annotations.Nullable;
 
@@ -156,7 +158,7 @@ public class NestedJarHandler implements AutoCloseable {
                 // Read the InputStream for the child zip entry to a RAM buffer, or spill to disk if it's too large
                 final PhysicalZipFile physicalZipFile = new PhysicalZipFile(childZipEntry.getSlice().open(),
                         childZipEntry.uncompressedSize >= 0L
-                                && childZipEntry.uncompressedSize <= FileUtils.MAX_BUFFER_SIZE
+                                && childZipEntry.uncompressedSize <= Slice.MAX_BUFFER_SIZE
                                         ? (int) childZipEntry.uncompressedSize
                                         : -1,
                         childZipEntry.entryName, scanResources, log);
@@ -216,7 +218,7 @@ public class NestedJarHandler implements AutoCloseable {
             final var nestedJarPath = FastPathResolver.resolve(nestedJarPathRaw);
             // A '!' is only a nested jar separator if the outermost path component names an existing jarfile --
             // it is otherwise a legal filename character (#903)
-            final var lastPlingIdx = JarUtils.lastIndexOfNestedJarSeparator(nestedJarPath);
+            final var lastPlingIdx = PathSyntax.lastIndexOfNestedJarSeparator(nestedJarPath);
             return lastPlingIdx < 0 ? openTopLevelJar(nestedJarPath, log)
                     : openNestedJar(nestedJarPath, lastPlingIdx, log);
         }
@@ -316,7 +318,7 @@ public class NestedJarHandler implements AutoCloseable {
             throws IOException, InterruptedException {
         // If the path starts with "http://" or "https://" or any other URI/URL scheme, download the jar to a temp
         // file or to a ByteBuffer in RAM. ("jar:" and "file:" have already been stripped from any URL/URI.)
-        final var isURL = JarUtils.URL_SCHEME_PATTERN.matcher(nestedJarPath).matches();
+        final var isURL = URLPaths.URL_SCHEME_PATTERN.matcher(nestedJarPath).matches();
         PhysicalZipFile physicalZipFile;
         if (isURL) {
             // URL schemes are case-insensitive, and are registered in lowercase, so the scheme has to be
@@ -390,7 +392,7 @@ public class NestedJarHandler implements AutoCloseable {
         final var parentPath = nestedJarPath.substring(0, lastPlingIdx);
         var childPath = nestedJarPath.substring(lastPlingIdx + 1);
         // "file.jar!/path" -> "file.jar!path"
-        childPath = FileUtils.sanitizeEntryPath(childPath, /* removeInitialSlash = */ true,
+        childPath = PathSyntax.sanitizeEntryPath(childPath, /* removeInitialSlash = */ true,
                 /* removeFinalSlash = */ true);
 
         // Recursively remove one '!' section at a time, back towards the beginning of the URL or file path. At the

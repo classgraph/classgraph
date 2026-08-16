@@ -47,10 +47,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import io.github.classgraph.base.internal.concurrency.SingletonMap.NewInstanceException;
 import io.github.classgraph.base.internal.concurrency.SingletonMap.NullSingletonException;
+import io.github.classgraph.base.internal.log.LogNode;
+import io.github.classgraph.base.internal.path.FastPathResolver;
+import io.github.classgraph.base.internal.path.PathSyntax;
+import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.base.internal.utils.Assert;
-import io.github.classgraph.base.internal.utils.FastPathResolver;
-import io.github.classgraph.base.internal.utils.JarUtils;
-import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.vfs.internal.ScanResources;
 import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
 import io.github.classgraph.vfs.internal.zip.NestedJarHandler;
@@ -424,8 +425,8 @@ public class Vfs implements AutoCloseable {
     private VfsRoot openUncached(final String resolvedPath, final @Nullable LogNode logNode) throws IOException {
         // A path with a "!/" section in it names something within a jarfile, and a path with a URL scheme names a
         // jarfile to download, so neither can be a directory
-        if (JarUtils.lastIndexOfNestedJarSeparator(resolvedPath) < 0
-                && !JarUtils.URL_SCHEME_PATTERN.matcher(resolvedPath).matches()) {
+        if (PathSyntax.lastIndexOfNestedJarSeparator(resolvedPath) < 0
+                && !URLPaths.URL_SCHEME_PATTERN.matcher(resolvedPath).matches()) {
             Path dir;
             try {
                 dir = Path.of(resolvedPath);

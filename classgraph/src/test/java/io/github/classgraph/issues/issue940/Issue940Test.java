@@ -8,7 +8,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.base.internal.utils.AcceptReject;
+import io.github.classgraph.base.internal.filter.AcceptReject;
 
 /**
  * Since 4.8.186, {@code '*'} in an accepted package name matches within a single package segment only, which left

@@ -61,18 +61,20 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 
-import io.github.classgraph.WorkQueue.WorkUnitProcessor;
 import io.github.classgraph.Classfile.ClassfileFormatException;
 import io.github.classgraph.Classfile.SkipClassException;
+import io.github.classgraph.WorkQueue.WorkUnitProcessor;
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import io.github.classgraph.base.internal.concurrency.SingletonMap;
+import io.github.classgraph.base.internal.log.LogNode;
+import io.github.classgraph.base.internal.path.FastPathResolver;
+import io.github.classgraph.base.internal.path.FileUtils;
+import io.github.classgraph.base.internal.path.PathList;
+import io.github.classgraph.base.internal.path.PathSyntax;
+import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
-import io.github.classgraph.base.internal.utils.FastPathResolver;
-import io.github.classgraph.base.internal.utils.FileUtils;
-import io.github.classgraph.base.internal.utils.JarUtils;
-import io.github.classgraph.base.internal.utils.LogNode;
-import io.github.classgraph.classpath.internal.ClassLoaderProbe;
 import io.github.classgraph.classpath.ClassLoaderHandler;
+import io.github.classgraph.classpath.internal.ClassLoaderProbe;
 import io.github.classgraph.classpath.internal.spec.ClassLoaderAndModuleLayerSpec;
 import io.github.classgraph.vfs.Vfs;
 import org.jspecify.annotations.Nullable;
@@ -472,10 +474,10 @@ class Scanner implements Callable<ScanResult> {
 
         // If classpath entry object is a URL-formatted string, convert to (or back to) a URL instance.
         if (classpathEntryObjNormalized instanceof final String classpathEntStr) {
-            final var isURL = JarUtils.URL_SCHEME_PATTERN.matcher(classpathEntStr).matches();
+            final var isURL = URLPaths.URL_SCHEME_PATTERN.matcher(classpathEntStr).matches();
             // A '!' is only a nested jar separator if the path before it names an existing jarfile -- it is
             // otherwise a legal filename character, and must not be treated as a separator (#903)
-            final var isMultiSection = JarUtils.indexOfNestedJarSeparator(classpathEntStr) >= 0;
+            final var isMultiSection = PathSyntax.indexOfNestedJarSeparator(classpathEntStr) >= 0;
             if (isURL || isMultiSection) {
                 classpathEntryObjNormalized = normalizeUrlFormattedClasspathEntry(classpathEntStr, isURL,
                         isMultiSection);
@@ -963,14 +965,14 @@ class Scanner implements Callable<ScanResult> {
                         // command-line option --add-opens <module>/<package>=ALL-UNNAMED."
                         final var addExportsManifestValue = zipRoot.getManifestEntry(ADD_EXPORTS_KEY);
                         if (addExportsManifestValue != null) {
-                            for (final String addExports : JarUtils.smartPathSplit(addExportsManifestValue, ' ',
+                            for (final String addExports : PathList.split(addExportsManifestValue, ' ',
                                     scanSpec.classpathSpec.allowedURLSchemes)) {
                                 scanSpec.classpathSpec.modulePathInfo.addExportsEntry(addExports + "=ALL-UNNAMED");
                             }
                         }
                         final var addOpensManifestValue = zipRoot.getManifestEntry(ADD_OPENS_KEY);
                         if (addOpensManifestValue != null) {
-                            for (final String addOpens : JarUtils.smartPathSplit(addOpensManifestValue, ' ',
+                            for (final String addOpens : PathList.split(addOpensManifestValue, ' ',
                                     scanSpec.classpathSpec.allowedURLSchemes)) {
                                 scanSpec.classpathSpec.modulePathInfo.addOpensEntry(addOpens + "=ALL-UNNAMED");
                             }
@@ -1149,7 +1151,7 @@ class Scanner implements Callable<ScanResult> {
             for (final Resource resource : classpathElement.acceptedClassfileResources) {
                 // Create a set of names of all accepted classes found in classpath element paths, and double-check
                 // that a class is not going to be scanned twice
-                final var className = JarUtils.classfilePathToClassName(resource.getPath());
+                final var className = ClassNames.classfilePathToClassName(resource.getPath());
                 if (!acceptedClassNamesFound.add(className) && !"module-info".equals(className)
                         && !"package-info".equals(className) && !className.endsWith(".package-info")) {
                     // The class should not be scheduled more than once for scanning, since classpath masking was

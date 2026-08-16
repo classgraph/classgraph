@@ -33,8 +33,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileChannel.MapMode;
 
-import io.github.classgraph.base.internal.utils.FileUtils;
-import io.github.classgraph.base.internal.utils.LogNode;
+import io.github.classgraph.base.internal.log.LogNode;
 import io.github.classgraph.base.internal.utils.VersionFinder;
 import org.jspecify.annotations.Nullable;
 
@@ -88,7 +87,7 @@ final class FileMapping {
     static @Nullable FileMapping map(final FileChannel fileChannel, final long fileLength, final Object file,
             final @Nullable LogNode log) {
         // (A file larger than MAX_BUFFER_SIZE cannot be mapped to a single ByteBuffer)
-        if (fileLength > FileUtils.MAX_BUFFER_SIZE) {
+        if (fileLength > Slice.MAX_BUFFER_SIZE) {
             return null;
         }
         // Mapping a file is the only thing that makes ClassGraph allocate off-heap memory, and it is not freed

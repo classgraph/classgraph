@@ -49,8 +49,8 @@ import java.util.TreeSet;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
+import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.base.internal.utils.Assert;
-import io.github.classgraph.base.internal.utils.URLPathEncoder;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -243,7 +243,7 @@ final class VfsFileSystem extends FileSystem {
         // The path names a directory, or something this filesystem does not contain, so there is no VfsEntry to
         // ask -- form the URI the same way an entry would
         final var packageRoot = root.getPackageRoot();
-        final var entryPath = URLPathEncoder.encodePath(packageRoot.isEmpty() ? name : packageRoot + "/" + name);
+        final var entryPath = URLPaths.encodePath(packageRoot.isEmpty() ? name : packageRoot + "/" + name);
         final var rootURIStr = root.getURI().toString();
         final String uriStr;
         if (root.getKind() == VfsRoot.Kind.DIRECTORY || rootURIStr.startsWith("jrt:")) {

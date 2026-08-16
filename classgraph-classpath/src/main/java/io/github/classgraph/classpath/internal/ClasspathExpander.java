@@ -37,9 +37,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
-import io.github.classgraph.base.internal.utils.FastPathResolver;
-import io.github.classgraph.base.internal.utils.FileUtils;
-import io.github.classgraph.base.internal.utils.LogNode;
+import io.github.classgraph.base.internal.log.LogNode;
+import io.github.classgraph.base.internal.path.FastPathResolver;
+import io.github.classgraph.base.internal.path.FileUtils;
+import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.vfs.VfsEntry;
 import io.github.classgraph.vfs.VfsRoot;
 import org.jspecify.annotations.Nullable;
@@ -215,7 +216,7 @@ public final class ClasspathExpander {
         final var containerPath = container.getPath();
         final var separatorIdx = containerPath.lastIndexOf("!/");
         final var outerPath = separatorIdx < 0 ? null : containerPath.substring(0, separatorIdx);
-        final var parentDir = FileUtils
+        final var parentDir = PathSyntax
                 .getParentDirPath(separatorIdx < 0 ? containerPath : containerPath.substring(separatorIdx + 2));
         final var containerNioPath = pathOfRoot(container);
         for (final String relativePath : classPath.split(" ")) {
@@ -264,7 +265,7 @@ public final class ClasspathExpander {
             if (relativePath.isEmpty() || ".".equals(relativePath)) {
                 continue;
             }
-            final var nameWithin = FileUtils.sanitizeEntryPath(relativePath, /* removeInitialSlash = */ true,
+            final var nameWithin = PathSyntax.sanitizeEntryPath(relativePath, /* removeInitialSlash = */ true,
                     /* removeFinalSlash = */ true);
             childEntries.add(new ChildEntry(ChildEntryOrigin.BUNDLE_CLASS_PATH_MANIFEST_ENTRY,
                     locationPrefix + nameWithin, resolveWithin(containerNioPath, nameWithin)));
@@ -320,7 +321,7 @@ public final class ClasspathExpander {
             if (dir.isEmpty() || dirPath == null) {
                 return null;
             }
-            dir = FileUtils.getParentDirPath(dir);
+            dir = PathSyntax.getParentDirPath(dir);
             dirPath = dirPath.getParent();
         }
         if (dirPath == null) {

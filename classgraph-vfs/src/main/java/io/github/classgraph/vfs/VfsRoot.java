@@ -44,8 +44,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import io.github.classgraph.base.internal.log.LogNode;
 import io.github.classgraph.base.internal.utils.Assert;
-import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.vfs.internal.ManifestParser;
 import org.jspecify.annotations.Nullable;
 

@@ -45,8 +45,8 @@ import java.util.zip.Inflater;
 
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import io.github.classgraph.base.internal.concurrency.SingletonMap;
-import io.github.classgraph.base.internal.utils.FileUtils;
-import io.github.classgraph.base.internal.utils.LogNode;
+import io.github.classgraph.base.internal.log.LogNode;
+import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.vfs.internal.module.ModuleReaderUtils;
 import io.github.classgraph.vfs.internal.slice.Slice;
 import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
@@ -212,7 +212,7 @@ public class ScanResources implements AutoCloseable {
      *             if {@link #close(LogNode)} has been called
      */
     public File makeTempFile(final String filePathBase, final boolean onlyUseLeafname) throws IOException {
-        final var tempFile = File.createTempFile("ClassGraph--", FileUtils.TEMP_FILENAME_LEAF_SEPARATOR
+        final var tempFile = File.createTempFile("ClassGraph--", PathSyntax.TEMP_FILENAME_LEAF_SEPARATOR
                 + sanitizeFilename(onlyUseLeafname ? leafname(filePathBase) : filePathBase));
         tempFile.deleteOnExit();
         Objects.requireNonNull(tempFiles).add(tempFile);

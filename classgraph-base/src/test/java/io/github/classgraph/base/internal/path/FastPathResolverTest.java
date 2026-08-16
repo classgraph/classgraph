@@ -1,9 +1,10 @@
-package io.github.classgraph.base.internal.utils;
+package io.github.classgraph.base.internal.path;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import io.github.classgraph.base.internal.utils.VersionFinder;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;

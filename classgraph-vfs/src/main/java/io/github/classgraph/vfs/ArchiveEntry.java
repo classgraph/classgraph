@@ -36,7 +36,7 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.util.HashSet;
 import java.util.Set;
 
-import io.github.classgraph.base.internal.utils.URLPathEncoder;
+import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.vfs.internal.zip.FastZipEntry;
 import org.jspecify.annotations.Nullable;
 
@@ -95,7 +95,7 @@ final class ArchiveEntry extends VfsEntry {
         try {
             // A jarfile nested within another jarfile already has a "jar:" URI, and must not be given a second one
             return new URI((rootURIStr.startsWith("jar:") ? "" : "jar:") + rootURIStr + "!/"
-                    + URLPathEncoder.encodePath(zipEntry.entryName));
+                    + URLPaths.encodePath(zipEntry.entryName));
         } catch (final URISyntaxException e) {
             throw new IllegalStateException("Could not form URI for " + getPath() + " : " + e, e);
         }

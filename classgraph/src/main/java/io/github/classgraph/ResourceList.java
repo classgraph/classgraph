@@ -48,7 +48,6 @@ import java.util.function.Predicate;
 
 import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
-import io.github.classgraph.base.internal.utils.FileUtils;
 
 /**
  * An {@link AutoCloseable} list of {@link AutoCloseable} {@link Resource} objects. Closing the list closes every
@@ -203,8 +202,8 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
     // -------------------------------------------------------------------------------------------------------------
 
     /** Returns true if a Resource is a classfile. */
-    private static final Predicate<Resource> CLASSFILE_FILTER = resource -> FileUtils
-            .isClassfile(resource.getPath());
+    private static final Predicate<Resource> CLASSFILE_FILTER = resource -> ClassNames
+            .isClassfilePath(resource.getPath());
 
     /**
      * Return a new {@link ResourceList} consisting of only the resources with the filename extension ".class".

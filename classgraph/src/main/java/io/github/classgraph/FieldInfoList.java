@@ -35,8 +35,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Predicate;
 
+import io.github.classgraph.base.internal.log.LogNode;
 import io.github.classgraph.base.internal.utils.Assert;
-import io.github.classgraph.base.internal.utils.LogNode;
 import org.jspecify.annotations.Nullable;
 
 /** A list of {@link FieldInfo} objects, which can be indexed by field name. */

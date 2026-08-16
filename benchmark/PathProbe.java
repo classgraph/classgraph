@@ -10,7 +10,7 @@ import java.util.jar.JarOutputStream;
 
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
-import io.github.classgraph.base.internal.utils.FastPathResolver;
+import io.github.classgraph.base.internal.path.FastPathResolver;
 
 /**
  * Records what each operating system actually does with the path and URL forms that ClassGraph has to handle, and

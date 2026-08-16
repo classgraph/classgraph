@@ -35,9 +35,9 @@ import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.util.Objects;
 
-import io.github.classgraph.base.internal.utils.FastPathResolver;
-import io.github.classgraph.base.internal.utils.FileUtils;
-import io.github.classgraph.base.internal.utils.LogNode;
+import io.github.classgraph.base.internal.log.LogNode;
+import io.github.classgraph.base.internal.path.FastPathResolver;
+import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.vfs.internal.ScanResources;
 import io.github.classgraph.vfs.internal.slice.FileSlice;
 import io.github.classgraph.vfs.internal.slice.PathSlice;

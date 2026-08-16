@@ -39,9 +39,9 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
+import io.github.classgraph.base.internal.log.LogNode;
+import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.base.internal.utils.Assert;
-import io.github.classgraph.base.internal.utils.JarUtils;
-import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.base.internal.utils.VersionFinder;
 import io.github.classgraph.base.internal.utils.VersionFinder.OperatingSystem;
 import io.github.classgraph.vfs.internal.zip.LogicalZipFile;
@@ -134,7 +134,7 @@ public class VfsScanSpec {
      */
     public synchronized void enableURLScheme(final String scheme) {
         Assert.notNull(scheme, "scheme");
-        final var normalizedScheme = JarUtils.normalizeURLScheme(scheme);
+        final var normalizedScheme = URLPaths.normalizeURLScheme(scheme);
         // Copy on write, rather than adding to the set in place, so that a thread reading the set while this one
         // allows a further scheme sees either the old set or the new one, never a set part-way through an insert
         final var allowedURLSchemesCurr = allowedURLSchemes;

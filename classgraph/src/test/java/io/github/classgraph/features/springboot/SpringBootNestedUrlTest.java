@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.base.internal.utils.FastPathResolver;
+import io.github.classgraph.base.internal.path.FastPathResolver;
 
 /**
  * Spring Boot 3.2 and later address an entry within an executable jar or war using their own {@code "nested:"} URL

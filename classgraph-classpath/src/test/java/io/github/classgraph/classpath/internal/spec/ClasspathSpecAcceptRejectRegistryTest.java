@@ -36,7 +36,7 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import io.github.classgraph.base.internal.utils.AcceptReject;
+import io.github.classgraph.base.internal.filter.AcceptReject;
 
 /**
  * {@link ClasspathSpec#sortPrefixes()} sorts the accept/reject criteria that registered themselves in the spec's

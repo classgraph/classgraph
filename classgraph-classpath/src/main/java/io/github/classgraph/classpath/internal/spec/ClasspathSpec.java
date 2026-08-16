@@ -39,11 +39,11 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
 
-import io.github.classgraph.base.internal.utils.AcceptReject;
-import io.github.classgraph.base.internal.utils.AcceptReject.AcceptRejectWholeString;
+import io.github.classgraph.base.internal.filter.AcceptReject;
+import io.github.classgraph.base.internal.filter.AcceptReject.AcceptRejectWholeString;
+import io.github.classgraph.base.internal.log.LogNode;
+import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.base.internal.utils.Assert;
-import io.github.classgraph.base.internal.utils.JarUtils;
-import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.ModulePathInfo;
 import org.jspecify.annotations.Nullable;
@@ -202,7 +202,7 @@ public class ClasspathSpec {
      */
     public void enableURLScheme(final String scheme) {
         Assert.notNull(scheme, "scheme");
-        final var normalizedScheme = JarUtils.normalizeURLScheme(scheme);
+        final var normalizedScheme = URLPaths.normalizeURLScheme(scheme);
         if (allowedURLSchemes == null) {
             allowedURLSchemes = new HashSet<>();
         }

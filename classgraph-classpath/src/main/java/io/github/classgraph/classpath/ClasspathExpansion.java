@@ -34,9 +34,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import io.github.classgraph.base.internal.utils.FileUtils;
-import io.github.classgraph.base.internal.utils.JarUtils;
-import io.github.classgraph.base.internal.utils.LogNode;
+import io.github.classgraph.base.internal.log.LogNode;
+import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.classpath.internal.ClasspathExpander;
 import io.github.classgraph.vfs.Vfs;
 import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
@@ -197,8 +196,8 @@ final class ClasspathExpansion {
         // Only the outermost path component names a file on disk, so only it can be canonicalized. (The paths
         // differ in more than that component if the classpath element is a package root within a jarfile, e.g.
         // "/dir/spring-boot-app.jar!/BOOT-INF/classes", since that is not part of the path of the jarfile.)
-        final var canonicalPling = JarUtils.indexOfNestedJarSeparator(canonicalPath);
-        final var reachedPling = JarUtils.indexOfNestedJarSeparator(reachedPath);
+        final var canonicalPling = PathSyntax.indexOfNestedJarSeparator(canonicalPath);
+        final var reachedPling = PathSyntax.indexOfNestedJarSeparator(reachedPath);
         final var canonicalJarPath = canonicalPling < 0 ? canonicalPath
                 : canonicalPath.substring(0, canonicalPling);
         final var reachedJarPath = reachedPling < 0 ? reachedPath : reachedPath.substring(0, reachedPling);
@@ -213,8 +212,8 @@ final class ClasspathExpansion {
         // A Class-Path entry or a lib dir jar is resolved against the directory the jarfile is in, so it starts
         // with that directory instead. A Class-Path entry that is an absolute path elsewhere starts with neither,
         // and is left alone.
-        final var canonicalDirPath = FileUtils.getParentDirPath(canonicalJarPath);
+        final var canonicalDirPath = PathSyntax.getParentDirPath(canonicalJarPath);
         return canonicalDirPath.isEmpty() || !childPath.startsWith(canonicalDirPath + "/") ? childPath
-                : FileUtils.getParentDirPath(reachedJarPath) + childPath.substring(canonicalDirPath.length());
+                : PathSyntax.getParentDirPath(reachedJarPath) + childPath.substring(canonicalDirPath.length());
     }
 }

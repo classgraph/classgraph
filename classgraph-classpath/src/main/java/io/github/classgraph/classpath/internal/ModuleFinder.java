@@ -40,8 +40,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
+import io.github.classgraph.base.internal.log.LogNode;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
-import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.classpath.internal.spec.ClassLoaderAndModuleLayerSpec;
 import io.github.classgraph.classpath.internal.spec.ClasspathSpec;
 import org.jspecify.annotations.Nullable;

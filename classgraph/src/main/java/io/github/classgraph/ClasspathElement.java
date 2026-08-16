@@ -45,9 +45,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.github.classgraph.ScanSpec.ScanSpecPathMatch;
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
-import io.github.classgraph.base.internal.utils.FileUtils;
-import io.github.classgraph.base.internal.utils.JarUtils;
-import io.github.classgraph.base.internal.utils.LogNode;
+import io.github.classgraph.base.internal.log.LogNode;
+import io.github.classgraph.base.internal.path.FileUtils;
+import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.vfs.internal.slice.reader.RandomAccessOrSequentialReader;
 import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
 import org.jspecify.annotations.Nullable;
@@ -355,7 +355,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      * @return true if the entry is a classfile in the default package of a module, and should be ignored.
      */
     protected static boolean isIgnoredDefaultPackageClassfile(final boolean isModule, final String relativePath) {
-        return isModule && relativePath.indexOf('/') < 0 && FileUtils.isClassfile(relativePath)
+        return isModule && relativePath.indexOf('/') < 0 && ClassNames.isClassfilePath(relativePath)
                 && !"module-info.class".equals(relativePath);
     }
 
@@ -373,8 +373,8 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
                 || parentMatchStatus == ScanSpecPathMatch.AT_ACCEPTED_PATH
                 // A directory that only contains specifically-accepted classes accepts only those classes
                 || (parentMatchStatus == ScanSpecPathMatch.AT_ACCEPTED_CLASS_PACKAGE
-                        && FileUtils.isClassfile(relativePath) && scanSpec.classfileIsSpecificallyAccepted(
-                                FileUtils.withLowerCaseClassfileExtension(relativePath)));
+                        && ClassNames.isClassfilePath(relativePath) && scanSpec.classfileIsSpecificallyAccepted(
+                                ClassNames.withLowerCaseClassfileExtension(relativePath)));
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -404,7 +404,8 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
     static @Nullable String getClassNameDisprovingPackageRoot(final RandomAccessOrSequentialReader classfileReader,
             final String classfileRelativePath) {
         final var className = Classfile.readClassName(classfileReader);
-        return className == null || FileUtils.classfilePathMatchesClassName(classfileRelativePath, className) ? null
+        return className == null || ClassNames.classfilePathMatchesClassName(classfileRelativePath, className)
+                ? null
                 : className.replace('/', '.');
     }
 
@@ -586,7 +587,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
         for (final Resource res : acceptedClassfileResources) {
             // Two classfiles that differ only in the case of their extension declare the same class, so they mask
             // each other in the same way as two classfiles at the same path
-            final var pathRelativeToPackageRoot = FileUtils.withLowerCaseClassfileExtension(res.getPath());
+            final var pathRelativeToPackageRoot = ClassNames.withLowerCaseClassfileExtension(res.getPath());
             // Don't mask module-info.class or package-info.class, these are read for every module/package, and they
             // don't result in a ClassInfo object, so there will be no duplicate ClassInfo objects created, even if
             // they are encountered multiple times. Instead, any annotations on modules or packages are merged into
@@ -601,7 +602,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
                 foundMasked = true;
                 if (log != null) {
                     log.log(String.format(Locale.US, "%06d-1", classpathIdx), "Ignoring duplicate (masked) class "
-                            + JarUtils.classfilePathToClassName(pathRelativeToPackageRoot) + " found at " + res);
+                            + ClassNames.classfilePathToClassName(pathRelativeToPackageRoot) + " found at " + res);
                 }
             } else {
                 acceptedClassfileResourcesFiltered.add(res);
@@ -633,12 +634,12 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
     protected void addAcceptedResource(final Resource resource, final ScanSpecPathMatch parentMatchStatus,
             final boolean isClassfileOnly, final @Nullable LogNode log) {
         final var path = resource.getPath();
-        final var isClassFile = FileUtils.isClassfile(path);
+        final var isClassFile = ClassNames.isClassfilePath(path);
         var isAccepted = false;
         if (isClassFile) {
             // Check classfile scanning is enabled, and classfile is not specifically rejected
             if (scanSpec.enableClassInfo && !scanSpec.classfilePathAcceptReject
-                    .isRejected(FileUtils.withLowerCaseClassfileExtension(path))) {
+                    .isRejected(ClassNames.withLowerCaseClassfileExtension(path))) {
                 // ClassInfo is enabled, and found an accepted classfile
                 acceptedClassfileResources.add(resource);
                 isAccepted = true;
@@ -762,8 +763,9 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      *
      * @param relativePath
      *            The relative path of the {@link Resource} to return. Path should have already be sanitized by
-     *            calling {@link FileUtils#sanitizeEntryPath(String, boolean, boolean)}, or by providing a path that
-     *            is already sanitized (i.e. doesn't start or end with "/", doesn't contain "/../" or "/./", etc.).
+     *            calling {@link PathSyntax#sanitizeEntryPath(String, boolean, boolean)}, or by providing a path
+     *            that is already sanitized (i.e. doesn't start or end with "/", doesn't contain "/../" or "/./",
+     *            etc.).
      * @return The {@link Resource} for the given relative path, or null if relativePath does not exist in this
      *         classpath element.
      */

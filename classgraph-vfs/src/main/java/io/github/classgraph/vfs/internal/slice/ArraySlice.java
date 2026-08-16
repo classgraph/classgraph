@@ -31,7 +31,6 @@ package io.github.classgraph.vfs.internal.slice;
 import java.io.IOException;
 import java.util.Arrays;
 
-import io.github.classgraph.base.internal.utils.FileUtils;
 import io.github.classgraph.vfs.internal.ScanResources;
 import io.github.classgraph.vfs.internal.slice.reader.RandomAccessArrayReader;
 import io.github.classgraph.vfs.internal.slice.reader.RandomAccessReader;
@@ -123,7 +122,7 @@ public final class ArraySlice extends Slice {
         if (isDeflatedZipEntry) {
             // Deflate into RAM if necessary
             try (var inputStream = open()) {
-                return FileUtils.readAllBytesAsArray(inputStream, inflatedLengthHint);
+                return Slice.readAllBytesAsArray(inputStream, inflatedLengthHint);
             }
         } else if (sliceStartPos == 0L && sliceLength == arr.length) {
             // Fast path -- return whole array, if the array is the whole slice and is not deflated

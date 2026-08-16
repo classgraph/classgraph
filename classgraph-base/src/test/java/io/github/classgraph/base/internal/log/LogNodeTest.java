@@ -1,4 +1,4 @@
-package io.github.classgraph.base.internal.utils;
+package io.github.classgraph.base.internal.log;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

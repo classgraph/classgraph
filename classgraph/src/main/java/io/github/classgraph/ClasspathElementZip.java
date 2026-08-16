@@ -44,19 +44,19 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import io.github.classgraph.ScanSpec.ScanSpecPathMatch;
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
-import io.github.classgraph.base.internal.utils.FastPathResolver;
-import io.github.classgraph.base.internal.utils.FileUtils;
-import io.github.classgraph.base.internal.utils.JarUtils;
-import io.github.classgraph.base.internal.utils.LogNode;
-import io.github.classgraph.base.internal.utils.URLPathEncoder;
+import io.github.classgraph.base.internal.log.LogNode;
+import io.github.classgraph.base.internal.path.FastPathResolver;
+import io.github.classgraph.base.internal.path.FileUtils;
+import io.github.classgraph.base.internal.path.PathSyntax;
+import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.classpath.ClassLoaderHandler;
-import io.github.classgraph.classpath.internal.ClasspathExpander.ChildEntry;
 import io.github.classgraph.classpath.internal.ClasspathExpander;
-import io.github.classgraph.vfs.internal.slice.reader.RandomAccessOrSequentialReader;
+import io.github.classgraph.classpath.internal.ClasspathExpander.ChildEntry;
 import io.github.classgraph.vfs.Vfs;
 import io.github.classgraph.vfs.VfsEntry;
 import io.github.classgraph.vfs.VfsRoot;
 import io.github.classgraph.vfs.VfsVisitor;
+import io.github.classgraph.vfs.internal.slice.reader.RandomAccessOrSequentialReader;
 import org.jspecify.annotations.Nullable;
 
 /** A zip/jarfile classpath element. */
@@ -220,7 +220,7 @@ class ClasspathElementZip extends ClasspathElement {
         // directory whose name contains a '!' was truncated to the part before that directory
         // #903
         final var resolvedPath = FastPathResolver.resolve(FileUtils.currDirPath(), rawPath);
-        final var plingIdx = JarUtils.indexOfNestedJarSeparator(resolvedPath);
+        final var plingIdx = PathSyntax.indexOfNestedJarSeparator(resolvedPath);
         return plingIdx < 0 ? resolvedPath : resolvedPath.substring(0, plingIdx);
     }
 
@@ -398,7 +398,7 @@ class ClasspathElementZip extends ClasspathElement {
         final var firstClassfileEntry = new VfsEntry[packageRootPrefixes.size()];
         for (final VfsEntry entry : entries) {
             final var entryName = entry.getName();
-            if (!FileUtils.isClassfile(entryName)) {
+            if (!ClassNames.isClassfilePath(entryName)) {
                 continue;
             }
             for (var i = 0; i < packageRootPrefixes.size(); i++) {
@@ -691,7 +691,7 @@ class ClasspathElementZip extends ClasspathElement {
             return declaredModuleName;
         }
         if (derivedAutomaticModuleName == null) {
-            derivedAutomaticModuleName = JarUtils.derivedAutomaticModuleName(zipFilePath);
+            derivedAutomaticModuleName = AutomaticModuleName.derive(zipFilePath);
         }
         return derivedAutomaticModuleName == null || derivedAutomaticModuleName.isEmpty() ? null
                 : derivedAutomaticModuleName;
@@ -710,7 +710,7 @@ class ClasspathElementZip extends ClasspathElement {
     @Override
     URI getURI() {
         try {
-            return new URI(URLPathEncoder.normalizeURLPath(getZipFilePath()));
+            return new URI(URLPaths.normalizeURLPath(getZipFilePath()));
         } catch (final URISyntaxException e) {
             throw new IllegalStateException("Could not form URI: " + e);
         }

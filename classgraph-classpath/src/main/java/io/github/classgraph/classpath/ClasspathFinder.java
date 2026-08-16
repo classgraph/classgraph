@@ -33,14 +33,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
+import io.github.classgraph.base.internal.log.LogNode;
+import io.github.classgraph.base.internal.path.PathList;
 import io.github.classgraph.base.internal.utils.Assert;
-import io.github.classgraph.base.internal.utils.JarUtils;
-import io.github.classgraph.base.internal.utils.LogNode;
 import io.github.classgraph.classpath.internal.ClassLoaderProbe;
 import io.github.classgraph.classpath.internal.spec.ClassLoaderAndModuleLayerSpec;
 import io.github.classgraph.classpath.internal.spec.ClasspathSpec;
-import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
 import io.github.classgraph.vfs.Vfs;
+import io.github.classgraph.vfs.internal.spec.VfsScanSpec;
 
 /**
  * Finds the classpath and the module path of the running JVM: where its classes and resources would be loaded from,
@@ -130,7 +130,7 @@ public class ClasspathFinder {
         if (classpath.isEmpty()) {
             throw new IllegalArgumentException("Can't override classpath with an empty path");
         }
-        for (final String classpathElement : JarUtils.smartPathSplit(classpath, classpathSpec.allowedURLSchemes)) {
+        for (final String classpathElement : PathList.split(classpath, classpathSpec.allowedURLSchemes)) {
             classpathSpec.addClasspathOverride(classpathElement);
         }
         return this;

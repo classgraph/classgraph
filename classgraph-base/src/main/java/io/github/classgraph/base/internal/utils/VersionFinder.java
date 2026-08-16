@@ -208,7 +208,7 @@ public final class VersionFinder {
     private static @Nullable String versionFromPomXml(final Class<?> cls) {
         try {
             final var className = cls.getName();
-            final var classpathResource = cls.getResource("/" + JarUtils.classNameToClassfilePath(className));
+            final var classpathResource = cls.getResource("/" + className.replace('.', '/') + ".class");
             if (classpathResource == null) {
                 return null;
             }

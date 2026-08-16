@@ -26,8 +26,9 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.classgraph.base.internal.utils;
+package io.github.classgraph.base.internal.path;
 
+import io.github.classgraph.base.internal.utils.VersionFinder;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.regex.Pattern;
@@ -50,7 +51,7 @@ public final class FastPathResolver {
      * letter, then any number of letters, digits, {@code '+'}, {@code '-'} and {@code '.'} -- digits included, so
      * that a scheme such as {@code "s3:"} is recognized. At least two characters are required, so that a Windows
      * drive designation such as {@code "C:/dir"} is read as a drive and not as a scheme, matching
-     * {@link JarUtils#URL_SCHEME_PATTERN}. A single-letter scheme is unusable in practice for exactly that reason,
+     * {@link URLPaths#URL_SCHEME_PATTERN}. A single-letter scheme is unusable in practice for exactly that reason,
      * so nothing is given up by not recognizing one: off Windows, {@code "C:/dir"} is then resolved as an ordinary
      * relative path, which does not exist, so the classpath element is logged and skipped during scanning.
      */
@@ -395,7 +396,7 @@ public final class FastPathResolver {
     /**
      * The part of a path that follows its authority, dropping any separator between the two beyond the first. Once
      * the authority has been split off, a leading {@code "//"} is an empty path segment, and not the start of a
-     * Windows UNC path -- but {@link FileUtils#sanitizeEntryPath} reads it as one and preserves it (#736), so it
+     * Windows UNC path -- but {@link PathSyntax#sanitizeEntryPath} reads it as one and preserves it (#736), so it
      * has to be dropped here.
      *
      * @param path
@@ -508,7 +509,7 @@ public final class FastPathResolver {
         // lastIndexOfNestedJarSeparator, not indexOfNestedJarSeparator, so that the trailing '!' of a doubly-nested
         // path such as "/a/b.war!/WEB-INF/lib/c.jar!" is stripped too: the innermost separator is the relevant one,
         // and this is the rule NestedJarHandler applies when splitting the resulting path back apart.
-        if (pathStr.endsWith("!") && JarUtils.lastIndexOfNestedJarSeparator(pathStr) == pathStr.length() - 1) {
+        if (pathStr.endsWith("!") && PathSyntax.lastIndexOfNestedJarSeparator(pathStr) == pathStr.length() - 1) {
             pathStr = pathStr.substring(0, pathStr.length() - 1);
         }
         if (pathStr.endsWith("/")) {
@@ -619,7 +620,7 @@ public final class FastPathResolver {
             prefix += authority;
             final var path = pathAfterAuthority(pathStr, authority);
             pathResolved = "/".equals(path) || isDriveRoot ? path
-                    : FileUtils.sanitizeEntryPath(path, /* removeInitialSlash = */ false,
+                    : PathSyntax.sanitizeEntryPath(path, /* removeInitialSlash = */ false,
                             /* removeFinalSlash = */ true,
                             /* collapseParentSegmentsInFirstSection = */ !leaveParentSegments);
         } else {
@@ -633,7 +634,7 @@ public final class FastPathResolver {
             final var authority = urlAuthority(parsedBasePath.prefix, basePathRaw);
             prefix = parsedBasePath.prefix + authority;
             final var basePath = pathAfterAuthority(basePathRaw, authority);
-            pathResolved = FileUtils.sanitizeEntryPath(basePath + (basePath.endsWith("/") ? "" : "/") + pathStr,
+            pathResolved = PathSyntax.sanitizeEntryPath(basePath + (basePath.endsWith("/") ? "" : "/") + pathStr,
                     /* removeInitialSlash = */ false, /* removeFinalSlash = */ true,
                     /* collapseParentSegmentsInFirstSection = */ !leaveParentSegments);
         }
