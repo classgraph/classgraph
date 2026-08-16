@@ -482,7 +482,8 @@ public class VfsFileSystemTest {
             assertThatThrownBy(() -> path.subpath(2, 1)).isInstanceOf(IllegalArgumentException.class);
             assertThatThrownBy(() -> path.relativize(fileSystem.getPath("com")))
                     .isInstanceOf(IllegalArgumentException.class);
-            assertThatThrownBy(() -> path.startsWith(tempDir)).isInstanceOf(ProviderMismatchException.class);
+            assertThatThrownBy(() -> path.resolve(tempDir)).isInstanceOf(ProviderMismatchException.class);
+            assertThatThrownBy(() -> path.relativize(tempDir)).isInstanceOf(ProviderMismatchException.class);
             assertThatThrownBy(path::toFile).isInstanceOf(UnsupportedOperationException.class);
         }
     }
@@ -667,6 +668,199 @@ public class VfsFileSystemTest {
             fileSystem.close();
             assertThatThrownBy(() -> Files.readAllBytes(fileSystem.getPath("/root.txt")))
                     .isInstanceOf(ClosedFileSystemException.class);
+        }
+    }
+
+    /**
+     * A path of another filesystem provider is answered rather than rejected, wherever
+     * {@link java.nio.file.spi.FileSystemProvider} says it should be, so that code that filters or compares a mixed
+     * collection of paths works.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the root could not be read.
+     */
+    @Test
+    public void comparesWithPathsOfOtherProviders(@TempDir final Path tempDir) throws IOException {
+        final var jarFile = tempDir.resolve("library.jar").toFile();
+        writeJar(jarFile);
+        final var foreign = tempDir.resolve("com/xyz/Widget.class");
+
+        try (var vfs = new Vfs()) {
+            final var fileSystem = vfs.open(jarFile).asFileSystem();
+            final var path = fileSystem.getPath("/com/xyz/Widget.class");
+
+            // Path#startsWith and Path#endsWith return false for a path of a different filesystem, which is what
+            // the default provider and the JDK's own zipfs both do
+            assertThat(path.startsWith(foreign)).isFalse();
+            assertThat(path.endsWith(foreign)).isFalse();
+            assertThat(foreign.startsWith(path)).isFalse();
+            assertThat(foreign.endsWith(path)).isFalse();
+
+            // ...and so does Files#isSameFile, in both directions
+            assertThat(Files.isSameFile(path, foreign)).isFalse();
+            assertThat(Files.isSameFile(foreign, path)).isFalse();
+            assertThat(Files.isSameFile(path, path)).isTrue();
+
+            // The same name in a second virtual filesystem is a path of the same provider, but not the same file
+            final var otherJarFile = tempDir.resolve("other.jar").toFile();
+            writeJar(otherJarFile);
+            final var otherFileSystem = vfs.open(otherJarFile).asFileSystem();
+            final var samePathOtherFileSystem = otherFileSystem.getPath("/com/xyz/Widget.class");
+            assertThat(Files.isSameFile(path, samePathOtherFileSystem)).isFalse();
+            assertThat(path.startsWith(samePathOtherFileSystem)).isFalse();
+            assertThat(path.endsWith(samePathOtherFileSystem)).isFalse();
+
+            // ...whereas opening the same jarfile twice reaches the same root, so it is the same file
+            assertThat(Files.isSameFile(path, vfs.open(jarFile).asFileSystem().getPath("/com/xyz/Widget.class")))
+                    .isTrue();
+        }
+    }
+
+    /**
+     * Opening a file repeats the tolerances of the default provider: a repeated open option is accepted, and a
+     * write option is refused.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the root could not be read.
+     */
+    @Test
+    public void acceptsRepeatedOpenOptions(@TempDir final Path tempDir) throws IOException {
+        final var jarFile = tempDir.resolve("library.jar").toFile();
+        writeJar(jarFile);
+
+        try (var vfs = new Vfs()) {
+            final var fileSystem = vfs.open(jarFile).asFileSystem();
+            final var path = fileSystem.getPath("/root.txt");
+            final var expected = contentOf("root.txt");
+
+            try (var in = Files.newInputStream(path, StandardOpenOption.READ, StandardOpenOption.READ)) {
+                assertThat(in.readAllBytes()).isEqualTo(expected);
+            }
+            try (var channel = Files.newByteChannel(path, StandardOpenOption.READ, StandardOpenOption.READ)) {
+                assertThat(channel.size()).isEqualTo(expected.length);
+            }
+        }
+    }
+
+    /**
+     * A directory stream hands out its iterator once, and that iterator cannot remove anything.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the root could not be read.
+     */
+    @Test
+    public void directoryStreamsHandOutOneIterator(@TempDir final Path tempDir) throws IOException {
+        final var jarFile = tempDir.resolve("library.jar").toFile();
+        writeJar(jarFile);
+
+        try (var vfs = new Vfs()) {
+            final var fileSystem = vfs.open(jarFile).asFileSystem();
+            try (DirectoryStream<Path> stream = Files.newDirectoryStream(fileSystem.getPath("/com/xyz"))) {
+                final var iterator = stream.iterator();
+                assertThatThrownBy(stream::iterator).isInstanceOf(IllegalStateException.class);
+                assertThat(iterator.next()).isNotNull();
+                assertThatThrownBy(iterator::remove).isInstanceOf(UnsupportedOperationException.class);
+            }
+            // ...and asking a closed stream for an iterator fails the same way
+            final DirectoryStream<Path> closed = Files.newDirectoryStream(fileSystem.getPath("/com/xyz"));
+            closed.close();
+            assertThatThrownBy(closed::iterator).isInstanceOf(IllegalStateException.class);
+        }
+    }
+
+    /**
+     * Seeking a byte channel beyond the end of a file is allowed, reports the position that was asked for, and
+     * reads there return end-of-file.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the root could not be read.
+     */
+    @Test
+    public void seeksBeyondTheEndOfAFile(@TempDir final Path tempDir) throws IOException {
+        final var jarFile = tempDir.resolve("library.jar").toFile();
+        writeJar(jarFile);
+
+        try (var vfs = new Vfs()) {
+            final var fileSystem = vfs.open(jarFile).asFileSystem();
+            try (var channel = Files.newByteChannel(fileSystem.getPath("/root.txt"))) {
+                final var size = channel.size();
+                channel.position(size + 1000);
+                assertThat(channel.position()).isEqualTo(size + 1000);
+                assertThat(channel.read(java.nio.ByteBuffer.allocate(8))).isEqualTo(-1);
+
+                // Seeking back reads from there again
+                channel.position(size - 3);
+                final var tail = java.nio.ByteBuffer.allocate(8);
+                assertThat(channel.read(tail)).isEqualTo(3);
+                assertThat(channel.position()).isEqualTo(size);
+
+                assertThatThrownBy(() -> channel.position(-1)).isInstanceOf(IllegalArgumentException.class);
+            }
+        }
+    }
+
+    /**
+     * Reading one named attribute does not compute the others, so that asking a module entry for its modification
+     * time does not read the whole entry to find its size.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the root could not be read.
+     */
+    @Test
+    public void readsOnlyTheNamedAttributes(@TempDir final Path tempDir) throws IOException {
+        final var jarFile = tempDir.resolve("library.jar").toFile();
+        writeJar(jarFile);
+
+        try (var vfs = new Vfs()) {
+            final var fileSystem = vfs.open(jarFile).asFileSystem();
+            final var path = fileSystem.getPath("/root.txt");
+
+            assertThat(Files.readAttributes(path, "size")).containsOnlyKeys("size");
+            assertThat(Files.readAttributes(path, "basic:lastModifiedTime")).containsOnlyKeys("lastModifiedTime");
+            assertThat(Files.readAttributes(path, "size,isDirectory")).containsOnlyKeys("size", "isDirectory");
+            assertThat(Files.readAttributes(path, "*")).containsOnlyKeys("lastModifiedTime", "lastAccessTime",
+                    "creationTime", "size", "isRegularFile", "isDirectory", "isSymbolicLink", "isOther", "fileKey");
+
+            assertThatThrownBy(() -> Files.readAttributes(path, "basic:bogus"))
+                    .isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> Files.readAttributes(path, "posix:permissions"))
+                    .isInstanceOf(UnsupportedOperationException.class);
+        }
+    }
+
+    /**
+     * A glob accepts everything the default provider's glob syntax accepts, including a {@code '^'} at the start of
+     * a bracket expression, which is a literal there rather than a negation.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the root could not be read.
+     */
+    @Test
+    public void globsMatchTheDefaultProviderSyntax(@TempDir final Path tempDir) throws IOException {
+        final var jarFile = tempDir.resolve("library.jar").toFile();
+        writeJar(jarFile);
+
+        try (var vfs = new Vfs()) {
+            final var fileSystem = vfs.open(jarFile).asFileSystem();
+            // '^' is a literal at the start of a bracket expression, and '!' is the negation
+            final var caret = fileSystem.getPathMatcher("glob:/root[^r]txt");
+            assertThat(caret.matches(fileSystem.getPath("/root^txt"))).isTrue();
+            assertThat(caret.matches(fileSystem.getPath("/root.txt"))).isFalse();
+            final var negated = fileSystem.getPathMatcher("glob:/root[!r]txt");
+            assertThat(negated.matches(fileSystem.getPath("/root.txt"))).isTrue();
+            assertThat(negated.matches(fileSystem.getPath("/rootrtxt"))).isFalse();
         }
     }
 }

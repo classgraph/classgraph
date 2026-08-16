@@ -58,6 +58,9 @@ import java.nio.file.attribute.FileAttributeView;
 import java.nio.file.attribute.FileTime;
 import java.nio.file.spi.FileSystemProvider;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -126,7 +129,7 @@ final class VfsFileSystemProvider extends FileSystemProvider {
      * @throws ReadOnlyFileSystemException
      *             if an option asks to write.
      */
-    private static void checkReadOnly(final Set<? extends OpenOption> options) {
+    private static void checkReadOnly(final Collection<? extends OpenOption> options) {
         for (final var option : options) {
             if (option == StandardOpenOption.WRITE || option == StandardOpenOption.APPEND
                     || option == StandardOpenOption.CREATE || option == StandardOpenOption.CREATE_NEW
@@ -185,7 +188,8 @@ final class VfsFileSystemProvider extends FileSystemProvider {
 
     @Override
     public InputStream newInputStream(final Path path, final OpenOption... options) throws IOException {
-        checkReadOnly(Set.of(options));
+        // Arrays.asList rather than Set.of, because a repeated open option is accepted, not rejected
+        checkReadOnly(Arrays.asList(options));
         return entryOf(check(path)).open();
     }
 
@@ -214,17 +218,44 @@ final class VfsFileSystemProvider extends FileSystemProvider {
                 children.add(child);
             }
         }
-        return new DirectoryStream<>() {
-            @Override
-            public Iterator<Path> iterator() {
-                return children.iterator();
-            }
+        return new VfsDirectoryStream(children);
+    }
 
-            @Override
-            public void close() {
-                // Nothing is held open: the child list was built up front
+    /**
+     * A {@link DirectoryStream} over a list of child paths that was built up front, so nothing is held open. It
+     * hands out its iterator once, as {@link DirectoryStream#iterator()} requires.
+     */
+    private static final class VfsDirectoryStream implements DirectoryStream<Path> {
+        /** The children of the directory. */
+        private final List<Path> children;
+
+        /** Whether {@link #iterator()} has been called, or this stream has been closed. */
+        private boolean spent;
+
+        /**
+         * Constructor.
+         *
+         * @param children
+         *            the children of the directory.
+         */
+        VfsDirectoryStream(final List<Path> children) {
+            this.children = children;
+        }
+
+        @Override
+        public Iterator<Path> iterator() {
+            if (spent) {
+                throw new IllegalStateException("The iterator has already been returned, or the stream was closed");
             }
-        };
+            spent = true;
+            // Collections#unmodifiableList so that the iterator does not support remove
+            return Collections.unmodifiableList(children).iterator();
+        }
+
+        @Override
+        public void close() {
+            spent = true;
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -259,7 +290,11 @@ final class VfsFileSystemProvider extends FileSystemProvider {
 
     @Override
     public boolean isSameFile(final Path path, final Path path2) {
-        return check(path).toAbsolutePath().normalize().equals(check(path2).toAbsolutePath().normalize());
+        // A path of another filesystem is answered, not rejected, as FileSystemProvider#isSameFile requires
+        if (!(path2 instanceof final VfsPath vfsPath2)) {
+            return false;
+        }
+        return check(path).toAbsolutePath().normalize().equals(vfsPath2.toAbsolutePath().normalize());
     }
 
     @Override
@@ -331,27 +366,44 @@ final class VfsFileSystemProvider extends FileSystemProvider {
         }
         final var requested = attributes.substring(colonIdx + 1);
         final var attrs = attributesOf(check(path));
-        final Map<String, Object> all = new LinkedHashMap<>();
-        all.put("lastModifiedTime", attrs.lastModifiedTime());
-        all.put("lastAccessTime", attrs.lastAccessTime());
-        all.put("creationTime", attrs.creationTime());
-        all.put("size", attrs.size());
-        all.put("isRegularFile", attrs.isRegularFile());
-        all.put("isDirectory", attrs.isDirectory());
-        all.put("isSymbolicLink", attrs.isSymbolicLink());
-        all.put("isOther", attrs.isOther());
-        all.put("fileKey", attrs.fileKey());
-        if ("*".equals(requested)) {
-            return all;
-        }
+        final var names = "*".equals(requested) ? ATTRIBUTE_NAMES : List.of(requested.split(","));
         final Map<String, Object> selected = new LinkedHashMap<>();
-        for (final var name : requested.split(",")) {
-            if (!all.containsKey(name)) {
-                throw new IllegalArgumentException("Unknown file attribute: " + name);
-            }
-            selected.put(name, all.get(name));
+        for (final var name : names) {
+            // Only the attributes that were asked for are read, because reading the size of a module entry means
+            // reading the whole entry
+            selected.put(name, attributeOf(attrs, name));
         }
         return selected;
+    }
+
+    /** The names of the attributes of the {@code "basic"} view, in the order the default provider lists them. */
+    private static final List<String> ATTRIBUTE_NAMES = List.of("lastModifiedTime", "lastAccessTime",
+            "creationTime", "size", "isRegularFile", "isDirectory", "isSymbolicLink", "isOther", "fileKey");
+
+    /**
+     * Read one named attribute of the {@code "basic"} view.
+     *
+     * @param attrs
+     *            the attributes of the file.
+     * @param name
+     *            the name of the attribute.
+     * @return the value of the attribute.
+     * @throws IllegalArgumentException
+     *             if the {@code "basic"} view has no attribute of that name.
+     */
+    private static @Nullable Object attributeOf(final BasicFileAttributes attrs, final String name) {
+        return switch (name) {
+        case "lastModifiedTime" -> attrs.lastModifiedTime();
+        case "lastAccessTime" -> attrs.lastAccessTime();
+        case "creationTime" -> attrs.creationTime();
+        case "size" -> attrs.size();
+        case "isRegularFile" -> attrs.isRegularFile();
+        case "isDirectory" -> attrs.isDirectory();
+        case "isSymbolicLink" -> attrs.isSymbolicLink();
+        case "isOther" -> attrs.isOther();
+        case "fileKey" -> attrs.fileKey();
+        default -> throw new IllegalArgumentException("Unknown file attribute: " + name);
+        };
     }
 
     /**
@@ -454,8 +506,14 @@ final class VfsFileSystemProvider extends FileSystemProvider {
         /** The content of the entry, closed when this channel is closed. */
         private final CloseableByteBuffer content;
 
-        /** The content, positioned at the read position. */
+        /** The content of the entry. */
         private final ByteBuffer buffer;
+
+        /**
+         * The read position, which is allowed to be beyond the end of the content, where reads return end-of-file.
+         * It is tracked separately from the position of {@link #buffer}, which cannot exceed its limit.
+         */
+        private long position;
 
         /** Whether this channel is still open. */
         private volatile boolean open = true;
@@ -475,7 +533,9 @@ final class VfsFileSystemProvider extends FileSystemProvider {
                 content.close();
                 throw new IOException("Could not read entry content");
             }
-            this.buffer = byteBuffer.duplicate();
+            // Slice rather than duplicate, so that the content starts at index 0 whatever position the buffer
+            // arrived at, which is what the absolute indexing in read() and size() assumes
+            this.buffer = byteBuffer.slice();
         }
 
         /**
@@ -493,14 +553,13 @@ final class VfsFileSystemProvider extends FileSystemProvider {
         @Override
         public int read(final ByteBuffer dst) throws IOException {
             checkOpen();
-            if (!buffer.hasRemaining()) {
+            if (position >= buffer.limit()) {
                 return -1;
             }
-            final var numBytes = Math.min(dst.remaining(), buffer.remaining());
-            final var slice = buffer.slice();
-            slice.limit(numBytes);
+            final var numBytes = Math.min(dst.remaining(), buffer.limit() - (int) position);
+            final var slice = buffer.slice((int) position, numBytes);
             dst.put(slice);
-            buffer.position(buffer.position() + numBytes);
+            position += numBytes;
             return numBytes;
         }
 
@@ -512,7 +571,7 @@ final class VfsFileSystemProvider extends FileSystemProvider {
         @Override
         public long position() throws IOException {
             checkOpen();
-            return buffer.position();
+            return position;
         }
 
         @Override
@@ -521,8 +580,9 @@ final class VfsFileSystemProvider extends FileSystemProvider {
             if (newPosition < 0) {
                 throw new IllegalArgumentException("Negative position: " + newPosition);
             }
-            // Seeking beyond the end is allowed, and reads there return -1
-            buffer.position((int) Math.min(newPosition, buffer.limit()));
+            // Seeking beyond the end is allowed, the position reads back as the one that was asked for, and reads
+            // there return -1
+            position = newPosition;
             return this;
         }
 

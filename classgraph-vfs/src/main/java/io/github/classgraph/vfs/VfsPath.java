@@ -208,9 +208,10 @@ final class VfsPath implements Path {
 
     @Override
     public boolean startsWith(final Path other) {
-        final var otherPath = check(other);
-        if (otherPath.fileSystem != fileSystem || otherPath.absolute != absolute
-                || otherPath.names.length > names.length) {
+        Assert.notNull(other, "other");
+        // A path of another filesystem is answered, not rejected, as Path#startsWith requires
+        if (!(other instanceof final VfsPath otherPath) || otherPath.fileSystem != fileSystem
+                || otherPath.absolute != absolute || otherPath.names.length > names.length) {
             return false;
         }
         return Arrays.equals(names, 0, otherPath.names.length, otherPath.names, 0, otherPath.names.length);
@@ -218,8 +219,10 @@ final class VfsPath implements Path {
 
     @Override
     public boolean endsWith(final Path other) {
-        final var otherPath = check(other);
-        if (otherPath.fileSystem != fileSystem || otherPath.names.length > names.length) {
+        Assert.notNull(other, "other");
+        // A path of another filesystem is answered, not rejected, as Path#endsWith requires
+        if (!(other instanceof final VfsPath otherPath) || otherPath.fileSystem != fileSystem
+                || otherPath.names.length > names.length) {
             return false;
         }
         if (otherPath.absolute) {

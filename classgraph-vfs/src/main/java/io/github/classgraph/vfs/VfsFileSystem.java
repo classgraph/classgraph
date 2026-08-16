@@ -449,9 +449,10 @@ final class VfsFileSystem extends FileSystem {
         regex.append('[');
         var i = startIdx + 1;
         if (i < glob.length() && glob.charAt(i) == '^') {
-            throw new PatternSyntaxException("'^' must be escaped within a bracket expression", glob, i);
-        }
-        if (i < glob.length() && glob.charAt(i) == '!') {
+            // '!' is the negation in a glob, so a leading '^' is a literal, as it is for the default provider
+            regex.append("\\^");
+            i++;
+        } else if (i < glob.length() && glob.charAt(i) == '!') {
             regex.append('^');
             i++;
         }
