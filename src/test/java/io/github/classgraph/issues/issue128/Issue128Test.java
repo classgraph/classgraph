@@ -33,6 +33,7 @@ import static org.assertj.core.api.Assertions.fail;
 import static org.junit.jupiter.api.Assumptions.abort;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -73,37 +74,52 @@ public class Issue128Test {
     public void issue128Test() throws Exception {
         // Test a nested jar inside a jar fetched over HTTP
         final URL jarURL = new URL(NESTED_JAR_URL);
-        try (ScanResult scanResult = new ClassGraph()
-                .overrideClassLoaders(new URLClassLoader(new URL[] { jarURL }, null)).enableRemoteJarScanning()
-                .scan()) {
-            final List<String> filesInsideLevel3 = scanResult.getAllResources().getPaths();
-            if (!filesInsideLevel3.isEmpty()) {
-                assertThat(filesInsideLevel3).containsOnly("com/test/Test.java", "com/test/Test.class");
-                return;
+        // The server sometimes refuses or drops a request, which leaves the scan with nothing to find, so one
+        // empty scan is not yet evidence of anything -- ask a second time before looking into why
+        for (int attempt = 0; attempt < 2; attempt++) {
+            try (ScanResult scanResult = new ClassGraph()
+                    .overrideClassLoaders(new URLClassLoader(new URL[] { jarURL }, null)).enableRemoteJarScanning()
+                    .scan()) {
+                final List<String> filesInsideLevel3 = scanResult.getAllResources().getPaths();
+                if (!filesInsideLevel3.isEmpty()) {
+                    assertThat(filesInsideLevel3).containsOnly("com/test/Test.java", "com/test/Test.class");
+                    return;
+                }
             }
         }
         // Nothing was found inside the jar. Either the jar could not be fetched, which says nothing about
         // ClassGraph and must not fail the build, or it was fetched and the scan is at fault. Ask the server
-        // which it was. Only JAR_URL names something the server has: NESTED_JAR_URL addresses a path inside the
-        // jar, so fetching that always gives a 404, whatever state the jar itself is in.
+        // which it was, by fetching the whole jar, as the scan has to: a cheaper request, such as a HEAD, can be
+        // answered when a full download is being refused, and would then blame ClassGraph for the refusal. Only
+        // JAR_URL names something the server has: NESTED_JAR_URL addresses a path inside the jar, so fetching
+        // that always gives a 404, whatever state the jar itself is in.
         int responseCode;
+        int bytesFetched = 0;
         try {
             final HttpURLConnection connection = (HttpURLConnection) new URL(JAR_URL).openConnection();
-            connection.setRequestMethod("HEAD");
             connection.setConnectTimeout(TIMEOUT_MILLIS);
             connection.setReadTimeout(TIMEOUT_MILLIS);
             try {
                 responseCode = connection.getResponseCode();
+                if (responseCode == HttpURLConnection.HTTP_OK) {
+                    try (InputStream inputStream = connection.getInputStream()) {
+                        final byte[] buf = new byte[8192];
+                        for (int numRead; (numRead = inputStream.read(buf)) != -1;) {
+                            bytesFetched += numRead;
+                        }
+                    }
+                }
             } finally {
                 connection.disconnect();
             }
         } catch (final IOException | SecurityException e) {
-            abort("The remote jar could not be reached, so the scan had nothing to find: " + e);
+            abort("The remote jar could not be fetched, so the scan had nothing to find: " + e);
             return;
         }
         switch (responseCode) {
         case HttpURLConnection.HTTP_OK:
-            fail("The remote jar can be fetched, but scanning it found no files inside " + NESTED_JAR_URL);
+            fail("The remote jar can be fetched (" + bytesFetched + " bytes), but scanning it found no files "
+                    + "inside " + NESTED_JAR_URL);
             break;
         case HttpURLConnection.HTTP_NOT_FOUND:
         case HttpURLConnection.HTTP_GONE:
