@@ -170,9 +170,14 @@ class Scanner implements Callable<ScanResult> {
         this.topLevelLog = topLevelLog;
 
         final LogNode classpathFinderLog = topLevelLog == null ? null : topLevelLog.log("Finding classpath");
-        this.classpathFinder = new ClasspathFinder(scanSpec, reflectionUtils, classpathFinderLog);
 
+        // Nothing closes the nested jar handler if the constructor does not return, since the caller is never
+        // handed the Scanner, so anything opened before the failure has to be released here. Caller-supplied code
+        // runs during construction -- a ClassLoaderHandler, a classpath element filter -- so the failure can be of
+        // any type, not just InterruptedException
         try {
+            this.classpathFinder = new ClasspathFinder(scanSpec, reflectionUtils, classpathFinderLog);
+
             this.moduleOrder = new ArrayList<>();
 
             // Check if modules should be scanned
@@ -240,7 +245,7 @@ class Scanner implements Callable<ScanResult> {
                     }
                 }
             }
-        } catch (final InterruptedException e) {
+        } catch (final Throwable e) {
             nestedJarHandler.close(/* log = */ null);
             throw e;
         }
@@ -1263,7 +1268,7 @@ class Scanner implements Callable<ScanResult> {
     public ScanResult call() throws InterruptedException, CancellationException, ExecutionException {
         ScanResult scanResult = null;
         final long scanStart = System.currentTimeMillis();
-        boolean removeTemporaryFilesAfterScan = scanSpec.removeTemporaryFilesAfterScan;
+        final boolean removeTemporaryFilesAfterScan = scanSpec.removeTemporaryFilesAfterScan;
         try {
             // Perform the scan
             scanResult = openClasspathElementsThenScan();
@@ -1276,15 +1281,19 @@ class Scanner implements Callable<ScanResult> {
                 topLevelLog.flush();
             }
 
-            // Call the ScanResultProcessor, if one was provided
+            // Call the ScanResultProcessor, if one was provided. The ScanResult is closed however the processor
+            // ends, including by throwing an Error rather than an Exception, which is what a failing assertion
+            // inside a ScanResultProcessor throws -- nothing else would ever close it, since the ScanResult is
+            // not passed to the FailureHandler, and the one returned by this method is discarded by the caller
+            // that provided a ScanResultProcessor
             if (scanResultProcessor != null) {
                 try {
                     scanResultProcessor.processScanResult(scanResult);
                 } catch (final Exception e) {
-                    scanResult.close();
                     throw new ExecutionException(e);
+                } finally {
+                    scanResult.close();
                 }
-                scanResult.close();
             }
 
         } catch (final Throwable e) {
@@ -1300,18 +1309,14 @@ class Scanner implements Callable<ScanResult> {
                 topLevelLog.flush();
             }
 
-            // Since an exception was thrown, remove temporary files
-            removeTemporaryFilesAfterScan = true;
-
             // Stop any running threads (should not be needed, threads should already be quiescent)
             interruptionChecker.interrupt();
 
+            // A failed scan produces no ScanResult for the caller to close, so remove the temporary files and
+            // close the resources, zipfiles and modules here, whatever the failure handler goes on to do
+            nestedJarHandler.close(topLevelLog);
+
             if (failureHandler == null) {
-                if (removeTemporaryFilesAfterScan) {
-                    // If removeTemporaryFilesAfterScan was set, remove temp files and close resources,
-                    // zipfiles and modules
-                    nestedJarHandler.close(topLevelLog);
-                }
                 // If there is no failure handler set, re-throw the exception
                 throw e;
             } else {

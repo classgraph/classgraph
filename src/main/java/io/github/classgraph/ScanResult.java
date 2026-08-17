@@ -31,6 +31,8 @@ package io.github.classgraph;
 import java.io.Closeable;
 import java.io.File;
 import java.lang.annotation.Annotation;
+import java.lang.ref.Reference;
+import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
 import java.net.MalformedURLException;
 import java.net.URI;
@@ -161,6 +163,9 @@ public final class ScanResult implements Closeable {
      */
     private static Set<WeakReference<ScanResult>> nonClosedWeakReferences = Collections
             .newSetFromMap(new ConcurrentHashMap<WeakReference<ScanResult>, Boolean>());
+
+    /** The queue that a {@link WeakReference} is added to once its {@link ScanResult} has been collected. */
+    private static final ReferenceQueue<ScanResult> collectedScanResults = new ReferenceQueue<>();
 
     /** If true, ScanResult#staticInit() has been run. */
     private static final AtomicBoolean initialized = new AtomicBoolean(false);
@@ -344,7 +349,13 @@ public final class ScanResult implements Closeable {
         this.classGraphClassLoader = new ClassGraphClassLoader(this);
 
         // Provide the shutdown hook with a weak reference to this ScanResult
-        this.weakReference = new WeakReference<>(this);
+        this.weakReference = new WeakReference<>(this, collectedScanResults);
+        // Drop the weak references whose ScanResult was garbage collected before it was closed. Only close()
+        // removes a weak reference, so without this the set would grow without limit in a program that scans
+        // repeatedly without closing its scan results
+        for (Reference<? extends ScanResult> collected; (collected = collectedScanResults.poll()) != null;) {
+            nonClosedWeakReferences.remove(collected);
+        }
         nonClosedWeakReferences.add(this.weakReference);
     }
 

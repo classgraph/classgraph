@@ -1,6 +1,7 @@
 package io.github.classgraph;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -49,5 +50,37 @@ public class ScanAsyncTest {
         }
         assertThat(failure.get()).isInstanceOf(IllegalStateException.class)
                 .hasMessage("classpath element filter failed");
+    }
+
+    /**
+     * An asynchronous scan closes its {@link ScanResult} even when the {@link ScanResultProcessor} throws an
+     * {@link Error} rather than an {@link Exception}, which is what a failing assertion inside a
+     * {@link ScanResultProcessor} throws. Nothing else can close it: the {@link ScanResult} is never handed to the
+     * {@link FailureHandler}, and the one returned by the {@link Scanner} is discarded.
+     */
+    @Test
+    public void anAsyncScanClosesItsScanResultWhenTheProcessorThrowsAnError(@TempDir final Path tempDir)
+            throws IOException, InterruptedException {
+        Files.write(tempDir.resolve("resource.txt"), "resource".getBytes(StandardCharsets.UTF_8));
+        final AtomicReference<ScanResult> scanResultRef = new AtomicReference<>();
+        final AtomicReference<Throwable> failure = new AtomicReference<>();
+        final CountDownLatch done = new CountDownLatch(1);
+        final ExecutorService executorService = Executors.newFixedThreadPool(3);
+        try {
+            new ClassGraph().overrideClasspath(tempDir.toString()).scanAsync(executorService, 3, scanResult -> {
+                scanResultRef.set(scanResult);
+                throw new AssertionError("scan result processor failed");
+            }, throwable -> {
+                failure.set(throwable);
+                done.countDown();
+            });
+            assertThat(done.await(60, TimeUnit.SECONDS)).as("the failure handler was called").isTrue();
+        } finally {
+            executorService.shutdown();
+        }
+        assertThat(failure.get()).isInstanceOf(AssertionError.class).hasMessage("scan result processor failed");
+        final ScanResult scanResult = scanResultRef.get();
+        assertThat(scanResult).isNotNull();
+        assertThatThrownBy(scanResult::getAllResources).isInstanceOf(IllegalArgumentException.class);
     }
 }
