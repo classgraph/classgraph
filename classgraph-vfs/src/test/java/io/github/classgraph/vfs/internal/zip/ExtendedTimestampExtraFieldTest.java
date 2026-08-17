@@ -13,6 +13,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import io.github.classgraph.vfs.VfsSpec;
+import io.github.classgraph.vfs.internal.VfsSession;
 
 /**
  * The extended timestamp extra field (tag 0x5455) and the deprecated Info-ZIP Unix extra field (tag 0x5855) both
@@ -179,7 +180,8 @@ public class ExtendedTimestampExtraFieldTest {
         final var jarFile = new File(tempDir, jarName);
         Files.write(jarFile.toPath(), zip.toByteArray());
 
-        final var nestedJarHandler = new NestedJarHandler(new VfsSpec(), new InterruptionChecker());
+        final var session = new VfsSession(new VfsSpec(), new InterruptionChecker());
+        final var nestedJarHandler = new NestedJarHandler(session);
         try {
             final var logicalZipFileAndPackageRoot = nestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap()
                     .get(jarFile.getPath(), /* log = */ null);
@@ -188,7 +190,7 @@ public class ExtendedTimestampExtraFieldTest {
             return entries.get(0).getLastModifiedMillis();
         } finally {
             // The jarfile must not be left open, otherwise the temporary directory cannot be deleted on Windows
-            nestedJarHandler.close(/* log = */ null);
+            session.close(/* log = */ null);
         }
     }
 

@@ -16,6 +16,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import io.github.classgraph.vfs.VfsSpec;
+import io.github.classgraph.vfs.internal.VfsSession;
 
 /**
  * Tests that the month of an MS-DOS timestamp is read from all four of its bits.
@@ -46,7 +47,8 @@ public class FastZipEntryMSDOSTimeTest {
             zipOut.closeEntry();
         }
 
-        final var nestedJarHandler = new NestedJarHandler(new VfsSpec(), new InterruptionChecker());
+        final var session = new VfsSession(new VfsSpec(), new InterruptionChecker());
+        final var nestedJarHandler = new NestedJarHandler(session);
         final long lastModifiedTimeMillis;
         try {
             final var logicalZipFileAndPackageRoot = nestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap()
@@ -57,7 +59,7 @@ public class FastZipEntryMSDOSTimeTest {
             lastModifiedTimeMillis = entries.get(0).getLastModifiedMillis();
         } finally {
             // The jarfile must not be left open, otherwise the temporary directory cannot be deleted on Windows
-            nestedJarHandler.close(/* log = */ null);
+            session.close(/* log = */ null);
         }
 
         // An MS-DOS timestamp has no timezone, and is read as UTC

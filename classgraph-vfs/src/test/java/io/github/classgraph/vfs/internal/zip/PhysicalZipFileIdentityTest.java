@@ -13,6 +13,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import io.github.classgraph.vfs.VfsSpec;
+import io.github.classgraph.vfs.internal.VfsSession;
 
 /**
  * A zipfile on disk can be opened through either the {@link File} API or the {@link java.nio.file.Path} API, and
@@ -51,11 +52,11 @@ public class PhysicalZipFileIdentityTest {
         final var otherJarFile = new File(tempDir, "other-physical-zipfile.jar");
         writeJar(otherJarFile);
 
-        final var nestedJarHandler = new NestedJarHandler(new VfsSpec(), new InterruptionChecker());
+        final var session = new VfsSession(new VfsSpec(), new InterruptionChecker());
         try {
-            final var fromFile = new PhysicalZipFile(jarFile, nestedJarHandler.session, /* log = */ null);
-            final var fromPath = new PhysicalZipFile(jarFile.toPath(), nestedJarHandler.session, /* log = */ null);
-            final var fromOtherFile = new PhysicalZipFile(otherJarFile, nestedJarHandler.session, /* log = */ null);
+            final var fromFile = new PhysicalZipFile(jarFile, session, /* log = */ null);
+            final var fromPath = new PhysicalZipFile(jarFile.toPath(), session, /* log = */ null);
+            final var fromOtherFile = new PhysicalZipFile(otherJarFile, session, /* log = */ null);
 
             assertThat(fromFile).isEqualTo(fromFile).isEqualTo(fromPath).hasSameHashCodeAs(fromPath)
                     .isNotEqualTo(fromOtherFile).isNotEqualTo(jarFile.getPath());
@@ -73,7 +74,7 @@ public class PhysicalZipFileIdentityTest {
             assertThat(fromFile.length()).isEqualTo(jarFile.length());
         } finally {
             // The jarfiles must not be left open, otherwise the temporary directory cannot be deleted on Windows
-            nestedJarHandler.close(/* log = */ null);
+            session.close(/* log = */ null);
         }
     }
 
@@ -92,8 +93,10 @@ public class PhysicalZipFileIdentityTest {
         final var jarFile = new File(tempDir, "opened-twice.jar");
         writeJar(jarFile);
 
-        final var nestedJarHandler = new NestedJarHandler(new VfsSpec(), new InterruptionChecker());
-        final var otherNestedJarHandler = new NestedJarHandler(new VfsSpec(), new InterruptionChecker());
+        final var session = new VfsSession(new VfsSpec(), new InterruptionChecker());
+        final var nestedJarHandler = new NestedJarHandler(session);
+        final var otherSession = new VfsSession(new VfsSpec(), new InterruptionChecker());
+        final var otherNestedJarHandler = new NestedJarHandler(otherSession);
         try {
             final var logicalZipFile = nestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap()
                     .get(jarFile.getPath(), /* log = */ null).getKey();
@@ -110,8 +113,8 @@ public class PhysicalZipFileIdentityTest {
             assertThat(logicalZipFile).isEqualTo(logicalZipFile).isNotEqualTo(openedAgain)
                     .isNotEqualTo(jarFile.getPath());
         } finally {
-            nestedJarHandler.close(/* log = */ null);
-            otherNestedJarHandler.close(/* log = */ null);
+            session.close(/* log = */ null);
+            otherSession.close(/* log = */ null);
         }
     }
 }

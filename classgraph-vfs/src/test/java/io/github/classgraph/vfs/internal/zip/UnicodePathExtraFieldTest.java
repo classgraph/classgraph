@@ -17,6 +17,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import io.github.classgraph.vfs.VfsSpec;
+import io.github.classgraph.vfs.internal.VfsSession;
 
 /**
  * Tests for the entry name held in an Info-ZIP Unicode path extra field (tag 0x7075), which replaces the entry's
@@ -99,7 +100,8 @@ public class UnicodePathExtraFieldTest {
             }
         }
 
-        final var nestedJarHandler = new NestedJarHandler(new VfsSpec(), new InterruptionChecker());
+        final var session = new VfsSession(new VfsSpec(), new InterruptionChecker());
+        final var nestedJarHandler = new NestedJarHandler(session);
         final List<String> entryNames = new ArrayList<>();
         try {
             final var logicalZipFileAndPackageRoot = nestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap()
@@ -109,7 +111,7 @@ public class UnicodePathExtraFieldTest {
             }
         } finally {
             // The jarfile must not be left open, otherwise the temporary directory cannot be deleted on Windows
-            nestedJarHandler.close(/* log = */ null);
+            session.close(/* log = */ null);
         }
         return entryNames;
     }

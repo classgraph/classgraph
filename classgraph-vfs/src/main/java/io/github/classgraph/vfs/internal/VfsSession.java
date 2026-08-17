@@ -322,10 +322,10 @@ public class VfsSession {
      * Mark the session as closed, so that nothing new can be opened from it while it is being torn down.
      *
      * <p>
-     * The owner of the session ({@code NestedJarHandler}) has its own work to do before {@link #close(LogNode)} can
-     * run -- the zipfile caches have to be dropped first, so that nothing can hand out a {@link Slice} of a zipfile
-     * that is about to be closed. It calls this method first, and only proceeds if it is the caller that won the
-     * race to close.
+     * The owner of the session ({@code Vfs}) has its own work to do before {@link #close(LogNode)} can run -- the
+     * caches of opened roots and of zipfiles have to be dropped first, so that nothing can hand out a {@link Slice}
+     * of a zipfile that is about to be closed. It calls this method first, and only proceeds if it is the caller
+     * that won the race to close.
      *
      * @return true if this call was the one that marked the session as closed, i.e. false if it was already closed.
      */

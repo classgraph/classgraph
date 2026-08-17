@@ -39,7 +39,6 @@ import java.util.Locale;
 import java.util.Map.Entry;
 
 import io.github.classgraph.base.LogNode;
-import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import io.github.classgraph.base.internal.concurrency.SingletonMap.NewInstanceException;
 import io.github.classgraph.base.internal.concurrency.SingletonMap.NullSingletonException;
 import io.github.classgraph.base.internal.concurrency.SingletonMap;
@@ -47,7 +46,6 @@ import io.github.classgraph.base.internal.path.FastPathResolver;
 import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.path.URLPaths;
-import io.github.classgraph.vfs.VfsSpec;
 import io.github.classgraph.vfs.internal.VfsSession;
 import io.github.classgraph.vfs.internal.slice.Slice;
 import org.jspecify.annotations.Nullable;
@@ -55,37 +53,35 @@ import org.jspecify.annotations.Nullable;
 /**
  * Resolve a classpath element path, which may name a jarfile nested within one or more enclosing jarfiles, to the
  * {@link LogicalZipFile} for the innermost jarfile and the package root within it, opening and caching each zipfile
- * along the way. Also owns the {@link VfsSession} that the opened zipfiles are backed by, and closes it when
- * {@link #close(LogNode)} is called.
+ * along the way.
+ *
+ * <p>
+ * Everything this opens is registered with the {@link VfsSession} it was given, which owns those resources and
+ * releases them. This handler owns only the caches below, which are dropped by {@link #dropCaches()} as the first
+ * step of the session's teardown.
  */
-public class NestedJarHandler implements AutoCloseable {
-    /** The resources opened by this handler. */
-    public final VfsSession session;
-
-    /** The settings that govern how archives are read. */
-    private final VfsSpec vfsSpec;
+public class NestedJarHandler {
+    /** The session that the zipfiles opened by this handler are registered with. */
+    private final VfsSession session;
 
     /**
      * A handler for nested jars.
      *
-     * @param vfsSpec
-     *            The settings that govern how archives are read.
-     * @param interruptionChecker
-     *            the interruption checker
+     * @param session
+     *            the session to register the opened zipfiles with.
      */
-    public NestedJarHandler(final VfsSpec vfsSpec, final InterruptionChecker interruptionChecker) {
-        this.vfsSpec = vfsSpec;
-        this.session = new VfsSession(vfsSpec, interruptionChecker);
+    public NestedJarHandler(final VfsSession session) {
+        this.session = session;
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Check that this handler is still open. The caches below are emptied by {@link #close(LogNode)}, so a lookup
-     * made after that would build and cache a fresh zipfile that nothing would ever close again.
+     * Check that the session is still open. The caches below are dropped when it is torn down, so a lookup made
+     * after that would build and cache a fresh zipfile that nothing would ever close again.
      *
      * @throws IOException
-     *             if {@link #close(LogNode)} has been called.
+     *             if the session has been closed.
      */
     private void checkNotClosed() throws IOException {
         if (session.isClosed()) {
@@ -95,8 +91,8 @@ public class NestedJarHandler implements AutoCloseable {
 
     /**
      * A singleton map from a zipfile's {@link File} to the {@link PhysicalZipFile} for that file, used to ensure
-     * that the {@link RandomAccessFile} and {@link FileChannel} for any given zipfile is opened only once. Emptied
-     * by {@link #close(LogNode)}.
+     * that the {@link RandomAccessFile} and {@link FileChannel} for any given zipfile is opened only once. Dropped
+     * by {@link #dropCaches()}.
      */
     private final SingletonMap<File, PhysicalZipFile, IOException> //
     canonicalFileToPhysicalZipFileMap = new SingletonMap<>() {
@@ -112,7 +108,7 @@ public class NestedJarHandler implements AutoCloseable {
      *
      * @return the map
      * @throws IOException
-     *             if {@link #close(LogNode)} has been called
+     *             if the session has been closed
      */
     private SingletonMap<File, PhysicalZipFile, IOException> canonicalFileToPhysicalZipFileMap()
             throws IOException {
@@ -123,7 +119,7 @@ public class NestedJarHandler implements AutoCloseable {
     /**
      * A singleton map from a zipfile's {@link Path} to the {@link PhysicalZipFile} for that path, used to ensure
      * that a zipfile in a filesystem that has no {@link File} representation, such as a zipfile within a zipfile
-     * mounted as a filesystem, is opened only once. Emptied by {@link #close(LogNode)}.
+     * mounted as a filesystem, is opened only once. Dropped by {@link #dropCaches()}.
      */
     private final SingletonMap<Path, PhysicalZipFile, IOException> //
     pathToPhysicalZipFileMap = new SingletonMap<>() {
@@ -138,7 +134,7 @@ public class NestedJarHandler implements AutoCloseable {
      *
      * @return the map
      * @throws IOException
-     *             if {@link #close(LogNode)} has been called
+     *             if the session has been closed
      */
     private SingletonMap<Path, PhysicalZipFile, IOException> pathToPhysicalZipFileMap() throws IOException {
         checkNotClosed();
@@ -148,7 +144,7 @@ public class NestedJarHandler implements AutoCloseable {
     /**
      * A singleton map from a {@link FastZipEntry} to the {@link ZipFileSlice} wrapping either the zip entry data,
      * if the entry is stored, or a ByteBuffer, if the zip entry was inflated to memory, or a physical file on disk
-     * if the zip entry was inflated to a temporary file. Emptied by {@link #close(LogNode)}.
+     * if the zip entry was inflated to a temporary file. Dropped by {@link #dropCaches()}.
      */
     private final SingletonMap<FastZipEntry, ZipFileSlice, IOException> //
     fastZipEntryToZipFileSliceMap = new SingletonMap<>() {
@@ -194,7 +190,7 @@ public class NestedJarHandler implements AutoCloseable {
      *
      * @return the map
      * @throws IOException
-     *             if {@link #close(LogNode)} has been called
+     *             if the session has been closed
      */
     private SingletonMap<FastZipEntry, ZipFileSlice, IOException> fastZipEntryToZipFileSliceMap()
             throws IOException {
@@ -203,8 +199,8 @@ public class NestedJarHandler implements AutoCloseable {
     }
 
     /**
-     * A singleton map from a {@link ZipFileSlice} to the {@link LogicalZipFile} for that slice. Emptied by
-     * {@link #close(LogNode)}.
+     * A singleton map from a {@link ZipFileSlice} to the {@link LogicalZipFile} for that slice. Dropped by
+     * {@link #dropCaches()}.
      */
     private final SingletonMap<ZipFileSlice, LogicalZipFile, IOException> //
     zipFileSliceToLogicalZipFileMap = new SingletonMap<>() {
@@ -212,7 +208,7 @@ public class NestedJarHandler implements AutoCloseable {
         public LogicalZipFile newInstance(final ZipFileSlice zipFileSlice, final @Nullable LogNode log)
                 throws IOException, InterruptedException {
             // Read the central directory for the zipfile
-            return new LogicalZipFile(zipFileSlice, session, log, vfsSpec.isMultiReleaseVersionsEnabled());
+            return new LogicalZipFile(zipFileSlice, session, log, session.vfsSpec.isMultiReleaseVersionsEnabled());
         }
     };
 
@@ -221,7 +217,7 @@ public class NestedJarHandler implements AutoCloseable {
      *
      * @return the map
      * @throws IOException
-     *             if {@link #close(LogNode)} has been called
+     *             if the session has been closed
      */
     private SingletonMap<ZipFileSlice, LogicalZipFile, IOException> zipFileSliceToLogicalZipFileMap()
             throws IOException {
@@ -231,7 +227,7 @@ public class NestedJarHandler implements AutoCloseable {
 
     /**
      * A singleton map from nested jarfile path to a tuple of the logical zipfile for the path, and the package root
-     * within the logical zipfile. Emptied by {@link #close(LogNode)}.
+     * within the logical zipfile. Dropped by {@link #dropCaches()}.
      */
     private final SingletonMap<String, Entry<LogicalZipFile, String>, IOException> //
     nestedPathToLogicalZipFileAndPackageRootMap = new SingletonMap<>() {
@@ -253,7 +249,7 @@ public class NestedJarHandler implements AutoCloseable {
      *
      * @return the map
      * @throws IOException
-     *             if {@link #close(LogNode)} has been called
+     *             if the session has been closed
      */
     public SingletonMap<String, Entry<LogicalZipFile, String>, IOException> //
             nestedPathToLogicalZipFileAndPackageRootMap() throws IOException {
@@ -318,7 +314,7 @@ public class NestedJarHandler implements AutoCloseable {
         // The zipfile slice cache cannot be used here: two PhysicalZipFile instances compare equal if they have the
         // same path, so two different streams read under the same name would be treated as the same jarfile
         return new LogicalZipFile(new ZipFileSlice(physicalZipFile), session, log,
-                vfsSpec.isMultiReleaseVersionsEnabled());
+                session.vfsSpec.isMultiReleaseVersionsEnabled());
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -348,7 +344,8 @@ public class NestedJarHandler implements AutoCloseable {
             // lowercased before it is looked up -- otherwise "S3://bucket/x.jar" is rejected as not enabled
             // even though the "s3" scheme was enabled
             final var scheme = nestedJarPath.substring(0, nestedJarPath.indexOf(':')).toLowerCase(Locale.ROOT);
-            if (vfsSpec.getAllowedURLSchemes() == null || !vfsSpec.getAllowedURLSchemes().contains(scheme)) {
+            if (session.vfsSpec.getAllowedURLSchemes() == null
+                    || !session.vfsSpec.getAllowedURLSchemes().contains(scheme)) {
                 // No URL schemes other than "file:" (with optional "jar:" prefix) allowed (these schemes were
                 // already stripped by FastPathResolver.resolve(nestedJarPathRaw))
                 throw new IOException("Scanning of URL scheme \"" + scheme
@@ -471,7 +468,7 @@ public class NestedJarHandler implements AutoCloseable {
         }
 
         // Do not extract nested jar, if nested jar scanning is disabled
-        if (!vfsSpec.isNestedJarsEnabled()) {
+        if (!session.vfsSpec.isNestedJarsEnabled()) {
             throw new IOException("Nested jar scanning is disabled -- skipping nested jar " + nestedJarPath);
         }
 
@@ -568,31 +565,20 @@ public class NestedJarHandler implements AutoCloseable {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Close zipfiles, modules, and recyclers, and delete temporary files, without logging what was removed.
-     */
-    @Override
-    public void close() {
-        close(/* log = */ null);
-    }
-
-    /**
-     * Close zipfiles, modules, and recyclers, and delete temporary files. Calling this more than once has no
-     * further effect.
+     * Drop every cached zipfile, as the first step of tearing down the session: the caller marks the session closed
+     * first, so that {@link #checkNotClosed()} turns away anything that would otherwise hand out a slice of a
+     * zipfile that is about to be closed, then calls this, and only then releases the resources the zipfiles were
+     * backed by.
      *
-     * @param log
-     *            The log.
+     * <p>
+     * This releases nothing itself -- the file handles, memory mappings and temporary files behind the cached
+     * zipfiles belong to the {@link VfsSession}, and are released by {@link VfsSession#close(LogNode)}.
      */
-    public void close(final @Nullable LogNode log) {
-        if (session.beginClose()) {
-            // beginClose() already made checkNotClosed() throw, so nothing can hand out a slice of a zipfile that
-            // is about to be closed. Drop the zipfile caches, then close the resources they were backed by
-            zipFileSliceToLogicalZipFileMap.clear();
-            nestedPathToLogicalZipFileAndPackageRootMap.clear();
-            canonicalFileToPhysicalZipFileMap.clear();
-            pathToPhysicalZipFileMap.clear();
-            fastZipEntryToZipFileSliceMap.clear();
-            // Close the module readers, the open slices and the inflater recycler, then delete the temporary files
-            session.close(log);
-        }
+    public void dropCaches() {
+        zipFileSliceToLogicalZipFileMap.clear();
+        nestedPathToLogicalZipFileAndPackageRootMap.clear();
+        canonicalFileToPhysicalZipFileMap.clear();
+        pathToPhysicalZipFileMap.clear();
+        fastZipEntryToZipFileSliceMap.clear();
     }
 }

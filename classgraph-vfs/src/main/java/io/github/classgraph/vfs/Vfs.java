@@ -47,7 +47,6 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
@@ -106,7 +105,12 @@ import org.jspecify.annotations.Nullable;
  * storage that is being released.
  */
 public class Vfs implements AutoCloseable, Iterable<VfsRoot> {
-    /** The handler that opens jarfiles and owns the resources they are backed by. */
+    /**
+     * The session that owns the resources the opened roots are backed by, and that tracks whether this is closed.
+     */
+    private final VfsSession session;
+
+    /** The handler that opens jarfiles, registering what it opens with the session. */
     private final NestedJarHandler nestedJarHandler;
 
     /** The roots that have been opened from a path, keyed by the path they were opened from. */
@@ -117,9 +121,6 @@ public class Vfs implements AutoCloseable, Iterable<VfsRoot> {
 
     /** The log node that {@link #verbose()} turns on, or null if not logging. */
     private volatile @Nullable LogNode log;
-
-    /** True once {@link #close()} has been called. */
-    private final AtomicBoolean closed = new AtomicBoolean();
 
     /** Constructor, using the default value of every setting -- see {@link VfsSpec}. */
     public Vfs() {
@@ -160,8 +161,8 @@ public class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * @hidden
      */
     public Vfs(final VfsSpec vfsSpec, final InterruptionChecker interruptionChecker) {
-        // The settings are held by the handler, which is what reads with them
-        this.nestedJarHandler = new NestedJarHandler(vfsSpec, interruptionChecker);
+        this.session = new VfsSession(vfsSpec, interruptionChecker);
+        this.nestedJarHandler = new NestedJarHandler(session);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -292,7 +293,7 @@ public class Vfs implements AutoCloseable, Iterable<VfsRoot> {
         final var reportedPath = root.reportedPath();
         if (!reportedPath.equals(openedFrom)) {
             rootsByPath.putIfAbsent(reportedPath, root);
-            if (closed.get()) {
+            if (session.isClosed()) {
                 // close() cleared the caches between the two keys being added, so it did not see this one -- take
                 // it back out again, rather than leaving a root in the cache of a closed Vfs
                 rootsByPath.remove(reportedPath, root);
@@ -322,7 +323,7 @@ public class Vfs implements AutoCloseable, Iterable<VfsRoot> {
             throws IOException {
         final var openedByAnotherThread = cache.putIfAbsent(key, root);
         final var cachedRoot = openedByAnotherThread == null ? root : openedByAnotherThread;
-        if (closed.get()) {
+        if (session.isClosed()) {
             // close() cleared the caches while this root was being opened, so it did not see this root -- take it
             // back out again, rather than leaving a root in the cache of a closed Vfs
             cache.remove(key, cachedRoot);
@@ -343,7 +344,7 @@ public class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      *             if this {@link Vfs} was closed while the root was being opened.
      */
     private VfsRoot discardIfClosed(final String what, final VfsRoot root) throws IOException {
-        if (closed.get()) {
+        if (session.isClosed()) {
             throw new IOException("Cannot read " + what + " after the Vfs has been closed");
         }
         return root;
@@ -618,7 +619,7 @@ public class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      *            the root to remove from the cache.
      */
     public void evict(final VfsRoot root) {
-        if (!closed.get()) {
+        if (!session.isClosed()) {
             // A root can be cached under more than one key, e.g. under both the path it was opened from and the
             // canonical path of the file that turned out to back it
             rootsByPath.values().removeIf(cachedRoot -> cachedRoot == root);
@@ -638,7 +639,7 @@ public class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      *             if this {@link Vfs} has been closed.
      */
     void checkNotClosed(final String what) throws IOException {
-        if (closed.get()) {
+        if (session.isClosed()) {
             throw new IOException("Cannot read " + what + " after the Vfs has been closed");
         }
     }
@@ -651,7 +652,7 @@ public class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      *             if this {@link Vfs} has been closed.
      */
     private void checkOpen() {
-        if (closed.get()) {
+        if (session.isClosed()) {
             throw new IllegalStateException("Cannot configure a Vfs after it has been closed");
         }
     }
@@ -662,7 +663,7 @@ public class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * @return true if this {@link Vfs} has been closed.
      */
     boolean isClosed() {
-        return closed.get();
+        return session.isClosed();
     }
 
     /**
@@ -671,7 +672,7 @@ public class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * @return the session.
      */
     VfsSession session() {
-        return nestedJarHandler.session;
+        return session;
     }
 
     /**
@@ -694,7 +695,7 @@ public class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      */
     public boolean hasTempFiles() {
         // The temporary files are deleted by close(), so a closed Vfs has none
-        return !closed.get() && nestedJarHandler.session.hasTempFiles();
+        return !session.isClosed() && session.hasTempFiles();
     }
 
     /**
@@ -740,16 +741,20 @@ public class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      *         concurrent call.
      */
     private boolean doClose(final @Nullable LogNode logNode) {
-        // The flag is set atomically, so that a second call (or a concurrent one) returns rather than releasing the
-        // same resources twice, and so that a thread calling any other method the moment a close starts is turned
-        // away. It is set before anything is released, since it is what every root checks before reading, so a
-        // thread that is midway through a read cannot get at storage that is being released out from under it.
-        if (closed.getAndSet(true)) {
+        // The session is marked closed atomically, so that a second call (or a concurrent one) returns rather than
+        // releasing the same resources twice, and so that a thread calling any other method the moment a close
+        // starts is turned away. It is marked before anything is released, since it is what every root checks
+        // before reading, so a thread that is midway through a read cannot get at storage that is being released
+        // out from under it.
+        if (!session.beginClose()) {
             return false;
         }
         rootsByPath.clear();
         rootsByModule.clear();
-        nestedJarHandler.close(logNode);
+        // The zipfile caches have to be dropped before the resources behind them are released, so that nothing can
+        // be handed a slice of a zipfile that is about to be closed
+        nestedJarHandler.dropCaches();
+        session.close(logNode);
         return true;
     }
 }
