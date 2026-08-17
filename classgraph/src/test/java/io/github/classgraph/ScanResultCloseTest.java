@@ -1,7 +1,10 @@
 package io.github.classgraph;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
+
+import java.io.InputStream;
 
 import org.junit.jupiter.api.Test;
 
@@ -64,6 +67,31 @@ public class ScanResultCloseTest {
         assertThat(classInfo.getPackageName()).isEqualTo(ScanResultCloseTest.class.getPackageName());
         assertThat(classInfo.getMethodInfo()).isNotEmpty();
         assertThat(classInfo.getMethodInfo("closeAllClosesEveryOpenScanResult")).isNotEmpty();
+    }
+
+    /**
+     * Closing the stream of a resource that the {@link ScanResult} did not close for itself does not throw, even
+     * though closing the {@link ScanResult} force-closed the inflater recycler that the stream hands its inflater
+     * back to.
+     *
+     * @throws Exception
+     *             if the resource could not be read.
+     */
+    @Test
+    public void closingAResourceStreamAfterTheScanResultDoesNotThrow() throws Exception {
+        final InputStream inputStream;
+        // A jarfile, so that the classfile is deflated and reading it needs an inflater
+        try (var scanResult = new ClassGraph().overrideClasspath("src/test/resources/record.jar").enableClassInfo()
+                .scan()) {
+            // close() closes the resources that the ScanResult cached for itself, but the classfile resource is
+            // only cached if the resource list was fetched, and this scan never fetches it
+            final var classfileResource = scanResult.getAllClasses().get(0).getResource();
+            assertThat(classfileResource).isNotNull();
+            inputStream = classfileResource.open();
+            // Read a byte, so that the inflater is really in use
+            assertThat(inputStream.read()).isEqualTo(0xca);
+        }
+        assertThatCode(inputStream::close).doesNotThrowAnyException();
     }
 
     /** {@link ScanResult#closeAll()} closes every {@link ScanResult} that has not been closed yet. */

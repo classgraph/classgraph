@@ -202,6 +202,56 @@ public class RecyclerTest {
         assertThat(inUse.numResets).isZero();
     }
 
+    /**
+     * An instance handed back after a force-close does not throw, since an instance is normally handed back by the
+     * close() method of whatever borrowed it, and a close() must not fail just because the pool went first.
+     */
+    @Test
+    public void anInstanceHandedBackAfterAForceCloseDoesNotThrow() {
+        final var recycler = new RecyclableRecycler();
+        final var instance = recycler.acquire();
+
+        recycler.forceClose();
+        assertThat(instance.numCloses).isEqualTo(1);
+
+        assertThatCode(() -> recycler.recycle(instance)).doesNotThrowAnyException();
+        // Closed by the force-close itself, and not closed a second time by the recycle
+        assertThat(instance.numCloses).isEqualTo(1);
+        assertThat(instance.numResets).isZero();
+    }
+
+    /**
+     * A force-close is terminal, so an instance acquired afterwards is closed when it is handed back rather than
+     * being pooled in a recycler that nothing would ever drain again.
+     */
+    @Test
+    public void anInstanceAcquiredAfterAForceCloseIsClosedWhenItIsHandedBack() {
+        final var recycler = new RecyclableRecycler();
+        recycler.forceClose();
+
+        final var instance = recycler.acquire();
+        assertThat(instance.numCloses).isZero();
+        recycler.recycle(instance);
+        assertThat(instance.numCloses).isEqualTo(1);
+
+        // A pooled instance would be handed out again, whereas a closed one is discarded
+        assertThat(recycler.acquire()).isNotSameAs(instance);
+        assertThat(recycler.numAllocated).hasValue(2);
+    }
+
+    /** A try-with-resources block that outlives a force-close still closes its instance, and does not throw. */
+    @Test
+    public void aRecycleOnCloseBlockThatOutlivesAForceCloseDoesNotThrow() {
+        final var recycler = new RecyclableRecycler();
+        final RecycleOnClose<Recyclable, RuntimeException> recycleOnClose = recycler.acquireRecycleOnClose();
+        final var instance = recycleOnClose.get();
+
+        recycler.forceClose();
+
+        assertThatCode(recycleOnClose::close).doesNotThrowAnyException();
+        assertThat(instance.numCloses).isEqualTo(1);
+    }
+
     /** An instance that throws while it is being closed does not stop the other instances from being closed. */
     @Test
     public void anInstanceThatThrowsWhileItIsClosedIsIgnored() {
