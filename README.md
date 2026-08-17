@@ -14,7 +14,7 @@ ClassGraph is an uber-fast parallelized classpath scanner and module scanner for
 [![Java CI](https://github.com/classgraph/classgraph/actions/workflows/ci.yml/badge.svg)](https://github.com/classgraph/classgraph/actions/workflows/ci.yml)
 [![GitHub issues](https://img.shields.io/github/issues/classgraph/classgraph.svg)](https://github.com/classgraph/classgraph/issues/)
 [![CodeQL](https://github.com/classgraph/classgraph/actions/workflows/codeql.yml/badge.svg)](https://github.com/classgraph/classgraph/actions/workflows/codeql.yml)
-[![Codacy Badge](https://app.codacy.com/project/badge/Grade/ebc65f685d504cfcb379533d28d6353c)](https://www.codacy.com/gh/classgraph/classgraph/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=classgraph/classgraph&amp;utm_campaign=Badge_Grade)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/ebc65f685d504cfcb379533d28d6353c)](https://app.codacy.com/gh/classgraph/classgraph/dashboard)
 <br>
 [![Dependencies: none](https://img.shields.io/badge/dependencies-none-blue.svg)](#)
 [![Dependent repos](https://img.shields.io/librariesio/dependent-repos/maven/io.github.classgraph:classgraph)](https://github.com/classgraph/classgraph/network/dependents?package_id=UGFja2FnZS0xODcxNTE4NTM%3D)
@@ -57,6 +57,9 @@ try (ScanResult scanResult =
 The following code finds all JSON files in `META-INF/config` in all ClassLoaders or modules, and calls the method `readJson(String path, String content)` with the path and content of each file.
 
 ```java
+// The enclosing method must declare "throws IOException", since forEachByteArray throws it
+// if a resource cannot be read. Call forEachByteArrayIgnoringIOException instead to skip
+// unreadable resources silently.
 try (ScanResult scanResult = new ClassGraph().acceptPathsNonRecursive("META-INF/config").scan()) {
     scanResult.getResourcesWithExtension("json")
               .forEachByteArray((Resource res, byte[] content) -> {
@@ -73,7 +76,7 @@ ClassGraph provides a number of important capabilities to the JVM ecosystem:
 
 * ClassGraph has the ability to build a model in memory of the entire relatedness graph of all classes, annotations, interfaces, methods and fields that are visible to the JVM, and can even read [type annotations](https://docs.oracle.com/javase/tutorial/java/annotations/type_annotations.html). This graph of class metadata can be [queried in a wide range of ways](https://github.com/classgraph/classgraph/wiki/Code-examples), enabling some degree of *metaprogramming* in JVM languages -- the ability to write code that analyzes or responds to the properties of other code.
 * ClassGraph reads the classfile bytecode format directly, so it can read all information about classes without loading or initializing them.
-* ClassGraph is fully compatible with the JPMS module system (Project Jigsaw / JDK 9+), i.e. it can scan both the traditional classpath and the module path. ClassGraph 5.x requires JDK 17 or newer (ClassGraph 4.x supports JDK 7 and newer).
+* ClassGraph is fully compatible with the JPMS module system (Project Jigsaw / JDK 9+), i.e. it can scan both the traditional classpath and the module path. ClassGraph requires JDK 17 or newer.
 * ClassGraph scans the classpath or module path using [carefully optimized multithreaded code](https://github.com/classgraph/classgraph/wiki/How-fast-is-ClassGraph) for the shortest possible scan times, and it runs as close as possible to I/O bandwidth limits, even on a fast SSD.
 * ClassGraph handles more [classpath specification mechanisms](https://github.com/classgraph/classgraph/wiki/Classpath-specification-mechanisms) found in the wild than any other classpath scanner, making code that depends upon ClassGraph maximally portable.
 * ClassGraph can scan the classpath and module path either at runtime or [at build time](https://github.com/classgraph/classgraph/wiki/Build-Time-Scanning) (e.g. to implement annotation processing for Android).
@@ -121,12 +124,12 @@ See instructions for [use as a module](https://github.com/classgraph/classgraph/
 
 ### Strong encapsulation
 
-The JDK has enforced strong encapsulation since JDK 16, so it is always in force for ClassGraph 5.x, which requires JDK 17. By default, ClassGraph will not be able to find the classpath of your project if both of the following are true:
+The JDK has enforced strong encapsulation since JDK 16, so it is always in force for ClassGraph, which requires JDK 17. By default, ClassGraph will not be able to find the classpath of your project if both of the following are true:
 
 * You are using a legacy classloader (rather than the module system)
 * Your classloader does not expose its classpath via a public field or method (i.e. the full classpath can only be determined by reflection of private fields or methods).
 
-If ClassGraph cannot find your classes, and the same code worked under ClassGraph 4.x on JDK 15 or earlier, you have probably run into this problem.
+If ClassGraph finds none of your classes, and your runtime environment uses a classloader of that kind, this is the likely cause.
 
 The fix is to add [Narcissus](https://github.com/toolfactory/narcissus) to your project as an extra dependency:
 
@@ -148,13 +151,13 @@ Strong encapsulation is just the first step of trying to lock down Java's intern
 
 ### Pre-built JARs
 
-You can get pre-built JARs (ClassGraph 5.x is usable on JRE 17 or newer) from [Sonatype](https://oss.sonatype.org/#nexus-search;quick~io.github.classgraph).
+You can get pre-built JARs (ClassGraph is usable on JRE 17 or newer) from [Maven Central](https://central.sonatype.com/search?q=io.github.classgraph).
 
 ### Building from source
 
 ClassGraph must be built on JDK 17 or newer, and is compiled with `--release 17`, so the resulting JAR runs on JRE 17 or newer.
 
-The following commands will build the most recent version of ClassGraph from git master. The compiled package will then be in the "classgraph/target" directory.
+The following commands will build the most recent version of ClassGraph from the git main branch. The compiled package will then be in the "classgraph/target" directory.
 
 ```bash
 git clone https://github.com/classgraph/classgraph.git
@@ -163,15 +166,15 @@ export JAVA_HOME=/usr/java/default   # Or similar -- Maven needs JAVA_HOME
 ./mvnw -Dmaven.test.skip=true package
 ```
 
-This will allow you to build a local SNAPSHOT jar in `target/`. Alternatively, use `./mvnw -Dmaven.test.skip=true install` to build a SNAPSHOT jar and then copy it into your local repository, so that you can use it in your Maven projects. Note that may need to do `./mvnw dependency:resolve` in your project if you overwrite an older snapshot with a newer one.
+This will allow you to build a local SNAPSHOT jar for each of the five modules, in that module's `target/` directory. Alternatively, use `./mvnw -Dmaven.test.skip=true install` to build the SNAPSHOT jars and then copy them into your local repository, so that you can use them in your Maven projects. Note that may need to do `./mvnw dependency:resolve` in your project if you overwrite an older snapshot with a newer one.
 
-`./mvnw -U` updates from remote repositories an may overwrite your local artifact. But you can always change the `artifactId` or the `groupId` of your local ClassGraph build to place your local build artifact in another location within your local repository.
+`./mvnw -U` updates from remote repositories and may overwrite your local artifact. But you can always change the `artifactId` or the `groupId` of your local ClassGraph build to place your local build artifact in another location within your local repository.
 
 ## Documentation
 
 [See the wiki for complete documentation and usage information.](https://github.com/classgraph/classgraph/wiki)
 
-**ClassGraph was known as FastClasspathScanner prior to version 4**.  See the [porting notes](https://github.com/classgraph/classgraph/wiki/Porting-FastClasspathScanner-code-to-ClassGraph) for information on porting from the older FastClasspathScanner API.
+**ClassGraph was known as FastClasspathScanner prior to version 4.**
 
 ## Mailing List
 
@@ -203,7 +206,7 @@ Some other classpath scanning mechanisms include:
 * [ClassIndex](https://github.com/atteo/classindex) (compiletime annotation scanner/processor)
 * [Jandex](https://github.com/wildfly/Jandex) (Java annotation indexer, part of Wildfly)
 * [Spring](http://spring.io/) has built-in classpath scanning
-* [Hibernate](http://hibernate.org/) has the class [`org.hibernate.ejb.packaging.Scanner`](https://www.programcreek.com/java-api-examples/index.php?api=org.hibernate.ejb.packaging.Scanner).
+* [Hibernate](http://hibernate.org/) has the class `org.hibernate.ejb.packaging.Scanner`.
 * [extcos -- the Extended Component Scanner](https://sourceforge.net/projects/extcos/)
 * [Javassist](http://jboss-javassist.github.io/javassist/)
 * [ObjectWeb ASM](http://asm.ow2.org/)

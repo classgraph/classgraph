@@ -194,13 +194,13 @@ ClassGraph support a container it has never seen:
 ```java
 public class MyClassLoaderHandler implements ClassLoaderHandler {
     @Override
-    public boolean canHandle(Class<?> classLoaderClass, @Nullable ClassGraphLog log) {
+    public boolean canHandle(Class<?> classLoaderClass, ClassGraphLog log) {
         return classIsOrExtendsOrImplements(classLoaderClass, "com.xyz.MyClassLoader");
     }
 
     @Override
     public void findClassLoaderOrder(ClassLoader classLoader, ClassLoaderOrder classLoaderOrder,
-            @Nullable ClassGraphLog log) {
+            ClassGraphLog log) {
         // Search this classloader before its parent (i.e. this one is parent-last)
         classLoaderOrder.add(classLoader, log);
         classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
@@ -208,13 +208,17 @@ public class MyClassLoaderHandler implements ClassLoaderHandler {
 
     @Override
     public void findClasspathOrder(ClassLoader classLoader, ClasspathOrder classpathOrder,
-            @Nullable ClassGraphLog log) {
+            ClassGraphLog log) {
         for (URL url : ((MyClassLoader) classLoader).getRepositoryURLs()) {
             classpathOrder.addClasspathEntry(url, classLoader, log);
         }
     }
 }
 ```
+
+The `log` handed to each method is null unless verbose logging is switched on, which it is not by
+default. Pass it straight through to the methods that take one, as above -- every one of them
+accepts null -- and null-check it before calling it yourself.
 
 ```java
 try (Classpath classpath = new ClasspathFinder()

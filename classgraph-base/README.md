@@ -38,7 +38,7 @@ sub-entries can be added to, so the log forms a tree:
 ```java
 @Override
 public void findClasspathOrder(ClassLoader classLoader, ClasspathOrder classpathOrder,
-        @Nullable ClassGraphLog log) {
+        ClassGraphLog log) {
     // log is null whenever verbose logging is switched off, so every use has to be null-guarded
     ClassGraphLog subLog = log == null ? null : log.log("Reading the classpath of " + classLoader);
     try {
