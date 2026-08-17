@@ -25,6 +25,9 @@ public class ZipfileCommentTest {
     /** The maximum length of a zipfile comment, which is stored in a 16-bit length field. */
     private static final int MAX_COMMENT_LENGTH = 65535;
 
+    /** The four bytes of the End Of Central Directory signature, {@code PK\05\06}, as UTF-8 characters. */
+    private static final String EOCD_SIGNATURE = "PK\005\006";
+
     /**
      * Write a jarfile holding a single entry, with a comment of the given length.
      *
@@ -40,9 +43,27 @@ public class ZipfileCommentTest {
      */
     private static List<String> entryNamesReadBack(final File tempDir, final String jarName,
             final int commentLength) throws Exception {
+        return entryNamesReadBack(tempDir, jarName, "c".repeat(commentLength));
+    }
+
+    /**
+     * Write a jarfile holding a single entry, with the given comment.
+     *
+     * @param tempDir
+     *            the directory to write the jarfile into
+     * @param jarName
+     *            the name of the jarfile to write
+     * @param comment
+     *            the zipfile comment
+     * @return the names of the entries read back from the jarfile
+     * @throws Exception
+     *             if the jarfile could not be written or read
+     */
+    private static List<String> entryNamesReadBack(final File tempDir, final String jarName, final String comment)
+            throws Exception {
         final var jarFile = new File(tempDir, jarName);
         try (var fileOut = new FileOutputStream(jarFile); var zipOut = new ZipOutputStream(fileOut)) {
-            zipOut.setComment("c".repeat(commentLength));
+            zipOut.setComment(comment);
             zipOut.putNextEntry(new ZipEntry(ENTRY_NAME));
             zipOut.write("contents".getBytes(StandardCharsets.UTF_8));
             zipOut.closeEntry();
@@ -68,5 +89,27 @@ public class ZipfileCommentTest {
     @Test
     public void maximumLengthComment(@TempDir final File tempDir) throws Exception {
         assertThat(entryNamesReadBack(tempDir, "max-comment.jar", MAX_COMMENT_LENGTH)).containsExactly(ENTRY_NAME);
+    }
+
+    /**
+     * A comment is arbitrary bytes, so it can hold the End Of Central Directory signature itself. The backwards
+     * scan reaches that copy before the real record, and only the comment length written after the signature tells
+     * the two apart: the real record's 22-byte header plus its comment length reaches exactly the end of the file.
+     * This comment is short enough that both copies fall inside the initial 32-byte search window.
+     */
+    @Test
+    public void aCommentHoldingTheEndOfCentralDirectorySignature(@TempDir final File tempDir) throws Exception {
+        assertThat(entryNamesReadBack(tempDir, "eocd-in-comment.jar", EOCD_SIGNATURE + "c".repeat(22)))
+                .containsExactly(ENTRY_NAME);
+    }
+
+    /**
+     * A comment holding the End Of Central Directory signature, long enough that the real record is only found by
+     * the second search, which reads the last 64kB of the file in one chunk and scans back through it.
+     */
+    @Test
+    public void aLongCommentHoldingTheEndOfCentralDirectorySignature(@TempDir final File tempDir) throws Exception {
+        assertThat(entryNamesReadBack(tempDir, "eocd-in-long-comment.jar", EOCD_SIGNATURE + "c".repeat(1000)))
+                .containsExactly(ENTRY_NAME);
     }
 }
