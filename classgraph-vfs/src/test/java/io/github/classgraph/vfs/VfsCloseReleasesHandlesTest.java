@@ -26,15 +26,31 @@ public class VfsCloseReleasesHandlesTest {
     /** The number of times the virtual filesystem is opened and closed while the file handles are counted. */
     private static final int NUM_CYCLES = 20;
 
+    /** The Linux directory that holds one entry per file descriptor this process has open. */
+    private static final File PROC_SELF_FD = new File("/proc/self/fd");
+
     /**
      * The number of open file handles, or -1 if the running JVM cannot count them (which is the case on Windows).
      *
      * @return the number of open file handles.
      */
     private static long numOpenFileHandles() {
-        return ManagementFactory.getOperatingSystemMXBean() instanceof final UnixOperatingSystemMXBean unixOsBean
-                ? unixOsBean.getOpenFileDescriptorCount()
-                : -1L;
+        // On Linux the descriptors are listed in /proc, which is both the most direct measure and immune to the
+        // management API failing to start up inside a container
+        final var fileDescriptorNames = PROC_SELF_FD.list();
+        if (fileDescriptorNames != null) {
+            return fileDescriptorNames.length;
+        }
+        try {
+            return ManagementFactory
+                    .getOperatingSystemMXBean() instanceof final UnixOperatingSystemMXBean unixOsBean
+                            ? unixOsBean.getOpenFileDescriptorCount()
+                            : -1L;
+        } catch (final RuntimeException e) {
+            // Some JVMs throw while starting up the management API, and one that cannot report the count is no
+            // different here from one that does not implement the interface
+            return -1L;
+        }
     }
 
     /**
