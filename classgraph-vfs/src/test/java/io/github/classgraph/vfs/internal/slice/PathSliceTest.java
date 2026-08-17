@@ -32,7 +32,7 @@ public class PathSliceTest {
      */
     private static VfsSession session(final boolean memoryMapFiles) {
         final var vfsSpec = new VfsSpec();
-        vfsSpec.setMemoryMapFiles(memoryMapFiles);
+        vfsSpec.setMemoryMappingFiles(memoryMapFiles);
         return new VfsSession(vfsSpec, new InterruptionChecker());
     }
 

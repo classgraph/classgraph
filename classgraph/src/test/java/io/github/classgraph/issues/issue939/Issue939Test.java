@@ -26,7 +26,7 @@ public class Issue939Test {
                 .overrideClasspath(Issue939Test.class.getClassLoader().getResource("issue209.jar"));
         // Files are memory-mapped on Windows only, so the platform's choice is overridden here to exercise the
         // mapping path whatever platform this test runs on
-        VfsSpecAccess.vfsSpecOf(classGraph).setMemoryMapFiles(true);
+        VfsSpecAccess.vfsSpecOf(classGraph).setMemoryMappingFiles(true);
         try (var scanResult = classGraph.scan()) {
             assertThat(scanResult.getAllClasses().getNames())
                     .contains("org.springframework.boot.loader.util.SystemPropertyUtils");

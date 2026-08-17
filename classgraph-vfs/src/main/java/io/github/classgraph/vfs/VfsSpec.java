@@ -280,7 +280,7 @@ public class VfsSpec {
      * @return this (for method chaining).
      * @hidden
      */
-    public VfsSpec setMemoryMapFiles(final boolean memoryMapFiles) {
+    public VfsSpec setMemoryMappingFiles(final boolean memoryMapFiles) {
         this.memoryMapFiles = memoryMapFiles;
         return this;
     }
