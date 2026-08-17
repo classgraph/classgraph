@@ -87,7 +87,9 @@ public class VfsSession {
 
     /**
      * Guards the transition to closed: {@link #closed} is only ever set to true, and {@link #openSlices} and
-     * {@link #tempFiles} are only ever drained, while this lock is held.
+     * {@link #tempFiles} are only ever drained, while this lock is held. A registration that has to be rejected
+     * once the session is closing reads {@link #closed} under this lock too, so that it either completes before the
+     * teardown takes its snapshot or is rejected.
      */
     private final Object closeLock = new Object();
 
@@ -113,13 +115,23 @@ public class VfsSession {
     moduleReaderRecyclerMap = new SingletonMap<>() {
         @Override
         public Recycler<ModuleReader, IOException> newInstance(final ModuleReference moduleReference,
-                final @Nullable LogNode ignored) {
-            return new Recycler<>() {
-                @Override
-                public ModuleReader newInstance() throws IOException {
-                    return ModuleReaderUtils.openModule(moduleReference);
+                final @Nullable LogNode ignored) throws IOException {
+            // Creating the recycler is a registration, so it is linearized against the teardown like any other:
+            // either it completes before the teardown reads the map, in which case the teardown force-closes the
+            // recycler (the map hands out a value only once its creation has completed), or it sees the session
+            // already closed and is rejected. A recycler created after the teardown emptied the map would never be
+            // force-closed, so every ModuleReader it went on to open would stay open for the life of the JVM
+            synchronized (closeLock) {
+                if (closed.get()) {
+                    throw new IOException(SESSION_CLOSED);
                 }
-            };
+                return new Recycler<>() {
+                    @Override
+                    public ModuleReader newInstance() throws IOException {
+                        return ModuleReaderUtils.openModule(moduleReference);
+                    }
+                };
+            }
         }
     };
 
@@ -154,6 +166,11 @@ public class VfsSession {
 
     /**
      * Get the map from {@link ModuleReference} to {@link ModuleReader} recycler.
+     *
+     * <p>
+     * This check is only a fast path, since the caller can hold the returned map across a close. What stops a
+     * recycler being created for a session that is closing is the check in the map's own
+     * {@link SingletonMap#newInstance(Object, LogNode)}, which is made under {@link #closeLock}.
      *
      * @return the map
      * @throws IOException
@@ -345,7 +362,11 @@ public class VfsSession {
      *            the log node, or null to skip logging
      */
     public void close(final @Nullable LogNode log) {
-        closed.set(true);
+        // Under the lock, so that a recycler being created concurrently either finishes before the map is read
+        // below, or sees the session as closed and is rejected
+        synchronized (closeLock) {
+            closed.set(true);
+        }
 
         var interrupted = false;
         var completedWithoutInterruption = false;
