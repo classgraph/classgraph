@@ -438,8 +438,8 @@ try (Vfs vfs = new Vfs()) {
 
 ```java
 try (FileSystem fileSystem = FileSystems.newFileSystem(Path.of("/path/to/library.jar"));
-        Vfs vfs = new Vfs();
-        VfsRoot root = vfs.open(fileSystem.getPath("/"))) {
+        Vfs vfs = new Vfs()) {
+    VfsRoot root = vfs.open(fileSystem.getPath("/"));
     root.getEntries().forEach(entry -> System.out.println(entry.getName()));
 }
 ```

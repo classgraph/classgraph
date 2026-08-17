@@ -202,9 +202,6 @@ public abstract class VfsRoot implements Iterable<VfsEntry> {
      * {@code app.jar}, including the {@code "BOOT-INF/lib/"} directory of jarfiles the application depends on,
      * which lies outside the package root and is therefore invisible from this root.
      *
-     * <p>
-     * Closing this root closes the returned root too.
-     *
      * @return the container this root was opened within, or this root itself if it was not opened at a package
      *         root, which is always the case for a directory and for a module.
      * @throws IOException

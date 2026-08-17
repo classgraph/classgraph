@@ -67,7 +67,8 @@ import org.jspecify.annotations.Nullable;
  * {@link InputStream}, or as a byte array -- and gives back the same {@link VfsRoot} interface for all of them.
  *
  * <pre>
- * try (Vfs vfs = new Vfs(); VfsRoot root = vfs.open("outer.jar!/lib/inner.jar")) {
+ * try (Vfs vfs = new Vfs()) {
+ *     VfsRoot root = vfs.open("outer.jar!/lib/inner.jar");
  *     for (VfsEntry entry : root) {
  *         byte[] content = entry.load();
  *         // ...
@@ -89,7 +90,8 @@ import org.jspecify.annotations.Nullable;
  * <p>
  * A {@link Vfs} caches every root it opens, so opening the same path twice returns the same {@link VfsRoot}, and a
  * jarfile that encloses several nested jarfiles is only read once. Iterating the {@link Vfs} gives back the roots
- * that are currently open. The cache, the open file handles and the temporary files are all released by
+ * it has cached, and {@link #evict(VfsRoot)} takes one back out of the cache without stopping it working for
+ * anything still holding it. The cache, the open file handles and the temporary files are all released by
  * {@link #close()}, which invalidates every {@link VfsRoot} and {@link VfsEntry} it handed out, so a {@link Vfs}
  * should be held open for as long as its entries are being read.
  *
@@ -564,8 +566,8 @@ public class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Returns an iterator over the roots that are currently open in this {@link Vfs}, so that the roots can be
-     * iterated directly, just as the entries of a root can:
+     * Returns an iterator over the roots this {@link Vfs} has cached, so that the roots can be iterated directly,
+     * just as the entries of a root can:
      *
      * <pre>
      * for (VfsRoot root : vfs) {
@@ -579,11 +581,11 @@ public class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * since there is no path that names it, so it is not cached: reading the same bytes again builds a new root.
      *
      * <p>
-     * The iterator is a snapshot taken when this method is called, so a root opened or closed by another thread
-     * afterwards does not change what it reports. A closed {@link Vfs} has no open roots, so iterating one reports
+     * The iterator is a snapshot taken when this method is called, so a root opened or evicted by another thread
+     * afterwards does not change what it reports. A closed {@link Vfs} has nothing cached, so iterating one reports
      * nothing.
      *
-     * @return an iterator over the roots that are currently open.
+     * @return an iterator over the roots this {@link Vfs} has cached.
      */
     @Override
     public Iterator<VfsRoot> iterator() {
@@ -696,10 +698,9 @@ public class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     }
 
     /**
-     * Close every root that was opened by this {@link Vfs}, release the file handles and memory mappings that back
-     * them, and delete any temporary files that were created. Every {@link VfsRoot} and {@link VfsEntry} that was
-     * handed out is invalidated, and any {@link InputStream} still being read from one of them will stop returning
-     * data.
+     * Release the file handles and memory mappings that back the roots opened by this {@link Vfs}, and delete any
+     * temporary files that were created. Every {@link VfsRoot} and {@link VfsEntry} that was handed out is
+     * invalidated, and any {@link InputStream} still being read from one of them will stop returning data.
      *
      * <p>
      * Closing an already-closed {@link Vfs} has no effect.
