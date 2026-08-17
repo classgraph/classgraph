@@ -184,13 +184,19 @@ class Scanner implements Callable<ScanResult> {
         this.topLevelLog = topLevelLog;
 
         final var classLoaderProbeLog = topLevelLog == null ? null : topLevelLog.log("Finding classpath");
-        // The ClassLoaderProbe is deliberately not stored in a field: it holds the classloaders that were used to
-        // find the classpath, and those must not be kept alive for the duration of the scan. It is the last thing
-        // in a scan to hold a classloader at all -- from here on, only the string form of each classloader is kept
-        final var classLoaderProbe = new ClassLoaderProbe(scanSpec.classpathSpec, classLoaderAndModuleLayerSpec,
-                classLoaderProbeLog);
 
+        // Nothing closes the virtual filesystem if the constructor does not return, since the caller is never
+        // handed the Scanner, so anything opened before the failure (a module, or a classpath element filter's
+        // classpath element) has to be released here. Caller-supplied code runs during construction -- a
+        // ClassLoaderHandler, a classpath element filter -- so the failure can be of any type
         try {
+            // The ClassLoaderProbe is deliberately not stored in a field: it holds the classloaders that were used
+            // to find the classpath, and those must not be kept alive for the duration of the scan. It is the last
+            // thing in a scan to hold a classloader at all -- from here on, only the string form of each
+            // classloader is kept
+            final var classLoaderProbe = new ClassLoaderProbe(scanSpec.classpathSpec, classLoaderAndModuleLayerSpec,
+                    classLoaderProbeLog);
+
             this.moduleOrder = new ArrayList<>();
             final List<ModuleReference> unscannedModuleReferences = new ArrayList<>();
 
@@ -226,7 +232,7 @@ class Scanner implements Callable<ScanResult> {
                         /* packageRootPrefix = */ "", rawClasspathEntry.packageRootPrefixes,
                         rawClasspathEntry.libDirPrefixes));
             }
-        } catch (final InterruptedException e) {
+        } catch (final Throwable e) {
             vfs.close();
             throw e;
         }
@@ -1323,7 +1329,7 @@ class Scanner implements Callable<ScanResult> {
     public @Nullable ScanResult call() throws InterruptedException, CancellationException, ExecutionException {
         ScanResult scanResult = null;
         final var scanStart = System.nanoTime();
-        var removeTemporaryFilesAfterScan = scanSpec.removeTemporaryFilesAfterScan;
+        final var removeTemporaryFilesAfterScan = scanSpec.removeTemporaryFilesAfterScan;
         try {
             // Perform the scan
             scanResult = openClasspathElementsThenScan();
@@ -1335,15 +1341,19 @@ class Scanner implements Callable<ScanResult> {
                 topLevelLog.flush();
             }
 
-            // Call the scan result processor, if one was provided
+            // Call the scan result processor, if one was provided. The scan result is closed however the processor
+            // ends, including by throwing an Error rather than an Exception, which is what a failing assertion
+            // inside a scan result processor throws -- nothing else would ever close it, since the scan result is
+            // not passed to the failure handler, and the one returned by this method is discarded by the caller
+            // that provided a scan result processor
             if (scanResultProcessor != null) {
                 try {
                     scanResultProcessor.accept(scanResult);
                 } catch (final Exception e) {
-                    scanResult.close();
                     throw new ExecutionException(e);
+                } finally {
+                    scanResult.close();
                 }
-                scanResult.close();
             }
 
         } catch (final Throwable e) {
@@ -1359,18 +1369,14 @@ class Scanner implements Callable<ScanResult> {
                 topLevelLog.flush();
             }
 
-            // Since an exception was thrown, remove temporary files
-            removeTemporaryFilesAfterScan = true;
-
             // Stop any running threads (should not be needed, threads should already be quiescent)
             interruptionChecker.interrupt();
 
+            // A failed scan produces no ScanResult for the caller to close, so remove the temporary files and
+            // close the resources, zipfiles and modules here, whatever the failure handler goes on to do
+            vfs.close(topLevelLog);
+
             if (failureHandler == null) {
-                if (removeTemporaryFilesAfterScan) {
-                    // If removeTemporaryFilesAfterScan was set, remove temp files and close resources, zipfiles and
-                    // modules
-                    vfs.close(topLevelLog);
-                }
                 // If there is no failure handler set, re-throw the exception
                 throw e;
             } else {
@@ -1388,11 +1394,6 @@ class Scanner implements Callable<ScanResult> {
                     final var failureHandlerException = new ExecutionException(
                             "Exception while calling failure handler", f);
                     failureHandlerException.addSuppressed(e);
-                    if (removeTemporaryFilesAfterScan) {
-                        // If removeTemporaryFilesAfterScan was set, remove temp files and close resources, zipfiles
-                        // and modules
-                        vfs.close(topLevelLog);
-                    }
                     // A scan is only given a failure handler by ClassGraph#scanAsync, which runs the scanner
                     // inside a Runnable that catches ExecutionException and passes it to the same handler.
                     // So throwing here offers the handler a second chance to report the failure, this time with the

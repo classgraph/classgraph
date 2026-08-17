@@ -2,6 +2,7 @@ package io.github.classgraph;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
+import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 
 import java.io.File;
 import java.io.IOException;
@@ -538,6 +539,40 @@ public class ClassGraphTest {
         }
         assertThat(failure.get()).isInstanceOf(IllegalStateException.class)
                 .hasMessage("classpath element filter failed");
+    }
+
+    /**
+     * An asynchronous scan closes its {@link ScanResult} even when the scan result processor throws an
+     * {@link Error} rather than an {@link Exception}, which is what a failing assertion inside a scan result
+     * processor throws. Nothing else can close it: the scan result is never handed to the failure handler, and the
+     * one returned by the scanner is discarded.
+     *
+     * @throws InterruptedException
+     *             if the wait for the failure handler was interrupted.
+     */
+    @Test
+    public void anAsyncScanClosesItsScanResultWhenTheProcessorThrowsAnError() throws InterruptedException {
+        final var scanResultRef = new AtomicReference<ScanResult>();
+        final var failure = new AtomicReference<Throwable>();
+        final var done = new CountDownLatch(1);
+        final var executorService = Executors.newFixedThreadPool(3);
+        try {
+            new ClassGraph().overrideClasspath(classesDir.toString()).acceptPackages(PACKAGE_NAME)
+                    .scanAsync(executorService, 3, scanResult -> {
+                        scanResultRef.set(scanResult);
+                        throw new AssertionError("scan result processor failed");
+                    }, throwable -> {
+                        failure.set(throwable);
+                        done.countDown();
+                    });
+            assertThat(done.await(60, TimeUnit.SECONDS)).as("the failure handler was called").isTrue();
+        } finally {
+            executorService.shutdown();
+        }
+        assertThat(failure.get()).isInstanceOf(AssertionError.class).hasMessage("scan result processor failed");
+        final var scanResult = scanResultRef.get();
+        assertThat(scanResult).isNotNull();
+        assertThatIllegalStateException().isThrownBy(scanResult::getAllResources);
     }
 
     /** A deflated nested jar is spilled to disk, rather than buffered in RAM, if the RAM limit is exceeded. */
