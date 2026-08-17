@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.module.ModuleReader;
 import java.net.URI;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.github.classgraph.base.internal.utils.ProxyingInputStream;
 import io.github.classgraph.vfs.internal.module.ModuleReaderUtils;
@@ -121,15 +122,16 @@ final class ModuleEntry extends VfsEntry {
         }
         return new ProxyingInputStream(inputStream) {
             /** True once the {@link ModuleReader} has been recycled, so that it is only recycled once. */
-            private boolean recycled;
+            private final AtomicBoolean recycled = new AtomicBoolean();
 
             @Override
             public void close() throws IOException {
                 try {
                     super.close();
                 } finally {
-                    if (!recycled) {
-                        recycled = true;
+                    // Two threads closing this stream at once must not hand the same reader back to the recycler
+                    // twice, which would let two threads read through it at the same time
+                    if (!recycled.getAndSet(true)) {
                         recycler.recycle(reader);
                     }
                 }

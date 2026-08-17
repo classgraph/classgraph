@@ -686,6 +686,30 @@ public class VfsFileSystemTest {
     }
 
     /**
+     * {@link VfsRoot#asFileSystem()} returns the same instance every time, as it says it does, including after the
+     * root has been closed -- rather than building a second, equally closed, filesystem for the second caller.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the root could not be read.
+     */
+    @Test
+    public void asFileSystemReturnsOneInstanceEvenAfterAClose(@TempDir final Path tempDir) throws IOException {
+        final var jarFile = tempDir.resolve("library.jar").toFile();
+        writeJar(jarFile);
+
+        try (var vfs = new Vfs()) {
+            final var root = vfs.open(jarFile);
+            final var fileSystem = root.asFileSystem();
+            assertThat(root.asFileSystem()).isSameAs(fileSystem);
+            root.close();
+            assertThat(root.asFileSystem()).isSameAs(fileSystem);
+            assertThat(root.asFileSystem().isOpen()).isFalse();
+        }
+    }
+
+    /**
      * A filesystem that is closed before anything has been read from it throws {@link ClosedFileSystemException}
      * too, rather than failing to build its directory index.
      *

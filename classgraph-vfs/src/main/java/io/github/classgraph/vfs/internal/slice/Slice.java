@@ -328,7 +328,20 @@ public abstract class Slice implements AutoCloseable {
      */
     public InputStream open(final @Nullable AutoCloseable resourceToClose) throws IOException {
         final InputStream rawInputStream = new SliceInputStream(this, resourceToClose);
-        return isDeflatedZipEntry ? session.openInflaterInputStream(rawInputStream) : rawInputStream;
+        if (!isDeflatedZipEntry) {
+            return rawInputStream;
+        }
+        try {
+            return session.openInflaterInputStream(rawInputStream);
+        } catch (final IOException e) {
+            // The caller never sees rawInputStream if this throws, so close it here, and with it resourceToClose
+            try {
+                rawInputStream.close();
+            } catch (final IOException e2) {
+                e.addSuppressed(e2);
+            }
+            throw e;
+        }
     }
 
     /**

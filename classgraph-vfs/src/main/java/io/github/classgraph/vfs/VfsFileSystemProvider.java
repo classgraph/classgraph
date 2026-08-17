@@ -66,6 +66,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.jspecify.annotations.Nullable;
 
@@ -521,7 +522,7 @@ final class VfsFileSystemProvider extends FileSystemProvider {
         private long position;
 
         /** Whether this channel is still open. */
-        private volatile boolean open = true;
+        private final AtomicBoolean open = new AtomicBoolean(true);
 
         /**
          * Constructor.
@@ -550,7 +551,7 @@ final class VfsFileSystemProvider extends FileSystemProvider {
          *             if it is not.
          */
         private void checkOpen() throws IOException {
-            if (!open) {
+            if (!open.get()) {
                 throw new java.nio.channels.ClosedChannelException();
             }
         }
@@ -604,13 +605,12 @@ final class VfsFileSystemProvider extends FileSystemProvider {
 
         @Override
         public boolean isOpen() {
-            return open;
+            return open.get();
         }
 
         @Override
         public void close() throws IOException {
-            if (open) {
-                open = false;
+            if (open.getAndSet(false)) {
                 content.close();
             }
         }

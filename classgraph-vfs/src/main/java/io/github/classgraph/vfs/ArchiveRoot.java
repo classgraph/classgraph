@@ -145,6 +145,16 @@ final class ArchiveRoot extends VfsRoot {
                     containerRoot = root = new ArchiveRoot(getVfs(), logicalZipFile, "");
                 }
             }
+            if (isClosed()) {
+                // close() ran between the check above and the publish, so it took its snapshot of containerRoot
+                // before this one was in it and would leave it open. Close it here instead, so that a container
+                // root is always closed along with the root that created it
+                synchronized (this) {
+                    containerRoot = null;
+                }
+                root.close();
+                checkNotClosed(getPath());
+            }
         }
         return root;
     }

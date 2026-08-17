@@ -740,10 +740,9 @@ public abstract class VfsRoot implements AutoCloseable, Iterable<VfsEntry> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Close this root, dropping the {@link FileSystem} view of it if one was created, and removing it from the
-     * cache of the {@link Vfs} that opened it, so that opening the same path again builds a new root. Every
-     * {@link VfsEntry} this root handed out stops working, as does the {@link FileSystem} view, which from then on
-     * throws {@link java.nio.file.ClosedFileSystemException}.
+     * Close this root, removing it from the cache of the {@link Vfs} that opened it, so that opening the same path
+     * again builds a new root. Every {@link VfsEntry} this root handed out stops working, as does the
+     * {@link FileSystem} view, which from then on throws {@link java.nio.file.ClosedFileSystemException}.
      *
      * <p>
      * This releases nothing that a root shares with the rest of the {@link Vfs} -- the jarfile that backs it may
@@ -755,15 +754,17 @@ public abstract class VfsRoot implements AutoCloseable, Iterable<VfsEntry> {
      */
     @Override
     public void close() {
-        // The flag is set atomically, so that a second call (or a concurrent one) returns rather than dropping the
-        // FileSystem view twice, and so that a thread listing or reading entries the moment a close starts is
+        // The flag is set atomically, so that a second call (or a concurrent one) returns rather than removing this
+        // root from the cache twice, and so that a thread listing or reading entries the moment a close starts is
         // turned away
         if (closed.getAndSet(true)) {
             return;
         }
-        // The FileSystem view is the only thing a root creates for itself. It holds no file handles, only an index
-        // of the entry names, which is dropped here rather than kept alive by a closed root.
-        fileSystem = null;
+        // The FileSystem view is the only thing a root creates for itself, and it holds no file handles, only an
+        // index of the entry names. It is left in place rather than nulled out: this root is about to be dropped
+        // from the cache of the Vfs, so the whole root, index and all, is garbage as soon as the caller lets go of
+        // it -- and keeping the field means asFileSystem() goes on returning the one instance it always returned,
+        // rather than building a second one if it is called after the close
         vfs.rootClosed(this);
     }
 

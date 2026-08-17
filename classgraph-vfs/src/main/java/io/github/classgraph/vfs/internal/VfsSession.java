@@ -70,8 +70,12 @@ import org.jspecify.annotations.Nullable;
  * registration either completes before the teardown takes its snapshot, in which case the teardown releases the
  * resource, or it sees the session already closed and is rejected. There is no window in which a resource can be
  * registered into a collection that will never be drained again.
+ *
+ * <p>
+ * A session is deliberately not {@link AutoCloseable}: tearing one down is two steps, and only its owner knows what
+ * has to happen between them, so there is no single {@code close()} that is safe to call from a try-with-resources.
  */
-public class VfsSession implements AutoCloseable {
+public class VfsSession {
     /** The message of the {@link IOException} thrown by anything that needs a session that is still open. */
     private static final String SESSION_CLOSED = "The session has been closed";
 
@@ -328,18 +332,6 @@ public class VfsSession implements AutoCloseable {
     public boolean beginClose() {
         synchronized (closeLock) {
             return !closed.getAndSet(true);
-        }
-    }
-
-    /**
-     * Close all open {@link Slice} instances, discard the pooled {@link ModuleReader} and {@link Inflater}
-     * instances, and delete any temporary files, without logging what was removed. Calling this more than once has
-     * no further effect.
-     */
-    @Override
-    public void close() {
-        if (beginClose()) {
-            close(/* log = */ null);
         }
     }
 
