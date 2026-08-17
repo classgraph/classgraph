@@ -335,7 +335,11 @@ public abstract class Resource implements AutoCloseable, Comparable<Resource> {
     public InputStream open() throws IOException {
         checkCanOpen();
         try {
-            inputStream = new ProxyingInputStream(entry.open()) {
+            final var entryInputStream = entry.open();
+            // Point the field at the stream the entry opened before wrapping it, so that close() releases the
+            // stream even if the wrapper cannot be allocated -- nothing else could reach it to close it
+            inputStream = entryInputStream;
+            inputStream = new ProxyingInputStream(entryInputStream) {
                 /** True once the resource has been closed, so that it is only closed once. */
                 private boolean closedResource;
 
