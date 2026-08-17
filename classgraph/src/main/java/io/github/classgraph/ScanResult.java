@@ -1895,46 +1895,55 @@ public final class ScanResult implements AutoCloseable {
     @Override
     public void close() {
         if (!closed.getAndSet(true)) {
-            nonClosedWeakReferences.remove(weakReference);
-            if (classpathOrder != null) {
-                classpathOrder.clear();
-                classpathOrder = null;
-            }
-            final var allAcceptedResources = allAcceptedResourcesCached;
-            if (allAcceptedResources != null) {
-                for (final Resource classpathResource : allAcceptedResources) {
-                    classpathResource.close();
+            try {
+                nonClosedWeakReferences.remove(weakReference);
+                if (classpathOrder != null) {
+                    classpathOrder.clear();
+                    classpathOrder = null;
                 }
-                // Drop the reference to the cached list rather than clearing it, since the list (or a map
-                // containing it) may have been returned to the caller, and returned collections are unmodifiable
-                allAcceptedResourcesCached = null;
-            }
-            pathToAcceptedResourcesCached = null;
-            // Don't clear classNameToClassInfo, since ClassInfo objects and the objects reachable from them keep
-            // working after the ScanResult they came from is closed. Just rely on the garbage collector to collect
-            // these once the ScanResult goes out of scope.
-            if (packageNameToPackageInfo != null) {
-                packageNameToPackageInfo.clear();
-                packageNameToPackageInfo = null;
-            }
-            if (moduleNameToModuleInfo != null) {
-                moduleNameToModuleInfo.clear();
-                moduleNameToModuleInfo = null;
-            }
-            if (fileToLastModified != null) {
-                fileToLastModified.clear();
-                fileToLastModified = null;
-            }
-            // The virtual filesystem should be closed last, since it needs to have all MappedByteBuffer refs
-            // dropped before it tries to delete any temporary files that were written to disk
-            final var vfsCurr = vfs;
-            if (vfsCurr != null) {
-                vfs = null;
-                vfsCurr.close(topLevelLog);
-            }
-            // Flush log on exit, in case additional log entries were generated after scan() completed
-            if (topLevelLog != null) {
-                topLevelLog.flush();
+                final var allAcceptedResources = allAcceptedResourcesCached;
+                if (allAcceptedResources != null) {
+                    for (final Resource classpathResource : allAcceptedResources) {
+                        classpathResource.close();
+                    }
+                    // Drop the reference to the cached list rather than clearing it, since the list (or a map
+                    // containing it) may have been returned to the caller, and returned collections are unmodifiable
+                    allAcceptedResourcesCached = null;
+                }
+                pathToAcceptedResourcesCached = null;
+                // Don't clear classNameToClassInfo, since ClassInfo objects and the objects reachable from them keep
+                // working after the ScanResult they came from is closed. Just rely on the garbage collector to
+                // collect these once the ScanResult goes out of scope.
+                if (packageNameToPackageInfo != null) {
+                    packageNameToPackageInfo.clear();
+                    packageNameToPackageInfo = null;
+                }
+                if (moduleNameToModuleInfo != null) {
+                    moduleNameToModuleInfo.clear();
+                    moduleNameToModuleInfo = null;
+                }
+                if (fileToLastModified != null) {
+                    fileToLastModified.clear();
+                    fileToLastModified = null;
+                }
+            } finally {
+                // The virtual filesystem should be closed last, since it needs to have all MappedByteBuffer refs
+                // dropped before it tries to delete any temporary files that were written to disk. It is what holds
+                // every file handle and memory mapping of the scan, so it is closed even if one of the resources
+                // above could not be closed -- this scan result is already marked as closed, so nothing else would
+                // close it
+                try {
+                    final var vfsCurr = vfs;
+                    if (vfsCurr != null) {
+                        vfs = null;
+                        vfsCurr.close(topLevelLog);
+                    }
+                } finally {
+                    // Flush log on exit, in case additional log entries were generated after scan() completed
+                    if (topLevelLog != null) {
+                        topLevelLog.flush();
+                    }
+                }
             }
         }
     }

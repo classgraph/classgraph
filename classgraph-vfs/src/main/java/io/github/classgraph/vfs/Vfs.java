@@ -708,12 +708,9 @@ public class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      */
     @Override
     public void close() {
-        final var logCurr = log;
         // Only the thread that performs the close flushes the log, so that a second thread cannot print a
         // half-written log while the first is still adding entries to it
-        if (doClose(logCurr) && logCurr != null) {
-            logCurr.flush();
-        }
+        doClose(log, /* flushLogAfterwards = */ true);
     }
 
     /**
@@ -729,7 +726,7 @@ public class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      *            the log node, or null to not log.
      */
     public void close(final @Nullable LogNode logNode) {
-        doClose(logNode);
+        doClose(logNode, /* flushLogAfterwards = */ false);
     }
 
     /**
@@ -737,24 +734,35 @@ public class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      *
      * @param logNode
      *            the log node, or null to not log.
-     * @return true if this call closed the {@link Vfs}, or false if it was already closed by an earlier or
-     *         concurrent call.
+     * @param flushLogAfterwards
+     *            true to flush the log node once the close is complete, which only the caller that owns the log
+     *            node does.
      */
-    private boolean doClose(final @Nullable LogNode logNode) {
+    private void doClose(final @Nullable LogNode logNode, final boolean flushLogAfterwards) {
         // The session is marked closed atomically, so that a second call (or a concurrent one) returns rather than
         // releasing the same resources twice, and so that a thread calling any other method the moment a close
         // starts is turned away. It is marked before anything is released, since it is what every root checks
         // before reading, so a thread that is midway through a read cannot get at storage that is being released
         // out from under it.
         if (!session.beginClose()) {
-            return false;
+            return;
         }
-        rootsByPath.clear();
-        rootsByModule.clear();
-        // The zipfile caches have to be dropped before the resources behind them are released, so that nothing can
-        // be handed a slice of a zipfile that is about to be closed
-        nestedJarHandler.dropCaches();
-        session.close(logNode);
-        return true;
+        try {
+            try {
+                rootsByPath.clear();
+                rootsByModule.clear();
+                // The zipfile caches have to be dropped before the resources behind them are released, so that
+                // nothing can be handed a slice of a zipfile that is about to be closed
+                nestedJarHandler.dropCaches();
+            } finally {
+                // The session teardown is what releases every file handle, memory mapping and temporary file that
+                // the roots were read through, so it runs even if dropping the caches failed
+                session.close(logNode);
+            }
+        } finally {
+            if (flushLogAfterwards && logNode != null) {
+                logNode.flush();
+            }
+        }
     }
 }

@@ -197,7 +197,8 @@ final class DirEntry extends VfsEntry {
         final var slice = openSlice();
         try {
             return new CloseableByteBuffer(slice.read(), slice::close);
-        } catch (final IOException e) {
+        } catch (final IOException | RuntimeException | Error e) {
+            // The caller never sees the slice if this throws, so nothing else can close its file channel
             slice.close();
             throw e;
         }

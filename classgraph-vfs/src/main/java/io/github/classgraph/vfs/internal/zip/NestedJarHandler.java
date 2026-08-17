@@ -179,7 +179,14 @@ public class NestedJarHandler {
                 }
 
                 // Create a new logical slice of the extracted inner zipfile
-                childZipEntrySlice = new ZipFileSlice(physicalZipFile, childZipEntry);
+                try {
+                    childZipEntrySlice = new ZipFileSlice(physicalZipFile, childZipEntry);
+                } catch (final RuntimeException | Error e) {
+                    // The cache records the failure rather than inflating the entry again, so nothing would ever
+                    // reach what was just inflated
+                    releaseUnreachable(physicalZipFile, e);
+                    throw e;
+                }
             }
             return childZipEntrySlice;
         }
@@ -311,10 +318,36 @@ public class NestedJarHandler {
     public LogicalZipFile openJarFromInputStream(final InputStream inputStream, final long inputStreamLengthHint,
             final String name, final @Nullable LogNode log) throws IOException, InterruptedException {
         final var physicalZipFile = new PhysicalZipFile(inputStream, inputStreamLengthHint, name, session, log);
-        // The zipfile slice cache cannot be used here: two PhysicalZipFile instances compare equal if they have the
-        // same path, so two different streams read under the same name would be treated as the same jarfile
-        return new LogicalZipFile(new ZipFileSlice(physicalZipFile), session, log,
-                session.vfsSpec.isMultiReleaseVersionsEnabled());
+        try {
+            // The zipfile slice cache cannot be used here: two PhysicalZipFile instances compare equal if they have
+            // the same path, so two different streams read under the same name would be treated as the same jarfile
+            return new LogicalZipFile(new ZipFileSlice(physicalZipFile), session, log,
+                    session.vfsSpec.isMultiReleaseVersionsEnabled());
+        } catch (final IOException | RuntimeException | Error e) {
+            // Nothing is cached here, so the caller can only try again by reading the stream again, and nothing
+            // would ever reach what was just read
+            releaseUnreachable(physicalZipFile, e);
+            throw e;
+        }
+    }
+
+    /**
+     * Release a {@link PhysicalZipFile} that nothing will ever be able to reach, because the operation that opened
+     * it failed. Without this, the file handle and memory mapping behind it would be held until the session is
+     * closed, even though nothing can read through them.
+     *
+     * @param physicalZipFile
+     *            the zipfile to release.
+     * @param failure
+     *            the failure that stopped the zipfile from being handed over, for any failure to release it to be
+     *            recorded within.
+     */
+    private static void releaseUnreachable(final PhysicalZipFile physicalZipFile, final Throwable failure) {
+        try {
+            physicalZipFile.slice.close();
+        } catch (final IOException | RuntimeException | Error e) {
+            failure.addSuppressed(e);
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -338,7 +371,12 @@ public class NestedJarHandler {
         // If the path starts with "http://" or "https://" or any other URI/URL scheme, download the jar to a temp
         // file or to a ByteBuffer in RAM. ("jar:" and "file:" have already been stripped from any URL/URI.)
         final var isURL = URLPaths.URL_SCHEME_PATTERN.matcher(nestedJarPath).matches();
-        PhysicalZipFile physicalZipFile;
+        final PhysicalZipFile physicalZipFile;
+        // A downloaded jarfile is not cached, so this method owns it until it has been handed over to the logical
+        // zipfile cache, and has to release it if it never gets there. A jarfile opened from a local path comes
+        // from a cache that keeps it, and another path that resolves to the same file will be handed the same
+        // instance, so it must not be released here.
+        final boolean ownedUntilHandedOver;
         if (isURL) {
             // URL schemes are case-insensitive, and are registered in lowercase, so the scheme has to be
             // lowercased before it is looked up -- otherwise "S3://bucket/x.jar" is rejected as not enabled
@@ -354,6 +392,7 @@ public class NestedJarHandler {
 
             // Download jar from URL to a ByteBuffer in RAM, or to a temp file on disk
             physicalZipFile = JarURLDownloader.downloadJarFromURL(nestedJarPath, session, log);
+            ownedUntilHandedOver = true;
 
         } else {
             // Jarfile should be a local file -- wrap in a PhysicalZipFile instance
@@ -362,6 +401,7 @@ public class NestedJarHandler {
                 final var canonicalFile = FileUtils.canonicalize(new File(nestedJarPath));
                 // Get or create a PhysicalZipFile instance for the canonical file
                 physicalZipFile = canonicalFileToPhysicalZipFileMap().get(canonicalFile, log);
+                ownedUntilHandedOver = false;
             } catch (final NullSingletonException | NewInstanceException e) {
                 // If getting PhysicalZipFile failed, re-wrap in IOException, chaining the cause as well as naming
                 // it in the message, so that the reason is reachable from the stack trace
@@ -375,14 +415,23 @@ public class NestedJarHandler {
         }
 
         // Create a new logical slice of the whole physical zipfile
-        final ZipFileSlice topLevelSlice = new ZipFileSlice(physicalZipFile);
-        LogicalZipFile logicalZipFile;
+        final LogicalZipFile logicalZipFile;
         try {
-            logicalZipFile = zipFileSliceToLogicalZipFileMap().get(topLevelSlice, log);
-        } catch (final NullSingletonException e) {
-            throw new IOException("Could not get toplevel slice " + topLevelSlice + " : " + e);
-        } catch (final NewInstanceException e) {
-            throw new IOException("Could not get toplevel slice " + topLevelSlice, e);
+            final var topLevelSlice = new ZipFileSlice(physicalZipFile);
+            try {
+                logicalZipFile = zipFileSliceToLogicalZipFileMap().get(topLevelSlice, log);
+            } catch (final NullSingletonException e) {
+                throw new IOException("Could not get toplevel slice " + topLevelSlice + " : " + e);
+            } catch (final NewInstanceException e) {
+                throw new IOException("Could not get toplevel slice " + topLevelSlice, e);
+            }
+        } catch (final IOException | InterruptedException | RuntimeException | Error e) {
+            if (ownedUntilHandedOver) {
+                // The cache of resolved nested paths records the failure rather than downloading the jarfile
+                // again, so nothing would ever reach what was just downloaded
+                releaseUnreachable(physicalZipFile, e);
+            }
+            throw e;
         }
 
         // Return new logical zipfile with an empty package root

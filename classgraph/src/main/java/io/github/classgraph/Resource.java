@@ -356,7 +356,7 @@ public abstract class Resource implements AutoCloseable, Comparable<Resource> {
             length = entry.getLength();
             return inputStream;
 
-        } catch (final IOException e) {
+        } catch (final IOException | RuntimeException | Error e) {
             // Leave the resource closed if it could not be opened, so that opening it can be tried again, and so
             // that anything the entry checked out in order to open it is handed back
             close();
@@ -390,7 +390,9 @@ public abstract class Resource implements AutoCloseable, Comparable<Resource> {
             // Closing the returned wrapper closes this resource, which releases the buffer the entry produced
             return new CloseableByteBuffer(buffer, this::close);
 
-        } catch (final IOException e) {
+        } catch (final IOException | RuntimeException | Error e) {
+            // Leave the resource closed if it could not be read, so that reading it can be tried again, and so that
+            // the buffer the entry produced is released
             close();
             throw e;
         }
@@ -522,19 +524,24 @@ public abstract class Resource implements AutoCloseable, Comparable<Resource> {
     @Override
     public void close() {
         if (markClosed()) {
-            final var closeableBuffer = closeableByteBuffer;
-            if (closeableBuffer != null) {
-                closeableByteBuffer = null;
-                // Releases the buffer, and hands back anything the entry checked out in order to read it
-                closeableBuffer.close();
-            }
-            final var in = inputStream;
-            if (in != null) {
-                inputStream = null;
-                try {
-                    in.close();
-                } catch (final IOException e) {
-                    // Ignore
+            try {
+                final var closeableBuffer = closeableByteBuffer;
+                if (closeableBuffer != null) {
+                    closeableByteBuffer = null;
+                    // Releases the buffer, and hands back anything the entry checked out in order to read it
+                    closeableBuffer.close();
+                }
+            } finally {
+                // The stream is closed even if the buffer could not be released -- this resource is already marked
+                // as closed, so nothing else would close it
+                final var in = inputStream;
+                if (in != null) {
+                    inputStream = null;
+                    try {
+                        in.close();
+                    } catch (final IOException e) {
+                        // Ignore
+                    }
                 }
             }
         }

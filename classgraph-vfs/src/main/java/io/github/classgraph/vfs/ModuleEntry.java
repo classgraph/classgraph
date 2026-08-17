@@ -109,55 +109,79 @@ final class ModuleEntry extends VfsEntry {
     public InputStream open() throws IOException {
         final var recycler = getRoot().moduleReaderRecycler();
         final var reader = recycler.acquire();
-        final InputStream inputStream;
+        InputStream inputStream = null;
+        var handedOffToCaller = false;
         try {
             inputStream = ModuleReaderUtils.open(reader, name);
-        } catch (final IOException e) {
-            // Recycle the reader rather than leaving it checked out, so that opening this entry can be tried again
-            recycler.recycle(reader);
-            throw e;
-        } catch (final SecurityException e) {
-            recycler.recycle(reader);
-            throw new IOException("Could not open " + getPath(), e);
-        }
-        return new ProxyingInputStream(inputStream) {
-            /** True once the {@link ModuleReader} has been recycled, so that it is only recycled once. */
-            private final AtomicBoolean recycled = new AtomicBoolean();
+            final var proxyingInputStream = new ProxyingInputStream(inputStream) {
+                /** True once the {@link ModuleReader} has been recycled, so that it is only recycled once. */
+                private final AtomicBoolean recycled = new AtomicBoolean();
 
-            @Override
-            public void close() throws IOException {
-                try {
-                    super.close();
-                } finally {
-                    // Two threads closing this stream at once must not hand the same reader back to the recycler
-                    // twice, which would let two threads read through it at the same time
-                    if (!recycled.getAndSet(true)) {
-                        recycler.recycle(reader);
+                @Override
+                public void close() throws IOException {
+                    try {
+                        super.close();
+                    } finally {
+                        // Two threads closing this stream at once must not hand the same reader back to the
+                        // recycler twice, which would let two threads read through it at the same time
+                        if (!recycled.getAndSet(true)) {
+                            recycler.recycle(reader);
+                        }
                     }
                 }
+            };
+            handedOffToCaller = true;
+            return proxyingInputStream;
+        } catch (final SecurityException e) {
+            throw new IOException("Could not open " + getPath(), e);
+        } finally {
+            if (!handedOffToCaller) {
+                // Only the stream that the caller never got recycles the reader, so close the stream and recycle
+                // the reader here rather than leaving them checked out, so that opening this entry can be tried
+                // again
+                try {
+                    if (inputStream != null) {
+                        inputStream.close();
+                    }
+                } catch (final IOException e) {
+                    // Nothing can be done about a stream that cannot be closed, and the caller never saw it
+                } finally {
+                    recycler.recycle(reader);
+                }
             }
-        };
+        }
     }
 
     @Override
     public CloseableByteBuffer read() throws IOException {
         final var recycler = getRoot().moduleReaderRecycler();
         final var reader = recycler.acquire();
+        var handedOffToCaller = false;
         try {
             final var byteBuffer = ModuleReaderUtils.read(reader, name);
-            // The buffer belongs to the ModuleReader and has to be handed back to it, so the caller gets a read-only
-            // view of it, and closing that view is what releases the buffer and recycles the reader
-            return new CloseableByteBuffer(byteBuffer.asReadOnlyBuffer(), () -> {
-                reader.release(byteBuffer);
-                recycler.recycle(reader);
-            });
-        } catch (final IOException e) {
-            // Recycle the reader rather than leaving it checked out, so that reading this entry can be tried again
-            recycler.recycle(reader);
-            throw e;
+            try {
+                // The buffer belongs to the ModuleReader and has to be handed back to it, so the caller gets a
+                // read-only view of it, and closing that view is what releases the buffer and recycles the reader
+                final var closeableByteBuffer = new CloseableByteBuffer(byteBuffer.asReadOnlyBuffer(), () -> {
+                    reader.release(byteBuffer);
+                    recycler.recycle(reader);
+                });
+                handedOffToCaller = true;
+                return closeableByteBuffer;
+            } finally {
+                if (!handedOffToCaller) {
+                    // Only the view that the caller never got releases the buffer, so hand it back here
+                    reader.release(byteBuffer);
+                }
+            }
         } catch (final SecurityException | OutOfMemoryError e) {
-            recycler.recycle(reader);
             throw new IOException("Could not read " + getPath(), e);
+        } finally {
+            if (!handedOffToCaller) {
+                // Recycle the reader rather than leaving it checked out, so that reading this entry can be tried
+                // again
+                recycler.recycle(reader);
+            }
         }
     }
 

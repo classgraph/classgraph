@@ -368,21 +368,6 @@ public class VfsSession {
             closed.set(true);
         }
 
-        var interrupted = false;
-        var completedWithoutInterruption = false;
-        while (!completedWithoutInterruption) {
-            try {
-                for (final Recycler<ModuleReader, IOException> recycler : moduleReaderRecyclerMap.values()) {
-                    recycler.forceClose();
-                }
-                completedWithoutInterruption = true;
-            } catch (final InterruptedException e) {
-                // Try again if interrupted
-                interrupted = true;
-            }
-        }
-        moduleReaderRecyclerMap.clear();
-
         // Take the open resources away from anything that might still be registering: after the lock is released,
         // registration is rejected, since closed is true, so these snapshots are complete
         final List<Slice> slicesToClose;
@@ -394,25 +379,110 @@ public class VfsSession {
             tempFiles.clear();
         }
 
+        // Everything is released in the reverse of the order in which it was taken: module readers and inflaters
+        // are borrowed on top of the modules and the slices, the slices are opened over the files, and a temporary
+        // file can only be deleted once the slices over it have been closed and the file has been unmapped. Every
+        // step is run even if an earlier one failed, since a teardown that stopped at the first failure would
+        // strand a file handle, a memory mapping or a temporary file for the rest of the life of the JVM
+        final var teardown = new Teardown(log);
+        final var interrupted = new AtomicBoolean();
+        teardown.run(() -> closeModuleReaderRecyclers(teardown, interrupted));
+        teardown.run(inflaterRecycler::forceClose);
         for (final Slice slice : slicesToClose) {
-            try {
-                slice.close();
-            } catch (final IOException e) {
-                // Ignore
-            }
+            teardown.run(slice::close);
         }
-        inflaterRecycler.forceClose();
 
         // Temp files have to be deleted last, after all PhysicalZipFiles are closed and files are unmapped
         final var rmLog = tempFilesToDelete.isEmpty() || log == null ? null : log.log("Removing temporary files");
         for (final File tempFile : tempFilesToDelete) {
-            if (!deleteTempFile(tempFile) && rmLog != null) {
-                rmLog.log("Removing temporary file failed: " + tempFile);
-            }
+            teardown.run(() -> {
+                if (!deleteTempFile(tempFile) && rmLog != null) {
+                    rmLog.log("Removing temporary file failed: " + tempFile);
+                }
+            });
         }
 
-        if (interrupted) {
+        if (interrupted.get()) {
             interruptionChecker.interrupt();
+        }
+    }
+
+    /**
+     * Discard the pooled {@link ModuleReader} instances of every module that was read through this session.
+     *
+     * @param teardown
+     *            the teardown that is running, so that one reader that cannot be closed does not prevent the rest
+     *            from being closed.
+     * @param interrupted
+     *            set to true if the current thread was interrupted while the readers were being closed, so that the
+     *            interruption can be signalled once the teardown is complete.
+     */
+    private void closeModuleReaderRecyclers(final Teardown teardown, final AtomicBoolean interrupted) {
+        var completedWithoutInterruption = false;
+        while (!completedWithoutInterruption) {
+            try {
+                for (final Recycler<ModuleReader, IOException> recycler : moduleReaderRecyclerMap.values()) {
+                    teardown.run(recycler::forceClose);
+                }
+                completedWithoutInterruption = true;
+            } catch (final InterruptedException e) {
+                // Try again if interrupted
+                interrupted.set(true);
+            }
+        }
+        moduleReaderRecyclerMap.clear();
+    }
+
+    /**
+     * Runs the steps of a session teardown, so that a step that fails does not stop the steps after it from
+     * running. A teardown never throws: a session is often closed from a path that is already handling a failure of
+     * its own, which a throw from here would replace, and there is nothing the caller could do about a resource
+     * that will not release either way. So a failed step is logged, and the teardown moves on to the next resource.
+     */
+    private static class Teardown {
+        /** The log node to report a failed step to, or null to skip logging. */
+        private final @Nullable LogNode log;
+
+        /**
+         * Constructor.
+         *
+         * @param log
+         *            the log node to report a failed step to, or null to skip logging.
+         */
+        Teardown(final @Nullable LogNode log) {
+            this.log = log;
+        }
+
+        /** One step of a session teardown. */
+        @FunctionalInterface
+        private interface TeardownStep {
+            /**
+             * Run this step.
+             *
+             * @throws IOException
+             *             if a resource could not be closed cleanly.
+             */
+            void run() throws IOException;
+        }
+
+        /**
+         * Run one step of the teardown, reporting any failure it throws rather than propagating it, so that the
+         * steps after it still run.
+         *
+         * @param step
+         *            the step to run.
+         */
+        void run(final TeardownStep step) {
+            try {
+                step.run();
+            } catch (final IOException e) {
+                // Nothing can be done about a resource that cannot be closed cleanly, and the storage behind it is
+                // being discarded either way
+            } catch (final RuntimeException | Error e) {
+                if (log != null) {
+                    log.log("Could not release a resource that the session opened", e);
+                }
+            }
         }
     }
 }

@@ -149,24 +149,34 @@ public final class PathSlice extends Slice {
         }
 
         this.path = path;
-        final var fileChannelOpened = FileChannel.open(path, StandardOpenOption.READ);
-        this.fileChannel = fileChannelOpened;
-        this.fileLength = fileChannelOpened.size();
+        // Set before the file is opened, since it is what tells close() that this slice owns the file channel
         this.isTopLevelFileSlice = true;
 
-        // Had to use 0L for sliceLength in call to super, since FileChannel wasn't open yet => update sliceLength
-        this.sliceLength = fileLength;
+        final var fileChannelOpened = FileChannel.open(path, StandardOpenOption.READ);
+        this.fileChannel = fileChannelOpened;
+        // Nothing but this constructor knows about the file channel until the slice is registered as open, so if
+        // anything below throws, this is the only place the channel can be closed
+        try {
+            this.fileLength = fileChannelOpened.size();
 
-        if (memoryMapWholeFile && session.vfsSpec.isMemoryMappingFiles()) {
-            // Memory-map the whole file, if it can be mapped -- otherwise fall through and read through the
-            // FileChannel API instead
-            final var mapping = FileMapping.map(fileChannelOpened, fileLength, path, log);
-            fileMapping = mapping;
-            backingByteBuffer = mapping == null ? null : mapping.byteBuffer;
+            // Had to use 0L for sliceLength in call to super, since FileChannel wasn't open yet => update
+            // sliceLength
+            this.sliceLength = fileLength;
+
+            if (memoryMapWholeFile && session.vfsSpec.isMemoryMappingFiles()) {
+                // Memory-map the whole file, if it can be mapped -- otherwise fall through and read through the
+                // FileChannel API instead
+                final var mapping = FileMapping.map(fileChannelOpened, fileLength, path, log);
+                fileMapping = mapping;
+                backingByteBuffer = mapping == null ? null : mapping.byteBuffer;
+            }
+
+            // Mark toplevel slice as open
+            registerAsOpen();
+        } catch (final IOException | RuntimeException | Error e) {
+            close();
+            throw e;
         }
-
-        // Mark toplevel slice as open
-        registerAsOpen();
     }
 
     /**
@@ -297,26 +307,34 @@ public final class PathSlice extends Slice {
     @Override
     public void close() {
         if (!isClosed.getAndSet(true)) {
+            // Take what has to be released, and drop the references to it, before releasing any of it: this slice
+            // is already marked as closed, so a second call must not release the same resource twice
             final var mapping = fileMapping;
-            if (mapping != null) {
-                // Only the toplevel file slice has a FileMapping, so the file is only unmapped once (also
-                // duplicates of mapped ByteBuffers cannot be closed by the cleaner API)
-                mapping.unmap();
-                fileMapping = null;
-            }
+            final var fileChannelToClose = fileChannel;
+            fileMapping = null;
             backingByteBuffer = null;
-            final var fileChannelCurr = fileChannel;
-            if (isTopLevelFileSlice && fileChannelCurr != null) {
-                // Only close the FileChannel in the toplevel file slice, so that it is only closed once (sub slices
-                // just copy the reference to the toplevel slice's FileChannel)
+            fileChannel = null;
+            try {
+                if (mapping != null) {
+                    // Only the toplevel file slice has a FileMapping, so the file is only unmapped once (also
+                    // duplicates of mapped ByteBuffers cannot be closed by the cleaner API)
+                    mapping.unmap();
+                }
+            } finally {
+                // The file channel is closed, and this slice is unregistered, even if the file could not be
+                // unmapped -- this slice is already marked as closed, so nothing else would release them
                 try {
-                    fileChannelCurr.close();
+                    if (isTopLevelFileSlice && fileChannelToClose != null) {
+                        // Only close the FileChannel in the toplevel file slice, so that it is only closed once
+                        // (sub slices just copy the reference to the toplevel slice's FileChannel)
+                        fileChannelToClose.close();
+                    }
                 } catch (final IOException e) {
                     // Ignore
+                } finally {
+                    session.markSliceAsClosed(this);
                 }
             }
-            fileChannel = null;
-            session.markSliceAsClosed(this);
         }
     }
 }

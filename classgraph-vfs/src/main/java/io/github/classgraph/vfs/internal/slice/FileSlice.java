@@ -138,23 +138,34 @@ public final class FileSlice extends Slice {
         // Make sure the File is readable and is a regular file
         FileUtils.checkCanReadAndIsFile(file);
         this.file = file;
-        this.raf = new RandomAccessFile(file, "r");
-        this.fileChannel = raf.getChannel();
         // (sliceLength was set to file.length() by the call to super, so don't measure the file a second time --
         // the two values have to agree, since the memory mapping covers fileLength but is read through sliceLength)
         this.fileLength = sliceLength;
+        // Set before the file is opened, since it is what tells close() that this slice owns the file handle
         this.isTopLevelFileSlice = true;
 
-        if (session.vfsSpec.isMemoryMappingFiles()) {
-            // Memory-map the whole file, if it can be mapped -- otherwise fall through and use the
-            // RandomAccessFile API instead
-            final var mapping = FileMapping.map(Objects.requireNonNull(fileChannel), fileLength, file, log);
-            fileMapping = mapping;
-            backingByteBuffer = mapping == null ? null : mapping.byteBuffer;
-        }
+        final var rafOpened = new RandomAccessFile(file, "r");
+        this.raf = rafOpened;
+        // Nothing but this constructor knows about the file handle until the slice is registered as open, so if
+        // anything below throws, this is the only place the handle can be closed
+        try {
+            final var fileChannelOpened = rafOpened.getChannel();
+            this.fileChannel = fileChannelOpened;
 
-        // Mark toplevel slice as open
-        registerAsOpen();
+            if (session.vfsSpec.isMemoryMappingFiles()) {
+                // Memory-map the whole file, if it can be mapped -- otherwise fall through and use the
+                // RandomAccessFile API instead
+                final var mapping = FileMapping.map(fileChannelOpened, fileLength, file, log);
+                fileMapping = mapping;
+                backingByteBuffer = mapping == null ? null : mapping.byteBuffer;
+            }
+
+            // Mark toplevel slice as open
+            registerAsOpen();
+        } catch (final IOException | RuntimeException | Error e) {
+            close();
+            throw e;
+        }
     }
 
     /**
@@ -281,28 +292,36 @@ public final class FileSlice extends Slice {
     @Override
     public void close() {
         if (!isClosed.getAndSet(true)) {
+            // Take what has to be released, and drop the references to it, before releasing any of it: this slice
+            // is already marked as closed, so a second call must not release the same resource twice
             final var mapping = fileMapping;
-            if (mapping != null) {
-                // Only the toplevel file slice has a FileMapping, so the file is only unmapped once (also
-                // duplicates of mapped ByteBuffers cannot be closed by the cleaner API)
-                mapping.unmap();
-                fileMapping = null;
-            }
+            final var rafToClose = raf;
+            fileMapping = null;
             backingByteBuffer = null;
             fileChannel = null;
-            final var rafCurr = raf;
-            if (isTopLevelFileSlice && rafCurr != null) {
-                // Only close the RandomAccessFile in the toplevel file slice, so that it is only closed once (sub
-                // slices just copy the reference to the toplevel slice's RandomAccessFile)
+            raf = null;
+            try {
+                if (mapping != null) {
+                    // Only the toplevel file slice has a FileMapping, so the file is only unmapped once (also
+                    // duplicates of mapped ByteBuffers cannot be closed by the cleaner API)
+                    mapping.unmap();
+                }
+            } finally {
+                // The file handle is released, and this slice is unregistered, even if the file could not be
+                // unmapped -- this slice is already marked as closed, so nothing else would release them
                 try {
-                    // Closing raf will also close the associated FileChannel
-                    rafCurr.close();
+                    if (isTopLevelFileSlice && rafToClose != null) {
+                        // Only close the RandomAccessFile in the toplevel file slice, so that it is only closed
+                        // once (sub slices just copy the reference to the toplevel slice's RandomAccessFile).
+                        // Closing raf will also close the associated FileChannel.
+                        rafToClose.close();
+                    }
                 } catch (final IOException e) {
                     // Ignore
+                } finally {
+                    session.markSliceAsClosed(this);
                 }
             }
-            raf = null;
-            session.markSliceAsClosed(this);
         }
     }
 }

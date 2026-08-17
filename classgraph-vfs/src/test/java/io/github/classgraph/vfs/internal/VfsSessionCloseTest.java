@@ -31,6 +31,8 @@ package io.github.classgraph.vfs.internal;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.lang.module.ModuleReference;
 
@@ -38,11 +40,15 @@ import io.github.classgraph.vfs.VfsSpec;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
+import io.github.classgraph.vfs.internal.slice.Slice;
+import io.github.classgraph.vfs.internal.slice.reader.RandomAccessReader;
 
 /**
- * Tests that a closed {@link VfsSession} refuses to register a resource that its teardown has already passed by,
- * for each of the kinds of resource it owns. A registration that slipped through would hand out a file handle, a
- * temporary file or a pooled {@link java.lang.module.ModuleReader} that nothing would ever release.
+ * Tests the teardown of a {@link VfsSession}: that it releases everything it owns even if one of the resources
+ * cannot be released, and that once it has run, it refuses to register a resource that it has already passed by,
+ * for each of the kinds of resource it owns. A resource left behind, or a registration that slipped through, would
+ * strand a file handle, a temporary file or a pooled {@link java.lang.module.ModuleReader} for the rest of the life
+ * of the JVM.
  */
 class VfsSessionCloseTest {
     /** A module to ask for a reader recycler for. */
@@ -120,5 +126,84 @@ class VfsSessionCloseTest {
         final var reader = recycler.acquire();
         session.close(/* log = */ null);
         recycler.recycle(reader);
+    }
+
+    /**
+     * A resource that cannot be released must not stop the teardown from releasing the rest of what the session
+     * owns, and the resources must be released in the reverse of the order in which they were taken: a temporary
+     * file can only be deleted once the slices over it have been closed and the file has been unmapped.
+     */
+    @Test
+    void theCloseReleasesEverythingEvenAfterAResourceFailsToClose() throws Exception {
+        final var session = newSession();
+        final var tempFile = session.makeTempFile("test.jar", /* onlyUseLeafname = */ false);
+        final var firstSlice = new UnclosableSlice(session, tempFile);
+        final var secondSlice = new UnclosableSlice(session, tempFile);
+
+        session.close(/* log = */ null);
+
+        // The slice that could not be closed did not stop the second slice from being closed, or the temporary file
+        // from being deleted
+        assertThat(firstSlice.closeWasCalled).isTrue();
+        assertThat(secondSlice.closeWasCalled).isTrue();
+        assertThat(tempFile).doesNotExist();
+        assertThat(session.hasTempFiles()).isFalse();
+
+        // The temporary file was still there while the slices were being closed, i.e. it was deleted after them
+        assertThat(firstSlice.tempFileExistedAtClose).isTrue();
+        assertThat(secondSlice.tempFileExistedAtClose).isTrue();
+    }
+
+    /**
+     * A toplevel {@link Slice} that cannot be closed, and that records what it saw when the teardown reached it.
+     */
+    private static final class UnclosableSlice extends Slice {
+        /** The temporary file of the session, so that the order of the teardown can be checked. */
+        private final File tempFile;
+
+        /** True once {@link #close()} has been called. */
+        private boolean closeWasCalled;
+
+        /** True if the temporary file of the session still existed when {@link #close()} was called. */
+        private boolean tempFileExistedAtClose;
+
+        /**
+         * Constructor.
+         *
+         * @param session
+         *            the session to register with, so that its teardown closes this slice.
+         * @param tempFile
+         *            the temporary file of the session, so that the order of the teardown can be checked.
+         * @throws IOException
+         *             if the session has already been closed.
+         */
+        UnclosableSlice(final VfsSession session, final File tempFile) throws IOException {
+            super(/* length = */ 0L, /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L, session);
+            this.tempFile = tempFile;
+            registerAsOpen();
+        }
+
+        @Override
+        public void close() {
+            closeWasCalled = true;
+            tempFileExistedAtClose = tempFile.exists();
+            throw new IllegalStateException("Could not close this slice");
+        }
+
+        @Override
+        public Slice slice(final long offset, final long length, final boolean isDeflatedZipEntry,
+                final long inflatedLengthHint) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public RandomAccessReader randomAccessReader() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public byte[] load() {
+            throw new UnsupportedOperationException();
+        }
     }
 }

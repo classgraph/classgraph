@@ -327,18 +327,23 @@ public abstract class Slice implements AutoCloseable {
      *             if an inflater cannot be created for this {@link Slice}.
      */
     public InputStream open(final @Nullable AutoCloseable resourceToClose) throws IOException {
-        final InputStream rawInputStream = new SliceInputStream(this, resourceToClose);
-        if (!isDeflatedZipEntry) {
-            return rawInputStream;
-        }
+        InputStream rawInputStream = null;
         try {
+            rawInputStream = new SliceInputStream(this, resourceToClose);
+            if (!isDeflatedZipEntry) {
+                return rawInputStream;
+            }
             return session.openInflaterInputStream(rawInputStream);
-        } catch (final IOException e) {
-            // The caller never sees rawInputStream if this throws, so close it here, and with it resourceToClose
-            try {
-                rawInputStream.close();
-            } catch (final IOException e2) {
-                e.addSuppressed(e2);
+        } catch (final IOException | RuntimeException | Error e) {
+            // The caller never sees a stream if this throws, so whatever was opened has to be closed here, and with
+            // it resourceToClose, which the caller has already handed over
+            final AutoCloseable toClose = rawInputStream == null ? resourceToClose : rawInputStream;
+            if (toClose != null) {
+                try {
+                    toClose.close();
+                } catch (final Exception e2) {
+                    e.addSuppressed(e2);
+                }
             }
             throw e;
         }
@@ -447,24 +452,15 @@ public abstract class Slice implements AutoCloseable {
     /**
      * Register this slice with its session, so that the session closes it when the session is closed. Call this as
      * the last statement of the constructor of a toplevel slice, once every field it needs to close itself has been
-     * assigned. If the session has already been closed, this slice is closed again immediately and the session's
-     * {@link IOException} is propagated, since the session teardown has already passed this slice by, so nothing
-     * else would ever release the file handle or memory mapping that the constructor just took.
+     * assigned. Registration is rejected if the session has already been closed, since the session teardown has
+     * already passed this slice by -- the constructor has to close the slice itself in that case, as it does for
+     * any other failure after it took the file handle, since nothing else would ever release it.
      *
      * @throws IOException
      *             if the session has already been closed.
      */
     protected final void registerAsOpen() throws IOException {
-        try {
-            session.markSliceAsOpen(this);
-        } catch (final IOException e) {
-            try {
-                close();
-            } catch (final IOException e2) {
-                e.addSuppressed(e2);
-            }
-            throw e;
-        }
+        session.markSliceAsOpen(this);
     }
 
     @Override
