@@ -455,14 +455,25 @@ public class LogicalZipFile extends ZipFileSlice {
 
         final RandomAccessReader reader = slice.randomAccessReader();
 
+        // The zipfile comment is arbitrary bytes, and the entry data before it is arbitrary bytes too, so a
+        // position that merely holds the EOCD signature is not necessarily the EOCD record. The real record is the
+        // one whose 22-byte header plus its declared comment length reaches exactly the end of the slice, so
+        // require that, and only fall back to the last signature in the slice if no record satisfies it
+        long fallbackEocdPos = -1L;
+
         // Scan for End Of Central Directory (EOCD) signature. Final comment can be up to 64kB in length,
         // so need to scan back that far to determine if this is a valid zipfile. However for speed,
         // initially just try reading back a maximum of 32 characters.
         long eocdPos = -1;
         for (long i = slice.sliceLength - 22, iMin = slice.sliceLength - 22 - 32; i >= iMin && i >= 0L; --i) {
             if (reader.readUnsignedInt(i) == 0x06054b50L) {
-                eocdPos = i;
-                break;
+                if (i + 22 + reader.readUnsignedShort(i + 20) == slice.sliceLength) {
+                    eocdPos = i;
+                    break;
+                }
+                if (fallbackEocdPos < 0L) {
+                    fallbackEocdPos = i;
+                }
             }
         }
         if (eocdPos < 0 && slice.sliceLength > 22 + 32) {
@@ -482,11 +493,23 @@ public class LogicalZipFile extends ZipFileSlice {
                 final RandomAccessReader eocdReader = arraySlice.randomAccessReader();
                 for (long i = eocdBytes.length - 22L; i >= 0L; --i) {
                     if (eocdReader.readUnsignedInt(i) == 0x06054b50L) {
-                        eocdPos = i + readStartOff;
-                        break;
+                        final long candidateEocdPos = i + readStartOff;
+                        if (candidateEocdPos + 22 + eocdReader.readUnsignedShort(i + 20) == slice.sliceLength) {
+                            eocdPos = candidateEocdPos;
+                            break;
+                        }
+                        if (fallbackEocdPos < 0L) {
+                            fallbackEocdPos = candidateEocdPos;
+                        }
                     }
                 }
             }
+        }
+        if (eocdPos < 0) {
+            // No record's comment length reached the end of the slice. Zipfiles do exist with data appended after
+            // the comment (a self-extracting archive, say), or with the wrong comment length recorded, and those
+            // still have to be readable, so fall back to the last EOCD signature in the slice
+            eocdPos = fallbackEocdPos;
         }
         if (eocdPos < 0) {
             throw new IOException("Jarfile central directory signature not found: " + getPath());
