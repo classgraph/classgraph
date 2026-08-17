@@ -56,10 +56,9 @@ import org.jspecify.annotations.Nullable;
  * try (Classpath classpath = new ClasspathFinder().find()) {
  *     Vfs vfs = classpath.getVfs();
  *     for (ClasspathEntry entry : classpath) {
- *         try (VfsRoot root = entry.open(vfs)) {
- *             for (VfsEntry resource : root) {
- *                 System.out.println(resource.getPath());
- *             }
+ *         VfsRoot root = entry.open(vfs);
+ *         for (VfsEntry resource : root) {
+ *             System.out.println(resource.getPath());
  *         }
  *     }
  * }

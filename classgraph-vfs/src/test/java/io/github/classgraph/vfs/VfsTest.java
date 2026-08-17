@@ -486,13 +486,12 @@ public class VfsTest {
             assertThat(vfs).containsExactly(dirRoot, jarRoot);
 
             // A root opened from a byte array is not named by any path, so it is not cached, and not iterated
-            try (var inMemoryRoot = vfs.open(readFile(jarFile), "in-memory.jar")) {
-                assertThat(inMemoryRoot.getEntry("com/xyz/widget.txt")).isNotNull();
-                assertThat(vfs).containsExactly(dirRoot, jarRoot);
-            }
+            final var inMemoryRoot = vfs.open(readFile(jarFile), "in-memory.jar");
+            assertThat(inMemoryRoot.getEntry("com/xyz/widget.txt")).isNotNull();
+            assertThat(vfs).containsExactly(dirRoot, jarRoot);
 
-            // Closing a root takes it out of the Vfs it was opened by
-            jarRoot.close();
+            // Evicting a root takes it out of the Vfs it was opened by
+            vfs.evict(jarRoot);
             assertThat(vfs).containsExactly(dirRoot);
         }
     }
@@ -1033,8 +1032,10 @@ public class VfsTest {
     }
 
     /**
-     * A single root can be closed without closing the whole virtual filesystem. Everything that root handed out
-     * stops working, and opening the same path again builds a fresh root, rather than handing back the closed one.
+     * A single root can be evicted from the cache without closing the whole virtual filesystem, so that the memory
+     * its entry list occupies can be reclaimed and the same path opens a fresh root. Eviction does not stop the
+     * evicted root working, since a {@link Vfs} hands the same root to everything that opened the same path, and
+     * one holder must not be able to take it away from the others.
      *
      * @param tempDir
      *            a temporary directory to write the jarfile into.
@@ -1042,29 +1043,35 @@ public class VfsTest {
      *             if the jarfile could not be written or read.
      */
     @Test
-    public void aRootCanBeClosedWithoutClosingTheVfs(@TempDir final File tempDir) throws IOException {
+    public void aRootCanBeEvictedWithoutBreakingIt(@TempDir final File tempDir) throws IOException {
         final var jarFile = new File(tempDir, "widget.jar");
         writeJar(jarFile, "com/xyz/widget.txt");
 
         try (var vfs = new Vfs()) {
+            // Two holders of the same path get the same root
             final var root = vfs.open(jarFile.getPath());
+            final var sameRoot = vfs.open(jarFile.getPath());
+            assertThat(sameRoot).isSameAs(root);
             final var entry = Objects.requireNonNull(root.getEntry("com/xyz/widget.txt"));
             final var fileSystem = root.asFileSystem();
 
-            root.close();
+            vfs.evict(root);
 
-            assertThat(root.isClosed()).as("root closed").isTrue();
-            assertThat(fileSystem.isOpen()).as("filesystem view open").isFalse();
-            assertThatThrownBy(entry::open).as("open").isInstanceOf(IOException.class)
-                    .hasMessageContaining("closed");
-            assertThatThrownBy(entry::read).as("read").isInstanceOf(IOException.class)
-                    .hasMessageContaining("closed");
-            assertThatThrownBy(entry::load).as("load").isInstanceOf(IOException.class)
-                    .hasMessageContaining("closed");
-            // Closing twice is harmless
-            root.close();
+            // The other holder is not left with a broken root: everything it was handed goes on working
+            assertThat(vfs).as("evicted from the Vfs").isEmpty();
+            assertThat(root.isClosed()).as("root closed").isFalse();
+            assertThat(fileSystem.isOpen()).as("filesystem view open").isTrue();
+            assertThat(root.getEntries()).as("entries").isNotEmpty();
+            assertThat(entryContent(root, "com/xyz/widget.txt")).isEqualTo(RESOURCE_CONTENT);
+            try (var content = entry.read()) {
+                assertThat(Objects.requireNonNull(content.getByteBuffer()).remaining()).isPositive();
+            }
 
-            // The closed root was dropped from the cache, so the same path opens a fresh root that works
+            // Evicting twice, and evicting a root that was never cached, are both harmless
+            vfs.evict(root);
+            vfs.evict(vfs.open(readFile(jarFile), "in-memory.jar"));
+
+            // The evicted root was dropped from the cache, so the same path now opens a fresh root
             final var reopened = vfs.open(jarFile.getPath());
             assertThat(reopened).isNotSameAs(root);
             assertThat(entryContent(reopened, "com/xyz/widget.txt")).isEqualTo(RESOURCE_CONTENT);
@@ -1072,10 +1079,10 @@ public class VfsTest {
     }
 
     /**
-     * A closed root hands out nothing that still reads from storage. Its container root is built on demand, so a
-     * closed root would otherwise manufacture a fresh working view of the whole jarfile that nothing would ever
-     * close, and its manifest is cached the first time it is read, so a root closed afterwards would keep answering
-     * out of a cache warmed while it was open.
+     * A root of a closed {@link Vfs} hands out nothing that still reads from storage. Its container root is built
+     * on demand, so it would otherwise manufacture a fresh working view of the whole jarfile after the storage
+     * behind it was released, and its manifest is cached the first time it is read, so it would keep answering out
+     * of a cache warmed while the {@link Vfs} was open.
      *
      * @param tempDir
      *            a temporary directory to write the jarfile into.
@@ -1083,30 +1090,29 @@ public class VfsTest {
      *             if the jarfile could not be written or read.
      */
     @Test
-    public void aClosedRootHandsOutNothingLive(@TempDir final File tempDir) throws IOException {
+    public void aRootOfAClosedVfsHandsOutNothingLive(@TempDir final File tempDir) throws IOException {
         final var jarFile = new File(tempDir, "app.jar");
         writeJar(jarFile, "BOOT-INF/classes/com/xyz/widget.txt");
 
-        try (var vfs = new Vfs()) {
-            final var root = vfs.open(jarFile.getPath() + "!/BOOT-INF/classes");
-            // Warm both caches while the root is still open
-            assertThat(root.getContainerRoot().getPackageRoot()).isEmpty();
-            assertThat(root.getManifest()).containsEntry("Automatic-Module-Name", "com.xyz.widget");
+        final var vfs = new Vfs();
+        final var root = vfs.open(jarFile.getPath() + "!/BOOT-INF/classes");
+        // Warm both caches while the Vfs is still open
+        assertThat(root.getContainerRoot().getPackageRoot()).isEmpty();
+        assertThat(root.getManifest()).containsEntry("Automatic-Module-Name", "com.xyz.widget");
 
-            root.close();
+        vfs.close();
 
-            assertThatThrownBy(root::getContainerRoot).as("getContainerRoot").isInstanceOf(IOException.class)
-                    .hasMessageContaining("closed");
-            assertThatThrownBy(root::getManifest).as("getManifest").isInstanceOf(IOException.class)
-                    .hasMessageContaining("closed");
-            assertThatThrownBy(root::getModuleName).as("getModuleName").isInstanceOf(IOException.class)
-                    .hasMessageContaining("closed");
-        }
+        assertThatThrownBy(root::getContainerRoot).as("getContainerRoot").isInstanceOf(IOException.class)
+                .hasMessageContaining("closed");
+        assertThatThrownBy(root::getManifest).as("getManifest").isInstanceOf(IOException.class)
+                .hasMessageContaining("closed");
+        assertThatThrownBy(root::getModuleName).as("getModuleName").isInstanceOf(IOException.class)
+                .hasMessageContaining("closed");
     }
 
     /**
-     * A closed root stops listing entries, as well as reading them, whichever kind of root it is. (Reading an entry
-     * of a closed root was already refused, but a directory root and an archive root went on listing entries.)
+     * A root of a closed {@link Vfs} stops listing entries, as well as reading them, whichever kind of root it is.
+     * (Reading an entry was already refused, but a directory root and an archive root went on listing entries.)
      *
      * @param tempDir
      *            a temporary directory to write the jarfile into.
@@ -1114,7 +1120,7 @@ public class VfsTest {
      *             if the jarfile could not be written or read.
      */
     @Test
-    public void aClosedRootCannotBeListed(@TempDir final File tempDir) throws IOException {
+    public void theRootsOfAClosedVfsCannotBeListed(@TempDir final File tempDir) throws IOException {
         final var jarFile = new File(tempDir, "widget.jar");
         writeJar(jarFile, "com/xyz/widget.txt");
         final ModuleReference moduleReference = ModuleFinder.ofSystem().find("java.logging").orElseThrow();
@@ -1130,22 +1136,24 @@ public class VfsTest {
             }
         };
 
-        try (var vfs = new Vfs()) {
-            for (final var root : List.of(vfs.open(jarFile.getPath()), vfs.open(tempDir.getPath()),
-                    vfs.open(moduleReference))) {
-                final var kind = root.getKind().toString();
-                // The root lists entries while it is open
-                assertThat(root.getEntries()).as(kind).isNotEmpty();
+        final var vfs = new Vfs();
+        final var roots = List.of(vfs.open(jarFile.getPath()), vfs.open(tempDir.getPath()),
+                vfs.open(moduleReference));
+        for (final var root : roots) {
+            // Every kind of root lists entries while the Vfs is open
+            assertThat(root.getEntries()).as(root.getKind().toString()).isNotEmpty();
+        }
 
-                root.close();
+        vfs.close();
 
-                assertThatThrownBy(() -> root.walk(visitEverything)).as(kind + " walk")
-                        .isInstanceOf(IOException.class).hasMessageContaining("closed");
-                assertThatThrownBy(root::getEntries).as(kind + " getEntries").isInstanceOf(IOException.class)
-                        .hasMessageContaining("closed");
-                assertThatThrownBy(() -> root.getEntry("com/xyz/widget.txt")).as(kind + " getEntry")
-                        .isInstanceOf(IOException.class).hasMessageContaining("closed");
-            }
+        for (final var root : roots) {
+            final var kind = root.getKind().toString();
+            assertThatThrownBy(() -> root.walk(visitEverything)).as(kind + " walk").isInstanceOf(IOException.class)
+                    .hasMessageContaining("closed");
+            assertThatThrownBy(root::getEntries).as(kind + " getEntries").isInstanceOf(IOException.class)
+                    .hasMessageContaining("closed");
+            assertThatThrownBy(() -> root.getEntry("com/xyz/widget.txt")).as(kind + " getEntry")
+                    .isInstanceOf(IOException.class).hasMessageContaining("closed");
         }
     }
 

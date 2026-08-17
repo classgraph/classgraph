@@ -644,8 +644,10 @@ public class VfsFileSystemTest {
     }
 
     /**
-     * Closing the filesystem closes the root it is a view of, so that it can be used in a try-with-resources, and
-     * every subsequent read of it throws {@link ClosedFileSystemException}.
+     * Closing the filesystem closes that view of the root, so that it can be used in a try-with-resources, and
+     * every subsequent read through it throws {@link ClosedFileSystemException}. It leaves the root itself working,
+     * since a {@link Vfs} hands the same root to everything that opened the same path, and a view of it must not be
+     * able to take it away from them.
      *
      * @param tempDir
      *            a temporary directory.
@@ -653,7 +655,7 @@ public class VfsFileSystemTest {
      *             if the root could not be read.
      */
     @Test
-    public void closingTheFilesystemClosesTheRoot(@TempDir final Path tempDir) throws IOException {
+    public void closingTheFilesystemLeavesTheRootOpen(@TempDir final Path tempDir) throws IOException {
         final var jarFile = tempDir.resolve("library.jar").toFile();
         writeJar(jarFile);
 
@@ -666,7 +668,6 @@ public class VfsFileSystemTest {
                 assertThat(Files.readAllBytes(fs.getPath("/root.txt"))).isEqualTo(contentOf("root.txt"));
             }
             assertThat(fileSystem.isOpen()).isFalse();
-            assertThat(root.isClosed()).isTrue();
 
             // The index was built before the close, but is not served from after it
             assertThatThrownBy(() -> Files.readAllBytes(fileSystem.getPath("/root.txt")))
@@ -676,18 +677,23 @@ public class VfsFileSystemTest {
             assertThatThrownBy(() -> Files.newDirectoryStream(fileSystem.getPath("/")))
                     .isInstanceOf(ClosedFileSystemException.class);
 
-            // Closing twice has no effect, and the root can be opened again, since closing it uncached it
+            // Closing the view twice has no effect, and the root it was a view of is untouched: it is still cached,
+            // still readable, and hands out a new working view rather than the closed one
             fileSystem.close();
-            final var reopened = vfs.open(jarFile);
-            assertThat(reopened).isNotSameAs(root);
-            assertThat(Files.readAllBytes(reopened.asFileSystem().getPath("/root.txt")))
+            assertThat(root.isClosed()).isFalse();
+            assertThat(vfs.open(jarFile)).isSameAs(root);
+            assertThat(root.getEntries()).isNotEmpty();
+            assertThat(root.asFileSystem()).isNotSameAs(fileSystem);
+            assertThat(root.asFileSystem().isOpen()).isTrue();
+            assertThat(fileSystem.isOpen()).isFalse();
+            assertThat(Files.readAllBytes(root.asFileSystem().getPath("/root.txt")))
                     .isEqualTo(contentOf("root.txt"));
         }
     }
 
     /**
-     * {@link VfsRoot#asFileSystem()} returns the same instance every time, as it says it does, including after the
-     * root has been closed -- rather than building a second, equally closed, filesystem for the second caller.
+     * {@link VfsRoot#asFileSystem()} returns the same instance every time, as it says it does, rather than building
+     * a second filesystem for the second caller.
      *
      * @param tempDir
      *            a temporary directory.
@@ -695,18 +701,18 @@ public class VfsFileSystemTest {
      *             if the root could not be read.
      */
     @Test
-    public void asFileSystemReturnsOneInstanceEvenAfterAClose(@TempDir final Path tempDir) throws IOException {
+    public void asFileSystemReturnsOneInstance(@TempDir final Path tempDir) throws IOException {
         final var jarFile = tempDir.resolve("library.jar").toFile();
         writeJar(jarFile);
 
-        try (var vfs = new Vfs()) {
-            final var root = vfs.open(jarFile);
-            final var fileSystem = root.asFileSystem();
-            assertThat(root.asFileSystem()).isSameAs(fileSystem);
-            root.close();
-            assertThat(root.asFileSystem()).isSameAs(fileSystem);
-            assertThat(root.asFileSystem().isOpen()).isFalse();
-        }
+        final var vfs = new Vfs();
+        final var root = vfs.open(jarFile);
+        final var fileSystem = root.asFileSystem();
+        assertThat(root.asFileSystem()).isSameAs(fileSystem);
+        // Including once the Vfs is closed, when the view stops working but is still the same view
+        vfs.close();
+        assertThat(root.asFileSystem()).isSameAs(fileSystem);
+        assertThat(root.asFileSystem().isOpen()).isFalse();
     }
 
     /**

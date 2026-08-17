@@ -46,6 +46,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
@@ -67,6 +68,9 @@ final class VfsFileSystem extends FileSystem {
 
     /** The directory index, built on first use. */
     private volatile @Nullable Index index;
+
+    /** True once {@link #close()} has been called on this view. */
+    private final AtomicBoolean closed = new AtomicBoolean();
 
     /** The regex metacharacters that have to be escaped when a glob is compiled into a {@link Pattern}. */
     private static final String REGEX_METACHARACTERS = "\\*?[]{}()+|^$.";
@@ -119,7 +123,7 @@ final class VfsFileSystem extends FileSystem {
     private Index index() throws IOException {
         // Every read of this filesystem's content goes through the index, including reads through a Path of it,
         // so this is the one place that has to turn away access after a close
-        if (root.isClosed()) {
+        if (!isOpen()) {
             throw new ClosedFileSystemException();
         }
         var idx = index;
@@ -265,25 +269,36 @@ final class VfsFileSystem extends FileSystem {
      * {@inheritDoc}
      *
      * <p>
-     * This closes the {@link VfsRoot} that this filesystem is a view of, so every subsequent access to the
-     * filesystem, or to a {@link Path} of it, throws {@link ClosedFileSystemException}.
+     * This closes only this view, so every subsequent access to the filesystem, or to a {@link Path} of it, throws
+     * {@link ClosedFileSystemException}. The {@link VfsRoot} it is a view of goes on working, since other callers
+     * may be reading through it -- a {@link Vfs} hands the same root to everything that opens the same path -- and
+     * the next call to {@link VfsRoot#asFileSystem()} builds a new view rather than handing out this closed one.
      *
      * <p>
-     * It releases nothing that the root shares with the rest of the {@link Vfs} -- the jarfile that backs it may
-     * back other roots too, and stays open along with the file handles, memory mappings and temporary files behind
-     * it. Call {@link Vfs#close()} to release those.
+     * It releases nothing: the file handles, memory mappings and temporary files behind the root belong to the
+     * {@link Vfs}, so call {@link Vfs#close()} to release those.
      *
      * <p>
      * Closing an already-closed filesystem has no effect.
      */
     @Override
     public void close() {
-        root.close();
+        closed.set(true);
     }
 
     @Override
     public boolean isOpen() {
-        return !root.isClosed();
+        return !closed.get() && !root.isClosed();
+    }
+
+    /**
+     * Whether {@link #close()} has been called on this view, as distinct from {@link #isOpen()}, which is also
+     * false once the {@link Vfs} is closed.
+     *
+     * @return true if this view has been closed.
+     */
+    boolean isClosedView() {
+        return closed.get();
     }
 
     @Override

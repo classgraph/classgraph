@@ -68,34 +68,31 @@ always the path you opened it by.
 
 The `Vfs` owns everything opened through it: the file handles, the memory mappings, and the
 temporary files that a nested jarfile has to be spilled to when it cannot be read in place. Closing
-the `Vfs` releases all of them and closes every root it handed out, so a `Vfs` belongs in a
-try-with-resources block, as it is in every example below.
+the `Vfs` releases all of them, and every root it handed out stops working at that moment, so a
+`Vfs` belongs in a try-with-resources block, as it is in every example below.
 
-It can also list what it has open: a `Vfs` is `Iterable<VfsRoot>`, just as a `VfsRoot` is
-`Iterable<VfsEntry>`, and iterating it visits the roots that are currently open, sorted by path.
-Each root is reported once, however many paths it was opened by, and a root that has been closed, or
-that was read from a stream or a byte array rather than opened from a path, is not among them.
-
-A `VfsRoot` is `AutoCloseable` too, but closing one only drops that root: its entries and its
-`FileSystem` view stop working, and opening the same path again builds a fresh root. The jarfile
-behind it stays open, because other roots may be reading the same jarfile. Only the `Vfs` releases
-storage.
-
-So a root does not have to be closed, and there is nothing to leak by not closing one. An IDE
-cannot know that, though: with resource analysis switched on -- which is the default in Eclipse --
-`VfsRoot root = vfs.open(path)` is reported as *"Potential resource leak: 'root' may not be
-closed"*, because `vfs.open()` returns an `AutoCloseable`. Declaring the root in the
-try-with-resources silences it and costs nothing:
+A `VfsRoot` is not `AutoCloseable`, and owns nothing that has to be released. It also cannot be
+taken away from you: a `Vfs` hands out the same root to everything that opens the same path, so two
+parts of a program that open the same jarfile share one root, and neither can break it for the
+other. Nothing needs closing but the `Vfs`:
 
 ```java
-try (Vfs vfs = new Vfs(); VfsRoot root = vfs.open("/path/to/library.jar")) {
+try (Vfs vfs = new Vfs()) {
+    VfsRoot root = vfs.open("/path/to/library.jar");
     // ...
 }
 ```
 
-Every recipe below declares its roots that way, so none of them produces the warning. Where a root
-is opened and used without being named -- `vfs.open(path).getEntries()` -- the same warning is
-reported against the unnamed value, and can be ignored.
+A `Vfs` can list what it has open: it is `Iterable<VfsRoot>`, just as a `VfsRoot` is
+`Iterable<VfsEntry>`, and iterating it visits the roots that are currently open, sorted by path.
+Each root is reported once, however many paths it was opened by, and a root that was read from a
+stream or a byte array rather than opened from a path is not among them, since it is not cached.
+
+A `Vfs` holds every root it has opened until it is closed, which matters only for a long-lived `Vfs`
+that opens a great many of them. `vfs.evict(root)` drops one from the cache, so that the memory its
+entry list occupies can be reclaimed and the next `vfs.open()` of the same path builds a new root.
+It does not stop the evicted root working: anything still holding it goes on reading through it, and
+it becomes garbage only when the last holder lets go.
 
 ## Reading through `java.nio.file.Files`
 
@@ -104,9 +101,9 @@ reported against the unnamed value, and can be ignored.
 jarfile that exists only in RAM, or a module, without knowing which of those it has:
 
 ```java
-try (Vfs vfs = new Vfs();
-        VfsRoot root = vfs.open("/path/to/outer.jar!/BOOT-INF/lib/inner.jar");
-        FileSystem fs = root.asFileSystem()) {
+try (Vfs vfs = new Vfs()) {
+    VfsRoot root = vfs.open("/path/to/outer.jar!/BOOT-INF/lib/inner.jar");
+    FileSystem fs = root.asFileSystem();
     byte[] classfile = Files.readAllBytes(fs.getPath("/com/xyz/Widget.class"));
     try (Stream<Path> paths = Files.walk(fs.getPath("/"))) {
         paths.filter(Files::isRegularFile).forEach(System.out::println);
@@ -133,11 +130,14 @@ It is a read-only filesystem: everything that would write -- `Files.delete`, `Fi
 `Files.copy`, `Files.move`, `Files.createDirectory`, `Files.newOutputStream`, `setTimes`, and
 `newByteChannel` with a write option -- throws `ReadOnlyFileSystemException`.
 
-Its `close()` closes the root it is a view of, and closing the root closes it, so either can go in
-the try-with-resources. After that `isOpen()` returns false and every read of it throws
-`ClosedFileSystemException`, as `java.nio.file.FileSystem` specifies. Neither releases any storage:
-the file handles, memory mappings and temporary files belong to the `Vfs`, and are released when the
-`Vfs` is closed, which also makes every filesystem view it handed out report itself closed.
+`root.asFileSystem()` returns the same view every time, until that view is closed. Closing it closes
+only that view -- after which `isOpen()` returns false and every read of it throws
+`ClosedFileSystemException`, as `java.nio.file.FileSystem` specifies -- and leaves the root working,
+so the next `asFileSystem()` builds a new view rather than handing out the closed one. That means
+the view can go in a try-with-resources without taking anything away from anything else holding the
+root. It releases no storage either way: the file handles, memory mappings and temporary files
+belong to the `Vfs`, and are released when the `Vfs` is closed, which also makes every filesystem
+view it handed out report itself closed.
 
 ## What it reads that `java.util.zip` does not
 
@@ -233,10 +233,10 @@ ClassGraph scan a jarfile in parallel.
 ### List what is in a directory, a jarfile or a module
 
 ```java
-try (Vfs vfs = new Vfs();
-        VfsRoot dir = vfs.open("/path/to/classes");
-        VfsRoot jar = vfs.open("/path/to/library.jar");
-        VfsRoot module = vfs.open(ModuleFinder.ofSystem().find("java.logging").orElseThrow())) {
+try (Vfs vfs = new Vfs()) {
+    VfsRoot dir = vfs.open("/path/to/classes");
+    VfsRoot jar = vfs.open("/path/to/library.jar");
+    VfsRoot module = vfs.open(ModuleFinder.ofSystem().find("java.logging").orElseThrow());
     for (VfsRoot root : List.of(dir, jar, module)) {
         System.out.println(root + " (" + root.getKind() + ")");
         for (VfsEntry entry : root) {
@@ -265,7 +265,8 @@ is cheaper: it offers each directory before the entries in it, so an unwanted on
 and for a directory tree a skipped directory is never even listed.
 
 ```java
-try (Vfs vfs = new Vfs(); VfsRoot root = vfs.open("/path/to/classes")) {
+try (Vfs vfs = new Vfs()) {
+    VfsRoot root = vfs.open("/path/to/classes");
     root.walk(new VfsVisitor() {
         @Override
         public boolean enterDirectory(String dirName) {
@@ -294,7 +295,8 @@ When the part you want is simply everything under one path, `getEntries(String)`
 for you, and skips the directories that cannot hold a match:
 
 ```java
-try (Vfs vfs = new Vfs(); VfsRoot root = vfs.open("/path/to/app.jar")) {
+try (Vfs vfs = new Vfs()) {
+    VfsRoot root = vfs.open("/path/to/app.jar");
     // Every jarfile the application bundles
     for (VfsEntry entry : root.getEntries("BOOT-INF/lib/")) {
         System.out.println(entry.getName());
@@ -308,7 +310,8 @@ The prefix is matched against the whole entry name, so it need not end at a dire
 ### Read one entry
 
 ```java
-try (Vfs vfs = new Vfs(); VfsRoot root = vfs.open("/path/to/library.jar")) {
+try (Vfs vfs = new Vfs()) {
+    VfsRoot root = vfs.open("/path/to/library.jar");
     VfsEntry entry = root.getEntry("META-INF/MANIFEST.MF");
     if (entry != null) {
         System.out.println(entry.loadAsString());
@@ -381,8 +384,8 @@ All four throw `IOException` if the entry cannot be read, or if the `Vfs` has be
 
 ```java
 try (Vfs vfs = new Vfs();
-        InputStream inputStream = URI.create(url).toURL().openStream();
-        VfsRoot root = vfs.open(inputStream, "downloaded.jar")) {
+        InputStream inputStream = URI.create(url).toURL().openStream()) {
+    VfsRoot root = vfs.open(inputStream, "downloaded.jar");
     System.out.println(root.getEntries().size() + " entries");
 }
 ```
@@ -396,8 +399,8 @@ Alternatively, let the library do the fetching: a `Vfs` constructed with
 ### Read a jarfile nested inside another jarfile
 
 ```java
-try (Vfs vfs = new Vfs();
-        VfsRoot nested = vfs.open("/path/to/outer.jar!/BOOT-INF/lib/inner.jar")) {
+try (Vfs vfs = new Vfs()) {
+    VfsRoot nested = vfs.open("/path/to/outer.jar!/BOOT-INF/lib/inner.jar");
     for (VfsEntry entry : nested) {
         System.out.println(entry.getName());
     }
@@ -422,8 +425,8 @@ URL scheme cannot be checked that way, so for those the first `!` is taken to be
 ### Read from a package root
 
 ```java
-try (Vfs vfs = new Vfs();
-        VfsRoot classes = vfs.open("/path/to/spring-boot-app.jar!/BOOT-INF/classes")) {
+try (Vfs vfs = new Vfs()) {
+    VfsRoot classes = vfs.open("/path/to/spring-boot-app.jar!/BOOT-INF/classes");
     // Names are reported relative to the package root, so this prints "com/xyz/MyApp.class",
     // not "BOOT-INF/classes/com/xyz/MyApp.class"
     classes.getEntries().forEach(entry -> System.out.println(entry.getName()));
@@ -446,7 +449,8 @@ Any `Path` works, whatever provider it belongs to, whether it names a directory 
 ### Read a root's manifest
 
 ```java
-try (Vfs vfs = new Vfs(); VfsRoot root = vfs.open("/path/to/library.jar")) {
+try (Vfs vfs = new Vfs()) {
+    VfsRoot root = vfs.open("/path/to/library.jar");
     System.out.println("main class: " + root.getManifestEntry("Main-Class"));
 
     Map<String, String> manifest = root.getManifest();
@@ -473,7 +477,8 @@ JDK carries no manifest at all.
 ### Find a root's module name
 
 ```java
-try (Vfs vfs = new Vfs(); VfsRoot root = vfs.open("/path/to/library.jar")) {
+try (Vfs vfs = new Vfs()) {
+    VfsRoot root = vfs.open("/path/to/library.jar");
     String moduleName = root.getModuleName();
     System.out.println(moduleName != null
             ? "module name: " + moduleName
@@ -488,9 +493,8 @@ own name.
 
 ```java
 try (Vfs vfs = new Vfs().verbose()) {
-    try (VfsRoot root = vfs.open("/path/to/library.jar")) {
-        System.out.println(root.getEntries().size() + " entries");
-    }
+    VfsRoot root = vfs.open("/path/to/library.jar");
+    System.out.println(root.getEntries().size() + " entries");
 }
 ```
 

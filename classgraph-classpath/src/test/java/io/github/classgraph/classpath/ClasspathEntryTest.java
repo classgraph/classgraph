@@ -17,6 +17,7 @@ import org.junit.jupiter.api.io.TempDir;
 import com.google.common.jimfs.Configuration;
 import com.google.common.jimfs.Jimfs;
 
+import io.github.classgraph.vfs.Vfs;
 import io.github.classgraph.vfs.VfsEntry;
 
 /** Tests for the forms a classpath element can be found in, and for opening it in each of them. */
@@ -93,9 +94,8 @@ public class ClasspathEntryTest {
                 jar.toUri().toURL() }) {
             try (var classpath = findClasspath(classpathElement)) {
                 final var entry = classpath.getEntries().get(0);
-                try (var root = entry.open(classpath.getVfs())) {
-                    assertThat(root).extracting(VfsEntry::getName).containsExactly(ENTRY_PATH);
-                }
+                assertThat(entry.open(classpath.getVfs())).extracting(VfsEntry::getName)
+                        .containsExactly(ENTRY_PATH);
             }
         }
     }
@@ -120,9 +120,8 @@ public class ClasspathEntryTest {
                 try (var classpath = findClasspath(classpathElement)) {
                     final var entry = classpath.getEntries().get(0);
                     assertThat(Path.of(entry.getLocation()).toRealPath()).isEqualTo(jar.toRealPath());
-                    try (var root = entry.open(classpath.getVfs())) {
-                        assertThat(root).isSameAs(classpath.getVfs().open(entry.getLocation()));
-                    }
+                    assertThat(entry.open(classpath.getVfs()))
+                            .isSameAs(classpath.getVfs().open(entry.getLocation()));
                 }
             }
         } finally {
@@ -145,11 +144,13 @@ public class ClasspathEntryTest {
                 final var entry = classpath.getEntries().get(0);
                 assertThat(entry).isInstanceOf(ClasspathEntry.OfPath.class);
                 assertThat(entry.getLocation()).isEqualTo(jar.toUri().toString()).startsWith("jimfs://");
-                try (var root = entry.open(classpath.getVfs())) {
-                    assertThat(root).extracting(VfsEntry::getName).containsExactly(ENTRY_PATH);
+                assertThat(entry.open(classpath.getVfs())).extracting(VfsEntry::getName)
+                        .containsExactly(ENTRY_PATH);
+                // The location names the element, but nothing can be reached by that name, so a Vfs that has not
+                // already been handed the Path cannot open it
+                try (var otherVfs = new Vfs()) {
+                    assertThatThrownBy(() -> otherVfs.open(entry.getLocation())).isInstanceOf(IOException.class);
                 }
-                assertThatThrownBy(() -> classpath.getVfs().open(entry.getLocation()))
-                        .isInstanceOf(IOException.class);
             }
         }
     }

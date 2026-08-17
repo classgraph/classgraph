@@ -43,7 +43,6 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.utils.Assert;
@@ -60,22 +59,21 @@ import org.jspecify.annotations.Nullable;
  * know which kind it is. {@link #getKind()} says which kind it is, for the cases that do need to know.
  *
  * <p>
- * A root stops working once it is closed, or once the {@link Vfs} that produced it is closed.
+ * A root is not {@link AutoCloseable}, and owns nothing that has to be released: the file handles, memory mappings
+ * and temporary files it reads through belong to the {@link Vfs}, which hands out the same root to every caller
+ * that asks for the same path. A root stops working once that {@link Vfs} is closed, and not before.
  *
  * <p>
  * Iterating a root iterates its entries, in the same order as {@link #getEntries()}.
  *
  * <p>
- * Every method is safe to call from multiple threads at once, and {@link #close()} takes effect the moment it is
+ * Every method is safe to call from multiple threads at once, and {@link Vfs#close()} takes effect the moment it is
  * called, so a thread that lists or reads entries after that -- even while the close is still running -- gets an
  * {@link IOException} rather than entries of storage that is being released.
  */
-public abstract class VfsRoot implements AutoCloseable, Iterable<VfsEntry> {
+public abstract class VfsRoot implements Iterable<VfsEntry> {
     /** The {@link Vfs} that opened this root. */
     private final Vfs vfs;
-
-    /** True once {@link #close()} has been called. */
-    private final AtomicBoolean closed = new AtomicBoolean();
 
     /**
      * Constructor.
@@ -210,7 +208,7 @@ public abstract class VfsRoot implements AutoCloseable, Iterable<VfsEntry> {
      * @return the container this root was opened within, or this root itself if it was not opened at a package
      *         root, which is always the case for a directory and for a module.
      * @throws IOException
-     *             if this root or the {@link Vfs} has been closed.
+     *             if the {@link Vfs} has been closed.
      */
     public VfsRoot getContainerRoot() throws IOException {
         checkNotClosed(getPath());
@@ -628,10 +626,11 @@ public abstract class VfsRoot implements AutoCloseable, Iterable<VfsEntry> {
      * @return the manifest attributes, keyed case-insensitively by attribute name, as an unmodifiable map, or null
      *         if this root has no manifest file.
      * @throws IOException
-     *             if the manifest file could not be read, or if this root or the {@link Vfs} has been closed.
+     *             if the manifest file could not be read, or if the {@link Vfs} has been closed.
      */
     public synchronized @Nullable Map<String, String> getManifest() throws IOException {
-        // Checked even when the manifest has already been read, so that a closed root reports itself as closed
+        // Checked even when the manifest has already been read, so that a root of a closed Vfs reports itself
+        // as closed
         // rather than answering out of a cache that was warmed while it was open
         checkNotClosed(getPath());
         // This is synchronized rather than double-checked, so that a second thread asking for the manifest while
@@ -701,7 +700,7 @@ public abstract class VfsRoot implements AutoCloseable, Iterable<VfsEntry> {
     // -------------------------------------------------------------------------------------------------------------
 
     /** The {@link FileSystem} view of this root, created on first use. */
-    private volatile @Nullable FileSystem fileSystem;
+    private volatile @Nullable VfsFileSystem fileSystem;
 
     /**
      * Returns a read-only {@link FileSystem} view of this root, so that it can be read through
@@ -717,19 +716,20 @@ public abstract class VfsRoot implements AutoCloseable, Iterable<VfsEntry> {
      *
      * <p>
      * The filesystem is read-only: every operation that would write throws
-     * {@link java.nio.file.ReadOnlyFileSystemException}. Its {@link FileSystem#close()} closes this root, and
-     * closing this root closes the filesystem, so either one can be used in a try-with-resources. Neither releases
-     * the file handles, memory mappings and temporary files behind the root, which belong to the {@link Vfs} --
-     * close the {@link Vfs} to release those.
+     * {@link java.nio.file.ReadOnlyFileSystemException}. Its {@link FileSystem#close()} closes only that view of
+     * this root, and not the root itself, which other callers may be reading through -- so the returned filesystem
+     * can be used in a try-with-resources, and the next caller is handed a new view rather than the closed one. It
+     * releases nothing either way: the file handles, memory mappings and temporary files behind the root belong to
+     * the {@link Vfs}, so close the {@link Vfs} to release those.
      *
-     * @return a {@link FileSystem} view of this root. The same instance is returned every time.
+     * @return a {@link FileSystem} view of this root. The same instance is returned every time, until it is closed.
      */
     public FileSystem asFileSystem() {
         var fs = fileSystem;
-        if (fs == null) {
+        if (fs == null || fs.isClosedView()) {
             synchronized (this) {
                 fs = fileSystem;
-                if (fs == null) {
+                if (fs == null || fs.isClosedView()) {
                     fileSystem = fs = new VfsFileSystem(this);
                 }
             }
@@ -740,55 +740,23 @@ public abstract class VfsRoot implements AutoCloseable, Iterable<VfsEntry> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Close this root, removing it from the cache of the {@link Vfs} that opened it, so that opening the same path
-     * again builds a new root. Every {@link VfsEntry} this root handed out stops working, as does the
-     * {@link FileSystem} view, which from then on throws {@link java.nio.file.ClosedFileSystemException}.
+     * Returns whether the {@link Vfs} that opened this root has been closed.
      *
-     * <p>
-     * This releases nothing that a root shares with the rest of the {@link Vfs} -- the jarfile that backs it may
-     * back other roots too, and stays open along with the file handles, memory mappings and temporary files behind
-     * it. Call {@link Vfs#close()} to release those.
-     *
-     * <p>
-     * Closing an already-closed root has no effect.
-     */
-    @Override
-    public void close() {
-        // The flag is set atomically, so that a second call (or a concurrent one) returns rather than removing this
-        // root from the cache twice, and so that a thread listing or reading entries the moment a close starts is
-        // turned away
-        if (closed.getAndSet(true)) {
-            return;
-        }
-        // The FileSystem view is the only thing a root creates for itself, and it holds no file handles, only an
-        // index of the entry names. It is left in place rather than nulled out: this root is about to be dropped
-        // from the cache of the Vfs, so the whole root, index and all, is garbage as soon as the caller lets go of
-        // it -- and keeping the field means asFileSystem() goes on returning the one instance it always returned,
-        // rather than building a second one if it is called after the close
-        vfs.rootClosed(this);
-    }
-
-    /**
-     * Returns whether this root has been closed, either directly or by closing the {@link Vfs} that opened it.
-     *
-     * @return true if this root has been closed.
+     * @return true if the {@link Vfs} has been closed.
      */
     boolean isClosed() {
-        return closed.get() || vfs.isClosed();
+        return vfs.isClosed();
     }
 
     /**
-     * Throw an {@link IOException} if this root, or the {@link Vfs} that opened it, has been closed.
+     * Throw an {@link IOException} if the {@link Vfs} that opened this root has been closed.
      *
      * @param what
      *            what was being read, for the error message.
      * @throws IOException
-     *             if this root, or the {@link Vfs} that opened it, has been closed.
+     *             if the {@link Vfs} that opened this root has been closed.
      */
     void checkNotClosed(final String what) throws IOException {
-        if (closed.get()) {
-            throw new IOException("Cannot read " + what + " after the VfsRoot has been closed");
-        }
         vfs.checkNotClosed(what);
     }
 

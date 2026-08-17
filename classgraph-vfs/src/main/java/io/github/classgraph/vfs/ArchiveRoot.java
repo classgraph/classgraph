@@ -131,8 +131,6 @@ final class ArchiveRoot extends VfsRoot {
 
     @Override
     public VfsRoot getContainerRoot() throws IOException {
-        // Checked before the container is created, so that a closed root cannot manufacture a working view of the
-        // whole jarfile that nothing would ever close
         checkNotClosed(getPath());
         if (packageRoot.isEmpty()) {
             return this;
@@ -145,33 +143,8 @@ final class ArchiveRoot extends VfsRoot {
                     containerRoot = root = new ArchiveRoot(getVfs(), logicalZipFile, "");
                 }
             }
-            if (isClosed()) {
-                // close() ran between the check above and the publish, so it took its snapshot of containerRoot
-                // before this one was in it and would leave it open. Close it here instead, so that a container
-                // root is always closed along with the root that created it
-                synchronized (this) {
-                    containerRoot = null;
-                }
-                root.close();
-                checkNotClosed(getPath());
-            }
         }
         return root;
-    }
-
-    @Override
-    public void close() {
-        // Closing this root closes the view of the whole jarfile that getContainerRoot() may have created, so that
-        // the lifecycle of a root stays tree-shaped
-        final VfsRoot container;
-        synchronized (this) {
-            container = containerRoot;
-            containerRoot = null;
-        }
-        if (container != null) {
-            container.close();
-        }
-        super.close();
     }
 
     /**

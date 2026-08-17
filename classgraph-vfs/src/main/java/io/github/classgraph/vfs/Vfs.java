@@ -330,8 +330,7 @@ public class Vfs implements AutoCloseable, Iterable<VfsRoot> {
 
     /**
      * Return a root that has just been opened, unless this {@link Vfs} was closed while it was being opened, in
-     * which case close the root and throw, rather than handing back a root that is backed by storage that has
-     * already been released.
+     * which case throw, rather than handing back a root that is backed by storage that has already been released.
      *
      * @param what
      *            what was opened, for the exception message.
@@ -343,7 +342,6 @@ public class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      */
     private VfsRoot discardIfClosed(final String what, final VfsRoot root) throws IOException {
         if (closed.get()) {
-            root.close();
             throw new IOException("Cannot read " + what + " after the Vfs has been closed");
         }
         return root;
@@ -599,6 +597,34 @@ public class Vfs implements AutoCloseable, Iterable<VfsRoot> {
         return Collections.unmodifiableList(roots).iterator();
     }
 
+    /**
+     * Remove a root from the cache of this {@link Vfs}, so that the memory its list of entries occupies can be
+     * reclaimed once nothing is using the root any more, and so that opening the same path again builds a new root.
+     *
+     * <p>
+     * This does not stop the root working. Anything still holding it -- another thread, or another part of the
+     * program that opened the same path and got the same root back -- goes on reading through it exactly as before,
+     * and it becomes garbage only once the last of them lets go of it. A root owns no file handles, memory mappings
+     * or temporary files of its own: those belong to this {@link Vfs}, and are released by {@link #close()}.
+     *
+     * <p>
+     * There is no need to evict anything unless a long-lived {@link Vfs} opens a great many roots, since a
+     * {@link Vfs} holds every root it has opened until it is closed. Evicting a root that this {@link Vfs} does not
+     * have cached, because it was already evicted or was opened from a stream or a byte array, has no effect.
+     *
+     * @param root
+     *            the root to remove from the cache.
+     */
+    public void evict(final VfsRoot root) {
+        if (!closed.get()) {
+            // A root can be cached under more than one key, e.g. under both the path it was opened from and the
+            // canonical path of the file that turned out to back it
+            rootsByPath.values().removeIf(cachedRoot -> cachedRoot == root);
+            rootsByModule.values().removeIf(cachedRoot -> cachedRoot == root);
+        }
+        // If this Vfs is already closing, the caches are cleared wholesale by close(), so there is nothing to do
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -654,23 +680,6 @@ public class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     @Nullable
     LogNode log() {
         return log;
-    }
-
-    /**
-     * Remove a root from the cache, so that opening the path it was opened from builds a new root. Called by
-     * {@link VfsRoot#close()}.
-     *
-     * @param root
-     *            the root that was closed.
-     */
-    void rootClosed(final VfsRoot root) {
-        if (!closed.get()) {
-            // A root can be cached under more than one key, e.g. under both the path it was opened from and the
-            // canonical path of the file that turned out to back it
-            rootsByPath.values().removeIf(cachedRoot -> cachedRoot == root);
-            rootsByModule.values().removeIf(cachedRoot -> cachedRoot == root);
-        }
-        // If this Vfs is already closing, the caches are cleared wholesale by close(), so there is nothing to do
     }
 
     /**
@@ -730,18 +739,12 @@ public class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      *         concurrent call.
      */
     private boolean doClose(final @Nullable LogNode logNode) {
-        // Mark this Vfs as closed before closing the roots, so that each root knows the caches are about to be
-        // cleared wholesale and does not remove itself from them one at a time. The flag is set atomically, so that
-        // a second call (or a concurrent one) returns rather than closing the same roots twice, and so that a
-        // thread calling any other method the moment a close starts is turned away.
+        // The flag is set atomically, so that a second call (or a concurrent one) returns rather than releasing the
+        // same resources twice, and so that a thread calling any other method the moment a close starts is turned
+        // away. It is set before anything is released, since it is what every root checks before reading, so a
+        // thread that is midway through a read cannot get at storage that is being released out from under it.
         if (closed.getAndSet(true)) {
             return false;
-        }
-        for (final var root : rootsByPath.values()) {
-            root.close();
-        }
-        for (final var root : rootsByModule.values()) {
-            root.close();
         }
         rootsByPath.clear();
         rootsByModule.clear();
