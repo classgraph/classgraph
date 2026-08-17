@@ -164,6 +164,12 @@ final class VfsFileSystem extends FileSystem {
             final Map<String, List<String>> childNamesByDir = new HashMap<>();
             childNames.forEach((dirName, children) -> childNamesByDir.put(dirName, List.copyOf(children)));
             index = idx = new Index(Map.copyOf(entriesByName), Map.copyOf(childNamesByDir));
+            if (!isOpen()) {
+                // A close raced with this build, and may have dropped the index before this method published it,
+                // so drop it here rather than leave every entry of the root reachable from a closed view
+                index = null;
+                throw new ClosedFileSystemException();
+            }
             return idx;
         }
     }
@@ -275,30 +281,28 @@ final class VfsFileSystem extends FileSystem {
      * the next call to {@link VfsRoot#asFileSystem()} builds a new view rather than handing out this closed one.
      *
      * <p>
-     * It releases nothing: the file handles, memory mappings and temporary files behind the root belong to the
-     * {@link Vfs}, so call {@link Vfs#close()} to release those.
+     * It releases no file handle, memory mapping or temporary file: those belong to the {@link Vfs} behind the
+     * root, so call {@link Vfs#close()} to release them. It does drop the directory index this view built, which
+     * holds every entry of the root.
      *
      * <p>
      * Closing an already-closed filesystem has no effect.
      */
     @Override
     public void close() {
+        // Stop the root handing out this view before anything else happens, so that a caller cannot be given a
+        // filesystem that has already started closing. This cannot fail, so the rest of the close is still reached
+        root.discardFileSystemView(this);
         closed.set(true);
+        // The index holds every entry of the root, so it is dropped rather than left reachable from a view that
+        // can no longer be read through. An index that is being built concurrently is dropped by index() itself,
+        // which re-checks after publishing it
+        index = null;
     }
 
     @Override
     public boolean isOpen() {
         return !closed.get() && !root.isClosed();
-    }
-
-    /**
-     * Whether {@link #close()} has been called on this view, as distinct from {@link #isOpen()}, which is also
-     * false once the {@link Vfs} is closed.
-     *
-     * @return true if this view has been closed.
-     */
-    boolean isClosedView() {
-        return closed.get();
     }
 
     @Override

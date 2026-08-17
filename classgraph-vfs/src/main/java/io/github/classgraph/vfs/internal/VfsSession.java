@@ -210,8 +210,12 @@ public class VfsSession {
      * closed after the session has been torn down (for example when something that was still reading from the slice
      * is closed afterwards), and closing something twice has to be harmless.
      *
+     * <p>
+     * A slice calls this as the first step of its own close, before it releases anything, so a slice that has
+     * started closing is never handed to the teardown -- which would find nothing left to do with it anyway.
+     *
      * @param slice
-     *            the {@link Slice} that was just closed.
+     *            the {@link Slice} that is being closed.
      */
     public void markSliceAsClosed(final Slice slice) {
         openSlices.remove(slice);
@@ -418,12 +422,15 @@ public class VfsSession {
      *            interruption can be signalled once the teardown is complete.
      */
     private void closeModuleReaderRecyclers(final Teardown teardown, final AtomicBoolean interrupted) {
+        // Take the recyclers out of the map before closing any of them, so that nothing can be handed a recycler
+        // that this teardown has already passed over. A caller asking for one after this point is asking the map
+        // to build a new one, which it refuses, since the session is already marked as closed
+        List<Recycler<ModuleReader, IOException>> recyclers = List.of();
         var completedWithoutInterruption = false;
         while (!completedWithoutInterruption) {
             try {
-                for (final Recycler<ModuleReader, IOException> recycler : moduleReaderRecyclerMap.values()) {
-                    teardown.run(recycler::forceClose);
-                }
+                // This waits for any reader that is still being opened, so that the snapshot is complete
+                recyclers = moduleReaderRecyclerMap.values();
                 completedWithoutInterruption = true;
             } catch (final InterruptedException e) {
                 // Try again if interrupted
@@ -431,6 +438,9 @@ public class VfsSession {
             }
         }
         moduleReaderRecyclerMap.clear();
+        for (final Recycler<ModuleReader, IOException> recycler : recyclers) {
+            teardown.run(recycler::forceClose);
+        }
     }
 
     /**

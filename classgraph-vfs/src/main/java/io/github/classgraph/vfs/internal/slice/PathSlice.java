@@ -307,6 +307,9 @@ public final class PathSlice extends Slice {
     @Override
     public void close() {
         if (!isClosed.getAndSet(true)) {
+            // Unregister this slice before releasing anything of it, so that the session cannot hand out a slice
+            // that has already started closing. This cannot fail, so the release below is still reached
+            session.markSliceAsClosed(this);
             // Take what has to be released, and drop the references to it, before releasing any of it: this slice
             // is already marked as closed, so a second call must not release the same resource twice
             final var mapping = fileMapping;
@@ -321,8 +324,8 @@ public final class PathSlice extends Slice {
                     mapping.unmap();
                 }
             } finally {
-                // The file channel is closed, and this slice is unregistered, even if the file could not be
-                // unmapped -- this slice is already marked as closed, so nothing else would release them
+                // The file channel is closed even if the file could not be unmapped -- this slice is already
+                // marked as closed and unregistered, so nothing else would release it
                 try {
                     if (isTopLevelFileSlice && fileChannelToClose != null) {
                         // Only close the FileChannel in the toplevel file slice, so that it is only closed once
@@ -331,8 +334,6 @@ public final class PathSlice extends Slice {
                     }
                 } catch (final IOException e) {
                     // Ignore
-                } finally {
-                    session.markSliceAsClosed(this);
                 }
             }
         }

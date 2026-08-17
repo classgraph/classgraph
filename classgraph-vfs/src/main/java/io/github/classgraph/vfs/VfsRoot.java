@@ -716,22 +716,38 @@ public abstract class VfsRoot implements Iterable<VfsEntry> {
      * {@link java.nio.file.ReadOnlyFileSystemException}. Its {@link FileSystem#close()} closes only that view of
      * this root, and not the root itself, which other callers may be reading through -- so the returned filesystem
      * can be used in a try-with-resources, and the next caller is handed a new view rather than the closed one. It
-     * releases nothing either way: the file handles, memory mappings and temporary files behind the root belong to
-     * the {@link Vfs}, so close the {@link Vfs} to release those.
+     * releases no file handle, memory mapping or temporary file either way: those belong to the {@link Vfs}, so
+     * close the {@link Vfs} to release them.
      *
      * @return a {@link FileSystem} view of this root. The same instance is returned every time, until it is closed.
      */
     public FileSystem asFileSystem() {
         var fs = fileSystem;
-        if (fs == null || fs.isClosedView()) {
+        if (fs == null) {
             synchronized (this) {
                 fs = fileSystem;
-                if (fs == null || fs.isClosedView()) {
+                if (fs == null) {
                     fileSystem = fs = new VfsFileSystem(this);
                 }
             }
         }
         return fs;
+    }
+
+    /**
+     * Drop the cached {@link FileSystem} view of this root, if it is still the given one. A view calls this as the
+     * first step of its own close, so that this root cannot hand out a view that has started closing, and so that
+     * the next call to {@link #asFileSystem()} builds a fresh view.
+     *
+     * @param view
+     *            the view that is being closed.
+     */
+    void discardFileSystemView(final VfsFileSystem view) {
+        synchronized (this) {
+            if (fileSystem == view) {
+                fileSystem = null;
+            }
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------

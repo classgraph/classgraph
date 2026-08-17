@@ -7,6 +7,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.module.ModuleFinder;
+import java.lang.ref.WeakReference;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.ClosedFileSystemException;
 import java.nio.file.DirectoryStream;
@@ -688,6 +689,50 @@ public class VfsFileSystemTest {
             assertThat(fileSystem.isOpen()).isFalse();
             assertThat(Files.readAllBytes(root.asFileSystem().getPath("/root.txt")))
                     .isEqualTo(contentOf("root.txt"));
+        }
+    }
+
+    /**
+     * Open a {@link FileSystem} view of a root, read an entry through it so that its directory index is built, then
+     * close it, handing back only a {@link WeakReference} to it, so that nothing in the caller's frame is left
+     * holding it.
+     *
+     * @param root
+     *            the root to view as a filesystem.
+     * @return a {@link WeakReference} to the closed view.
+     * @throws IOException
+     *             if the entry could not be read.
+     */
+    private static WeakReference<FileSystem> readThroughAndCloseAView(final VfsRoot root) throws IOException {
+        try (var fileSystem = root.asFileSystem()) {
+            assertThat(Files.readAllBytes(fileSystem.getPath("/root.txt"))).isEqualTo(contentOf("root.txt"));
+            return new WeakReference<>(fileSystem);
+        }
+    }
+
+    /**
+     * A view drops itself from the root it is a view of when it is closed, so that the root is not left holding a
+     * filesystem that can no longer be read through -- together with the directory index it built, which holds
+     * every entry of the root.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the root could not be read.
+     */
+    @Test
+    public void closingTheFilesystemDropsItFromTheRoot(@TempDir final Path tempDir) throws IOException {
+        final var jarFile = tempDir.resolve("library.jar").toFile();
+        writeJar(jarFile);
+
+        try (var vfs = new Vfs()) {
+            final var closedView = readThroughAndCloseAView(vfs.open(jarFile));
+            // Nothing asks the root for a filesystem again, so the closed view is only collectable if the close
+            // dropped it from the root, rather than the next call to asFileSystem() overwriting it
+            for (var i = 0; i < 100 && closedView.get() != null; i++) {
+                System.gc();
+            }
+            assertThat(closedView.get()).isNull();
         }
     }
 
