@@ -9,6 +9,8 @@ import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.List;
 
 /**
  * Probe: on this OS and JDK, does a live memory mapping block deletion of the mapped file after the FileChannel and
@@ -347,7 +349,7 @@ public class MapProbe {
     }
 
     /** The file through which Linux says which files this process has memory-mapped. */
-    private static final Path PROC_SELF_MAPS = Path.of("/proc/self/maps");
+    private static final Path PROC_SELF_MAPS = Paths.get("/proc/self/maps");
 
     /** Mappings held in a static field, for the same reason as {@link #heldMapping}. */
     private static MappedByteBuffer[] heldMappings;
@@ -358,7 +360,7 @@ public class MapProbe {
      * still mapped is listed with " (deleted)" appended.
      */
     private static boolean anyStillMapped(final String[] names) throws IOException {
-        final var maps = Files.readAllLines(PROC_SELF_MAPS);
+        final List<String> maps = Files.readAllLines(PROC_SELF_MAPS);
         for (final String name : names) {
             for (final String line : maps) {
                 if (line.contains(name)) {

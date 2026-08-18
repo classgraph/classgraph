@@ -5,15 +5,15 @@ name: Memory mapping probe
 # .github/workflows, push the branch named below, read the logs, then remove it again.
 #
 # The probe records what each operating system does with a file that is still memory-mapped after the
-# FileChannel over it has been closed -- whether it can be deleted, renamed or overwritten, and how
-# many collections it takes before the mapping is released once the last reference to it is dropped.
-# That is what decides whether asking for a collection when a scan closes is enough to stop Windows
-# holding a scanned jar locked. It is run twice per job, the second time with -XX:+DisableExplicitGC,
-# which turns System.gc() into a no-op and so shows what happens when the release cannot be asked for.
+# FileChannel over it has been closed -- whether it can be deleted, renamed or overwritten, which is
+# why a mapping has to be released at all -- and how well dropping the last reference to a mapping and
+# asking for a collection releases it, which is why ClassGraph unmaps explicitly instead of relying on
+# that. It is run twice per job, the second time with -XX:+DisableExplicitGC, which turns System.gc()
+# into a no-op and so shows what is left when the collector cannot even be asked.
 #
-# JDK 8, 17 and 21 are the interesting versions: all three are below JDK 22, where there are no arenas
-# and so no way to unmap a file on demand. JDK 22 and later need no probing, since closing the arena
-# unmaps the file at a known moment.
+# JDK 8, 17 and 21 are the interesting versions: all three are below JDK 22, where there are no arenas,
+# so the file is unmapped by Unsafe::invokeCleaner and the collector is only the fallback. JDK 22 and
+# later need no probing, since closing the arena unmaps the file at a known moment.
 on:
   push:
     branches:
