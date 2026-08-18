@@ -127,9 +127,9 @@ public class Bench {
     }
 
     /**
-     * Turn memory mapping on or off. ClassGraph chooses this by platform and offers no API to change it, so the
-     * scan spec's testing override is reached reflectively here -- setting it explicitly also means this benchmark
-     * measures both arms on Windows, where mapping is otherwise always on.
+     * Turn memory mapping on or off. ClassGraph chooses this by platform, and the setter that overrides its choice
+     * is hidden from the API docs, so it is reached reflectively here -- setting it explicitly also means this
+     * benchmark measures both arms on Windows, where mapping is otherwise always on.
      *
      * @param classGraph
      *            the ClassGraph instance to configure
@@ -141,8 +141,11 @@ public class Bench {
             final java.lang.reflect.Field scanSpecField = ClassGraph.class.getDeclaredField("scanSpec");
             scanSpecField.setAccessible(true);
             final Object scanSpec = scanSpecField.get(classGraph);
-            final Object vfsSpec = scanSpec.getClass().getField("vfsSpec").get(scanSpec);
-            vfsSpec.getClass().getField("memoryMapFiles").setBoolean(vfsSpec, memoryMapping);
+            // ScanSpec is not a public class, so its field has to be opened up even though the field is public
+            final java.lang.reflect.Field vfsSpecField = scanSpec.getClass().getDeclaredField("vfsSpec");
+            vfsSpecField.setAccessible(true);
+            final Object vfsSpec = vfsSpecField.get(scanSpec);
+            vfsSpec.getClass().getMethod("setMemoryMappingFiles", boolean.class).invoke(vfsSpec, memoryMapping);
         } catch (final ReflectiveOperationException e) {
             throw new RuntimeException("Could not set memory mapping", e);
         }
