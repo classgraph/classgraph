@@ -23,6 +23,7 @@ import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.fileslice.reader.RandomAccessReader;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
+import nonapi.io.github.classgraph.utils.FileUtils;
 
 /** Tests for the identity of a {@link Slice}, and for the closing of the slices that a scan left open. */
 public class SliceTest {
@@ -347,7 +348,7 @@ public class SliceTest {
     // #939
     @AfterEach
     public void releaseMappingsHeldByTests() {
-        System.gc();
+        FileUtils.freeUnreachableBuffers();
     }
 
     /**

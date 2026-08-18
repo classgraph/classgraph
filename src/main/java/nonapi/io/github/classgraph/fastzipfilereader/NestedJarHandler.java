@@ -1218,14 +1218,15 @@ public class NestedJarHandler {
             // Below JDK 22 a file is unmapped only once the garbage collector finds the mapped buffer
             // unreachable, and Windows refuses to delete, rename or overwrite a file while it is mapped. Closing
             // the slices above dropped the last reference to every mapping this scan made, so ask for a
-            // collection here: without one, a file that the scan mapped stays locked until the next collection
-            // happens to run, which in a large heap can be minutes after the scan finished, or never. This is
-            // best effort -- below JDK 22 nothing can unmap a file on demand, and nothing can observe that the
-            // collector has done it. Only Windows pays for the collection: every other operating system lets a
-            // mapped file be deleted or replaced, so releasing the mapping promptly buys nothing there.
+            // collection here, and wait for the collector to unmap the files: without the request, a file that
+            // the scan mapped stays locked until the next collection happens to run, which in a large heap can
+            // be minutes after the scan finished, or never. This is best effort -- below JDK 22 nothing can
+            // unmap a file on demand, and nothing can observe that the collector has done it. Only Windows pays
+            // for the collection: every other operating system lets a mapped file be deleted or replaced, so
+            // releasing the mapping promptly buys nothing there.
             // #939
             if (filesAwaitingUnmapping.get() && VersionFinder.OS == OperatingSystem.Windows) {
-                System.gc();
+                FileUtils.freeUnreachableBuffers();
             }
             // Temp files have to be deleted last, after all PhysicalZipFiles are closed and
             // files are unmapped
@@ -1250,7 +1251,7 @@ public class NestedJarHandler {
                     // system and JDK, where a delete can still fail for an unrelated reason.) If the JVM was
                     // started with -XX:+DisableExplicitGC then this is a no-op, and the file is left to the
                     // File#deleteOnExit() hook that makeTempFile registered.
-                    System.gc();
+                    FileUtils.freeUnreachableBuffers();
                     for (final File tempFile : undeleted) {
                         try {
                             // The file is no longer in tempFiles, since removeTempFile removes it before

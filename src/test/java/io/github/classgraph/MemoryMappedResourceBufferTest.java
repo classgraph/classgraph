@@ -16,6 +16,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import nonapi.io.github.classgraph.utils.FileUtils;
+
 /**
  * When memory mapping is enabled, the mapping covers the whole jarfile, and an entry starts partway into it. The
  * {@link ByteBuffer} returned by {@link Resource#read()} has to cover the entry and nothing else.
@@ -34,7 +36,7 @@ public class MemoryMappedResourceBufferTest {
     // #939
     @AfterEach
     public void releaseMappingsHeldByTests() {
-        System.gc();
+        FileUtils.freeUnreachableBuffers();
     }
 
     /**

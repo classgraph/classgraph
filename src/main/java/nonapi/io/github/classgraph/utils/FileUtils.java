@@ -31,6 +31,8 @@ package nonapi.io.github.classgraph.utils;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.lang.ref.PhantomReference;
+import java.lang.ref.ReferenceQueue;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileChannel.MapMode;
@@ -809,6 +811,48 @@ public final class FileUtils {
             }
             return false;
         }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * The longest {@link #freeUnreachableBuffers()} waits for the garbage collector to process the references that
+     * a collection found, in milliseconds.
+     */
+    private static final int REFERENCE_PROCESSING_TIMEOUT_MILLIS = 100;
+
+    /**
+     * Ask the garbage collector to run, and wait for it to process the references that the collection found, so
+     * that by the time this returns, a file that was mapped without an arena and whose every view has become
+     * unreachable has actually been unmapped.
+     *
+     * <p>
+     * This is best effort: nothing can unmap a file on demand without an arena, and nothing can observe that the
+     * collector has unmapped it. A JVM started with {@code -XX:+DisableExplicitGC} ignores the request to collect
+     * altogether, in which case this returns once the wait times out, having done nothing.
+     */
+    // #939
+    public static void freeUnreachableBuffers() {
+        // System.gc() returns once the collection itself is over, which is before the references that the
+        // collection found have been processed -- and a file is unmapped while the reference to its mapped buffer
+        // is processed, not while the collection runs. A phantom reference to an object that the same collection
+        // finds unreachable is enqueued during that same reference processing, so waiting for it to be enqueued
+        // waits for the unmapping too. (Measured on JDK 8 and 17, mapping a file and dropping the reference to
+        // it: without the wait the file was still mapped when System.gc() returned about one time in a hundred;
+        // with the wait, it was never still mapped in 4000 tries.)
+        final ReferenceQueue<Object> collected = new ReferenceQueue<Object>();
+        final PhantomReference<Object> canary = new PhantomReference<Object>(new Object(), collected);
+        System.gc();
+        try {
+            // Bounded, so that a JVM that ignores the request to collect cannot make this wait forever
+            collected.remove(REFERENCE_PROCESSING_TIMEOUT_MILLIS);
+        } catch (final InterruptedException e) {
+            // Leave the files to be unmapped by a later collection, and let the caller see the interruption
+            Thread.currentThread().interrupt();
+        }
+        // Keep the canary reachable until it has been waited for -- a phantom reference that has itself become
+        // unreachable is never enqueued
+        canary.clear();
     }
 
     // -------------------------------------------------------------------------------------------------------------

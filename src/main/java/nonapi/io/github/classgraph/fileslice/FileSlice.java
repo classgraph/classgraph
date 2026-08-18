@@ -183,8 +183,9 @@ public class FileSlice extends Slice {
                     // can't be mapped, some throw IOException)
                     backingByteBuffer = mapFile();
                 } catch (IOException | OutOfMemoryError e) {
-                    // Try running garbage collection then try mapping the file again
-                    System.gc();
+                    // Try running garbage collection then try mapping the file again. (The collection has to
+                    // be waited for, since a mapping is released after the collection itself is over.)
+                    FileUtils.freeUnreachableBuffers();
                     nestedJarHandler.runFinalizationMethod();
                     try {
                         backingByteBuffer = mapFile();

@@ -7,8 +7,10 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.channels.FileChannel.MapMode;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 
 import org.junit.jupiter.api.Test;
@@ -81,6 +83,48 @@ public class Issue939Test {
             // The file is unmapped once the arena is closed, so accessing the buffer now throws
             // IllegalStateException
             assertThatThrownBy(() -> buf.get(0)).isInstanceOf(IllegalStateException.class);
+        }
+    }
+
+    /**
+     * A file mapped without an arena, which is how a file is mapped below JDK 22, has been unmapped by the time
+     * {@link FileUtils#freeUnreachableBuffers()} returns. Windows refuses to delete, rename or overwrite a file
+     * while it is mapped, so a scan that returned with a file it mapped still mapped would leave it locked.
+     *
+     * @param tempDir
+     *            a temporary directory
+     * @throws IOException
+     *             if the file could not be written or mapped
+     */
+    @Test
+    public void aFileIsUnmappedBeforeFreeUnreachableBuffersReturns(@TempDir final Path tempDir) throws IOException {
+        final Path maps = Paths.get("/proc/self/maps");
+        assumeTrue(Files.isReadable(maps), "only Linux can tell whether a file is still mapped");
+        final Path file = tempDir.resolve("unmapped-by-collection.bin");
+        Files.write(file, new byte[4096]);
+        final String fileName = file.getFileName().toString();
+        // Repeated, since a mapping that outlives the request to collect is a race that is not lost every time
+        for (int round = 0; round < 100; round++) {
+            mapTheWholeFileAndDropTheMapping(file);
+            FileUtils.freeUnreachableBuffers();
+            assertThat(Files.readAllLines(maps)).as("still mapped in round %d", round)
+                    .noneMatch(line -> line.endsWith(fileName));
+        }
+    }
+
+    /**
+     * Map the whole of a file without an arena, read from the mapping, then drop the last reference to it.
+     *
+     * @param file
+     *            the file to map
+     * @throws IOException
+     *             if the file could not be mapped
+     */
+    private static void mapTheWholeFileAndDropTheMapping(final Path file) throws IOException {
+        try (FileChannel fileChannel = FileChannel.open(file, StandardOpenOption.READ)) {
+            // Mapped without an arena, which is how a file is mapped below JDK 22
+            final ByteBuffer mapped = fileChannel.map(MapMode.READ_ONLY, 0L, Files.size(file));
+            assertThat(mapped.get(0)).isEqualTo((byte) 0);
         }
     }
 }
