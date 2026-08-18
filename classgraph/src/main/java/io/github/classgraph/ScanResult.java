@@ -1891,6 +1891,10 @@ public final class ScanResult implements AutoCloseable {
      * JVM exits are deleted then, via {@link java.io.File#deleteOnExit()}, but open jarfiles and memory-mapped
      * buffers are only released by this method -- so a program that scans repeatedly without closing its
      * {@link ScanResult}s will hold those resources until it exits.
+     *
+     * <p>
+     * On Windows, if a file was memory mapped and the JDK is older than 22, this asks the garbage collector to run,
+     * so that the file stops being locked -- see {@link Vfs#close()}.
      */
     @Override
     public void close() {
