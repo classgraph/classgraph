@@ -263,6 +263,11 @@ public class ScanSpec {
      * How a mapping is released depends on the JDK: on JDK 22 or later it is unmapped as soon as the
      * {@link io.github.classgraph.ScanResult} is closed, by closing the arena the file was mapped in; below that
      * it is unmapped once the garbage collector finds that nothing can read it any more.
+     *
+     * <p>
+     * On Windows, below JDK 22, closing the {@link io.github.classgraph.ScanResult} asks the garbage collector to
+     * run: Windows refuses to delete, rename or overwrite a file while it is mapped, so without the request a file
+     * that was scanned can stay locked for as long after the scan as it takes for a collection to happen.
      */
     public boolean enableMemoryMapping;
 
