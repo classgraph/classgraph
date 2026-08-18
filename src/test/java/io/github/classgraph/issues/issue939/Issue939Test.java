@@ -10,6 +10,7 @@ import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.zip.CRC32;
 import java.util.zip.ZipEntry;
@@ -37,6 +38,58 @@ import nonapi.io.github.classgraph.utils.VersionFinder;
  * is still reading it.
  */
 public class Issue939Test {
+    /** The content written into the stored zip entry of the jarfile that the tests below scan. */
+    private static final byte[] STORED_ENTRY_CONTENT = "the content of a stored zip entry"
+            .getBytes(StandardCharsets.UTF_8);
+
+    /** The file through which Linux says which files this process has memory-mapped. */
+    private static final Path PROC_SELF_MAPS = Paths.get("/proc/self/maps");
+
+    /**
+     * Write a jarfile holding a single stored entry named {@code stored.txt}. A stored entry is read in place from
+     * the mapping of the jarfile; a deflated entry would instead be inflated into a buffer of its own, which would
+     * not exercise the mapping.
+     *
+     * @param jarPath
+     *            where to write the jarfile
+     * @throws IOException
+     *             if the jarfile could not be written
+     */
+    private static void writeJarWithAStoredEntry(final Path jarPath) throws IOException {
+        try (ZipOutputStream zipOut = new ZipOutputStream(Files.newOutputStream(jarPath))) {
+            final ZipEntry storedEntry = new ZipEntry("stored.txt");
+            storedEntry.setMethod(ZipEntry.STORED);
+            storedEntry.setSize(STORED_ENTRY_CONTENT.length);
+            storedEntry.setCompressedSize(STORED_ENTRY_CONTENT.length);
+            final CRC32 crc = new CRC32();
+            crc.update(STORED_ENTRY_CONTENT);
+            storedEntry.setCrc(crc.getValue());
+            zipOut.putNextEntry(storedEntry);
+            zipOut.write(STORED_ENTRY_CONTENT);
+            zipOut.closeEntry();
+        }
+    }
+
+    /**
+     * Whether a file is currently memory-mapped by this JVM. Only Linux can tell, through {@code /proc/self/maps},
+     * so a caller has to check that that file is readable before believing the answer.
+     *
+     * @param file
+     *            the file to look for
+     * @return true if the file is memory-mapped
+     * @throws IOException
+     *             if {@code /proc/self/maps} could not be read
+     */
+    private static boolean isMemoryMapped(final Path file) throws IOException {
+        final String fileName = file.getFileName().toString();
+        for (final String line : Files.readAllLines(PROC_SELF_MAPS, StandardCharsets.UTF_8)) {
+            if (line.endsWith(fileName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /**
      * Scanning a jar with memory mapping enabled works on all JDK versions, mapping into an arena on JDK 22+ and
      * with {@code FileChannel#map} below that.
@@ -109,22 +162,8 @@ public class Issue939Test {
     public void anOpenResourceKeepsTheFileMappedAfterTheScanIsClosed(@TempDir final Path tempDir)
             throws IOException {
         assumeTrue(VersionFinder.JAVA_MAJOR_VERSION < 22, "from JDK 22 the arena is closed with the scan");
-        final byte[] content = "the content of a stored zip entry".getBytes(StandardCharsets.UTF_8);
         final Path jarPath = tempDir.resolve("mapped-jar-entry.jar");
-        try (ZipOutputStream zipOut = new ZipOutputStream(Files.newOutputStream(jarPath))) {
-            // A stored entry is read in place from the mapping of the jarfile; a deflated entry would instead be
-            // inflated into a buffer of its own, which would not exercise the mapping
-            final ZipEntry storedEntry = new ZipEntry("stored.txt");
-            storedEntry.setMethod(ZipEntry.STORED);
-            storedEntry.setSize(content.length);
-            storedEntry.setCompressedSize(content.length);
-            final CRC32 crc = new CRC32();
-            crc.update(content);
-            storedEntry.setCrc(crc.getValue());
-            zipOut.putNextEntry(storedEntry);
-            zipOut.write(content);
-            zipOut.closeEntry();
-        }
+        writeJarWithAStoredEntry(jarPath);
 
         final Resource resource;
         final ByteBuffer byteBuffer;
@@ -139,7 +178,51 @@ public class Issue939Test {
         }
 
         // The scan is closed, but this resource is not, so the jarfile its buffer is a view of is still mapped
-        assertThat(byteBuffer.get(0)).isEqualTo(content[0]);
+        assertThat(byteBuffer.get(0)).isEqualTo(STORED_ENTRY_CONTENT[0]);
         resource.close();
+    }
+
+    /**
+     * A jarfile that a scan memory-mapped can be deleted as soon as the {@link ScanResult} is closed, with no
+     * collection and no retry in between. Windows refuses to delete a file while it is mapped, so this is the
+     * property that makes memory mapping usable there at all. That a slice unmaps its file when it closes is
+     * tested by {@code SliceTest}; what this adds is that closing a {@link ScanResult} reaches that.
+     *
+     * @param tempDir
+     *            a temporary directory to write the jarfile to be scanned into
+     * @throws IOException
+     *             if the jarfile could not be written, read or deleted
+     */
+    // #939
+    @Test
+    public void aMappedJarCanBeDeletedOnceTheScanIsClosed(@TempDir final Path tempDir) throws IOException {
+        final Path jarPath = tempDir.resolve("deleted-after-the-scan.jar");
+        writeJarWithAStoredEntry(jarPath);
+
+        // Only Linux can be asked which files are mapped, so the two assertions that the jarfile was mapped, and
+        // then was not, are skipped elsewhere. The delete runs everywhere, and it is the delete that fails if a
+        // scan on Windows leaves the files it mapped in place.
+        final boolean canTellWhatIsMapped = Files.isReadable(PROC_SELF_MAPS);
+        try (ScanResult scanResult = new ClassGraph().acceptPathsNonRecursive("").enableMemoryMapping()
+                .overrideClasspath(jarPath.toString()).scan()) {
+            final ResourceList resources = scanResult.getResourcesWithPath("stored.txt");
+            assertThat(resources).hasSize(1);
+            final Resource resource = resources.get(0);
+            try {
+                // The buffer of a resource of a mapped jarfile aliases the mapping, so it is direct
+                assertThat(resource.read().isDirect()).isTrue();
+            } finally {
+                resource.close();
+            }
+            if (canTellWhatIsMapped) {
+                assertThat(isMemoryMapped(jarPath)).as("mapped while the scan is open").isTrue();
+            }
+        }
+
+        if (canTellWhatIsMapped) {
+            assertThat(isMemoryMapped(jarPath)).as("still mapped after the scan closed").isFalse();
+        }
+        Files.delete(jarPath);
+        assertThat(Files.exists(jarPath)).isFalse();
     }
 }
