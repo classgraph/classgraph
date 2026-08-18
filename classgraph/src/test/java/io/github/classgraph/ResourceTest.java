@@ -139,6 +139,27 @@ public class ResourceTest {
         }
     }
 
+    /**
+     * A resource whose {@link ScanResult} has been closed reports that the same way every time, rather than
+     * reporting it once and then reporting that the resource is already open, since a check that fails has to leave
+     * the resource closed.
+     */
+    @Test
+    public void aResourceOfAClosedScanResultFailsTheSameWayEveryTime() {
+        final Resource resource;
+        try (var scanResult = scanTestResourcesDir()) {
+            resource = resource(scanResult, TEXT_FILE);
+        }
+        for (var attempt = 0; attempt < 2; attempt++) {
+            assertThatThrownBy(resource::open).as("open, attempt " + attempt)
+                    .isInstanceOf(IllegalStateException.class).hasMessageContaining("ScanResult is closed");
+            assertThatThrownBy(resource::read).as("read, attempt " + attempt)
+                    .isInstanceOf(IllegalStateException.class).hasMessageContaining("ScanResult is closed");
+            assertThatThrownBy(resource::load).as("load, attempt " + attempt)
+                    .isInstanceOf(IllegalStateException.class).hasMessageContaining("ScanResult is closed");
+        }
+    }
+
     /** A resource is read through the virtual filesystem, and hands out the entry it is read from. */
     @Test
     public void aResourceHandsOutTheVfsEntryItIsReadFrom() throws IOException {

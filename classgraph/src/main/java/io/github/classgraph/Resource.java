@@ -121,21 +121,23 @@ public abstract class Resource implements AutoCloseable, Comparable<Resource> {
      * resource.
      *
      * @throws IllegalStateException
-     *             if the classpath element could not be opened, or this resource is already open, or the
-     *             {@link ScanResult} that this resource came from has been closed.
+     *             if the classpath element could not be opened, or the {@link ScanResult} that this resource came
+     *             from has been closed, or this resource is already open.
      */
     void checkCanOpen() {
         if (classpathElement.skipClasspathElement) {
             // Shouldn't happen
             throw new IllegalStateException("Classpath element could not be opened");
         }
-        if (isOpen.getAndSet(true)) {
-            throw new IllegalStateException(
-                    "Resource is already open -- cannot open it again without first calling close()");
-        }
         final var scanResult = classpathElement.scanResult;
         if (scanResult != null && scanResult.isClosed()) {
             throw new IllegalStateException("Cannot open a resource after the ScanResult is closed");
+        }
+        // Mark the resource as open last, so that a failed check leaves it closed, and the next attempt to open
+        // it reports the same reason again rather than reporting that the resource is already open
+        if (isOpen.getAndSet(true)) {
+            throw new IllegalStateException(
+                    "Resource is already open -- cannot open it again without first calling close()");
         }
     }
 
