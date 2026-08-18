@@ -260,6 +260,13 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
      * finished with the {@link ByteBuffer}, so that the {@link ByteBuffer} is released or unmapped. See also
      * {@link #readCloseable()}.
      *
+     * <p>
+     * If the resource is stored uncompressed in a jarfile that was memory-mapped (which requires
+     * {@link ClassGraph#enableMemoryMapping()}, and JDK 22 or later), the returned {@link ByteBuffer} is a view of
+     * that mapping, and the mapping is unmapped when the {@link ScanResult} is closed. Reading the buffer after
+     * that throws {@link IllegalStateException}, since the buffer is handed straight to the caller, with nothing
+     * in between to turn the failure into an {@link IOException}.
+     *
      * @return The allocated or mapped {@link ByteBuffer} for the resource file content.
      * @throws IOException
      *             If the resource could not be read.

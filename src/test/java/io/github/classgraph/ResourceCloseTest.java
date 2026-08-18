@@ -38,6 +38,29 @@ public class ResourceCloseTest {
     }
 
     /**
+     * A resource whose {@link ScanResult} has been closed reports that the same way every time, rather than
+     * reporting it once and then reporting that the resource is already open, since a check that fails has to
+     * leave the resource closed.
+     */
+    @Test
+    public void aResourceOfAClosedScanResultFailsTheSameWayEveryTime() {
+        final Resource resource;
+        try (ScanResult scanResult = new ClassGraph().acceptPathsNonRecursive("").scan()) {
+            final ResourceList resources = scanResult.getResourcesWithPathIgnoringAccept(TEXT_FILE);
+            assertThat(resources).as("resources with path " + TEXT_FILE).hasSize(1);
+            resource = resources.get(0);
+        }
+        for (int attempt = 0; attempt < 2; attempt++) {
+            assertThatThrownBy(resource::open).as("open").isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("ScanResult is closed");
+            assertThatThrownBy(resource::read).as("read").isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("ScanResult is closed");
+            assertThatThrownBy(resource::load).as("load").isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("ScanResult is closed");
+        }
+    }
+
+    /**
      * A resource that could not be opened is left closed, rather than being left marked as open, so that opening it
      * can be tried again, and so that anything acquired for the failed attempt is released.
      *
