@@ -10,7 +10,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -230,10 +229,10 @@ public class PathSliceTest {
 
     /**
      * Closing a slice leaves nothing at all holding its memory mapping, even while a sub-slice of it is still
-     * alive. Below JDK 22 there is no arena to unmap the file on demand, so the file stays mapped until the garbage
-     * collector finds every view of the mapping gone -- and on Windows a file that is still mapped cannot be
-     * deleted, which is how a temporary file extracted from a nested jar would be stranded. The mapping is
-     * deliberately reachable from nothing the API hands out, so the only way to watch it is by reflection.
+     * alive. Below JDK 22 the close unmaps the file by freeing its address range, so anything left holding the
+     * mapped buffer would be holding a view of memory that is no longer there, and reading through it would take a
+     * SIGSEGV that kills the JVM. The mapping is deliberately reachable from nothing the API hands out, so the only
+     * way to watch it is by reflection.
      *
      * @param tempDir
      *            a temporary directory
@@ -267,10 +266,11 @@ public class PathSliceTest {
 
     /**
      * A stream that has been closed holds nothing of the memory mapping of the file it was reading, even while the
-     * stream itself is still alive. A stream reads through a reader, and a reader of a mapped file keeps a view of
-     * the mapping, so a closed stream that still held its reader would keep the file mapped -- and, on Windows,
-     * locked open -- for as long as anything still referred to the stream, which for a stream handed out through
-     * the {@link io.github.classgraph.vfs.Vfs} API can be for as long as the caller keeps hold of it.
+     * stream itself is still alive. A stream reads through a reader, and a reader of a mapped file holds a
+     * duplicate of the mapped buffer, so a closed stream that still held its reader would be holding a view of the
+     * address range that closing the slice freed. A stream handed out through the
+     * {@link io.github.classgraph.vfs.Vfs} API can be kept by the caller for as long as it likes, so what a closed
+     * one still refers to is worth checking.
      *
      * @param tempDir
      *            a temporary directory
@@ -305,19 +305,6 @@ public class PathSliceTest {
     }
 
     /**
-     * Release the memory mappings that a test deliberately kept a view of. Several of the tests here hold a reader
-     * or a buffer across the close of the slice, which is exactly what stops the close from releasing the mapping.
-     * Below JDK 22 a mapping goes only once the garbage collector finds every view of it gone, and on Windows a
-     * file that is still mapped cannot be deleted, so without this the deletion of the temporary directory that
-     * runs after each test would fail there.
-     */
-    // #939
-    @AfterEach
-    public void releaseMappingsHeldByTests() {
-        OffHeapMemory.freeUnreachableBuffers();
-    }
-
-    /**
      * Ask for garbage collections until the referent has been collected, or give up.
      *
      * @param ref
@@ -338,11 +325,9 @@ public class PathSliceTest {
     }
 
     /**
-     * A file that a session memory-mapped can be deleted once the session has been closed. Windows refuses to
-     * delete a file that is still mapped, and below JDK 22 the mapping is released only when the garbage collector
-     * finds the mapped buffer unreachable, so closing the session has to ask for a collection to make the file
-     * deletable again. (Every other operating system lets a mapped file be deleted, so this test only bites on
-     * Windows.)
+     * A file that a session memory-mapped can be deleted once the session has been closed, since closing the
+     * session unmaps it. Windows refuses to delete a file that is still mapped. (Every other operating system lets
+     * a mapped file be deleted, so this test only bites on Windows.)
      */
     // #939
     @Test
@@ -352,7 +337,7 @@ public class PathSliceTest {
         final var slice = new PathSlice(file, session, /* log = */ null);
         assertThat(slice.read().isDirect()).isTrue();
 
-        // Closing the session closes the slice, which drops the last reference to the mapped buffer
+        // Closing the session closes the slice, which unmaps the file
         session.close(/* log = */ null);
 
         Files.delete(file);

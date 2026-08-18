@@ -96,11 +96,12 @@ public class VfsSpec {
      * benchmark</a>.)
      *
      * <p>
-     * How a mapping is released depends on the JDK. On JDK 22 and later it is unmapped the moment the {@link Vfs}
-     * that mapped it is closed, by closing the {@code java.lang.foreign.Arena} that mapped it. Below JDK 22 there
-     * is no way to unmap a file on demand that is safe to call while another thread is still reading it, so closing
-     * the {@link Vfs} drops the references to the mapping instead, and the JDK's own cleaner unmaps the file once
-     * it finds the last of them gone.
+     * A file is unmapped when the {@link Vfs} that mapped it is closed, on every JDK version: on JDK 22 and later
+     * by closing the {@code java.lang.foreign.Arena} that mapped it, and below that by
+     * {@code Unsafe::invokeCleaner}, the only method there is that can unmap a file on demand. That method frees
+     * the address range whether or not anything is still reading it, so below JDK 22 a file is left mapped while a
+     * {@link CloseableByteBuffer} that the caller has not closed yet is still a view of it, and the last such
+     * buffer to be closed unmaps the file instead.
      */
     private volatile boolean memoryMapFiles = VersionFinder.OS == OperatingSystem.Windows;
 

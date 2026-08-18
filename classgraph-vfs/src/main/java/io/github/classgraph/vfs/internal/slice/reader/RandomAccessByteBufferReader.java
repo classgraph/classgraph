@@ -47,10 +47,11 @@ import io.github.classgraph.base.internal.utils.StringUtils;
  * <p>
  * The buffer may be a memory mapping of a file that the {@code Vfs} releases when it is closed, which can happen
  * while this reader is being read from. Reading a released file fails with an {@link IOException}, the same
- * documented way as reading from a closed {@link java.nio.channels.FileChannel}, whichever way the JDK releases the
- * mapping: on JDK 22 and later the mapping is unmapped as the {@code Vfs} closes, and reading it throws
- * {@link IllegalStateException}, which is translated here; below JDK 22 the mapping stays readable until the
- * garbage collector unmaps it, so this reader is given a check to ask instead.
+ * documented way as reading from a closed {@link java.nio.channels.FileChannel}, whichever way the JDK unmaps the
+ * file: on JDK 22 and later the arena that mapped it is closed, and reading the buffer afterwards throws
+ * {@link IllegalStateException}, which is translated here; below JDK 22 the address range is simply freed, and
+ * reading the buffer afterwards would read memory that is no longer mapped, so this reader is given a check to ask
+ * whether the file is still there before it reads.
  */
 public class RandomAccessByteBufferReader implements RandomAccessReader {
     /** The byte buffer. */

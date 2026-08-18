@@ -124,11 +124,10 @@ public final class PathSlice extends Slice {
 
         // A sub slice reads through the toplevel slice's file channel and memory mapping rather than keeping
         // copies of its own, so that closing the toplevel slice releases both of them for every slice of the file
-        // at once. A copy of the mapped buffer would matter most: below JDK 22 a mapping is released only once
-        // the garbage collector finds it unreachable, so a sub slice holding a view of it would keep the file
-        // mapped -- and, on Windows, locked open -- however long ago the file was closed. The mapping always
-        // covers the whole file, and is addressed in whole-file coordinates by way of sliceStartPos, in a sub
-        // slice as much as in the toplevel slice.
+        // at once. A copy of the mapped buffer would matter most: below JDK 22 the toplevel slice unmaps the file
+        // by freeing its address range, so a sub slice that kept reading through a copy of the mapping would be
+        // reading memory that is no longer there. The mapping always covers the whole file, and is addressed in
+        // whole-file coordinates by way of sliceStartPos, in a sub slice as much as in the toplevel slice.
         //
         // Only mark toplevel file slices as open (sub slices don't need to be marked as open since they don't need
         // to be closed, they read through the toplevel slice's file channel and mapping)

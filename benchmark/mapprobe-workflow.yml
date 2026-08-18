@@ -1,0 +1,45 @@
+name: Memory mapping probe
+
+# Not an active workflow -- it is kept here, outside .github/workflows, so that it does not run on
+# every push. To run the mapping probe on all three operating systems again, copy this file into
+# .github/workflows, push the branch named below, read the logs, then remove it again.
+#
+# The probe records what each operating system does with a file that is still memory-mapped after the
+# FileChannel over it has been closed -- whether it can be deleted, renamed or overwritten, and how
+# many collections it takes before the mapping is released once the last reference to it is dropped.
+# That is what decides whether asking for a collection when a scan closes is enough to stop Windows
+# holding a scanned jar locked. It is run twice per job, the second time with -XX:+DisableExplicitGC,
+# which turns System.gc() into a no-op and so shows what happens when the release cannot be asked for.
+#
+# JDK 8, 17 and 21 are the interesting versions: all three are below JDK 22, where there are no arenas
+# and so no way to unmap a file on demand. JDK 22 and later need no probing, since closing the arena
+# unmaps the file at a known moment.
+on:
+  push:
+    branches:
+      - map-probe
+
+jobs:
+  probe:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, windows-latest, macos-latest ]
+        java: [ '8', '17', '21' ]
+    steps:
+    - uses: actions/checkout@v7
+    - name: Set up JDK
+      uses: actions/setup-java@v5
+      with:
+        distribution: 'zulu'
+        java-version: ${{ matrix.java }}
+    - name: Compile the probe
+      # Compiled rather than run from source, because JDK 8 has no single-file source launcher
+      run: |
+        mkdir probe-out
+        javac -d probe-out benchmark/MapProbe.java
+    - name: Run the probe
+      run: java -cp probe-out MapProbe
+    - name: Run the probe again with -XX:+DisableExplicitGC
+      run: java -XX:+DisableExplicitGC -cp probe-out MapProbe

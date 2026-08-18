@@ -46,10 +46,10 @@ class SliceInputStream extends InputStream {
 
     /**
      * The reader that the bytes are read through, or null once this stream has been closed. A reader of a
-     * memory-mapped file keeps a view of the mapping, and below JDK 22 a mapping is released only once the garbage
-     * collector finds every view of it gone, so this reference is dropped as the stream closes -- a closed stream
-     * that still held its reader would keep the file mapped, and on Windows locked open, for as long as anything
-     * still referred to the stream.
+     * memory-mapped file holds a duplicate of the mapped buffer, so this reference is dropped as the stream closes
+     * rather than being kept for as long as anything still refers to the stream -- below JDK 22 the file is
+     * unmapped by freeing its address range, so a duplicate that outlived the unmapping would be a view of memory
+     * that is no longer there.
      */
     // #939
     private volatile @Nullable RandomAccessReader randomAccessReader;
@@ -177,7 +177,7 @@ class SliceInputStream extends InputStream {
         // Closing an already-closed InputStream has no effect, as required by InputStream#close() -- in particular
         // the owner must not be closed a second time, since it may have been reopened in the meantime
         if (!closed.getAndSet(true)) {
-            // Drop the reader, and with it any view it kept of a memory mapping of the file
+            // Drop the reader, and with it its duplicate of the buffer of the slice, which may be a mapping
             // #939
             randomAccessReader = null;
             if (resourceToClose != null) {

@@ -709,12 +709,13 @@ public class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * either -- see {@link CloseableByteBuffer}.
      *
      * <p>
-     * On Windows, if a file was memory mapped and the JDK is older than 22, this asks the garbage collector to run.
-     * Windows refuses to delete, rename or overwrite a file while it is mapped, and below JDK 22 a mapping is
-     * released only once the collector finds every view of it unreachable, so without the request a file that was
-     * scanned can stay locked for as long after the scan as it takes for a collection to happen. Nothing is asked
-     * for on any other operating system, where a mapped file can be deleted or replaced anyway, or on JDK 22 and
-     * later, where the file is unmapped as the arena it was mapped in is closed.
+     * Every file that was memory mapped is unmapped before this returns, except one that a
+     * {@link CloseableByteBuffer} the caller has not closed yet is still a view of, which stays mapped until the
+     * last such buffer is closed. Windows refuses to delete, rename or overwrite a file while it is mapped, so a
+     * close that returned with the files it had mapped still mapped would leave them locked. On Windows, if a file
+     * was left mapped, this also asks the garbage collector to run, which is the only other thing that can unmap
+     * one; nothing is asked for on any other operating system, where a mapped file can be deleted or replaced
+     * anyway.
      *
      * <p>
      * Closing an already-closed {@link Vfs} has no effect.

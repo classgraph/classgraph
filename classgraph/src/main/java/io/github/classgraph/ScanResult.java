@@ -1893,8 +1893,9 @@ public final class ScanResult implements AutoCloseable {
      * {@link ScanResult}s will hold those resources until it exits.
      *
      * <p>
-     * On Windows, if a file was memory mapped and the JDK is older than 22, this asks the garbage collector to run,
-     * so that the file stops being locked -- see {@link Vfs#close()}.
+     * Every file that was memory mapped is unmapped by this, except one that a
+     * {@link io.github.classgraph.vfs.CloseableByteBuffer} the caller has not closed yet is still a view of, which
+     * stays mapped until the last such buffer is closed -- see {@link Vfs#close()}.
      */
     @Override
     public void close() {
