@@ -2,6 +2,7 @@ package io.github.classgraph;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -109,6 +110,25 @@ public class AutoCloseableExecutorServiceTest {
         // The task was cancelled rather than throwing, so there is nothing to report but the interruption
         assertThat(executorService.interruptionChecker.checkAndReturn()).isTrue();
         assertThat(executorService.interruptionChecker.getExecutionException()).isNull();
+    }
+
+    /**
+     * A task that was interrupted was cancelled, not broken, so it is reported as an interruption rather than as an
+     * exception, however it ended. A scan worker throws {@link InterruptedException} when the scan is cancelled,
+     * and recording that as the scan's failure would report a cancelled scan as a failed one.
+     */
+    @Test
+    public void anInterruptedTaskIsReportedAsAnInterruption() {
+        final AutoCloseableExecutorService executorService;
+        try (var closeableExecutorService = new AutoCloseableExecutorService(1)) {
+            executorService = closeableExecutorService;
+            executorService.submit((Callable<Void>) () -> {
+                throw new InterruptedException();
+            });
+        }
+        // The executor service is closed, so every task has finished
+        assertThat(executorService.interruptionChecker.getExecutionException()).isNull();
+        assertThat(executorService.interruptionChecker.checkAndReturn()).isTrue();
     }
 
     /** Every executor service has its own interruption checker, so that one failed scan cannot stop another. */

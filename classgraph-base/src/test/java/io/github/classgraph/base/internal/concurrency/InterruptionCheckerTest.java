@@ -91,6 +91,31 @@ public class InterruptionCheckerTest {
         assertThat(interruptionChecker.checkAndReturn()).isFalse();
     }
 
+    /**
+     * A worker that was interrupted was cancelled, not broken, so the interruption is recorded as an interruption
+     * rather than as an exception -- otherwise the next check reports the scan as having failed, since a recorded
+     * exception is thrown ahead of the interruption check, and a genuine failure on another thread is masked, since
+     * only the first exception is recorded.
+     */
+    @Test
+    public void anInterruptedWorkerIsRecordedAsAnInterruption() {
+        final var interruptionChecker = new InterruptionChecker();
+        interruptionChecker
+                .setExecutionException(new ExecutionException("Uncaught exception", new InterruptedException()));
+
+        assertThat(interruptionChecker.getExecutionException()).isNull();
+        assertThat(interruptionChecker.checkAndReturn()).isTrue();
+        assertThatThrownBy(interruptionChecker::check).isInstanceOf(InterruptedException.class);
+
+        // A genuine failure on another thread is still recorded afterwards
+        final var failure = new ExecutionException("failed", new IllegalStateException("the reason"));
+        interruptionChecker.setExecutionException(failure);
+        assertThat(interruptionChecker.getExecutionException()).isSameAs(failure);
+
+        // check() interrupts the calling thread when the shared flag is set, so clear it again
+        Thread.interrupted();
+    }
+
     /** The cause of an exception is the first cause that is not itself an execution exception. */
     @Test
     public void theCauseIsTheFirstCauseThatIsNotAnExecutionException() {
