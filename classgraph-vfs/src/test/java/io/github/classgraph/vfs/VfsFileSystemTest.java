@@ -863,8 +863,9 @@ public class VfsFileSystemTest {
      */
     @Test
     public void aChannelReadAfterTheVfsWasClosedThrowsIOException(@TempDir final Path tempDir) throws IOException {
-        // Only a memory-mapped entry can have its storage taken away under a channel that is still open, and
-        // files are only memory mapped on JDK 22 or later
+        // Only a memory-mapped entry can have its storage taken away under a channel that is still open, and only
+        // on JDK 22 or later -- below that the channel's own view of the mapping keeps the file mapped, so the
+        // read after the close still returns the file content, exactly as it did when the entry was not mapped
         assumeTrue(VersionFinder.JAVA_MAJOR_VERSION >= 22);
         final var jarFile = tempDir.resolve("stored.jar").toFile();
         writeStoredJar(jarFile);

@@ -42,11 +42,14 @@ import org.jspecify.annotations.Nullable;
  * them.
  *
  * <p>
- * The wrapped buffer may be a memory mapping of a file that the {@link Vfs} unmaps when it is closed, so the buffer
- * must not be read after {@link Vfs#close()} has been called, even if this wrapper is still open. Reading an
- * unmapped buffer throws {@link IllegalStateException}, which is the only place in the {@link Vfs} API where
- * closing while a read is in flight is not reported as an {@link java.io.IOException}: this is a raw
- * {@link ByteBuffer} handed to the caller, so nothing sits between it and the caller to translate the failure.
+ * The wrapped buffer may be a view of a memory mapping of a file that the {@link Vfs} releases when it is closed,
+ * so the buffer must not be read after {@link Vfs#close()} has been called, even if this wrapper is still open.
+ * This is the one place in the {@link Vfs} API where reading after the close is not reported as an
+ * {@link java.io.IOException}: this is a raw {@link ByteBuffer} handed to the caller, so nothing sits between it
+ * and the caller to check whether the file is still there. What such a read does instead depends on how the JDK
+ * releases the mapping: on JDK 22 and later the file is unmapped as the {@link Vfs} closes, and reading the buffer
+ * throws {@link IllegalStateException}; below JDK 22 the buffer itself keeps the mapping alive, so the read quietly
+ * returns the file content.
  */
 public class CloseableByteBuffer implements AutoCloseable {
     /**

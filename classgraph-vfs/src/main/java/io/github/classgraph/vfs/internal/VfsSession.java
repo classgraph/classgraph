@@ -398,12 +398,29 @@ public class VfsSession {
 
         // Temp files have to be deleted last, after all PhysicalZipFiles are closed and files are unmapped
         final var rmLog = tempFilesToDelete.isEmpty() || log == null ? null : log.log("Removing temporary files");
+        final var undeleted = new ArrayList<File>();
         for (final File tempFile : tempFilesToDelete) {
             teardown.run(() -> {
-                if (!deleteTempFile(tempFile) && rmLog != null) {
-                    rmLog.log("Removing temporary file failed: " + tempFile);
+                if (!deleteTempFile(tempFile)) {
+                    undeleted.add(tempFile);
                 }
             });
+        }
+        if (!undeleted.isEmpty()) {
+            // Windows refuses to delete a file that is still memory-mapped, and below JDK 22 a mapping is released
+            // only once the garbage collector finds it unreachable -- which closing the slices above has just made
+            // it, so ask for a collection and try again. This is the only reason to ask, so it is asked for only
+            // when a delete has actually failed, rather than on every close. If the JVM was started with
+            // -XX:+DisableExplicitGC then this is a no-op and the file is left to the File#deleteOnExit() hook
+            // that makeTempFile registered.
+            System.gc();
+            for (final File tempFile : undeleted) {
+                teardown.run(() -> {
+                    if (!deleteTempFile(tempFile) && rmLog != null) {
+                        rmLog.log("Removing temporary file failed: " + tempFile);
+                    }
+                });
+            }
         }
 
         if (interrupted.get()) {

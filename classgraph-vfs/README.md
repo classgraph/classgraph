@@ -204,9 +204,13 @@ parsed once into an immutable index. So entry lookup and entry reads take no loc
 
 (Which of the two is used is a speed choice, not a correctness one. Memory mapping is measurably
 faster on Windows and is not on Linux or macOS, where it can be slower, so it is used on Windows
-only, and only on JDK 22 or later, which is the first release that can unmap a buffer without the
-risk of crashing a thread that is still reading it. See the
-[memory mapping benchmark](https://github.com/classgraph/classgraph/wiki/Memory-Mapping-Benchmark).)
+only. See the
+[memory mapping benchmark](https://github.com/classgraph/classgraph/wiki/Memory-Mapping-Benchmark).
+How the mapping is released depends on the JDK: on JDK 22 or later it is unmapped the moment the
+`Vfs` is closed, by closing the `java.lang.foreign.Arena` that mapped it, and below JDK 22, where
+there is no way to unmap a file on demand that is safe to call while another thread is still reading
+it, closing the `Vfs` drops the references to the mapping and the JDK's own cleaner unmaps the file
+once it finds the last of them gone.)
 
 What that is worth depends on the access pattern. Bulk decompression still parallelizes reasonably
 well under `ZipFile`, because inflation happens outside the monitor and dominates the time. Entry

@@ -96,8 +96,11 @@ public class VfsSpec {
      * benchmark</a>.)
      *
      * <p>
-     * Files are only ever memory mapped on JDK 22 or later, whatever this is set to, since that is the first
-     * release in which a mapping can be unmapped without the risk of crashing a thread that is still reading it.
+     * How a mapping is released depends on the JDK. On JDK 22 and later it is unmapped the moment the {@link Vfs}
+     * that mapped it is closed, by closing the {@code java.lang.foreign.Arena} that mapped it. Below JDK 22 there
+     * is no way to unmap a file on demand that is safe to call while another thread is still reading it, so closing
+     * the {@link Vfs} drops the references to the mapping instead, and the JDK's own cleaner unmaps the file once
+     * it finds the last of them gone.
      */
     private volatile boolean memoryMapFiles = VersionFinder.OS == OperatingSystem.Windows;
 
@@ -266,7 +269,6 @@ public class VfsSpec {
     /**
      * Whether file content is read through a {@link MappedByteBuffer} rather than through the {@link FileChannel}
      * API. This follows the platform -- memory mapping is only faster on Windows -- so it is not part of the API.
-     * Files are only ever memory mapped on JDK 22 or later, whatever this returns.
      *
      * @return true if file content is memory mapped.
      * @hidden
@@ -278,8 +280,7 @@ public class VfsSpec {
     /**
      * Override the platform's choice of whether to read file content through a {@link MappedByteBuffer} rather than
      * through the {@link FileChannel} API. This exists so that a test can exercise both paths whatever platform it
-     * is running on, and is not part of the API. Files are only ever memory mapped on JDK 22 or later, so turning
-     * this on has no effect before that.
+     * is running on, and is not part of the API.
      *
      * @param memoryMapFiles
      *            true to memory map file content.

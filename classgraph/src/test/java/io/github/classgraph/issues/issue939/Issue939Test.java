@@ -10,16 +10,16 @@ import io.github.classgraph.VfsSpecAccess;
 /**
  * {@code Unsafe::invokeCleaner}, which was used to unmap {@code MappedByteBuffer}s, is terminally deprecated (JDK
  * 24+ warns when it is called, and it will be removed in a future JDK release), and frees the memory whether or not
- * another thread is still reading it. On JDK 22+, ClassGraph allocates and memory-maps {@code ByteBuffer}s using
- * the {@code java.lang.foreign.Arena} API instead, and frees/unmaps them by closing the arena that created them;
- * below JDK 22 nothing is memory-mapped at all, and files are read through the {@code FileChannel} API. The arena
- * API itself is tested by {@code OffHeapMemoryTest}, in the vfs library; this checks that a scan that asks for
- * memory mapping works on every supported JDK version.
+ * another thread is still reading it. ClassGraph no longer calls it on any JDK: on JDK 22+ it allocates and
+ * memory-maps {@code ByteBuffer}s using the {@code java.lang.foreign.Arena} API, and frees/unmaps them by closing
+ * the arena that created them; below JDK 22 it maps files through {@code FileChannel#map} and leaves them to the
+ * JDK's own cleaner, which unmaps a file once every view of the mapping has become unreachable. The arena API
+ * itself is tested by {@code OffHeapMemoryTest}, in the vfs library; this checks that a scan that asks for memory
+ * mapping works on every supported JDK version.
  */
 public class Issue939Test {
     /**
-     * Scanning a jar with memory mapping works on all JDK versions (via an arena on JDK 22+, and by reading through
-     * the {@code FileChannel} API below that), and the mapping is unmapped again when the
+     * Scanning a jar with memory mapping works on all JDK versions, and the mapping is released again when the
      * {@link io.github.classgraph.ScanResult} is closed.
      */
     @Test

@@ -53,7 +53,8 @@ public final class PathSlice extends Slice {
     private final long fileLength;
 
     /**
-     * The {@link FileChannel} opened on the {@link Path}. Set to null by {@link #close()}.
+     * The {@link FileChannel} opened on the {@link Path}, or null once closed. Only set on the toplevel file slice,
+     * which owns the file channel.
      */
     private @Nullable FileChannel fileChannel;
 
@@ -67,24 +68,31 @@ public final class PathSlice extends Slice {
     private FileChannel fileChannel() throws IOException {
         // Read the field into a local, so that a close running concurrently cannot null it between the check and
         // the use
-        final var channel = fileChannel;
+        final var channel = topLevelPathSlice.fileChannel;
         if (channel == null) {
             throw new IOException("Cannot read " + path + " after the Vfs has been closed");
         }
         return channel;
     }
 
-    /** True if this is a top level file slice. */
-    private final boolean isTopLevelFileSlice;
+    /**
+     * The toplevel file slice, which owns the file channel and the memory mapping, or {@code this} if this is the
+     * toplevel slice.
+     */
+    private final PathSlice topLevelPathSlice;
 
     /**
-     * The memory mapping of the file, if it was memory-mapped. Only set for toplevel file slices, which own the
-     * mapping (sub slices just duplicate the backing byte buffer).
+     * The memory mapping of the file, if it was memory-mapped. Only set on the toplevel file slice, which owns the
+     * mapping.
      */
     private @Nullable FileMapping fileMapping;
 
-    /** The backing byte buffer, if the file was memory-mapped. */
-    private @Nullable ByteBuffer backingByteBuffer;
+    /**
+     * The mapped byte buffer, if the file was memory-mapped, or null once closed. Only set on the toplevel file
+     * slice, which owns the mapping. Volatile, since every slice of the file reads it, but only the toplevel slice
+     * writes it.
+     */
+    private volatile @Nullable ByteBuffer backingByteBuffer;
 
     /** True if {@link #close} has been called. */
     private final AtomicBoolean isClosed = new AtomicBoolean();
@@ -111,19 +119,19 @@ public final class PathSlice extends Slice {
         super(parentSlice, offset, length, isDeflatedZipEntry, inflatedLengthHint, session);
 
         this.path = parentSlice.path;
-        this.fileChannel = parentSlice.fileChannel;
         this.fileLength = parentSlice.fileLength;
-        this.isTopLevelFileSlice = false;
+        this.topLevelPathSlice = parentSlice.topLevelPathSlice;
 
-        // The backing byte buffer always covers the whole file, and is addressed in whole-file coordinates by way
-        // of sliceStartPos, both here and in the toplevel slice. It is duplicated so that this slice has its own
-        // position and limit, but its position and limit are not narrowed to the sub-slice, since every use of it
-        // sets them for itself.
-        this.backingByteBuffer = parentSlice.backingByteBuffer == null ? null
-                : parentSlice.backingByteBuffer.duplicate();
-
+        // A sub slice reads through the toplevel slice's file channel and memory mapping rather than keeping
+        // copies of its own, so that closing the toplevel slice releases both of them for every slice of the file
+        // at once. A copy of the mapped buffer would matter most: below JDK 22 a mapping is released only once
+        // the garbage collector finds it unreachable, so a sub slice holding a view of it would keep the file
+        // mapped -- and, on Windows, locked open -- however long ago the file was closed. The mapping always
+        // covers the whole file, and is addressed in whole-file coordinates by way of sliceStartPos, in a sub
+        // slice as much as in the toplevel slice.
+        //
         // Only mark toplevel file slices as open (sub slices don't need to be marked as open since they don't need
-        // to be closed, they just copy the resource references of the toplevel slice)
+        // to be closed, they read through the toplevel slice's file channel and mapping)
     }
 
     /**
@@ -155,7 +163,7 @@ public final class PathSlice extends Slice {
 
         this.path = path;
         // Set before the file is opened, since it is what tells close() that this slice owns the file channel
-        this.isTopLevelFileSlice = true;
+        this.topLevelPathSlice = this;
 
         final var fileChannelOpened = FileChannel.open(path, StandardOpenOption.READ);
         this.fileChannel = fileChannelOpened;
@@ -233,13 +241,19 @@ public final class PathSlice extends Slice {
      */
     @Override
     public RandomAccessReader randomAccessReader() throws IOException {
-        final var mappedByteBuffer = backingByteBuffer;
+        // Read the field into a local, so that a close running concurrently cannot null it between the check and
+        // the use
+        final var mappedByteBuffer = topLevelPathSlice.backingByteBuffer;
         if (mappedByteBuffer == null) {
             // If file was not mmap'd, return a RandomAccessReader that uses the FileChannel
             return new RandomAccessFileChannelReader(fileChannel(), sliceStartPos, sliceLength);
         } else {
-            // If file was mmap'd, return a RandomAccessReader that uses the ByteBuffer
-            return new RandomAccessByteBufferReader(mappedByteBuffer, sliceStartPos, sliceLength);
+            // If file was mmap'd, return a RandomAccessReader that uses the ByteBuffer. The reader keeps a view
+            // of the mapping for as long as it is alive, so it is also given the toplevel slice's closed flag to
+            // check before each read -- below JDK 22 closing the file does not unmap it, so without the flag a
+            // reader that outlived the close would keep returning content
+            return new RandomAccessByteBufferReader(mappedByteBuffer, sliceStartPos, sliceLength,
+                    topLevelPathSlice.isClosed::get);
         }
     }
 
@@ -285,7 +299,9 @@ public final class PathSlice extends Slice {
      */
     @Override
     public ByteBuffer read() throws IOException {
-        final var mappedByteBuffer = backingByteBuffer;
+        // Read the field into a local, so that a close running concurrently cannot null it between the check and
+        // the use
+        final var mappedByteBuffer = topLevelPathSlice.backingByteBuffer;
         if (isDeflatedZipEntry) {
             // Inflate to RAM if deflated (unfortunately there is no lazy-loading ByteBuffer that will decompress
             // partial streams on demand, so we have to decompress the whole zip entry)
@@ -318,8 +334,15 @@ public final class PathSlice extends Slice {
             // Unregister this slice before releasing anything of it, so that the session cannot hand out a slice
             // that has already started closing. This cannot fail, so the release below is still reached
             session.markSliceAsClosed(this);
+            if (topLevelPathSlice != this) {
+                // Only the toplevel file slice owns the file channel and the memory mapping -- a sub slice reads
+                // through the toplevel slice's, and has nothing of its own to release
+                return;
+            }
             // Take what has to be released, and drop the references to it, before releasing any of it: this slice
-            // is already marked as closed, so a second call must not release the same resource twice
+            // is already marked as closed, so a second call must not release the same resource twice. Below JDK 22
+            // dropping the reference to the mapped buffer is not merely tidiness: there is no arena to close, so
+            // it is what lets the garbage collector find the mapping unreachable and unmap the file
             final var mapping = fileMapping;
             final var fileChannelToClose = fileChannel;
             fileMapping = null;
@@ -327,17 +350,13 @@ public final class PathSlice extends Slice {
             fileChannel = null;
             try {
                 if (mapping != null) {
-                    // Only the toplevel file slice has a FileMapping, so the file is only unmapped once (also
-                    // duplicates of mapped ByteBuffers cannot be closed by the cleaner API)
                     mapping.unmap();
                 }
             } finally {
                 // The file channel is closed even if the file could not be unmapped -- this slice is already
                 // marked as closed and unregistered, so nothing else would release it
                 try {
-                    if (isTopLevelFileSlice && fileChannelToClose != null) {
-                        // Only close the FileChannel in the toplevel file slice, so that it is only closed once
-                        // (sub slices just copy the reference to the toplevel slice's FileChannel)
+                    if (fileChannelToClose != null) {
                         fileChannelToClose.close();
                     }
                 } catch (final IOException e) {
