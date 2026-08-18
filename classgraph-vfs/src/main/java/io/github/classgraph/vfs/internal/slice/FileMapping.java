@@ -129,8 +129,9 @@ final class FileMapping {
         } catch (IOException | OutOfMemoryError e) {
             // Try running garbage collection, then try mapping the file again. (Garbage collection is what can free
             // address space here: a mapping whose ByteBuffer is unreachable is unmapped by its Cleaner once the
-            // reference is cleared, which is a phantom-reference mechanism, not finalization.)
-            System.gc();
+            // reference is cleared, which is a phantom-reference mechanism, not finalization. The collection has to
+            // be waited for, since the unmapping happens after the collection itself is over.)
+            OffHeapMemory.freeUnreachableBuffers();
             try {
                 byteBuffer = mapWholeFile(arena, fileChannel, fileLength);
             } catch (IOException | OutOfMemoryError e2) {

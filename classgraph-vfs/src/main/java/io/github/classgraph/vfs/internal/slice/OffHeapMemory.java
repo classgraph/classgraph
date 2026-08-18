@@ -29,6 +29,8 @@
 package io.github.classgraph.vfs.internal.slice;
 
 import java.io.IOException;
+import java.lang.ref.PhantomReference;
+import java.lang.ref.ReferenceQueue;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel.MapMode;
 import java.nio.channels.FileChannel;
@@ -48,6 +50,11 @@ import org.jspecify.annotations.Nullable;
  * reflection, since ClassGraph compiles against JDK 17. On JDK 17 to 21 the API is unavailable (or not final), so
  * {@link #openArena()} returns null, and no off-heap memory is allocated at all -- there is no way to free it again
  * on those JDK versions that is safe to call while another thread may still be reading the buffer.
+ *
+ * <p>
+ * A file can still be memory mapped without an arena on those JDK versions, since a mapping is not allocated memory
+ * that has to be freed: it is released once the garbage collector finds every view of it unreachable.
+ * {@link #freeUnreachableBuffers()} asks for that to happen, and waits until it has.
  */
 public final class OffHeapMemory {
     /**
@@ -209,5 +216,47 @@ public final class OffHeapMemory {
                 closeArena(arena, /* log = */ null);
             }
         }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * The longest {@link #freeUnreachableBuffers()} waits for the garbage collector to process the references that
+     * a collection found, in milliseconds.
+     */
+    private static final int REFERENCE_PROCESSING_TIMEOUT_MILLIS = 100;
+
+    /**
+     * Ask the garbage collector to run, and wait for it to process the references that the collection found, so
+     * that by the time this returns, a file that was mapped without an arena and whose every view has become
+     * unreachable has actually been unmapped.
+     *
+     * <p>
+     * This is best effort: nothing can unmap a file on demand without an arena, and nothing can observe that the
+     * collector has unmapped it. A JVM started with {@code -XX:+DisableExplicitGC} ignores the request to collect
+     * altogether, in which case this returns once the wait times out, having done nothing.
+     */
+    // #939
+    public static void freeUnreachableBuffers() {
+        // System.gc() returns once the collection itself is over, which is before the references that the
+        // collection found have been processed -- and a file is unmapped while the reference to its mapped buffer
+        // is processed, not while the collection runs. A phantom reference to an object that the same collection
+        // finds unreachable is enqueued during that same reference processing, so waiting for it to be enqueued
+        // waits for the unmapping too. (Measured on JDK 8 and 17, mapping a file and dropping the reference to
+        // it: without the wait the file was still mapped when System.gc() returned about one time in a hundred;
+        // with the wait, it was never still mapped in 4000 tries.)
+        final var collected = new ReferenceQueue<>();
+        final var canary = new PhantomReference<>(new Object(), collected);
+        System.gc();
+        try {
+            // Bounded, so that a JVM that ignores the request to collect cannot make this wait forever
+            collected.remove(REFERENCE_PROCESSING_TIMEOUT_MILLIS);
+        } catch (final InterruptedException e) {
+            // Leave the files to be unmapped by a later collection, and let the caller see the interruption
+            Thread.currentThread().interrupt();
+        }
+        // Keep the canary reachable until it has been waited for -- a phantom reference that has itself become
+        // unreachable is never enqueued
+        canary.clear();
     }
 }

@@ -312,7 +312,7 @@ public class PathSliceTest {
     // #939
     @AfterEach
     public void releaseMappingsHeldByTests() {
-        System.gc();
+        OffHeapMemory.freeUnreachableBuffers();
     }
 
     /**

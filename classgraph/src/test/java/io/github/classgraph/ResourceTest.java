@@ -21,6 +21,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import io.github.classgraph.vfs.internal.slice.OffHeapMemory;
+
 /**
  * {@link Resource} is the common base of the classpath element-specific resource implementations, and provides the
  * URI, URL and content accessors that they all share.
@@ -45,7 +47,7 @@ public class ResourceTest {
     // #939
     @AfterEach
     public void releaseMappingsHeldByTests() {
-        System.gc();
+        OffHeapMemory.freeUnreachableBuffers();
     }
 
     /**

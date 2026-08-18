@@ -51,6 +51,7 @@ import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.utils.VersionFinder;
 import io.github.classgraph.base.internal.utils.VersionFinder.OperatingSystem;
 import io.github.classgraph.vfs.internal.module.ModuleReaderUtils;
+import io.github.classgraph.vfs.internal.slice.OffHeapMemory;
 import io.github.classgraph.vfs.internal.slice.Slice;
 import org.jspecify.annotations.Nullable;
 
@@ -404,15 +405,15 @@ public class VfsSession {
 
         // Below JDK 22 a file is unmapped only once the garbage collector finds the mapped buffer unreachable,
         // and Windows refuses to delete, rename or overwrite a file while it is mapped. Closing the slices above
-        // dropped the last reference to every mapping this session made, so ask for a collection here: without
-        // one, a file that the session mapped stays locked until the next collection happens to run, which in a
-        // large heap can be minutes after the scan finished, or never. This is best effort -- below JDK 22
-        // nothing can unmap a file on demand, and nothing can observe that the collector has done it. Only
-        // Windows pays for the collection: every other operating system lets a mapped file be deleted or
-        // replaced, so releasing the mapping promptly buys nothing there.
+        // dropped the last reference to every mapping this session made, so ask for a collection here, and wait
+        // for the collector to unmap the files: without the request, a file that the session mapped stays locked
+        // until the next collection happens to run, which in a large heap can be minutes after the scan finished,
+        // or never. This is best effort -- below JDK 22 nothing can unmap a file on demand, and nothing can
+        // observe that the collector has done it. Only Windows pays for the collection: every other operating
+        // system lets a mapped file be deleted or replaced, so releasing the mapping promptly buys nothing there.
         // #939
         if (filesAwaitingUnmapping.get() && VersionFinder.OS == OperatingSystem.Windows) {
-            System.gc();
+            OffHeapMemory.freeUnreachableBuffers();
         }
 
         // Temp files have to be deleted last, after all PhysicalZipFiles are closed and files are unmapped
@@ -432,7 +433,7 @@ public class VfsSession {
             // the first one is skipped on every other operating system and JDK, where a delete can still fail for
             // an unrelated reason.) If the JVM was started with -XX:+DisableExplicitGC then this is a no-op and
             // the file is left to the File#deleteOnExit() hook that makeTempFile registered.
-            System.gc();
+            OffHeapMemory.freeUnreachableBuffers();
             for (final File tempFile : undeleted) {
                 teardown.run(() -> {
                     if (!deleteTempFile(tempFile) && rmLog != null) {

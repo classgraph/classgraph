@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.channels.FileChannel.MapMode;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -157,5 +158,54 @@ public class OffHeapMemoryTest {
     public void thereIsNoArenaBelowJdk22() {
         assumeTrue(VersionFinder.JAVA_MAJOR_VERSION < 22);
         assertThat(OffHeapMemory.openArena()).isNull();
+    }
+
+    /**
+     * A file that was mapped without an arena has been unmapped by the time
+     * {@link OffHeapMemory#freeUnreachableBuffers()} returns. Asking for a collection is not enough on its own: the
+     * file is unmapped while the collector processes the references that the collection found, which happens after
+     * {@link System#gc()} has returned, so a file quite often is still mapped at that point.
+     *
+     * <p>
+     * Only Linux can see whether a file is still mapped, through {@code /proc/self/maps}, so this is skipped
+     * everywhere else.
+     *
+     * @param tempDir
+     *            a temporary directory to write the file to be mapped into.
+     * @throws IOException
+     *             if the file could not be written or mapped.
+     */
+    // #939
+    @Test
+    public void aFileIsUnmappedBeforeFreeUnreachableBuffersReturns(@TempDir final Path tempDir) throws IOException {
+        final var maps = Path.of("/proc/self/maps");
+        assumeTrue(Files.isReadable(maps), "only Linux can tell whether a file is still mapped");
+        final var file = tempDir.resolve("unmapped-by-collection.bin");
+        Files.write(file, new byte[4096]);
+        final var fileName = file.getFileName().toString();
+        // Repeated, since a mapping that outlives the request to collect is a race that is not lost every time
+        for (var round = 0; round < 100; round++) {
+            mapTheWholeFileAndDropTheMapping(file);
+            OffHeapMemory.freeUnreachableBuffers();
+            assertThat(Files.readAllLines(maps)).as("still mapped in round %d", round)
+                    .noneMatch(line -> line.endsWith(fileName));
+        }
+    }
+
+    /**
+     * Map a whole file and return, dropping every reference to the mapping, including the stack frame that held the
+     * mapped buffer.
+     *
+     * @param file
+     *            the file to map.
+     * @throws IOException
+     *             if the file could not be mapped.
+     */
+    private static void mapTheWholeFileAndDropTheMapping(final Path file) throws IOException {
+        try (var fileChannel = FileChannel.open(file, StandardOpenOption.READ)) {
+            // Mapped without an arena, which is how a file is mapped below JDK 22
+            final var mapped = fileChannel.map(MapMode.READ_ONLY, 0L, Files.size(file));
+            assertThat(mapped.get(0)).isEqualTo((byte) 0);
+        }
     }
 }
