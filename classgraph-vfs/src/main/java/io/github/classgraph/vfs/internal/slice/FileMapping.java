@@ -89,8 +89,9 @@ final class FileMapping {
      *            the file being mapped, for logging
      * @param log
      *            the log node, or null to skip logging
-     * @return the mapping, or null if the file could not be mapped, in which case the caller has to read the file
-     *         through the {@link FileChannel} API instead.
+     * @return the mapping, or null if the file could not be mapped -- because it is too long to map to a single
+     *         {@link ByteBuffer}, because the {@link FileChannel} does not support mapping, or because the mapping
+     *         failed -- in which case the caller has to read the file through the {@link FileChannel} API instead.
      */
     static @Nullable FileMapping map(final FileChannel fileChannel, final long fileLength, final Object file,
             final @Nullable LogNode log) {
@@ -118,6 +119,13 @@ final class FileMapping {
             // Try mapping the file (some operating systems throw OutOfMemoryError if the file can't be mapped,
             // some throw IOException)
             byteBuffer = mapWholeFile(arena, fileChannel, fileLength);
+        } catch (final UnsupportedOperationException e) {
+            // A FileChannel does not have to support memory mapping at all -- the channel of a file in a
+            // filesystem other than the default one usually does not. Retrying after garbage collection cannot
+            // help here, since nothing about the channel will have changed
+            if (log != null) {
+                log.log("File " + file + " cannot be memory mapped: " + e + " (reading the file instead)");
+            }
         } catch (IOException | OutOfMemoryError e) {
             // Try running garbage collection, then try mapping the file again. (Garbage collection is what can free
             // address space here: a mapping whose ByteBuffer is unreachable is unmapped by its Cleaner once the
