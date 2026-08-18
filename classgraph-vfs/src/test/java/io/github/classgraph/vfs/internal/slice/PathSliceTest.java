@@ -283,6 +283,28 @@ public class PathSliceTest {
     }
 
     /**
+     * A file that a session memory-mapped can be deleted once the session has been closed. Windows refuses to
+     * delete a file that is still mapped, and below JDK 22 the mapping is released only when the garbage collector
+     * finds the mapped buffer unreachable, so closing the session has to ask for a collection to make the file
+     * deletable again. (Every other operating system lets a mapped file be deleted, so this test only bites on
+     * Windows.)
+     */
+    // #939
+    @Test
+    public void aMappedFileCanBeDeletedOnceTheSessionIsClosed(@TempDir final Path tempDir) throws IOException {
+        final var file = writeTestFile(tempDir);
+        final var session = session(/* memoryMapFiles = */ true);
+        final var slice = new PathSlice(file, session, /* log = */ null);
+        assertThat(slice.read().isDirect()).isTrue();
+
+        // Closing the session closes the slice, which drops the last reference to the mapped buffer
+        session.close(/* log = */ null);
+
+        Files.delete(file);
+        assertThat(Files.exists(file)).isFalse();
+    }
+
+    /**
      * A slice of a single resource file is not memory-mapped, even if memory mapping is enabled, since mapping and
      * unmapping a file that is read once and then closed costs more than reading it.
      */

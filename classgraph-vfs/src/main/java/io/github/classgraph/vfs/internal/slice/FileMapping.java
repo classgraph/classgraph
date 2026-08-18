@@ -52,6 +52,12 @@ final class FileMapping {
     final ByteBuffer byteBuffer;
 
     /**
+     * True if only the garbage collector can unmap this file, because it was mapped without an arena (on a JDK
+     * older than 22).
+     */
+    final boolean unmappedByGarbageCollector;
+
+    /**
      * The {@code java.lang.foreign.Arena} that was used to map the file, or null if the file was mapped without an
      * arena (on a JDK older than 22), or once {@link #unmap()} has closed it. Typed as {@link Object}, since
      * ClassGraph needs to compile and run on JDK 17+.
@@ -69,6 +75,7 @@ final class FileMapping {
     private FileMapping(final ByteBuffer byteBuffer, final @Nullable Object arena) {
         this.byteBuffer = byteBuffer;
         this.arena = arena;
+        this.unmappedByGarbageCollector = arena == null;
     }
 
     /**

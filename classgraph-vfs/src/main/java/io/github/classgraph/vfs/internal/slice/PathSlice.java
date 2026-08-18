@@ -351,6 +351,9 @@ public final class PathSlice extends Slice {
             try {
                 if (mapping != null) {
                     mapping.unmap();
+                    if (mapping.unmappedByGarbageCollector) {
+                        session.markFileAsAwaitingUnmapping();
+                    }
                 }
             } finally {
                 // The file channel is closed even if the file could not be unmapped -- this slice is already

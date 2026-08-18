@@ -207,10 +207,16 @@ faster on Windows and is not on Linux or macOS, where it can be slower, so it is
 only. See the
 [memory mapping benchmark](https://github.com/classgraph/classgraph/wiki/Memory-Mapping-Benchmark).
 How the mapping is released depends on the JDK: on JDK 22 or later it is unmapped the moment the
-`Vfs` is closed, by closing the `java.lang.foreign.Arena` that mapped it, and below JDK 22, where
-there is no way to unmap a file on demand that is safe to call while another thread is still reading
-it, closing the `Vfs` drops the references to the mapping and the JDK's own cleaner unmaps the file
-once it finds the last of them gone.)
+`Vfs` is closed, by closing the `java.lang.foreign.Arena` that mapped it. Below JDK 22 there is no
+way to unmap a file on demand that is safe to call while another thread is still reading it -- the
+only method that can, `Unsafe::invokeCleaner`, frees the address range whether or not anything is
+reading it, and a thread that reads one byte afterwards takes a SIGSEGV that kills the JVM. So
+closing the `Vfs` drops the references to the mapping instead, and the JDK's own cleaner unmaps the
+file once it finds the last of them gone. Windows refuses to delete, rename or overwrite a file
+while it is mapped, so on Windows below JDK 22 closing the `Vfs` also asks for a garbage collection,
+to release the mappings promptly rather than whenever a collection next happens to run. That is best
+effort: nothing below JDK 22 can unmap a file on demand, and nothing can observe that the collector
+has done it.)
 
 What that is worth depends on the access pattern. Bulk decompression still parallelizes reasonably
 well under `ZipFile`, because inflation happens outside the monitor and dominates the time. Entry
@@ -381,10 +387,12 @@ try (CloseableByteBuffer closeableBuffer = entry.read()) {
 ```
 
 The buffer can be the mapping itself, so it must not be read after the `Vfs` is closed, even while
-the wrapper is still open: the mapping is gone by then, and reading it throws
-`IllegalStateException`. That is the one place in this API where closing during a read is not
+the wrapper is still open. That is the one place in this API where closing during a read is not
 reported as an `IOException`, because nothing sits between a raw `ByteBuffer` and the caller to
-translate the failure.
+translate the failure. What such a read does instead depends on how the JDK releases the mapping: on
+JDK 22 or later the file is unmapped as the `Vfs` closes, and the read throws
+`IllegalStateException`; below JDK 22 the buffer itself keeps the mapping alive, so the read quietly
+returns the file content.
 
 `entry.load()` and `entry.loadAsString()` copy the content into a `byte[]` and a UTF-8 `String`
 respectively. There is nothing to close, and the result stays valid after the `Vfs` is closed:

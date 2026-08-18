@@ -48,6 +48,8 @@ import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import io.github.classgraph.base.internal.concurrency.SingletonMap;
 import io.github.classgraph.base.internal.path.PathSyntax;
+import io.github.classgraph.base.internal.utils.VersionFinder;
+import io.github.classgraph.base.internal.utils.VersionFinder.OperatingSystem;
 import io.github.classgraph.vfs.internal.module.ModuleReaderUtils;
 import io.github.classgraph.vfs.internal.slice.Slice;
 import org.jspecify.annotations.Nullable;
@@ -139,6 +141,10 @@ public class VfsSession {
      * True once {@link #beginClose()} or {@link #close(LogNode)} has been called. Written under {@link #closeLock}.
      */
     private final AtomicBoolean closed = new AtomicBoolean(false);
+
+    /** True if a file was mapped that only the garbage collector can unmap. */
+    // #939
+    private final AtomicBoolean filesAwaitingUnmapping = new AtomicBoolean(false);
 
     /**
      * Constructor.
@@ -396,6 +402,19 @@ public class VfsSession {
             teardown.run(slice::close);
         }
 
+        // Below JDK 22 a file is unmapped only once the garbage collector finds the mapped buffer unreachable,
+        // and Windows refuses to delete, rename or overwrite a file while it is mapped. Closing the slices above
+        // dropped the last reference to every mapping this session made, so ask for a collection here: without
+        // one, a file that the session mapped stays locked until the next collection happens to run, which in a
+        // large heap can be minutes after the scan finished, or never. This is best effort -- below JDK 22
+        // nothing can unmap a file on demand, and nothing can observe that the collector has done it. Only
+        // Windows pays for the collection: every other operating system lets a mapped file be deleted or
+        // replaced, so releasing the mapping promptly buys nothing there.
+        // #939
+        if (filesAwaitingUnmapping.get() && VersionFinder.OS == OperatingSystem.Windows) {
+            System.gc();
+        }
+
         // Temp files have to be deleted last, after all PhysicalZipFiles are closed and files are unmapped
         final var rmLog = tempFilesToDelete.isEmpty() || log == null ? null : log.log("Removing temporary files");
         final var undeleted = new ArrayList<File>();
@@ -409,10 +428,10 @@ public class VfsSession {
         if (!undeleted.isEmpty()) {
             // Windows refuses to delete a file that is still memory-mapped, and below JDK 22 a mapping is released
             // only once the garbage collector finds it unreachable -- which closing the slices above has just made
-            // it, so ask for a collection and try again. This is the only reason to ask, so it is asked for only
-            // when a delete has actually failed, rather than on every close. If the JVM was started with
-            // -XX:+DisableExplicitGC then this is a no-op and the file is left to the File#deleteOnExit() hook
-            // that makeTempFile registered.
+            // it, so ask for a collection and try again. (This is a second request on Windows below JDK 22, but
+            // the first one is skipped on every other operating system and JDK, where a delete can still fail for
+            // an unrelated reason.) If the JVM was started with -XX:+DisableExplicitGC then this is a no-op and
+            // the file is left to the File#deleteOnExit() hook that makeTempFile registered.
             System.gc();
             for (final File tempFile : undeleted) {
                 teardown.run(() -> {
@@ -426,6 +445,15 @@ public class VfsSession {
         if (interrupted.get()) {
             interruptionChecker.interrupt();
         }
+    }
+
+    /**
+     * Record that a file was unmapped by dropping the last reference to its mapped buffer, leaving it to the
+     * garbage collector to unmap the file, so that {@link #close(LogNode)} knows to ask for a collection.
+     */
+    // #939
+    public void markFileAsAwaitingUnmapping() {
+        filesAwaitingUnmapping.set(true);
     }
 
     /**

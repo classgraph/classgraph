@@ -336,6 +336,9 @@ public final class FileSlice extends Slice {
             try {
                 if (mapping != null) {
                     mapping.unmap();
+                    if (mapping.unmappedByGarbageCollector) {
+                        session.markFileAsAwaitingUnmapping();
+                    }
                 }
             } finally {
                 // The file handle is released even if the file could not be unmapped -- this slice is already
