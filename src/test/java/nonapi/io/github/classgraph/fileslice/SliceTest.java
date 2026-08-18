@@ -14,6 +14,7 @@ import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -296,6 +297,57 @@ public class SliceTest {
         // The sub-slice is used after the check above, which is what keeps it strongly reachable across it: the
         // point of the check is that a live sub-slice is not what holds the mapping alive
         assertThatThrownBy(subSlice::load).isInstanceOf(IOException.class);
+    }
+
+    /**
+     * A stream that has been closed holds nothing of the memory mapping of the file it was reading, even while the
+     * stream itself is still alive. A stream reads through a reader, and a reader of a mapped file keeps a view of
+     * the mapping, so a closed stream that still held its reader would keep the file mapped -- and, on Windows,
+     * locked open -- for as long as anything still referred to the stream, which for a stream handed out by
+     * {@link io.github.classgraph.Resource} can be for as long as the caller keeps hold of it.
+     *
+     * @param tempDir
+     *            a temporary directory
+     * @throws IOException
+     *             if the file could not be written, opened or read
+     * @throws ReflectiveOperationException
+     *             if the mapping could not be read out of the slice
+     */
+    // #939
+    @Test
+    public void closingAStreamReleasesTheViewItHeldOfTheMapping(@TempDir final File tempDir)
+            throws IOException, ReflectiveOperationException {
+        final NestedJarHandler nestedJarHandler = memoryMappingNestedJarHandler();
+        final FileSlice slice = new FileSlice(writeFile(tempDir, "mapped.bin"), nestedJarHandler, /* log = */ null);
+        final InputStream inputStream = slice.open();
+        assertThat(inputStream.read()).isEqualTo(CONTENT[0]);
+
+        final Field backingByteBuffer = FileSlice.class.getDeclaredField("backingByteBuffer");
+        backingByteBuffer.setAccessible(true);
+        final ReferenceQueue<Object> collected = new ReferenceQueue<>();
+        final WeakReference<Object> mapping = new WeakReference<>(backingByteBuffer.get(slice), collected);
+
+        inputStream.close();
+        nestedJarHandler.close(/* log = */ null);
+
+        assertThat(wasCollected(mapping, collected)).isTrue();
+
+        // The stream is used after the check above, which is what keeps it strongly reachable across it: the
+        // point of the check is that a closed stream is not what holds the mapping alive
+        assertThatThrownBy(inputStream::read).isInstanceOf(IOException.class);
+    }
+
+    /**
+     * Release the memory mappings that a test deliberately kept a view of. Several of the tests here hold a reader
+     * or a buffer across the close of the slice, which is exactly what stops the close from releasing the mapping.
+     * Below JDK 22 a mapping goes only once the garbage collector finds every view of it gone, and on Windows a
+     * file that is still mapped cannot be deleted, so without this the deletion of the temporary directory that
+     * runs after each test would fail there.
+     */
+    // #939
+    @AfterEach
+    public void releaseMappingsHeldByTests() {
+        System.gc();
     }
 
     /**
