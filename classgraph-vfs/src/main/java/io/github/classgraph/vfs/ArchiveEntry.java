@@ -143,11 +143,19 @@ final class ArchiveEntry extends VfsEntry {
     @Override
     public CloseableByteBuffer read() throws IOException {
         getRoot().checkNotClosed(getPath());
-        // The slice of a zip entry is a sub-slice of the zipfile, and owns no resources of its own, so there is
-        // nothing to release when the buffer is closed -- the zipfile is released when the Vfs is closed
-        return new CloseableByteBuffer(zipEntry.getSlice().read(), () -> {
-            // Nothing to release
-        });
+        // The slice of a zip entry is a sub-slice of the zipfile, and owns no resources of its own -- the zipfile
+        // is released when the Vfs is closed. But if the zipfile is memory-mapped, the buffer returned here is a
+        // view of that mapping, so the mapping has to be held open until the caller closes the wrapper
+        // #939
+        final var slice = zipEntry.getSlice();
+        final var releaseMappingView = slice.acquireMappingView();
+        try {
+            return new CloseableByteBuffer(slice.read(), releaseMappingView);
+        } catch (final IOException | RuntimeException | Error e) {
+            // The caller never sees the buffer if this throws, so nothing else would release the view
+            releaseMappingView.run();
+            throw e;
+        }
     }
 
     @Override

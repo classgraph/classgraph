@@ -42,14 +42,18 @@ import org.jspecify.annotations.Nullable;
  * them.
  *
  * <p>
- * The wrapped buffer may be a view of a memory mapping of a file that the {@link Vfs} releases when it is closed,
- * so the buffer must not be read after {@link Vfs#close()} has been called, even if this wrapper is still open.
- * This is the one place in the {@link Vfs} API where reading after the close is not reported as an
+ * The wrapped buffer may be a view of a memory mapping of a file, so it must only be read while this wrapper is
+ * open, and while the {@link Vfs} it was read from is open. {@link #getByteBuffer()} returns null once this wrapper
+ * has been closed; a reference to the buffer taken before that close, or one that outlives {@link Vfs#close()},
+ * reads memory that the file may no longer be mapped into.
+ *
+ * <p>
+ * This is the one place in the {@link Vfs} API where reading after a close is not reported as an
  * {@link java.io.IOException}: this is a raw {@link ByteBuffer} handed to the caller, so nothing sits between it
- * and the caller to check whether the file is still there. What such a read does instead depends on how the JDK
- * releases the mapping: on JDK 22 and later the file is unmapped as the {@link Vfs} closes, and reading the buffer
- * throws {@link IllegalStateException}; below JDK 22 the buffer itself keeps the mapping alive, so the read quietly
- * returns the file content.
+ * and the caller to check whether the file is still there. On JDK 22 and later such a read throws
+ * {@link IllegalStateException}, since the file is unmapped by closing an arena that knows it has been closed;
+ * below JDK 22 unmapping frees the address range without marking the buffer, so the read is undefined -- which is
+ * why an open wrapper holds the mapping open on those JDK versions until it is closed.
  */
 public class CloseableByteBuffer implements AutoCloseable {
     /**

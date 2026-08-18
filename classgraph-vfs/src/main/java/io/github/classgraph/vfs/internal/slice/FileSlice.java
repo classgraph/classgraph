@@ -74,9 +74,9 @@ public final class FileSlice extends Slice {
 
     /**
      * The memory mapping of the file, if it was memory-mapped. Only set on the toplevel file slice, which owns the
-     * mapping.
+     * mapping. Volatile, since every slice of the file reads it, but only the toplevel slice writes it.
      */
-    private @Nullable FileMapping fileMapping;
+    private volatile @Nullable FileMapping fileMapping;
 
     /**
      * The toplevel file slice, which owns the file handle and the memory mapping, or {@code this} if this is the
@@ -230,9 +230,9 @@ public final class FileSlice extends Slice {
         final var byteBuffer = topLevelFileSlice.backingByteBuffer;
         if (byteBuffer != null) {
             // If file was mmap'd, return a RandomAccessReader that uses the ByteBuffer. The reader keeps a view
-            // of the mapping for as long as it is alive, so it is also given the toplevel slice's closed flag to
-            // check before each read -- below JDK 22 closing the file does not unmap it, so without the flag a
-            // reader that outlived the close would keep returning content
+            // of the mapping for as long as it is alive, and readers are not closed, so it is given the toplevel
+            // slice's closed flag to check before each read: reading a file that has been unmapped is not merely
+            // wrong, it reads memory that is no longer there
             return new RandomAccessByteBufferReader(byteBuffer, sliceStartPos, sliceLength,
                     topLevelFileSlice.isClosed::get);
         }
@@ -285,6 +285,21 @@ public final class FileSlice extends Slice {
      *             Signals that an I/O exception has occurred.
      */
     @Override
+    public Runnable acquireMappingView() throws IOException {
+        // Read the field into a local, so that a close running concurrently cannot null it between the check and
+        // the use
+        final var mapping = topLevelFileSlice.fileMapping;
+        if (mapping == null) {
+            // The file is not memory-mapped, so there is no mapping that a view could hold open
+            return super.acquireMappingView();
+        }
+        if (!mapping.acquireView()) {
+            throw new IOException("Cannot read " + file + " after the Vfs has been closed");
+        }
+        return mapping::releaseView;
+    }
+
+    @Override
     public ByteBuffer read() throws IOException {
         // Read the field into a local, so that a close running concurrently cannot null it between the check and
         // the use
@@ -324,9 +339,7 @@ public final class FileSlice extends Slice {
                 return;
             }
             // Take what has to be released, and drop the references to it, before releasing any of it: this slice
-            // is already marked as closed, so a second call must not release the same resource twice. Below JDK 22
-            // dropping the reference to the mapped buffer is not merely tidiness: there is no arena to close, so
-            // it is what lets the garbage collector find the mapping unreachable and unmap the file
+            // is already marked as closed, so a second call must not release the same resource twice
             final var mapping = fileMapping;
             final var rafToClose = raf;
             fileMapping = null;
@@ -334,11 +347,10 @@ public final class FileSlice extends Slice {
             fileChannel = null;
             raf = null;
             try {
-                if (mapping != null) {
-                    mapping.unmap();
-                    if (mapping.unmappedByGarbageCollector) {
-                        session.markFileAsAwaitingUnmapping();
-                    }
+                if (mapping != null && !mapping.unmap()) {
+                    // The file could not be unmapped here, so it is left to the garbage collector, which the
+                    // session asks for as it closes
+                    session.markFileAsAwaitingUnmapping();
                 }
             } finally {
                 // The file handle is released even if the file could not be unmapped -- this slice is already

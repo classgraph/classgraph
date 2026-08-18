@@ -2,6 +2,7 @@ package io.github.classgraph.vfs.internal.slice;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.IOException;
 import java.lang.ref.WeakReference;
@@ -14,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
+import io.github.classgraph.base.internal.utils.VersionFinder;
 import io.github.classgraph.vfs.VfsSpec;
 import io.github.classgraph.vfs.internal.VfsSession;
 
@@ -355,6 +357,90 @@ public class PathSliceTest {
 
         Files.delete(file);
         assertThat(Files.exists(file)).isFalse();
+    }
+
+    /** The file through which Linux says which files this process has memory-mapped. */
+    private static final Path PROC_SELF_MAPS = Path.of("/proc/self/maps");
+
+    /**
+     * Whether a file is currently memory-mapped by this JVM. Only Linux can tell, through {@code /proc/self/maps},
+     * so a test that calls this has to skip itself everywhere else.
+     *
+     * @param file
+     *            the file to look for
+     * @return true if the file is memory-mapped
+     * @throws IOException
+     *             if {@code /proc/self/maps} could not be read
+     */
+    private static boolean isMemoryMapped(final Path file) throws IOException {
+        final var fileName = file.getFileName().toString();
+        return Files.readAllLines(PROC_SELF_MAPS).stream().anyMatch(line -> line.endsWith(fileName));
+    }
+
+    /**
+     * A file that a slice memory-mapped is unmapped by the time the slice has closed, rather than at whatever later
+     * moment the garbage collector would have got to it. Windows refuses to delete, rename or overwrite a file
+     * while it is mapped, so a scan that left the files it mapped to the collector would leave them locked for as
+     * long as the JVM went without a collection -- which in a large heap can be minutes, or forever.
+     *
+     * @param tempDir
+     *            a temporary directory
+     * @throws IOException
+     *             if the test file could not be written or mapped
+     */
+    // #939
+    @Test
+    public void closingASliceUnmapsTheFileBeforeItReturns(@TempDir final Path tempDir) throws IOException {
+        assumeTrue(Files.isReadable(PROC_SELF_MAPS), "only Linux can tell whether a file is still mapped");
+        final var file = tempDir.resolve("unmapped-when-closed.bin");
+        Files.write(file, CONTENT);
+        final var session = session(/* memoryMapFiles = */ true);
+        final var slice = new PathSlice(file, session, /* log = */ null);
+        assertThat(slice.read().isDirect()).isTrue();
+        assertThat(isMemoryMapped(file)).isTrue();
+
+        slice.close();
+
+        assertThat(isMemoryMapped(file)).isFalse();
+        session.close(/* log = */ null);
+    }
+
+    /**
+     * A view of the mapping keeps the file mapped after the slice that mapped it has closed, and the file is
+     * unmapped as soon as the view is released. Below JDK 22, unmapping a file frees the address range whether or
+     * not anything is still reading it, so a buffer that was handed to a caller has to hold the mapping open --
+     * reading it after the file was unmapped would read memory that is no longer there, and take a SIGSEGV that
+     * kills the JVM. (From JDK 22 the file is unmapped by closing the arena that mapped it, which makes such a read
+     * throw {@link IllegalStateException} instead, so the arena is closed as soon as the slice is.)
+     *
+     * @param tempDir
+     *            a temporary directory
+     * @throws IOException
+     *             if the test file could not be written or mapped
+     */
+    // #939
+    @Test
+    public void aViewOfTheMappingKeepsTheFileMappedUntilItIsReleased(@TempDir final Path tempDir)
+            throws IOException {
+        assumeTrue(Files.isReadable(PROC_SELF_MAPS), "only Linux can tell whether a file is still mapped");
+        assumeTrue(VersionFinder.JAVA_MAJOR_VERSION < 22, "from JDK 22 the arena is closed with the slice");
+        final var file = tempDir.resolve("held-open-by-a-view.bin");
+        Files.write(file, CONTENT);
+        final var session = session(/* memoryMapFiles = */ true);
+        final var slice = new PathSlice(file, session, /* log = */ null);
+        final var releaseMappingView = slice.acquireMappingView();
+        final var byteBuffer = slice.read();
+
+        slice.close();
+
+        assertThat(isMemoryMapped(file)).isTrue();
+        // The file is still mapped, so the buffer taken before the close is still readable
+        assertThat(byteBuffer.get(0)).isEqualTo(CONTENT[0]);
+
+        releaseMappingView.run();
+
+        assertThat(isMemoryMapped(file)).isFalse();
+        session.close(/* log = */ null);
     }
 
     /**

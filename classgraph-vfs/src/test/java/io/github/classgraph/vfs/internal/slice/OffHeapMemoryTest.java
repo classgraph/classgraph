@@ -151,8 +151,8 @@ public class OffHeapMemoryTest {
 
     /**
      * On JDK 17 to 21 there is no arena to allocate off-heap memory from, so no off-heap memory is allocated at
-     * all. The only other way to free a direct {@link ByteBuffer} is {@code Unsafe::invokeCleaner}, which frees the
-     * memory whether or not another thread is still reading it, so it is never called.
+     * all, and a file is mapped by {@link FileChannel#map} and unmapped by
+     * {@link OffHeapMemory#closeDirectByteBuffer}.
      */
     @Test
     public void thereIsNoArenaBelowJdk22() {
@@ -162,12 +162,12 @@ public class OffHeapMemoryTest {
 
     /**
      * A file that was mapped without an arena has been unmapped by the time
-     * {@link OffHeapMemory#freeUnreachableBuffers()} returns. Asking for a collection is not enough on its own: the
-     * file is unmapped while the collector processes the references that the collection found, which happens after
-     * {@link System#gc()} has returned, so a file quite often is still mapped at that point.
+     * {@link OffHeapMemory#closeDirectByteBuffer} returns, rather than at whatever later moment the garbage
+     * collector would have got to it -- which is what lets a file that ClassGraph mapped be deleted, renamed or
+     * overwritten on Windows as soon as the slice over it is closed.
      *
      * <p>
-     * Only Linux can see whether a file is still mapped, through {@code /proc/self/maps}, so this is skipped
+     * Only Linux can see whether a file is still mapped, through {@code /proc/self/maps}, so that check is skipped
      * everywhere else.
      *
      * @param tempDir
@@ -177,35 +177,57 @@ public class OffHeapMemoryTest {
      */
     // #939
     @Test
-    public void aFileIsUnmappedBeforeFreeUnreachableBuffersReturns(@TempDir final Path tempDir) throws IOException {
-        final var maps = Path.of("/proc/self/maps");
-        assumeTrue(Files.isReadable(maps), "only Linux can tell whether a file is still mapped");
-        final var file = tempDir.resolve("unmapped-by-collection.bin");
+    public void aFileIsUnmappedBeforeCloseDirectByteBufferReturns(@TempDir final Path tempDir) throws IOException {
+        // Only called below JDK 22, where the method is not deprecated -- from JDK 22 the file is mapped in an
+        // arena and unmapped by closing it, and calling this from JDK 24 would print a deprecation warning
+        assumeTrue(VersionFinder.JAVA_MAJOR_VERSION < 22);
+        final var file = tempDir.resolve("unmapped-explicitly.bin");
         Files.write(file, new byte[4096]);
         final var fileName = file.getFileName().toString();
-        // Repeated, since a mapping that outlives the request to collect is a race that is not lost every time
-        for (var round = 0; round < 100; round++) {
-            mapTheWholeFileAndDropTheMapping(file);
-            OffHeapMemory.freeUnreachableBuffers();
-            assertThat(Files.readAllLines(maps)).as("still mapped in round %d", round)
-                    .noneMatch(line -> line.endsWith(fileName));
-        }
-    }
-
-    /**
-     * Map a whole file and return, dropping every reference to the mapping, including the stack frame that held the
-     * mapped buffer.
-     *
-     * @param file
-     *            the file to map.
-     * @throws IOException
-     *             if the file could not be mapped.
-     */
-    private static void mapTheWholeFileAndDropTheMapping(final Path file) throws IOException {
         try (var fileChannel = FileChannel.open(file, StandardOpenOption.READ)) {
             // Mapped without an arena, which is how a file is mapped below JDK 22
             final var mapped = fileChannel.map(MapMode.READ_ONLY, 0L, Files.size(file));
             assertThat(mapped.get(0)).isEqualTo((byte) 0);
+            assertThat(OffHeapMemory.closeDirectByteBuffer(mapped, /* log = */ null)).isTrue();
+            // The buffer must not be read here: the address range it covers has been freed
         }
+        final var maps = Path.of("/proc/self/maps");
+        assumeTrue(Files.isReadable(maps), "only Linux can tell whether a file is still mapped");
+        assertThat(Files.readAllLines(maps)).noneMatch(line -> line.endsWith(fileName));
+    }
+
+    /**
+     * Only the buffer that a mapping produced can be unmapped, not a view of it -- unmapping a view would leave the
+     * caller holding a buffer that reads memory that is no longer there.
+     *
+     * @param tempDir
+     *            a temporary directory to write the file to be mapped into.
+     * @throws IOException
+     *             if the file could not be written or mapped.
+     */
+    // #939
+    @Test
+    public void aViewOfAMappingCannotBeUnmapped(@TempDir final Path tempDir) throws IOException {
+        assumeTrue(VersionFinder.JAVA_MAJOR_VERSION < 22);
+        final var file = tempDir.resolve("view-of-mapping.bin");
+        Files.write(file, new byte[4096]);
+        try (var fileChannel = FileChannel.open(file, StandardOpenOption.READ)) {
+            final var mapped = fileChannel.map(MapMode.READ_ONLY, 0L, Files.size(file));
+            assertThat(
+                    OffHeapMemory.closeDirectByteBuffer(mapped.slice(0, 16).asReadOnlyBuffer(), /* log = */ null))
+                    .isFalse();
+            // The view could not be unmapped, so the mapping is still there to read through
+            assertThat(mapped.get(0)).isEqualTo((byte) 0);
+            assertThat(OffHeapMemory.closeDirectByteBuffer(mapped, /* log = */ null)).isTrue();
+        }
+    }
+
+    /** A heap {@link ByteBuffer} has no memory mapping to release, and is left alone rather than rejected. */
+    // #939
+    @Test
+    public void aHeapByteBufferIsNotUnmapped() {
+        final var heapByteBuffer = ByteBuffer.allocate(16);
+        assertThat(OffHeapMemory.closeDirectByteBuffer(heapByteBuffer, /* log = */ null)).isFalse();
+        assertThat(heapByteBuffer.get(0)).isEqualTo((byte) 0);
     }
 }

@@ -359,6 +359,23 @@ public abstract class Slice implements AutoCloseable {
     public abstract RandomAccessReader randomAccessReader() throws IOException;
 
     /**
+     * Take a view of the memory mapping of this slice, if the file is memory-mapped, so that the file is not
+     * unmapped while the caller can still read a {@link ByteBuffer} that {@link #read()} returned -- see
+     * {@link FileMapping#unmap()}. A slice that is not memory-mapped has no view to take, and returns a release
+     * action that does nothing.
+     *
+     * @return the action that releases the view, which the caller must run once it can no longer read the buffer.
+     * @throws IOException
+     *             if the file has already been unmapped, so that there is nothing left to read.
+     */
+    // #939
+    public Runnable acquireMappingView() throws IOException {
+        return () -> {
+            // Nothing to release
+        };
+    }
+
+    /**
      * Load the slice as a byte array.
      *
      * @return the byte[]
