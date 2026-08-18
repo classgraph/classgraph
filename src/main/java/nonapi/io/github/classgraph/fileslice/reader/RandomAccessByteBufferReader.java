@@ -47,10 +47,10 @@ import nonapi.io.github.classgraph.utils.StringUtils;
  * The buffer may be a memory mapping of a file that is released when the {@link io.github.classgraph.ScanResult}
  * is closed, which can happen while this reader is being read from. Reading a released file fails with an
  * {@link IOException}, the same documented way as reading from a closed {@link java.nio.channels.FileChannel},
- * whichever way the JDK releases the mapping: on JDK 22 and later the file is unmapped as the
- * {@link io.github.classgraph.ScanResult} closes, and reading it throws {@link IllegalStateException}, which is
- * translated here; below JDK 22 the mapping stays readable until the garbage collector unmaps it, so this reader
- * is given a flag to check instead.
+ * whichever way the JDK unmaps the file: on JDK 22 and later the arena that mapped it is closed, and reading the
+ * buffer afterwards throws {@link IllegalStateException}, which is translated here; below JDK 22 the address range
+ * is simply freed, and reading the buffer afterwards would read memory that is no longer mapped, so this reader is
+ * given a flag to check whether the file is still there before it reads.
  */
 public class RandomAccessByteBufferReader implements RandomAccessReader {
     /** The byte buffer. */
@@ -120,8 +120,8 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
      *             if the file has been released, or the read would run past either end of the slice
      */
     private void checkReadable(final long offset, final int numBytes) throws IOException {
-        // Below JDK 22 a mapping stays readable until the garbage collector unmaps it, so without this check a
-        // read through a reader that outlived the close would quietly return the file content on those JDKs
+        // A reader is not closed by anything, so this check is what stops a reader that outlived the close of its
+        // slice from reading a file that has been unmapped -- which below JDK 22 is memory that is no longer there
         if (isReleased != null && isReleased.get()) {
             throw new IOException("Cannot read a file that has been unmapped by closing the ScanResult");
         }

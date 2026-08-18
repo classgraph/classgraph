@@ -1472,15 +1472,11 @@ public class ClassGraph {
      * faster for large classpaths consisting of many large jarfiles, but uses up virtual memory space.
      *
      * <p>
-     * How a mapping is released depends on the JDK: on JDK 22 or later it is unmapped as soon as the
-     * {@link ScanResult} is closed, by closing the arena the file was mapped in; below that it is unmapped once
-     * the garbage collector finds that nothing can read it any more. Either way, a {@link ByteBuffer} obtained
-     * from {@link Resource#read()} must not be read after the {@link ScanResult} has been closed.
-     *
-     * <p>
-     * On Windows, below JDK 22, closing the {@link ScanResult} asks the garbage collector to run: Windows refuses
-     * to delete, rename or overwrite a file while it is mapped, so without the request a file that was scanned can
-     * stay locked for as long after the scan as it takes for a collection to happen.
+     * A mapping is released as soon as the {@link ScanResult} is closed, so that Windows, which refuses to delete,
+     * rename or overwrite a file while it is mapped, stops locking the file. A {@link ByteBuffer} obtained from
+     * {@link Resource#read()} must therefore not be read after the {@link ScanResult} has been closed -- but the
+     * file is not unmapped while such a buffer is open, so a {@link Resource} that is still open when the
+     * {@link ScanResult} is closed holds its file mapped until it is closed too.
      *
      * @return this (for method chaining).
      */

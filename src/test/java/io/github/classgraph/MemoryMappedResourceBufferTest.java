@@ -12,11 +12,8 @@ import java.util.zip.CRC32;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-
-import nonapi.io.github.classgraph.utils.FileUtils;
 
 /**
  * When memory mapping is enabled, the mapping covers the whole jarfile, and an entry starts partway into it. The
@@ -25,19 +22,6 @@ import nonapi.io.github.classgraph.utils.FileUtils;
 public class MemoryMappedResourceBufferTest {
     /** The contents of the entry written here. */
     private static final byte[] CONTENTS = "File contents".getBytes(StandardCharsets.UTF_8);
-
-    /**
-     * Release the memory mapping that the test below keeps a view of. It holds the buffer in a local across the
-     * close of the scan, which is exactly what stops the close from releasing the mapping. Below JDK 22 a mapping
-     * goes only once the garbage collector finds every view of it gone, and on Windows a file that is still mapped
-     * cannot be deleted, so without this the deletion of the temporary directory that runs after each test would
-     * fail there.
-     */
-    // #939
-    @AfterEach
-    public void releaseMappingsHeldByTests() {
-        FileUtils.freeUnreachableBuffers();
-    }
 
     /**
      * The buffer returned for a resource of a memory-mapped jarfile starts at position zero, has a capacity equal

@@ -260,14 +260,12 @@ public class ScanSpec {
      * If true, use a {@link MappedByteBuffer} rather than the {@link FileChannel} API to access file content.
      *
      * <p>
-     * How a mapping is released depends on the JDK: on JDK 22 or later it is unmapped as soon as the
-     * {@link io.github.classgraph.ScanResult} is closed, by closing the arena the file was mapped in; below that
-     * it is unmapped once the garbage collector finds that nothing can read it any more.
-     *
-     * <p>
-     * On Windows, below JDK 22, closing the {@link io.github.classgraph.ScanResult} asks the garbage collector to
-     * run: Windows refuses to delete, rename or overwrite a file while it is mapped, so without the request a file
-     * that was scanned can stay locked for as long after the scan as it takes for a collection to happen.
+     * A mapping is released as soon as the {@link io.github.classgraph.ScanResult} is closed, so that Windows,
+     * which refuses to delete, rename or overwrite a file while it is mapped, stops locking the file. A
+     * {@link java.nio.ByteBuffer} obtained from {@link io.github.classgraph.Resource#read()} must therefore not be
+     * read after the {@link io.github.classgraph.ScanResult} has been closed -- but the file is not unmapped while
+     * such a buffer is open, so a {@link io.github.classgraph.Resource} that is still open when the
+     * {@link io.github.classgraph.ScanResult} is closed holds its file mapped until it is closed too.
      */
     public boolean enableMemoryMapping;
 

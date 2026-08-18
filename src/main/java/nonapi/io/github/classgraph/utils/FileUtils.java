@@ -33,7 +33,10 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.lang.ref.PhantomReference;
 import java.lang.ref.ReferenceQueue;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
+import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileChannel.MapMode;
 import java.nio.file.Files;
@@ -46,6 +49,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
 
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.utils.VersionFinder.OperatingSystem;
@@ -54,6 +58,25 @@ import nonapi.io.github.classgraph.utils.VersionFinder.OperatingSystem;
  * File utilities.
  */
 public final class FileUtils {
+    /** The DirectByteBuffer.cleaner() method. */
+    private static Method directByteBufferCleanerMethod;
+
+    /** The Cleaner.clean() method. */
+    private static Method cleanerCleanMethod;
+
+    /** The attachment() method. */
+    private static Method attachmentMethod;
+
+    /** The Unsafe object. */
+    private static Object theUnsafe;
+
+    /**
+     * True if the reflective handles above have been initialized. Volatile, and only ever assigned while holding
+     * the lock on {@link FileUtils}, so that the double-checked locking in {@link #closeDirectByteBuffer} is
+     * correctly synchronized: a thread that reads true here is guaranteed to see the fully-initialized handles.
+     */
+    private static volatile boolean initialized;
+
     /**
      * The current directory path (only reads the current directory once, the first time this field is accessed, so
      * will not reflect subsequent changes to the current directory). Volatile, so that the lazy initialization in
@@ -678,9 +701,215 @@ public final class FileUtils {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    // TODO: once ClassGraph's minimum supported JDK version is 22 or later, the arena methods below can open
-    // and close arenas, and allocate and memory-map ByteBuffers, by calling the java.lang.foreign API directly
-    // rather than through reflection.
+    /**
+     * Get the clean() method, attachment() method, and theUnsafe field, called inside doPrivileged.
+     */
+    private static void lookupCleanMethodPrivileged() {
+        if (VersionFinder.JAVA_MAJOR_VERSION < 9) {
+            try {
+                // See:
+                // https://stackoverflow.com/a/19447758/3950982
+                cleanerCleanMethod = Class.forName("sun.misc.Cleaner").getDeclaredMethod("clean");
+                cleanerCleanMethod.setAccessible(true);
+                final Class<?> directByteBufferClass = Class.forName("sun.nio.ch.DirectBuffer");
+                directByteBufferCleanerMethod = directByteBufferClass.getDeclaredMethod("cleaner");
+                attachmentMethod = directByteBufferClass.getMethod("attachment");
+                attachmentMethod.setAccessible(true);
+            } catch (final SecurityException e) {
+                throw new RuntimeException(
+                        "You need to grant classgraph RuntimePermission(\"accessClassInPackage.sun.misc\") "
+                                + "and ReflectPermission(\"suppressAccessChecks\")",
+                        e);
+            } catch (final ReflectiveOperationException | LinkageError e) {
+                // Ignore
+            }
+        } else if (VersionFinder.JAVA_MAJOR_VERSION < 22) {
+            // Unsafe::invokeCleaner is terminally deprecated, and JDK 24+ reports: "A terminally
+            // deprecated method in sun.misc.Unsafe has been called" if it is used. On JDK 22+, direct
+            // ByteBuffers are allocated and memory-mapped using the java.lang.foreign.Arena API instead,
+            // and they are freed/unmapped by closing the arena that created them, so the cleaner method
+            // is only needed on JDK 9-21.
+            // See: https://github.com/classgraph/classgraph/issues/899
+            // and: https://github.com/classgraph/classgraph/issues/939
+            try {
+                // A JVM with no sun.misc.Unsafe throws ClassNotFoundException or LinkageError here, which is
+                // caught below, leaving the fields null -- closeDirectByteBuffer() then returns false
+                final Class<?> unsafeClass = Class.forName("sun.misc.Unsafe");
+                final Field theUnsafeField = unsafeClass.getDeclaredField("theUnsafe");
+                theUnsafeField.setAccessible(true);
+                theUnsafe = theUnsafeField.get(null);
+                cleanerCleanMethod = unsafeClass.getMethod("invokeCleaner", ByteBuffer.class);
+                cleanerCleanMethod.setAccessible(true);
+            } catch (final SecurityException e) {
+                throw new RuntimeException(
+                        "You need to grant classgraph RuntimePermission(\"accessClassInPackage.sun.misc\") "
+                                + "and ReflectPermission(\"suppressAccessChecks\")",
+                        e);
+            } catch (final ReflectiveOperationException | LinkageError ex) {
+                // Ignore
+            }
+        }
+    }
+
+    /**
+     * Close a direct byte buffer (run in doPrivileged).
+     *
+     * @param byteBuffer
+     *            the byte buffer
+     * @param log
+     *            the log
+     * @return true if successful
+     */
+    private static boolean closeDirectByteBufferPrivileged(final ByteBuffer byteBuffer, final LogNode log) {
+        if (!byteBuffer.isDirect()) {
+            // Nothing to do
+            return true;
+        }
+        try {
+            if (VersionFinder.JAVA_MAJOR_VERSION < 9) {
+                if (attachmentMethod == null) {
+                    if (log != null) {
+                        log.log("Could not unmap ByteBuffer, attachmentMethod == null");
+                    }
+                    return false;
+                }
+                // Make sure duplicates and slices are not cleaned, since this can result in duplicate
+                // attempts to clean the same buffer, which trigger a crash with:
+                // "A fatal error has been detected by the Java Runtime Environment: EXCEPTION_ACCESS_VIOLATION"
+                // See: https://stackoverflow.com/a/31592947/3950982
+                if (attachmentMethod.invoke(byteBuffer) != null) {
+                    // Buffer is a duplicate or slice
+                    return false;
+                }
+                // Invoke ((DirectBuffer) byteBuffer).cleaner().clean()
+                if (directByteBufferCleanerMethod == null) {
+                    if (log != null) {
+                        log.log("Could not unmap ByteBuffer, cleanerMethod == null");
+                    }
+                    return false;
+                }
+                try {
+                    directByteBufferCleanerMethod.setAccessible(true);
+                } catch (final Exception e) {
+                    if (log != null) {
+                        log.log("Could not unmap ByteBuffer, cleanerMethod.setAccessible(true) failed");
+                    }
+                    return false;
+                }
+                final Object cleanerInstance = directByteBufferCleanerMethod.invoke(byteBuffer);
+                if (cleanerInstance == null) {
+                    if (log != null) {
+                        log.log("Could not unmap ByteBuffer, cleaner == null");
+                    }
+                    return false;
+                }
+                if (cleanerCleanMethod == null) {
+                    if (log != null) {
+                        log.log("Could not unmap ByteBuffer, cleanMethod == null");
+                    }
+                    return false;
+                }
+                try {
+                    cleanerCleanMethod.invoke(cleanerInstance);
+                    return true;
+                } catch (final Exception e) {
+                    if (log != null) {
+                        log.log("Could not unmap ByteBuffer, cleanMethod.invoke(cleaner) failed: " + e);
+                    }
+                    return false;
+                }
+            } else if (VersionFinder.JAVA_MAJOR_VERSION < 22) {
+                if (theUnsafe == null) {
+                    if (log != null) {
+                        log.log("Could not unmap ByteBuffer, theUnsafe == null");
+                    }
+                    return false;
+                }
+                if (cleanerCleanMethod == null) {
+                    if (log != null) {
+                        log.log("Could not unmap ByteBuffer, cleanMethod == null");
+                    }
+                    return false;
+                }
+                try {
+                    cleanerCleanMethod.invoke(theUnsafe, byteBuffer);
+                    return true;
+                } catch (final IllegalArgumentException e) {
+                    // Buffer is a duplicate or slice
+                    return false;
+                }
+            } else {
+                // JDK 22+: direct ByteBuffers are allocated or memory-mapped using the
+                // java.lang.foreign.Arena API, and they are freed/unmapped by closing the arena that
+                // created them (see FileSlice#close()), rather than by calling the terminally-deprecated
+                // Unsafe::invokeCleaner method (#939). A ByteBuffer that was not created from an arena
+                // cannot be closed explicitly, so return false here.
+                return false;
+            }
+        } catch (final ReflectiveOperationException | SecurityException e) {
+            if (log != null) {
+                log.log("Could not unmap ByteBuffer: " + e);
+            }
+            return false;
+        }
+    }
+
+    /**
+     * Close a {@code DirectByteBuffer} -- in particular, will unmap a {@link MappedByteBuffer}.
+     *
+     * @param byteBuffer
+     *            The {@link ByteBuffer} to close/unmap.
+     * @param reflectionUtils
+     *            The reflection utils (the cleaner method has to be looked up and invoked reflectively).
+     * @param log
+     *            The log.
+     * @return True if the byteBuffer was closed/unmapped.
+     */
+    public static boolean closeDirectByteBuffer(final ByteBuffer byteBuffer, final ReflectionUtils reflectionUtils,
+            final LogNode log) {
+        if (byteBuffer != null && byteBuffer.isDirect()) {
+            // Double-checked locking, so that two threads calling this for the first time concurrently cannot
+            // both run the lookup and race on the static fields it assigns
+            if (!initialized) {
+                synchronized (FileUtils.class) {
+                    if (!initialized) {
+                        try {
+                            reflectionUtils.doPrivileged(new Callable<Void>() {
+                                @Override
+                                public Void call() throws Exception {
+                                    lookupCleanMethodPrivileged();
+                                    return null;
+                                }
+                            });
+                        } catch (final Throwable e) {
+                            throw new RuntimeException("Cannot get buffer cleaner method", e);
+                        }
+                        initialized = true;
+                    }
+                }
+            }
+            try {
+                return reflectionUtils.doPrivileged(new Callable<Boolean>() {
+                    @Override
+                    public Boolean call() throws Exception {
+                        return closeDirectByteBufferPrivileged(byteBuffer, log);
+                    }
+                });
+            } catch (final Throwable t) {
+                return false;
+            }
+        } else {
+            // Nothing to unmap
+            return false;
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    // TODO: once ClassGraph's minimum supported JDK version is 22 or later, the Unsafe reflection code above
+    // (lookupCleanMethodPrivileged and closeDirectByteBufferPrivileged) can be removed, and the arena methods
+    // below can open and close arenas, and allocate and memory-map ByteBuffers, by calling the
+    // java.lang.foreign API directly rather than through reflection.
 
     /** The fully-qualified name of the JDK 22+ {@code java.lang.foreign.Arena} interface. */
     private static final String ARENA_CLASS_NAME = "java.lang.foreign.Arena";
@@ -822,24 +1051,28 @@ public final class FileUtils {
     private static final int REFERENCE_PROCESSING_TIMEOUT_MILLIS = 100;
 
     /**
-     * Ask the garbage collector to run, and wait for it to process the references that the collection found, so
-     * that by the time this returns, a file that was mapped without an arena and whose every view has become
-     * unreachable has actually been unmapped.
+     * Ask the garbage collector to run, and wait for the references that the collection found to be processed, so
+     * that a mapping that nothing can reach any more is more likely to have been released by the time this
+     * returns.
      *
      * <p>
-     * This is best effort: nothing can unmap a file on demand without an arena, and nothing can observe that the
-     * collector has unmapped it. A JVM started with {@code -XX:+DisableExplicitGC} ignores the request to collect
-     * altogether, in which case this returns once the wait times out, having done nothing.
+     * This is best effort, and cannot be made reliable: a file is unmapped while the reference to its mapped
+     * buffer is processed, and nothing can observe that a particular reference has been processed. That is why a
+     * file is unmapped explicitly rather than left to this -- this is only for what an explicit unmapping cannot
+     * reach: an address range that has to be freed before a mapping can be retried, a buffer that could not be
+     * unmapped explicitly, and a temporary file that Windows would not let ClassGraph delete. A JVM started with
+     * {@code -XX:+DisableExplicitGC} ignores the request to collect altogether, in which case this returns once
+     * the wait times out, having done nothing.
      */
     // #939
     public static void freeUnreachableBuffers() {
         // System.gc() returns once the collection itself is over, which is before the references that the
-        // collection found have been processed -- and a file is unmapped while the reference to its mapped buffer
-        // is processed, not while the collection runs. A phantom reference to an object that the same collection
-        // finds unreachable is enqueued during that same reference processing, so waiting for it to be enqueued
-        // waits for the unmapping too. (Measured on JDK 8 and 17, mapping a file and dropping the reference to
-        // it: without the wait the file was still mapped when System.gc() returned about one time in a hundred;
-        // with the wait, it was never still mapped in 4000 tries.)
+        // collection found have been processed. A phantom reference to an object that the same collection finds
+        // unreachable is enqueued while those references are processed, so waiting for it to be enqueued waits for
+        // most of that processing -- but the order within one batch of references is arbitrary, so this is a wait
+        // that usually helps rather than a guarantee. (Measured over 300 rounds of mapping eight files and
+        // dropping every reference to them: without the wait a file was still mapped when System.gc() returned in
+        // 27 rounds on JDK 17, and with the wait, in 5.)
         final ReferenceQueue<Object> collected = new ReferenceQueue<Object>();
         final PhantomReference<Object> canary = new PhantomReference<Object>(new Object(), collected);
         System.gc();

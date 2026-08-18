@@ -7,16 +7,20 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.nio.channels.FileChannel.MapMode;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.util.zip.CRC32;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.ClassGraph;
+import io.github.classgraph.Resource;
+import io.github.classgraph.ResourceList;
 import io.github.classgraph.ScanResult;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.utils.FileUtils;
@@ -27,14 +31,15 @@ import nonapi.io.github.classgraph.utils.VersionFinder;
  * deprecated (JDK 24+ warns when it is called, and it will be removed in a future JDK release), and frees the
  * memory whether or not another thread is still reading it. On JDK 22+, ClassGraph allocates and memory-maps
  * {@code ByteBuffer}s using the {@code java.lang.foreign.Arena} API instead, and frees/unmaps them by closing the
- * arena that created them. Below JDK 22 files are still memory-mapped, but there is no way to unmap one without
- * {@code Unsafe::invokeCleaner}, so the mapping is left to the JDK's own cleaner, which unmaps it once no view of
- * it can be reached any more.
+ * arena that created them. Below JDK 22 there are no arenas, and files are still memory-mapped and unmapped with
+ * {@code Unsafe::invokeCleaner} -- but only once the {@link ScanResult} has been closed and the caller has closed
+ * every {@link Resource} it read a buffer from, since that method frees the address range whether or not anything
+ * is still reading it.
  */
 public class Issue939Test {
     /**
-     * Scanning a jar with memory mapping enabled works on all JDK versions (mapping into an arena on JDK 22+, and
-     * into a mapping released by the garbage collector below that).
+     * Scanning a jar with memory mapping enabled works on all JDK versions, mapping into an arena on JDK 22+ and
+     * with {@code FileChannel#map} below that.
      */
     @Test
     public void scanJarWithMemoryMappingEnabled() {
@@ -87,44 +92,54 @@ public class Issue939Test {
     }
 
     /**
-     * A file mapped without an arena, which is how a file is mapped below JDK 22, has been unmapped by the time
-     * {@link FileUtils#freeUnreachableBuffers()} returns. Windows refuses to delete, rename or overwrite a file
-     * while it is mapped, so a scan that returned with a file it mapped still mapped would leave it locked.
+     * A {@link Resource} that the caller has not closed yet keeps the file its buffer is a view of mapped, even
+     * after the {@link ScanResult} that mapped the file has been closed. Below JDK 22 a file is unmapped by
+     * freeing its address range, so a scan that unmapped a file the caller could still read would not merely hand
+     * back stale content -- the read would take a SIGSEGV that kills the JVM. (From JDK 22 the arena is closed
+     * with the scan and such a read throws {@link IllegalStateException} instead, so this only covers the JDK
+     * versions where the memory really does go away.)
      *
      * @param tempDir
-     *            a temporary directory
+     *            a temporary directory to write the jarfile to be scanned into
      * @throws IOException
-     *             if the file could not be written or mapped
+     *             if the jarfile could not be written or read
      */
+    // #939
     @Test
-    public void aFileIsUnmappedBeforeFreeUnreachableBuffersReturns(@TempDir final Path tempDir) throws IOException {
-        final Path maps = Paths.get("/proc/self/maps");
-        assumeTrue(Files.isReadable(maps), "only Linux can tell whether a file is still mapped");
-        final Path file = tempDir.resolve("unmapped-by-collection.bin");
-        Files.write(file, new byte[4096]);
-        final String fileName = file.getFileName().toString();
-        // Repeated, since a mapping that outlives the request to collect is a race that is not lost every time
-        for (int round = 0; round < 100; round++) {
-            mapTheWholeFileAndDropTheMapping(file);
-            FileUtils.freeUnreachableBuffers();
-            assertThat(Files.readAllLines(maps)).as("still mapped in round %d", round)
-                    .noneMatch(line -> line.endsWith(fileName));
+    public void anOpenResourceKeepsTheFileMappedAfterTheScanIsClosed(@TempDir final Path tempDir)
+            throws IOException {
+        assumeTrue(VersionFinder.JAVA_MAJOR_VERSION < 22, "from JDK 22 the arena is closed with the scan");
+        final byte[] content = "the content of a stored zip entry".getBytes(StandardCharsets.UTF_8);
+        final Path jarPath = tempDir.resolve("mapped-jar-entry.jar");
+        try (ZipOutputStream zipOut = new ZipOutputStream(Files.newOutputStream(jarPath))) {
+            // A stored entry is read in place from the mapping of the jarfile; a deflated entry would instead be
+            // inflated into a buffer of its own, which would not exercise the mapping
+            final ZipEntry storedEntry = new ZipEntry("stored.txt");
+            storedEntry.setMethod(ZipEntry.STORED);
+            storedEntry.setSize(content.length);
+            storedEntry.setCompressedSize(content.length);
+            final CRC32 crc = new CRC32();
+            crc.update(content);
+            storedEntry.setCrc(crc.getValue());
+            zipOut.putNextEntry(storedEntry);
+            zipOut.write(content);
+            zipOut.closeEntry();
         }
-    }
 
-    /**
-     * Map the whole of a file without an arena, read from the mapping, then drop the last reference to it.
-     *
-     * @param file
-     *            the file to map
-     * @throws IOException
-     *             if the file could not be mapped
-     */
-    private static void mapTheWholeFileAndDropTheMapping(final Path file) throws IOException {
-        try (FileChannel fileChannel = FileChannel.open(file, StandardOpenOption.READ)) {
-            // Mapped without an arena, which is how a file is mapped below JDK 22
-            final ByteBuffer mapped = fileChannel.map(MapMode.READ_ONLY, 0L, Files.size(file));
-            assertThat(mapped.get(0)).isEqualTo((byte) 0);
+        final Resource resource;
+        final ByteBuffer byteBuffer;
+        try (ScanResult scanResult = new ClassGraph().acceptPathsNonRecursive("").enableMemoryMapping()
+                .overrideClasspath(jarPath.toString()).scan()) {
+            final ResourceList resources = scanResult.getResourcesWithPath("stored.txt");
+            assertThat(resources).hasSize(1);
+            resource = resources.get(0);
+            byteBuffer = resource.read();
+            // The buffer of a resource of a mapped jarfile aliases the mapping, so it is direct
+            assertThat(byteBuffer.isDirect()).isTrue();
         }
+
+        // The scan is closed, but this resource is not, so the jarfile its buffer is a view of is still mapped
+        assertThat(byteBuffer.get(0)).isEqualTo(content[0]);
+        resource.close();
     }
 }

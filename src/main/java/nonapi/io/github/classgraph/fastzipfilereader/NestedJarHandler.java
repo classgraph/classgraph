@@ -420,7 +420,9 @@ public class NestedJarHandler {
     /** True if {@link #close(LogNode)} has been called. */
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
-    /** True if a file was mapped that only the garbage collector can unmap. */
+    /**
+     * True if a file could not be unmapped as its slice closed, so that only the garbage collector can unmap it.
+     */
     // #939
     private final AtomicBoolean filesAwaitingUnmapping = new AtomicBoolean(false);
 
@@ -585,8 +587,8 @@ public class NestedJarHandler {
     }
 
     /**
-     * Record that a file was unmapped by dropping the last reference to its mapped buffer, leaving it to the
-     * garbage collector to unmap the file, so that {@link #close(LogNode)} knows to ask for a collection.
+     * Record that a file could not be unmapped as its slice closed, leaving it to the garbage collector to unmap
+     * the file, so that {@link #close(LogNode)} knows to ask for a collection.
      */
     // #939
     public void markFileAsAwaitingUnmapping() {
@@ -1215,15 +1217,15 @@ public class NestedJarHandler {
             if (inflaterRecycler != null) {
                 inflaterRecycler.forceClose();
             }
-            // Below JDK 22 a file is unmapped only once the garbage collector finds the mapped buffer
-            // unreachable, and Windows refuses to delete, rename or overwrite a file while it is mapped. Closing
-            // the slices above dropped the last reference to every mapping this scan made, so ask for a
-            // collection here, and wait for the collector to unmap the files: without the request, a file that
-            // the scan mapped stays locked until the next collection happens to run, which in a large heap can
-            // be minutes after the scan finished, or never. This is best effort -- below JDK 22 nothing can
-            // unmap a file on demand, and nothing can observe that the collector has done it. Only Windows pays
-            // for the collection: every other operating system lets a mapped file be deleted or replaced, so
-            // releasing the mapping promptly buys nothing there.
+            // Closing the slices above unmapped every file this scan mapped, except any that could not be
+            // unmapped explicitly -- one whose buffer the caller can still read, or one mapped on a JVM with no
+            // reachable cleaner method. Those are left to the garbage collector, which only runs when it chooses
+            // to, so ask for a collection here: Windows refuses to delete, rename or overwrite a file while it
+            // is mapped, and without the request such a file stays locked until the next collection happens to
+            // run, which in a large heap can be minutes after the scan finished, or never. This is best effort
+            // -- nothing can make the collector unmap a file, and nothing can observe that it has. Only Windows
+            // pays for the collection: every other operating system lets a mapped file be deleted or replaced,
+            // so releasing the mapping promptly buys nothing there.
             // #939
             if (filesAwaitingUnmapping.get() && VersionFinder.OS == OperatingSystem.Windows) {
                 FileUtils.freeUnreachableBuffers();
@@ -1244,13 +1246,13 @@ public class NestedJarHandler {
                     }
                 }
                 if (!undeleted.isEmpty()) {
-                    // Windows refuses to delete a file that is still memory-mapped, and below JDK 22 a mapping
-                    // is released only once the garbage collector finds it unreachable -- which closing the
-                    // slices above has just made it, so ask for a collection and try again. (This is a second
-                    // request on Windows below JDK 22, but the first one is skipped on every other operating
-                    // system and JDK, where a delete can still fail for an unrelated reason.) If the JVM was
-                    // started with -XX:+DisableExplicitGC then this is a no-op, and the file is left to the
-                    // File#deleteOnExit() hook that makeTempFile registered.
+                    // Windows refuses to delete a file that is still memory-mapped, so a delete that failed may
+                    // be waiting on a mapping that could not be unmapped explicitly -- ask for a collection and
+                    // try again. (This repeats the request above when the scan knew of such a file and is running
+                    // on Windows, but that request is skipped on every other operating system, and whenever every
+                    // file was unmapped explicitly, where a delete can still fail for an unrelated reason.) If
+                    // the JVM was started with -XX:+DisableExplicitGC then this is a no-op, and the file is left
+                    // to the File#deleteOnExit() hook that makeTempFile registered.
                     FileUtils.freeUnreachableBuffers();
                     for (final File tempFile : undeleted) {
                         try {

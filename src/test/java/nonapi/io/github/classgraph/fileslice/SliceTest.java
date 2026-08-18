@@ -2,6 +2,7 @@ package nonapi.io.github.classgraph.fileslice;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -11,10 +12,12 @@ import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -23,7 +26,7 @@ import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.fileslice.reader.RandomAccessReader;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
-import nonapi.io.github.classgraph.utils.FileUtils;
+import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /** Tests for the identity of a {@link Slice}, and for the closing of the slices that a scan left open. */
 public class SliceTest {
@@ -149,9 +152,8 @@ public class SliceTest {
 
     /**
      * A file is memory-mapped on every JDK when the scan spec asks for it. On JDK 22 or later the mapping is
-     * unmapped by closing the arena it was made in; below that it is left to the JDK's own cleaner, which unmaps
-     * it once no view of it is reachable any more. What is never called is {@code Unsafe::invokeCleaner}, which
-     * frees the address range whether or not another thread is still reading it.
+     * unmapped by closing the arena it was made in; below that it is unmapped by {@code Unsafe::invokeCleaner},
+     * the only method there is that can unmap a file on demand.
      *
      * @param tempDir
      *            a temporary directory
@@ -173,10 +175,9 @@ public class SliceTest {
     }
 
     /**
-     * A file that a scan memory-mapped can be deleted once the scan has been closed. Windows refuses to delete a
-     * file that is still mapped, and below JDK 22 the mapping is released only when the garbage collector finds
-     * the mapped buffer unreachable, so closing the scan has to ask for a collection to make the file deletable
-     * again. (Every other operating system lets a mapped file be deleted, so this test only bites on Windows.)
+     * A file that a scan memory-mapped can be deleted once the scan has been closed, since closing the scan
+     * unmaps it. Windows refuses to delete a file that is still mapped. (Every other operating system lets a
+     * mapped file be deleted, so this test only bites on Windows.)
      *
      * @param tempDir
      *            a temporary directory
@@ -199,11 +200,11 @@ public class SliceTest {
     }
 
     /**
-     * A reader taken before the slice was closed holds a view of the memory mapping that closing the slice
-     * releases. Every other reader reports a read of a file the scan has released as an {@link IOException}, so
+     * A reader taken before the slice was closed holds a duplicate of the memory mapping that closing the slice
+     * unmaps. Every other reader reports a read of a file the scan has released as an {@link IOException}, so
      * this one does too, on every JDK: on JDK 22 or later rather than letting the arena's
-     * {@link IllegalStateException} out, and below JDK 22 rather than quietly returning content from a mapping
-     * that the garbage collector has not got round to unmapping yet.
+     * {@link IllegalStateException} out, and below JDK 22 rather than reading an address range that closing the
+     * slice freed, which would take a SIGSEGV that kills the JVM.
      *
      * @param tempDir
      *            a temporary directory
@@ -234,9 +235,9 @@ public class SliceTest {
 
     /**
      * A sub-slice of a memory-mapped file reads through the toplevel slice, so closing the toplevel slice stops
-     * the sub-slice from being read too. A reader taken before the close keeps a view of the mapping, and below
-     * JDK 22 that view stays readable until the garbage collector unmaps the file, so only the closed flag stops
-     * it from returning file content.
+     * the sub-slice from being read too. A reader taken before the close holds a duplicate of the mapping, which
+     * below JDK 22 points at an address range that the close freed, so only the closed flag stops it from
+     * reading memory that is no longer there.
      *
      * @param tempDir
      *            a temporary directory
@@ -260,10 +261,10 @@ public class SliceTest {
     }
 
     /**
-     * Closing a slice releases its memory mapping even while a sub-slice of it is still alive. Below JDK 22 a
-     * mapping is unmapped only once the garbage collector finds that nothing can read it any more, so a sub-slice
-     * that kept a duplicate of the mapping would keep the file mapped -- and, on Windows, locked open -- however
-     * long ago it was closed.
+     * Closing a slice leaves nothing at all holding its memory mapping, even while a sub-slice of it is still
+     * alive. Below JDK 22 the close unmaps the file by freeing its address range, so anything left holding the
+     * mapped buffer would be holding a view of memory that is no longer there, and reading through it would take
+     * a SIGSEGV that kills the JVM.
      *
      * @param tempDir
      *            a temporary directory
@@ -302,10 +303,10 @@ public class SliceTest {
 
     /**
      * A stream that has been closed holds nothing of the memory mapping of the file it was reading, even while the
-     * stream itself is still alive. A stream reads through a reader, and a reader of a mapped file keeps a view of
-     * the mapping, so a closed stream that still held its reader would keep the file mapped -- and, on Windows,
-     * locked open -- for as long as anything still referred to the stream, which for a stream handed out by
-     * {@link io.github.classgraph.Resource} can be for as long as the caller keeps hold of it.
+     * stream itself is still alive. A stream reads through a reader, and a reader of a mapped file holds a
+     * duplicate of the mapped buffer, so a closed stream that still held its reader would be holding a view of the
+     * address range that closing the slice freed. A stream handed out by {@link io.github.classgraph.Resource} can
+     * be kept by the caller for as long as it likes, so what a closed one still refers to is worth checking.
      *
      * @param tempDir
      *            a temporary directory
@@ -338,17 +339,91 @@ public class SliceTest {
         assertThatThrownBy(inputStream::read).isInstanceOf(IOException.class);
     }
 
+    /** The file through which Linux says which files this process has memory-mapped. */
+    private static final Path PROC_SELF_MAPS = Paths.get("/proc/self/maps");
+
     /**
-     * Release the memory mappings that a test deliberately kept a view of. Several of the tests here hold a reader
-     * or a buffer across the close of the slice, which is exactly what stops the close from releasing the mapping.
-     * Below JDK 22 a mapping goes only once the garbage collector finds every view of it gone, and on Windows a
-     * file that is still mapped cannot be deleted, so without this the deletion of the temporary directory that
-     * runs after each test would fail there.
+     * Whether a file is currently memory-mapped by this JVM. Only Linux can tell, through {@code /proc/self/maps},
+     * so a test that calls this has to skip itself everywhere else.
+     *
+     * @param file
+     *            the file to look for
+     * @return true if the file is memory-mapped
+     * @throws IOException
+     *             if {@code /proc/self/maps} could not be read
+     */
+    private static boolean isMemoryMapped(final File file) throws IOException {
+        final String fileName = file.getName();
+        for (final String line : Files.readAllLines(PROC_SELF_MAPS, StandardCharsets.UTF_8)) {
+            if (line.endsWith(fileName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * A file that a slice memory-mapped is unmapped by the time the slice has closed, rather than at whatever
+     * later moment the garbage collector would have got to it. Windows refuses to delete, rename or overwrite a
+     * file while it is mapped, so a scan that left the files it mapped to the collector would leave them locked
+     * for as long as the JVM went without a collection -- which in a large heap can be minutes, or forever.
+     *
+     * @param tempDir
+     *            a temporary directory
+     * @throws IOException
+     *             if the file could not be written, opened or read
      */
     // #939
-    @AfterEach
-    public void releaseMappingsHeldByTests() {
-        FileUtils.freeUnreachableBuffers();
+    @Test
+    public void closingASliceUnmapsTheFileBeforeItReturns(@TempDir final File tempDir) throws IOException {
+        assumeTrue(Files.isReadable(PROC_SELF_MAPS), "only Linux can tell whether a file is still mapped");
+        final NestedJarHandler nestedJarHandler = memoryMappingNestedJarHandler();
+        final File file = writeFile(tempDir, "unmapped-when-closed.bin");
+        final FileSlice slice = new FileSlice(file, nestedJarHandler, /* log = */ null);
+        assertThat(slice.read().isDirect()).isTrue();
+        assertThat(isMemoryMapped(file)).isTrue();
+
+        slice.close();
+
+        assertThat(isMemoryMapped(file)).isFalse();
+        nestedJarHandler.close(/* log = */ null);
+    }
+
+    /**
+     * A view of the mapping keeps the file mapped after the slice that mapped it has closed, and the file is
+     * unmapped as soon as the view is released. Below JDK 22, unmapping a file frees the address range whether or
+     * not anything is still reading it, so a buffer that was handed to a caller has to hold the mapping open --
+     * reading it after the file was unmapped would read memory that is no longer there, and take a SIGSEGV that
+     * kills the JVM. (From JDK 22 the file is unmapped by closing the arena that mapped it, which makes such a
+     * read throw {@link IllegalStateException} instead, so the arena is closed as soon as the slice is.)
+     *
+     * @param tempDir
+     *            a temporary directory
+     * @throws IOException
+     *             if the file could not be written, opened or read
+     */
+    // #939
+    @Test
+    public void aViewOfTheMappingKeepsTheFileMappedUntilItIsReleased(@TempDir final File tempDir)
+            throws IOException {
+        assumeTrue(Files.isReadable(PROC_SELF_MAPS), "only Linux can tell whether a file is still mapped");
+        assumeTrue(VersionFinder.JAVA_MAJOR_VERSION < 22, "from JDK 22 the arena is closed with the slice");
+        final NestedJarHandler nestedJarHandler = memoryMappingNestedJarHandler();
+        final File file = writeFile(tempDir, "held-open-by-a-view.bin");
+        final FileSlice slice = new FileSlice(file, nestedJarHandler, /* log = */ null);
+        final Runnable releaseMappingView = slice.acquireMappingView();
+        final ByteBuffer byteBuffer = slice.read();
+
+        slice.close();
+
+        assertThat(isMemoryMapped(file)).isTrue();
+        // The file is still mapped, so the buffer taken before the close is still readable
+        assertThat(byteBuffer.get(0)).isEqualTo(CONTENT[0]);
+
+        releaseMappingView.run();
+
+        assertThat(isMemoryMapped(file)).isFalse();
+        nestedJarHandler.close(/* log = */ null);
     }
 
     /**

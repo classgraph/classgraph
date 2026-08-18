@@ -56,6 +56,7 @@ import nonapi.io.github.classgraph.fastzipfilereader.FastZipEntry;
 import nonapi.io.github.classgraph.fastzipfilereader.LogicalZipFile;
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.fastzipfilereader.ZipFileSlice;
+import nonapi.io.github.classgraph.fileslice.Slice;
 import nonapi.io.github.classgraph.fileslice.reader.ClassfileReader;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.scanspec.ScanSpec.ScanSpecPathMatch;
@@ -421,11 +422,20 @@ class ClasspathElementZip extends ClasspathElement {
                 }
             }
 
+            /** The action that releases the view of the memory mapping that {@link #read()} took, if any. */
+            // #939
+            private Runnable releaseMappingView;
+
             @Override
             public ByteBuffer read() throws IOException {
                 checkCanOpen();
                 try {
-                    byteBuffer = zipEntry.getSlice().read();
+                    // If the zipfile is memory-mapped, the buffer read here is a view of that mapping, so the
+                    // mapping has to be held open until this resource is closed
+                    // #939
+                    final Slice slice = zipEntry.getSlice();
+                    releaseMappingView = slice.acquireMappingView();
+                    byteBuffer = slice.read();
                     length = byteBuffer.remaining();
                     return byteBuffer;
                 } catch (final IOException e) {
@@ -451,6 +461,13 @@ class ClasspathElementZip extends ClasspathElement {
                         // ByteBuffer should be a duplicate or slice, or should wrap an array, so it doesn't
                         // need to be unmapped
                         byteBuffer = null;
+                    }
+                    if (releaseMappingView != null) {
+                        // Release the view of the memory mapping that read() took, which is the last thing
+                        // holding the file mapped if the scan has already been closed
+                        // #939
+                        releaseMappingView.run();
+                        releaseMappingView = null;
                     }
 
                     // Close inputStream

@@ -176,11 +176,10 @@ public abstract class Slice implements Closeable {
         final InputStream rawInputStream = new InputStream() {
             /**
              * The reader that the bytes are read through, or null once this stream has been closed. A reader of a
-             * memory-mapped file keeps a view of the mapping, and below JDK 22 a mapping is released only once
-             * the garbage collector finds every view of it gone, so this reference is dropped as the stream
-             * closes -- a
-             * closed stream that still held its reader would keep the file mapped, and on Windows locked open,
-             * for as long as anything still referred to the stream.
+             * memory-mapped file holds a duplicate of the mapped buffer, so this reference is dropped as the
+             * stream closes rather than being kept for as long as anything still refers to the stream -- below
+             * JDK 22 the file is unmapped by freeing its address range, so a duplicate that outlived the
+             * unmapping would be a view of memory that is no longer there.
              */
             // #939
             private volatile RandomAccessReader randomAccessReader = randomAccessReader();
@@ -265,7 +264,8 @@ public abstract class Slice implements Closeable {
                 // -- in particular the Resource must not be closed a second time, since it may have been
                 // reopened in the meantime
                 if (!closed.getAndSet(true)) {
-                    // Drop the reader, and with it any view it kept of a memory mapping of the file
+                    // Drop the reader, and with it its duplicate of the buffer of the slice, which may be a
+                    // mapping
                     // #939
                     randomAccessReader = null;
                     if (resourceToClose != null) {
@@ -287,6 +287,29 @@ public abstract class Slice implements Closeable {
      * @return the random access reader
      */
     public abstract RandomAccessReader randomAccessReader();
+
+    /**
+     * Take a view of the memory mapping of this slice, if the file is memory-mapped, so that the file is not
+     * unmapped while the caller can still read a {@link ByteBuffer} that {@link #read()} returned -- see
+     * {@link nonapi.io.github.classgraph.fileslice.FileSlice#close()}. A slice that is not memory-mapped has no
+     * view to take, and returns a release action that does nothing.
+     *
+     * @return the action that releases the view, which the caller must run once it can no longer read the buffer.
+     * @throws IOException
+     *             if the file has already been unmapped, so that there is nothing left to read.
+     */
+    // #939
+    public Runnable acquireMappingView() throws IOException {
+        return NO_MAPPING_VIEW_TO_RELEASE;
+    }
+
+    /** The release action of a slice that has no memory mapping, so that there is nothing to release. */
+    private static final Runnable NO_MAPPING_VIEW_TO_RELEASE = new Runnable() {
+        @Override
+        public void run() {
+            // Nothing to release
+        }
+    };
 
     /**
      * Load the slice as a byte array.
