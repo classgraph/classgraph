@@ -93,11 +93,22 @@ class RecycledInflaterInputStream extends InputStream {
         this.inflater = recyclableInflater.getInflater();
     }
 
-    @Override
-    public int read() throws IOException {
+    /**
+     * Check that this stream has not been closed.
+     *
+     * @throws IOException
+     *             if this stream has been closed.
+     */
+    private void checkNotClosed() throws IOException {
         if (closed.get()) {
             throw new IOException("InputStream is already closed");
-        } else if (inflater.finished()) {
+        }
+    }
+
+    @Override
+    public int read() throws IOException {
+        checkNotClosed();
+        if (inflater.finished()) {
             return -1;
         }
         final var numInflatedBytesRead = read(singleByteBuf, 0, 1);
@@ -110,9 +121,8 @@ class RecycledInflaterInputStream extends InputStream {
 
     @Override
     public int read(final byte[] outBuf, final int off, final int len) throws IOException {
-        if (closed.get()) {
-            throw new IOException("InputStream is already closed");
-        } else if (len < 0) {
+        checkNotClosed();
+        if (len < 0) {
             throw new IllegalArgumentException("len cannot be negative");
         }
         // Check the destination range before anything is read, as InputStream#read(byte[], int, int) requires.
@@ -178,9 +188,8 @@ class RecycledInflaterInputStream extends InputStream {
 
     @Override
     public long skip(final long numToSkip) throws IOException {
-        if (closed.get()) {
-            throw new IOException("InputStream is already closed");
-        } else if (numToSkip < 0) {
+        checkNotClosed();
+        if (numToSkip < 0) {
             throw new IllegalArgumentException("numToSkip cannot be negative");
         } else if (numToSkip == 0 || inflater.finished()) {
             // (InputStream#skip returns 0 at the end of the stream, it does not return -1)
@@ -203,9 +212,7 @@ class RecycledInflaterInputStream extends InputStream {
 
     @Override
     public int available() throws IOException {
-        if (closed.get()) {
-            throw new IOException("InputStream is already closed");
-        }
+        checkNotClosed();
         // We don't know how many bytes are available, but have to return greater than zero if there is
         // still input, according to the API contract. Hopefully nothing relies on this and ends up reading
         // just one byte at a time.
