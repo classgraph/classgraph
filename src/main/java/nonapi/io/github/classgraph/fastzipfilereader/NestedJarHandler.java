@@ -1268,7 +1268,11 @@ public class NestedJarHandler {
                 }
                 tempFiles = null;
             }
-            if (interrupted) {
+            // An interruption during the close arrives one of two ways: as the flag above, set by a catch clause
+            // after the throw cleared this thread's status, or as this thread's status, where a step restored it
+            // rather than recording it. freeUnreachableBuffers() reports one the second way, being a static utility
+            // with no checker to reach, and checkAndReturn() is what routes that into the shared checker
+            if (interrupted || interruptionChecker.checkAndReturn()) {
                 interruptionChecker.interrupt();
             }
         }
