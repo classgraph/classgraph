@@ -402,8 +402,10 @@ public class Vfs implements AutoCloseable, Iterable<VfsRoot> {
             final var cause = e.getCause() == null ? e : e.getCause();
             throw new IOException("Could not open " + resolvedPath + " : " + cause, cause);
         } catch (final InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IOException("Interrupted while opening " + resolvedPath);
+            // Route the interruption through the shared interruption checker, so that every other thread reading
+            // through this Vfs stops too, and chain the cause, for the same reason as the catch clause above
+            session.interruptionChecker().interrupt();
+            throw new IOException("Interrupted while opening " + resolvedPath, e);
         }
     }
 
@@ -454,8 +456,8 @@ public class Vfs implements AutoCloseable, Iterable<VfsRoot> {
             try {
                 root = new ArchiveRoot(this, nestedJarHandler.openJarFromPath(path, logNode), "");
             } catch (final InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new IOException("Interrupted while opening " + key);
+                session.interruptionChecker().interrupt();
+                throw new IOException("Interrupted while opening " + key, e);
             }
         }
         return cacheRoot(rootsByPath, key, root, key);
@@ -539,8 +541,8 @@ public class Vfs implements AutoCloseable, Iterable<VfsRoot> {
             return discardIfClosed(name, new ArchiveRoot(this, nestedJarHandler.openJarFromInputStream(inputStream,
                     /* inputStreamLengthHint = */ -1L, name, logNode), /* packageRoot = */ ""));
         } catch (final InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IOException("Interrupted while reading " + name);
+            session.interruptionChecker().interrupt();
+            throw new IOException("Interrupted while reading " + name, e);
         }
     }
 
@@ -569,8 +571,8 @@ public class Vfs implements AutoCloseable, Iterable<VfsRoot> {
             return discardIfClosed(name, new ArchiveRoot(this, nestedJarHandler.openJarFromInputStream(
                     new ByteArrayInputStream(jarBytes), jarBytes.length, name, logNode), /* packageRoot = */ ""));
         } catch (final InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IOException("Interrupted while reading " + name);
+            session.interruptionChecker().interrupt();
+            throw new IOException("Interrupted while reading " + name, e);
         }
     }
 

@@ -211,6 +211,16 @@ public class VfsSession {
         return moduleReaderRecyclerMap;
     }
 
+    /**
+     * Get the interruption checker shared by every thread working on this session, so that a thread that is
+     * interrupted while reading through this session can stop all the others too.
+     *
+     * @return the interruption checker.
+     */
+    public InterruptionChecker interruptionChecker() {
+        return interruptionChecker;
+    }
+
     // ---------------------------------------------------------------------------------------------------------
 
     /**

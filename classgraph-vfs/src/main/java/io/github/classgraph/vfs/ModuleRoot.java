@@ -144,8 +144,10 @@ final class ModuleRoot extends VfsRoot {
             final var cause = e.getCause() == null ? e : e.getCause();
             throw new IOException("Could not open module " + getPath() + " : " + cause, cause);
         } catch (final InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IOException("Interrupted while opening module " + getPath());
+            // Route the interruption through the shared interruption checker, so that every other thread reading
+            // through this Vfs stops too, and chain the cause, for the same reason as the catch clause above
+            vfs.session().interruptionChecker().interrupt();
+            throw new IOException("Interrupted while opening module " + getPath(), e);
         }
     }
 
