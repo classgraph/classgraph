@@ -94,24 +94,19 @@ class VfsSessionCloseTest {
      * be force-closed, and every reader it went on to open would stay open for the life of the JVM.
      *
      * <p>
-     * The map reference is taken before the close, as a thread that raced with the close would have: the accessor's
-     * own check is only a fast path, so the check that matters is the one made while the recycler is created.
+     * A lookup is turned away by the map itself, which was handed the session's closed flag. The check made while
+     * the recycler is created is the one that closes the race against a thread that was already inside the map when
+     * the session was closed, so it is asserted separately.
      */
     @Test
-    void closedSessionRefusesToCreateAModuleReaderRecycler() throws Exception {
+    void closedSessionRefusesToCreateAModuleReaderRecycler() {
         final var session = newSession();
         final var moduleReaderRecyclerMap = session.moduleReaderRecyclerMap();
         session.close(/* log = */ null);
         assertThatThrownBy(() -> moduleReaderRecyclerMap.get(javaBase(), /* log = */ null))
                 .hasMessageContaining("session has been closed");
-    }
-
-    /** The accessor rejects a closed session before the map is even reached. */
-    @Test
-    void closedSessionRefusesToHandOutTheModuleReaderRecyclerMap() {
-        final var session = newSession();
-        session.close(/* log = */ null);
-        assertThatThrownBy(session::moduleReaderRecyclerMap).hasMessageContaining("session has been closed");
+        assertThatThrownBy(() -> moduleReaderRecyclerMap.newInstance(javaBase(), /* log = */ null))
+                .hasMessageContaining("session has been closed");
     }
 
     /**

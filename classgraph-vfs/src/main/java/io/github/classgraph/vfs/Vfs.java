@@ -293,11 +293,7 @@ public class Vfs implements AutoCloseable, Iterable<VfsRoot> {
         final var reportedPath = root.reportedPath();
         if (!reportedPath.equals(openedFrom)) {
             rootsByPath.putIfAbsent(reportedPath, root);
-            if (session.isClosed()) {
-                // close() cleared the caches between the two keys being added, so it did not see this one -- take
-                // it back out again, rather than leaving a root in the cache of a closed Vfs
-                rootsByPath.remove(reportedPath, root);
-            }
+            uncacheIfClosed(rootsByPath, reportedPath, root);
         }
     }
 
@@ -323,12 +319,28 @@ public class Vfs implements AutoCloseable, Iterable<VfsRoot> {
             throws IOException {
         final var openedByAnotherThread = cache.putIfAbsent(key, root);
         final var cachedRoot = openedByAnotherThread == null ? root : openedByAnotherThread;
-        if (session.isClosed()) {
-            // close() cleared the caches while this root was being opened, so it did not see this root -- take it
-            // back out again, rather than leaving a root in the cache of a closed Vfs
-            cache.remove(key, cachedRoot);
-        }
+        uncacheIfClosed(cache, key, cachedRoot);
         return discardIfClosed(what, cachedRoot);
+    }
+
+    /**
+     * Take a root back out of a cache of opened roots if this {@link Vfs} was closed after the root was put in.
+     * {@link #close()} clears the caches, so a root cached after that would be left behind in the cache of a closed
+     * {@link Vfs}.
+     *
+     * @param <K>
+     *            the type of the cache key.
+     * @param cache
+     *            the cache the root was added to.
+     * @param key
+     *            the key the root was cached under.
+     * @param root
+     *            the root that was cached.
+     */
+    private <K> void uncacheIfClosed(final Map<K, VfsRoot> cache, final K key, final VfsRoot root) {
+        if (session.isClosed()) {
+            cache.remove(key, root);
+        }
     }
 
     /**
@@ -344,9 +356,7 @@ public class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      *             if this {@link Vfs} was closed while the root was being opened.
      */
     private VfsRoot discardIfClosed(final String what, final VfsRoot root) throws IOException {
-        if (session.isClosed()) {
-            throw new IOException("Cannot read " + what + " after the Vfs has been closed");
-        }
+        checkNotClosed(what);
         return root;
     }
 

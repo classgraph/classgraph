@@ -28,6 +28,7 @@
  */
 package io.github.classgraph.base.internal.concurrency;
 
+import java.io.IOException;
 import java.io.Serial;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
@@ -36,6 +37,7 @@ import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.github.classgraph.base.LogNode;
 import org.jspecify.annotations.Nullable;
@@ -45,6 +47,12 @@ import org.jspecify.annotations.Nullable;
  * {@link ConcurrentMap} on demand, based on a key value. Works the same as
  * {@code concurrentMap.computeIfAbsent(key, key -> newInstance(key))}, except that the instance supplier may throw
  * a checked exception or be interrupted, and may return null.
+ *
+ * <p>
+ * A map may be given the {@link AtomicBoolean} that whatever owns it sets when it is closed, in which case a lookup
+ * made after the owner was closed throws {@link IOException}, rather than building and caching a value that nothing
+ * would ever release again. Only a lookup is checked: the values already in the map are still read through
+ * {@link #values()} and dropped by {@link #clear()}, which is how the owner's teardown releases them.
  *
  * @param <K>
  *            The key type.
@@ -58,8 +66,46 @@ public abstract class SingletonMap<K, V, E extends Exception> {
     /** The map. */
     private final ConcurrentMap<K, SingletonHolder<V>> map = new ConcurrentHashMap<>();
 
-    /** Constructor. */
+    /**
+     * The flag that whatever owns this map sets when it is closed, or null if this map has no owner that can be
+     * closed.
+     */
+    private final @Nullable AtomicBoolean closed;
+
+    /** The message of the {@link IOException} thrown by a lookup made after the owner of this map was closed. */
+    private final String closedMessage;
+
+    /** Constructor, for a map that has no owner that can be closed, so that a lookup is always allowed. */
     public SingletonMap() {
+        this.closed = null;
+        this.closedMessage = "";
+    }
+
+    /**
+     * Constructor, for a map owned by something that can be closed.
+     *
+     * @param closed
+     *            the flag that the owner of this map sets when it is closed. The flag is held, not copied, so this
+     *            map sees the close the moment the owner marks it, and the owner's closed state is not tracked in a
+     *            second place that could disagree with it.
+     * @param closedMessage
+     *            the message of the {@link IOException} thrown by a lookup made after the owner was closed.
+     */
+    public SingletonMap(final AtomicBoolean closed, final String closedMessage) {
+        this.closed = closed;
+        this.closedMessage = closedMessage;
+    }
+
+    /**
+     * Check that the owner of this map has not been closed.
+     *
+     * @throws IOException
+     *             if the owner of this map has been closed.
+     */
+    private void checkNotClosed() throws IOException {
+        if (closed != null && closed.get()) {
+            throw new IOException(closedMessage);
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -226,6 +272,8 @@ public abstract class SingletonMap<K, V, E extends Exception> {
      *         instance on this call or a previous call.
      * @throws E
      *             If {@link #newInstance(Object, LogNode)} threw an exception.
+     * @throws IOException
+     *             if the owner of this map has been closed.
      * @throws InterruptedException
      *             if the thread was interrupted while waiting for the singleton to be instantiated by another
      *             thread.
@@ -236,7 +284,8 @@ public abstract class SingletonMap<K, V, E extends Exception> {
      */
     public V get(final K key, final @Nullable LogNode log,
             final @Nullable NewInstanceFactory<V, E> newInstanceFactory)
-            throws E, InterruptedException, NullSingletonException, NewInstanceException {
+            throws E, IOException, InterruptedException, NullSingletonException, NewInstanceException {
+        checkNotClosed();
         final var singletonHolder = map.get(key);
         @Nullable
         V instance = null;
@@ -304,6 +353,8 @@ public abstract class SingletonMap<K, V, E extends Exception> {
      *         instance on this call or a previous call.
      * @throws E
      *             If {@link #newInstance(Object, LogNode)} threw an exception.
+     * @throws IOException
+     *             if the owner of this map has been closed.
      * @throws InterruptedException
      *             if the thread was interrupted while waiting for the singleton to be instantiated by another
      *             thread.
@@ -313,7 +364,7 @@ public abstract class SingletonMap<K, V, E extends Exception> {
      *             if {@link #newInstance(Object, LogNode)} threw an exception.
      */
     public V get(final K key, final @Nullable LogNode log)
-            throws E, InterruptedException, NullSingletonException, NewInstanceException {
+            throws E, IOException, InterruptedException, NullSingletonException, NewInstanceException {
         return get(key, log, null);
     }
 

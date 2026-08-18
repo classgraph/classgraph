@@ -111,23 +111,31 @@ public class VfsSession {
     };
 
     /**
+     * True once {@link #beginClose()} or {@link #close(LogNode)} has been called. Written under {@link #closeLock}.
+     * This is the one place the closed state of a session is held: everything that has to turn a caller away once
+     * the session is closing reads this same flag, either through {@link #isClosed()} or by being handed the flag
+     * itself.
+     */
+    private final AtomicBoolean closed = new AtomicBoolean(false);
+
+    /**
      * A singleton map from a {@link ModuleReference} to a {@link ModuleReader} recycler for the module. Emptied by
-     * {@link #close(LogNode)}.
+     * {@link #close(LogNode)}, and turns a lookup away once the session is closed, since a recycler created after
+     * the teardown emptied the map would hand out {@link ModuleReader} instances that nothing would ever close.
      */
     private final SingletonMap<ModuleReference, Recycler<ModuleReader, IOException>, IOException> //
-    moduleReaderRecyclerMap = new SingletonMap<>() {
+    moduleReaderRecyclerMap = new SingletonMap<>(closed, SESSION_CLOSED) {
         @Override
         public Recycler<ModuleReader, IOException> newInstance(final ModuleReference moduleReference,
                 final @Nullable LogNode ignored) throws IOException {
-            // Creating the recycler is a registration, so it is linearized against the teardown like any other:
-            // either it completes before the teardown reads the map, in which case the teardown force-closes the
-            // recycler (the map hands out a value only once its creation has completed), or it sees the session
+            // The map's own check of the closed flag is only a fast path, since the session can be closed after it
+            // was made. Creating the recycler is a registration, so it is linearized against the teardown like any
+            // other: either it completes before the teardown reads the map, in which case the teardown force-closes
+            // the recycler (the map hands out a value only once its creation has completed), or it sees the session
             // already closed and is rejected. A recycler created after the teardown emptied the map would never be
             // force-closed, so every ModuleReader it went on to open would stay open for the life of the JVM
             synchronized (closeLock) {
-                if (closed.get()) {
-                    throw new IOException(SESSION_CLOSED);
-                }
+                checkNotClosed();
                 return new Recycler<>() {
                     @Override
                     public ModuleReader newInstance() throws IOException {
@@ -137,11 +145,6 @@ public class VfsSession {
             }
         }
     };
-
-    /**
-     * True once {@link #beginClose()} or {@link #close(LogNode)} has been called. Written under {@link #closeLock}.
-     */
-    private final AtomicBoolean closed = new AtomicBoolean(false);
 
     /**
      * True if a file could not be unmapped as its slice closed, so that only the garbage collector can unmap it.
@@ -174,23 +177,37 @@ public class VfsSession {
     }
 
     /**
-     * Get the map from {@link ModuleReference} to {@link ModuleReader} recycler.
+     * The flag that this session sets when it is closed, so that a cache whose entries are only valid while the
+     * session is open can turn a lookup away itself. The flag is handed out rather than copied, so that the closed
+     * state of a session is held in one place and a holder sees the close the moment it is marked. Only the session
+     * writes it.
      *
-     * <p>
-     * This check is only a fast path, since the caller can hold the returned map across a close. What stops a
-     * recycler being created for a session that is closing is the check in the map's own
-     * {@link SingletonMap#newInstance(Object, LogNode)}, which is made under {@link #closeLock}.
-     *
-     * @return the map
-     * @throws IOException
-     *             if the session has already been closed, since a recycler created after the teardown drained the
-     *             map would hand out {@link ModuleReader} instances that nothing would ever close.
+     * @return the flag that is set when this session is closed.
      */
-    public SingletonMap<ModuleReference, Recycler<ModuleReader, IOException>, IOException> //
-            moduleReaderRecyclerMap() throws IOException {
+    public AtomicBoolean closedFlag() {
+        return closed;
+    }
+
+    /**
+     * Check that the session is still open.
+     *
+     * @throws IOException
+     *             if the session has been closed.
+     */
+    private void checkNotClosed() throws IOException {
         if (closed.get()) {
             throw new IOException(SESSION_CLOSED);
         }
+    }
+
+    /**
+     * Get the map from {@link ModuleReference} to {@link ModuleReader} recycler. The map itself turns away a lookup
+     * made after the session was closed, so this hands it out without checking.
+     *
+     * @return the map
+     */
+    public SingletonMap<ModuleReference, Recycler<ModuleReader, IOException>, IOException> //
+            moduleReaderRecyclerMap() {
         return moduleReaderRecyclerMap;
     }
 
@@ -207,9 +224,7 @@ public class VfsSession {
      */
     public void markSliceAsOpen(final Slice slice) throws IOException {
         synchronized (closeLock) {
-            if (closed.get()) {
-                throw new IOException(SESSION_CLOSED);
-            }
+            checkNotClosed();
             openSlices.add(slice);
         }
     }
