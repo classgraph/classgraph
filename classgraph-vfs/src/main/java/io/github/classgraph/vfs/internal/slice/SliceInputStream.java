@@ -44,8 +44,15 @@ class SliceInputStream extends InputStream {
     /** The slice being read. */
     private final Slice slice;
 
-    /** The reader that the bytes are read through. */
-    private final RandomAccessReader randomAccessReader;
+    /**
+     * The reader that the bytes are read through, or null once this stream has been closed. A reader of a
+     * memory-mapped file keeps a view of the mapping, and below JDK 22 a mapping is released only once the garbage
+     * collector finds every view of it gone, so this reference is dropped as the stream closes -- a closed stream
+     * that still held its reader would keep the file mapped, and on Windows locked open, for as long as anything
+     * still referred to the stream.
+     */
+    // #939
+    private volatile @Nullable RandomAccessReader randomAccessReader;
 
     /** The {@link AutoCloseable} to close when this stream is closed, or null if none. */
     private final @Nullable AutoCloseable resourceToClose;
@@ -80,13 +87,17 @@ class SliceInputStream extends InputStream {
 
     /**
      * Check that this stream, and the {@link io.github.classgraph.vfs.Vfs} that the slice belongs to, are both
-     * still open.
+     * still open, and return the reader to read through.
      *
+     * @return the reader that the bytes are read through
      * @throws IOException
      *             if either has been closed.
      */
-    private void checkOpen() throws IOException {
-        if (closed.get()) {
+    private RandomAccessReader checkOpen() throws IOException {
+        // Read the field into a local, so that a close running concurrently cannot null it between the check and
+        // the use
+        final var reader = randomAccessReader;
+        if (closed.get() || reader == null) {
             throw new IOException("Already closed");
         }
         // A stream that is still open can still be reading a file that the Vfs has released, so the session is
@@ -94,6 +105,7 @@ class SliceInputStream extends InputStream {
         if (slice.session.isClosed()) {
             throw new IOException("Cannot read a file after the Vfs has been closed");
         }
+        return reader;
     }
 
     @Override
@@ -107,7 +119,7 @@ class SliceInputStream extends InputStream {
     // This method reads the maximum number of bytes possible in one call.
     @Override
     public int read(final byte[] buf, final int off, final int len) throws IOException {
-        checkOpen();
+        final var reader = checkOpen();
         // InputStream#read(byte[], int, int) requires these to be checked before anything is read
         Objects.checkFromIndexSize(off, len, buf.length);
         if (len == 0) {
@@ -117,7 +129,7 @@ class SliceInputStream extends InputStream {
         if (numBytesToRead < 1) {
             return -1;
         }
-        final var numBytesRead = randomAccessReader.read(currOff, buf, off, numBytesToRead);
+        final var numBytesRead = reader.read(currOff, buf, off, numBytesToRead);
         if (numBytesRead > 0) {
             currOff += numBytesRead;
         }
@@ -164,11 +176,16 @@ class SliceInputStream extends InputStream {
     public void close() {
         // Closing an already-closed InputStream has no effect, as required by InputStream#close() -- in particular
         // the owner must not be closed a second time, since it may have been reopened in the meantime
-        if (!closed.getAndSet(true) && resourceToClose != null) {
-            try {
-                resourceToClose.close();
-            } catch (final Exception e) {
-                // Ignore
+        if (!closed.getAndSet(true)) {
+            // Drop the reader, and with it any view it kept of a memory mapping of the file
+            // #939
+            randomAccessReader = null;
+            if (resourceToClose != null) {
+                try {
+                    resourceToClose.close();
+                } catch (final Exception e) {
+                    // Ignore
+                }
             }
         }
     }
