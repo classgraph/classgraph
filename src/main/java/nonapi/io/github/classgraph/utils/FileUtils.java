@@ -1070,11 +1070,12 @@ public final class FileUtils {
         // collection found have been processed. A phantom reference to an object that the same collection finds
         // unreachable is enqueued while those references are processed, so waiting for it to be enqueued waits for
         // most of that processing -- but the order within one batch of references is arbitrary, so this is a wait
-        // that usually helps rather than a guarantee. (Measured over 300 rounds of mapping eight files and dropping
-        // every reference to them: on JDK 17 a file was still mapped when System.gc() returned in about four rounds in
-        // five without the wait, and in about one in five with it. Two more collections and 100ms cleared every one of
-        // them, so the collector does get there -- just not by the time the request to collect returns, which is when a
-        // caller waiting to delete or overwrite the file needs it gone.)
+        // that sometimes helps rather than a guarantee. (Measured over 300 rounds of mapping eight files and dropping
+        // every reference to them, on JDK 8, 17, 21 and 26: a file was still mapped when System.gc() returned in
+        // between 5 and all 300 of the rounds, depending on the JDK and the machine, and waiting for reference
+        // processing first moved that in both directions. Two more collections and 100ms cleared every straggler in
+        // every run but one, so the collector does get there -- just not by the time the request to collect returns,
+        // which is when a caller waiting to delete or overwrite the file needs it gone.)
         final ReferenceQueue<Object> collected = new ReferenceQueue<Object>();
         final PhantomReference<Object> canary = new PhantomReference<Object>(new Object(), collected);
         System.gc();
