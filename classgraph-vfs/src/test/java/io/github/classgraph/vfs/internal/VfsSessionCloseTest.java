@@ -79,6 +79,27 @@ class VfsSessionCloseTest {
         assertThat(session.hasTempFiles()).isFalse();
     }
 
+    /**
+     * An interruption that a step of the teardown restored on this thread rather than recorded reaches the shared
+     * interruption checker, so that any other thread still reading through this session stops too. Asking the
+     * garbage collector to unmap files is one such step: it is a static utility with no checker to reach, so
+     * restoring the status that the throw cleared is all it can do.
+     */
+    @Test
+    void theCloseRoutesAnInterruptionOnThisThreadThroughTheSharedChecker() {
+        final var interruptionChecker = new InterruptionChecker();
+        final var session = new VfsSession(new VfsSpec(), interruptionChecker);
+        Thread.currentThread().interrupt();
+        session.close(/* log = */ null);
+
+        // Clear this thread's status, so that only the shared flag can make the check below report an interruption
+        assertThat(Thread.interrupted()).isTrue();
+        assertThat(interruptionChecker.checkAndReturn()).isTrue();
+
+        // checkAndReturn() interrupts this thread again when the shared flag is set, so clear it once more
+        Thread.interrupted();
+    }
+
     /** An inflater must not be handed out by a closed session, since its recycler has already been force-closed. */
     @Test
     void closedSessionRefusesToOpenAnInflaterInputStream() {
