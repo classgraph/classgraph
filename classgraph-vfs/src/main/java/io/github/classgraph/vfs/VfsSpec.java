@@ -94,6 +94,10 @@ public class VfsSpec {
      * it is turned on for Windows only. (The measurements are at
      * <a href="https://github.com/classgraph/classgraph/wiki/Memory-Mapping-Benchmark">Memory mapping
      * benchmark</a>.)
+     *
+     * <p>
+     * Files are only ever memory mapped on JDK 22 or later, whatever this is set to, since that is the first
+     * release in which a mapping can be unmapped without the risk of crashing a thread that is still reading it.
      */
     private volatile boolean memoryMapFiles = VersionFinder.OS == OperatingSystem.Windows;
 
@@ -262,6 +266,7 @@ public class VfsSpec {
     /**
      * Whether file content is read through a {@link MappedByteBuffer} rather than through the {@link FileChannel}
      * API. This follows the platform -- memory mapping is only faster on Windows -- so it is not part of the API.
+     * Files are only ever memory mapped on JDK 22 or later, whatever this returns.
      *
      * @return true if file content is memory mapped.
      * @hidden
@@ -273,7 +278,8 @@ public class VfsSpec {
     /**
      * Override the platform's choice of whether to read file content through a {@link MappedByteBuffer} rather than
      * through the {@link FileChannel} API. This exists so that a test can exercise both paths whatever platform it
-     * is running on, and is not part of the API.
+     * is running on, and is not part of the API. Files are only ever memory mapped on JDK 22 or later, so turning
+     * this on has no effect before that.
      *
      * @param memoryMapFiles
      *            true to memory map file content.

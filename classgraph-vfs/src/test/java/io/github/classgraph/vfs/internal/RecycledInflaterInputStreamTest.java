@@ -186,6 +186,49 @@ class RecycledInflaterInputStreamTest {
         }
     }
 
+    /**
+     * Closing the {@link io.github.classgraph.vfs.Vfs} ends the inflaters it handed out, including one that a
+     * stream is still reading through. The read that was in flight then fails with an {@link IOException}, the way
+     * every other read of a closed {@code Vfs} does, rather than with the unchecked exception an ended
+     * {@link java.util.zip.Inflater} throws -- which is a {@link NullPointerException} on JDK 17 and an
+     * {@link IllegalStateException} on JDK 25, so a caller could not usefully catch it either way.
+     */
+    @Test
+    void aReadAfterTheInflaterWasEndedThrowsIOException() throws IOException {
+        final var rawBytes = rawBytes();
+        try (var recycler = inflaterRecycler();
+                var inflaterInputStream = new RecycledInflaterInputStream(
+                        new ByteArrayInputStream(deflate(rawBytes)), recycler)) {
+            assertThat(inflaterInputStream.read()).isEqualTo(rawBytes[0] & 0xff);
+
+            // This is what the Vfs teardown does to the inflaters it handed out
+            recycler.forceClose();
+
+            assertThatThrownBy(inflaterInputStream::read).isInstanceOf(IOException.class)
+                    .hasMessageContaining("after the Vfs has been closed");
+            assertThatThrownBy(() -> inflaterInputStream.read(new byte[16], 0, 16)).isInstanceOf(IOException.class)
+                    .hasMessageContaining("after the Vfs has been closed");
+            assertThatThrownBy(() -> inflaterInputStream.skip(16)).isInstanceOf(IOException.class)
+                    .hasMessageContaining("after the Vfs has been closed");
+        }
+    }
+
+    /**
+     * A read into a range that is not within the destination array is rejected before anything is read, as
+     * {@link java.io.InputStream#read(byte[], int, int)} requires.
+     */
+    @Test
+    void aDestinationRangeOutsideTheArrayIsRejected() {
+        try (var recycler = inflaterRecycler();
+                var inflaterInputStream = new RecycledInflaterInputStream(
+                        new ByteArrayInputStream(deflate(rawBytes())), recycler)) {
+            assertThatThrownBy(() -> inflaterInputStream.read(new byte[16], 8, 16))
+                    .isInstanceOf(IndexOutOfBoundsException.class);
+            assertThatThrownBy(() -> inflaterInputStream.read(new byte[16], -1, 4))
+                    .isInstanceOf(IndexOutOfBoundsException.class);
+        }
+    }
+
     /** A negative length or skip distance is a programming error, not something to silently ignore. */
     @Test
     void negativeLengthsAreRejected() throws IOException {

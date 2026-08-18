@@ -40,6 +40,13 @@ import org.jspecify.annotations.Nullable;
  * <p>
  * Closing an already-closed wrapper has no effect, and two threads closing at once release the buffer once between
  * them.
+ *
+ * <p>
+ * The wrapped buffer may be a memory mapping of a file that the {@link Vfs} unmaps when it is closed, so the buffer
+ * must not be read after {@link Vfs#close()} has been called, even if this wrapper is still open. Reading an
+ * unmapped buffer throws {@link IllegalStateException}, which is the only place in the {@link Vfs} API where
+ * closing while a read is in flight is not reported as an {@link java.io.IOException}: this is a raw
+ * {@link ByteBuffer} handed to the caller, so nothing sits between it and the caller to translate the failure.
  */
 public class CloseableByteBuffer implements AutoCloseable {
     /**

@@ -78,6 +78,11 @@ import org.jspecify.annotations.Nullable;
  * This provider is not installed in the JVM, and is not reachable through {@link java.nio.file.FileSystems}: a
  * virtual filesystem is always reached from the {@link VfsRoot} it is a view of, because a {@link Vfs} has to be
  * told how to open a root before there is anything to address.
+ *
+ * <p>
+ * Every method that reads a path's filesystem throws {@link java.nio.file.ClosedFileSystemException} once that
+ * filesystem, or the {@link Vfs} behind it, has been closed. The purely syntactic {@link Path} methods go on
+ * working, since they need nothing from the filesystem's content.
  */
 final class VfsFileSystemProvider extends FileSystemProvider {
     /** The single instance of this provider. */
@@ -296,21 +301,26 @@ final class VfsFileSystemProvider extends FileSystemProvider {
 
     @Override
     public boolean isSameFile(final Path path, final Path path2) {
+        final var vfsPath = check(path);
+        vfsPath.getFileSystem().ensureOpen();
         // A path of another filesystem is answered, not rejected, as FileSystemProvider#isSameFile requires
         if (!(path2 instanceof final VfsPath vfsPath2)) {
             return false;
         }
-        return check(path).toAbsolutePath().normalize().equals(vfsPath2.toAbsolutePath().normalize());
+        return vfsPath.toAbsolutePath().normalize().equals(vfsPath2.toAbsolutePath().normalize());
     }
 
     @Override
     public boolean isHidden(final Path path) {
+        check(path).getFileSystem().ensureOpen();
         return false;
     }
 
     @Override
     public FileStore getFileStore(final Path path) {
-        return check(path).getFileSystem().fileStore();
+        final var fileSystem = check(path).getFileSystem();
+        fileSystem.ensureOpen();
+        return fileSystem.fileStore();
     }
 
     @Override
@@ -564,7 +574,13 @@ final class VfsFileSystemProvider extends FileSystemProvider {
             }
             final var numBytes = Math.min(dst.remaining(), buffer.limit() - (int) position);
             final var slice = buffer.slice((int) position, numBytes);
-            dst.put(slice);
+            try {
+                dst.put(slice);
+            } catch (final IllegalStateException e) {
+                // The buffer aliases a memory mapping that was unmapped by closing the Vfs while this read was
+                // in flight -- fail the same documented way as a read through a closed FileChannel
+                throw new IOException("Cannot read a file that has been unmapped by closing the Vfs", e);
+            }
             position += numBytes;
             return numBytes;
         }

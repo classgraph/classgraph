@@ -35,8 +35,8 @@ target) is still fully described.
 It also indexes non-class resources, so you can find every file matching a pattern across every
 classpath element and module, rather than asking one classloader for one known path.
 
-Scanning runs in parallel across all available cores, and jarfiles are read through memory-mapped
-buffers without extracting anything to disk.
+Scanning runs in parallel across all available cores, and jarfiles are read in place, without
+extracting anything to disk.
 
 Nothing a scan produces holds a classloader: `ScanResult`, `ClassInfo` and `Resource` describe what
 was found, and loading a class is left to you, with a classloader you hold.

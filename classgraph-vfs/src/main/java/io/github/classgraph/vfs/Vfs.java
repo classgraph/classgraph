@@ -701,7 +701,12 @@ public class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     /**
      * Release the file handles and memory mappings that back the roots opened by this {@link Vfs}, and delete any
      * temporary files that were created. Every {@link VfsRoot} and {@link VfsEntry} that was handed out is
-     * invalidated, and any {@link InputStream} still being read from one of them will stop returning data.
+     * invalidated: reading one of them, or an {@link InputStream} that was already open on one of them, throws
+     * {@link IOException}, and reading through a {@link java.nio.file.Path} of one of them throws
+     * {@link java.nio.file.ClosedFileSystemException}. A read that was in flight in another thread when this was
+     * called fails the same way, rather than returning content that was read from a file that has since been
+     * released. A {@link java.nio.ByteBuffer} that {@link VfsEntry#read()} handed out must not be read after this
+     * either -- see {@link CloseableByteBuffer}.
      *
      * <p>
      * Closing an already-closed {@link Vfs} has no effect.

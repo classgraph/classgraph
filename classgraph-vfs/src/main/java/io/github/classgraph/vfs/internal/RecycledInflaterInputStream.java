@@ -31,6 +31,7 @@ package io.github.classgraph.vfs.internal;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
@@ -113,15 +114,28 @@ class RecycledInflaterInputStream extends InputStream {
             throw new IOException("InputStream is already closed");
         } else if (len < 0) {
             throw new IllegalArgumentException("len cannot be negative");
-        } else if (len == 0) {
+        }
+        // Check the destination range before anything is read, as InputStream#read(byte[], int, int) requires.
+        // (This also means a null outBuf is rejected here, so that the only thing that can throw
+        // NullPointerException below is the Inflater.)
+        Objects.checkFromIndexSize(off, len, outBuf.length);
+        if (len == 0) {
             return 0;
         }
         try {
             // Keep fetching data from rawInputStream until buffer is full or inflater has finished
             var totInflatedBytes = 0;
             while (!inflater.finished() && totInflatedBytes < len) {
-                final var numInflatedBytes = inflater.inflate(outBuf, off + totInflatedBytes,
-                        len - totInflatedBytes);
+                final int numInflatedBytes;
+                try {
+                    numInflatedBytes = inflater.inflate(outBuf, off + totInflatedBytes, len - totInflatedBytes);
+                } catch (NullPointerException | IllegalStateException e) {
+                    // Closing the Vfs ends the Inflater, which can happen while this stream is being read. Which
+                    // exception an ended Inflater throws depends on the JDK version (JDK 17 throws
+                    // NullPointerException, JDK 25 throws IllegalStateException), so both are translated into the
+                    // IOException that reading a closed Vfs throws everywhere else
+                    throw new IOException("Cannot read a file after the Vfs has been closed", e);
+                }
                 if (numInflatedBytes == 0) {
                     if (inflater.needsDictionary()) {
                         // Should not happen for jarfiles

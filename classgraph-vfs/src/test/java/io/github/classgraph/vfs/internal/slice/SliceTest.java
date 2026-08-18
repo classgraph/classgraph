@@ -244,7 +244,9 @@ public class SliceTest {
         session.close(/* log = */ null);
 
         // A closed slice has released the file it was reading, so it can no longer be read
-        assertThatThrownBy(first::load).isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(second::load).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(first::load).isInstanceOf(IOException.class)
+                .hasMessageContaining("after the Vfs has been closed");
+        assertThatThrownBy(second::load).isInstanceOf(IOException.class)
+                .hasMessageContaining("after the Vfs has been closed");
     }
 }

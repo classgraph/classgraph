@@ -136,8 +136,10 @@ only that view -- after which `isOpen()` returns false and every read of it thro
 so the next `asFileSystem()` builds a new view rather than handing out the closed one. That means
 the view can go in a try-with-resources without taking anything away from anything else holding the
 root. It releases no storage either way: the file handles, memory mappings and temporary files
-belong to the `Vfs`, and are released when the `Vfs` is closed, which also makes every filesystem
-view it handed out report itself closed.
+belong to the `Vfs`, and are released when the `Vfs` is closed -- which makes every filesystem view
+it handed out report itself closed, and makes `asFileSystem()` itself throw
+`ClosedFileSystemException`, since there is nothing left to hand out a view of. `entry.asPath()`
+asks the root for that view, so it throws the same thing at the same point.
 
 ## What it reads that `java.util.zip` does not
 
@@ -202,7 +204,8 @@ parsed once into an immutable index. So entry lookup and entry reads take no loc
 
 (Which of the two is used is a speed choice, not a correctness one. Memory mapping is measurably
 faster on Windows and is not on Linux or macOS, where it can be slower, so it is used on Windows
-only. See the
+only, and only on JDK 22 or later, which is the first release that can unmap a buffer without the
+risk of crashing a thread that is still reading it. See the
 [memory mapping benchmark](https://github.com/classgraph/classgraph/wiki/Memory-Mapping-Benchmark).)
 
 What that is worth depends on the access pattern. Bulk decompression still parallelizes reasonably
@@ -359,8 +362,12 @@ try (InputStream inputStream = entry.open()) {
 
 `entry.read()` hands back the content as a `ByteBuffer` -- which is the memory mapping itself, with
 no copy, where the entry is stored uncompressed in a file that could be mapped. It is wrapped in a
-`CloseableByteBuffer` because it has to be released or unmapped when you have finished with it,
-which `close()` does:
+`CloseableByteBuffer` because some of those buffers own storage that has to be handed back when you
+have finished with it, which `close()` does: a file read from a directory owns its mapping, and a
+module resource owns a buffer that the module reader lends out. An entry read from inside a jarfile
+owns nothing of its own -- the jarfile is released when the `Vfs` is closed -- so closing it does
+nothing, but the wrapper is the same either way, so the calling code does not have to know which
+kind of entry it is reading:
 
 ```java
 try (CloseableByteBuffer closeableBuffer = entry.read()) {
@@ -368,6 +375,12 @@ try (CloseableByteBuffer closeableBuffer = entry.read()) {
     // ... Read from byteBuffer ...
 }
 ```
+
+The buffer can be the mapping itself, so it must not be read after the `Vfs` is closed, even while
+the wrapper is still open: the mapping is gone by then, and reading it throws
+`IllegalStateException`. That is the one place in this API where closing during a read is not
+reported as an `IOException`, because nothing sits between a raw `ByteBuffer` and the caller to
+translate the failure.
 
 `entry.load()` and `entry.loadAsString()` copy the content into a `byte[]` and a UTF-8 `String`
 respectively. There is nothing to close, and the result stays valid after the `Vfs` is closed:

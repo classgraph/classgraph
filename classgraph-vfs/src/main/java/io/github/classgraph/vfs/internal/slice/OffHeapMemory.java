@@ -29,9 +29,7 @@
 package io.github.classgraph.vfs.internal.slice;
 
 import java.io.IOException;
-import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
-import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel.MapMode;
 import java.nio.channels.FileChannel;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -45,25 +43,13 @@ import org.jspecify.annotations.Nullable;
  * Allocation, memory-mapping and freeing of off-heap memory.
  *
  * <p>
- * On JDK 22 and later this is done through the {@code java.lang.foreign.Arena} API: buffers are allocated from a
- * shared arena, and closing the arena frees or unmaps all of them at once. On JDK 17 to 21 that API is not
- * available (or not final), so buffers are freed individually by {@code Unsafe#invokeCleaner(ByteBuffer)}. Both
- * APIs are reached by reflection, since ClassGraph compiles against JDK 17.
+ * This is done through the {@code java.lang.foreign.Arena} API, which was finalized in JDK 22: buffers are
+ * allocated from a shared arena, and closing the arena frees or unmaps all of them at once. The API is reached by
+ * reflection, since ClassGraph compiles against JDK 17. On JDK 17 to 21 the API is unavailable (or not final), so
+ * {@link #openArena()} returns null, and no off-heap memory is allocated at all -- there is no way to free it again
+ * on those JDK versions that is safe to call while another thread may still be reading the buffer.
  */
 public final class OffHeapMemory {
-    /** The Unsafe.invokeCleaner() method. */
-    private static @Nullable Method cleanerCleanMethod;
-
-    /** The Unsafe object. */
-    private static @Nullable Object theUnsafe;
-
-    /**
-     * True if the reflective handles above have been initialized. Volatile, and only ever assigned while holding
-     * the lock on {@link OffHeapMemory}, so that the double-checked locking in {@link #closeDirectByteBuffer} is
-     * correctly synchronized: a thread that reads true here is guaranteed to see the fully-initialized handles.
-     */
-    private static volatile boolean initialized;
-
     /**
      * Constructor.
      */
@@ -73,119 +59,7 @@ public final class OffHeapMemory {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /**
-     * Look up {@code Unsafe#invokeCleaner(ByteBuffer)} and the {@code theUnsafe} singleton.
-     */
-    private static void lookupCleanMethod() {
-        if (VersionFinder.JAVA_MAJOR_VERSION < 22) {
-            // Unsafe::invokeCleaner is terminally deprecated, and JDK 24+ reports: "A terminally deprecated method
-            // in sun.misc.Unsafe has been called" if it is used. On JDK 22+, direct ByteBuffers are allocated and
-            // memory-mapped using the java.lang.foreign.Arena API instead, and they are freed/unmapped by closing
-            // the arena that created them, so the cleaner method is only needed on JDK 17-21. See:
-            // https://github.com/classgraph/classgraph/issues/899 and:
-            // https://github.com/classgraph/classgraph/issues/939
-            try {
-                // A JVM with no sun.misc.Unsafe throws ClassNotFoundException or LinkageError here, which is
-                // caught below, leaving the fields null -- closeDirectByteBufferImpl() then logs and returns false
-                final var unsafeClass = Class.forName("sun.misc.Unsafe");
-                final var theUnsafeField = unsafeClass.getDeclaredField("theUnsafe");
-                theUnsafeField.setAccessible(true);
-                theUnsafe = theUnsafeField.get(null);
-                cleanerCleanMethod = unsafeClass.getMethod("invokeCleaner", ByteBuffer.class);
-                cleanerCleanMethod.setAccessible(true);
-            } catch (final SecurityException e) {
-                throw new RuntimeException(
-                        "You need to grant classgraph RuntimePermission(\"accessClassInPackage.sun.misc\") "
-                                + "and ReflectPermission(\"suppressAccessChecks\")",
-                        e);
-            } catch (final ReflectiveOperationException | LinkageError ex) {
-                // Ignore
-            }
-        }
-    }
-
-    /**
-     * Close a direct byte buffer.
-     *
-     * @param byteBuffer
-     *            the byte buffer
-     * @param log
-     *            the log node, or null to skip logging
-     * @return true if successful
-     */
-    private static boolean closeDirectByteBufferImpl(final ByteBuffer byteBuffer, final @Nullable LogNode log) {
-        if (!byteBuffer.isDirect()) {
-            // Nothing to do
-            return true;
-        }
-        try {
-            if (VersionFinder.JAVA_MAJOR_VERSION < 22) {
-                if (theUnsafe == null) {
-                    if (log != null) {
-                        log.log("Could not unmap ByteBuffer, theUnsafe == null");
-                    }
-                    return false;
-                }
-                if (cleanerCleanMethod == null) {
-                    if (log != null) {
-                        log.log("Could not unmap ByteBuffer, cleanMethod == null");
-                    }
-                    return false;
-                }
-                try {
-                    cleanerCleanMethod.invoke(theUnsafe, byteBuffer);
-                    return true;
-                } catch (final IllegalArgumentException e) {
-                    // Buffer is a duplicate or slice
-                    return false;
-                }
-            } else {
-                // JDK 22+: direct ByteBuffers are allocated or memory-mapped using the java.lang.foreign.Arena API,
-                // and they are freed/unmapped by closing the arena that created them (see FileSlice#close()),
-                // rather than by calling the terminally-deprecated Unsafe::invokeCleaner method (#939). A
-                // ByteBuffer that was not created from an arena cannot be closed explicitly, so return false here.
-                return false;
-            }
-        } catch (final ReflectiveOperationException | SecurityException e) {
-            if (log != null) {
-                log.log("Could not unmap ByteBuffer: " + e);
-            }
-            return false;
-        }
-    }
-
-    /**
-     * Close a {@code DirectByteBuffer} -- in particular, will unmap a {@link MappedByteBuffer}.
-     *
-     * @param byteBuffer
-     *            The {@link ByteBuffer} to close/unmap.
-     * @param log
-     *            The log.
-     * @return True if the byteBuffer was closed/unmapped.
-     */
-    public static boolean closeDirectByteBuffer(final ByteBuffer byteBuffer, final @Nullable LogNode log) {
-        if (byteBuffer != null && byteBuffer.isDirect()) {
-            // Double-checked locking, so that two threads calling this for the first time concurrently cannot both
-            // run the lookup and race on the static fields it assigns
-            if (!initialized) {
-                synchronized (OffHeapMemory.class) {
-                    if (!initialized) {
-                        lookupCleanMethod();
-                        initialized = true;
-                    }
-                }
-            }
-            return closeDirectByteBufferImpl(byteBuffer, log);
-        } else {
-            // Nothing to unmap
-            return false;
-        }
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    // TODO: once ClassGraph's minimum supported JDK version is 22 or later, the Unsafe reflection code above
-    // (lookupCleanMethod and closeDirectByteBufferImpl) can be removed, and the arena methods below can open
+    // TODO: once ClassGraph's minimum supported JDK version is 22 or later, the arena methods below can open
     // and close arenas, and allocate and memory-map ByteBuffers, by calling the java.lang.foreign API directly
     // rather than through reflection.
 
@@ -198,8 +72,8 @@ public final class OffHeapMemory {
      * Open a new shared {@code java.lang.foreign.Arena} (JDK 22+), which can be used to allocate direct
      * {@link ByteBuffer}s ({@link #allocateDirectByteBufferUsingArena(Object, long)}) and to memory-map files to
      * {@link ByteBuffer}s ({@link #mapFileUsingArena(Object, FileChannel, long, long)}). Closing the arena
-     * ({@link #closeArena(Object, LogNode)}) frees or unmaps all {@link ByteBuffer}s obtained from it, which on JDK
-     * 22+ replaces the use of the terminally-deprecated {@code Unsafe::invokeCleaner} method.
+     * ({@link #closeArena(Object, LogNode)}) frees or unmaps all {@link ByteBuffer}s obtained from it, in place of
+     * the terminally-deprecated {@code Unsafe::invokeCleaner} method.
      *
      * @return a new shared {@code Arena} instance, or null if the arena API is not available (JDK older than 22).
      */
@@ -330,13 +204,9 @@ public final class OffHeapMemory {
         if (!warmedUp.getAndSet(true)) {
             final var arena = openArena();
             if (arena != null) {
-                // On JDK 22+, direct ByteBuffers are freed by closing the arena that allocated them
+                // Direct ByteBuffers are freed by closing the arena that allocated them
                 allocateDirectByteBufferUsingArena(arena, 32);
                 closeArena(arena, /* log = */ null);
-            } else {
-                // On JDK 17-21, buffers are freed by Unsafe::invokeCleaner, which closeDirectByteBuffer looks
-                // up reflectively -- sun.misc.Unsafe and that lookup are what needs to be resolved ahead of time
-                closeDirectByteBuffer(ByteBuffer.allocateDirect(32), /* log = */ null);
             }
         }
     }

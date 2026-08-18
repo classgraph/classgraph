@@ -34,7 +34,6 @@ import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
-import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.github.classgraph.base.LogNode;
@@ -211,17 +210,25 @@ public final class FileSlice extends Slice {
      * Read directly from FileChannel (slow path, but handles &gt;2GB).
      *
      * @return the random access reader
+     * @throws IOException
+     *             if this slice has been closed, so that there is neither a mapping nor a file handle left to read
+     *             through.
      */
     @Override
-    public RandomAccessReader randomAccessReader() {
-        if (backingByteBuffer == null) {
-            // If file was not mmap'd, return a RandomAccessReader that uses the FileChannel
-            return new RandomAccessFileChannelReader(Objects.requireNonNull(fileChannel), sliceStartPos,
-                    sliceLength);
-        } else {
+    public RandomAccessReader randomAccessReader() throws IOException {
+        // Read the fields into locals, so that a close running concurrently cannot null them between the check
+        // and the use
+        final var byteBuffer = backingByteBuffer;
+        if (byteBuffer != null) {
             // If file was mmap'd, return a RandomAccessReader that uses the ByteBuffer
-            return new RandomAccessByteBufferReader(backingByteBuffer, sliceStartPos, sliceLength);
+            return new RandomAccessByteBufferReader(byteBuffer, sliceStartPos, sliceLength);
         }
+        // If file was not mmap'd, return a RandomAccessReader that uses the FileChannel
+        final var channel = fileChannel;
+        if (channel == null) {
+            throw new IOException("Cannot read " + file + " after the Vfs has been closed");
+        }
+        return new RandomAccessFileChannelReader(channel, sliceStartPos, sliceLength);
     }
 
     /**

@@ -353,8 +353,10 @@ public abstract class Slice implements AutoCloseable {
      * Create a new {@link RandomAccessReader} for this {@link Slice}.
      *
      * @return the random access reader
+     * @throws IOException
+     *             if this slice has been closed, so that there is nothing left to read through.
      */
-    public abstract RandomAccessReader randomAccessReader();
+    public abstract RandomAccessReader randomAccessReader() throws IOException;
 
     /**
      * Load the slice as a byte array.

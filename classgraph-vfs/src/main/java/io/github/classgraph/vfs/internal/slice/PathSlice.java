@@ -34,7 +34,6 @@ import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.github.classgraph.base.LogNode;
@@ -62,11 +61,17 @@ public final class PathSlice extends Slice {
      * Get the {@link FileChannel} opened on the {@link Path}.
      *
      * @return the {@link FileChannel}
-     * @throws NullPointerException
+     * @throws IOException
      *             if {@link #close()} has been called
      */
-    private FileChannel fileChannel() {
-        return Objects.requireNonNull(fileChannel);
+    private FileChannel fileChannel() throws IOException {
+        // Read the field into a local, so that a close running concurrently cannot null it between the check and
+        // the use
+        final var channel = fileChannel;
+        if (channel == null) {
+            throw new IOException("Cannot read " + path + " after the Vfs has been closed");
+        }
+        return channel;
     }
 
     /** True if this is a top level file slice. */
@@ -222,9 +227,12 @@ public final class PathSlice extends Slice {
      * Read directly from FileChannel (slow path, but handles &gt;2GB).
      *
      * @return the random access reader
+     * @throws IOException
+     *             if this slice has been closed, so that there is neither a mapping nor a file handle left to read
+     *             through.
      */
     @Override
-    public RandomAccessReader randomAccessReader() {
+    public RandomAccessReader randomAccessReader() throws IOException {
         final var mappedByteBuffer = backingByteBuffer;
         if (mappedByteBuffer == null) {
             // If file was not mmap'd, return a RandomAccessReader that uses the FileChannel

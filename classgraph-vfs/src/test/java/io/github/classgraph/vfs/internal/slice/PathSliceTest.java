@@ -1,6 +1,8 @@
 package io.github.classgraph.vfs.internal.slice;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -10,13 +12,15 @@ import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import io.github.classgraph.base.internal.utils.VersionFinder;
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import io.github.classgraph.vfs.VfsSpec;
 import io.github.classgraph.vfs.internal.VfsSession;
 
 /**
  * Tests that a {@link PathSlice} for a whole file is memory-mapped when the vfs scan spec says files are
- * memory-mapped, and that a mapped slice reads back the same content as an unmapped one.
+ * memory-mapped and the JDK is new enough to unmap it again safely, and that a mapped slice reads back the same
+ * content as an unmapped one.
  */
 public class PathSliceTest {
     /** The content of the test file, long enough that sub-slices of it are worth reading. */
@@ -51,7 +55,12 @@ public class PathSliceTest {
         return file;
     }
 
-    /** A whole-file slice is memory-mapped if memory mapping is enabled, and reads back the file content. */
+    /**
+     * A whole-file slice is memory-mapped if memory mapping is enabled, and reads back the file content. Below JDK
+     * 22 there is no way to unmap a file that is safe to call while another thread is still reading it, so nothing
+     * is mapped whatever the settings say, and the same content is read through the
+     * {@link java.nio.channels.FileChannel} API instead.
+     */
     @Test
     public void aWholeFileSliceIsMemoryMappedIfMappingIsEnabled(@TempDir final Path tempDir) throws IOException {
         final var file = writeTestFile(tempDir);
@@ -59,7 +68,7 @@ public class PathSliceTest {
         final var slice = new PathSlice(file, session, /* log = */ null);
         try {
             // A mapped slice is read from a direct ByteBuffer, an unmapped slice from a heap ByteBuffer
-            assertThat(slice.read().isDirect()).isTrue();
+            assertThat(slice.read().isDirect()).isEqualTo(VersionFinder.JAVA_MAJOR_VERSION >= 22);
             assertThat(slice.load()).isEqualTo(CONTENT);
             assertThat(slice.loadAsString()).isEqualTo(new String(CONTENT, StandardCharsets.UTF_8));
             try (var inputStream = slice.open()) {
@@ -134,6 +143,55 @@ public class PathSliceTest {
                 slice.close();
             }
         }
+    }
+
+    /**
+     * A reader that was taken before the slice was closed holds a view of the memory mapping that closing the slice
+     * unmaps, and every other reader of the {@link io.github.classgraph.vfs.Vfs} reports a read of released storage
+     * as an {@link IOException}, so this one does too rather than letting the arena's {@link IllegalStateException}
+     * out.
+     */
+    @Test
+    public void readingAMappedSliceAfterItWasClosedThrows(@TempDir final Path tempDir) throws IOException {
+        assumeTrue(VersionFinder.JAVA_MAJOR_VERSION >= 22, "files are only memory-mapped on JDK 22 or later");
+        final var file = writeTestFile(tempDir);
+        final var session = session(/* memoryMapFiles = */ true);
+        final var slice = new PathSlice(file, session, /* log = */ null);
+        final var reader = slice.randomAccessReader();
+        assertThat(reader.readByte(0)).isEqualTo(CONTENT[0]);
+
+        slice.close();
+
+        assertThatThrownBy(() -> reader.readByte(0)).isInstanceOf(IOException.class)
+                .hasMessageContaining("unmapped by closing the Vfs");
+        assertThatThrownBy(() -> reader.readInt(0)).isInstanceOf(IOException.class)
+                .hasMessageContaining("unmapped by closing the Vfs");
+        assertThatThrownBy(() -> reader.read(0, new byte[4], 0, 4)).isInstanceOf(IOException.class)
+                .hasMessageContaining("unmapped by closing the Vfs");
+        // And a closed slice hands out no new reader at all, rather than one that throws on its first read
+        assertThatThrownBy(slice::randomAccessReader).isInstanceOf(IOException.class)
+                .hasMessageContaining("after the Vfs has been closed");
+    }
+
+    /**
+     * A closed slice has released the file it was reading, so it reports that rather than throwing a
+     * {@link NullPointerException} from the file channel it no longer has.
+     */
+    @Test
+    public void anUnmappedSliceCannotBeReadAfterItWasClosed(@TempDir final Path tempDir) throws IOException {
+        final var file = writeTestFile(tempDir);
+        final var session = session(/* memoryMapFiles = */ false);
+        final var slice = new PathSlice(file, session, /* log = */ null);
+        assertThat(slice.load()).isEqualTo(CONTENT);
+
+        slice.close();
+
+        assertThatThrownBy(slice::randomAccessReader).isInstanceOf(IOException.class)
+                .hasMessageContaining("after the Vfs has been closed");
+        assertThatThrownBy(slice::load).isInstanceOf(IOException.class)
+                .hasMessageContaining("after the Vfs has been closed");
+        assertThatThrownBy(slice::read).isInstanceOf(IOException.class)
+                .hasMessageContaining("after the Vfs has been closed");
     }
 
     /** A whole-file slice is not memory-mapped if memory mapping was not enabled. */

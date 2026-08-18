@@ -2,12 +2,14 @@ package io.github.classgraph.vfs;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.module.ModuleFinder;
 import java.lang.ref.WeakReference;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.ClosedFileSystemException;
 import java.nio.file.DirectoryStream;
@@ -26,9 +28,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Stream;
+import java.util.zip.CRC32;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+import io.github.classgraph.base.internal.utils.VersionFinder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -750,14 +754,131 @@ public class VfsFileSystemTest {
         final var jarFile = tempDir.resolve("library.jar").toFile();
         writeJar(jarFile);
 
+        try (var vfs = new Vfs()) {
+            final var root = vfs.open(jarFile);
+            final var fileSystem = root.asFileSystem();
+            assertThat(root.asFileSystem()).isSameAs(fileSystem);
+        }
+    }
+
+    /**
+     * A closed {@link Vfs} has released everything a filesystem view reads through, so it hands out no further
+     * view, and a view that was taken before the close reports itself closed and turns away every read.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the root could not be read.
+     */
+    @Test
+    public void aClosedVfsHandsOutNoFilesystemView(@TempDir final Path tempDir) throws IOException {
+        final var jarFile = tempDir.resolve("library.jar").toFile();
+        writeJar(jarFile);
+
         final var vfs = new Vfs();
         final var root = vfs.open(jarFile);
+        final var entry = Objects.requireNonNull(root.getEntry("root.txt"));
         final var fileSystem = root.asFileSystem();
-        assertThat(root.asFileSystem()).isSameAs(fileSystem);
-        // Including once the Vfs is closed, when the view stops working but is still the same view
         vfs.close();
-        assertThat(root.asFileSystem()).isSameAs(fileSystem);
-        assertThat(root.asFileSystem().isOpen()).isFalse();
+
+        assertThatThrownBy(root::asFileSystem).isInstanceOf(ClosedFileSystemException.class);
+        // Including through the entry, which asks the root for the view it builds a Path in
+        assertThatThrownBy(entry::asPath).isInstanceOf(ClosedFileSystemException.class);
+
+        // The view that was taken before the close is still there, and still knows it cannot be read
+        assertThat(fileSystem.isOpen()).isFalse();
+        assertThatThrownBy(() -> Files.readAllBytes(fileSystem.getPath("/root.txt")))
+                .isInstanceOf(ClosedFileSystemException.class);
+    }
+
+    /**
+     * The provider methods that answer a question about a path's filesystem, rather than only about the path
+     * itself, check that the filesystem is still open, as the JDK's own zip filesystem does.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the root could not be read.
+     */
+    @Test
+    public void theProviderMethodsThatReadTheFilesystemCheckItIsOpen(@TempDir final Path tempDir)
+            throws IOException {
+        final var jarFile = tempDir.resolve("library.jar").toFile();
+        writeJar(jarFile);
+
+        try (var vfs = new Vfs()) {
+            final var fileSystem = vfs.open(jarFile).asFileSystem();
+            final var path = fileSystem.getPath("/root.txt");
+            // These work while the filesystem is open
+            assertThat(Files.isSameFile(path, path)).isTrue();
+            assertThat(Files.isHidden(path)).isFalse();
+            assertThat(Files.getFileStore(path).isReadOnly()).isTrue();
+
+            fileSystem.close();
+
+            assertThatThrownBy(() -> Files.isSameFile(path, path)).isInstanceOf(ClosedFileSystemException.class);
+            assertThatThrownBy(() -> Files.isHidden(path)).isInstanceOf(ClosedFileSystemException.class);
+            assertThatThrownBy(() -> Files.getFileStore(path)).isInstanceOf(ClosedFileSystemException.class);
+            // The purely syntactic Path methods go on working, as they do on a closed zip filesystem
+            assertThat(path.getFileName()).hasToString("root.txt");
+        }
+    }
+
+    /**
+     * Write {@link #ENTRY_NAMES} into a jarfile, stored rather than deflated, so that an entry can be read straight
+     * out of a memory mapping of the jarfile rather than being inflated into a buffer of its own.
+     *
+     * @param jarFile
+     *            the jarfile to write.
+     * @throws IOException
+     *             if the jarfile could not be written.
+     */
+    private static void writeStoredJar(final File jarFile) throws IOException {
+        try (var fileOut = new FileOutputStream(jarFile); var zipOut = new ZipOutputStream(fileOut)) {
+            for (final var entryName : ENTRY_NAMES) {
+                final var content = contentOf(entryName);
+                final var entry = new ZipEntry(entryName);
+                entry.setMethod(ZipEntry.STORED);
+                entry.setSize(content.length);
+                entry.setCompressedSize(content.length);
+                final var crc = new CRC32();
+                crc.update(content);
+                entry.setCrc(crc.getValue());
+                zipOut.putNextEntry(entry);
+                zipOut.write(content);
+                zipOut.closeEntry();
+            }
+        }
+    }
+
+    /**
+     * Test that a read through a channel that was open when the {@link Vfs} was closed fails with an
+     * {@link IOException}, rather than with the {@link IllegalStateException} that reading an unmapped buffer
+     * throws.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the jarfile could not be written or read.
+     */
+    @Test
+    public void aChannelReadAfterTheVfsWasClosedThrowsIOException(@TempDir final Path tempDir) throws IOException {
+        // Only a memory-mapped entry can have its storage taken away under a channel that is still open, and
+        // files are only memory mapped on JDK 22 or later
+        assumeTrue(VersionFinder.JAVA_MAJOR_VERSION >= 22);
+        final var jarFile = tempDir.resolve("stored.jar").toFile();
+        writeStoredJar(jarFile);
+
+        final var vfs = new Vfs(new VfsSpec().setMemoryMappingFiles(true));
+        try (var channel = Files.newByteChannel(vfs.open(jarFile).asFileSystem().getPath("/root.txt"))) {
+            assertThat(channel.read(ByteBuffer.allocate(4))).isEqualTo(4);
+
+            // Closing the Vfs unmaps the jarfile that the channel is reading a slice of
+            vfs.close();
+
+            assertThatThrownBy(() -> channel.read(ByteBuffer.allocate(4))).isInstanceOf(IOException.class)
+                    .hasMessageContaining("unmapped by closing the Vfs");
+        }
     }
 
     /**

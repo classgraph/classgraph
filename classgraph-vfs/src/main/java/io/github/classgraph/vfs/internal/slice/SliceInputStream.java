@@ -69,18 +69,36 @@ class SliceInputStream extends InputStream {
      *            the slice to read
      * @param resourceToClose
      *            the {@link AutoCloseable} to close when this stream is closed, or null if none
+     * @throws IOException
+     *             if the slice has been closed, so that there is nothing left to read through.
      */
-    SliceInputStream(final Slice slice, final @Nullable AutoCloseable resourceToClose) {
+    SliceInputStream(final Slice slice, final @Nullable AutoCloseable resourceToClose) throws IOException {
         this.slice = slice;
         this.randomAccessReader = slice.randomAccessReader();
         this.resourceToClose = resourceToClose;
     }
 
-    @Override
-    public int read() throws IOException {
+    /**
+     * Check that this stream, and the {@link io.github.classgraph.vfs.Vfs} that the slice belongs to, are both
+     * still open.
+     *
+     * @throws IOException
+     *             if either has been closed.
+     */
+    private void checkOpen() throws IOException {
         if (closed.get()) {
             throw new IOException("Already closed");
         }
+        // A stream that is still open can still be reading a file that the Vfs has released, so the session is
+        // checked too, rather than only this stream's own state
+        if (slice.session.isClosed()) {
+            throw new IOException("Cannot read a file after the Vfs has been closed");
+        }
+    }
+
+    @Override
+    public int read() throws IOException {
+        checkOpen();
         // Return the byte value, not the number of bytes read (read() returns 1 when a byte was read)
         return read(byteBuf, 0, 1) < 1 ? -1 : byteBuf[0] & 0xff;
     }
@@ -89,9 +107,7 @@ class SliceInputStream extends InputStream {
     // This method reads the maximum number of bytes possible in one call.
     @Override
     public int read(final byte[] buf, final int off, final int len) throws IOException {
-        if (closed.get()) {
-            throw new IOException("Already closed");
-        }
+        checkOpen();
         // InputStream#read(byte[], int, int) requires these to be checked before anything is read
         Objects.checkFromIndexSize(off, len, buf.length);
         if (len == 0) {
@@ -110,9 +126,7 @@ class SliceInputStream extends InputStream {
 
     @Override
     public long skip(final long n) throws IOException {
-        if (closed.get()) {
-            throw new IOException("Already closed");
-        }
+        checkOpen();
         if (n <= 0L) {
             // InputStream#skip returns 0 for a non-positive argument, rather than seeking backwards
             return 0L;
@@ -137,9 +151,7 @@ class SliceInputStream extends InputStream {
 
     @Override
     public synchronized void reset() throws IOException {
-        if (closed.get()) {
-            throw new IOException("Already closed");
-        }
+        checkOpen();
         currOff = markOff;
     }
 

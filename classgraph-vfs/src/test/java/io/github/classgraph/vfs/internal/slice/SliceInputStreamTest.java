@@ -35,6 +35,37 @@ public class SliceInputStreamTest {
     }
 
     /**
+     * A stream that is still open can still be reading a file that the {@link io.github.classgraph.vfs.Vfs} has
+     * released, so every read stops the moment the session is closed, rather than returning content that came from
+     * storage that is being released. The slice here is held in RAM and could still be read from, so this is the
+     * session's state that turns the read away, and not the slice's.
+     *
+     * @throws IOException
+     *             if the slice could not be read
+     */
+    @Test
+    public void everyReadStopsOnceTheSessionIsClosed() throws IOException {
+        final var session = new VfsSession(new VfsSpec(), new InterruptionChecker());
+        final var slice = new ArraySlice(CONTENT, /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L,
+                session);
+        try (var inputStream = slice.open()) {
+            assertThat(inputStream.read()).isEqualTo(CONTENT[0] & 0xff);
+            inputStream.mark(CONTENT.length);
+
+            session.close(/* log = */ null);
+
+            assertThatThrownBy(inputStream::read).isInstanceOf(IOException.class)
+                    .hasMessageContaining("after the Vfs has been closed");
+            assertThatThrownBy(() -> inputStream.read(new byte[4], 0, 4)).isInstanceOf(IOException.class)
+                    .hasMessageContaining("after the Vfs has been closed");
+            assertThatThrownBy(() -> inputStream.skip(1L)).isInstanceOf(IOException.class)
+                    .hasMessageContaining("after the Vfs has been closed");
+            assertThatThrownBy(inputStream::reset).isInstanceOf(IOException.class)
+                    .hasMessageContaining("after the Vfs has been closed");
+        }
+    }
+
+    /**
      * The bytes of the slice are read in order, and each byte is returned as an unsigned value, so that a byte of
      * 0xFF is not mistaken for the end of the stream.
      *

@@ -40,6 +40,12 @@ import io.github.classgraph.base.internal.utils.StringUtils;
 /**
  * {@link RandomAccessReader} for a {@link ByteBuffer}. Reads in <b>little endian</b> order, as required by the
  * zipfile format.
+ *
+ * <p>
+ * The buffer may be a memory mapping that is unmapped when the {@code Vfs} is closed, which can happen while this
+ * reader is being read from. Reading a buffer that aliases an unmapped file throws {@link IllegalStateException},
+ * which is translated here into {@link IOException}, so that reading from a mapped file after the {@code Vfs} was
+ * closed fails the same documented way as reading from a closed {@link java.nio.channels.FileChannel}.
  */
 public class RandomAccessByteBufferReader implements RandomAccessReader {
     /** The byte buffer. */
@@ -92,6 +98,18 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
         }
     }
 
+    /**
+     * Wrap the {@link IllegalStateException} thrown by reading a buffer that aliases a memory mapping whose arena
+     * has been closed.
+     *
+     * @param e
+     *            the exception thrown by the buffer access
+     * @return the {@link IOException} to throw in its place
+     */
+    private static IOException unmapped(final IllegalStateException e) {
+        return new IOException("Cannot read a file that has been unmapped by closing the Vfs", e);
+    }
+
     @Override
     public int read(final long srcOffset, final byte[] dstArr, final int dstArrStart, final int numBytes)
             throws IOException {
@@ -111,6 +129,8 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
             return numBytesToRead;
         } catch (final IndexOutOfBoundsException e) {
             throw new IOException("Read index out of bounds");
+        } catch (final IllegalStateException e) {
+            throw unmapped(e);
         }
     }
 
@@ -143,6 +163,8 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
             return numBytesToRead;
         } catch (BufferUnderflowException | IndexOutOfBoundsException | ReadOnlyBufferException e) {
             throw new IOException("Read index out of bounds");
+        } catch (final IllegalStateException e) {
+            throw unmapped(e);
         }
     }
 
@@ -150,14 +172,16 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
     public byte readByte(final long offset) throws IOException {
         checkInBounds(offset, 1);
         final var idx = (int) (sliceStartPos + offset);
-        return byteBuffer.get(idx);
+        try {
+            return byteBuffer.get(idx);
+        } catch (final IllegalStateException e) {
+            throw unmapped(e);
+        }
     }
 
     @Override
     public int readUnsignedByte(final long offset) throws IOException {
-        checkInBounds(offset, 1);
-        final var idx = (int) (sliceStartPos + offset);
-        return byteBuffer.get(idx) & 0xff;
+        return readByte(offset) & 0xff;
     }
 
     @Override
@@ -170,14 +194,22 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
     public short readShort(final long offset) throws IOException {
         checkInBounds(offset, 2);
         final var idx = (int) (sliceStartPos + offset);
-        return byteBuffer.getShort(idx);
+        try {
+            return byteBuffer.getShort(idx);
+        } catch (final IllegalStateException e) {
+            throw unmapped(e);
+        }
     }
 
     @Override
     public int readInt(final long offset) throws IOException {
         checkInBounds(offset, 4);
         final var idx = (int) (sliceStartPos + offset);
-        return byteBuffer.getInt(idx);
+        try {
+            return byteBuffer.getInt(idx);
+        } catch (final IllegalStateException e) {
+            throw unmapped(e);
+        }
     }
 
     @Override
@@ -189,7 +221,11 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
     public long readLong(final long offset) throws IOException {
         checkInBounds(offset, 8);
         final var idx = (int) (sliceStartPos + offset);
-        return byteBuffer.getLong(idx);
+        try {
+            return byteBuffer.getLong(idx);
+        } catch (final IllegalStateException e) {
+            throw unmapped(e);
+        }
     }
 
     /**

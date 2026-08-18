@@ -112,6 +112,18 @@ final class VfsFileSystem extends FileSystem {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Check that this filesystem, and the root behind it, are still open.
+     *
+     * @throws ClosedFileSystemException
+     *             if either has been closed.
+     */
+    void ensureOpen() {
+        if (!isOpen()) {
+            throw new ClosedFileSystemException();
+        }
+    }
+
+    /**
      * Returns the directory index, building it on first use.
      *
      * @return the index.
@@ -123,9 +135,7 @@ final class VfsFileSystem extends FileSystem {
     private Index index() throws IOException {
         // Every read of this filesystem's content goes through the index, including reads through a Path of it,
         // so this is the one place that has to turn away access after a close
-        if (!isOpen()) {
-            throw new ClosedFileSystemException();
-        }
+        ensureOpen();
         var idx = index;
         if (idx != null) {
             return idx;

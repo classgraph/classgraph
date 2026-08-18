@@ -20,10 +20,11 @@ import org.junit.jupiter.api.io.TempDir;
  * Tests for {@link OffHeapMemory}.
  *
  * <p>
- * {@code Unsafe::invokeCleaner}, which was used to unmap {@code MappedByteBuffer}s, is terminally deprecated (JDK
- * 24+ warns when it is called, and it will be removed in a future JDK release). On JDK 22+, off-heap buffers are
- * therefore allocated and memory-mapped using the {@code java.lang.foreign.Arena} API, and freed/unmapped by
- * closing the arena that created them.
+ * {@code Unsafe::invokeCleaner}, the only other way to unmap a {@code MappedByteBuffer}, is terminally deprecated
+ * (JDK 24+ warns when it is called, and it will be removed in a future JDK release), and it frees the memory
+ * whether or not another thread is still reading it. Off-heap buffers are therefore allocated and memory-mapped
+ * using the {@code java.lang.foreign.Arena} API, and freed/unmapped by closing the arena that created them. That
+ * API was only finalized in JDK 22, so on JDK 17 to 21 no off-heap memory is allocated at all.
  */
 // #939
 public class OffHeapMemoryTest {
@@ -138,22 +139,6 @@ public class OffHeapMemoryTest {
     }
 
     /**
-     * On JDK 22+, a direct {@link ByteBuffer} cannot be freed on its own -- it is freed by closing the arena that
-     * allocated it, so that the terminally-deprecated {@code Unsafe::invokeCleaner} is never called.
-     */
-    @Test
-    public void aDirectByteBufferIsNotFreedIndividuallyWhenThereIsAnArenaApi() {
-        assumeTrue(VersionFinder.JAVA_MAJOR_VERSION >= 22);
-        assertThat(OffHeapMemory.closeDirectByteBuffer(ByteBuffer.allocateDirect(32), /* log = */ null)).isFalse();
-    }
-
-    /** A buffer with no off-heap memory behind it has nothing to free, on any JDK version. */
-    @Test
-    public void aBufferThatIsNotDirectHasNothingToFree() {
-        assertThat(OffHeapMemory.closeDirectByteBuffer(ByteBuffer.allocate(32), /* log = */ null)).isFalse();
-    }
-
-    /**
      * Loading the classes needed to free off-heap memory works, and works more than once -- it runs on every scan,
      * but must only do the work the first time.
      */
@@ -164,16 +149,13 @@ public class OffHeapMemoryTest {
     }
 
     /**
-     * On JDK 17 to 21, where the arena API is not available, a direct {@link ByteBuffer} is freed individually, by
-     * {@code Unsafe::invokeCleaner}. That method is terminally deprecated, and is not called on JDK 22+, so this is
-     * only run on the JDK versions that need it.
+     * On JDK 17 to 21 there is no arena to allocate off-heap memory from, so no off-heap memory is allocated at
+     * all. The only other way to free a direct {@link ByteBuffer} is {@code Unsafe::invokeCleaner}, which frees the
+     * memory whether or not another thread is still reading it, so it is never called.
      */
     @Test
-    public void directByteBufferIsFreedIndividuallyWhenThereIsNoArenaApi() {
+    public void thereIsNoArenaBelowJdk22() {
         assumeTrue(VersionFinder.JAVA_MAJOR_VERSION < 22);
         assertThat(OffHeapMemory.openArena()).isNull();
-        assertThat(OffHeapMemory.closeDirectByteBuffer(ByteBuffer.allocateDirect(32), /* log = */ null)).isTrue();
-        // A non-direct buffer has no off-heap memory to free
-        assertThat(OffHeapMemory.closeDirectByteBuffer(ByteBuffer.allocate(32), /* log = */ null)).isFalse();
     }
 }

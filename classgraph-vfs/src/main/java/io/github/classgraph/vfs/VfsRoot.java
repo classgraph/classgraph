@@ -36,6 +36,7 @@ import java.lang.module.ModuleReference;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
+import java.nio.file.ClosedFileSystemException;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -720,8 +721,16 @@ public abstract class VfsRoot implements Iterable<VfsEntry> {
      * close the {@link Vfs} to release them.
      *
      * @return a {@link FileSystem} view of this root. The same instance is returned every time, until it is closed.
+     * @throws ClosedFileSystemException
+     *             if the {@link Vfs} that opened this root has been closed.
      */
     public FileSystem asFileSystem() {
+        // A closed Vfs has released the file handles, memory mappings and temporary files that a view reads
+        // through, so there is nothing left to hand out a view of. (A Vfs closed just after this check hands back
+        // a view whose every read throws ClosedFileSystemException, which is what reading a closed root does.)
+        if (isClosed()) {
+            throw new ClosedFileSystemException();
+        }
         var fs = fileSystem;
         if (fs == null) {
             synchronized (this) {
