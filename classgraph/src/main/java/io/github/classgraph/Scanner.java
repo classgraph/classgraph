@@ -720,6 +720,9 @@ class Scanner implements Callable<ScanResult> {
                 classpathElement.addReference(parentClasspathElement == null,
                         workUnit.classpathElementIdxWithinParent, workUnit.classLoaderStr);
 
+            } catch (final InterruptedException e) {
+                // Don't swallow interruption in the catch-all handler below
+                throw e;
             } catch (final Exception e) {
                 if (log != null) {
                     log.log("Skipping invalid classpath entry " + workUnit.classpathEntryObj + " : "
